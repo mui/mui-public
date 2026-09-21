@@ -11,6 +11,8 @@ import { mapAsync } from 'es-toolkit/array';
 import { getWorkspacePackages } from './pnpm.mjs';
 import { BASE_IGNORES } from './build.mjs';
 
+const PLAIN_TS_EXTENSION = /\.[cm]?ts$/;
+
 /**
  * @typedef {Object} Args
  * @property {string} errorCodesPath - The output path to write the extracted error codes.
@@ -52,18 +54,20 @@ async function getFilesForPackage(pkg) {
  * @param {Set<string | Error>} errors
  * @param {import('@mui/internal-babel-plugin-minify-errors').Options['detection']} [detection='opt-in']
  */
-async function extractErrorCodesForWorkspace(files, errors, detection = 'opt-in') {
+export async function extractErrorCodesForFiles(files, errors, detection = 'opt-in') {
   await mapAsync(
     files,
     async (fullPath) => {
       const code = await fs.readFile(fullPath, 'utf8');
+      // Plain .ts files must not get the JSX parser: `<T = unknown>(x) => x` would be read as JSX.
+      const isPlainTs = PLAIN_TS_EXTENSION.test(fullPath);
       // Replicate how Babel is run when preparing the source to be published on npm, so we can extract the same messages.
       await transformAsync(code, {
         filename: fullPath,
         sourceType: 'module',
         plugins: [
-          [babelSyntaxTypescript, { isTSX: true }],
-          babelSyntaxJsx,
+          [babelSyntaxTypescript, { isTSX: !isPlainTs }],
+          ...(isPlainTs ? [] : [babelSyntaxJsx]),
           [minifyErrorsPlugin, { collectErrors: errors, detection }],
         ],
         configFile: false,
@@ -109,7 +113,7 @@ export default async function extractErrorCodes(args) {
   // Extract error codes from said files.
   const filesToProcess = files.flat();
   console.log(`🔍 Extracting error codes from ${filesToProcess.length} files...`);
-  await extractErrorCodesForWorkspace(filesToProcess, errors, detection);
+  await extractErrorCodesForFiles(filesToProcess, errors, detection);
 
   // Partition collected entries into valid messages and unminifyable errors.
   /** @type {string[]} */
