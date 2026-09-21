@@ -50,7 +50,7 @@ export function getBaseConfig({
     browserslistEnv: bundle === 'esm' ? 'stable' : 'node',
   };
   /**
-   * @type {import('@babel/core').PluginItem<any>[]}
+   * @type {import('@babel/core').PluginItem[]}
    */
   const plugins = [
     [
@@ -139,7 +139,6 @@ export function getBaseConfig({
     ],
     presets: [
       [presetEnv, presetEnvOptions],
-      [presetReact, { runtime: 'automatic' }],
       [
         presetTypescript,
         {
@@ -151,6 +150,14 @@ export function getBaseConfig({
       ],
     ],
     plugins,
+    overrides: [
+      {
+        // Babel 8 keeps the JSX parser on for every file the React preset touches, which
+        // misparses generic arrows like `<T = unknown>(x) => x` in plain `.ts` files.
+        exclude: /\.[cm]?ts$/,
+        presets: [[presetReact, { runtime: 'automatic' }]],
+      },
+    ],
   };
 }
 

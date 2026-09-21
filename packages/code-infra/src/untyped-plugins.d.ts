@@ -124,13 +124,6 @@ declare module 'babel-plugin-transform-import-meta' {
   export default plugin;
 }
 
-declare module 'babel-plugin-transform-inline-environment-variables' {
-  import type { PluginTarget } from '@babel/core';
-
-  declare const plugin: PluginTarget;
-  export default plugin;
-}
-
 declare module 'stylelint-config-standard' {
   import type { Config } from 'stylelint';
 

@@ -3,8 +3,8 @@
 // @babel/helper-module-imports is ESM-only from Babel 8; Node >=22.12 supports require() of ESM synchronously.
 // @ts-expect-error -- see above
 const helperModuleImports = require('@babel/helper-module-imports');
-const fs = require('fs');
-const nodePath = require('path');
+const fs = require('node:fs');
+const nodePath = require('node:path');
 const finder = require('find-package-json');
 
 /**
@@ -37,7 +37,7 @@ const SUPPORTED_ERROR_CONSTRUCTORS = new Set(['Error', 'TypeError']);
 
 /**
  * @typedef {'annotate' | 'throw' | 'write'} MissingError
- * @typedef {import('@babel/core', { with: { "resolution-mode": "import" } }).PluginPass & {formatErrorMessageIdentifier?: import('@babel/core', { with: { "resolution-mode": "import" } }).types.Identifier, processedNodes?: WeakSet<import('@babel/core', { with: { "resolution-mode": "import" } }).types.Node>}} PluginState
+ * @typedef {import('@babel/core', { with: { "resolution-mode": "import" } }).PluginPass & {formatErrorMessageIdentifier?: import('@babel/core', { with: { "resolution-mode": "import" } }).types.Expression, processedNodes?: WeakSet<import('@babel/core', { with: { "resolution-mode": "import" } }).types.Node>}} PluginState
  * @typedef {import('./index.d.ts').Options} Options
  */
 
@@ -218,14 +218,11 @@ function findMessageNode(t, newExpressionPath, detection) {
  */
 function transformMessage(t, extracted, errorCode, state, runtimeModule, outExtension) {
   if (!state.formatErrorMessageIdentifier) {
-    state.formatErrorMessageIdentifier =
-      /** @type {import('@babel/core', { with: { "resolution-mode": "import" } }).types.Identifier} */ (
-        helperModuleImports.addDefault(
-          extracted.path,
-          transformExtension(resolveRuntimeModule(runtimeModule, state), outExtension),
-          { nameHint: '_formatErrorMessage' },
-        )
-      );
+    state.formatErrorMessageIdentifier = helperModuleImports.addDefault(
+      extracted.path,
+      transformExtension(resolveRuntimeModule(runtimeModule, state), outExtension),
+      { nameHint: '_formatErrorMessage' },
+    );
   }
 
   return t.conditionalExpression(
