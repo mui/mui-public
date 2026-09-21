@@ -29,9 +29,9 @@ function pathToNodeImportSpecifier(importPath) {
  */
 
 /**
- * @param {import('@babel/core', { with: { "resolution-mode": "import" } }).PluginAPI} file
+ * @param {import('./babelTypes.js').PluginAPI} file
  * @param {Options} options
- * @returns {import('@babel/core', { with: { "resolution-mode": "import" } }).PluginObject}
+ * @returns {import('./babelTypes.js').PluginObject}
  */
 module.exports = function plugin({ types: t }, { outExtension }) {
   /** @type {Map<string, string>} */
@@ -41,8 +41,8 @@ module.exports = function plugin({ types: t }, { outExtension }) {
 
   /**
    *
-   * @param {import('@babel/core', { with: { "resolution-mode": "import" } }).NodePath<import('@babel/core', { with: { "resolution-mode": "import" } }).types.StringLiteral>} importSource
-   * @param {import('@babel/core', { with: { "resolution-mode": "import" } }).PluginPass} state
+   * @param {import('./babelTypes.js').NodePath<import('./babelTypes.js').StringLiteral>} importSource
+   * @param {import('./babelTypes.js').PluginPass} state
    */
   function doResolve(importSource, state) {
     const importedPath = importSource.node.value;

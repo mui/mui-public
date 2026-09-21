@@ -192,7 +192,8 @@ export default function getBabelConfig(api) {
     debug: process.env.MUI_BUILD_VERBOSE === 'true',
     bundle,
     outExtension: process.env.MUI_OUT_FILE_EXTENSION || null,
-    // any package needs to declare 7.25.0 as a runtime dependency. default is ^7.0.0
+    // Lower bound of @babel/runtime a consumer must ship; `code-infra build` reads the real
+    // version off the package's dependencies instead. Runtime 7 and 8 both satisfy this.
     runtimeVersion: process.env.MUI_BABEL_RUNTIME_VERSION || '^7.25.0',
     optimizeClsx: process.env.MUI_OPTIMIZE_CLSX === 'true',
     removePropTypes: process.env.MUI_REMOVE_PROP_TYPES === 'true',

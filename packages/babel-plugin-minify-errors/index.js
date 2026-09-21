@@ -31,13 +31,12 @@ const COMMENT_OPT_OUT_MARKER = 'minify-error-disabled';
 const SUPPORTED_ERROR_CONSTRUCTORS = new Set(['Error', 'TypeError']);
 
 /**
- * @typedef {typeof import('@babel/core', { with: { "resolution-mode": "import" } })} babel
- * @typedef {typeof import('@babel/core', { with: { "resolution-mode": "import" } }).types} BabelTypes
+ * @typedef {import('./babelTypes.js').BabelTypes} BabelTypes
  */
 
 /**
  * @typedef {'annotate' | 'throw' | 'write'} MissingError
- * @typedef {import('@babel/core', { with: { "resolution-mode": "import" } }).PluginPass & {formatErrorMessageIdentifier?: import('@babel/core', { with: { "resolution-mode": "import" } }).types.Expression, processedNodes?: WeakSet<import('@babel/core', { with: { "resolution-mode": "import" } }).types.Node>}} PluginState
+ * @typedef {import('./babelTypes.js').PluginPass & {formatErrorMessageIdentifier?: import('./babelTypes.js').Expression, processedNodes?: WeakSet<import('./babelTypes.js').Node>}} PluginState
  * @typedef {import('./index.d.ts').Options} Options
  */
 
@@ -51,7 +50,7 @@ const SUPPORTED_ERROR_CONSTRUCTORS = new Set(['Error', 'TypeError']);
 /**
  * Checks if a node is `process.env.NODE_ENV` using Babel types.
  * @param {BabelTypes} t
- * @param {import('@babel/core', { with: { "resolution-mode": "import" } }).types.Node} node
+ * @param {import('./babelTypes.js').Node} node
  * @returns {boolean}
  */
 function isProcessEnvNodeEnv(t, node) {
@@ -68,7 +67,7 @@ function isProcessEnvNodeEnv(t, node) {
  * Checks if a binary expression compares `process.env.NODE_ENV` with a value using the given operator.
  * Handles both `process.env.NODE_ENV op value` and `value op process.env.NODE_ENV`.
  * @param {BabelTypes} t
- * @param {import('@babel/core', { with: { "resolution-mode": "import" } }).types.BinaryExpression} node
+ * @param {import('./babelTypes.js').BinaryExpression} node
  * @param {string} operator
  * @param {string} value
  * @returns {boolean}
@@ -89,7 +88,7 @@ function isNodeEnvComparison(t, node, operator, value) {
  * Errors inside such branches are already stripped in production,
  * so minification is unnecessary.
  * @param {BabelTypes} t
- * @param {import('@babel/core', { with: { "resolution-mode": "import" } }).NodePath} path
+ * @param {import('./babelTypes.js').NodePath} path
  * @returns {boolean}
  */
 function isInsideDevOnlyBranch(t, path) {
@@ -112,13 +111,13 @@ function isInsideDevOnlyBranch(t, path) {
 }
 
 /**
- * @typedef {{ path: import('@babel/core', { with: { "resolution-mode": "import" } }).NodePath<import('@babel/core', { with: { "resolution-mode": "import" } }).types.Expression>, message: string, expressions: import('@babel/core', { with: { "resolution-mode": "import" } }).types.Expression[] }} ExtractedMessage
+ * @typedef {{ path: import('./babelTypes.js').NodePath<import('./babelTypes.js').Expression>, message: string, expressions: import('./babelTypes.js').Expression[] }} ExtractedMessage
  */
 
 /**
  * Extracts the message and expressions from a path.
  * @param {BabelTypes} t
- * @param {import('@babel/core', { with: { "resolution-mode": "import" } }).NodePath<import('@babel/core', { with: { "resolution-mode": "import" } }).types.ArgumentPlaceholder | import('@babel/core', { with: { "resolution-mode": "import" } }).types.SpreadElement | import('@babel/core', { with: { "resolution-mode": "import" } }).types.Expression>} path
+ * @param {import('./babelTypes.js').NodePath<import('./babelTypes.js').ArgumentPlaceholder | import('./babelTypes.js').SpreadElement | import('./babelTypes.js').Expression>} path
  * @returns {ExtractedMessage | null}
  */
 function extractMessage(t, path) {
@@ -160,9 +159,9 @@ function extractMessage(t, path) {
 
 /**
  * @param {BabelTypes} t
- * @param {import('@babel/core', { with: { "resolution-mode": "import" } }).NodePath<import('@babel/core', { with: { "resolution-mode": "import" } }).types.NewExpression>} newExpressionPath
+ * @param {import('./babelTypes.js').NodePath<import('./babelTypes.js').NewExpression>} newExpressionPath
  * @param {'opt-in' | 'opt-out'} detection
- * @returns {null | import('@babel/core', { with: { "resolution-mode": "import" } }).NodePath<import('@babel/core', { with: { "resolution-mode": "import" } }).types.ArgumentPlaceholder | import('@babel/core', { with: { "resolution-mode": "import" } }).types.SpreadElement | import('@babel/core', { with: { "resolution-mode": "import" } }).types.Expression>}
+ * @returns {null | import('./babelTypes.js').NodePath<import('./babelTypes.js').ArgumentPlaceholder | import('./babelTypes.js').SpreadElement | import('./babelTypes.js').Expression>}
  */
 function findMessageNode(t, newExpressionPath, detection) {
   const callee = newExpressionPath.get('callee');
@@ -214,7 +213,7 @@ function findMessageNode(t, newExpressionPath, detection) {
  * @param {PluginState} state
  * @param {string} runtimeModule
  * @param {string} outExtension
- * @returns {import('@babel/core', { with: { "resolution-mode": "import" } }).types.Expression}
+ * @returns {import('./babelTypes.js').Expression}
  */
 function transformMessage(t, extracted, errorCode, state, runtimeModule, outExtension) {
   if (!state.formatErrorMessageIdentifier) {
@@ -298,7 +297,7 @@ function transformExtension(importSpecifier, outExtension = '.js') {
 /**
  * @param {{ types: BabelTypes }} file
  * @param {Options} options
- * @returns {import('@babel/core', { with: { "resolution-mode": "import" } }).PluginObject<PluginState>}
+ * @returns {import('./babelTypes.js').PluginObject<PluginState>}
  */
 module.exports = function plugin(
   { types: t },

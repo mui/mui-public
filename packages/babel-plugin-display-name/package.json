@@ -21,9 +21,7 @@
     "test": "jest",
     "typescript": "tsc -noEmit"
   },
-  "dependencies": {
-    "@babel/helper-module-imports": "^8.0.0"
-  },
+  "homepage": "https://github.com/mui/mui-public",
   "devDependencies": {
     "@babel/core": "8.0.5",
     "@babel/preset-env": "8.0.5",
@@ -38,6 +36,5 @@
     "babel",
     "react",
     "babel-plugin"
-  ],
-  "homepage": "https://github.com/mui/mui-public"
+  ]
 }

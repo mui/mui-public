@@ -456,10 +456,6 @@ importers:
         version: 7.0.2
 
   packages/babel-plugin-display-name:
-    dependencies:
-      '@babel/helper-module-imports':
-        specifier: ^8.0.0
-        version: 8.0.0
     devDependencies:
       '@babel/core':
         specifier: 8.0.5
@@ -483,12 +479,6 @@ importers:
       '@babel/core':
         specifier: 8.0.5
         version: 8.0.5
-      '@types/babel__core':
-        specifier: 7.20.5
-        version: 7.20.5
-      '@types/babel__helper-module-imports':
-        specifier: 7.18.3
-        version: 7.18.3
       '@types/find-package-json':
         specifier: 1.2.7
         version: 1.2.7
@@ -511,9 +501,6 @@ importers:
       '@babel/preset-typescript':
         specifier: 8.0.1
         version: 8.0.1(@babel/core@8.0.5)
-      '@types/babel__core':
-        specifier: 7.20.5
-        version: 7.20.5
       '@types/chai':
         specifier: 5.2.3
         version: 5.2.3
@@ -3821,9 +3808,6 @@ packages:
 
   '@types/babel__generator@7.27.0':
     resolution: {integrity: sha512-ufFd2Xi92OAVPYsy+P4n7/U7e68fex0+Ee8gSG9KX7eo084CWiQ4sdxktvdl0bOPupXtVJPY19zk6EwWqUQ8lg==}
-
-  '@types/babel__helper-module-imports@7.18.3':
-    resolution: {integrity: sha512-2pyr9Vlriessj2KI85SEF7qma8vA3vzquQMw3wn6kL5lsfjH/YxJ1Noytk4/FJElpYybUbyaC37CVfEgfyme9A==}
 
   '@types/babel__preset-env@7.10.0':
     resolution: {integrity: sha512-LS8hRb/8TQir2f8W9/s5enDtrRS2F/6fsdkVw5ePHp6Q8SrSJHOGtWnP93ryaYMmg2du03vOsiGrl5mllz4uDA==}
@@ -11379,11 +11363,6 @@ snapshots:
   '@types/babel__generator@7.27.0':
     dependencies:
       '@babel/types': 7.29.8
-
-  '@types/babel__helper-module-imports@7.18.3':
-    dependencies:
-      '@types/babel__core': 7.20.5
-      '@types/babel__traverse': 7.28.0
 
   '@types/babel__preset-env@7.10.0': {}
 

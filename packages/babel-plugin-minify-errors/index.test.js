@@ -1,13 +1,11 @@
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 // @babel/core is ESM-only from Babel 8; vitest transforms this file as ESM at runtime
 // regardless of the package's CJS type, so these imports work despite tsc's CJS-emit check.
 // @ts-expect-error -- see above
-import { transformSync } from '@babel/core';
+import * as babel from '@babel/core';
 import { pluginTester } from 'babel-plugin-tester';
 import { expect, describe, it } from 'vitest';
-// @ts-expect-error -- see above
-import * as babel from '@babel/core';
 import plugin from './index';
 
 const fixturePath = path.resolve(__dirname, './__fixtures__');
@@ -148,7 +146,7 @@ describe('collectErrors', () => {
       'throw /* minify-error */ new Error(`second ${x} error`);',
     ].join('\n');
 
-    transformSync(code, {
+    babel.transformSync(code, {
       filename: '/test/file.js',
       plugins: [[plugin, { collectErrors: errors }]],
       configFile: false,
@@ -165,7 +163,7 @@ describe('collectErrors', () => {
       'throw /* minify-error */ new Error(...bar);',
     ].join('\n');
 
-    transformSync(code, {
+    babel.transformSync(code, {
       filename: '/test/file.js',
       plugins: [[plugin, { collectErrors: errors }]],
       configFile: false,
@@ -193,7 +191,7 @@ describe('collectErrors', () => {
       'throw /* minify-error */ new Error("valid error message");',
     ].join('\n');
 
-    transformSync(code, {
+    babel.transformSync(code, {
       filename: '/test/file.js',
       plugins: [[plugin, { collectErrors: errors }]],
       configFile: false,
@@ -212,7 +210,7 @@ describe('collectErrors', () => {
       '\n',
     );
 
-    transformSync(code, {
+    babel.transformSync(code, {
       filename: '/test/file.js',
       plugins: [[plugin, { collectErrors: errors, detection: 'opt-out' }]],
       configFile: false,
