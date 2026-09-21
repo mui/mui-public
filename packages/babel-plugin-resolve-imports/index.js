@@ -98,7 +98,8 @@ module.exports = function plugin({ types: t }, { outExtension }) {
   return {
     visitor: {
       TSImportType(path, state) {
-        const source = path.get('argument');
+        // Babel 7 keeps the specifier in `argument`, Babel 8 renamed it to `source`.
+        const source = path.node.source ? path.get('source') : path.get('argument');
         if (source.isStringLiteral()) {
           doResolve(source, state);
         }
