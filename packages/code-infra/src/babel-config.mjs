@@ -140,7 +140,15 @@ export function getBaseConfig({
     presets: [
       [presetEnv, presetEnvOptions],
       [presetReact, { runtime: 'automatic' }],
-      presetTypescript,
+      [
+        presetTypescript,
+        {
+          // Babel 8 defaults this to `true`, which keeps `import { type A } from 'x'` as a
+          // side-effect `import 'x'`. Restore full elision so type-only imports don't create
+          // runtime module cycles.
+          onlyRemoveTypeImports: false,
+        },
+      ],
     ],
     plugins,
   };
