@@ -56,8 +56,9 @@ export default function SessionProvider({ children }: { children: React.ReactNod
   });
 
   const signIn = React.useCallback(() => {
-    const returnTo = `${window.location.pathname}${window.location.search}`;
-    window.location.href = `/api/auth/login?returnTo=${encodeURIComponent(returnTo)}`;
+    const loginUrl = new URL('/api/auth/login', window.location.origin);
+    loginUrl.searchParams.set('returnTo', `${window.location.pathname}${window.location.search}`);
+    window.location.href = loginUrl.toString();
   }, []);
 
   const signOut = React.useCallback(async () => {

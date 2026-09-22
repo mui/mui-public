@@ -19,7 +19,7 @@ export const GITHUB_AUTHORIZE_URL = 'https://github.com/login/oauth/authorize';
  * GitHub App. Derived from DASHBOARD_ORIGIN rather than from the request's Host
  * header, which a client controls and which would make this an open redirect.
  */
-export const REDIRECT_URI = `${DASHBOARD_ORIGIN}/api/auth/callback`;
+export const REDIRECT_URI = new URL('/api/auth/callback', DASHBOARD_ORIGIN).toString();
 
 export interface OAuthClient {
   clientId: string;

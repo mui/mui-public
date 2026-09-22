@@ -25,7 +25,7 @@ function getProxyBase(request: NextRequest): string {
   const proto =
     request.headers.get('x-forwarded-proto') ?? request.nextUrl.protocol.replace(':', '');
   const host = request.headers.get('x-forwarded-host') ?? request.headers.get('host');
-  return `${proto}://${host}${PROXY_PREFIX}`;
+  return new URL(PROXY_PREFIX, `${proto}://${host}`).toString();
 }
 
 async function handle(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
