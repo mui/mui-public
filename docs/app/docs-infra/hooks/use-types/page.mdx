@@ -96,6 +96,18 @@ This demo shows the same data attributes declared as named constants rather than
 
 ---
 
+import { DemoUseTypesDataAttrNamespace } from './demos/data-attr-namespace';
+
+<DemoUseTypesDataAttrNamespace.Title />
+
+This demo also publishes the metadata files as namespaces (`export * as ComponentDataAttributes from './ComponentDataAttributes'`). Each namespace is documented as a single re-export of the component's table, whatever name it is published under.
+
+<DemoUseTypesDataAttrNamespace />
+
+[See Demo](./demos/data-attr-namespace/)
+
+---
+
 import { DemoUseTypesHook } from './demos/hook';
 
 <DemoUseTypesHook.Title />

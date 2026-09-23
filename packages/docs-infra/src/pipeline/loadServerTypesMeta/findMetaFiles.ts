@@ -3,7 +3,12 @@ import path from 'path';
 // eslint-disable-next-line n/prefer-node-protocol
 import fs from 'fs/promises';
 
-function hasSuffix(suffixes: string[], filename: string): boolean {
+const META_FILE_SUFFIXES = ['DataAttributes', 'CssVars'];
+
+/**
+ * Whether a file name marks a metadata file, e.g. `ButtonDataAttributes.ts`.
+ */
+export function isMetaFile(filename: string, suffixes: string[] = META_FILE_SUFFIXES): boolean {
   return suffixes.some(
     (suffix) =>
       filename.endsWith(`${suffix}.d.ts`) ||
@@ -22,7 +27,7 @@ function hasSuffix(suffixes: string[], filename: string): boolean {
  */
 export async function findMetaFiles(
   entrypoint: string,
-  suffixes: string[] = ['DataAttributes', 'CssVars'],
+  suffixes: string[] = META_FILE_SUFFIXES,
 ): Promise<string[]> {
   // Check if the path ends with / (directory hint) or check via stat
   let dir: string;
@@ -56,5 +61,5 @@ export async function findMetaFiles(
 
   await walkDirectory(dir);
 
-  return files.filter((file) => hasSuffix(suffixes, file));
+  return files.filter((file) => isMetaFile(file, suffixes));
 }

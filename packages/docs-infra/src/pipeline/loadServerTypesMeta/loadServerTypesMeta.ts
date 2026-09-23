@@ -16,6 +16,7 @@ import type { HookTypeMeta as HookType } from './formatHook';
 import { formatFunctionData, isPublicFunction } from './formatFunction';
 import type { FunctionTypeMeta as FunctionType } from './formatFunction';
 import { formatRawData } from './formatRaw';
+import { linkConstantGroupReExports } from './linkConstantGroupReExports';
 import type { RawTypeMeta as RawType, ReExportInfo } from './formatRaw';
 import { prettyFormat } from './format';
 import type {
@@ -407,6 +408,11 @@ export async function loadServerTypesMeta(
         typeNameMap: variantResult.typeNameMap,
       };
 
+      const constantGroupLinks = linkConstantGroupReExports(
+        variantResult.exports,
+        variantResult.allTypes,
+      );
+
       // Process all exports in parallel within each variant
       const types = await Promise.all(
         variantResult.exports.map(async (exportNode): Promise<TypesMeta> => {
@@ -501,10 +507,12 @@ export async function loadServerTypesMeta(
             },
           );
 
+          const reExportOf = constantGroupLinks.get(exportNode.name);
+
           return {
             type: 'raw',
             name: exportNode.name,
-            data: formattedData,
+            data: reExportOf ? { ...formattedData, reExportOf } : formattedData,
           };
         }),
       );

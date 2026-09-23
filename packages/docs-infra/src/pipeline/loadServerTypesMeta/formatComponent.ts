@@ -81,6 +81,57 @@ export async function formatComponentData(
     : undefined;
   const description = descriptionText ? await parseMarkdownToHast(descriptionText) : undefined;
 
+  const { dataAttributes, cssVariables } = findComponentConstantGroups(
+    component,
+    allExports,
+    dataAttributesSuffix,
+    cssVariablesSuffix,
+  );
+
+  const raw: ComponentTypeMeta = {
+    name: component.name,
+    description,
+    descriptionText,
+    props: sortObjectByKeys(
+      await formatProperties(component.type.props, {
+        exportNames,
+        typeNameMap,
+        isComponentContext: true,
+        formatting,
+        externalTypes,
+        descriptionReplacements,
+      }),
+      options.ordering?.props ?? memberOrder.props,
+    ),
+    dataAttributes:
+      dataAttributes && dataAttributes.type.kind === 'enum'
+        ? sortObjectByKeys(
+            await formatEnum(dataAttributes.type, descriptionReplacements),
+            options.ordering?.dataAttributes ?? memberOrder.dataAttributes,
+          )
+        : {},
+    cssVariables:
+      cssVariables && cssVariables.type.kind === 'enum'
+        ? sortObjectByKeys(
+            await formatEnum(cssVariables.type, descriptionReplacements),
+            options.ordering?.cssVariables ?? memberOrder.cssVariables,
+          )
+        : {},
+  };
+
+  // Post-process type strings to align naming across re-exports and hide internal suffixes.
+  return rewriteTypeStringsDeep(raw, rewriteContext);
+}
+
+/**
+ * Finds the constant groups holding a component's data attributes and CSS variables.
+ */
+export function findComponentConstantGroups(
+  component: tae.ExportNode,
+  allExports: tae.ExportNode[],
+  dataAttributesSuffix = 'DataAttributes',
+  cssVariablesSuffix = 'CssVars',
+): { dataAttributes?: tae.ExportNode; cssVariables?: tae.ExportNode } {
   // Find data attributes and CSS variables in a single loop
   let dataAttributes: tae.ExportNode | undefined;
   let cssVariables: tae.ExportNode | undefined;
@@ -166,39 +217,7 @@ export async function formatComponentData(
     }
   }
 
-  const raw: ComponentTypeMeta = {
-    name: component.name,
-    description,
-    descriptionText,
-    props: sortObjectByKeys(
-      await formatProperties(component.type.props, {
-        exportNames,
-        typeNameMap,
-        isComponentContext: true,
-        formatting,
-        externalTypes,
-        descriptionReplacements,
-      }),
-      options.ordering?.props ?? memberOrder.props,
-    ),
-    dataAttributes:
-      dataAttributes && dataAttributes.type.kind === 'enum'
-        ? sortObjectByKeys(
-            await formatEnum(dataAttributes.type, descriptionReplacements),
-            options.ordering?.dataAttributes ?? memberOrder.dataAttributes,
-          )
-        : {},
-    cssVariables:
-      cssVariables && cssVariables.type.kind === 'enum'
-        ? sortObjectByKeys(
-            await formatEnum(cssVariables.type, descriptionReplacements),
-            options.ordering?.cssVariables ?? memberOrder.cssVariables,
-          )
-        : {},
-  };
-
-  // Post-process type strings to align naming across re-exports and hide internal suffixes.
-  return rewriteTypeStringsDeep(raw, rewriteContext);
+  return { dataAttributes, cssVariables };
 }
 
 /**
