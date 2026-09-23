@@ -63,17 +63,7 @@ export function transformConstantGroup(
   // Literal constants are folded into members of a single group rather than left alongside
   // it: names this generic (`open`, `index`, `disabled`) would shadow real types when
   // resolving `{@link}` references.
-  const members: EnumMember[] = [];
-  const discarded: string[] = [];
-
-  for (const node of exports) {
-    const value = isLiteralType(node.type) ? readLiteralValue(node.type.value) : undefined;
-    if (value === undefined) {
-      discarded.push(node.name);
-    } else {
-      members.push(new EnumMember(node.name, value, node.documentation));
-    }
-  }
+  const { members, discarded } = collectConstants(exports);
 
   if (members.length === 0) {
     return exports;
@@ -89,7 +79,52 @@ export function transformConstantGroup(
     );
   }
 
-  return [
-    new ExportNode(groupName, new EnumNode(new TypeName(groupName), members, undefined), undefined),
-  ];
+  return [createGroup(groupName, members)];
+}
+
+/**
+ * Reads a module as a constant group named after its file, when it exports nothing but
+ * literal constants. Anything else yields `undefined` rather than an error, so any module
+ * can be tried.
+ */
+export function readConstantGroup(
+  filePath: string,
+  exports: tae.ExportNode[],
+): tae.ExportNode | undefined {
+  const { members, discarded } = collectConstants(exports);
+  if (members.length === 0 || discarded.length > 0) {
+    return undefined;
+  }
+
+  return createGroup(getGroupName(filePath), members);
+}
+
+/**
+ * Splits exports into group members, for literal constants, and the names of the rest.
+ */
+function collectConstants(exports: tae.ExportNode[]): {
+  members: EnumMember[];
+  discarded: string[];
+} {
+  const members: EnumMember[] = [];
+  const discarded: string[] = [];
+
+  for (const node of exports) {
+    const value = isLiteralType(node.type) ? readLiteralValue(node.type.value) : undefined;
+    if (value === undefined) {
+      discarded.push(node.name);
+    } else {
+      members.push(new EnumMember(node.name, value, node.documentation));
+    }
+  }
+
+  return { members, discarded };
+}
+
+function createGroup(groupName: string, members: EnumMember[]): tae.ExportNode {
+  return new ExportNode(
+    groupName,
+    new EnumNode(new TypeName(groupName), members, undefined),
+    undefined,
+  );
 }

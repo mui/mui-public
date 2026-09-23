@@ -5,7 +5,7 @@ import {
   foldConstantGroupReExports,
 } from './foldConstantGroupReExports';
 import { linkConstantGroupReExports } from './linkConstantGroupReExports';
-import { transformConstantGroup } from './transformConstantGroup';
+import { readConstantGroup, transformConstantGroup } from './transformConstantGroup';
 import { createTestProgram } from './parseTestSources';
 import { PARSER_OPTIONS } from './constants';
 
@@ -29,16 +29,17 @@ const BUTTON_DATA_ATTRIBUTES = `
  */
 function linkSources(sources: Record<string, string>) {
   const { program, entrypoint } = createTestProgram(sources, LIB);
-  const loadGroup = (filePath: string) =>
-    transformConstantGroup(filePath, parseFromProgram(filePath, program, PARSER_OPTIONS).exports);
+  const parseModule = (filePath: string) =>
+    parseFromProgram(filePath, program, PARSER_OPTIONS).exports;
 
   const reExports = findConstantGroupReExports(entrypoint, program);
-  const exports = foldConstantGroupReExports(
-    parseFromProgram(entrypoint, program, PARSER_OPTIONS).exports,
-    reExports,
-    loadGroup,
+  const exports = foldConstantGroupReExports(parseModule(entrypoint), reExports, (filePath) =>
+    readConstantGroup(filePath, parseModule(filePath)),
   );
-  const metaTypes = Array.from(new Set(reExports.values())).flatMap(loadGroup);
+  // The pipeline also parses metadata files found next to the entrypoint on their own.
+  const metaTypes = Array.from(new Set(reExports.values())).flatMap((filePath) =>
+    transformConstantGroup(filePath, parseModule(filePath)),
+  );
 
   return linkConstantGroupReExports(exports, [...exports, ...metaTypes]);
 }

@@ -7,7 +7,7 @@ import ts from 'typescript';
 import { createOptimizedProgram } from './createOptimizedProgram';
 import { augmentComponentsWithInheritedProps } from './inheritedExternalProps';
 import type { InheritedExternalPropsConfig } from './inheritedExternalProps';
-import { transformConstantGroup } from './transformConstantGroup';
+import { readConstantGroup, transformConstantGroup } from './transformConstantGroup';
 import {
   findConstantGroupReExports,
   foldConstantGroupReExports,
@@ -360,13 +360,14 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
     );
 
     const internalTypesCache: Record<string, ExportNode[]> = {};
+    const moduleExportsCache: Record<string, ExportNode[]> = {};
 
     /**
-     * Parses a metadata file (DataAttributes, CssVars) into its constant group, once per file.
+     * Parses a module's exports once per file, for modules other than the entrypoints.
      */
-    const loadConstantGroup = (file: string): ExportNode[] => {
-      if (internalTypesCache[file]) {
-        return internalTypesCache[file];
+    const parseModuleExports = (file: string): ExportNode[] | undefined => {
+      if (moduleExportsCache[file]) {
+        return moduleExportsCache[file];
       }
 
       // Ensure the file is loaded in the program first
@@ -374,17 +375,36 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
       const fileSourceFile = program.getSourceFile(file);
       if (!fileSourceFile) {
         console.warn(`[processTypes] Could not load source file: ${file}`);
-        return [];
+        return undefined;
       }
 
-      const { exports: internalExport } = parseFromProgram(file, program, PARSER_OPTIONS);
+      moduleExportsCache[file] = parseFromProgram(file, program, PARSER_OPTIONS).exports;
+      return moduleExportsCache[file];
+    };
 
-      // Metadata files may declare their members as an enum or as named constants;
-      // normalize both to a single constant group named after the file.
-      const groupExports = transformConstantGroup(file, internalExport);
+    /**
+     * Parses a metadata file (DataAttributes, CssVars) into its constant group, once per file.
+     */
+    const loadMetaFile = (file: string): ExportNode[] => {
+      if (!internalTypesCache[file]) {
+        const internalExport = parseModuleExports(file);
 
-      internalTypesCache[file] = groupExports;
-      return groupExports;
+        // Metadata files may declare their members as an enum or as named constants;
+        // normalize both to a single constant group named after the file.
+        internalTypesCache[file] = internalExport
+          ? transformConstantGroup(file, internalExport)
+          : [];
+      }
+
+      return internalTypesCache[file];
+    };
+
+    /**
+     * Reads a namespace re-exported module as a constant group, when it holds only constants.
+     */
+    const loadConstantGroup = (file: string): ExportNode | undefined => {
+      const moduleExports = parseModuleExports(file);
+      return moduleExports && readConstantGroup(file, moduleExports);
     };
 
     // Process variants in parallel
@@ -416,7 +436,7 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
           // type aliases, and re-exports properly
           const parsed = parseFromProgram(entrypoint, program, PARSER_OPTIONS);
 
-          // Metadata files re-exported as a namespace (`export * as ButtonDataAttributes`)
+          // Modules of constants re-exported as a namespace (`export * as ButtonDataAttributes`)
           // arrive flattened into one export per member; document each as a single group.
           const exports = foldConstantGroupReExports(
             parsed.exports,
@@ -467,7 +487,7 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
           ];
 
           // Parse meta files (DataAttributes, CssVars) for additional type information
-          const allInternalTypes = request.metaFiles.map(loadConstantGroup);
+          const allInternalTypes = request.metaFiles.map(loadMetaFile);
 
           const internalTypes = allInternalTypes.reduce((acc, cur) => {
             acc.push(...cur);

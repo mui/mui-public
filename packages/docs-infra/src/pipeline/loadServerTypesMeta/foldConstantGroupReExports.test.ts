@@ -6,7 +6,7 @@ import {
   foldConstantGroupReExports,
   isConstantGroupReExport,
 } from './foldConstantGroupReExports';
-import { transformConstantGroup } from './transformConstantGroup';
+import { readConstantGroup } from './transformConstantGroup';
 import { createTestProgram } from './parseTestSources';
 import { PARSER_OPTIONS } from './constants';
 
@@ -35,7 +35,7 @@ function foldSources(sources: Record<string, string>) {
   const reExports = findConstantGroupReExports(entrypoint, program);
 
   return foldConstantGroupReExports(exports, reExports, (filePath) =>
-    transformConstantGroup(filePath, parseFromProgram(filePath, program, PARSER_OPTIONS).exports),
+    readConstantGroup(filePath, parseFromProgram(filePath, program, PARSER_OPTIONS).exports),
   );
 }
 
@@ -52,7 +52,7 @@ function summarize(exports: tae.ExportNode[]) {
 }
 
 describe('findConstantGroupReExports', () => {
-  it('maps a namespace re-export of a metadata file to that file', () => {
+  it('maps a namespace re-export of a module of constants to that module', () => {
     const { program, entrypoint } = createTestProgram({
       'index.ts': `export * as ButtonDataAttributes from './ButtonDataAttributes';`,
       'ButtonDataAttributes.ts': BUTTON_DATA_ATTRIBUTES,
@@ -75,10 +75,37 @@ describe('findConstantGroupReExports', () => {
     );
   });
 
-  it('ignores namespace re-exports of modules that are not metadata files', () => {
+  it('recognizes a module by its contents, whatever it is named', () => {
     const { program, entrypoint } = createTestProgram({
-      'index.ts': `export * as Button from './parts';`,
+      'index.ts': `export * as ButtonKeys from './keys';`,
+      'keys.ts': `
+        export const primary = 'primary';
+        export const retries = 3;
+      `,
+    });
+
+    expect(findConstantGroupReExports(entrypoint, program)).toEqual(
+      new Map([['ButtonKeys', '/virtual/keys.ts']]),
+    );
+  });
+
+  it('ignores modules exporting anything besides literal constants', () => {
+    const { program, entrypoint } = createTestProgram({
+      'index.ts': `
+        export * as Button from './parts';
+        export * as ButtonHelpers from './helpers';
+        export * as ButtonTypes from './types';
+        export * as ButtonSettings from './settings';
+      `,
       'parts.ts': BUTTON,
+      'helpers.ts': `
+        export const pressed = 'data-pressed';
+        export function isPressed() {
+          return true;
+        }
+      `,
+      'types.ts': `export type Pressed = 'data-pressed';`,
+      'settings.ts': `export let label = 'label';`,
     });
 
     expect(findConstantGroupReExports(entrypoint, program)).toEqual(new Map());

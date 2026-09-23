@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type * as tae from 'typescript-api-extractor';
-import { transformConstantGroup } from './transformConstantGroup';
+import { readConstantGroup, transformConstantGroup } from './transformConstantGroup';
 import { parseTestSources } from './parseTestSources';
 
 /**
@@ -254,5 +254,40 @@ describe('transformConstantGroup', () => {
     ])('derives the group name of %s as %s', (filePath, expected) => {
       expect(groupOf(transformConstantGroup(filePath, parsed)).name).toBe(expected);
     });
+  });
+});
+
+describe('readConstantGroup', () => {
+  it('reads a module of constants as a group named after the file', () => {
+    const group = readConstantGroup(
+      '/virtual/keys.ts',
+      parseTestSources({
+        'keys.ts': `
+          /** The primary key. */
+          export const primary = 'primary';
+        `,
+      }),
+    );
+
+    expect(group && groupOf([group]).name).toBe('keys');
+    expect(group && membersOf(groupOf([group]).type)).toEqual([
+      { name: 'primary', value: 'primary', description: 'The primary key.', type: undefined },
+    ]);
+  });
+
+  it('returns nothing for a module exporting anything besides constants', () => {
+    const group = readConstantGroup(
+      '/virtual/helpers.ts',
+      parseTestSources({
+        'helpers.ts': `
+          export const pressed = 'data-pressed';
+          export function isPressed() {
+            return true;
+          }
+        `,
+      }),
+    );
+
+    expect(group).toBeUndefined();
   });
 });

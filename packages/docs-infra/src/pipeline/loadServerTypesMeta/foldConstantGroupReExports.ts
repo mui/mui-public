@@ -1,16 +1,15 @@
 import ts from 'typescript';
 import { ExportNode } from 'typescript-api-extractor';
 import type * as tae from 'typescript-api-extractor';
-import { isMetaFile } from './findMetaFiles';
 import { isEnumType } from './typeGuards';
 
 /**
- * A constant group published under its own name, e.g.
+ * A constant group published as a namespace under its own name, e.g.
  * `export * as ToggleDataAttributes from './ButtonDataAttributes'`.
  */
 export type ConstantGroupReExport = tae.ExportNode & {
   /**
-   * Name of the group derived from the metadata file it came from (`ButtonDataAttributes`),
+   * Name of the group derived from the module it came from (`ButtonDataAttributes`),
    * which is how components find their data attributes and CSS variables.
    */
   constantGroupSource: string;
@@ -21,13 +20,32 @@ export function isConstantGroupReExport(node: tae.ExportNode): node is ConstantG
 }
 
 /**
- * Finds the entrypoint's namespace re-exports of metadata files, e.g.
- * `export * as ButtonDataAttributes from './ButtonDataAttributes'`.
+ * Whether a symbol is a `const` holding a string or number literal.
+ */
+function isLiteralConstant(symbol: ts.Symbol, checker: ts.TypeChecker): boolean {
+  const declaration = symbol.valueDeclaration;
+  if (
+    !declaration ||
+    !ts.isVariableDeclaration(declaration) ||
+    // eslint-disable-next-line no-bitwise -- TypeScript node flags are a bitmask
+    !(ts.getCombinedNodeFlags(declaration) & ts.NodeFlags.Const)
+  ) {
+    return false;
+  }
+
+  const type = checker.getTypeOfSymbol(symbol);
+  return type.isStringLiteral() || type.isNumberLiteral();
+}
+
+/**
+ * Finds the entrypoint's namespace re-exports of modules holding nothing but literal
+ * constants, e.g. `export * as ButtonDataAttributes from './ButtonDataAttributes'`.
  *
  * The parser flattens such a namespace into one export per member (`ButtonDataAttributes.open`)
- * and keeps no record of the module behind it, so the checker is asked instead.
+ * and keeps no record of the module behind it, so the checker is asked instead. It also tells
+ * a constant apart from a type alias of the same literal, which the parsed nodes cannot.
  *
- * @returns A map of public namespace name to the metadata file it re-exports
+ * @returns A map of public namespace name to the module it re-exports
  */
 export function findConstantGroupReExports(
   entrypoint: string,
@@ -46,11 +64,18 @@ export function findConstantGroupReExports(
       continue;
     }
 
-    const target = checker
-      .getAliasedSymbol(exportSymbol)
-      .declarations?.find((declaration) => ts.isSourceFile(declaration));
+    const targetModule = checker.getAliasedSymbol(exportSymbol);
+    const target = targetModule.declarations?.find((declaration) => ts.isSourceFile(declaration));
+    const members = checker.getExportsOfModule(targetModule).map((member) =>
+      // eslint-disable-next-line no-bitwise -- TypeScript symbol flags are a bitmask
+      member.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(member) : member,
+    );
 
-    if (target && isMetaFile(target.fileName)) {
+    if (
+      target &&
+      members.length > 0 &&
+      members.every((member) => isLiteralConstant(member, checker))
+    ) {
       reExports.set(exportSymbol.name, target.fileName);
     }
   }
@@ -59,20 +84,20 @@ export function findConstantGroupReExports(
 }
 
 /**
- * Replaces the flattened members of each namespace re-exported metadata file with the
- * file's constant group, published under the namespace's name.
+ * Replaces the flattened members of each namespace re-exported constant module with the
+ * module's constant group, published under the namespace's name.
  *
- * The group takes the position of the namespace's first member. A metadata file that does
- * not normalize to a constant group leaves its members as they were.
+ * The group takes the position of the namespace's first member. A module that does not
+ * read as a constant group leaves its members as they were.
  *
  * @param exports - The entrypoint's exports as parsed
- * @param reExports - Public namespace names mapped to the metadata files behind them
- * @param loadGroup - Returns a metadata file's exports normalized by `transformConstantGroup`
+ * @param reExports - Public namespace names mapped to the modules behind them
+ * @param loadGroup - Returns a module's constant group, when it reads as one
  */
 export function foldConstantGroupReExports(
   exports: tae.ExportNode[],
   reExports: Map<string, string>,
-  loadGroup: (filePath: string) => tae.ExportNode[],
+  loadGroup: (filePath: string) => tae.ExportNode | undefined,
 ): tae.ExportNode[] {
   if (reExports.size === 0) {
     return exports;
@@ -80,9 +105,8 @@ export function foldConstantGroupReExports(
 
   const groups = new Map<string, ConstantGroupReExport>();
   for (const [publicName, filePath] of reExports) {
-    const fileExports = loadGroup(filePath);
-    const [group] = fileExports;
-    if (fileExports.length === 1 && isEnumType(group.type)) {
+    const group = loadGroup(filePath);
+    if (group && isEnumType(group.type)) {
       groups.set(
         publicName,
         Object.assign(new ExportNode(publicName, group.type, group.documentation), {
