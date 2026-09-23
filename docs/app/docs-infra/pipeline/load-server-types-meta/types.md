@@ -12,7 +12,6 @@ This function handles:
 
 - Loading TypeScript configuration
 - Resolving library source files and variants
-- Finding meta files (DataAttributes, CssVars)
 - Processing types via worker thread
 - Formatting component, hook, function, and raw types
 - Collecting external types referenced in props/params
@@ -357,9 +356,9 @@ type RawTypeMeta = {
    * When set, indicates this should be rendered as a link to the component.
    */
   reExportOf?: ReExportInfo;
-  /** For DataAttributes types, the component name this type belongs to. */
+  /** For constant groups holding a component's data attributes, that component's name. */
   dataAttributesOf?: string;
-  /** For CssVars types, the component name this type belongs to. */
+  /** For constant groups holding a component's CSS variables, that component's name. */
   cssVarsOf?: string;
   /**
    * For object types, the individual properties with their types and descriptions.
@@ -378,7 +377,7 @@ type ReExportInfo = {
   /** Anchor slug for linking (e.g., "#trigger") */
   slug: string;
   /** What kind of type this re-exports */
-  suffix: 'props' | 'css-variables' | 'data-attributes';
+  suffix: 'props';
 };
 ```
 

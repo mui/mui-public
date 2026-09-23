@@ -11,8 +11,8 @@ import type {
   FormatInlineTypeOptions,
   DescriptionReplacement,
 } from './format';
-import { isComponentType, isEnumType } from './typeGuards';
-import type { ConstantGroupTarget } from './constantGroups';
+import { isComponentType } from './typeGuards';
+import type { ComponentConstantGroups } from './constantGroups';
 import { rewriteTypeStringsDeep } from './rewriteTypes';
 import type { TypeRewriteContext } from './rewriteTypes';
 import type { ExternalTypesCollector } from './externalTypes';
@@ -37,8 +37,8 @@ export type ComponentTypeMeta = {
  * Options for customizing component data formatting.
  */
 export interface FormatComponentOptions {
-  /** Constant groups matched to components, keyed by export name (see `matchConstantGroups`) */
-  constantGroups?: Map<string, ConstantGroupTarget>;
+  /** The constant groups holding this component's tables (see `matchConstantGroups`) */
+  constantGroups?: ComponentConstantGroups;
   /** Pattern/replacement pairs to apply to descriptions */
   descriptionReplacements?: DescriptionReplacement[];
   /** Options for inline type formatting (e.g., unionPrintWidth) */
@@ -60,7 +60,6 @@ export interface FormatComponentOptions {
  */
 export async function formatComponentData(
   component: tae.ExportNode & { type: tae.ComponentNode },
-  allExports: tae.ExportNode[],
   typeNameMap: Record<string, string>,
   rewriteContext: TypeRewriteContext,
   options: FormatComponentOptions = {},
@@ -75,18 +74,7 @@ export async function formatComponentData(
   const description = descriptionText ? await parseMarkdownToHast(descriptionText) : undefined;
 
   // The component's data attributes and CSS variables are the constant groups matched to it.
-  let dataAttributes: tae.EnumNode | undefined;
-  let cssVariables: tae.EnumNode | undefined;
-  for (const node of allExports) {
-    const target = options.constantGroups?.get(node.name);
-    if (target?.component === component.name && isEnumType(node.type)) {
-      if (target.kind === 'data-attributes') {
-        dataAttributes ??= node.type;
-      } else {
-        cssVariables ??= node.type;
-      }
-    }
-  }
+  const { dataAttributes, cssVariables } = options.constantGroups ?? {};
 
   const raw: ComponentTypeMeta = {
     name: component.name,

@@ -1,6 +1,6 @@
 // Can use node: imports here since this is server-only code
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { pathToFileURL } from 'node:url';
 
 import { extractNameAndSlugFromUrl } from '../loaderUtils';
 import { nameMark, performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
@@ -175,7 +175,6 @@ export interface LoadServerTypesMetaResult extends OrganizeTypesResult<TypesMeta
  * This function handles:
  * - Loading TypeScript configuration
  * - Resolving library source files and variants
- * - Finding meta files (DataAttributes, CssVars)
  * - Processing types via worker thread
  * - Formatting component, hook, function, and raw types
  * - Collecting external types referenced in props/params
@@ -234,8 +233,6 @@ export async function loadServerTypesMeta(
     );
   }
 
-  const allEntrypoints = Array.from(resolvedVariantMap.values()).map((url) => fileURLToPath(url));
-
   // Process types — use the worker manager singleton (which adapts to main vs worker thread)
   const workerManager = getWorkerManager();
   const workerStartTime = performance.now();
@@ -243,7 +240,6 @@ export async function loadServerTypesMeta(
   const workerResult = await workerManager.processTypes({
     projectPath: config.projectPath,
     compilerOptions: config.options,
-    allEntrypoints,
     resolvedVariantMap: Array.from(resolvedVariantMap.entries()),
     dependencies: config.dependencies,
     rootContextDir,
@@ -288,7 +284,7 @@ export async function loadServerTypesMeta(
 
   // Build type compatibility map once from all exports across all variants
   // This map is used to rewrite type references (e.g., Dialog.Trigger.State -> AlertDialog.Trigger.State)
-  const allRawExports = Object.values(rawVariantData).flatMap((v) => v.allTypes);
+  const allRawExports = Object.values(rawVariantData).flatMap((v) => v.exports);
   const allExportNames = Array.from(new Set(allRawExports.map((exp) => exp.name)));
   const typeCompatibilityMap = buildTypeCompatibilityMap(allRawExports, allExportNames);
 
@@ -315,7 +311,7 @@ export async function loadServerTypesMeta(
       // Each variant shares the same collected map so types are deduplicated automatically.
       const externalTypesCollector: ExternalTypesCollector = {
         collected: collectedExternalTypes,
-        allExports: variantResult.allTypes,
+        allExports: variantResult.exports,
         pattern: externalTypesPatternRegex,
         typeNameMap: variantResult.typeNameMap,
       };
@@ -324,6 +320,7 @@ export async function loadServerTypesMeta(
         variantResult.exports,
         options.constantGroupPatterns,
       );
+      const constantNamespaces = new Set(variantResult.constantNamespaces);
 
       // Process all exports in parallel within each variant
       const types = await Promise.all(
@@ -331,14 +328,13 @@ export async function loadServerTypesMeta(
           if (isPublicComponent(exportNode)) {
             const formattedData = await formatComponentData(
               exportNode,
-              variantResult.allTypes,
               variantResult.typeNameMap || {},
               rewriteContext,
               {
                 formatting: formattingOptions,
                 externalTypes: externalTypesCollector,
                 ordering: options.ordering,
-                constantGroups,
+                constantGroups: constantGroups.byComponent.get(exportNode.name),
                 descriptionReplacements: options.descriptionReplacements,
               },
             );
@@ -417,23 +413,15 @@ export async function loadServerTypesMeta(
               formatting: formattingOptions,
               externalTypes: externalTypesCollector,
               descriptionReplacements: options.descriptionReplacements,
+              constantGroup: constantGroups.targets.get(exportNode.name),
+              constantNamespace: constantNamespaces.has(exportNode.name),
             },
           );
-
-          // A constant group matched to a component is documented as that component's
-          // data attributes or CSS variables
-          const target = constantGroups.get(exportNode.name);
-          let data = formattedData;
-          if (target?.kind === 'data-attributes') {
-            data = { ...formattedData, dataAttributesOf: target.component };
-          } else if (target?.kind === 'css-variables') {
-            data = { ...formattedData, cssVarsOf: target.component };
-          }
 
           return {
             type: 'raw',
             name: exportNode.name,
-            data,
+            data: formattedData,
           };
         }),
       );
@@ -624,12 +612,12 @@ export async function loadServerTypesMeta(
 
     // Extract component name and suffix (e.g., "ButtonProps" -> component: "Button", suffix: "Props")
     // Handle both namespaced (ContextMenu.Root.Props) and non-namespaced (ButtonProps) names
-    const parts = typeMeta.name.match(/^(.+)\.(Props|State)$/);
+    const parts = typeMeta.name.match(/^(.+)\.Props$/);
     if (!parts) {
       return typeMeta;
     }
 
-    const [, componentName, suffix] = parts;
+    const [, componentName] = parts;
 
     // Find the corresponding component by checking both the full name and just the last part
     // e.g., for "ContextMenu.Root.Props", check both "ContextMenu.Root" and "Root"
@@ -644,7 +632,7 @@ export async function loadServerTypesMeta(
     }
 
     // Check if Props is a re-export of the component's props
-    if (suffix === 'Props' && correspondingComponent.data.props) {
+    if (correspondingComponent.data.props) {
       const hasProps = Object.keys(correspondingComponent.data.props).length > 0;
       if (hasProps) {
         // Extract the display name (last part after dot) for the link text

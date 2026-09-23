@@ -282,9 +282,9 @@ type HighlightedRawTypeMeta = {
    * When set, indicates this should be rendered as a link to the component.
    */
   reExportOf?: ReExportInfo;
-  /** For DataAttributes types, the component name this type belongs to. */
+  /** For constant groups holding a component's data attributes, that component's name. */
   dataAttributesOf?: string;
-  /** For CssVars types, the component name this type belongs to. */
+  /** For constant groups holding a component's CSS variables, that component's name. */
   cssVarsOf?: string;
 };
 ```

@@ -30,7 +30,10 @@ Data attributes of [Component](#component).
 
 ```typescript
 enum ComponentDataAttributes {
-  /** The type of the component. */
+  /**
+   * The type of the component.
+   * @type string
+   */
   type = 'data-type',
 }
 ```

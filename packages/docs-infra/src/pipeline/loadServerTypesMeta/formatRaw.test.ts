@@ -187,35 +187,44 @@ describe('formatRaw', () => {
       });
     });
 
-    describe('DataAttributes types', () => {
-      it('should detect DataAttributes types and set dataAttributesOf', async () => {
+    describe('constant groups matched to a component', () => {
+      it('should set dataAttributesOf for a data attributes group', async () => {
         const result = await formatRawData(
-          createTypeAliasExport('ButtonDataAttributes', '{ "data-disabled": boolean }'),
+          createEnumExport('ButtonDataAttributes', [{ name: 'disabled', value: 'data-disabled' }]),
+          'ButtonDataAttributes',
+          {},
+          defaultRewriteContext,
+          { constantGroup: { component: 'Button', kind: 'dataAttributes' } },
+        );
+
+        expect(result.dataAttributesOf).toBe('Button');
+        expect(result.cssVarsOf).toBeUndefined();
+        expect(result.reExportOf).toBeUndefined();
+      });
+
+      it('should set cssVarsOf for a CSS variables group', async () => {
+        const result = await formatRawData(
+          createEnumExport('SliderCssVariables', [{ name: 'trackColor', value: '--track-color' }]),
+          'SliderCssVariables',
+          {},
+          defaultRewriteContext,
+          { constantGroup: { component: 'Slider', kind: 'cssVariables' } },
+        );
+
+        expect(result.cssVarsOf).toBe('Slider');
+        expect(result.dataAttributesOf).toBeUndefined();
+        expect(result.reExportOf).toBeUndefined();
+      });
+
+      it('should not link groups by name alone', async () => {
+        const result = await formatRawData(
+          createEnumExport('ButtonDataAttributes', [{ name: 'disabled', value: 'data-disabled' }]),
           'Button.DataAttributes',
           {},
           defaultRewriteContext,
         );
 
-        expect(result.name).toBe('Button.DataAttributes');
-        expect(result.dataAttributesOf).toBe('Button');
-        expect(result.reExportOf).toBeUndefined();
-        expect(result.cssVarsOf).toBeUndefined();
-      });
-    });
-
-    describe('CssVars types', () => {
-      it('should detect CssVars types and set cssVarsOf', async () => {
-        const result = await formatRawData(
-          createTypeAliasExport('SliderCssVars', '{ "--slider-track-color": string }'),
-          'Slider.CssVars',
-          {},
-          defaultRewriteContext,
-        );
-
-        expect(result.name).toBe('Slider.CssVars');
-        expect(result.cssVarsOf).toBe('Slider');
         expect(result.dataAttributesOf).toBeUndefined();
-        expect(result.reExportOf).toBeUndefined();
       });
     });
 
@@ -269,6 +278,11 @@ describe('formatRaw', () => {
             /** Present when pressed. */
             export const pressed = 'data-pressed';
             export const disabled = 'data-disabled';
+            /**
+             * The button's width.
+             * @type {number}
+             */
+            export const width = '--width';
           `,
         });
         const [group] = foldConstantNamespaces(
@@ -276,13 +290,20 @@ describe('formatRaw', () => {
           findConstantNamespaces(entrypoint, program),
         );
 
-        const result = await formatRawData(group, group.name, {}, defaultRewriteContext);
+        const result = await formatRawData(group, group.name, {}, defaultRewriteContext, {
+          constantNamespace: true,
+        });
 
         expect(result.formattedCode).toMatchInlineSnapshot(`
           "declare namespace ButtonDataAttributes {
             /** Present when pressed. */
             const pressed: 'data-pressed';
             const disabled: 'data-disabled';
+            /**
+             * The button's width.
+             * @type number
+             */
+            const width: '--width';
           }"
         `);
       });

@@ -85,7 +85,7 @@ function collectDocumentedNames(variantData: Record<string, VariantResult>): Set
   };
 
   for (const variant of Object.values(variantData)) {
-    for (const node of variant.allTypes) {
+    for (const node of variant.exports) {
       addName(node.name);
     }
     if (variant.typeNameMap) {
@@ -282,7 +282,8 @@ function extractNamespaces(exports: ExportNode[]): string[] {
 // Worker returns raw export nodes and metadata for formatting in main thread
 export interface VariantResult {
   exports: ExportNode[];
-  allTypes: ExportNode[]; // All exports, for reference resolution
+  /** Names of the exports folded from namespaces of constants (see `findConstantNamespaces`) */
+  constantNamespaces: string[];
   namespaces: string[];
   typeNameMap?: Record<string, string>; // Maps flat type names to dotted names (serializable across worker boundary)
 }
@@ -291,8 +292,6 @@ export interface WorkerRequest {
   requestId?: number; // Added by worker manager for request tracking
   projectPath: string;
   compilerOptions: CompilerOptions;
-  /** All files for the TypeScript program */
-  allEntrypoints: string[];
   /** Map serialized as array of [variantName, fileUrl] tuples where fileUrl uses file:// protocol */
   resolvedVariantMap: Array<[string, string]>;
   /** Dependency paths (filesystem paths, not URLs) */
@@ -334,7 +333,7 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
     const program = createOptimizedProgram(
       request.projectPath,
       request.compilerOptions,
-      request.allEntrypoints,
+      request.resolvedVariantMap.map(([, fileUrl]) => fileURLToPath(fileUrl)),
       {},
       tracker,
       functionName,
@@ -381,10 +380,8 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
 
           // Modules of constants exported as a namespace (`export * as ButtonDataAttributes`)
           // arrive flattened into one export per member; document each as a single group.
-          const exports = foldConstantNamespaces(
-            parsed.exports,
-            findConstantNamespaces(entrypoint, program),
-          );
+          const constantNamespaces = findConstantNamespaces(entrypoint, program);
+          const exports = foldConstantNamespaces(parsed.exports, constantNamespaces);
 
           // Re-add configured props that the parser dropped because they are
           // inherited from an externally declared type in node_modules
@@ -445,7 +442,7 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
             variantName,
             variantData: {
               exports,
-              allTypes: exports,
+              constantNamespaces: Array.from(constantNamespaces.keys()),
               namespaces,
               // Convert Map to Record for serialization across worker boundary
               typeNameMap:

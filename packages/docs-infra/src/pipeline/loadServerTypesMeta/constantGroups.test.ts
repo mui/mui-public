@@ -62,7 +62,9 @@ describe('findConstantNamespaces', () => {
       'attributes.ts': BUTTON_DATA_ATTRIBUTES,
     });
 
-    expect(findConstantNamespaces(entrypoint, program)).toEqual(new Set(['ButtonDataAttributes']));
+    expect(findConstantNamespaces(entrypoint, program)).toEqual(
+      new Map([['ButtonDataAttributes', new Map([['pressed', 'data-pressed']])]]),
+    );
   });
 
   it('follows namespace exports through `export *`', () => {
@@ -72,7 +74,9 @@ describe('findConstantNamespaces', () => {
       'attributes.ts': BUTTON_DATA_ATTRIBUTES,
     });
 
-    expect(findConstantNamespaces(entrypoint, program)).toEqual(new Set(['ButtonDataAttributes']));
+    expect(findConstantNamespaces(entrypoint, program)).toEqual(
+      new Map([['ButtonDataAttributes', new Map([['pressed', 'data-pressed']])]]),
+    );
   });
 
   it('ignores modules exporting anything besides literal constants', () => {
@@ -94,7 +98,7 @@ describe('findConstantNamespaces', () => {
       'settings.ts': `export let label = 'label';`,
     });
 
-    expect(findConstantNamespaces(entrypoint, program)).toEqual(new Set());
+    expect(findConstantNamespaces(entrypoint, program)).toEqual(new Map());
   });
 });
 
@@ -187,12 +191,18 @@ describe('matchConstantGroups', () => {
       'variables.ts': `export enum Variables { width = '--width' }`,
     });
 
-    expect(matchConstantGroups(exports, PATTERNS)).toEqual(
+    const { targets, byComponent } = matchConstantGroups(exports, PATTERNS);
+
+    expect(targets).toEqual(
       new Map([
-        ['ToolbarButtonDataAttributes', { component: 'Toolbar.Button', kind: 'data-attributes' }],
-        ['ToolbarButtonCssVariables', { component: 'Toolbar.Button', kind: 'css-variables' }],
+        ['ToolbarButtonDataAttributes', { component: 'Toolbar.Button', kind: 'dataAttributes' }],
+        ['ToolbarButtonCssVariables', { component: 'Toolbar.Button', kind: 'cssVariables' }],
       ]),
     );
+    expect(Object.keys(byComponent.get('Toolbar.Button') ?? {})).toEqual([
+      'dataAttributes',
+      'cssVariables',
+    ]);
   });
 
   it('supports patterns with a prefix', () => {
@@ -205,8 +215,8 @@ describe('matchConstantGroups', () => {
       'attributes.ts': BUTTON_DATA_ATTRIBUTES,
     });
 
-    expect(matchConstantGroups(exports, { dataAttributes: 'DataAttributesOf*' })).toEqual(
-      new Map([['DataAttributesOfButton', { component: 'Button', kind: 'data-attributes' }]]),
+    expect(matchConstantGroups(exports, { dataAttributes: 'DataAttributesOf*' }).targets).toEqual(
+      new Map([['DataAttributesOfButton', { component: 'Button', kind: 'dataAttributes' }]]),
     );
   });
 
@@ -220,7 +230,7 @@ describe('matchConstantGroups', () => {
       'attributes.ts': BUTTON_DATA_ATTRIBUTES,
     });
 
-    expect(matchConstantGroups(exports)).toEqual(new Map());
+    expect(matchConstantGroups(exports).targets).toEqual(new Map());
   });
 
   it('ignores groups matching no pattern', () => {
@@ -233,7 +243,7 @@ describe('matchConstantGroups', () => {
       'attributes.ts': BUTTON_DATA_ATTRIBUTES,
     });
 
-    expect(matchConstantGroups(exports, PATTERNS)).toEqual(new Map());
+    expect(matchConstantGroups(exports, PATTERNS).targets).toEqual(new Map());
   });
 
   it('throws when the name a pattern captures is no exported component', () => {

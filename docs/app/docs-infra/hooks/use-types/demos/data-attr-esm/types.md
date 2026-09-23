@@ -30,7 +30,10 @@ Data attributes of [Component](#component).
 
 ```typescript
 declare namespace ComponentDataAttributes {
-  /** The type of the component. */
+  /**
+   * The type of the component.
+   * @type string
+   */
   const type: 'data-type';
 }
 ```

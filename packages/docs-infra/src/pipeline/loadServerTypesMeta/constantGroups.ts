@@ -1,18 +1,16 @@
 import ts from 'typescript';
 import { EnumMember, EnumNode, ExportNode, TypeName } from 'typescript-api-extractor';
 import type * as tae from 'typescript-api-extractor';
-import { isComponentType, isEnumType, isLiteralType } from './typeGuards';
+import { formatPropertyComment } from './formatType';
+import { isComponentType, isEnumType } from './typeGuards';
 
 /**
+ * Export name patterns marking which constant groups hold a component's table.
+ *
  * A constant group is a named set of constant values an entrypoint publishes, either as an
- * enum or as a namespace of constants (`export * as ButtonDataAttributes from './…'`).
- * Both are represented as an enum-shaped export.
- */
-export type ConstantGroupKind = 'data-attributes' | 'css-variables';
-
-/**
- * Name patterns marking which constant groups document a component's table. The `*` stands
- * for the component's name with its dots removed, e.g. with `'*DataAttributes'` the group
+ * enum or as a namespace of constants (`export * as ButtonDataAttributes from './…'`); both
+ * are represented as an enum-shaped export. In each pattern, the `*` stands for the
+ * component's name with its dots removed, e.g. with `'*DataAttributes'` the group
  * `ToolbarButtonDataAttributes` holds the data attributes of `Toolbar.Button`.
  *
  * A type alias rather than an interface, so it stays assignable to the JSON-valued loader
@@ -23,16 +21,17 @@ export type ConstantGroupPatterns = {
   cssVariables?: string;
 };
 
+/** Which of a component's tables a constant group holds. */
+export type ConstantGroupKind = keyof ConstantGroupPatterns;
+
 export interface ConstantGroupTarget {
   /** The component's name as the entrypoint exports it, e.g. `Toolbar.Button` */
   component: string;
   kind: ConstantGroupKind;
 }
 
-const PATTERN_KINDS: Record<keyof ConstantGroupPatterns, ConstantGroupKind> = {
-  dataAttributes: 'data-attributes',
-  cssVariables: 'css-variables',
-};
+/** The constant groups holding one component's tables. */
+export type ComponentConstantGroups = Partial<Record<ConstantGroupKind, tae.EnumNode>>;
 
 function resolveAlias(symbol: ts.Symbol, checker: ts.TypeChecker): ts.Symbol {
   // eslint-disable-next-line no-bitwise -- TypeScript symbol flags are a bitmask
@@ -40,9 +39,10 @@ function resolveAlias(symbol: ts.Symbol, checker: ts.TypeChecker): ts.Symbol {
 }
 
 /**
- * Whether a symbol is a `const` holding a string or number literal.
+ * Reads the value of a `const` holding a string or number literal, as the bare string an
+ * enum member would carry.
  */
-function isLiteralConstant(symbol: ts.Symbol, checker: ts.TypeChecker): boolean {
+function readLiteralConstant(symbol: ts.Symbol, checker: ts.TypeChecker): string | undefined {
   const declaration = symbol.valueDeclaration;
   if (
     !declaration ||
@@ -50,22 +50,27 @@ function isLiteralConstant(symbol: ts.Symbol, checker: ts.TypeChecker): boolean 
     // eslint-disable-next-line no-bitwise -- TypeScript node flags are a bitmask
     !(ts.getCombinedNodeFlags(declaration) & ts.NodeFlags.Const)
   ) {
-    return false;
+    return undefined;
   }
 
   const type = checker.getTypeOfSymbol(symbol);
-  return type.isStringLiteral() || type.isNumberLiteral();
+  return type.isStringLiteral() || type.isNumberLiteral() ? String(type.value) : undefined;
 }
 
 /**
  * Finds the entrypoint's namespace exports whose module holds nothing but literal constants,
- * e.g. `export * as ButtonDataAttributes from './ButtonDataAttributes'`.
+ * e.g. `export * as ButtonDataAttributes from './ButtonDataAttributes'`, with their values.
  *
  * The parser flattens such a namespace into one export per member and cannot tell a constant
  * from a type alias of the same literal, so the checker is asked instead.
+ *
+ * @returns Member values keyed by namespace name, then member name
  */
-export function findConstantNamespaces(entrypoint: string, program: ts.Program): Set<string> {
-  const namespaces = new Set<string>();
+export function findConstantNamespaces(
+  entrypoint: string,
+  program: ts.Program,
+): Map<string, Map<string, string>> {
+  const namespaces = new Map<string, Map<string, string>>();
   const sourceFile = program.getSourceFile(entrypoint);
   const checker = program.getTypeChecker();
   const moduleSymbol = sourceFile && checker.getSymbolAtLocation(sourceFile);
@@ -75,12 +80,21 @@ export function findConstantNamespaces(entrypoint: string, program: ts.Program):
 
   for (const exportSymbol of checker.getExportsOfModule(moduleSymbol)) {
     if (exportSymbol.declarations?.some(ts.isNamespaceExport)) {
-      const members = checker
-        .getExportsOfModule(checker.getAliasedSymbol(exportSymbol))
-        .map((member) => resolveAlias(member, checker));
+      const values = new Map<string, string>();
+      const members = checker.getExportsOfModule(checker.getAliasedSymbol(exportSymbol));
+      const isConstantModule =
+        members.length > 0 &&
+        members.every((member) => {
+          const value = readLiteralConstant(resolveAlias(member, checker), checker);
+          if (value === undefined) {
+            return false;
+          }
+          values.set(member.name, value);
+          return true;
+        });
 
-      if (members.length > 0 && members.every((member) => isLiteralConstant(member, checker))) {
-        namespaces.add(exportSymbol.name);
+      if (isConstantModule) {
+        namespaces.set(exportSymbol.name, values);
       }
     }
   }
@@ -89,49 +103,51 @@ export function findConstantNamespaces(entrypoint: string, program: ts.Program):
 }
 
 /**
- * Reads a constant's value from its literal type. String literals arrive wrapped in quotes
- * (`"data-open"`) while numeric literals do not; both become the bare string an enum member
- * would carry.
+ * Collapses the flattened members of each constant namespace (`ButtonDataAttributes.open`)
+ * into a single enum-shaped export named after the namespace, in place of its first member.
  */
-function readLiteralValue(type: tae.AnyType): string | undefined {
-  if (!isLiteralType(type)) {
-    return undefined;
+export function foldConstantNamespaces(
+  exports: tae.ExportNode[],
+  namespaces: Map<string, Map<string, string>>,
+): tae.ExportNode[] {
+  if (namespaces.size === 0) {
+    return exports;
   }
 
-  const { value } = type;
-  if (typeof value === 'number') {
-    return String(value);
+  const groups = new Map<string, EnumMember[]>();
+  const folded: tae.ExportNode[] = [];
+
+  for (const node of exports) {
+    const dot = node.name.indexOf('.');
+    const namespace = dot === -1 ? undefined : node.name.slice(0, dot);
+    const memberName = node.name.slice(dot + 1);
+    const value = namespace === undefined ? undefined : namespaces.get(namespace)?.get(memberName);
+
+    if (namespace === undefined || value === undefined) {
+      folded.push(node);
+    } else {
+      let members = groups.get(namespace);
+      if (!members) {
+        members = [];
+        groups.set(namespace, members);
+        folded.push(
+          new ExportNode(
+            namespace,
+            new EnumNode(new TypeName(namespace), members, undefined),
+            undefined,
+          ),
+        );
+      }
+      members.push(new EnumMember(memberName, value, node.documentation));
+    }
   }
 
-  if (typeof value === 'string' && value.length >= 2 && value.startsWith('"')) {
-    return value.slice(1, -1);
-  }
-
-  return undefined;
-}
-
-/**
- * Whether an enum-shaped export was folded from a namespace of constants rather than
- * declared as an enum.
- */
-export function isConstantNamespace(node: tae.ExportNode): boolean {
-  return (node as Partial<{ constantNamespace: boolean }>).constantNamespace === true;
-}
-
-function formatDocComment(description: string | undefined): string {
-  if (!description) {
-    return '';
-  }
-  const lines = description.replaceAll('*/', '*\\/').split('\n');
-  if (lines.length === 1) {
-    return `/** ${lines[0]} */\n`;
-  }
-  return `/**\n${lines.map((line) => ` * ${line}`.trimEnd()).join('\n')}\n */\n`;
+  return folded;
 }
 
 /**
  * Writes the declaration of a constant group as it is exported: a namespace of constants
- * for a folded namespace export, an enum otherwise.
+ * for a namespace export, an enum otherwise.
  */
 export function formatConstantGroupDeclaration(
   name: string,
@@ -140,56 +156,16 @@ export function formatConstantGroupDeclaration(
 ): string {
   const members = group.members.map((member) => {
     const value = typeof member.value === 'number' ? member.value : JSON.stringify(member.value);
+    const comment = member.documentation ? formatPropertyComment(member.documentation) : undefined;
     const declaration = asNamespace
       ? `const ${member.name}: ${value};`
       : `${member.name} = ${value},`;
-    return formatDocComment(member.documentation?.description) + declaration;
+    return comment ? `${comment}\n${declaration}` : declaration;
   });
 
   return asNamespace
     ? `declare namespace ${name} {\n${members.join('\n')}\n}`
     : `enum ${name} {\n${members.join('\n')}\n}`;
-}
-
-/**
- * Collapses the flattened members of each constant namespace (`ButtonDataAttributes.open`)
- * into a single enum-shaped export named after the namespace, in place of its first member.
- */
-export function foldConstantNamespaces(
-  exports: tae.ExportNode[],
-  namespaces: Set<string>,
-): tae.ExportNode[] {
-  if (namespaces.size === 0) {
-    return exports;
-  }
-
-  const members = new Map<string, EnumMember[]>();
-  const folded: tae.ExportNode[] = [];
-
-  for (const node of exports) {
-    const dot = node.name.indexOf('.');
-    const namespace = node.name.slice(0, dot);
-    const value = dot === -1 ? undefined : readLiteralValue(node.type);
-
-    if (value === undefined || !namespaces.has(namespace)) {
-      folded.push(node);
-    } else {
-      if (!members.has(namespace)) {
-        members.set(namespace, []);
-        const group = new ExportNode(
-          namespace,
-          new EnumNode(new TypeName(namespace), members.get(namespace)!, undefined),
-          undefined,
-        );
-        folded.push(Object.assign(group, { constantNamespace: true }));
-      }
-      members
-        .get(namespace)!
-        .push(new EnumMember(node.name.slice(dot + 1), value, node.documentation));
-    }
-  }
-
-  return folded;
 }
 
 /**
@@ -199,13 +175,20 @@ export function foldConstantNamespaces(
  * Throws when a pattern is malformed, when a group matches several patterns, or when the
  * name a pattern captures is not exactly one of the exported components.
  *
- * @returns Targets keyed by the group's export name
+ * @returns Targets keyed by the group's export name, and each component's groups
  */
 export function matchConstantGroups(
   exports: tae.ExportNode[],
   patterns: ConstantGroupPatterns = {},
-): Map<string, ConstantGroupTarget> {
-  const matchers = Object.entries(patterns).flatMap(([key, pattern]) => {
+): {
+  targets: Map<string, ConstantGroupTarget>;
+  byComponent: Map<string, ComponentConstantGroups>;
+} {
+  const targets = new Map<string, ConstantGroupTarget>();
+  const byComponent = new Map<string, ComponentConstantGroups>();
+
+  const matchers = (Object.keys(patterns) as ConstantGroupKind[]).flatMap((kind) => {
+    const pattern = patterns[kind];
     if (pattern === undefined) {
       return [];
     }
@@ -213,28 +196,28 @@ export function matchConstantGroups(
     const parts = pattern.split('*');
     if (parts.length !== 2) {
       throw new Error(
-        `[constantGroups] ${key} pattern "${pattern}" must contain exactly one \`*\``,
+        `[constantGroups] ${kind} pattern "${pattern}" must contain exactly one \`*\``,
       );
     }
 
     const [prefix, suffix] = parts;
-    const kind = PATTERN_KINDS[key as keyof ConstantGroupPatterns];
     return [{ prefix, suffix, kind }];
   });
 
-  const targets = new Map<string, ConstantGroupTarget>();
   if (matchers.length === 0) {
-    return targets;
+    return { targets, byComponent };
   }
 
   const componentsByFlatName = new Map<string, string[]>();
   for (const node of exports) {
     if (isComponentType(node.type)) {
-      const flatName = node.name.replace(/\./g, '');
-      componentsByFlatName.set(flatName, [
-        ...(componentsByFlatName.get(flatName) ?? []),
-        node.name,
-      ]);
+      const flatName = node.name.replaceAll('.', '');
+      const names = componentsByFlatName.get(flatName);
+      if (names) {
+        names.push(node.name);
+      } else {
+        componentsByFlatName.set(flatName, [node.name]);
+      }
     }
   }
 
@@ -266,10 +249,15 @@ export function matchConstantGroups(
           );
         }
 
-        targets.set(node.name, { component: components[0], kind: match.kind });
+        const [component] = components;
+        targets.set(node.name, { component, kind: match.kind });
+
+        const groups = byComponent.get(component) ?? {};
+        groups[match.kind] ??= node.type;
+        byComponent.set(component, groups);
       }
     }
   }
 
-  return targets;
+  return { targets, byComponent };
 }
