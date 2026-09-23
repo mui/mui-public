@@ -14,11 +14,14 @@ export type ConstantGroupKind = 'data-attributes' | 'css-variables';
  * Name patterns marking which constant groups document a component's table. The `*` stands
  * for the component's name with its dots removed, e.g. with `'*DataAttributes'` the group
  * `ToolbarButtonDataAttributes` holds the data attributes of `Toolbar.Button`.
+ *
+ * A type alias rather than an interface, so it stays assignable to the JSON-valued loader
+ * options bundlers expect.
  */
-export interface ConstantGroupPatterns {
+export type ConstantGroupPatterns = {
   dataAttributes?: string;
   cssVariables?: string;
-}
+};
 
 export interface ConstantGroupTarget {
   /** The component's name as the entrypoint exports it, e.g. `Toolbar.Button` */
