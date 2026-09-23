@@ -88,6 +88,14 @@ type ComponentPartState = {
 
 ## Additional Types
 
+### ComponentPartDataAttributes
+
+Re-export of [Part](#part) data-attributes.
+
+### ComponentRootDataAttributes
+
+Re-export of [Root](#root) data-attributes.
+
 ### InputType
 
 ```typescript
@@ -119,7 +127,7 @@ type InputType =
 
 - `Component.Root`: `Component.Root`, `Component.Root.State`, `Component.Root.Props`, `Component.Root.ChangeEventDetails`
 - `Component.Part`: `Component.Part`, `Component.Part.State`, `Component.Part.Props`
-- `Default`: `ComponentRootState`, `ComponentRootChangeEventDetails`, `ComponentRootProps`, `ComponentPartState`, `ComponentPartProps`, `InputType`
+- `Default`: `ComponentRootDataAttributes`, `ComponentPartDataAttributes`, `ComponentRootState`, `ComponentRootChangeEventDetails`, `ComponentRootProps`, `ComponentPartState`, `ComponentPartProps`, `InputType`
 
 ## Canonical Types
 

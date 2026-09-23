@@ -7,11 +7,7 @@ import ts from 'typescript';
 import { createOptimizedProgram } from './createOptimizedProgram';
 import { augmentComponentsWithInheritedProps } from './inheritedExternalProps';
 import type { InheritedExternalPropsConfig } from './inheritedExternalProps';
-import { readConstantGroup, transformConstantGroup } from './transformConstantGroup';
-import {
-  findConstantGroupReExports,
-  foldConstantGroupReExports,
-} from './foldConstantGroupReExports';
+import { findConstantNamespaces, foldConstantNamespaces } from './constantGroups';
 import { PARSER_OPTIONS } from './constants';
 import { extractJSDocText, isJSDocNodeArray } from './extractJSDocText';
 import { PerformanceTracker } from './performanceTracking';
@@ -286,7 +282,7 @@ function extractNamespaces(exports: ExportNode[]): string[] {
 // Worker returns raw export nodes and metadata for formatting in main thread
 export interface VariantResult {
   exports: ExportNode[];
-  allTypes: ExportNode[]; // All exports including internal types for reference resolution
+  allTypes: ExportNode[]; // All exports, for reference resolution
   namespaces: string[];
   typeNameMap?: Record<string, string>; // Maps flat type names to dotted names (serializable across worker boundary)
 }
@@ -295,10 +291,8 @@ export interface WorkerRequest {
   requestId?: number; // Added by worker manager for request tracking
   projectPath: string;
   compilerOptions: CompilerOptions;
-  /** All files for the TypeScript program (entrypoints + meta files) */
+  /** All files for the TypeScript program */
   allEntrypoints: string[];
-  /** Meta files (DataAttributes, CssVars) - not entrypoints, just additional type info */
-  metaFiles: string[];
   /** Map serialized as array of [variantName, fileUrl] tuples where fileUrl uses file:// protocol */
   resolvedVariantMap: Array<[string, string]>;
   /** Dependency paths (filesystem paths, not URLs) */
@@ -321,9 +315,6 @@ export interface WorkerResponse {
   allDependencies?: string[];
   performanceLogs?: PerformanceLog[];
   error?: string;
-  debug?: {
-    metaFilesCount?: number;
-  };
 }
 
 /**
@@ -359,54 +350,6 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
       programWrapperEnd,
     );
 
-    const internalTypesCache: Record<string, ExportNode[]> = {};
-    const moduleExportsCache: Record<string, ExportNode[]> = {};
-
-    /**
-     * Parses a module's exports once per file, for modules other than the entrypoints.
-     */
-    const parseModuleExports = (file: string): ExportNode[] | undefined => {
-      if (moduleExportsCache[file]) {
-        return moduleExportsCache[file];
-      }
-
-      // Ensure the file is loaded in the program first
-      // This is important for meta files (DataAttributes, CssVars) that aren't imported
-      const fileSourceFile = program.getSourceFile(file);
-      if (!fileSourceFile) {
-        console.warn(`[processTypes] Could not load source file: ${file}`);
-        return undefined;
-      }
-
-      moduleExportsCache[file] = parseFromProgram(file, program, PARSER_OPTIONS).exports;
-      return moduleExportsCache[file];
-    };
-
-    /**
-     * Parses a metadata file (DataAttributes, CssVars) into its constant group, once per file.
-     */
-    const loadMetaFile = (file: string): ExportNode[] => {
-      if (!internalTypesCache[file]) {
-        const internalExport = parseModuleExports(file);
-
-        // Metadata files may declare their members as an enum or as named constants;
-        // normalize both to a single constant group named after the file.
-        internalTypesCache[file] = internalExport
-          ? transformConstantGroup(file, internalExport)
-          : [];
-      }
-
-      return internalTypesCache[file];
-    };
-
-    /**
-     * Reads a namespace re-exported module as a constant group, when it holds only constants.
-     */
-    const loadConstantGroup = (file: string): ExportNode | undefined => {
-      const moduleExports = parseModuleExports(file);
-      return moduleExports && readConstantGroup(file, moduleExports);
-    };
-
     // Process variants in parallel
     const resolvedVariantMap = new Map(request.resolvedVariantMap);
     const variantPromises = Array.from(resolvedVariantMap.entries()).map(
@@ -436,12 +379,11 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
           // type aliases, and re-exports properly
           const parsed = parseFromProgram(entrypoint, program, PARSER_OPTIONS);
 
-          // Modules of constants re-exported as a namespace (`export * as ButtonDataAttributes`)
+          // Modules of constants exported as a namespace (`export * as ButtonDataAttributes`)
           // arrive flattened into one export per member; document each as a single group.
-          const exports = foldConstantGroupReExports(
+          const exports = foldConstantNamespaces(
             parsed.exports,
-            findConstantGroupReExports(entrypoint, program),
-            loadConstantGroup,
+            findConstantNamespaces(entrypoint, program),
           );
 
           // Re-add configured props that the parser dropped because they are
@@ -479,21 +421,7 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
             new Set(),
           );
 
-          const dependencies = [
-            ...request.dependencies,
-            entrypoint,
-            ...request.metaFiles,
-            ...entrypointDependencies,
-          ];
-
-          // Parse meta files (DataAttributes, CssVars) for additional type information
-          const allInternalTypes = request.metaFiles.map(loadMetaFile);
-
-          const internalTypes = allInternalTypes.reduce((acc, cur) => {
-            acc.push(...cur);
-            return acc;
-          }, []);
-          const allTypes = [...exports, ...internalTypes];
+          const dependencies = [...request.dependencies, entrypoint, ...entrypointDependencies];
 
           const parseEnd = tracker.mark(
             nameMark(functionName, `Variant ${variantName} Parsed`, [request.relativePath]),
@@ -517,16 +445,13 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
             variantName,
             variantData: {
               exports,
-              allTypes,
+              allTypes: exports,
               namespaces,
               // Convert Map to Record for serialization across worker boundary
               typeNameMap:
                 mergedTypeNameMap.size > 0 ? Object.fromEntries(mergedTypeNameMap) : undefined,
             },
             dependencies,
-            debug: {
-              metaFilesCount: request.metaFiles.length,
-            },
           };
         } catch (error) {
           throw new Error(
@@ -538,10 +463,9 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
 
     const variantResults = await Promise.all(variantPromises);
 
-    // Process results and collect dependencies and debug info
+    // Process results and collect dependencies
     const variantData: Record<string, VariantResult> = {};
     const allDependencies: string[] = [];
-    const debugInfo: Record<string, { metaFilesCount: number }> = {};
 
     for (const result of variantResults) {
       if (result) {
@@ -549,9 +473,6 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
         result.dependencies.forEach((file: string) => {
           allDependencies.push(file);
         });
-        if (result.debug) {
-          debugInfo[result.variantName] = result.debug;
-        }
       }
     }
 
@@ -564,7 +485,6 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
       variantData: serializedVariantData,
       allDependencies,
       performanceLogs: tracker.getLogs(),
-      debug: Object.keys(debugInfo).length > 0 ? debugInfo[Object.keys(debugInfo)[0]] : undefined,
     };
   } catch (error) {
     return {

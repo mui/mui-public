@@ -21,3 +21,9 @@ A simple component that displays a title and optional children.
 | Attribute | Type     | Description                |
 | :-------- | :------- | :------------------------- |
 | data-type | `string` | The type of the component. |
+
+## Additional Types
+
+### ComponentDataAttributes
+
+Re-export of [Component](#component) data-attributes.

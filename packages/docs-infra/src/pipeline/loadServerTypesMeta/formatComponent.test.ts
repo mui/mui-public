@@ -116,10 +116,12 @@ describe('formatComponent', () => {
       });
     });
 
-    it('should find data attributes by suffix', async () => {
+    it('should find the data attributes the component owns', async () => {
+      const checkbox = { name: 'Checkbox', type: { kind: 'component', props: [] } };
       const result = await formatComponentData(
-        { name: 'Checkbox', type: { kind: 'component', props: [] } } as any,
+        checkbox as any,
         [
+          checkbox,
           {
             name: 'CheckboxDataAttributes',
             type: {
@@ -145,12 +147,14 @@ describe('formatComponent', () => {
       });
     });
 
-    it('should find CSS variables by suffix', async () => {
+    it('should find the CSS variables the component owns', async () => {
+      const slider = { name: 'Slider', type: { kind: 'component', props: [] } };
       const result = await formatComponentData(
-        { name: 'Slider', type: { kind: 'component', props: [] } } as any,
+        slider as any,
         [
+          slider,
           {
-            name: 'SliderCssVars',
+            name: 'SliderVariables',
             type: {
               kind: 'enum',
               members: [
