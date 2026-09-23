@@ -72,7 +72,7 @@ on:
       model:
         description: The Claude model the agent runs on.
         type: string
-        default: claude-sonnet-5
+        default: claude-opus-5-5
   workflow_call:
     inputs:
       report-only:
@@ -104,10 +104,11 @@ on:
         type: boolean
         default: false
       model:
-        # The Claude model the agent runs on. Defaults to a sensible current model; override to trade
-        # cost against capability.
+        # The Claude model the agent runs on. This default is the single source of truth for every
+        # caller that does not pass a model of its own, so bumping the model here rolls it out to all
+        # of them. Override per run to trade cost against capability.
         type: string
-        default: claude-sonnet-5
+        default: claude-opus-5-5
     secrets:
       circleci-token:
         required: false
@@ -116,7 +117,7 @@ permissions: {}
 
 env:
   # Empty on a schedule run (no inputs); the fallback is the default.
-  MODEL: ${{ inputs.model || 'claude-sonnet-5' }}
+  MODEL: ${{ inputs.model || 'claude-opus-5-5' }}
 
 jobs:
   resolve-ref:
