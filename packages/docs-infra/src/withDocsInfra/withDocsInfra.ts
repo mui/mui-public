@@ -4,6 +4,7 @@ import type { Configuration as WebpackConfig, RuleSetRule } from 'webpack';
 import type { OrderingConfig } from '../pipeline/loadServerTypesText/order';
 import type { DescriptionReplacement } from '../pipeline/loadServerTypesMeta/format';
 import type { InheritedExternalPropsConfig } from '../pipeline/loadServerTypesMeta/inheritedExternalProps';
+import type { ConstantGroupPatterns } from '../pipeline/loadServerTypesMeta/constantGroups';
 import type { EnhanceCodeEmphasisOptions } from '../pipeline/parseSource/calculateFrameRanges';
 import type { TransformHtmlCodeBlockOptions } from '../pipeline/transformHtmlCodeBlock/transformHtmlCodeBlock';
 import { DEFAULT_CACHE_DIR } from '../pipeline/cacheUtils';
@@ -194,6 +195,16 @@ export interface WithDocsInfraOptions {
    * ```
    */
   inheritedExternalProps?: InheritedExternalPropsConfig;
+  /**
+   * Export name patterns marking the constant groups (enums, or namespaces of constants) that
+   * hold a component's data attributes or CSS variables. The `*` stands for the component's
+   * name with its dots removed. Without patterns, no tables are attached to components.
+   * @example
+   * ```js
+   * { dataAttributes: '*DataAttributes', cssVariables: '*CssVariables' }
+   * ```
+   */
+  constantGroupPatterns?: ConstantGroupPatterns;
   /**
    * Directory rooting docs-infra's build caches and coordination state — relocate it (or point it
    * at a persistent cache) and everything under it moves together: the sha256-validated JSON caches
@@ -392,6 +403,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
   const ordering = options.ordering;
   const descriptionReplacements = options.descriptionReplacements;
   const inheritedExternalProps = options.inheritedExternalProps;
+  const constantGroupPatterns = options.constantGroupPatterns;
   const demoEmphasisOptions = options.demoEmphasisOptions;
   const codeBlockEmphasisOptions = options.codeBlockEmphasisOptions;
 
@@ -480,6 +492,9 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
                 : {}),
               ...(inheritedExternalProps
                 ? { inheritedExternalProps: inheritedExternalProps as unknown as JSONValue }
+                : {}),
+              ...(constantGroupPatterns
+                ? { constantGroupPatterns: constantGroupPatterns as unknown as JSONValue }
                 : {}),
             },
           },
@@ -615,6 +630,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
                 ...(ordering ? { ordering } : {}),
                 ...(descriptionReplacements ? { descriptionReplacements } : {}),
                 ...(inheritedExternalProps ? { inheritedExternalProps } : {}),
+                ...(constantGroupPatterns ? { constantGroupPatterns } : {}),
               },
             },
           ],

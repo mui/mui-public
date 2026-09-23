@@ -70,6 +70,11 @@ type LoaderOptions = {
    * keyed by the declaring type's name.
    */
   inheritedExternalProps?: InheritedExternalPropsConfig;
+  /**
+   * Export name patterns marking the constant groups that hold a component's data
+   * attributes or CSS variables, e.g. `{ dataAttributes: '*DataAttributes' }`.
+   */
+  constantGroupPatterns?: ConstantGroupPatterns;
   /** Options for code blocks highlighted inside generated type metadata */
   codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions;
   /**

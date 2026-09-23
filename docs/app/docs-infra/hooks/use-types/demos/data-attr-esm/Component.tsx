@@ -28,5 +28,4 @@ export function Component(props: Props) {
   // @focus-end
 }
 
-/** @docs-enum dataAttributes Component */
 export * as ComponentDataAttributes from './ComponentDataAttributes';

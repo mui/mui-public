@@ -7,7 +7,7 @@ import ts from 'typescript';
 import { createOptimizedProgram } from './createOptimizedProgram';
 import { augmentComponentsWithInheritedProps } from './inheritedExternalProps';
 import type { InheritedExternalPropsConfig } from './inheritedExternalProps';
-import { findConstantGroupExports, foldConstantGroups } from './constantGroups';
+import { findConstantNamespaces, foldConstantNamespaces } from './constantGroups';
 import { PARSER_OPTIONS } from './constants';
 import { extractJSDocText, isJSDocNodeArray } from './extractJSDocText';
 import { PerformanceTracker } from './performanceTracking';
@@ -380,11 +380,10 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
           const parsed = parseFromProgram(entrypoint, program, PARSER_OPTIONS);
 
           // Modules of constants exported as a namespace (`export * as ButtonDataAttributes`)
-          // arrive flattened into one export per member; document each as a single group, and
-          // attach groups tagged `@docs-enum <kind> <Component>` to their component.
-          const exports = foldConstantGroups(
+          // arrive flattened into one export per member; document each as a single group.
+          const exports = foldConstantNamespaces(
             parsed.exports,
-            findConstantGroupExports(entrypoint, program),
+            findConstantNamespaces(entrypoint, program),
           );
 
           // Re-add configured props that the parser dropped because they are

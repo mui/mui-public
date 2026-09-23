@@ -12,7 +12,7 @@ import type {
   DescriptionReplacement,
 } from './format';
 import { isComponentType, isEnumType } from './typeGuards';
-import { getConstantGroupTarget } from './constantGroups';
+import type { ConstantGroupTarget } from './constantGroups';
 import { rewriteTypeStringsDeep } from './rewriteTypes';
 import type { TypeRewriteContext } from './rewriteTypes';
 import type { ExternalTypesCollector } from './externalTypes';
@@ -37,6 +37,8 @@ export type ComponentTypeMeta = {
  * Options for customizing component data formatting.
  */
 export interface FormatComponentOptions {
+  /** Constant groups matched to components, keyed by export name (see `matchConstantGroups`) */
+  constantGroups?: Map<string, ConstantGroupTarget>;
   /** Pattern/replacement pairs to apply to descriptions */
   descriptionReplacements?: DescriptionReplacement[];
   /** Options for inline type formatting (e.g., unionPrintWidth) */
@@ -72,11 +74,11 @@ export async function formatComponentData(
     : undefined;
   const description = descriptionText ? await parseMarkdownToHast(descriptionText) : undefined;
 
-  // The component's data attributes and CSS variables are the constant groups tagged for it.
+  // The component's data attributes and CSS variables are the constant groups matched to it.
   let dataAttributes: tae.EnumNode | undefined;
   let cssVariables: tae.EnumNode | undefined;
   for (const node of allExports) {
-    const target = getConstantGroupTarget(node);
+    const target = options.constantGroups?.get(node.name);
     if (target?.component === component.name && isEnumType(node.type)) {
       if (target.kind === 'data-attributes') {
         dataAttributes ??= node.type;

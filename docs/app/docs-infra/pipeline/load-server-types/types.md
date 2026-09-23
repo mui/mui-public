@@ -393,6 +393,11 @@ type LoadServerTypesOptions = {
    */
   inheritedExternalProps?: InheritedExternalPropsConfig;
   /**
+   * Export name patterns marking the constant groups that hold a component's data
+   * attributes or CSS variables, e.g. `{ dataAttributes: '*DataAttributes' }`.
+   */
+  constantGroupPatterns?: ConstantGroupPatterns;
+  /**
    * Directory for the sha256-validated JSON cache of the types pipeline. When set, after
    * writing types.md syncTypes pre-populates `{cacheDir}/types-text/{route}.json` with the
    * parsed `TypesSourceData`, leaving it warm for the next cold `loadServerTypesText` read.

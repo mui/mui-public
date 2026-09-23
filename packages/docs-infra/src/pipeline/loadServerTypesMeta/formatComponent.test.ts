@@ -116,7 +116,7 @@ describe('formatComponent', () => {
       });
     });
 
-    it('should find the data attributes tagged for the component', async () => {
+    it('should find the data attributes matched to the component', async () => {
       const result = await formatComponentData(
         { name: 'Checkbox', type: { kind: 'component', props: [] } } as any,
         [
@@ -126,11 +126,15 @@ describe('formatComponent', () => {
               kind: 'enum',
               members: [{ value: 'data-checked', documentation: { description: 'Checked' } }],
             },
-            constantGroupTarget: { component: 'Checkbox', kind: 'data-attributes' },
           },
         ] as any,
         {},
         defaultRewriteContext,
+        {
+          constantGroups: new Map([
+            ['CheckboxDataAttributes', { component: 'Checkbox', kind: 'data-attributes' }],
+          ]),
+        },
       );
 
       expect(result.dataAttributes['data-checked'].type).toBeUndefined();
@@ -146,7 +150,7 @@ describe('formatComponent', () => {
       });
     });
 
-    it('should find the CSS variables tagged for the component', async () => {
+    it('should find the CSS variables matched to the component', async () => {
       const result = await formatComponentData(
         { name: 'Slider', type: { kind: 'component', props: [] } } as any,
         [
@@ -161,11 +165,15 @@ describe('formatComponent', () => {
                 },
               ],
             },
-            constantGroupTarget: { component: 'Slider', kind: 'css-variables' },
           },
         ] as any,
         {},
         defaultRewriteContext,
+        {
+          constantGroups: new Map([
+            ['SliderCssVars', { component: 'Slider', kind: 'css-variables' }],
+          ]),
+        },
       );
 
       expect(result.cssVariables['--color'].type).toBe('color');

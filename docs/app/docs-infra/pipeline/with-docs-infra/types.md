@@ -280,6 +280,16 @@ type WithDocsInfraOptions = {
    */
   inheritedExternalProps?: InheritedExternalPropsConfig;
   /**
+   * Export name patterns marking the constant groups (enums, or namespaces of constants) that
+   * hold a component's data attributes or CSS variables. The `*` stands for the component's
+   * name with its dots removed. Without patterns, no tables are attached to components.
+   * @example
+   * ```js
+   * { dataAttributes: '*DataAttributes', cssVariables: '*CssVariables' }
+   * ```
+   */
+  constantGroupPatterns?: ConstantGroupPatterns;
+  /**
    * Directory rooting docs-infra's build caches and coordination state — relocate it (or point it
    * at a persistent cache) and everything under it moves together: the sha256-validated JSON caches
    * (`pages-index-v2`, `types-text`, `types-enhanced`) and the index marker directories

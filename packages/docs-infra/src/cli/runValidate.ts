@@ -170,6 +170,7 @@ const runValidate: CommandModule<{}, Args> = {
       ordering,
       descriptionReplacements,
       inheritedExternalProps,
+      constantGroupPatterns,
       useVisibleDescription = false,
       cacheDir: configCacheDir,
       demoClientRequirements = [],
@@ -412,6 +413,7 @@ const runValidate: CommandModule<{}, Args> = {
                 ordering,
                 descriptionReplacements,
                 inheritedExternalProps,
+                constantGroupPatterns,
                 cacheDir,
               },
             });

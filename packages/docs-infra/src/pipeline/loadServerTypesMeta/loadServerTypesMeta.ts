@@ -28,7 +28,8 @@ import type { InheritedExternalPropsConfig } from './inheritedExternalProps';
 import { buildTypeCompatibilityMap } from './rewriteTypes';
 import type { TypeRewriteContext } from './rewriteTypes';
 import type { ExternalTypeMeta, ExternalTypesCollector } from './externalTypes';
-import { getConstantGroupTarget } from './constantGroups';
+import { matchConstantGroups } from './constantGroups';
+import type { ConstantGroupPatterns } from './constantGroups';
 import { getWorkerManager } from './workerManager';
 import { reconstructPerformanceLogs } from './performanceTracking';
 import { typeSuffixes as defaultTypeSuffixes } from '../loadServerTypesText/order';
@@ -142,6 +143,14 @@ export interface LoadServerTypesMetaOptions {
    * @example { BaseUIComponentProps: ['className', 'render', 'style'] }
    */
   inheritedExternalProps?: InheritedExternalPropsConfig;
+  /**
+   * Export name patterns marking the constant groups (enums, or namespaces of constants)
+   * that hold a component's data attributes or CSS variables. The `*` stands for the
+   * component's name with its dots removed. Without patterns, no tables are attached.
+   *
+   * @example { dataAttributes: '*DataAttributes', cssVariables: '*CssVariables' }
+   */
+  constantGroupPatterns?: ConstantGroupPatterns;
 }
 
 export interface LoadServerTypesMetaResult extends OrganizeTypesResult<TypesMeta> {
@@ -311,6 +320,11 @@ export async function loadServerTypesMeta(
         typeNameMap: variantResult.typeNameMap,
       };
 
+      const constantGroups = matchConstantGroups(
+        variantResult.exports,
+        options.constantGroupPatterns,
+      );
+
       // Process all exports in parallel within each variant
       const types = await Promise.all(
         variantResult.exports.map(async (exportNode): Promise<TypesMeta> => {
@@ -324,6 +338,7 @@ export async function loadServerTypesMeta(
                 formatting: formattingOptions,
                 externalTypes: externalTypesCollector,
                 ordering: options.ordering,
+                constantGroups,
                 descriptionReplacements: options.descriptionReplacements,
               },
             );
@@ -406,7 +421,7 @@ export async function loadServerTypesMeta(
           );
 
           // A constant group tagged for a component is documented as a link to its table
-          const target = getConstantGroupTarget(exportNode);
+          const target = constantGroups.get(exportNode.name);
           const targetName = target?.component.split('.').pop();
 
           return {

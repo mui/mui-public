@@ -149,7 +149,6 @@ A component's data attributes and CSS variables come from **constant groups** it
 
 ```ts
 // An enum
-/** @docs-enum cssVariables Accordion.Panel */
 export enum AccordionPanelCssVars {
   /**
    * The accordion panel's height.
@@ -168,20 +167,20 @@ export enum AccordionPanelCssVars {
 export const accordionPanelHeight = '--accordion-panel-height';
 
 // index.ts
-/** @docs-enum cssVariables Accordion.Panel */
 export * as AccordionPanelCssVars from './AccordionPanelCssVars';
 ```
 
 Both produce identical documentation. The constant form lets application bundlers inline and tree-shake the values, since nothing references a runtime enum object.
 
-The `@docs-enum <kind> <Component>` tag on the export documents the group as a component's table. The kind is `dataAttributes` or `cssVariables`, and the component is named as the entrypoint exports it:
+Which groups hold a component's table is configured with `constantGroupPatterns`, passed to `withDocsInfra` (or directly to `loadServerTypesMeta`). In each pattern, `*` stands for the component's name with its dots removed:
 
-```ts
-/** @docs-enum dataAttributes AlertDialog.Popup */
-export * as AlertDialogPopupDataAttributes from '../dialog/popup/DialogPopupDataAttributes';
+```js
+withDocsInfra({
+  constantGroupPatterns: { dataAttributes: '*DataAttributes', cssVariables: '*CssVariables' },
+});
 ```
 
-The tag belongs on the export, so one module can serve several components, as `DialogPopupDataAttributes` does for both `Dialog.Popup` and `AlertDialog.Popup`. A tag with an unknown kind, or naming a component the entrypoint doesn't export, fails the build. Untagged groups are documented on their own, with a member table.
+With these patterns, `AccordionPanelCssVariables` holds the CSS variables of `Accordion.Panel`. Only the exported name counts, so one module can serve several components: `DialogPopupDataAttributes.ts` published as `AlertDialogPopupDataAttributes` documents `AlertDialog.Popup`. A group whose name matches a pattern but no single exported component fails the build. Groups matching no pattern, and all groups when no patterns are configured, are documented on their own with a member table.
 
 ### 4. Build Type Compatibility Map
 
@@ -196,7 +195,7 @@ This map drives the type rewriting in the next step, ensuring that type referenc
 
 Converts raw TypeScript exports to formatted metadata based on their detected category:
 
-- **Components** (`formatComponentData`) — extracts props, and data attributes and CSS variables from the [constant groups](#constant-groups) tagged for the component.
+- **Components** (`formatComponentData`) — extracts props, and data attributes and CSS variables from the [constant groups](#constant-groups) matched to the component.
 - **Hooks** (`formatHookData`) — extracts parameters/properties and return value. Handles overloads by picking the longest signature and marking extra parameters as optional.
 - **Functions** (`formatFunctionData`) — same structure as hooks, without the `use` name prefix requirement.
 - **Classes** (`formatClassData`) — extracts constructor parameters, properties, and methods.
@@ -237,7 +236,7 @@ Several normalization passes clean up the type list:
 Identifies raw type exports that only repeat a component's table and documents them as a link to it:
 
 - `Button.Props` → marked as re-export of Button's props table
-- A [constant group](#constant-groups) → marked as re-export of the tagged component's data attributes or CSS variables
+- A [constant group](#constant-groups) → marked as re-export of the matched component's data attributes or CSS variables
 
 ### 9. Organize by Export
 
