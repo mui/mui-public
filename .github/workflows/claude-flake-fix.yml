@@ -231,7 +231,7 @@ jobs:
 
       - name: Triage and propose a fix
         id: triage
-        uses: anthropics/claude-code-action@cfc3eb22bfed5c26ef66e3223c982af27e4524de # v1.0.231
+        uses: anthropics/claude-code-action@9ca9355b36297178e28d37c799d1c9c8a28e6507 # unreleased main: bundles Claude Code CLI 2.1.280 (opus 5.5 needs it); re-pin to the tag once released
         with:
           anthropic_federation_rule_id: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID }}
           anthropic_organization_id: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
