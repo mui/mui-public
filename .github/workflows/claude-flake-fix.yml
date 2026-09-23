@@ -72,7 +72,7 @@ on:
       model:
         description: The Claude model the agent runs on.
         type: string
-        default: claude-sonnet-5
+        default: claude-opus-4-8
   workflow_call:
     inputs:
       report-only:
@@ -104,10 +104,11 @@ on:
         type: boolean
         default: false
       model:
-        # The Claude model the agent runs on. Defaults to a sensible current model; override to trade
-        # cost against capability.
+        # The Claude model the agent runs on. This default is the single source of truth for every
+        # caller that does not pass a model of its own, so bumping the model here rolls it out to all
+        # of them. Override per run to trade cost against capability.
         type: string
-        default: claude-sonnet-5
+        default: claude-opus-4-8
     secrets:
       circleci-token:
         required: false
@@ -116,7 +117,7 @@ permissions: {}
 
 env:
   # Empty on a schedule run (no inputs); the fallback is the default.
-  MODEL: ${{ inputs.model || 'claude-sonnet-5' }}
+  MODEL: ${{ inputs.model || 'claude-opus-4-8' }}
 
 jobs:
   resolve-ref:
@@ -258,8 +259,9 @@ jobs:
 
             (a) Fingerprint the failures — from the logs. Each failed run has a log at
             ${{ runner.temp }}/flake-data/jobs/NNNN.txt (a KEY=value header, then the error output).
-            Find the distinct errors without reading every log: read one, take a short stable error
-            string (a compiler/runner error, not a timestamp or PID) as its fingerprint, then
+            Find the distinct errors without reading every log: read one, take as its fingerprint the
+            specific line that names one class of failure — not a generic wrapper the job prints on
+            any failure, and with run-varying tokens stripped (see the fingerprint rule below) — then
             `grep -LE '<fingerprints so far>' ${{ runner.temp }}/flake-data/jobs/*.txt | head -1` to
             jump to the first failure matching none of them; read only that one; repeat until grep -L
             returns nothing. That gives every distinct error from a handful of reads.
@@ -270,8 +272,14 @@ jobs:
               {"fingerprint":"TypeError: Cannot read properties of undefined (reading 'rows')","external":false,"logs":["jobs/0003.txt","jobs/0009.txt"]},
               {"fingerprint":"npm error 503 registry.npmjs.org","external":true,"logs":["jobs/0011.txt"]}
             ]}
-            - fingerprint: a short error substring stable across runs — no timestamps, PIDs, temp
-              paths, ports, or durations.
+            - fingerprint: the specific error line that identifies one class of failure — the
+              assertion, compiler, or runtime message saying what actually broke — not a generic
+              wrapper the job prints on any failure (a build-tool or task-runner lifecycle line, a
+              bare "command failed" / non-zero exit, a script or job name), which lumps unrelated
+              causes together. Include only the part identical across every occurrence; strip
+              anything that varies run to run — timestamps, PIDs, ports, durations, temp paths,
+              hashes, line/column numbers, memory addresses, generated ids, URLs — so one class of
+              error maps to exactly one fingerprint.
             - external: true only when a named outside service is down (a registry, CDN, mirror);
               false for anything in this repo.
             - logs: every jobs/NNNN.txt whose contents show this error — a log may appear under more
