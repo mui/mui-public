@@ -90,11 +90,29 @@ type ComponentPartState = {
 
 ### ComponentPartDataAttributes
 
-Re-export of [Part](#part) data-attributes.
+Data attributes of [Part](#part).
+
+```typescript
+enum ComponentPartDataAttributes {
+  /** Present when the component has a title. */
+  title = 'data-title',
+  /** Present when the component is disabled. */
+  disabled = 'data-disabled',
+}
+```
 
 ### ComponentRootDataAttributes
 
-Re-export of [Root](#root) data-attributes.
+Data attributes of [Root](#root).
+
+```typescript
+enum ComponentRootDataAttributes {
+  /** Present when the component has a title. */
+  title = 'data-title',
+  /** Present when the component is disabled. */
+  disabled = 'data-disabled',
+}
+```
 
 ### InputType
 

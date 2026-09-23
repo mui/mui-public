@@ -26,4 +26,11 @@ A simple component that displays a title and optional children.
 
 ### ComponentDataAttributes
 
-Re-export of [Component](#component) data-attributes.
+Data attributes of [Component](#component).
+
+```typescript
+declare namespace ComponentDataAttributes {
+  /** The type of the component. */
+  const type: 'data-type';
+}
+```

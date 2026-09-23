@@ -420,24 +420,20 @@ export async function loadServerTypesMeta(
             },
           );
 
-          // A constant group tagged for a component is documented as a link to its table
+          // A constant group matched to a component is documented as that component's
+          // data attributes or CSS variables
           const target = constantGroups.get(exportNode.name);
-          const targetName = target?.component.split('.').pop();
+          let data = formattedData;
+          if (target?.kind === 'data-attributes') {
+            data = { ...formattedData, dataAttributesOf: target.component };
+          } else if (target?.kind === 'css-variables') {
+            data = { ...formattedData, cssVarsOf: target.component };
+          }
 
           return {
             type: 'raw',
             name: exportNode.name,
-            data:
-              target && targetName
-                ? {
-                    ...formattedData,
-                    reExportOf: {
-                      name: targetName,
-                      slug: `#${targetName.toLowerCase()}`,
-                      suffix: target.kind,
-                    },
-                  }
-                : formattedData,
+            data,
           };
         }),
       );

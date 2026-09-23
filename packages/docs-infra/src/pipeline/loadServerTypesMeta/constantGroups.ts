@@ -111,6 +111,47 @@ function readLiteralValue(type: tae.AnyType): string | undefined {
 }
 
 /**
+ * Whether an enum-shaped export was folded from a namespace of constants rather than
+ * declared as an enum.
+ */
+export function isConstantNamespace(node: tae.ExportNode): boolean {
+  return (node as Partial<{ constantNamespace: boolean }>).constantNamespace === true;
+}
+
+function formatDocComment(description: string | undefined): string {
+  if (!description) {
+    return '';
+  }
+  const lines = description.replaceAll('*/', '*\\/').split('\n');
+  if (lines.length === 1) {
+    return `/** ${lines[0]} */\n`;
+  }
+  return `/**\n${lines.map((line) => ` * ${line}`.trimEnd()).join('\n')}\n */\n`;
+}
+
+/**
+ * Writes the declaration of a constant group as it is exported: a namespace of constants
+ * for a folded namespace export, an enum otherwise.
+ */
+export function formatConstantGroupDeclaration(
+  name: string,
+  group: tae.EnumNode,
+  asNamespace: boolean,
+): string {
+  const members = group.members.map((member) => {
+    const value = typeof member.value === 'number' ? member.value : JSON.stringify(member.value);
+    const declaration = asNamespace
+      ? `const ${member.name}: ${value};`
+      : `${member.name} = ${value},`;
+    return formatDocComment(member.documentation?.description) + declaration;
+  });
+
+  return asNamespace
+    ? `declare namespace ${name} {\n${members.join('\n')}\n}`
+    : `enum ${name} {\n${members.join('\n')}\n}`;
+}
+
+/**
  * Collapses the flattened members of each constant namespace (`ButtonDataAttributes.open`)
  * into a single enum-shaped export named after the namespace, in place of its first member.
  */
@@ -135,13 +176,12 @@ export function foldConstantNamespaces(
     } else {
       if (!members.has(namespace)) {
         members.set(namespace, []);
-        folded.push(
-          new ExportNode(
-            namespace,
-            new EnumNode(new TypeName(namespace), members.get(namespace)!, undefined),
-            undefined,
-          ),
+        const group = new ExportNode(
+          namespace,
+          new EnumNode(new TypeName(namespace), members.get(namespace)!, undefined),
+          undefined,
         );
+        folded.push(Object.assign(group, { constantNamespace: true }));
       }
       members
         .get(namespace)!

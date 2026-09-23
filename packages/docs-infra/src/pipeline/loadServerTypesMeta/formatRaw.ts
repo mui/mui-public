@@ -9,6 +9,7 @@ import {
 import type { FormattedProperty, FormatInlineTypeOptions, DescriptionReplacement } from './format';
 import { formatType } from './formatType';
 import { isEnumType, isObjectType } from './typeGuards';
+import { formatConstantGroupDeclaration, isConstantNamespace } from './constantGroups';
 import { rewriteTypeStringsDeep } from './rewriteTypes';
 import type { TypeRewriteContext } from './rewriteTypes';
 import type { ExternalTypesCollector } from './externalTypes';
@@ -137,8 +138,16 @@ export async function formatRawData(
       }),
     );
 
-    // For enums, still generate the code block but also include members
-    const formattedCode = await generateFormattedCode(exportNode, displayName, typeNameMap);
+    // For enums, still generate the code block but also include members. The declaration
+    // follows how the group is exported: an enum, or a namespace of constants.
+    const formattedCode = await prettyFormat(
+      formatConstantGroupDeclaration(
+        displayName.replace(/\./g, ''),
+        exportNode.type,
+        isConstantNamespace(exportNode),
+      ),
+      null,
+    );
 
     // Rewrite type names in descriptions (but NOT in formattedCode which is valid TypeScript syntax)
     const rewrittenDescriptionText = descriptionText

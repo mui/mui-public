@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import type * as tae from 'typescript-api-extractor';
+import { parseFromProgram } from 'typescript-api-extractor';
 import { formatRawData, formatReExportData, isRawType } from './formatRaw';
-import { parseTestSources } from './parseTestSources';
+import { createTestProgram, parseTestSources } from './parseTestSources';
+import { findConstantNamespaces, foldConstantNamespaces } from './constantGroups';
+import { PARSER_OPTIONS } from './constants';
 import { buildTypeCompatibilityMap } from './rewriteTypes';
 import type { TypeRewriteContext } from './rewriteTypes';
 
@@ -235,6 +238,53 @@ describe('formatRaw', () => {
         expect(result.enumMembers).toHaveLength(4);
         expect(result.enumMembers?.[0].name).toBe('Up');
         expect(result.enumMembers?.[0].value).toBe('up');
+      });
+
+      it('should declare an enum with its members and their descriptions', async () => {
+        const result = await formatRawData(
+          createEnumExport('Direction', [
+            { name: 'Up', value: 'up', documentation: { description: 'Moving up.' } },
+            { name: 'Down', value: 'down' },
+            { name: 'Depth', value: 2 },
+          ]),
+          'Direction',
+          {},
+          defaultRewriteContext,
+        );
+
+        expect(result.formattedCode).toMatchInlineSnapshot(`
+          "enum Direction {
+            /** Moving up. */
+            Up = 'up',
+            Down = 'down',
+            Depth = 2,
+          }"
+        `);
+      });
+
+      it('should declare a folded constant namespace as a namespace of constants', async () => {
+        const { program, entrypoint } = createTestProgram({
+          'index.ts': `export * as ButtonDataAttributes from './attributes';`,
+          'attributes.ts': `
+            /** Present when pressed. */
+            export const pressed = 'data-pressed';
+            export const disabled = 'data-disabled';
+          `,
+        });
+        const [group] = foldConstantNamespaces(
+          parseFromProgram(entrypoint, program, PARSER_OPTIONS).exports,
+          findConstantNamespaces(entrypoint, program),
+        );
+
+        const result = await formatRawData(group, group.name, {}, defaultRewriteContext);
+
+        expect(result.formattedCode).toMatchInlineSnapshot(`
+          "declare namespace ButtonDataAttributes {
+            /** Present when pressed. */
+            const pressed: 'data-pressed';
+            const disabled: 'data-disabled';
+          }"
+        `);
       });
 
       it('should include enum member descriptions', async () => {

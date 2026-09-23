@@ -180,7 +180,7 @@ withDocsInfra({
 });
 ```
 
-With these patterns, `AccordionPanelCssVariables` holds the CSS variables of `Accordion.Panel`. Only the exported name counts, so one module can serve several components: `DialogPopupDataAttributes.ts` published as `AlertDialogPopupDataAttributes` documents `AlertDialog.Popup`. A group whose name matches a pattern but no single exported component fails the build. Groups matching no pattern, and all groups when no patterns are configured, are documented on their own with a member table.
+With these patterns, `AccordionPanelCssVariables` holds the CSS variables of `Accordion.Panel`. Only the exported name counts, so one module can serve several components: `DialogPopupDataAttributes.ts` published as `AlertDialogPopupDataAttributes` documents `AlertDialog.Popup`. A group whose name matches a pattern but no single exported component fails the build. A matched group is documented with its declaration, as a `declare namespace` of constants or an `enum` depending on how it is exported, and a link to the component's table. Groups matching no pattern, and all groups when no patterns are configured, are documented on their own with a member table.
 
 ### 4. Build Type Compatibility Map
 
@@ -199,7 +199,7 @@ Converts raw TypeScript exports to formatted metadata based on their detected ca
 - **Hooks** (`formatHookData`) — extracts parameters/properties and return value. Handles overloads by picking the longest signature and marking extra parameters as optional.
 - **Functions** (`formatFunctionData`) — same structure as hooks, without the `use` name prefix requirement.
 - **Classes** (`formatClassData`) — extracts constructor parameters, properties, and methods.
-- **Raw types** (`formatRawData`) — formats the type declaration as code. Special handling for enums (member tables), DataAttributes, and CssVars types.
+- **Raw types** (`formatRawData`) — formats the type declaration as code. Enums and constant groups are declared as they are exported, with a member table for groups not matched to a component.
 
 Each formatter calls `rewriteTypeStringsDeep` at the end, which applies the type compatibility map from step 4 to normalize all type references. Rewrites use word-boundary matching to prevent partial replacements (e.g., `Dialog` won't match inside `AlertDialog`).
 
@@ -233,10 +233,7 @@ Several normalization passes clean up the type list:
 
 ### 8. Detect Re-exports
 
-Identifies raw type exports that only repeat a component's table and documents them as a link to it:
-
-- `Button.Props` → marked as re-export of Button's props table
-- A [constant group](#constant-groups) → marked as re-export of the matched component's data attributes or CSS variables
+Identifies raw type exports that only repeat a component's props and documents them as a link to it, e.g. `Button.Props` → marked as re-export of Button's props table.
 
 ### 9. Organize by Export
 
