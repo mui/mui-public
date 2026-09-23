@@ -28,7 +28,7 @@ import type { InheritedExternalPropsConfig } from './inheritedExternalProps';
 import { buildTypeCompatibilityMap } from './rewriteTypes';
 import type { TypeRewriteContext } from './rewriteTypes';
 import type { ExternalTypeMeta, ExternalTypesCollector } from './externalTypes';
-import { findConstantGroupOwner, getConstantGroupKind } from './constantGroups';
+import { getConstantGroupTarget } from './constantGroups';
 import { getWorkerManager } from './workerManager';
 import { reconstructPerformanceLogs } from './performanceTracking';
 import { typeSuffixes as defaultTypeSuffixes } from '../loadServerTypesText/order';
@@ -405,10 +405,24 @@ export async function loadServerTypesMeta(
             },
           );
 
+          // A constant group tagged for a component is documented as a link to its table
+          const target = getConstantGroupTarget(exportNode);
+          const targetName = target?.component.split('.').pop();
+
           return {
             type: 'raw',
             name: exportNode.name,
-            data: formattedData,
+            data:
+              target && targetName
+                ? {
+                    ...formattedData,
+                    reExportOf: {
+                      name: targetName,
+                      slug: `#${targetName.toLowerCase()}`,
+                      suffix: target.kind,
+                    },
+                  }
+                : formattedData,
           };
         }),
       );
@@ -585,49 +599,61 @@ export async function loadServerTypesMeta(
     });
   }
 
-  // Detect re-exports: raw types that only repeat a component's props, data attributes, or
-  // CSS variables are documented as a link to that component instead.
-  const componentNames = allTypes.flatMap((t) => (t.type === 'component' ? [t.name] : []));
-  const markReExport = (
-    typeMeta: TypesMeta & { type: 'raw' },
-    componentName: string,
-    suffix: ReExportInfo['suffix'],
-  ): TypesMeta => {
-    const displayName = componentName.split('.').pop()!;
-    return {
-      ...typeMeta,
-      data: {
-        ...typeMeta.data,
-        reExportOf: { name: displayName, slug: `#${displayName.toLowerCase()}`, suffix },
-      },
-    };
-  };
-
+  // Detect re-exports: check if type exports (like ButtonProps) are just re-exports of component props
+  // For 'raw' types, update the data.reExportOf field
   allTypes = allTypes.map((typeMeta) => {
-    if (typeMeta.type !== 'raw' || typeMeta.data.reExportOf) {
+    if (typeMeta.type !== 'raw') {
       return typeMeta;
     }
 
-    // A constant group of data attributes or CSS variables is its owning component's table.
-    const { enumMembers } = typeMeta.data;
-    const kind = enumMembers && getConstantGroupKind(enumMembers.map((member) => member.value));
-    if (kind) {
-      const owner = findConstantGroupOwner(typeMeta.name, componentNames);
-      return owner ? markReExport(typeMeta, owner, kind) : typeMeta;
+    // Skip if already marked as a re-export
+    if (typeMeta.data.reExportOf) {
+      return typeMeta;
     }
 
-    // `ContextMenu.Root.Props` re-exports the props of `ContextMenu.Root` (or `Root`)
-    const componentName = typeMeta.name.match(/^(.+)\.Props$/)?.[1];
-    const component =
-      componentName &&
-      allTypes.find(
-        (t) =>
-          t.type === 'component' &&
-          (t.name === componentName || t.name.endsWith(`.${componentName}`)),
-      );
+    // Extract component name and suffix (e.g., "ButtonProps" -> component: "Button", suffix: "Props")
+    // Handle both namespaced (ContextMenu.Root.Props) and non-namespaced (ButtonProps) names
+    const parts = typeMeta.name.match(/^(.+)\.(Props|State)$/);
+    if (!parts) {
+      return typeMeta;
+    }
 
-    if (component && component.type === 'component' && Object.keys(component.data.props).length) {
-      return markReExport(typeMeta, componentName, 'props');
+    const [, componentName, suffix] = parts;
+
+    // Find the corresponding component by checking both the full name and just the last part
+    // e.g., for "ContextMenu.Root.Props", check both "ContextMenu.Root" and "Root"
+    const correspondingComponent = allTypes.find(
+      (t) =>
+        t.type === 'component' &&
+        (t.name === componentName || t.name.endsWith(`.${componentName}`)),
+    );
+
+    if (!correspondingComponent || correspondingComponent.type !== 'component') {
+      return typeMeta;
+    }
+
+    // Check if Props is a re-export of the component's props
+    if (suffix === 'Props' && correspondingComponent.data.props) {
+      const hasProps = Object.keys(correspondingComponent.data.props).length > 0;
+      if (hasProps) {
+        // Extract the display name (last part after dot) for the link text
+        const displayName = componentName.includes('.')
+          ? componentName.split('.').pop()!
+          : componentName;
+        // Mark this as a re-export by updating the data
+        return {
+          type: 'raw' as const,
+          name: typeMeta.name,
+          data: {
+            ...typeMeta.data,
+            reExportOf: {
+              name: displayName,
+              slug: `#${displayName.toLowerCase()}`,
+              suffix: 'props' as const,
+            },
+          },
+        };
+      }
     }
 
     return typeMeta;

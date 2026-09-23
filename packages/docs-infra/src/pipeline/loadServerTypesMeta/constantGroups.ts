@@ -1,14 +1,52 @@
 import ts from 'typescript';
 import { EnumMember, EnumNode, ExportNode, TypeName } from 'typescript-api-extractor';
 import type * as tae from 'typescript-api-extractor';
-import { isLiteralType } from './typeGuards';
+import { isComponentType, isEnumType, isLiteralType } from './typeGuards';
 
 /**
  * A constant group is a named set of constant values an entrypoint publishes, either as an
  * enum or as a namespace of constants (`export * as ButtonDataAttributes from './…'`).
  * Both are represented as an enum-shaped export.
+ *
+ * A group documents a component's data attributes or CSS variables when its export is
+ * tagged `@docs-enum dataAttributes <Component>` or `@docs-enum cssVariables <Component>`.
  */
 export type ConstantGroupKind = 'data-attributes' | 'css-variables';
+
+export interface ConstantGroupTarget {
+  /** The component's name as the entrypoint exports it, e.g. `Toolbar.Button` */
+  component: string;
+  kind: ConstantGroupKind;
+}
+
+export interface ConstantGroupExports {
+  /** Namespace exports of modules holding nothing but literal constants */
+  namespaces: Set<string>;
+  /** Tagged exports, keyed by public name */
+  targets: Map<string, ConstantGroupTarget>;
+}
+
+const DOCS_ENUM_TAG = 'docs-enum';
+
+/** The kinds a `@docs-enum` tag accepts, keyed as they are written in the tag. */
+const KINDS: Record<string, ConstantGroupKind> = {
+  dataAttributes: 'data-attributes',
+  cssVariables: 'css-variables',
+};
+
+type AttachedConstantGroup = tae.ExportNode & { constantGroupTarget: ConstantGroupTarget };
+
+/**
+ * Returns the component a constant group documents, when its export is tagged with one.
+ */
+export function getConstantGroupTarget(node: tae.ExportNode): ConstantGroupTarget | undefined {
+  return (node as Partial<AttachedConstantGroup>).constantGroupTarget;
+}
+
+function resolveAlias(symbol: ts.Symbol, checker: ts.TypeChecker): ts.Symbol {
+  // eslint-disable-next-line no-bitwise -- TypeScript symbol flags are a bitmask
+  return symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
+}
 
 /**
  * Whether a symbol is a `const` holding a string or number literal.
@@ -28,40 +66,76 @@ function isLiteralConstant(symbol: ts.Symbol, checker: ts.TypeChecker): boolean 
   return type.isStringLiteral() || type.isNumberLiteral();
 }
 
-function resolveAlias(symbol: ts.Symbol, checker: ts.TypeChecker): ts.Symbol {
-  // eslint-disable-next-line no-bitwise -- TypeScript symbol flags are a bitmask
-  return symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
+/**
+ * Reads a `@docs-enum <kind> <Component>` tag from the statement declaring an export.
+ */
+function readTarget(name: string, declaration: ts.Declaration): ConstantGroupTarget | undefined {
+  // JSDoc sits on the whole `export … from` statement rather than on its clauses.
+  let statement: ts.Node = declaration;
+  if (ts.isNamespaceExport(declaration)) {
+    statement = declaration.parent;
+  } else if (ts.isExportSpecifier(declaration)) {
+    statement = declaration.parent.parent;
+  }
+
+  const tags = ts.getJSDocTags(statement).filter((tag) => tag.tagName.text === DOCS_ENUM_TAG);
+  if (tags.length === 0) {
+    return undefined;
+  }
+
+  const [kindName = '', component, ...rest] = (ts.getTextOfJSDocComment(tags[0].comment) ?? '')
+    .trim()
+    .split(/\s+/);
+  const kind = Object.hasOwn(KINDS, kindName) ? KINDS[kindName] : undefined;
+
+  if (tags.length > 1 || !kind || !component || rest.length > 0) {
+    throw new Error(
+      `[constantGroups] ${name} - expected a single \`@${DOCS_ENUM_TAG} <kind> <Component>\` with kind one of ${Object.keys(KINDS).join(', ')}`,
+    );
+  }
+
+  return { component, kind };
 }
 
 /**
- * Finds the entrypoint's namespace exports whose module holds nothing but literal constants,
- * e.g. `export * as ButtonDataAttributes from './ButtonDataAttributes'`.
+ * Finds the entrypoint's constant namespaces and the component each tagged export documents.
  *
- * The parser flattens such a namespace into one export per member and cannot tell a constant
- * from a type alias of the same literal, so the checker is asked instead.
+ * The parser flattens a namespace export into one export per member and cannot tell a
+ * constant from a type alias of the same literal, nor does it keep JSDoc written on an
+ * `export … from` statement, so the checker is asked instead.
  */
-export function findConstantNamespaces(entrypoint: string, program: ts.Program): Set<string> {
-  const namespaces = new Set<string>();
+export function findConstantGroupExports(
+  entrypoint: string,
+  program: ts.Program,
+): ConstantGroupExports {
+  const found: ConstantGroupExports = { namespaces: new Set(), targets: new Map() };
   const sourceFile = program.getSourceFile(entrypoint);
   const checker = program.getTypeChecker();
   const moduleSymbol = sourceFile && checker.getSymbolAtLocation(sourceFile);
   if (!moduleSymbol) {
-    return namespaces;
+    return found;
   }
 
   for (const exportSymbol of checker.getExportsOfModule(moduleSymbol)) {
-    if (exportSymbol.declarations?.some(ts.isNamespaceExport)) {
+    const name = exportSymbol.name;
+    const [declaration] = exportSymbol.declarations ?? [];
+    const target = declaration && readTarget(name, declaration);
+    if (target) {
+      found.targets.set(name, target);
+    }
+
+    if (declaration && ts.isNamespaceExport(declaration)) {
       const members = checker
         .getExportsOfModule(checker.getAliasedSymbol(exportSymbol))
         .map((member) => resolveAlias(member, checker));
 
       if (members.length > 0 && members.every((member) => isLiteralConstant(member, checker))) {
-        namespaces.add(exportSymbol.name);
+        found.namespaces.add(name);
       }
     }
   }
 
-  return namespaces;
+  return found;
 }
 
 /**
@@ -88,16 +162,16 @@ function readLiteralValue(type: tae.AnyType): string | undefined {
 
 /**
  * Collapses the flattened members of each constant namespace (`ButtonDataAttributes.open`)
- * into a single enum-shaped export named after the namespace, in place of its first member.
+ * into a single enum-shaped export named after the namespace, in place of its first member,
+ * and attaches each tagged group to the component it documents.
+ *
+ * Throws when a tag sits on an export that is not a constant group, or names a component
+ * the entrypoint does not export.
  */
-export function foldConstantNamespaces(
+export function foldConstantGroups(
   exports: tae.ExportNode[],
-  namespaces: Set<string>,
+  found: ConstantGroupExports,
 ): tae.ExportNode[] {
-  if (namespaces.size === 0) {
-    return exports;
-  }
-
   const members = new Map<string, EnumMember[]>();
   const folded: tae.ExportNode[] = [];
 
@@ -106,7 +180,7 @@ export function foldConstantNamespaces(
     const namespace = node.name.slice(0, dot);
     const value = dot === -1 ? undefined : readLiteralValue(node.type);
 
-    if (value === undefined || !namespaces.has(namespace)) {
+    if (value === undefined || !found.namespaces.has(namespace)) {
       folded.push(node);
     } else {
       if (!members.has(namespace)) {
@@ -125,54 +199,37 @@ export function foldConstantNamespaces(
     }
   }
 
-  return folded;
-}
-
-/**
- * Tells what a constant group holds from its values: data attributes (`data-open`) or
- * CSS variables (`--width`). Groups of anything else are not component metadata.
- */
-export function getConstantGroupKind(
-  values: Array<string | number | undefined>,
-): ConstantGroupKind | undefined {
-  if (values.length === 0) {
-    return undefined;
+  if (found.targets.size === 0) {
+    return folded;
   }
-  if (values.every((value) => typeof value === 'string' && value.startsWith('data-'))) {
-    return 'data-attributes';
-  }
-  if (values.every((value) => typeof value === 'string' && value.startsWith('--'))) {
-    return 'css-variables';
-  }
-  return undefined;
-}
 
-/**
- * Finds the component a constant group belongs to: the one with the longest name the group's
- * name starts with, ignoring dots. `AlertDialogPopupDataAttributes` belongs to
- * `AlertDialog.Popup` rather than `AlertDialog`.
- *
- * @returns The owning component's name as given, or `undefined`
- */
-export function findConstantGroupOwner(
-  groupName: string,
-  componentNames: string[],
-): string | undefined {
-  const flatGroupName = groupName.replace(/\./g, '');
-  let owner: string | undefined;
-  let ownerLength = 0;
+  const components = new Set(
+    folded.filter((node) => isComponentType(node.type)).map((node) => node.name),
+  );
+  const unattached = new Map(found.targets);
 
-  for (const componentName of componentNames) {
-    const flatName = componentName.replace(/\./g, '');
-    if (
-      flatName.length > ownerLength &&
-      flatName.length < flatGroupName.length &&
-      flatGroupName.startsWith(flatName)
-    ) {
-      owner = componentName;
-      ownerLength = flatName.length;
+  const attached = folded.map((node) => {
+    const target = found.targets.get(node.name);
+    if (!target || !isEnumType(node.type)) {
+      return node;
     }
+    if (!components.has(target.component)) {
+      throw new Error(
+        `[constantGroups] ${node.name} - tagged for ${target.component}, which this entrypoint does not export as a component`,
+      );
+    }
+
+    unattached.delete(node.name);
+    return Object.assign(new ExportNode(node.name, node.type, node.documentation), {
+      constantGroupTarget: target,
+    });
+  });
+
+  if (unattached.size > 0) {
+    throw new Error(
+      `[constantGroups] ${Array.from(unattached.keys()).join(', ')} - tagged as component metadata, but not an enum or a namespace of constants`,
+    );
   }
 
-  return owner;
+  return attached;
 }

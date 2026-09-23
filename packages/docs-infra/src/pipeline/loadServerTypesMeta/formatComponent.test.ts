@@ -116,18 +116,17 @@ describe('formatComponent', () => {
       });
     });
 
-    it('should find the data attributes the component owns', async () => {
-      const checkbox = { name: 'Checkbox', type: { kind: 'component', props: [] } };
+    it('should find the data attributes tagged for the component', async () => {
       const result = await formatComponentData(
-        checkbox as any,
+        { name: 'Checkbox', type: { kind: 'component', props: [] } } as any,
         [
-          checkbox,
           {
             name: 'CheckboxDataAttributes',
             type: {
               kind: 'enum',
               members: [{ value: 'data-checked', documentation: { description: 'Checked' } }],
             },
+            constantGroupTarget: { component: 'Checkbox', kind: 'data-attributes' },
           },
         ] as any,
         {},
@@ -147,14 +146,12 @@ describe('formatComponent', () => {
       });
     });
 
-    it('should find the CSS variables the component owns', async () => {
-      const slider = { name: 'Slider', type: { kind: 'component', props: [] } };
+    it('should find the CSS variables tagged for the component', async () => {
       const result = await formatComponentData(
-        slider as any,
+        { name: 'Slider', type: { kind: 'component', props: [] } } as any,
         [
-          slider,
           {
-            name: 'SliderVariables',
+            name: 'SliderCssVars',
             type: {
               kind: 'enum',
               members: [
@@ -164,6 +161,7 @@ describe('formatComponent', () => {
                 },
               ],
             },
+            constantGroupTarget: { component: 'Slider', kind: 'css-variables' },
           },
         ] as any,
         {},

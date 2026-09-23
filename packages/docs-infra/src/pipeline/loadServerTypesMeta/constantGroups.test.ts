@@ -2,36 +2,48 @@ import { describe, it, expect } from 'vitest';
 import { parseFromProgram } from 'typescript-api-extractor';
 import type * as tae from 'typescript-api-extractor';
 import {
-  findConstantGroupOwner,
-  findConstantNamespaces,
-  foldConstantNamespaces,
-  getConstantGroupKind,
+  findConstantGroupExports,
+  foldConstantGroups,
+  getConstantGroupTarget,
 } from './constantGroups';
 import { createTestProgram } from './parseTestSources';
 import { PARSER_OPTIONS } from './constants';
 
+const LIB = `interface ReactElement {}`;
+
 const BUTTON = `
   /** A button. */
-  export function Button(props: { label: string }) {
-    return null;
+  export function Button(props: { label: string }): ReactElement {
+    return {};
   }
 `;
 
-/** Parses the entrypoint and folds its constant namespaces, the way the pipeline does. */
+const BUTTON_DATA_ATTRIBUTES = `
+  /** Present when pressed. */
+  export const pressed = 'data-pressed';
+`;
+
+/** Runs detection over in-memory sources. */
+function findSources(sources: Record<string, string>) {
+  const { program, entrypoint } = createTestProgram(sources, LIB);
+  return findConstantGroupExports(entrypoint, program);
+}
+
+/** Parses the entrypoint and folds its constant groups, the way the pipeline does. */
 function foldSources(sources: Record<string, string>) {
-  const { program, entrypoint } = createTestProgram(sources);
-  return foldConstantNamespaces(
+  const { program, entrypoint } = createTestProgram(sources, LIB);
+  return foldConstantGroups(
     parseFromProgram(entrypoint, program, PARSER_OPTIONS).exports,
-    findConstantNamespaces(entrypoint, program),
+    findConstantGroupExports(entrypoint, program),
   );
 }
 
-/** Exports reduced to their names, with a group's members as `name`, `value`, and docs. */
+/** Exports reduced to their names, a group's members, and the component it is attached to. */
 function summarize(exports: tae.ExportNode[]) {
-  return exports.map((node) =>
-    node.type.kind === 'enum'
+  return exports.map((node) => ({
+    name: node.name,
+    ...(node.type.kind === 'enum'
       ? {
-          name: node.name,
           members: node.type.members.map((member) => ({
             name: member.name,
             value: member.value,
@@ -39,54 +51,126 @@ function summarize(exports: tae.ExportNode[]) {
             type: member.documentation?.tags?.find((tag) => tag.name === 'type')?.value,
           })),
         }
-      : { name: node.name },
-  );
+      : {}),
+    ...(getConstantGroupTarget(node) ? { target: getConstantGroupTarget(node) } : {}),
+  }));
 }
 
-describe('findConstantNamespaces', () => {
-  it('finds a namespace export of a module of constants', () => {
-    const { program, entrypoint } = createTestProgram({
-      'index.ts': `export * as ButtonDataAttributes from './attributes';`,
-      'attributes.ts': `export const pressed = 'data-pressed';`,
+describe('findConstantGroupExports', () => {
+  describe('namespaces', () => {
+    it('finds a namespace export of a module of constants', () => {
+      const { namespaces } = findSources({
+        'index.ts': `export * as ButtonDataAttributes from './attributes';`,
+        'attributes.ts': BUTTON_DATA_ATTRIBUTES,
+      });
+
+      expect(namespaces).toEqual(new Set(['ButtonDataAttributes']));
     });
 
-    expect(findConstantNamespaces(entrypoint, program)).toEqual(new Set(['ButtonDataAttributes']));
+    it('follows namespace exports through `export *`', () => {
+      const { namespaces } = findSources({
+        'index.ts': `export * from './button';`,
+        'button.ts': `export * as ButtonDataAttributes from './attributes';`,
+        'attributes.ts': BUTTON_DATA_ATTRIBUTES,
+      });
+
+      expect(namespaces).toEqual(new Set(['ButtonDataAttributes']));
+    });
+
+    it('ignores modules exporting anything besides literal constants', () => {
+      const { namespaces } = findSources({
+        'index.ts': `
+          export * as Button from './parts';
+          export * as ButtonHelpers from './helpers';
+          export * as ButtonTypes from './types';
+          export * as ButtonSettings from './settings';
+        `,
+        'parts.ts': BUTTON,
+        'helpers.ts': `
+          export const pressed = 'data-pressed';
+          export function isPressed() {
+            return true;
+          }
+        `,
+        'types.ts': `export type Pressed = 'data-pressed';`,
+        'settings.ts': `export let label = 'label';`,
+      });
+
+      expect(namespaces).toEqual(new Set());
+    });
   });
 
-  it('follows namespace exports through `export *`', () => {
-    const { program, entrypoint } = createTestProgram({
-      'index.ts': `export * from './button';`,
-      'button.ts': `export * as ButtonDataAttributes from './attributes';`,
-      'attributes.ts': `export const pressed = 'data-pressed';`,
+  describe('tags', () => {
+    it('reads the component a namespace export is tagged with', () => {
+      const { targets } = findSources({
+        'index.ts': `
+          /** @docs-enum dataAttributes Toolbar.Button */
+          export * as ToolbarButtonDataAttributes from './attributes';
+        `,
+        'attributes.ts': BUTTON_DATA_ATTRIBUTES,
+      });
+
+      expect(targets).toEqual(
+        new Map([
+          ['ToolbarButtonDataAttributes', { component: 'Toolbar.Button', kind: 'data-attributes' }],
+        ]),
+      );
     });
 
-    expect(findConstantNamespaces(entrypoint, program)).toEqual(new Set(['ButtonDataAttributes']));
-  });
+    it('reads tags on re-exported enums under their public name', () => {
+      const { targets } = findSources({
+        'index.ts': `
+          /** @docs-enum cssVariables Button */
+          export { Variables as ButtonCssVariables } from './variables';
+        `,
+        'variables.ts': `export enum Variables { width = '--width' }`,
+      });
 
-  it('ignores modules exporting anything besides literal constants', () => {
-    const { program, entrypoint } = createTestProgram({
-      'index.ts': `
-        export * as Button from './parts';
-        export * as ButtonHelpers from './helpers';
-        export * as ButtonTypes from './types';
-        export * as ButtonSettings from './settings';
-      `,
-      'parts.ts': BUTTON,
-      'helpers.ts': `
-        export const pressed = 'data-pressed';
-        export function isPressed() {
-          return true;
-        }
-      `,
-      'types.ts': `export type Pressed = 'data-pressed';`,
-      'settings.ts': `export let label = 'label';`,
+      expect(targets).toEqual(
+        new Map([['ButtonCssVariables', { component: 'Button', kind: 'css-variables' }]]),
+      );
     });
 
-    expect(findConstantNamespaces(entrypoint, program)).toEqual(new Set());
+    it('reads tags on enums declared in the entrypoint', () => {
+      const { targets } = findSources({
+        'index.ts': `
+          /** @docs-enum dataAttributes Button */
+          export enum ButtonDataAttributes { pressed = 'data-pressed' }
+        `,
+      });
+
+      expect(targets).toEqual(
+        new Map([['ButtonDataAttributes', { component: 'Button', kind: 'data-attributes' }]]),
+      );
+    });
+
+    it('throws on a kind it does not know', () => {
+      expect(() =>
+        findSources({
+          'index.ts': `
+            /** @docs-enum events Button */
+            export * as ButtonEvents from './attributes';
+          `,
+          'attributes.ts': BUTTON_DATA_ATTRIBUTES,
+        }),
+      ).toThrow(/ButtonEvents.*dataAttributes, cssVariables/);
+    });
+
+    it('throws when a tag names no component', () => {
+      expect(() =>
+        findSources({
+          'index.ts': `
+            /** @docs-enum dataAttributes */
+            export * as ButtonDataAttributes from './attributes';
+          `,
+          'attributes.ts': BUTTON_DATA_ATTRIBUTES,
+        }),
+      ).toThrow(/ButtonDataAttributes/);
+    });
   });
 });
 
-describe('foldConstantNamespaces', () => {
+describe('foldConstantGroups', () => {
   it('collapses a constant namespace into one group in place of its members', () => {
     const exports = foldSources({
       'index.ts': `
@@ -129,8 +213,8 @@ describe('foldConstantNamespaces', () => {
 
   it('reads constants re-exported or referenced from another module, and numbers', () => {
     const exports = foldSources({
-      'index.ts': `export * as ButtonCssVars from './vars';`,
-      'vars.ts': `
+      'index.ts': `export * as ButtonCssVariables from './variables';`,
+      'variables.ts': `
         import { shared } from './shared';
         export * from './shared';
         export const alias = shared;
@@ -154,39 +238,67 @@ describe('foldConstantNamespaces', () => {
 
   it('leaves other namespaces untouched', () => {
     const exports = foldSources({
-      'index.ts': `export * as Button from './parts';`,
+      'index.ts': `export * as Toolbar from './parts';`,
       'parts.ts': BUTTON,
     });
 
-    expect(summarize(exports)).toEqual([{ name: 'Button.Button' }]);
-  });
-});
-
-describe('getConstantGroupKind', () => {
-  it('tells data attributes and CSS variables apart by their values', () => {
-    expect(getConstantGroupKind(['data-open', 'data-closed'])).toBe('data-attributes');
-    expect(getConstantGroupKind(['--width', '--height'])).toBe('css-variables');
+    expect(summarize(exports)).toEqual([{ name: 'Toolbar.Button' }]);
   });
 
-  it('recognizes neither for other or mixed values', () => {
-    expect(getConstantGroupKind(['primary', 'secondary'])).toBeUndefined();
-    expect(getConstantGroupKind(['data-open', '--width'])).toBeUndefined();
-    expect(getConstantGroupKind([])).toBeUndefined();
+  it('attaches tagged groups to their component', () => {
+    const exports = foldSources({
+      'index.ts': `
+        export * as Toolbar from './parts';
+
+        /** @docs-enum dataAttributes Toolbar.Button */
+        export * as ToolbarButtonDataAttributes from './attributes';
+
+        /** @docs-enum cssVariables Toolbar.Button */
+        export { Variables as ToolbarButtonCssVariables } from './variables';
+      `,
+      'parts.ts': BUTTON,
+      'attributes.ts': BUTTON_DATA_ATTRIBUTES,
+      'variables.ts': `export enum Variables { width = '--width' }`,
+    });
+
+    expect(
+      exports
+        .map((node) => [node.name, getConstantGroupTarget(node)?.kind])
+        .filter(([, kind]) => kind),
+    ).toEqual([
+      ['ToolbarButtonDataAttributes', 'data-attributes'],
+      ['ToolbarButtonCssVariables', 'css-variables'],
+    ]);
   });
-});
 
-describe('findConstantGroupOwner', () => {
-  it('picks the component with the longest name the group name starts with', () => {
-    const components = ['Dialog', 'Dialog.Popup', 'AlertDialog', 'AlertDialog.Popup'];
-
-    expect(findConstantGroupOwner('AlertDialogPopupDataAttributes', components)).toBe(
-      'AlertDialog.Popup',
-    );
-    expect(findConstantGroupOwner('DialogPopupCssVariables', components)).toBe('Dialog.Popup');
-    expect(findConstantGroupOwner('DialogDataAttributes', components)).toBe('Dialog');
+  it('throws when a tag names a component the entrypoint does not export', () => {
+    expect(() =>
+      foldSources({
+        'index.ts': `
+          /** @docs-enum dataAttributes Checkbox */
+          export * as ButtonDataAttributes from './attributes';
+        `,
+        'attributes.ts': BUTTON_DATA_ATTRIBUTES,
+      }),
+    ).toThrow(/ButtonDataAttributes.*Checkbox/);
   });
 
-  it('finds no owner when no component name prefixes the group', () => {
-    expect(findConstantGroupOwner('ButtonDataAttributes', ['Dialog'])).toBeUndefined();
+  it('throws when a tagged export is not a constant group', () => {
+    expect(() =>
+      foldSources({
+        'index.ts': `
+          export { Button } from './button';
+
+          /** @docs-enum dataAttributes Button */
+          export * as ButtonHelpers from './helpers';
+        `,
+        'button.ts': BUTTON,
+        'helpers.ts': `
+          export function isPressed() {
+            return true;
+          }
+        `,
+      }),
+    ).toThrow(/ButtonHelpers/);
   });
 });

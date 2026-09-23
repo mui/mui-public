@@ -12,7 +12,7 @@ import type {
   DescriptionReplacement,
 } from './format';
 import { isComponentType, isEnumType } from './typeGuards';
-import { findConstantGroupOwner, getConstantGroupKind } from './constantGroups';
+import { getConstantGroupTarget } from './constantGroups';
 import { rewriteTypeStringsDeep } from './rewriteTypes';
 import type { TypeRewriteContext } from './rewriteTypes';
 import type { ExternalTypesCollector } from './externalTypes';
@@ -72,21 +72,15 @@ export async function formatComponentData(
     : undefined;
   const description = descriptionText ? await parseMarkdownToHast(descriptionText) : undefined;
 
-  // The component's data attributes and CSS variables are the constant groups it owns.
-  const componentNames = allExports.flatMap((node) =>
-    isComponentType(node.type) ? [node.name] : [],
-  );
+  // The component's data attributes and CSS variables are the constant groups tagged for it.
   let dataAttributes: tae.EnumNode | undefined;
   let cssVariables: tae.EnumNode | undefined;
   for (const node of allExports) {
-    if (
-      isEnumType(node.type) &&
-      findConstantGroupOwner(node.name, componentNames) === component.name
-    ) {
-      const kind = getConstantGroupKind(node.type.members.map((member) => member.value));
-      if (kind === 'data-attributes') {
+    const target = getConstantGroupTarget(node);
+    if (target?.component === component.name && isEnumType(node.type)) {
+      if (target.kind === 'data-attributes') {
         dataAttributes ??= node.type;
-      } else if (kind === 'css-variables') {
+      } else {
         cssVariables ??= node.type;
       }
     }
