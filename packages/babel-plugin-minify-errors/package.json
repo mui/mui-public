@@ -30,14 +30,17 @@
     "babel-plugin-tester": "12.0.0"
   },
   "peerDependencies": {
-    "@babel/core": "^7.0.0 || ^8.0.0"
+    "@babel/core": "^8.0.0"
   },
   "sideEffects": false,
-  "type": "commonjs",
+  "type": "module",
   "main": "./index.js",
   "types": "./index.d.ts",
   "exports": {
-    ".": "./index.js"
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    }
   },
   "engines": {
     "node": ">=22.12.0"

@@ -1,11 +1,9 @@
 // @ts-check
 
-// @babel/helper-module-imports is ESM-only from Babel 8; Node >=22.12 supports require() of ESM synchronously.
-// @ts-expect-error -- see above
-const helperModuleImports = require('@babel/helper-module-imports');
-const fs = require('node:fs');
-const nodePath = require('node:path');
-const finder = require('find-package-json');
+import * as helperModuleImports from '@babel/helper-module-imports';
+import * as fs from 'node:fs';
+import * as nodePath from 'node:path';
+import finder from 'find-package-json';
 
 /**
  * Normalize a file path to POSIX in order for it to be platform-agnostic.
@@ -299,7 +297,7 @@ function transformExtension(importSpecifier, outExtension = '.js') {
  * @param {Options} options
  * @returns {import('./babelTypes.js').PluginObject<PluginState>}
  */
-module.exports = function plugin(
+export default function plugin(
   { types: t },
   {
     errorCodesPath,
@@ -412,4 +410,4 @@ module.exports = function plugin(
       },
     },
   };
-};
+}

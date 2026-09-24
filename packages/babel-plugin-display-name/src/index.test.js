@@ -1,6 +1,6 @@
 import { transformSync } from '@babel/core';
 import { describe, it, expect } from 'vitest';
-import plugin from './index';
+import plugin from './index.js';
 
 const transform = (code, pluginOptions, runtime = 'classic') =>
   transformSync(code, {

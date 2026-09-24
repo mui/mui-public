@@ -35,7 +35,7 @@ function applyAllowedCallees(mapping) {
   });
 }
 
-module.exports = /** @type {any} */ (
+export default /** @type {any} */ (
   (
     /** @type {import('./babelTypes.js').PluginAPI} */ api,
     /** @type {import('./index.d.ts').PluginOptions} */ options,

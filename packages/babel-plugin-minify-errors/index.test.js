@@ -1,14 +1,11 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-// @babel/core is ESM-only from Babel 8; vitest transforms this file as ESM at runtime
-// regardless of the package's CJS type, so these imports work despite tsc's CJS-emit check.
-// @ts-expect-error -- see above
 import * as babel from '@babel/core';
 import { pluginTester } from 'babel-plugin-tester';
 import { expect, describe, it } from 'vitest';
-import plugin from './index';
+import plugin from './index.js';
 
-const fixturePath = path.resolve(__dirname, './__fixtures__');
+const fixturePath = path.resolve(import.meta.dirname, './__fixtures__');
 
 /**
  *

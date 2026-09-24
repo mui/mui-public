@@ -1,12 +1,11 @@
-// Babel 8 is ESM-only, so a CommonJS file has to request its types under the `import`
-// condition. Do it once here so the JSDoc annotations elsewhere can stay short.
+// Aliased once so the JSDoc annotations elsewhere can stay short.
 import type {
   NodePath as BabelNodePath,
   PluginAPI,
   PluginObject,
   PluginPass,
   types,
-} from '@babel/core' with { 'resolution-mode': 'import' };
+} from '@babel/core';
 
 export type { PluginAPI, PluginObject, PluginPass };
 export type BabelTypes = typeof types;

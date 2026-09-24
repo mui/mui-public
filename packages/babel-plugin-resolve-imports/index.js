@@ -2,8 +2,8 @@
 
 /// <reference path="./resolve.d.ts" />
 
-const nodePath = require('node:path');
-const resolve = require('resolve/sync');
+import * as nodePath from 'node:path';
+import resolve from 'resolve/sync.js';
 
 /**
  * Normalize a file path to POSIX in order for it to be platform-agnostic.
@@ -33,7 +33,7 @@ function pathToNodeImportSpecifier(importPath) {
  * @param {Options} options
  * @returns {import('./babelTypes.js').PluginObject}
  */
-module.exports = function plugin({ types: t }, { outExtension }) {
+export default function plugin({ types: t }, { outExtension }) {
   /** @type {Map<string, string>} */
   const cache = new Map();
   const extensions = ['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx'];
@@ -135,4 +135,4 @@ module.exports = function plugin({ types: t }, { outExtension }) {
       },
     },
   };
-};
+}

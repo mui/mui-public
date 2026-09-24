@@ -29,9 +29,19 @@
     "babel-plugin-tester": "12.0.0"
   },
   "peerDependencies": {
-    "@babel/core": "^7.0.0 || ^8.0.0"
+    "@babel/core": "^8.0.0"
   },
   "publishConfig": {
     "access": "public"
+  },
+  "type": "module",
+  "files": [
+    "index.js",
+    "resolve.d.ts",
+    "babelTypes.d.ts",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22.12.0"
   }
 }

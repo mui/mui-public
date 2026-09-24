@@ -14,11 +14,11 @@
   "files": [
     "src/index.js",
     "src/index.d.ts",
+    "src/babelTypes.d.ts",
     "LICENSE",
     "README.md"
   ],
   "scripts": {
-    "test": "jest",
     "typescript": "tsc -noEmit"
   },
   "homepage": "https://github.com/mui/mui-public",
@@ -28,13 +28,23 @@
     "@babel/preset-react": "8.0.1"
   },
   "peerDependencies": {
-    "@babel/core": "^7.0.0 || ^8.0.0",
-    "@babel/preset-react": "^7.0.0 || ^8.0.0"
+    "@babel/core": "^8.0.0",
+    "@babel/preset-react": "^8.0.0"
   },
   "keywords": [
     "displayName",
     "babel",
     "react",
     "babel-plugin"
-  ]
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.js"
+    }
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  }
 }
