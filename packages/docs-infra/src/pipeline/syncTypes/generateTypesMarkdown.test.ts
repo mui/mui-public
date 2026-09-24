@@ -666,6 +666,63 @@ describe('generateTypesMarkdown', () => {
   });
 
   describe('raw type generation', () => {
+    it('should link a constant group to its component heading', async () => {
+      const component = (name: string): TypesMeta => ({
+        type: 'component',
+        name,
+        data: { name, props: {}, dataAttributes: {}, cssVariables: {} },
+      });
+      const typesMeta: TypesMeta[] = [
+        component('Toolbar.Button'),
+        component('Menu.Item'),
+        {
+          type: 'raw',
+          name: 'ToolbarButtonDataAttributes',
+          data: {
+            ...createRawTypeMeta(
+              'ToolbarButtonDataAttributes',
+              'enum ToolbarButtonDataAttributes {}',
+            ),
+            dataAttributesOf: 'Toolbar.Button',
+          },
+        },
+      ];
+
+      const result = await generateTypesMarkdown(createOptions('Types', typesMeta));
+
+      // Headings keep the full name when components don't share a namespace
+      expect(result).toContain('### Toolbar.Button');
+      expect(result).toContain('Data attributes of [Toolbar.Button](#toolbarbutton).');
+    });
+
+    it('should link a constant group to a heading without the shared namespace', async () => {
+      const component = (name: string): TypesMeta => ({
+        type: 'component',
+        name,
+        data: { name, props: {}, dataAttributes: {}, cssVariables: {} },
+      });
+      const typesMeta: TypesMeta[] = [
+        component('Toolbar.Root'),
+        component('Toolbar.Button'),
+        {
+          type: 'raw',
+          name: 'ToolbarButtonDataAttributes',
+          data: {
+            ...createRawTypeMeta(
+              'ToolbarButtonDataAttributes',
+              'enum ToolbarButtonDataAttributes {}',
+            ),
+            dataAttributesOf: 'Toolbar.Button',
+          },
+        },
+      ];
+
+      const result = await generateTypesMarkdown(createOptions('Types', typesMeta));
+
+      expect(result).toContain('### Button');
+      expect(result).toContain('Data attributes of [Button](#button).');
+    });
+
     it('should generate markdown for raw type exports', async () => {
       const typesMeta: TypesMeta[] = [
         {

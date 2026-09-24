@@ -79,6 +79,22 @@ describe('findConstantNamespaces', () => {
     );
   });
 
+  it('finds constant namespaces nested in other namespace exports', () => {
+    const { program, entrypoint } = createTestProgram({
+      'index.ts': `export * as Toolbar from './parts';`,
+      'parts.ts': `
+        export { Button } from './button';
+        export * as ButtonDataAttributes from './attributes';
+      `,
+      'button.ts': BUTTON,
+      'attributes.ts': BUTTON_DATA_ATTRIBUTES,
+    });
+
+    expect(findConstantNamespaces(entrypoint, program)).toEqual(
+      new Map([['Toolbar.ButtonDataAttributes', new Map([['pressed', 'data-pressed']])]]),
+    );
+  });
+
   it('ignores modules exporting anything besides literal constants', () => {
     const { program, entrypoint } = createTestProgram({
       'index.ts': `
@@ -163,7 +179,7 @@ describe('foldConstantNamespaces', () => {
       expect.arrayContaining([
         ['shared', '--shared'],
         ['alias', '--shared'],
-        ['depth', '2'],
+        ['depth', 2],
       ]),
     );
   });
@@ -203,6 +219,24 @@ describe('matchConstantGroups', () => {
       'dataAttributes',
       'cssVariables',
     ]);
+  });
+
+  it('resolves groups exported inside a component namespace', () => {
+    const exports = foldSources({
+      'index.ts': `export * as Toolbar from './parts';`,
+      'parts.ts': `
+        export { Button } from './button';
+        export * as ButtonDataAttributes from './attributes';
+      `,
+      'button.ts': BUTTON,
+      'attributes.ts': BUTTON_DATA_ATTRIBUTES,
+    });
+
+    expect(matchConstantGroups(exports, PATTERNS).targets).toEqual(
+      new Map([
+        ['Toolbar.ButtonDataAttributes', { component: 'Toolbar.Button', kind: 'dataAttributes' }],
+      ]),
+    );
   });
 
   it('supports patterns with a prefix', () => {

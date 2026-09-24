@@ -38,11 +38,16 @@ function resolveAlias(symbol: ts.Symbol, checker: ts.TypeChecker): ts.Symbol {
   return symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
 }
 
+/** The value of a constant in a constant group. */
+type ConstantValue = string | number;
+
 /**
- * Reads the value of a `const` holding a string or number literal, as the bare string an
- * enum member would carry.
+ * Reads the value of a `const` holding a string or number literal.
  */
-function readLiteralConstant(symbol: ts.Symbol, checker: ts.TypeChecker): string | undefined {
+function readLiteralConstant(
+  symbol: ts.Symbol,
+  checker: ts.TypeChecker,
+): ConstantValue | undefined {
   const declaration = symbol.valueDeclaration;
   if (
     !declaration ||
@@ -54,49 +59,72 @@ function readLiteralConstant(symbol: ts.Symbol, checker: ts.TypeChecker): string
   }
 
   const type = checker.getTypeOfSymbol(symbol);
-  return type.isStringLiteral() || type.isNumberLiteral() ? String(type.value) : undefined;
+  return type.isStringLiteral() || type.isNumberLiteral() ? type.value : undefined;
+}
+
+/**
+ * Reads a module's exports as constant values, when it exports nothing but literal constants.
+ */
+function readConstantModule(
+  moduleSymbol: ts.Symbol,
+  checker: ts.TypeChecker,
+): Map<string, ConstantValue> | undefined {
+  const values = new Map<string, ConstantValue>();
+  const members = checker.getExportsOfModule(moduleSymbol);
+  const isConstantModule =
+    members.length > 0 &&
+    members.every((member) => {
+      const value = readLiteralConstant(resolveAlias(member, checker), checker);
+      if (value === undefined) {
+        return false;
+      }
+      values.set(member.name, value);
+      return true;
+    });
+
+  return isConstantModule ? values : undefined;
 }
 
 /**
  * Finds the entrypoint's namespace exports whose module holds nothing but literal constants,
  * e.g. `export * as ButtonDataAttributes from './ButtonDataAttributes'`, with their values.
+ * Namespaces nested in other namespace exports are found too, under their dotted path
+ * (`Toolbar.ButtonDataAttributes`).
  *
  * The parser flattens such a namespace into one export per member and cannot tell a constant
  * from a type alias of the same literal, so the checker is asked instead.
  *
- * @returns Member values keyed by namespace name, then member name
+ * @returns Member values keyed by namespace path, then member name
  */
 export function findConstantNamespaces(
   entrypoint: string,
   program: ts.Program,
-): Map<string, Map<string, string>> {
-  const namespaces = new Map<string, Map<string, string>>();
+): Map<string, Map<string, ConstantValue>> {
+  const namespaces = new Map<string, Map<string, ConstantValue>>();
   const sourceFile = program.getSourceFile(entrypoint);
   const checker = program.getTypeChecker();
-  const moduleSymbol = sourceFile && checker.getSymbolAtLocation(sourceFile);
-  if (!moduleSymbol) {
-    return namespaces;
-  }
+  const entrypointSymbol = sourceFile && checker.getSymbolAtLocation(sourceFile);
+  const visited = new Set<ts.Symbol>();
 
-  for (const exportSymbol of checker.getExportsOfModule(moduleSymbol)) {
-    if (exportSymbol.declarations?.some(ts.isNamespaceExport)) {
-      const values = new Map<string, string>();
-      const members = checker.getExportsOfModule(checker.getAliasedSymbol(exportSymbol));
-      const isConstantModule =
-        members.length > 0 &&
-        members.every((member) => {
-          const value = readLiteralConstant(resolveAlias(member, checker), checker);
-          if (value === undefined) {
-            return false;
-          }
-          values.set(member.name, value);
-          return true;
-        });
+  const visit = (moduleSymbol: ts.Symbol, prefix: string) => {
+    for (const exportSymbol of checker.getExportsOfModule(moduleSymbol)) {
+      if (exportSymbol.declarations?.some(ts.isNamespaceExport)) {
+        const target = checker.getAliasedSymbol(exportSymbol);
+        const path = `${prefix}${exportSymbol.name}`;
+        const values = readConstantModule(target, checker);
 
-      if (isConstantModule) {
-        namespaces.set(exportSymbol.name, values);
+        if (values) {
+          namespaces.set(path, values);
+        } else if (!visited.has(target)) {
+          visited.add(target);
+          visit(target, `${path}.`);
+        }
       }
     }
+  };
+
+  if (entrypointSymbol) {
+    visit(entrypointSymbol, '');
   }
 
   return namespaces;
@@ -108,7 +136,7 @@ export function findConstantNamespaces(
  */
 export function foldConstantNamespaces(
   exports: tae.ExportNode[],
-  namespaces: Map<string, Map<string, string>>,
+  namespaces: Map<string, Map<string, ConstantValue>>,
 ): tae.ExportNode[] {
   if (namespaces.size === 0) {
     return exports;
@@ -118,7 +146,9 @@ export function foldConstantNamespaces(
   const folded: tae.ExportNode[] = [];
 
   for (const node of exports) {
-    const dot = node.name.indexOf('.');
+    // Members sit directly under their namespace, which may itself be nested
+    // (`Toolbar.ButtonDataAttributes.pressed`).
+    const dot = node.name.lastIndexOf('.');
     const namespace = dot === -1 ? undefined : node.name.slice(0, dot);
     const memberName = node.name.slice(dot + 1);
     const value = namespace === undefined ? undefined : namespaces.get(namespace)?.get(memberName);
@@ -138,7 +168,9 @@ export function foldConstantNamespaces(
           ),
         );
       }
-      members.push(new EnumMember(memberName, value, node.documentation));
+      // Typed as a string, but the parser stores numeric enum values as numbers too; do
+      // the same so both forms render alike.
+      members.push(new EnumMember(memberName, value as string, node.documentation));
     }
   }
 
@@ -155,11 +187,16 @@ export function formatConstantGroupDeclaration(
   asNamespace: boolean,
 ): string {
   const members = group.members.map((member) => {
-    const value = typeof member.value === 'number' ? member.value : JSON.stringify(member.value);
+    // Enum members hold the literal's value, numbers included; a computed member has none.
+    const value: unknown = member.value;
+    const literal = typeof value === 'number' ? String(value) : JSON.stringify(value);
     const comment = member.documentation ? formatPropertyComment(member.documentation) : undefined;
-    const declaration = asNamespace
-      ? `const ${member.name}: ${value};`
-      : `${member.name} = ${value},`;
+    let declaration = `${member.name} = ${literal},`;
+    if (asNamespace) {
+      declaration = `const ${member.name}: ${literal};`;
+    } else if (value === undefined) {
+      declaration = `${member.name},`;
+    }
     return comment ? `${comment}\n${declaration}` : declaration;
   });
 
@@ -223,11 +260,14 @@ export function matchConstantGroups(
 
   for (const node of exports) {
     if (isEnumType(node.type)) {
+      // Patterns apply to names without dots, like the component names they capture, so a
+      // group exported inside a namespace (`Toolbar.ButtonDataAttributes`) matches too.
+      const groupName = node.name.replaceAll('.', '');
       const matches = matchers.filter(
         ({ prefix, suffix }) =>
-          node.name.length > prefix.length + suffix.length &&
-          node.name.startsWith(prefix) &&
-          node.name.endsWith(suffix),
+          groupName.length > prefix.length + suffix.length &&
+          groupName.startsWith(prefix) &&
+          groupName.endsWith(suffix),
       );
 
       if (matches.length > 1) {
@@ -236,9 +276,9 @@ export function matchConstantGroups(
 
       const [match] = matches;
       if (match) {
-        const flatName = node.name.slice(
+        const flatName = groupName.slice(
           match.prefix.length,
-          node.name.length - match.suffix.length,
+          groupName.length - match.suffix.length,
         );
         const components = componentsByFlatName.get(flatName) ?? [];
         if (components.length !== 1) {

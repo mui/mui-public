@@ -240,6 +240,12 @@ export async function generateTypesMarkdown(
     // If there are multiple unique prefixes, don't strip anything
   }
 
+  // Strips the common prefix, as component headings always are
+  const stripCommonPrefix = (part: string): string =>
+    commonPrefix && part.startsWith(`${commonPrefix}.`)
+      ? part.slice(commonPrefix.length + 1)
+      : part;
+
   // Helper function to generate markdown chunks for a single type
   // When useFullName is true, the type name is not stripped of the common prefix
   async function generateSingleTypeMarkdown(
@@ -270,14 +276,7 @@ export async function generateTypesMarkdown(
     };
 
     // Helper to get display name - either full name or stripped prefix
-    const getDisplayName = (part: string): string => {
-      if (useFullName) {
-        return part;
-      }
-      return commonPrefix && part.startsWith(`${commonPrefix}.`)
-        ? part.slice(commonPrefix.length + 1)
-        : part;
-    };
+    const getDisplayName = (part: string): string => (useFullName ? part : stripCommonPrefix(part));
 
     if (typeMeta.type === 'component') {
       // Use transformed name (e.g., "Component.Part" instead of "ComponentPart")
@@ -820,12 +819,12 @@ export async function generateTypesMarkdown(
         );
       } else if (data.dataAttributesOf || data.cssVarsOf) {
         // Link to the component whose table this group holds, then declare the group
-        const componentName = data.dataAttributesOf ?? data.cssVarsOf!;
-        const linkName = componentName.split('.').pop()!;
+        // Link to the component's heading, named the way the heading itself is
+        const componentHeading = stripCommonPrefix(data.dataAttributesOf ?? data.cssVarsOf!);
         nodes.push(
           md.paragraph([
             md.text(data.dataAttributesOf ? 'Data attributes of ' : 'CSS variables of '),
-            md.link(`#${linkName.toLowerCase()}`, linkName),
+            md.link(`#${componentHeading.toLowerCase().replaceAll('.', '')}`, componentHeading),
             md.text('.'),
           ]),
         );

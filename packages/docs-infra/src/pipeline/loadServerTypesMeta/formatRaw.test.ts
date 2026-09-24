@@ -271,6 +271,22 @@ describe('formatRaw', () => {
         `);
       });
 
+      it('should declare enum members without a literal value without an initializer', async () => {
+        const result = await formatRawData(
+          createEnumExport('Flags', [{ name: 'Known', value: 1 }, { name: 'Computed' }]),
+          'Flags',
+          {},
+          defaultRewriteContext,
+        );
+
+        expect(result.formattedCode).toMatchInlineSnapshot(`
+          "enum Flags {
+            Known = 1,
+            Computed,
+          }"
+        `);
+      });
+
       it('should declare a folded constant namespace as a namespace of constants', async () => {
         const { program, entrypoint } = createTestProgram({
           'index.ts': `export * as ButtonDataAttributes from './attributes';`,
