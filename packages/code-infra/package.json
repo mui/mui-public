@@ -80,9 +80,13 @@
     "@octokit/auth-action": "^6.0.3",
     "@octokit/oauth-methods": "^6.0.5",
     "@octokit/rest": "^22.0.1",
+    "@octokit/types": "^18.0.0",
     "@pnpm/config.version-policy": "^1100.2.3",
     "@pnpm/find-workspace-dir": "^1000.1.5",
     "@pnpm/parse-wanted-dependency": "^1001.0.0",
+    "@types/babel__core": "^7.20.5",
+    "@types/estree": "^1.0.9",
+    "@types/mdast": "^4.0.4",
     "@typescript-eslint/types": "^8.70.0",
     "@typescript-eslint/utils": "^8.70.0",
     "@vitest/eslint-plugin": "^1.6.27",
@@ -150,22 +154,22 @@
     "@next/eslint-plugin-next": "*",
     "eslint": "^9.0.0 || ^10.0.0",
     "prettier": "^3.0.0",
+    "stylelint": "^17.0.0",
     "typescript": "^5.0.0 || ^6.0.0 || ^7.0.0"
   },
   "peerDependenciesMeta": {
+    "stylelint": {
+      "optional": true
+    },
     "typescript": {
       "optional": true
     }
   },
   "devDependencies": {
-    "@octokit/types": "18.0.0",
-    "@types/babel__core": "7.20.5",
     "@types/babel__preset-env": "7.10.0",
     "@types/env-ci": "3.1.4",
     "@types/eslint-plugin-jsx-a11y": "6.10.1",
-    "@types/estree": "1.0.9",
     "@types/estree-jsx": "1.0.5",
-    "@types/mdast": "4.0.4",
     "@types/regexp.escape": "2.0.0",
     "@types/yargs": "17.0.35",
     "@typescript-eslint/parser": "8.70.0",
@@ -177,6 +181,7 @@
     "remark": "15.0.1",
     "remark-mdx": "3.1.1",
     "serve": "14.2.6",
+    "stylelint": "17.15.0",
     "typescript": "npm:@typescript/typescript6@6.0.2",
     "typescript-eslint": "8.70.0"
   },

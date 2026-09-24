@@ -117,7 +117,7 @@ type WebpackOptions = {
   isServer: boolean;
   nextRuntime?: 'nodejs' | 'edge';
   config: NextConfig;
-  defaultLoaders: { babel: RuleSetRule };
+  defaultLoaders: { babel: any };
 };
 ```
 

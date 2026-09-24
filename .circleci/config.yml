@@ -85,6 +85,9 @@ jobs:
       - run:
           name: Build packages
           command: pnpm release:build
+      - run:
+          name: Validate built types
+          command: pnpm code-infra validate-built-types
       - code-infra/upload-size-snapshot
 
   test_benchmark:

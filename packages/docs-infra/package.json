@@ -120,6 +120,11 @@
     "@orama/orama": "^3.1.18",
     "@orama/plugin-qps": "^3.1.18",
     "@orama/stemmers": "^3.1.18",
+    "@types/estree": "^1.0.9",
+    "@types/hast": "^3.0.5",
+    "@types/mdast": "^4.0.4",
+    "@types/proper-lockfile": "^4.1.4",
+    "@types/yargs": "^17.0.35",
     "@wooorm/starry-night": "^3.11.0",
     "autoprefixer": "^10.6.0",
     "chalk": "^6.0.0",
@@ -161,16 +166,11 @@
     "@testing-library/react": "16.3.3",
     "@types/babel__standalone": "7.1.9",
     "@types/babel__traverse": "7.28.0",
-    "@types/estree": "1.0.9",
-    "@types/hast": "3.0.5",
-    "@types/mdast": "4.0.4",
     "@types/node": "22.20.2",
-    "@types/proper-lockfile": "4.1.4",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
-    "@types/webpack": "5.28.5",
-    "@types/yargs": "17.0.35",
     "@typescript-eslint/utils": "8.70.0",
+    "eslint": "10.10.0",
     "estree-util-to-js": "2.0.0",
     "hast-util-to-html": "9.0.5",
     "next": "^16.3.5",
@@ -179,23 +179,32 @@
     "rehype-parse": "9.0.1",
     "rehype-stringify": "10.0.1",
     "remark-rehype": "11.1.2",
-    "remark-stringify": "11.0.0"
+    "remark-stringify": "11.0.0",
+    "webpack": "5.110.3"
   },
   "peerDependencies": {
     "@types/react": "^17.0.0 || ^18.0.0 || ^19.0.0",
+    "eslint": "^9.0.0 || ^10.0.0",
     "next": "^15.0.0 || ^16.0.0",
     "prettier": "^3.0.0",
     "react": "^17.0.0 || ^18.0.0 || ^19.0.0",
-    "react-dom": "^17.0.0 || ^18.0.0 || ^19.0.0"
+    "react-dom": "^17.0.0 || ^18.0.0 || ^19.0.0",
+    "webpack": "^5.0.0"
   },
   "peerDependenciesMeta": {
     "@types/react": {
+      "optional": true
+    },
+    "eslint": {
       "optional": true
     },
     "next": {
       "optional": true
     },
     "prettier": {
+      "optional": true
+    },
+    "webpack": {
       "optional": true
     }
   },

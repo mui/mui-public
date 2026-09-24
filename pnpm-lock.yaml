@@ -691,6 +691,9 @@ importers:
       '@octokit/rest':
         specifier: ^22.0.1
         version: 22.0.1
+      '@octokit/types':
+        specifier: ^18.0.0
+        version: 18.0.0
       '@pnpm/config.version-policy':
         specifier: ^1100.2.3
         version: 1100.2.3
@@ -700,6 +703,15 @@ importers:
       '@pnpm/parse-wanted-dependency':
         specifier: ^1001.0.0
         version: 1001.0.0
+      '@types/babel__core':
+        specifier: ^7.20.5
+        version: 7.20.5
+      '@types/estree':
+        specifier: ^1.0.9
+        version: 1.0.9
+      '@types/mdast':
+        specifier: ^4.0.4
+        version: 4.0.4
       '@typescript-eslint/types':
         specifier: ^8.70.0
         version: 8.70.0
@@ -887,12 +899,6 @@ importers:
         specifier: ^18.1.0
         version: 18.1.0
     devDependencies:
-      '@octokit/types':
-        specifier: 18.0.0
-        version: 18.0.0
-      '@types/babel__core':
-        specifier: 7.20.5
-        version: 7.20.5
       '@types/babel__preset-env':
         specifier: 7.10.0
         version: 7.10.0
@@ -902,15 +908,9 @@ importers:
       '@types/eslint-plugin-jsx-a11y':
         specifier: 6.10.1
         version: 6.10.1(jiti@2.7.0)(supports-color@10.2.2)
-      '@types/estree':
-        specifier: 1.0.9
-        version: 1.0.9
       '@types/estree-jsx':
         specifier: 1.0.5
         version: 1.0.5
-      '@types/mdast':
-        specifier: 4.0.4
-        version: 4.0.4
       '@types/regexp.escape':
         specifier: 2.0.0
         version: 2.0.0
@@ -944,6 +944,9 @@ importers:
       serve:
         specifier: 14.2.6
         version: 14.2.6(supports-color@10.2.2)
+      stylelint:
+        specifier: 17.15.0
+        version: 17.15.0(@typescript/typescript6@6.0.2)(supports-color@10.2.2)
       typescript:
         specifier: npm:@typescript/typescript6@6.0.2
         version: '@typescript/typescript6@6.0.2'
@@ -971,6 +974,21 @@ importers:
       '@orama/stemmers':
         specifier: ^3.1.18
         version: 3.1.18
+      '@types/estree':
+        specifier: ^1.0.9
+        version: 1.0.9
+      '@types/hast':
+        specifier: ^3.0.5
+        version: 3.0.5
+      '@types/mdast':
+        specifier: ^4.0.4
+        version: 4.0.4
+      '@types/proper-lockfile':
+        specifier: ^4.1.4
+        version: 4.1.4
+      '@types/yargs':
+        specifier: ^17.0.35
+        version: 17.0.35
       '@wooorm/starry-night':
         specifier: ^3.11.0
         version: 3.11.0
@@ -1092,36 +1110,21 @@ importers:
       '@types/babel__traverse':
         specifier: 7.28.0
         version: 7.28.0
-      '@types/estree':
-        specifier: 1.0.9
-        version: 1.0.9
-      '@types/hast':
-        specifier: 3.0.5
-        version: 3.0.5
-      '@types/mdast':
-        specifier: 4.0.4
-        version: 4.0.4
       '@types/node':
         specifier: 22.20.2
         version: 22.20.2
-      '@types/proper-lockfile':
-        specifier: 4.1.4
-        version: 4.1.4
       '@types/react':
         specifier: 19.3.0
         version: 19.3.0
       '@types/react-dom':
         specifier: 19.3.0
         version: 19.3.0(@types/react@19.3.0)
-      '@types/webpack':
-        specifier: 5.28.5
-        version: 5.28.5(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@22.20.2))
-      '@types/yargs':
-        specifier: 17.0.35
-        version: 17.0.35
       '@typescript-eslint/utils':
         specifier: 8.70.0
         version: 8.70.0(@typescript/typescript6@6.0.2)(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)
+      eslint:
+        specifier: 10.10.0
+        version: 10.10.0(jiti@2.7.0)(supports-color@10.2.2)
       estree-util-to-js:
         specifier: 2.0.0
         version: 2.0.0
@@ -1146,6 +1149,9 @@ importers:
       remark-rehype:
         specifier: 11.1.2
         version: 11.1.2
+      webpack:
+        specifier: 5.110.3
+        version: 5.110.3(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@22.20.2))
     publishDirectory: build
 
   packages/netlify-cache:
@@ -1177,6 +1183,9 @@ importers:
       '@types/chai-dom':
         specifier: ^1.11.3
         version: 1.11.3
+      '@types/prop-types':
+        specifier: ^15.7.15
+        version: 15.7.15
       assertion-error:
         specifier: ^2.0.1
         version: 2.0.1
@@ -1220,9 +1229,6 @@ importers:
       '@types/jsdom':
         specifier: 30.0.0
         version: 30.0.0
-      '@types/prop-types':
-        specifier: 15.7.15
-        version: 15.7.15
       '@types/react':
         specifier: 19.3.0
         version: 19.3.0
@@ -1232,6 +1238,9 @@ importers:
       jsdom:
         specifier: 30.0.1
         version: 30.0.1
+      vitest:
+        specifier: 5.0.1
+        version: 5.0.1(@types/node@22.20.2)(@vitest/browser-playwright@5.0.1)(@vitest/coverage-v8@5.0.1)(@vitest/ui@5.0.1)(jsdom@30.0.1)(vite@8.3.0(@types/node@22.20.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1))
     publishDirectory: build
 
   test/bundle-size:
@@ -3938,9 +3947,6 @@ packages:
 
   '@types/unist@3.0.3':
     resolution: {integrity: sha512-ko/gIFJRv177XgZsZcBwnqJN5x/Gien8qNOn0D5bQU/zAzVf9Zt3BlcUiLqhV9y4ARk0GbT3tnUiPNgnTXzc/Q==}
-
-  '@types/webpack@5.28.5':
-    resolution: {integrity: sha512-wR87cgvxj3p6D0Crt1r5avwqffqPXUkNlnQ1mjU93G7gCuFjufZR4I6j8cz5g1F1tTYpfOOFvly+cmIQwL9wvw==}
 
   '@types/yargs-parser@21.0.3':
     resolution: {integrity: sha512-I4q9QU9MQv4oEOz4tAHJtNz1cwuLxn2F3xcc2iV5WdqLPpUnj30aUuxt1mAxYTG+oe8CZMV/+6rU4S4gRDzqtQ==}
@@ -11568,30 +11574,6 @@ snapshots:
   '@types/unist@2.0.11': {}
 
   '@types/unist@3.0.3': {}
-
-  '@types/webpack@5.28.5(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@22.20.2))':
-    dependencies:
-      '@types/node': 22.20.2
-      tapable: 2.3.3
-      webpack: 5.110.3(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@22.20.2))
-    transitivePeerDependencies:
-      - '@minify-html/node'
-      - '@napi-rs/image'
-      - '@swc/core'
-      - '@swc/css'
-      - '@swc/html'
-      - clean-css
-      - cssnano
-      - csso
-      - esbuild
-      - html-minifier-terser
-      - imagemin
-      - lightningcss
-      - postcss
-      - sharp
-      - svgo
-      - uglify-js
-      - webpack-cli
 
   '@types/yargs-parser@21.0.3': {}
 
