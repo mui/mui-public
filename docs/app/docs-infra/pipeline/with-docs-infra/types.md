@@ -282,7 +282,8 @@ type WithDocsInfraOptions = {
   /**
    * Export name patterns marking the constant groups (enums, or namespaces of constants) that
    * hold a component's data attributes or CSS variables. The `*` stands for the component's
-   * name with its dots removed. Without patterns, no tables are attached to components.
+   * name with its dots removed. Defaults to `*DataAttributes` and `*CssVariables`; pass `{}` to
+   * attach no tables.
    * @example
    * ```js
    * { dataAttributes: '*DataAttributes', cssVariables: '*CssVariables' }

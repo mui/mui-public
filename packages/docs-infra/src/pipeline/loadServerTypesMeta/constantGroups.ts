@@ -21,6 +21,12 @@ export type ConstantGroupPatterns = {
   cssVariables?: string;
 };
 
+/** The patterns used when none are configured. */
+export const DEFAULT_CONSTANT_GROUP_PATTERNS: ConstantGroupPatterns = {
+  dataAttributes: '*DataAttributes',
+  cssVariables: '*CssVariables',
+};
+
 /** Which of a component's tables a constant group holds. */
 export type ConstantGroupKind = keyof ConstantGroupPatterns;
 
@@ -216,7 +222,7 @@ export function formatConstantGroupDeclaration(
  */
 export function matchConstantGroups(
   exports: tae.ExportNode[],
-  patterns: ConstantGroupPatterns = {},
+  patterns: ConstantGroupPatterns = DEFAULT_CONSTANT_GROUP_PATTERNS,
 ): {
   targets: Map<string, ConstantGroupTarget>;
   byComponent: Map<string, ComponentConstantGroups>;

@@ -254,7 +254,27 @@ describe('matchConstantGroups', () => {
     );
   });
 
-  it('matches nothing without patterns', () => {
+  it('matches `*DataAttributes` and `*CssVariables` when no patterns are given', () => {
+    const exports = foldSources({
+      'index.ts': `
+        export { Button } from './button';
+        export * as ButtonDataAttributes from './attributes';
+        export { Variables as ButtonCssVariables } from './variables';
+      `,
+      'button.ts': BUTTON,
+      'attributes.ts': BUTTON_DATA_ATTRIBUTES,
+      'variables.ts': `export enum Variables { width = '--width' }`,
+    });
+
+    expect(matchConstantGroups(exports).targets).toEqual(
+      new Map([
+        ['ButtonDataAttributes', { component: 'Button', kind: 'dataAttributes' }],
+        ['ButtonCssVariables', { component: 'Button', kind: 'cssVariables' }],
+      ]),
+    );
+  });
+
+  it('matches nothing with empty patterns', () => {
     const exports = foldSources({
       'index.ts': `
         export { Button } from './button';
@@ -264,7 +284,7 @@ describe('matchConstantGroups', () => {
       'attributes.ts': BUTTON_DATA_ATTRIBUTES,
     });
 
-    expect(matchConstantGroups(exports).targets).toEqual(new Map());
+    expect(matchConstantGroups(exports, {}).targets).toEqual(new Map());
   });
 
   it('ignores groups matching no pattern', () => {
