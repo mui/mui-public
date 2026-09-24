@@ -38,7 +38,6 @@
   "files": [
     "index.js",
     "resolve.d.ts",
-    "babelTypes.d.ts",
     "README.md"
   ],
   "engines": {

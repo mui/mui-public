@@ -6,6 +6,11 @@ import * as nodePath from 'node:path';
 import resolve from 'resolve/sync.js';
 
 /**
+ * @template {import('@babel/core').types.Node | null} [T=import('@babel/core').types.Node]
+ * @typedef {import('@babel/core').NodePath<T>} NodePath
+ */
+
+/**
  * Normalize a file path to POSIX in order for it to be platform-agnostic.
  * @param {string} importPath
  * @returns {string}
@@ -29,9 +34,9 @@ function pathToNodeImportSpecifier(importPath) {
  */
 
 /**
- * @param {import('./babelTypes.js').PluginAPI} file
+ * @param {import('@babel/core').PluginAPI} file
  * @param {Options} options
- * @returns {import('./babelTypes.js').PluginObject}
+ * @returns {import('@babel/core').PluginObject}
  */
 export default function plugin({ types: t }, { outExtension }) {
   /** @type {Map<string, string>} */
@@ -41,8 +46,8 @@ export default function plugin({ types: t }, { outExtension }) {
 
   /**
    *
-   * @param {import('./babelTypes.js').NodePath<import('./babelTypes.js').StringLiteral>} importSource
-   * @param {import('./babelTypes.js').PluginPass} state
+   * @param {NodePath<import('@babel/core').types.StringLiteral>} importSource
+   * @param {import('@babel/core').PluginPass} state
    */
   function doResolve(importSource, state) {
     const importedPath = importSource.node.value;

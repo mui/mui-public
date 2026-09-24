@@ -1,14 +1,14 @@
 // @ts-check
 
 /**
- * @typedef {import('./babelTypes.js').BabelTypes} BabelTypes
- * @typedef {import('./babelTypes.js').Expression} Expression
- * @typedef {import('./babelTypes.js').Node} Node
+ * @typedef {typeof import('@babel/core').types} BabelTypes
+ * @typedef {import('@babel/core').types.Expression} Expression
+ * @typedef {import('@babel/core').types.Node} Node
  * @typedef {{ id: Expression, computed?: boolean }} ComponentIdentifier
  */
 /**
- * @template [T=Node]
- * @typedef {import('./babelTypes.js').NodePath<T>} NodePath
+ * @template {import('@babel/core').types.Node | null} [T=import('@babel/core').types.Node]
+ * @typedef {import('@babel/core').NodePath<T>} NodePath
  */
 
 // remember to set `cacheDirectory` to `false` when modifying this plugin
@@ -37,7 +37,7 @@ function applyAllowedCallees(mapping) {
 
 export default /** @type {any} */ (
   (
-    /** @type {import('./babelTypes.js').PluginAPI} */ api,
+    /** @type {import('@babel/core').PluginAPI} */ api,
     /** @type {import('./index.d.ts').PluginOptions} */ options,
   ) => {
     api.assertVersion('^7.0.0 || ^8.0.0');
@@ -61,7 +61,7 @@ export default /** @type {any} */ (
           seenDisplayNames.clear();
         },
         'FunctionExpression|ArrowFunctionExpression|ObjectMethod': (
-          /** @type {NodePath<import('./babelTypes.js').FunctionExpression|import('./babelTypes.js').ArrowFunctionExpression|import('./babelTypes.js').ObjectMethod>} */ path,
+          /** @type {NodePath<import('@babel/core').types.FunctionExpression|import('@babel/core').types.ArrowFunctionExpression|import('@babel/core').types.ObjectMethod>} */ path,
         ) => {
           // if the parent is a call expression, make sure it's an allowed one
           if (
@@ -74,7 +74,7 @@ export default /** @type {any} */ (
             }
           }
         },
-        CallExpression(/** @type {NodePath<import('./babelTypes.js').CallExpression>} */ path) {
+        CallExpression(/** @type {NodePath<import('@babel/core').types.CallExpression>} */ path) {
           if (isAllowedCallExpression(t, path)) {
             addDisplayNamesToFunctionComponent(t, path);
           }
@@ -90,7 +90,7 @@ export default /** @type {any} */ (
  * other functions that return JSX will still return `false`.
  *
  * @param {BabelTypes} t content of @babel/types package
- * @param {import('./babelTypes.js').Statement | Expression} node function node
+ * @param {import('@babel/core').types.Statement | Expression} node function node
  */
 function doesReturnJSX(t, node) {
   if (!node) {
@@ -156,7 +156,7 @@ function isJSX(t, node) {
  * Checks if this path is an allowed CallExpression.
  *
  * @param {BabelTypes} t content of @babel/types package
- * @param {NodePath<import('./babelTypes.js').CallExpression>} path path of callee
+ * @param {NodePath<import('@babel/core').types.CallExpression>} path path of callee
  */
 function isAllowedCallExpression(t, path) {
   const calleePath = path.get('callee');
@@ -197,7 +197,7 @@ function isAllowedCallExpression(t, path) {
  *  - not called by a react hook or _createClass helper
  *
  * @param {BabelTypes} t content of @babel/types package
- * @param {NodePath<import('./babelTypes.js').FunctionExpression|import('./babelTypes.js').ArrowFunctionExpression|import('./babelTypes.js').ObjectMethod|import('./babelTypes.js').CallExpression>} path path of function
+ * @param {NodePath<import('@babel/core').types.FunctionExpression|import('@babel/core').types.ArrowFunctionExpression|import('@babel/core').types.ObjectMethod|import('@babel/core').types.CallExpression>} path path of function
  */
 function addDisplayNamesToFunctionComponent(t, path) {
   /** @type {ComponentIdentifier[]} */
@@ -379,7 +379,7 @@ function generateNodeDisplayName(t, node) {
  */
 function hasBeenAssignedPrev(t, assignmentPath, pattern, value) {
   return assignmentPath.getAllPrevSiblings().some((sibling) => {
-    const expression = /** @type {NodePath<import('./babelTypes.js').ExpressionStatement>} */ (
+    const expression = /** @type {NodePath<import('@babel/core').types.ExpressionStatement>} */ (
       sibling
     ).get('expression');
     if (!expression.isAssignmentExpression({ operator: '=' })) {
@@ -402,7 +402,7 @@ function hasBeenAssignedPrev(t, assignmentPath, pattern, value) {
  */
 function hasBeenAssignedNext(t, assignmentPath, pattern) {
   return assignmentPath.getAllNextSiblings().some((sibling) => {
-    const expression = /** @type {NodePath<import('./babelTypes.js').ExpressionStatement>} */ (
+    const expression = /** @type {NodePath<import('@babel/core').types.ExpressionStatement>} */ (
       sibling
     ).get('expression');
     if (!expression.isAssignmentExpression({ operator: '=' })) {
@@ -466,7 +466,7 @@ function createMemberExpression(t, componentIdentifiers) {
  * `name` will be changed to ensure that it is unique within the scope. e.g. `helper` -> `_helper`
  *
  * @param {BabelTypes} t content of @babel/types package
- * @param {NodePath<import('./babelTypes.js').ArrowFunctionExpression | import('./babelTypes.js').CallExpression | import('./babelTypes.js').FunctionExpression | import('./babelTypes.js').ObjectMethod>} path path to the function node
+ * @param {NodePath<import('@babel/core').types.ArrowFunctionExpression | import('@babel/core').types.CallExpression | import('@babel/core').types.FunctionExpression | import('@babel/core').types.ObjectMethod>} path path to the function node
  * @param {string} name name of function to follow after
  */
 function setInternalFunctionName(t, path, name) {
