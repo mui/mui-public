@@ -29,7 +29,6 @@ import { buildTypeCompatibilityMap } from './rewriteTypes';
 import type { TypeRewriteContext } from './rewriteTypes';
 import type { ExternalTypeMeta, ExternalTypesCollector } from './externalTypes';
 import { matchConstantGroups } from './constantGroups';
-import type { ConstantGroupPatterns } from './constantGroups';
 import { getWorkerManager } from './workerManager';
 import { reconstructPerformanceLogs } from './performanceTracking';
 import { typeSuffixes as defaultTypeSuffixes } from '../loadServerTypesText/order';
@@ -143,15 +142,6 @@ export interface LoadServerTypesMetaOptions {
    * @example { BaseUIComponentProps: ['className', 'render', 'style'] }
    */
   inheritedExternalProps?: InheritedExternalPropsConfig;
-  /**
-   * Export name patterns marking the constant groups (enums, or namespaces of constants)
-   * that hold a component's data attributes or CSS variables. The `*` stands for the
-   * component's name with its dots removed. Defaults to `*DataAttributes` and `*CssVariables`;
-   * pass `{}` to attach no tables.
-   *
-   * @example { dataAttributes: '*DataAttributes', cssVariables: '*CssVariables' }
-   */
-  constantGroupPatterns?: ConstantGroupPatterns;
 }
 
 export interface LoadServerTypesMetaResult extends OrganizeTypesResult<TypesMeta> {
@@ -317,10 +307,7 @@ export async function loadServerTypesMeta(
         typeNameMap: variantResult.typeNameMap,
       };
 
-      const constantGroups = matchConstantGroups(
-        variantResult.exports,
-        options.constantGroupPatterns,
-      );
+      const constantGroups = matchConstantGroups(variantResult.exports);
       const constantNamespaces = new Set(variantResult.constantNamespaces);
 
       // Process all exports in parallel within each variant

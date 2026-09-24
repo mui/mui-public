@@ -149,7 +149,7 @@ A component's data attributes and CSS variables come from **constant groups** it
 
 ```ts
 // An enum
-export enum AccordionPanelCssVars {
+export enum AccordionPanelCssVariables {
   /**
    * The accordion panel's height.
    * @type {number}
@@ -167,20 +167,12 @@ export enum AccordionPanelCssVars {
 export const accordionPanelHeight = '--accordion-panel-height';
 
 // index.ts
-export * as AccordionPanelCssVars from './AccordionPanelCssVars';
+export * as AccordionPanelCssVariables from './AccordionPanelCssVars';
 ```
 
 Both produce identical documentation. The constant form lets application bundlers inline and tree-shake the values, since nothing references a runtime enum object.
 
-Which groups hold a component's table is decided by name patterns, where `*` stands for the component's name with its dots removed. By default, `*DataAttributes` holds data attributes and `*CssVariables` holds CSS variables, so `AccordionPanelCssVariables` holds the CSS variables of `Accordion.Panel`. Configure other patterns with `constantGroupPatterns`, passed to `withDocsInfra` (or directly to `loadServerTypesMeta`), or pass `{}` to attach no tables:
-
-```js
-withDocsInfra({
-  constantGroupPatterns: { dataAttributes: '*DataAttributes', cssVariables: '*CssVars' },
-});
-```
-
-Only the exported name counts, so one module can serve several components: `DialogPopupDataAttributes.ts` published as `AlertDialogPopupDataAttributes` documents `AlertDialog.Popup`. A group whose name matches a pattern but no single exported component fails the build. A matched group is documented with its declaration, as a `declare namespace` of constants or an `enum` depending on how it is exported, and a link to the component's table. Groups matching no pattern are documented on their own with a member table.
+A group's name tells which component table it holds: the component's name with its dots removed, followed by `DataAttributes` for data attributes or `CssVariables` for CSS variables. So `AccordionPanelCssVariables` holds the CSS variables of `Accordion.Panel`. Only the exported name counts, so one module can serve several components: `DialogPopupDataAttributes.ts` published as `AlertDialogPopupDataAttributes` documents `AlertDialog.Popup`. A group named this way whose component part matches no single exported component fails the build. A matched group is documented with its declaration, as a `declare namespace` of constants or an `enum` depending on how it is exported, and a link to the component's table. Groups named otherwise are documented on their own with a member table.
 
 ### 4. Build Type Compatibility Map
 

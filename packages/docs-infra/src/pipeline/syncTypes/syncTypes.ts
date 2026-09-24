@@ -7,7 +7,6 @@ import { nameMark, performanceMeasure } from '../loadPrecomputedCodeHighlighter/
 import { loadServerTypesMeta } from '../loadServerTypesMeta';
 import type { TypesMeta } from '../loadServerTypesMeta';
 import type { InheritedExternalPropsConfig } from '../loadServerTypesMeta/inheritedExternalProps';
-import type { ConstantGroupPatterns } from '../loadServerTypesMeta/constantGroups';
 import type {
   FormatInlineTypeOptions,
   DescriptionReplacement,
@@ -89,11 +88,6 @@ export interface SyncTypesOptions {
    * keyed by the declaring type's name.
    */
   inheritedExternalProps?: InheritedExternalPropsConfig;
-  /**
-   * Export name patterns marking the constant groups that hold a component's data
-   * attributes or CSS variables, e.g. `{ dataAttributes: '*DataAttributes' }`.
-   */
-  constantGroupPatterns?: ConstantGroupPatterns;
   /**
    * Directory for the sha256-validated JSON cache of the types pipeline. When set, after
    * writing types.md syncTypes pre-populates `{cacheDir}/types-text/{route}.json` with the
@@ -295,7 +289,6 @@ export async function syncTypes(options: SyncTypesOptions): Promise<TypesSourceD
     ordering: options.ordering,
     descriptionReplacements: options.descriptionReplacements,
     inheritedExternalProps: options.inheritedExternalProps,
-    constantGroupPatterns: options.constantGroupPatterns,
   });
 
   const {

@@ -6,7 +6,6 @@ import {
   foldConstantNamespaces,
   matchConstantGroups,
 } from './constantGroups';
-import type { ConstantGroupPatterns } from './constantGroups';
 import { createTestProgram } from './parseTestSources';
 import { PARSER_OPTIONS } from './constants';
 
@@ -23,11 +22,6 @@ const BUTTON_DATA_ATTRIBUTES = `
   /** Present when pressed. */
   export const pressed = 'data-pressed';
 `;
-
-const PATTERNS: ConstantGroupPatterns = {
-  dataAttributes: '*DataAttributes',
-  cssVariables: '*CssVariables',
-};
 
 /** Parses the entrypoint and folds its constant namespaces, the way the pipeline does. */
 function foldSources(sources: Record<string, string>) {
@@ -207,7 +201,7 @@ describe('matchConstantGroups', () => {
       'variables.ts': `export enum Variables { width = '--width' }`,
     });
 
-    const { targets, byComponent } = matchConstantGroups(exports, PATTERNS);
+    const { targets, byComponent } = matchConstantGroups(exports);
 
     expect(targets).toEqual(
       new Map([
@@ -232,29 +226,14 @@ describe('matchConstantGroups', () => {
       'attributes.ts': BUTTON_DATA_ATTRIBUTES,
     });
 
-    expect(matchConstantGroups(exports, PATTERNS).targets).toEqual(
+    expect(matchConstantGroups(exports).targets).toEqual(
       new Map([
         ['Toolbar.ButtonDataAttributes', { component: 'Toolbar.Button', kind: 'dataAttributes' }],
       ]),
     );
   });
 
-  it('supports patterns with a prefix', () => {
-    const exports = foldSources({
-      'index.ts': `
-        export { Button } from './button';
-        export * as DataAttributesOfButton from './attributes';
-      `,
-      'button.ts': BUTTON,
-      'attributes.ts': BUTTON_DATA_ATTRIBUTES,
-    });
-
-    expect(matchConstantGroups(exports, { dataAttributes: 'DataAttributesOf*' }).targets).toEqual(
-      new Map([['DataAttributesOfButton', { component: 'Button', kind: 'dataAttributes' }]]),
-    );
-  });
-
-  it('matches `*DataAttributes` and `*CssVariables` when no patterns are given', () => {
+  it('reads `*DataAttributes` as data attributes and `*CssVariables` as CSS variables', () => {
     const exports = foldSources({
       'index.ts': `
         export { Button } from './button';
@@ -274,20 +253,7 @@ describe('matchConstantGroups', () => {
     );
   });
 
-  it('matches nothing with empty patterns', () => {
-    const exports = foldSources({
-      'index.ts': `
-        export { Button } from './button';
-        export * as ButtonDataAttributes from './attributes';
-      `,
-      'button.ts': BUTTON,
-      'attributes.ts': BUTTON_DATA_ATTRIBUTES,
-    });
-
-    expect(matchConstantGroups(exports, {}).targets).toEqual(new Map());
-  });
-
-  it('ignores groups matching no pattern', () => {
+  it('ignores groups with other names', () => {
     const exports = foldSources({
       'index.ts': `
         export { Button } from './button';
@@ -297,10 +263,10 @@ describe('matchConstantGroups', () => {
       'attributes.ts': BUTTON_DATA_ATTRIBUTES,
     });
 
-    expect(matchConstantGroups(exports, PATTERNS).targets).toEqual(new Map());
+    expect(matchConstantGroups(exports).targets).toEqual(new Map());
   });
 
-  it('throws when the name a pattern captures is no exported component', () => {
+  it('throws when the name before the suffix is no exported component', () => {
     const exports = foldSources({
       'index.ts': `
         export { Button } from './button';
@@ -310,14 +276,6 @@ describe('matchConstantGroups', () => {
       'attributes.ts': BUTTON_DATA_ATTRIBUTES,
     });
 
-    expect(() => matchConstantGroups(exports, PATTERNS)).toThrow(
-      /CheckboxDataAttributes.*Checkbox/,
-    );
-  });
-
-  it('throws on a pattern without exactly one `*`', () => {
-    expect(() => matchConstantGroups([], { dataAttributes: 'DataAttributes' })).toThrow(
-      /dataAttributes/,
-    );
+    expect(() => matchConstantGroups(exports)).toThrow(/CheckboxDataAttributes.*Checkbox/);
   });
 });

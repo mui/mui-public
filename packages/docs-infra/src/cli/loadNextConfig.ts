@@ -4,7 +4,6 @@ import { pathToFileURL } from 'node:url';
 import { createJiti } from 'jiti';
 import type { DescriptionReplacement } from '../pipeline/loadServerTypesMeta/format';
 import type { InheritedExternalPropsConfig } from '../pipeline/loadServerTypesMeta/inheritedExternalProps';
-import type { ConstantGroupPatterns } from '../pipeline/loadServerTypesMeta/constantGroups';
 import type { OrderingConfig } from '../pipeline/loadServerTypesText/order';
 
 const TYPES_LOADER = '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes';
@@ -38,8 +37,6 @@ export type ExtractedNextConfigOptions = {
   descriptionReplacements?: DescriptionReplacement[];
   /** Props to re-include when inherited from these externally declared types. */
   inheritedExternalProps?: InheritedExternalPropsConfig;
-  /** Export name patterns marking a component's data attribute and CSS variable groups. */
-  constantGroupPatterns?: ConstantGroupPatterns;
   useVisibleDescription?: boolean;
   /** Page-index cache directory configured on the sitemap loader. */
   cacheDir?: string;
@@ -116,13 +113,6 @@ function extractOptionsFromLoaderEntries(
         .inheritedExternalProps as InheritedExternalPropsConfig;
     }
     if (
-      !result.constantGroupPatterns &&
-      loader.loader === TYPES_LOADER &&
-      loader.options?.constantGroupPatterns
-    ) {
-      result.constantGroupPatterns = loader.options.constantGroupPatterns as ConstantGroupPatterns;
-    }
-    if (
       !result.cacheDir &&
       loader.loader === SITEMAP_LOADER &&
       typeof loader.options?.cacheDir === 'string'
@@ -160,7 +150,6 @@ export function extractOptionsFromTurbopack(config: any): ExtractedNextConfigOpt
     merged.ordering ??= extracted.ordering;
     merged.descriptionReplacements ??= extracted.descriptionReplacements;
     merged.inheritedExternalProps ??= extracted.inheritedExternalProps;
-    merged.constantGroupPatterns ??= extracted.constantGroupPatterns;
     merged.useVisibleDescription ??= extracted.useVisibleDescription;
     merged.cacheDir ??= extracted.cacheDir;
   }
@@ -251,7 +240,6 @@ function extractOptionsFromWebpackResult(result: any): ExtractedNextConfigOption
     merged.ordering ??= extracted.ordering;
     merged.descriptionReplacements ??= extracted.descriptionReplacements;
     merged.inheritedExternalProps ??= extracted.inheritedExternalProps;
-    merged.constantGroupPatterns ??= extracted.constantGroupPatterns;
     merged.useVisibleDescription ??= extracted.useVisibleDescription;
     merged.cacheDir ??= extracted.cacheDir;
   }
@@ -430,7 +418,6 @@ export async function extractDocsInfraOptionsFromNextConfig(
     ordering: turbopack.ordering ?? webpack.ordering,
     descriptionReplacements: turbopack.descriptionReplacements ?? webpack.descriptionReplacements,
     inheritedExternalProps: turbopack.inheritedExternalProps ?? webpack.inheritedExternalProps,
-    constantGroupPatterns: turbopack.constantGroupPatterns ?? webpack.constantGroupPatterns,
     useVisibleDescription: turbopack.useVisibleDescription ?? webpack.useVisibleDescription,
     cacheDir: turbopack.cacheDir ?? webpack.cacheDir,
     demoClientRequirements: demoClientRequirements.length > 0 ? demoClientRequirements : undefined,

@@ -280,14 +280,6 @@ type LoadServerTypesMetaOptions = {
    * @example { BaseUIComponentProps: ['className', 'render', 'style'] }
    */
   inheritedExternalProps?: InheritedExternalPropsConfig;
-  /**
-   * Export name patterns marking the constant groups (enums, or namespaces of constants)
-   * that hold a component's data attributes or CSS variables. The `*` stands for the
-   * component's name with its dots removed. Defaults to `*DataAttributes` and `*CssVariables`;
-   * pass `{}` to attach no tables.
-   * @example { dataAttributes: '*DataAttributes', cssVariables: '*CssVariables' }
-   */
-  constantGroupPatterns?: ConstantGroupPatterns;
 };
 ```
 

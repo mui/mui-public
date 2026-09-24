@@ -4,31 +4,20 @@ import type * as tae from 'typescript-api-extractor';
 import { formatPropertyComment } from './formatType';
 import { isComponentType, isEnumType } from './typeGuards';
 
+/** Which of a component's tables a constant group holds. */
+export type ConstantGroupKind = 'dataAttributes' | 'cssVariables';
+
 /**
- * Export name patterns marking which constant groups hold a component's table.
- *
  * A constant group is a named set of constant values an entrypoint publishes, either as an
  * enum or as a namespace of constants (`export * as ButtonDataAttributes from './…'`); both
- * are represented as an enum-shaped export. In each pattern, the `*` stands for the
- * component's name with its dots removed, e.g. with `'*DataAttributes'` the group
+ * are represented as an enum-shaped export. Its name tells which component table it holds:
+ * the component's name with its dots removed, followed by one of these suffixes, e.g.
  * `ToolbarButtonDataAttributes` holds the data attributes of `Toolbar.Button`.
- *
- * A type alias rather than an interface, so it stays assignable to the JSON-valued loader
- * options bundlers expect.
  */
-export type ConstantGroupPatterns = {
-  dataAttributes?: string;
-  cssVariables?: string;
+const KIND_SUFFIXES: Record<ConstantGroupKind, string> = {
+  dataAttributes: 'DataAttributes',
+  cssVariables: 'CssVariables',
 };
-
-/** The patterns used when none are configured. */
-export const DEFAULT_CONSTANT_GROUP_PATTERNS: ConstantGroupPatterns = {
-  dataAttributes: '*DataAttributes',
-  cssVariables: '*CssVariables',
-};
-
-/** Which of a component's tables a constant group holds. */
-export type ConstantGroupKind = keyof ConstantGroupPatterns;
 
 export interface ConstantGroupTarget {
   /** The component's name as the entrypoint exports it, e.g. `Toolbar.Button` */
@@ -212,44 +201,19 @@ export function formatConstantGroupDeclaration(
 }
 
 /**
- * Resolves which component each constant group documents, by matching group names against
- * the configured patterns.
+ * Resolves which component each constant group documents from its name: the component's
+ * name with its dots removed, followed by `DataAttributes` or `CssVariables`.
  *
- * Throws when a pattern is malformed, when a group matches several patterns, or when the
- * name a pattern captures is not exactly one of the exported components.
+ * Throws when the name before the suffix is not exactly one of the exported components.
  *
  * @returns Targets keyed by the group's export name, and each component's groups
  */
-export function matchConstantGroups(
-  exports: tae.ExportNode[],
-  patterns: ConstantGroupPatterns = DEFAULT_CONSTANT_GROUP_PATTERNS,
-): {
+export function matchConstantGroups(exports: tae.ExportNode[]): {
   targets: Map<string, ConstantGroupTarget>;
   byComponent: Map<string, ComponentConstantGroups>;
 } {
   const targets = new Map<string, ConstantGroupTarget>();
   const byComponent = new Map<string, ComponentConstantGroups>();
-
-  const matchers = (Object.keys(patterns) as ConstantGroupKind[]).flatMap((kind) => {
-    const pattern = patterns[kind];
-    if (pattern === undefined) {
-      return [];
-    }
-
-    const parts = pattern.split('*');
-    if (parts.length !== 2) {
-      throw new Error(
-        `[constantGroups] ${kind} pattern "${pattern}" must contain exactly one \`*\``,
-      );
-    }
-
-    const [prefix, suffix] = parts;
-    return [{ prefix, suffix, kind }];
-  });
-
-  if (matchers.length === 0) {
-    return { targets, byComponent };
-  }
 
   const componentsByFlatName = new Map<string, string[]>();
   for (const node of exports) {
@@ -264,44 +228,35 @@ export function matchConstantGroups(
     }
   }
 
+  const kinds = Object.keys(KIND_SUFFIXES) as ConstantGroupKind[];
+
   for (const node of exports) {
-    if (isEnumType(node.type)) {
-      // Patterns apply to names without dots, like the component names they capture, so a
-      // group exported inside a namespace (`Toolbar.ButtonDataAttributes`) matches too.
-      const groupName = node.name.replaceAll('.', '');
-      const matches = matchers.filter(
-        ({ prefix, suffix }) =>
-          groupName.length > prefix.length + suffix.length &&
-          groupName.startsWith(prefix) &&
-          groupName.endsWith(suffix),
-      );
+    // Names are compared without dots, like the component names they stand for, so a group
+    // exported inside a namespace (`Toolbar.ButtonDataAttributes`) matches too.
+    const groupName = node.name.replaceAll('.', '');
+    const kind = kinds.find(
+      (candidate) =>
+        groupName.endsWith(KIND_SUFFIXES[candidate]) &&
+        groupName.length > KIND_SUFFIXES[candidate].length,
+    );
 
-      if (matches.length > 1) {
-        throw new Error(`[constantGroups] ${node.name} matches more than one pattern`);
-      }
-
-      const [match] = matches;
-      if (match) {
-        const flatName = groupName.slice(
-          match.prefix.length,
-          groupName.length - match.suffix.length,
+    if (kind && isEnumType(node.type)) {
+      const flatName = groupName.slice(0, -KIND_SUFFIXES[kind].length);
+      const components = componentsByFlatName.get(flatName) ?? [];
+      if (components.length !== 1) {
+        throw new Error(
+          components.length === 0
+            ? `[constantGroups] ${node.name} - no exported component is named ${flatName}`
+            : `[constantGroups] ${node.name} - ${components.join(', ')} are all named ${flatName}`,
         );
-        const components = componentsByFlatName.get(flatName) ?? [];
-        if (components.length !== 1) {
-          throw new Error(
-            components.length === 0
-              ? `[constantGroups] ${node.name} - no exported component is named ${flatName}`
-              : `[constantGroups] ${node.name} - ${components.join(', ')} are all named ${flatName}`,
-          );
-        }
-
-        const [component] = components;
-        targets.set(node.name, { component, kind: match.kind });
-
-        const groups = byComponent.get(component) ?? {};
-        groups[match.kind] ??= node.type;
-        byComponent.set(component, groups);
       }
+
+      const [component] = components;
+      targets.set(node.name, { component, kind });
+
+      const groups = byComponent.get(component) ?? {};
+      groups[kind] ??= node.type;
+      byComponent.set(component, groups);
     }
   }
 

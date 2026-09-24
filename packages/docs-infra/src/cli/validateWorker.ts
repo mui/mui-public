@@ -149,7 +149,6 @@ if (parentPort) {
             ordering: task.syncTypesOptions.ordering,
             descriptionReplacements: task.syncTypesOptions.descriptionReplacements,
             inheritedExternalProps: task.syncTypesOptions.inheritedExternalProps,
-            constantGroupPatterns: task.syncTypesOptions.constantGroupPatterns,
             cacheDir: task.syncTypesOptions.cacheDir,
           });
 

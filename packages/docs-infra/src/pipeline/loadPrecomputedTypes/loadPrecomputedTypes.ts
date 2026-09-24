@@ -21,7 +21,6 @@ import type { SyncPageIndexBaseOptions } from '../transformMarkdownMetadata/type
 import { rewriteImportsToNull } from '../loaderUtils/rewriteImports';
 import type { OrderingConfig } from '../loadServerTypesText/order';
 import type { InheritedExternalPropsConfig } from '../loadServerTypesMeta/inheritedExternalProps';
-import type { ConstantGroupPatterns } from '../loadServerTypesMeta/constantGroups';
 import type { TransformHtmlCodeBlockOptions } from '../transformHtmlCodeBlock/transformHtmlCodeBlock';
 
 export type LoaderOptions = {
@@ -74,11 +73,6 @@ export type LoaderOptions = {
    * keyed by the declaring type's name.
    */
   inheritedExternalProps?: InheritedExternalPropsConfig;
-  /**
-   * Export name patterns marking the constant groups that hold a component's data
-   * attributes or CSS variables, e.g. `{ dataAttributes: '*DataAttributes' }`.
-   */
-  constantGroupPatterns?: ConstantGroupPatterns;
   /** Options for code blocks highlighted inside generated type metadata */
   codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions;
   /**
@@ -187,7 +181,6 @@ export async function loadPrecomputedTypes(
       ordering: options.ordering,
       descriptionReplacements: options.descriptionReplacements,
       inheritedExternalProps: options.inheritedExternalProps,
-      constantGroupPatterns: options.constantGroupPatterns,
       codeBlockEmphasisOptions: options.codeBlockEmphasisOptions,
       cacheDir: options.cacheDir,
       sync: true,
