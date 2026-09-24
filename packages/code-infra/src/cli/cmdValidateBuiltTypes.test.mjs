@@ -22,13 +22,13 @@ describe('collectModuleSpecifiers', () => {
     ].join('\n');
 
     expect(await collectModuleSpecifiers(code, 'index.d.ts')).toEqual([
-      { specifier: 'foo', isTypeReference: false },
-      { specifier: 'bar/subpath', isTypeReference: false },
-      { specifier: '@scope/baz', isTypeReference: false },
-      { specifier: './local', isTypeReference: false },
-      { specifier: 'qux', isTypeReference: false },
-      { specifier: '@scope/inferred', isTypeReference: false },
-      { specifier: 'node', isTypeReference: true },
+      { specifier: 'foo', kind: 'import' },
+      { specifier: 'bar/subpath', kind: 'import' },
+      { specifier: '@scope/baz', kind: 'import' },
+      { specifier: './local', kind: 'import' },
+      { specifier: 'qux', kind: 'import' },
+      { specifier: '@scope/inferred', kind: 'importType' },
+      { specifier: 'node', kind: 'typeReference' },
     ]);
   });
 
@@ -40,62 +40,146 @@ describe('collectModuleSpecifiers', () => {
 });
 
 describe('findDeclarationProblems', () => {
-  const packageJson = {
-    name: '@scope/button',
-    dependencies: { foo: '^1.0.0', '@types/bar': '^1.0.0' },
-    peerDependencies: { react: '*', '@types/react': '*', baz: '*' },
-    optionalDependencies: { qux: '^1.0.0' },
-    devDependencies: { '@types/baz': '^1.0.0', undeclared: '^1.0.0' },
-  };
-
   /**
    * @param {string[]} specifiers
+   * @param {import('./packageJson').PackageJson | null} packageJson
    */
-  function problemsFor(specifiers) {
+  function problemsFor(specifiers, packageJson) {
     return findDeclarationProblems(
-      specifiers.map((specifier) => ({ specifier, isTypeReference: false })),
+      specifiers.map((specifier) => ({ specifier, kind: /** @type {const} */ ('import') })),
       packageJson,
     );
   }
 
   it('accepts relative, builtin, self and declared imports', () => {
     expect(
-      problemsFor([
-        './local',
-        'node:fs',
-        'path',
-        'fs/promises',
-        '@scope/button/utils',
-        'foo/subpath',
-        'react',
-        'qux',
-      ]),
+      problemsFor(
+        ['./local', 'node:fs', 'path', 'fs/promises', '@scope/button/utils', 'foo/subpath', 'bar'],
+        {
+          name: '@scope/button',
+          dependencies: { foo: '^1.0.0' },
+          peerDependencies: { bar: '*' },
+        },
+      ),
     ).toEqual([]);
   });
 
   it('accepts an import whose types come from a declared @types package', () => {
-    expect(problemsFor(['bar'])).toEqual([]);
+    expect(
+      problemsFor(['foo', 'bar'], {
+        name: 'pkg',
+        dependencies: { foo: '^1.0.0', '@types/foo': '^1.0.0' },
+        peerDependencies: { bar: '*', '@types/bar': '*' },
+      }),
+    ).toEqual([]);
+  });
+
+  describe('when types come from an @types devDependency', () => {
+    it('suggests an optional peer dependency for a peer dependency', () => {
+      expect(
+        problemsFor(['react'], {
+          name: 'pkg',
+          peerDependencies: { react: '*' },
+          devDependencies: { '@types/react': '*' },
+        }),
+      ).toEqual([
+        {
+          message: 'types for "react" come from "@types/react", which is only a devDependency',
+          fix: '"react" is a peer dependency, so add "@types/react" as an optional peer dependency.',
+        },
+      ]);
+    });
+
+    it('suggests a dependency for a dependency', () => {
+      expect(
+        problemsFor(['foo'], {
+          name: 'pkg',
+          dependencies: { foo: '^1.0.0' },
+          devDependencies: { '@types/foo': '^1.0.0' },
+        }),
+      ).toEqual([
+        {
+          message: 'types for "foo" come from "@types/foo", which is only a devDependency',
+          fix: '"foo" is a dependency, so move "@types/foo" to dependencies.',
+        },
+      ]);
+    });
+
+    it('suggests optional peer dependencies for a devDependency', () => {
+      expect(
+        problemsFor(['foo'], {
+          name: 'pkg',
+          devDependencies: { foo: '^1.0.0', '@types/foo': '^1.0.0' },
+        }),
+      ).toEqual([
+        {
+          message: 'types for "foo" come from "@types/foo", which is only a devDependency',
+          fix: '"foo" is only a devDependency, so consumers provide it: add "foo" and "@types/foo" as optional peer dependencies.',
+        },
+      ]);
+    });
+
+    it('suggests both options when the package is not declared', () => {
+      // Either a types-only package such as `hast`, or one that consumers provide.
+      expect(
+        problemsFor(['hast'], { name: 'pkg', devDependencies: { '@types/hast': '*' } }),
+      ).toEqual([
+        {
+          message: 'types for "hast" come from "@types/hast", which is only a devDependency',
+          fix: 'If "hast" is a types-only package, move "@types/hast" to dependencies. If consumers provide "hast", add "hast" and "@types/hast" as optional peer dependencies.',
+        },
+      ]);
+    });
+
+    it('maps scoped packages to their @types name', () => {
+      expect(
+        problemsFor(['@scope/untyped'], {
+          name: 'pkg',
+          dependencies: { '@scope/untyped': '*' },
+          devDependencies: { '@types/scope__untyped': '*' },
+        }),
+      ).toEqual([
+        {
+          message:
+            'types for "@scope/untyped" come from "@types/scope__untyped", which is only a devDependency',
+          fix: '"@scope/untyped" is a dependency, so move "@types/scope__untyped" to dependencies.',
+        },
+      ]);
+    });
+  });
+
+  it('reports an import of a devDependency', () => {
+    expect(
+      problemsFor(['foo/subpath'], { name: 'pkg', devDependencies: { foo: '^1.0.0' } }),
+    ).toEqual([
+      {
+        message: '"foo" is only a devDependency',
+        fix: 'If consumers provide "foo", add it as an optional peer dependency. If this package uses it at runtime or it only provides types, move it to dependencies.',
+      },
+    ]);
   });
 
   it('reports an import of a package that is not declared', () => {
-    expect(problemsFor(['undeclared', '@scope/missing/subpath'])).toEqual([
-      '"undeclared" is not declared in dependencies or peerDependencies',
-      '"@scope/missing" is not declared in dependencies or peerDependencies',
+    expect(problemsFor(['foo', '@scope/missing/subpath', 'foo'], { name: 'pkg' })).toEqual([
+      {
+        message: '"foo" is not declared',
+        fix: 'Declare "foo" the way this package uses it at runtime: in dependencies, or as a peer dependency if consumers provide it.',
+      },
+      {
+        message: '"@scope/missing" is not declared',
+        fix: 'Declare "@scope/missing" the way this package uses it at runtime: in dependencies, or as a peer dependency if consumers provide it.',
+      },
     ]);
   });
 
-  it('reports an import whose types come from an @types devDependency', () => {
-    expect(problemsFor(['baz'])).toEqual([
-      'types for "baz" come from "@types/baz", which is only a devDependency; declare it in dependencies or as an optional peer dependency',
-    ]);
-    // A types-only package such as `hast` has no runtime package to declare.
+  it('suggests an annotation for an undeclared import type', () => {
     expect(
-      findDeclarationProblems([{ specifier: 'hast', isTypeReference: false }], {
-        name: 'pkg',
-        devDependencies: { '@types/hast': '*' },
-      }),
+      findDeclarationProblems([{ specifier: 'foo', kind: 'importType' }], { name: 'pkg' }),
     ).toEqual([
-      'types for "hast" come from "@types/hast", which is only a devDependency; declare it in dependencies or as an optional peer dependency',
+      {
+        message: '"foo" is not declared',
+        fix: 'An import("foo") type is usually emitted for an inferred type. Add an explicit type annotation that uses a type from a declared dependency (the isolatedDeclarations compiler option enforces this), or declare "foo" the way this package uses it at runtime.',
+      },
     ]);
   });
 
@@ -103,54 +187,50 @@ describe('findDeclarationProblems', () => {
     expect(
       findDeclarationProblems(
         [
-          { specifier: 'node', isTypeReference: true },
-          { specifier: 'react', isTypeReference: true },
-          { specifier: 'baz', isTypeReference: true },
-          { specifier: 'undeclared', isTypeReference: true },
+          { specifier: 'node', kind: 'typeReference' },
+          { specifier: 'react', kind: 'typeReference' },
+          { specifier: 'foo', kind: 'typeReference' },
         ],
-        packageJson,
+        {
+          name: 'pkg',
+          peerDependencies: { react: '*', '@types/react': '*' },
+          dependencies: { foo: '*' },
+          devDependencies: { '@types/foo': '*' },
+        },
       ),
     ).toEqual([
-      'types for "baz" come from "@types/baz", which is only a devDependency; declare it in dependencies or as an optional peer dependency',
-      '"undeclared" is not declared in dependencies or peerDependencies',
-    ]);
-  });
-
-  it('maps scoped packages to their @types name', () => {
-    expect(
-      findDeclarationProblems([{ specifier: '@scope/untyped', isTypeReference: false }], {
-        name: 'pkg',
-        peerDependencies: { '@scope/untyped': '*' },
-        devDependencies: { '@types/scope__untyped': '*' },
-      }),
-    ).toEqual([
-      'types for "@scope/untyped" come from "@types/scope__untyped", which is only a devDependency; declare it in dependencies or as an optional peer dependency',
-    ]);
-  });
-
-  it('only checks for local workspace paths without an owning manifest', () => {
-    expect(
-      findDeclarationProblems(
-        [
-          { specifier: 'undeclared', isTypeReference: false },
-          { specifier: 'packages/button/src/Button', isTypeReference: false },
-        ],
-        null,
-      ),
-    ).toEqual([
-      '"packages/button/src/Button" is a local workspace path, likely a type that is missing an export',
+      {
+        message: 'types for "foo" come from "@types/foo", which is only a devDependency',
+        fix: '"foo" is a dependency, so move "@types/foo" to dependencies.',
+      },
     ]);
   });
 
   it('reports imports of local workspace paths', () => {
-    expect(problemsFor(['packages/button/src/Button'])).toEqual([
-      '"packages/button/src/Button" is a local workspace path, likely a type that is missing an export',
+    expect(problemsFor(['packages/button/src/Button'], { name: 'pkg' })).toEqual([
+      {
+        message: '"packages/button/src/Button" is a local workspace path',
+        fix: 'A type in the public API is likely not exported from its package. Export it so declaration emit can reference it by package name.',
+      },
+    ]);
+  });
+
+  it('only checks for local workspace paths without an owning manifest', () => {
+    expect(problemsFor(['undeclared', 'packages/button/src/Button'], null)).toEqual([
+      {
+        message: '"packages/button/src/Button" is a local workspace path',
+        fix: 'A type in the public API is likely not exported from its package. Export it so declaration emit can reference it by package name.',
+      },
     ]);
   });
 });
 
 describe('validateBuiltTypes', () => {
-  it('reports problems in build output against the owning package', async () => {
+  /**
+   * A workspace with one package whose build output imports an undeclared
+   * package and a local workspace path.
+   */
+  async function createWorkspace() {
     const root = await makeTempDir();
     await fs.writeFile(path.join(root, 'pnpm-workspace.yaml'), "packages:\n  - 'packages/*'\n");
     const pkgDir = await writePackage(root, 'packages/button', {
@@ -165,16 +245,37 @@ describe('validateBuiltTypes', () => {
     );
     await fs.writeFile(
       path.join(pkgDir, 'build/utils/theme.d.mts'),
-      "export declare const theme: import('bar').Theme;\n",
+      "export declare const theme: import('bar').Theme;\nexport declare const local: import('packages/other/src').Local;\n",
     );
     // Sources are not published, so they are not checked.
     await fs.writeFile(path.join(pkgDir, 'src/index.d.ts'), "export * from 'bar';\n");
+    return root;
+  }
 
-    expect(await validateBuiltTypes(root)).toEqual([
+  it('reports problems in build output against the owning package', async () => {
+    const root = await createWorkspace();
+
+    expect(await validateBuiltTypes(root, { checkDependencies: true })).toEqual([
       {
+        packageDir: 'packages/button',
         file: 'packages/button/build/utils/theme.d.mts',
-        message: '"bar" is not declared in dependencies or peerDependencies',
+        message: '"bar" is not declared',
+        fix: 'An import("bar") type is usually emitted for an inferred type. Add an explicit type annotation that uses a type from a declared dependency (the isolatedDeclarations compiler option enforces this), or declare "bar" the way this package uses it at runtime.',
       },
+      {
+        packageDir: 'packages/button',
+        file: 'packages/button/build/utils/theme.d.mts',
+        message: '"packages/other/src" is a local workspace path',
+        fix: 'A type in the public API is likely not exported from its package. Export it so declaration emit can reference it by package name.',
+      },
+    ]);
+  });
+
+  it('only checks for local workspace paths when dependency checks are disabled', async () => {
+    const root = await createWorkspace();
+
+    expect(await validateBuiltTypes(root, { checkDependencies: false })).toEqual([
+      expect.objectContaining({ message: '"packages/other/src" is a local workspace path' }),
     ]);
   });
 });
