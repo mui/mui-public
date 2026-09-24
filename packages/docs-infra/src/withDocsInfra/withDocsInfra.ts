@@ -1,6 +1,6 @@
 import path from 'node:path';
 import type { NextConfig } from 'next';
-import type { Configuration as WebpackConfig, RuleSetRule } from 'webpack';
+import type { Configuration as WebpackConfig } from 'webpack';
 import type { OrderingConfig } from '../pipeline/loadServerTypesText/order';
 import type { DescriptionReplacement } from '../pipeline/loadServerTypesMeta/format';
 import type { InheritedExternalPropsConfig } from '../pipeline/loadServerTypesMeta/inheritedExternalProps';
@@ -12,6 +12,9 @@ import { DEFAULT_CACHE_DIR } from '../pipeline/cacheUtils';
 // Used for Turbopack loader options which require serializable values
 type JSONValue = string | number | boolean | JSONValue[] | { [k: string]: JSONValue };
 
+// Typed through Next.js rather than `webpack`, which consumers don't install: Next.js bundles its own.
+type NextWebpackContext = Parameters<NonNullable<NextConfig['webpack']>>[1];
+
 // Define webpack options interface based on Next.js webpack function signature
 export interface WebpackOptions {
   buildId: string;
@@ -20,7 +23,7 @@ export interface WebpackOptions {
   nextRuntime?: 'nodejs' | 'edge';
   config: NextConfig;
   defaultLoaders: {
-    babel: RuleSetRule;
+    babel: NextWebpackContext['defaultLoaders']['babel'];
   };
 }
 
