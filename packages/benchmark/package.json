@@ -1,6 +1,6 @@
 {
   "name": "@mui/internal-benchmark",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "author": "MUI Team",
   "description": "Benchmark utilities for MUI projects. Internal package.",
   "repository": {

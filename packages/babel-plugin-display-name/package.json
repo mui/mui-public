@@ -1,6 +1,6 @@
 {
   "name": "@mui/internal-babel-plugin-display-name",
-  "version": "1.0.2",
+  "version": "2.0.0",
   "author": "MUI Team",
   "description": "Babel plugin for automatic React display name generation with tree-shaking and prefix support, forked from @zendesk/babel-plugin-react-displayname.",
   "license": "Apache-2.0",
