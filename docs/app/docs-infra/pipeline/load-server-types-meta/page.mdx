@@ -174,11 +174,13 @@ Both produce identical documentation. The constant form lets application bundler
 
 Which groups hold a component's table is decided by name patterns, where `*` stands for the component's name with its dots removed. By default, `*DataAttributes` holds data attributes and `*CssVariables` holds CSS variables, so `AccordionPanelCssVariables` holds the CSS variables of `Accordion.Panel`. Configure other patterns with `constantGroupPatterns`, passed to `withDocsInfra` (or directly to `loadServerTypesMeta`), or pass `{}` to attach no tables:
 
-````js
+```js
 withDocsInfra({
   constantGroupPatterns: { dataAttributes: '*DataAttributes', cssVariables: '*CssVars' },
 });
-``` Only the exported name counts, so one module can serve several components: `DialogPopupDataAttributes.ts` published as `AlertDialogPopupDataAttributes` documents `AlertDialog.Popup`. A group whose name matches a pattern but no single exported component fails the build. A matched group is documented with its declaration, as a `declare namespace` of constants or an `enum` depending on how it is exported, and a link to the component's table. Groups matching no pattern are documented on their own with a member table.
+```
+
+Only the exported name counts, so one module can serve several components: `DialogPopupDataAttributes.ts` published as `AlertDialogPopupDataAttributes` documents `AlertDialog.Popup`. A group whose name matches a pattern but no single exported component fails the build. A matched group is documented with its declaration, as a `declare namespace` of constants or an `enum` depending on how it is exported, and a link to the component's table. Groups matching no pattern are documented on their own with a member table.
 
 ### 4. Build Type Compatibility Map
 
@@ -212,7 +214,7 @@ For single-variant exports with sub-components (e.g., `Accordion.Root`, `Accordi
 ```typescript
 // Before: { Default: { types: [Accordion.Root, Accordion.Trigger, ...] } }
 // After: { "Accordion.Root": { types: [...] }, "Accordion.Trigger": { types: [...] } }
-````
+```
 
 Grouping only activates when there are actual sub-components — 2-part names that are components, hooks, functions, or classes (not just raw type suffixes like `Button.Props`). Once active:
 
