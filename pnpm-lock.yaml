@@ -1247,6 +1247,9 @@ importers:
       react:
         specifier: 19.2.8
         version: 19.2.8
+      react-dom:
+        specifier: 19.2.8
+        version: 19.2.8(react@19.2.8)
     devDependencies:
       '@mui/internal-benchmark':
         specifier: workspace:*
@@ -1257,6 +1260,9 @@ importers:
       '@types/react':
         specifier: 19.2.18
         version: 19.2.18
+      '@types/react-dom':
+        specifier: 19.2.7
+        version: 19.2.7(@types/react@19.2.18)
       tachometer:
         specifier: ^0.7.2
         version: 0.7.2(supports-color@10.2.2)

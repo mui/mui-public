@@ -1,6 +1,7 @@
 import react from '@vitejs/plugin-react';
 import { playwright } from '@vitest/browser-playwright';
 import type { ViteUserConfig } from 'vitest/config';
+import { BENCHMARK_LAUNCH_ARGS } from './launchArgs';
 
 export interface CreateBenchmarkVitestConfigOptions {
   /**
@@ -55,20 +56,8 @@ function resolveViewport(option?: {
   return undefined;
 }
 
-// Chromium/V8 launch args shared by measurement and profiling, kept intentionally minimal.
-// `--expose-gc` is required: the harness forces GC between iterations for clean, comparable
-// timings. The backgrounding flags stop Chrome from throttling the (headless or occluded)
-// benchmark tab, which would otherwise add large variance. Heavier "determinism" flags
-// (`--no-opt`, `--predictable`, `--hash-seed`/`--random-seed`, `--disable-gpu`,
-// `--enable-benchmarking`) were measured to slow renders ~40% and distort paint timing without
-// reducing variance, so they are omitted — add them per project via `launchArgs` if a specific
-// workload needs them.
-const LAUNCH_ARGS = [
-  '--js-flags=--expose-gc',
-  '--disable-background-timer-throttling',
-  '--disable-backgrounding-occluded-windows',
-  '--disable-renderer-backgrounding',
-];
+// Shared by measurement and profiling; add project-specific flags via `launchArgs`.
+const LAUNCH_ARGS = BENCHMARK_LAUNCH_ARGS;
 
 export function createBenchmarkVitestConfig(
   options?: CreateBenchmarkVitestConfigOptions,

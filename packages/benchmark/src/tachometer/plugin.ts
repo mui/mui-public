@@ -1,7 +1,9 @@
 import * as path from 'node:path';
+import { createRequire } from 'node:module';
 import { readFile, realpath } from 'node:fs/promises';
 import type { Plugin } from 'vite';
 import { discoverCases, pagesOf } from './discoverCases';
+import { discoverBenchFiles, writeBenchPages } from './benchFiles';
 import type { BenchmarkCase } from './discoverCases';
 import { buildsDirOf, prepareOutputDir, OUTPUT_DIR } from './outputDir';
 
@@ -55,6 +57,20 @@ async function assertWorkspaceDepsBuilt(
       }
     }),
   );
+}
+
+/**
+ * Where `@mui/internal-benchmark` really lives as seen from the harness, so imports made by the
+ * page runtime can be told apart from the harness's own. Undefined when the harness doesn't depend
+ * on it, in which case there is no page runtime to tell apart.
+ */
+async function resolveBenchmarkPackageDir(harnessDir: string): Promise<string | undefined> {
+  try {
+    const require = createRequire(path.join(harnessDir, 'package.json'));
+    return await realpath(path.dirname(require.resolve('@mui/internal-benchmark/package.json')));
+  } catch {
+    return undefined;
+  }
 }
 
 /** A case name and a query both come from a config file, so neither is trusted as markup. */
@@ -126,9 +142,34 @@ export function tachometer(options: TachometerPluginOptions = {}): Plugin {
   const harnessDir = options.harnessDir ?? process.cwd();
   const srcDir = path.join(harnessDir, 'src');
   let buildCases: BenchmarkCase[] = [];
+  let benchmarkPackageDir: string | undefined;
 
   return {
     name: 'mui-benchmark:tachometer',
+    // Ahead of vite's own resolver, so the redirects below win over the packages' `exports`.
+    enforce: 'pre',
+
+    // Benchmark files are written against the Vitest harness. In a page they run under the page
+    // runtime instead: the same authoring API, driven one iteration at a time by the runner.
+    async resolveId(source, importer) {
+      if (source === '@mui/internal-benchmark') {
+        return this.resolve('@mui/internal-benchmark/page', importer, { skipSelf: true });
+      }
+      if (source === 'vitest') {
+        return this.resolve('@mui/internal-benchmark/page/vitest', importer, { skipSelf: true });
+      }
+      // React only reports render durations from its profiling build. Scoped to the page runtime's
+      // own import, so a plain tachometer page keeps measuring the production build it ships with.
+      if (
+        source === 'react-dom/client' &&
+        importer &&
+        benchmarkPackageDir &&
+        importer.startsWith(benchmarkPackageDir)
+      ) {
+        return this.resolve('react-dom/profiling', importer, { skipSelf: true });
+      }
+      return null;
+    },
 
     async config(userConfig, env) {
       const pkg = JSON.parse(await readFile(path.join(harnessDir, 'package.json'), 'utf8'));
@@ -149,8 +190,15 @@ export function tachometer(options: TachometerPluginOptions = {}): Plugin {
       // `vite build --outDir`, which is exactly how `tacho run` directs each ref's build.
       const outDir = userConfig.build?.outDir ?? buildsDirOf(harnessDir, 'manual');
 
+      // Written for every command, so the dev server serves a benchmark file's page as well.
+      const benchFiles = await discoverBenchFiles({ harnessDir });
+      await writeBenchPages(harnessDir, benchFiles);
+      benchmarkPackageDir = await resolveBenchmarkPackageDir(harnessDir);
+      // One React for the harness, its benchmark files and the page runtime they run under.
+      const resolve = { dedupe: ['react', 'react-dom'] };
+
       if (env.command !== 'build') {
-        return { root: srcDir, appType: 'mpa', build: { outDir } };
+        return { root: srcDir, appType: 'mpa', resolve, build: { outDir } };
       }
 
       // Mark the output directory ignored from the inside before the build writes into it, so a
@@ -162,19 +210,23 @@ export function tachometer(options: TachometerPluginOptions = {}): Plugin {
         await prepareOutputDir(harnessDir);
       }
 
-      const cases = await discoverCases({ harnessDir });
+      // A harness may hold only benchmark files, so no `tachometer.json` is fine as long as there is
+      // something to build.
+      const cases = await discoverCases({ harnessDir, allowEmpty: benchFiles.length > 0 });
       buildCases = cases;
       // Key the input map by the page path without its extension. Vite emits each page at its path
       // relative to `root` regardless, so `<case>/index.html` lands at `<outDir>/<case>/index.html`;
       // a distinct key per page is what lets one case folder hold several pages — a cross-library
       // comparison with `mosaic.html` and `tanstack.html` side by side — without them colliding.
+      const pages = [...pagesOf(cases), ...benchFiles.map((benchFile) => benchFile.page)];
       const input = Object.fromEntries(
-        pagesOf(cases).map((page) => [page.replace(/\.html$/, ''), path.join(srcDir, page)]),
+        pages.map((page) => [page.replace(/\.html$/, ''), path.join(srcDir, page)]),
       );
 
       return {
         root: srcDir,
         appType: 'mpa',
+        resolve,
         // Relative asset urls: tachometer serves the build directory and the pages live under
         // `<outDir>/<case>/`, so absolute "/assets/…" paths would 404.
         base: './',

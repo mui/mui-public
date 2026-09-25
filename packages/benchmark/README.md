@@ -70,6 +70,23 @@ benchmark(
 );
 ```
 
+For input that should behave like a real mouse or trackpad, the interaction context has `input`:
+trusted gestures the browser generates itself at frame cadence, one command per gesture.
+
+```tsx
+benchmark(
+  'Chart zoom',
+  () => <Chart />,
+  async ({ input }) => {
+    await input.scroll({ x: 400, y: 300, deltaY: 600 });
+    await input.pinch({ x: 400, y: 300, scaleFactor: 2 });
+  },
+);
+```
+
+A gesture's event count follows what the browser coalesced, so its render count can vary from one
+iteration to the next.
+
 ### Scoping which renders are measured
 
 By default a benchmark records every React render and paint, from the mount through the whole interaction. To measure only part of an interaction — or to exclude the mount — pause and resume recording from the interaction callback:
@@ -391,6 +408,38 @@ resolution there, leaving the repository untouched, at the cost of a second inst
 
 `--no-install` skips a ref's install. `benchmark tacho run --help` lists the rest, and
 `benchmark tacho report` prints the table again from a saved JSON report.
+
+### Interleaved engine
+
+`--engine interleaved` measures the same builds without tachometer: it drives Chromium through
+Playwright, samples every variant once per round in a shuffled order, and judges a difference on the
+per-round differences rather than on two independent sets of samples. Whatever the machine was doing
+during a round — thermal throttling, a background process — then affects both sides of it and
+cancels out, instead of counting as noise or, worse, as a difference. The report, the upload and the
+PR comment are the same as tachometer's.
+
+It runs two kinds of case side by side:
+
+- **`tachometer.json` cases**, unchanged. Every sample is a fresh page load, measured by the
+  `performance.measure` entry (or `fcp`) the case names. Other measurement modes are tachometer-only.
+- **`*.bench.tsx` files** under `src/`, written with `benchmark()` exactly as for Vitest. The plugin
+  generates a page per file under `src/__bench__/`, where `@mui/internal-benchmark` resolves to a page
+  runtime instead of Vitest. The page stays open, so every sample is one warm iteration and
+  module-scope data is built once; renders, `bench:paint` and custom metrics are reported as
+  measurements. The iteration counts in `benchmark()`'s options are ignored — `--samples` and
+  `--warmup` decide.
+
+```bash
+benchmark tacho run --engine interleaved --baseline "$(code-infra baseline)" --samples 30
+```
+
+Every variant runs in a browser context of its own, but a context's renderer process keeps whatever
+speed it started with — on a machine with performance and efficiency cores, which kind it landed on
+— and two identical builds can differ by several percent for as long as their processes live. Page
+loads are therefore dealt out over the contexts anew every round. A `*.bench.tsx` page has to stay
+open to stay warm, so its rounds run in epochs instead (`--epoch-size`, 10 rounds by default): each
+epoch reopens the pages in fresh processes and warms them up again, so the process a build lands on
+is drawn once per epoch rather than once per case.
 
 ## API
 
