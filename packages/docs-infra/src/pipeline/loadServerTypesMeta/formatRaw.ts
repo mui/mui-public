@@ -9,6 +9,8 @@ import {
 import type { FormattedProperty, FormatInlineTypeOptions, DescriptionReplacement } from './format';
 import { formatType } from './formatType';
 import { isEnumType, isObjectType } from './typeGuards';
+import { formatConstantGroupDeclaration } from './constantGroups';
+import type { ConstantGroupTarget } from './constantGroups';
 import { rewriteTypeStringsDeep } from './rewriteTypes';
 import type { TypeRewriteContext } from './rewriteTypes';
 import type { ExternalTypesCollector } from './externalTypes';
@@ -23,7 +25,7 @@ export interface ReExportInfo {
   /** Anchor slug for linking (e.g., "#trigger") */
   slug: string;
   /** What kind of type this re-exports */
-  suffix: 'props' | 'css-variables' | 'data-attributes';
+  suffix: 'props';
 }
 
 /**
@@ -58,11 +60,11 @@ export type RawTypeMeta = {
    */
   reExportOf?: ReExportInfo;
   /**
-   * For DataAttributes types, the component name this type belongs to.
+   * For constant groups holding a component's data attributes, that component's name.
    */
   dataAttributesOf?: string;
   /**
-   * For CssVars types, the component name this type belongs to.
+   * For constant groups holding a component's CSS variables, that component's name.
    */
   cssVarsOf?: string;
   /**
@@ -89,6 +91,10 @@ export interface FormatRawOptions {
   externalTypes?: ExternalTypesCollector;
   /** Pattern/replacement pairs to apply to descriptions */
   descriptionReplacements?: DescriptionReplacement[];
+  /** The component table this constant group holds (see `matchConstantGroups`) */
+  constantGroup?: ConstantGroupTarget;
+  /** Whether the constant group was exported as a namespace of constants rather than an enum */
+  constantNamespace?: boolean;
 }
 
 /**
@@ -108,7 +114,7 @@ export async function formatRawData(
   rewriteContext: TypeRewriteContext,
   _options: FormatRawOptions = {},
 ): Promise<RawTypeMeta> {
-  const { descriptionReplacements } = _options;
+  const { descriptionReplacements, constantGroup, constantNamespace } = _options;
 
   const descriptionText = exportNode.documentation?.description
     ? applyDescriptionReplacements(exportNode.documentation.description, descriptionReplacements)
@@ -137,8 +143,16 @@ export async function formatRawData(
       }),
     );
 
-    // For enums, still generate the code block but also include members
-    const formattedCode = await generateFormattedCode(exportNode, displayName, typeNameMap);
+    // For enums, still generate the code block but also include members. The declaration
+    // follows how the group is exported: an enum, or a namespace of constants.
+    const formattedCode = await prettyFormat(
+      formatConstantGroupDeclaration(
+        displayName.replace(/\./g, ''),
+        exportNode.type,
+        Boolean(constantNamespace),
+      ),
+      null,
+    );
 
     // Rewrite type names in descriptions (but NOT in formattedCode which is valid TypeScript syntax)
     const rewrittenDescriptionText = descriptionText
@@ -153,45 +167,11 @@ export async function formatRawData(
       enumMembers,
     };
 
-    return raw;
-  }
-
-  // Handle DataAttributes types
-  if (displayName.endsWith('.DataAttributes')) {
-    const componentName = displayName.replace('.DataAttributes', '');
-    const formattedCode = await generateFormattedCode(exportNode, displayName, typeNameMap);
-
-    const rewrittenDescriptionText = descriptionText
-      ? rewriteTypeStringsDeep(descriptionText, rewriteContext)
-      : undefined;
-
-    const raw: RawTypeMeta = {
-      name: displayName,
-      description,
-      descriptionText: rewrittenDescriptionText,
-      formattedCode,
-      dataAttributesOf: componentName,
-    };
-
-    return raw;
-  }
-
-  // Handle CssVars types
-  if (displayName.endsWith('.CssVars')) {
-    const componentName = displayName.replace('.CssVars', '');
-    const formattedCode = await generateFormattedCode(exportNode, displayName, typeNameMap);
-
-    const rewrittenDescriptionText = descriptionText
-      ? rewriteTypeStringsDeep(descriptionText, rewriteContext)
-      : undefined;
-
-    const raw: RawTypeMeta = {
-      name: displayName,
-      description,
-      descriptionText: rewrittenDescriptionText,
-      formattedCode,
-      cssVarsOf: componentName,
-    };
+    if (constantGroup?.kind === 'dataAttributes') {
+      raw.dataAttributesOf = constantGroup.component;
+    } else if (constantGroup?.kind === 'cssVariables') {
+      raw.cssVarsOf = constantGroup.component;
+    }
 
     return raw;
   }

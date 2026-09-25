@@ -21,3 +21,19 @@ A simple component that displays a title and optional children.
 | Attribute | Type     | Description                |
 | :-------- | :------- | :------------------------- |
 | data-type | `string` | The type of the component. |
+
+## Additional Types
+
+### ComponentDataAttributes
+
+Data attributes of [Component](#component).
+
+```typescript
+enum ComponentDataAttributes {
+  /**
+   * The type of the component.
+   * @type string
+   */
+  type = 'data-type',
+}
+```
