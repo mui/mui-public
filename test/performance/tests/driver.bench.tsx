@@ -22,17 +22,14 @@ const iterationDuration = new ScalarMetric({
   format: { style: 'unit', unit: 'millisecond', maximumFractionDigits: 2 },
 });
 
-// A driver of its own: alternates the cases iteration by iteration instead of in blocks.
+// A driver of its own: alternates the cases iteration by iteration instead of in blocks, warming
+// each one up right before it is measured.
 it('driver: interleaves cases', async () => {
-  for (let i = 0; i < 3; i += 1) {
-    for (const { renderFn } of cases) {
-      // eslint-disable-next-line no-await-in-loop
-      await runCase(renderFn, { warmup: true });
-    }
-  }
-
   for (let i = 0; i < 5; i += 1) {
     for (const { label, renderFn } of cases) {
+      // eslint-disable-next-line no-await-in-loop
+      await runCase(renderFn, { warmup: true });
+
       iterationDuration.time(label);
       // eslint-disable-next-line no-await-in-loop
       const result = await runCase(renderFn);

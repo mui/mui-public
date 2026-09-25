@@ -204,20 +204,20 @@ benchmark('name', renderFn, interaction, {
 
 ### Custom drivers
 
-`benchmark()` loops over `runCase()`, which mounts, interacts with and unmounts a case exactly once. Call it directly to control the iterations yourself — e.g. to alternate two variants iteration by iteration so machine drift affects both equally:
+`benchmark()` loops over `runCase()`, which mounts, interacts with and unmounts a case exactly once. Call it directly to control the iterations yourself — e.g. to alternate two variants so machine drift affects both equally, warming each one up right before it is measured:
 
 ```tsx
 import { runCase } from '@mui/internal-benchmark';
 
 it('A/B', async () => {
-  for (let i = 0; i < 10; i += 1) {
-    await runCase(renderA, interaction, { warmup: true });
-    await runCase(renderB, interaction, { warmup: true });
-  }
   for (let i = 0; i < 20; i += 1) {
+    await runCase(renderA, interaction, { warmup: true });
     const a = await runCase(renderA, interaction);
+
+    await runCase(renderB, interaction, { warmup: true });
     const b = await runCase(renderB, interaction);
-    // a.renders, b.renders, a.renderError, ...
+
+    // compare a.renders with b.renders, check a.renderError, ...
   }
 });
 ```
