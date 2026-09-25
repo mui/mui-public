@@ -202,6 +202,28 @@ benchmark('name', renderFn, interaction, {
 });
 ```
 
+### Custom drivers
+
+`benchmark()` loops over `runCase()`, which mounts, interacts with and unmounts a case exactly once. Call it directly to control the iterations yourself — e.g. to alternate two variants iteration by iteration so machine drift affects both equally:
+
+```tsx
+import { runCase } from '@mui/internal-benchmark';
+
+it('A/B', async () => {
+  for (let i = 0; i < 10; i += 1) {
+    await runCase(renderA, interaction, { warmup: true });
+    await runCase(renderB, interaction, { warmup: true });
+  }
+  for (let i = 0; i < 20; i += 1) {
+    const a = await runCase(renderA, interaction);
+    const b = await runCase(renderB, interaction);
+    // a.renders, b.renders, a.renderError, ...
+  }
+});
+```
+
+`runCase()` takes the same `renderFn`, interaction and `afterEach`/`reactRecordingPaused` options as `benchmark()`, plus `warmup`, which skips `bench:paint` and drops custom metrics for that iteration. It registers and asserts nothing. Measured iterations record metrics against the running Vitest test, so call it from inside one.
+
 ### Running
 
 ```bash
@@ -279,6 +301,7 @@ The feature is opt-in — without `BENCHMARK_BASELINE_PATH` (or the `baselinePat
 ## API
 
 - `benchmark` — define a benchmark test case
+- `runCase` — run a single iteration of a case, for custom drivers
 - `ElementTiming` — invisible marker component for paint timing (renders a `<span>` tracked by the Element Timing API)
 - `ScalarMetric` — record a continuous custom measurement (with a `console.time`-style timing helper)
 - `DiscreteMetric` — record a discrete custom count
