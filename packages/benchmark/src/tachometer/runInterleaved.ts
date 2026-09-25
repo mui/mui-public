@@ -5,7 +5,7 @@ import chalk from 'chalk';
 import type { Browser, BrowserContext, CDPSession, Page } from '@playwright/test';
 import { BENCHMARK_LAUNCH_ARGS } from '../launchArgs';
 import { measurementNameOf } from './discoverCases';
-import type { BenchmarkCase, Leaf } from './discoverCases';
+import type { BenchmarkCase, CaseComparison, Leaf } from './discoverCases';
 import type { BenchFile } from './benchFiles';
 import type { ResolvedRef } from './refs';
 import { serveDirectory } from './serveDirectory';
@@ -163,19 +163,25 @@ async function runPageCase(
   }
 }
 
-interface BenchTarget {
-  ref: ResolvedRef;
+/**
+ * A page a benchmark file's cases are measured in: one build of the file, or one variant of a
+ * `compare()` in it.
+ */
+interface PageSlot {
+  /** How the slot is named in the report: `current`, `baseline`, or the variant's key. */
+  variant: string;
+  url: string;
+}
+
+interface OpenedPage {
+  slot: PageSlot;
   context: BrowserContext;
   page: Page;
   caseNames: string[];
+  comparisons: Array<{ name: string; variants: string[] }>;
 }
 
-async function openBenchPage(
-  browser: Browser,
-  origin: string,
-  benchFile: BenchFile,
-  ref: ResolvedRef,
-): Promise<BenchTarget> {
+async function openBenchPage(browser: Browser, slot: PageSlot): Promise<OpenedPage> {
   const { context, page } = await openContext(browser);
   const session = await context.newCDPSession(page);
   // Interactions ask for trusted input through this bridge. `send` only accepts the protocol
@@ -185,21 +191,29 @@ async function openBenchPage(
     (_source, method: string, params?: Record<string, unknown>) =>
       session.send(method as CdpMethod, params),
   );
-  await page.goto(`${origin}/${ref.id}/${benchFile.page}`);
-  await page.waitForFunction(() => window.benchmarkPage !== undefined);
+  await page.goto(slot.url);
+  await page.waitForFunction(
+    () => window.benchmarkPage !== undefined || window.benchmarkPageError !== undefined,
+  );
+  const pageError = await page.evaluate(() => window.benchmarkPageError);
+  if (pageError !== undefined) {
+    await context.close();
+    throw new Error(`${slot.url} could not get ready: ${pageError}`);
+  }
   const visibility = await page.evaluate(() => document.visibilityState);
   if (visibility !== 'visible') {
-    console.warn(
-      chalk.yellow(`  ${benchFile.file} [${ref.id}] is ${visibility}; rAF-based waits may stall.`),
-    );
+    console.warn(chalk.yellow(`  ${slot.url} is ${visibility}; rAF-based waits may stall.`));
   }
-  const caseNames = await page.evaluate(() => window.benchmarkPage!.caseNames());
-  return { ref, context, page, caseNames };
+  const { caseNames, comparisons } = await page.evaluate(() => ({
+    caseNames: window.benchmarkPage!.caseNames(),
+    comparisons: window.benchmarkPage!.comparisons(),
+  }));
+  return { slot, context, page, caseNames, comparisons };
 }
 
 /** Runs one iteration; a measured one comes back as its `performance.measure` values by name. */
 async function sampleBenchCase(
-  target: BenchTarget,
+  target: OpenedPage,
   name: string,
   warmup: boolean,
 ): Promise<Record<string, number> | undefined> {
@@ -222,36 +236,35 @@ async function sampleBenchCase(
   });
 }
 
-/** Opens a page per build, in a random order so no build always gets the first process. */
-async function openBenchPages(
-  browser: Browser,
-  origin: string,
-  benchFile: BenchFile,
-  refs: ResolvedRef[],
-): Promise<BenchTarget[]> {
-  const targets: BenchTarget[] = [];
-  for (const index of shuffledIndices(refs.length)) {
-    // eslint-disable-next-line no-await-in-loop
-    targets[index] = await openBenchPage(browser, origin, benchFile, refs[index]);
+/** Opens a page per slot, in a random order so no slot always gets the first process. */
+async function openBenchPages(browser: Browser, slots: PageSlot[]): Promise<OpenedPage[]> {
+  const opened: OpenedPage[] = [];
+  try {
+    for (const index of shuffledIndices(slots.length)) {
+      // eslint-disable-next-line no-await-in-loop
+      opened[index] = await openBenchPage(browser, slots[index]);
+    }
+  } catch (error) {
+    await closeBenchPages(opened.filter(Boolean));
+    throw error;
   }
-  return targets;
+  return opened;
 }
 
-async function closeBenchPages(targets: BenchTarget[]): Promise<void> {
+async function closeBenchPages(targets: OpenedPage[]): Promise<void> {
   await Promise.all(targets.map((target) => target.context.close()));
 }
 
 /**
  * Measures one case in epochs. A page has to stay open for iterations to be warm, which ties each
- * build to one renderer process for as long as it does — and a process keeps whatever speed it
+ * slot to one renderer process for as long as it does — and a process keeps whatever speed it
  * started with (a performance or an efficiency core, typically), enough to show up as a difference
  * between identical builds. So every epoch opens fresh pages, warms them up, and measures a slice
- * of the rounds: the process each build lands on is drawn again per epoch instead of once per case.
+ * of the rounds: the process each slot lands on is drawn again per epoch instead of once per case.
  */
 async function measureBenchCase(
   browser: Browser,
-  origin: string,
-  benchFile: BenchFile,
+  slots: PageSlot[],
   name: string,
   options: RunInterleavedOptions,
 ): Promise<Round[]> {
@@ -261,7 +274,7 @@ async function measureBenchCase(
   const rounds: Round[] = [];
   while (rounds.length < samples) {
     // eslint-disable-next-line no-await-in-loop
-    const targets = await openBenchPages(browser, origin, benchFile, options.benchRefs);
+    const targets = await openBenchPages(browser, slots);
     try {
       const measured = Math.min(epochSize, samples - rounds.length);
       for (let roundIndex = 0; roundIndex < warmup + measured; roundIndex += 1) {
@@ -282,41 +295,41 @@ async function measureBenchCase(
   return rounds;
 }
 
-async function runBenchFile(
+/**
+ * Runs every case the first slot defines across all slots, paired by name. The first slot is the
+ * reference; a case another slot lacks is reported as an error rather than compared with nothing.
+ */
+async function runSlotCases(
   browser: Browser,
-  origin: string,
-  benchFile: BenchFile,
+  slots: PageSlot[],
+  listed: OpenedPage[],
+  describe: { comparison: CaseComparison; nameOf: (caseName: string) => string; file: string },
   options: RunInterleavedOptions,
 ): Promise<InterleavedResult[]> {
-  // Opened once just to learn which cases each build defines.
-  const listed = await openBenchPages(browser, origin, benchFile, options.benchRefs);
-  await closeBenchPages(listed);
-  const [current, ...others] = listed;
-
+  const [reference, ...others] = listed;
   const results: InterleavedResult[] = [];
-  for (const name of current.caseNames) {
+  for (const caseName of reference.caseNames) {
+    const name = describe.nameOf(caseName);
     const entry: BenchmarkCase = {
       name,
-      configPath: path.join(options.harnessDir, 'src', benchFile.file),
+      configPath: path.join(options.harnessDir, 'src', describe.file),
       config: {},
-      comparison: 'baseline',
+      comparison: describe.comparison,
       leaves: [],
-      variants: listed.map((target) =>
-        target.ref.kind === 'worktree' ? `${name} [current]` : `${name} [baseline]`,
-      ),
+      variants: slots.map((slot) => `${name} [${slot.variant}]`),
       measurements: [],
     };
-    const missing = others.find((target) => !target.caseNames.includes(name));
+    const missing = others.find((target) => !target.caseNames.includes(caseName));
     if (missing) {
-      // A case added by the change under test has nothing to be compared against yet.
-      results.push({ entry, error: `"${name}" does not exist in ${missing.ref.id}.` });
+      // A case added by the change under test, or one library lacks, has nothing to compare with.
+      results.push({ entry, error: `"${caseName}" does not exist in [${missing.slot.variant}].` });
       continue;
     }
 
-    console.log(chalk.cyan(`\nRunning "${name}" (${benchFile.file})…`));
+    console.log(chalk.cyan(`\nRunning "${name}" (${describe.file})…`));
     try {
       // eslint-disable-next-line no-await-in-loop
-      const rounds = await measureBenchCase(browser, origin, benchFile, name, options);
+      const rounds = await measureBenchCase(browser, slots, caseName, options);
       // A measurement some iteration did not produce (an interaction whose render count varies,
       // say) cannot be paired round by round, so only those every iteration reported are kept.
       entry.measurements = stableMeasurements(rounds);
@@ -324,6 +337,82 @@ async function runBenchFile(
     } catch (error) {
       console.error(chalk.red(`  ${errorMessage(error)}`));
       results.push({ entry, error: errorMessage(error) });
+    }
+  }
+  return results;
+}
+
+function benchPageUrl(origin: string, ref: ResolvedRef, benchFile: BenchFile): URL {
+  return new URL(`${ref.id}/${benchFile.page}`, `${origin}/`);
+}
+
+/**
+ * Runs a benchmark file: its own `benchmark()` cases across the builds, and each `compare()` in it
+ * across its variants, every variant built from the working tree.
+ */
+async function runBenchFile(
+  browser: Browser,
+  origin: string,
+  benchFile: BenchFile,
+  options: RunInterleavedOptions,
+): Promise<InterleavedResult[]> {
+  const buildSlots = options.benchRefs.map((ref): PageSlot => ({
+    variant: ref.kind === 'worktree' ? 'current' : 'baseline',
+    url: benchPageUrl(origin, ref, benchFile).href,
+  }));
+  // Opened once just to learn which cases and comparisons each build defines.
+  const listed = await openBenchPages(browser, buildSlots);
+  await closeBenchPages(listed);
+
+  const results = await runSlotCases(
+    browser,
+    buildSlots,
+    listed,
+    { comparison: 'baseline', nameOf: (caseName) => caseName, file: benchFile.file },
+    options,
+  );
+
+  const [worktreeRef] = options.benchRefs;
+  for (const { name: comparison, variants } of listed[0].comparisons) {
+    const variantSlots = variants.map((variant): PageSlot => {
+      const url = benchPageUrl(origin, worktreeRef, benchFile);
+      url.searchParams.set('compare', comparison);
+      url.searchParams.set('variant', variant);
+      return { variant, url: url.href };
+    });
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const variantPages = await openBenchPages(browser, variantSlots);
+      // eslint-disable-next-line no-await-in-loop
+      await closeBenchPages(variantPages);
+      results.push(
+        // eslint-disable-next-line no-await-in-loop
+        ...(await runSlotCases(
+          browser,
+          variantSlots,
+          variantPages,
+          {
+            comparison: 'variants',
+            nameOf: (caseName) => `${comparison} / ${caseName}`,
+            file: benchFile.file,
+          },
+          options,
+        )),
+      );
+    } catch (error) {
+      console.error(chalk.red(`  ${errorMessage(error)}`));
+      results.push({
+        entry: {
+          name: comparison,
+          configPath: path.join(options.harnessDir, 'src', benchFile.file),
+          config: {},
+          comparison: 'variants',
+          leaves: [],
+          variants: [],
+          measurements: [],
+        },
+        error: errorMessage(error),
+      });
     }
   }
   return results;

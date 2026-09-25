@@ -85,7 +85,44 @@ benchmark(
 ```
 
 A gesture's event count follows what the browser coalesced, so its render count can vary from one
-iteration to the next.
+iteration to the next. Wait for the mount to be painted — `await waitForElementTiming('default')` —
+before starting a gesture on something the case just rendered; until then, the browser may not route
+the gesture to it.
+
+### Comparing implementations
+
+`compare()` measures implementations against each other — one library against another — instead of
+one build against another. Each variant is a module of ordinary `benchmark()` calls, loaded lazily;
+cases are paired across variants by name, and the first variant is the reference:
+
+```tsx
+// scatter.bench.tsx
+import { compare } from '@mui/internal-benchmark';
+
+compare('scatter', {
+  ours: () => import('./scatter.ours'),
+  recharts: () => import('./scatter.recharts'),
+});
+```
+
+```tsx
+// scatter.recharts.tsx
+import { benchmark } from '@mui/internal-benchmark';
+
+benchmark('mount', () => <RechartsScatter data={points} />);
+benchmark(
+  'zoom',
+  () => <RechartsScatter data={points} />,
+  async ({ input }) => {
+    await input.pinch({ x: 400, y: 300, scaleFactor: 2 });
+  },
+);
+```
+
+Under the interleaved engine every variant gets a page of its own that loads only its own module, so
+no variant's code, styles or module state is present while another is measured; all variants come
+from the working tree. Under Vitest, which has no notion of variants, each variant's cases simply run
+as tests of their own, named `mount [recharts]`.
 
 ### Scoping which renders are measured
 
@@ -444,6 +481,7 @@ is drawn once per epoch rather than once per case.
 ## API
 
 - `benchmark` — define a benchmark test case
+- `compare` — compare implementations, each a lazily loaded module of `benchmark()` cases
 - `runCase` — run a single iteration of a case, for custom drivers
 - `ElementTiming` — invisible marker component for paint timing (renders a `<span>` tracked by the Element Timing API)
 - `ScalarMetric` — record a continuous custom measurement (with a `console.time`-style timing helper)

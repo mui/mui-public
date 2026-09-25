@@ -36,7 +36,13 @@ interface PageCase {
   options: CaseOptions | undefined;
 }
 
-const cases = new Map<string, PageCase>();
+/** The file's own `benchmark()` cases. */
+const fileCases = new Map<string, PageCase>();
+// Where `benchmark()` registers: the file's own cases, except while a `compare()` variant module is
+// being loaded, whose cases belong to that variant.
+let registering = fileCases;
+// The cases this page runs: the file's own, or the variant the url selects.
+let pageCases = fileCases;
 
 export function benchmark(
   name: string,
@@ -44,12 +50,12 @@ export function benchmark(
   interactionOrOptions?: BenchmarkInteraction | BenchmarkOptions,
   maybeOptions?: BenchmarkOptions,
 ): void {
-  if (cases.has(name)) {
+  if (registering.has(name)) {
     throw new Error(`Two benchmarks share the name "${name}". Benchmark names must be unique.`);
   }
   const interaction = typeof interactionOrOptions === 'function' ? interactionOrOptions : undefined;
   const options = typeof interactionOrOptions === 'object' ? interactionOrOptions : maybeOptions;
-  cases.set(name, {
+  registering.set(name, {
     renderFn,
     interaction,
     options: options && {
@@ -57,6 +63,49 @@ export function benchmark(
       reactRecordingPaused: options.reactRecordingPaused,
     },
   });
+}
+
+/** Loads a variant's module, whose `benchmark()` calls define that variant's cases. */
+export type VariantLoader = () => Promise<unknown>;
+
+const comparisons = new Map<string, Record<string, VariantLoader>>();
+
+/**
+ * Compares implementations against each other — one library against another, say. Each variant is
+ * a module of ordinary `benchmark()` calls; cases are paired across variants by name, and the first
+ * variant is the reference. A variant's page loads only its own module, so no variant's code,
+ * styles or module state is present while another is measured.
+ */
+export function compare(name: string, variants: Record<string, VariantLoader>): void {
+  if (comparisons.has(name)) {
+    throw new Error(`Two comparisons share the name "${name}". Comparison names must be unique.`);
+  }
+  if (Object.keys(variants).length < 2) {
+    throw new Error(`Comparison "${name}" needs at least two variants.`);
+  }
+  comparisons.set(name, variants);
+}
+
+/** Loads the variant `?compare=<name>&variant=<key>` selects, if any, and runs its cases instead. */
+async function selectVariant(): Promise<void> {
+  const params = new URLSearchParams(window.location.search);
+  const comparison = params.get('compare');
+  const variant = params.get('variant');
+  if (comparison === null || variant === null) {
+    return;
+  }
+  const load = comparisons.get(comparison)?.[variant];
+  if (!load) {
+    throw new Error(`No variant "${variant}" in comparison "${comparison}".`);
+  }
+  const variantCases = new Map<string, PageCase>();
+  registering = variantCases;
+  try {
+    await load();
+  } finally {
+    registering = fileCases;
+  }
+  pageCases = variantCases;
 }
 
 interface RecordedValue {
@@ -77,6 +126,8 @@ setMetricRecorder((metric, value, options) => {
 
 export interface BenchPage {
   caseNames: () => string[];
+  /** The file's `compare()` calls, with their variant keys in order. */
+  comparisons: () => Array<{ name: string; variants: string[] }>;
   /**
    * Runs one iteration of a case. A measured sample leaves its results as `performance.measure`
    * entries for the runner to collect; a warmup sample leaves none.
@@ -88,6 +139,8 @@ declare global {
   interface Window {
     /** Set by `markPageReady()` once every benchmark file has registered its cases. */
     benchmarkPage?: BenchPage;
+    /** Set instead of `benchmarkPage` when the page could not get ready. */
+    benchmarkPageError?: string;
     /** Exposed by the runner: forwards a CDP command to this page's session. */
     benchmarkCdp?: (method: string, params?: Record<string, unknown>) => Promise<unknown>;
   }
@@ -132,9 +185,9 @@ function emitSample(
 }
 
 async function sample(name: string, { warmup }: { warmup: boolean }): Promise<void> {
-  const benchCase = cases.get(name);
+  const benchCase = pageCases.get(name);
   if (!benchCase) {
-    throw new Error(`No benchmark named "${name}". Known: ${[...cases.keys()].join(', ')}`);
+    throw new Error(`No benchmark named "${name}". Known: ${[...pageCases.keys()].join(', ')}`);
   }
   performance.clearMarks();
   performance.clearMeasures();
@@ -167,12 +220,27 @@ async function sample(name: string, { warmup }: { warmup: boolean }): Promise<vo
   }
 }
 
-/** Called by the generated page entry after it has imported every benchmark file. */
-export function markPageReady(): void {
+/**
+ * Called by the generated page entry after it has imported every benchmark file. The runner waits
+ * for `window.benchmarkPage`, or reads `window.benchmarkPageError` when getting ready failed.
+ */
+export async function markPageReady(): Promise<void> {
   if (typeof window.gc !== 'function') {
     console.warn(
       'window.gc is not available. Run with --js-flags=--expose-gc for consistent GC between iterations.',
     );
   }
-  window.benchmarkPage = { caseNames: () => [...cases.keys()], sample };
+  try {
+    await selectVariant();
+  } catch (error) {
+    window.benchmarkPageError =
+      error instanceof Error ? (error.stack ?? error.message) : String(error);
+    return;
+  }
+  window.benchmarkPage = {
+    caseNames: () => [...pageCases.keys()],
+    comparisons: () =>
+      [...comparisons].map(([name, variants]) => ({ name, variants: Object.keys(variants) })),
+    sample,
+  };
 }
