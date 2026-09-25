@@ -1,3 +1,4 @@
+import pluginReactPureAnnotations from '@babel/plugin-transform-react-pure-annotations';
 import pluginTransformRuntime from '@babel/plugin-transform-runtime';
 import presetEnv from '@babel/preset-env';
 import presetReact from '@babel/preset-react';
@@ -9,6 +10,9 @@ import pluginReactCompiler from 'babel-plugin-react-compiler';
 import pluginTransformImportMeta from 'babel-plugin-transform-import-meta';
 import pluginRemovePropTypes from 'babel-plugin-transform-react-remove-prop-types';
 import pluginTransformInlineEnvVars from './babelPluginInlineEnvironmentVariables.mjs';
+
+// Plain TypeScript, ie. files that can't contain JSX.
+const TS_WITHOUT_JSX = /\.[cm]?ts$/;
 
 /**
  * @typedef {'annotation' | 'syntax' | 'infer' | 'all'} ReactCompilationMode
@@ -154,8 +158,15 @@ export function getBaseConfig({
       {
         // Babel 8 keeps the JSX parser on for every file the React preset touches, which
         // misparses generic arrows like `<T = unknown>(x) => x` in plain `.ts` files.
-        exclude: /\.[cm]?ts$/,
+        exclude: TS_WITHOUT_JSX,
         presets: [[presetReact, { runtime: 'automatic' }]],
+      },
+      {
+        // The React preset is off for those files, so re-add the one part of it they still
+        // need: `/*#__PURE__*/` on `React.createContext()` and friends, without which
+        // bundlers keep every unused context.
+        include: TS_WITHOUT_JSX,
+        plugins: [pluginReactPureAnnotations],
       },
     ],
   };
