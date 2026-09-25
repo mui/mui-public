@@ -232,7 +232,7 @@ function createCaseRuntime({
   };
 }
 
-type Interaction = (ctx: InteractionContext) => Promise<void> | void;
+export type BenchmarkInteraction = (ctx: InteractionContext) => Promise<void> | void;
 
 interface CaseOptions {
   afterEach?: () => Promise<void> | void;
@@ -244,7 +244,7 @@ interface CaseOptions {
   reactRecordingPaused?: boolean;
 }
 
-interface BenchmarkOptions extends CaseOptions {
+export interface BenchmarkOptions extends CaseOptions {
   runs?: number;
   warmupRuns?: number;
 }
@@ -278,7 +278,7 @@ const paint = new ScalarMetric({
 
 async function measureIteration(
   renderFn: () => React.ReactElement,
-  interaction: Interaction | undefined,
+  interaction: BenchmarkInteraction | undefined,
   options: RunCaseOptions | undefined,
 ): Promise<RunCaseResult> {
   // Per-iteration switch for the harness's React render/paint recording. Starts paused when
@@ -367,7 +367,7 @@ async function measureIteration(
  */
 export async function runCase(
   renderFn: () => React.ReactElement,
-  interactionOrOptions?: Interaction | RunCaseOptions,
+  interactionOrOptions?: BenchmarkInteraction | RunCaseOptions,
   maybeOptions?: RunCaseOptions,
 ): Promise<RunCaseResult> {
   const interaction = typeof interactionOrOptions === 'function' ? interactionOrOptions : undefined;
@@ -391,7 +391,7 @@ export async function runCase(
 export function benchmark(
   name: string,
   renderFn: () => React.ReactElement,
-  interactionOrOptions?: Interaction | BenchmarkOptions,
+  interactionOrOptions?: BenchmarkInteraction | BenchmarkOptions,
   maybeOptions?: BenchmarkOptions,
 ) {
   const interaction = typeof interactionOrOptions === 'function' ? interactionOrOptions : undefined;
