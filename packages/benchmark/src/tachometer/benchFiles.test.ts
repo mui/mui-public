@@ -53,7 +53,7 @@ describe('writeBenchPages', () => {
       "import '../button/button.bench';
       import { markPageReady } from '@mui/internal-benchmark/page';
 
-      markPageReady();
+      void markPageReady();
       "
     `);
   });

@@ -49,7 +49,9 @@ function ScrollingList() {
 benchmark(
   'list scroll',
   () => <ScrollingList />,
-  async ({ input, resumeReactRecording }) => {
+  async ({ input, resumeReactRecording, waitForElementTiming }) => {
+    // The scroller has to be painted before a gesture can hit it.
+    await waitForElementTiming('default');
     resumeReactRecording();
     scrollDuration.time();
     await input.scroll({ x: 200, y: 150, deltaY: 1200, speed: 2400 });
