@@ -818,6 +818,14 @@ export function validatePkgJson(packageJson, options = {}) {
     );
   }
 
+  // Bundlers can't drop an unused module without this, and we can't infer the answer: whether a
+  // module has side effects is a claim about the code, so the package has to state it.
+  if (packageJson.sideEffects === undefined) {
+    errors.push(
+      `No "sideEffects" field in "${packageJson.name}" package.json. Set it to false, or list the files that do have side effects.`,
+    );
+  }
+
   if (!skipMainCheck) {
     if (packageJson.main) {
       errors.push(
