@@ -3,7 +3,8 @@ import path from 'node:path';
 import { readFile, stat } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { parseImportsAndComments, extractNameAndSlugFromUrl } from '../loaderUtils';
+import { extractNameAndSlugFromUrl } from '../loaderUtils/extractNameAndSlugFromUrl';
+import { parseImportsAndComments } from '../loaderUtils/parseImportsAndComments';
 import { nameMark, performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { loadTypescriptConfig } from './loadTypescriptConfig';
 import { resolveLibrarySourceFiles } from './resolveLibrarySourceFiles';
