@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
-import { octokit, parseRepo } from '../utils/github';
+import { parseRepo } from '../utils/github';
+import { useSession } from '../components/auth/SessionProvider';
+import { useOctokit } from './useOctokit';
 
 export interface CompareInfo {
   mergeBase: string | null;
@@ -33,12 +35,15 @@ export function useCompareCommits(
   baseRef?: string,
   headSha?: string,
 ): UseCompareCommits {
+  const octokit = useOctokit();
+  const { identity } = useSession();
+
   const {
     data = null,
     isLoading,
     error,
   } = useQuery({
-    queryKey: ['github-compare-commits', repo, baseRef, headSha],
+    queryKey: ['github-compare-commits', identity, repo, baseRef, headSha],
     queryFn: async () => {
       if (!baseRef || !headSha) {
         return null;

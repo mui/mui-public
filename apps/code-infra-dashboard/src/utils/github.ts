@@ -1,8 +1,26 @@
 import { Octokit } from '@octokit/rest';
 
-// Create a singleton Octokit instance
-// In production, you might want to add authentication here
-export const octokit: Octokit = new Octokit({});
+/**
+ * Signed out: straight to GitHub, on the visitor's own anonymous per-IP budget
+ * of 60 requests/hour. Routing anonymous traffic through our proxy instead would
+ * collapse every visitor onto the server's single IP and make that limit worse.
+ */
+export const anonymousOctokit: Octokit = new Octokit({});
+
+let proxiedOctokit: Octokit | undefined;
+
+/**
+ * Signed in: through our own server, which attaches the user's GitHub token and
+ * lifts the limit to 5000 requests/hour.
+ *
+ * The base URL is absolute because Octokit concatenates it as a plain string and
+ * never re-parses it; a relative one would throw if this module were ever
+ * evaluated during server rendering.
+ */
+export function getProxiedOctokit(): Octokit {
+  proxiedOctokit ??= new Octokit({ baseUrl: `${window.location.origin}/api/github` });
+  return proxiedOctokit;
+}
 
 // Helper to parse repo string "org/repo" into owner and repo
 export function parseRepo(input: string): { owner: string; repo: string } {
