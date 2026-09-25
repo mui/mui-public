@@ -23,7 +23,7 @@
     "@vitejs/plugin-react": "^6.1.1",
     "env-ci": "^11.2.0",
     "execa": "^10.0.1",
-    "zod": "^4.6.4"
+    "zod": "^4.6.5"
   },
   "peerDependencies": {
     "@vitest/browser-playwright": ">=4.1",
