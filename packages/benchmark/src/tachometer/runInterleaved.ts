@@ -50,12 +50,10 @@ export interface RunInterleavedOptions {
   /** Measured rounds per case. Defaults to a `tachometer.json`'s `sampleSize`, else 30. */
   samples?: number;
   /**
-   * Discarded rounds before measuring: once per case for page loads (default 2), once per epoch
-   * for `*.bench.tsx` iterations (default 5).
+   * Discarded rounds before measuring, once per case: default 2 for page loads, 10 for
+   * `*.bench.tsx` iterations.
    */
   warmup?: number;
-  /** `*.bench.tsx` only: measured rounds per set of pages before they are reopened. Default 10. */
-  epochSize?: number;
 }
 
 const DEFAULT_VIEWPORT = { width: 1920, height: 1080 };
@@ -256,11 +254,9 @@ async function closeBenchPages(targets: OpenedPage[]): Promise<void> {
 }
 
 /**
- * Measures one case in epochs. A page has to stay open for iterations to be warm, which ties each
- * slot to one renderer process for as long as it does — and a process keeps whatever speed it
- * started with (a performance or an efficiency core, typically), enough to show up as a difference
- * between identical builds. So every epoch opens fresh pages, warms them up, and measures a slice
- * of the rounds: the process each slot lands on is drawn again per epoch instead of once per case.
+ * Measures one case: a page per slot stays open for the whole case, so iterations stay warm and
+ * module-scope data is built once. Warmup and measured rounds alike run every slot once, in a
+ * shuffled order.
  */
 async function measureBenchCase(
   browser: Browser,
@@ -268,29 +264,23 @@ async function measureBenchCase(
   name: string,
   options: RunInterleavedOptions,
 ): Promise<Round[]> {
-  const warmup = options.warmup ?? 5;
+  const warmup = options.warmup ?? 10;
   const samples = options.samples ?? DEFAULT_SAMPLES;
-  const epochSize = options.epochSize ?? 10;
   const rounds: Round[] = [];
-  while (rounds.length < samples) {
-    // eslint-disable-next-line no-await-in-loop
-    const targets = await openBenchPages(browser, slots);
-    try {
-      const measured = Math.min(epochSize, samples - rounds.length);
-      for (let roundIndex = 0; roundIndex < warmup + measured; roundIndex += 1) {
-        const round: Round = [];
-        for (const index of shuffledIndices(targets.length)) {
-          // eslint-disable-next-line no-await-in-loop
-          round[index] = await sampleBenchCase(targets[index], name, roundIndex < warmup);
-        }
-        if (roundIndex >= warmup) {
-          rounds.push(round);
-        }
+  const targets = await openBenchPages(browser, slots);
+  try {
+    for (let roundIndex = 0; roundIndex < warmup + samples; roundIndex += 1) {
+      const round: Round = [];
+      for (const index of shuffledIndices(targets.length)) {
+        // eslint-disable-next-line no-await-in-loop
+        round[index] = await sampleBenchCase(targets[index], name, roundIndex < warmup);
       }
-    } finally {
-      // eslint-disable-next-line no-await-in-loop
-      await closeBenchPages(targets);
+      if (roundIndex >= warmup) {
+        rounds.push(round);
+      }
     }
+  } finally {
+    await closeBenchPages(targets);
   }
   return rounds;
 }

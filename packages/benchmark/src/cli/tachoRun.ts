@@ -63,12 +63,7 @@ const command: CommandModule<{}, Args> = {
       .option('warmup', {
         type: 'number',
         describe:
-          'Interleaved engine: discarded rounds before measuring. Default: 2 per page case, 5 per epoch for *.bench.tsx cases',
-      })
-      .option('epoch-size', {
-        type: 'number',
-        describe:
-          'Interleaved engine: measured rounds of a *.bench.tsx case before its pages are reopened in fresh processes. Default: 10',
+          'Interleaved engine: discarded rounds before measuring. Default: 2 for page cases, 10 for *.bench.tsx cases',
       })
       .epilogue(
         'Sampling (sampleSize, autoSampleConditions, timeout) is configured per case in its own tachometer.json — tachometer rejects those as CLI flags when a config file is used.',
@@ -88,7 +83,6 @@ const command: CommandModule<{}, Args> = {
       engine: argv.engine,
       samples: argv.samples,
       warmup: argv.warmup,
-      epochSize: argv.epochSize,
     });
   },
 };

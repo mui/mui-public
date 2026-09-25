@@ -470,13 +470,9 @@ It runs two kinds of case side by side:
 benchmark tacho run --engine interleaved --baseline "$(code-infra baseline)" --samples 30
 ```
 
-Every variant runs in a browser context of its own, but a context's renderer process keeps whatever
-speed it started with — on a machine with performance and efficiency cores, which kind it landed on
-— and two identical builds can differ by several percent for as long as their processes live. Page
-loads are therefore dealt out over the contexts anew every round. A `*.bench.tsx` page has to stay
-open to stay warm, so its rounds run in epochs instead (`--epoch-size`, 10 rounds by default): each
-epoch reopens the pages in fresh processes and warms them up again, so the process a build lands on
-is drawn once per epoch rather than once per case.
+Every variant runs in a browser context of its own. A `*.bench.tsx` case opens one page per variant
+and keeps it open for the whole case: `--warmup` rounds (10 by default) are discarded once, then the
+measured rounds follow.
 
 ## API
 
