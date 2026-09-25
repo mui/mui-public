@@ -103,23 +103,22 @@ async function runPageCase(
   options: RunInterleavedOptions,
 ): Promise<TachometerJson> {
   const nodes: any[] = entry.config.benchmarks;
-  const targets = entry.leaves.map((leaf, index) => ({
-    url: `${origin}/${options.buildFor(leaf).id}/${leaf.page}${leaf.suffix}`,
-    specs: entrySpecsOf(nodes[index]),
-  }));
-  // A renderer process keeps whatever speed it started with — on a machine with performance and
-  // efficiency cores, which kind the scheduler put it on — so two identical pages in two contexts
-  // can differ by several percent for as long as those processes live. Every sample is a fresh
-  // load anyway, so no variant is tied to a context: each round deals the variants out over the
-  // pool anew, and a slow process slows every variant equally often.
-  const pool = await Promise.all(
-    targets.map(() => openContext(browser, nodes[0]?.browser?.windowSize)),
+  const targets = await Promise.all(
+    entry.leaves.map(async (leaf, index) => {
+      const node = nodes[index];
+      const opened = await openContext(browser, node.browser?.windowSize);
+      return {
+        ...opened,
+        url: `${origin}/${options.buildFor(leaf).id}/${leaf.page}${leaf.suffix}`,
+        specs: entrySpecsOf(node),
+      };
+    }),
   );
 
   try {
-    const sample = async (target: (typeof targets)[number], page: Page) => {
-      await page.goto(target.url);
-      const entryNames = target.specs.map((spec) => spec.entryName);
+    const sample = async ({ page, url, specs }: (typeof targets)[number]) => {
+      await page.goto(url);
+      const entryNames = specs.map((spec) => spec.entryName);
       await page.waitForFunction(
         (names) => names.every((name) => performance.getEntriesByName(name).length > 0),
         entryNames,
@@ -137,7 +136,7 @@ async function runPageCase(
               return [name, value];
             }),
           ),
-        target.specs,
+        specs,
       );
     };
 
@@ -146,10 +145,9 @@ async function runPageCase(
     const rounds: Round[] = [];
     for (let roundIndex = 0; roundIndex < warmup + samples; roundIndex += 1) {
       const round: Round = [];
-      const dealt = shuffledIndices(pool.length);
       for (const index of shuffledIndices(targets.length)) {
         // eslint-disable-next-line no-await-in-loop
-        round[index] = await sample(targets[index], pool[dealt[index]].page);
+        round[index] = await sample(targets[index]);
       }
       if (roundIndex >= warmup) {
         rounds.push(round);
@@ -157,7 +155,7 @@ async function runPageCase(
     }
     return toTachometerJson(entry.variants, entry.measurements, rounds);
   } finally {
-    await Promise.all(pool.map((opened) => opened.context.close()));
+    await Promise.all(targets.map((target) => target.context.close()));
   }
 }
 
