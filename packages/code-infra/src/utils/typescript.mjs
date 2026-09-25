@@ -9,7 +9,8 @@ import { globby } from 'globby';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { getOutExtension, mapConcurrently } from '../utils/build.mjs';
+import { mapAsync } from 'es-toolkit/array';
+import { getOutExtension } from '../utils/build.mjs';
 
 const $$ = $({ stdio: 'inherit' });
 
@@ -145,7 +146,7 @@ export async function moveAndTransformDeclarations({ inputDir, buildDir, bundles
     return;
   }
 
-  await mapConcurrently(
+  await mapAsync(
     dtsFiles,
     async (dtsFile) => {
       // Normalize to native separators to make path comparisons reliable on Windows
@@ -198,7 +199,7 @@ export async function moveAndTransformDeclarations({ inputDir, buildDir, bundles
         await fs.unlink(nativeDtsFile);
       }
     },
-    30,
+    { concurrency: 30 },
   );
 }
 

@@ -4,7 +4,6 @@ import { create, insertMultiple, search as oramaSearch } from '@orama/orama';
 import type { ElapsedTime, Orama, Result } from '@orama/orama';
 import { pluginQPS } from '@orama/plugin-qps';
 import { stemmer, language } from '@orama/stemmers/english';
-import { stopwords as englishStopwords } from '@orama/stopwords/english';
 import type {
   UseSearchOptions,
   UseSearchResult,
@@ -14,33 +13,7 @@ import type {
   SearchBy,
   SearchResults,
 } from './types';
-
-// https://github.com/oramasearch/orama/blob/main/packages/stopwords/lib/en.js
-// Removed words that might be meaningful in a software documentation context
-const stopWords = englishStopwords.filter(
-  (word) =>
-    word !== 'about' &&
-    word !== 'but' && // start of button
-    word !== 'for' && // part of form
-    word !== 'between' &&
-    word !== 'before' &&
-    word !== 'after' &&
-    word !== 'above' &&
-    word !== 'below' &&
-    word !== 'once' &&
-    word !== 'then' &&
-    word !== 'where' &&
-    word !== 'to' &&
-    word !== 'from' &&
-    word !== 'up' &&
-    word !== 'down' &&
-    word !== 'in' &&
-    word !== 'out' &&
-    word !== 'on' &&
-    word !== 'off' &&
-    word !== 'over' &&
-    word !== 'under',
-);
+import { resolvePageUrl } from '../resolvePageUrl';
 
 /**
  * Type for our search document structure
@@ -457,7 +430,6 @@ export function useSearch(options: UseSearchOptions): UseSearchResult<SearchSche
                   'cssVariables',
                   'props',
                 ],
-                stopWords,
               },
             }
           : undefined,
@@ -669,9 +641,7 @@ export function useSearch(options: UseSearchOptions): UseSearchResult<SearchSche
    * Handles path normalization and hash fragments for different result types
    */
   const buildResultUrl = React.useCallback((result: SearchResult): string => {
-    let url = result.path.startsWith('./')
-      ? `${result.prefix}${result.path.replace(/^\.\//, '').replace(/\/page\.mdx$/, '')}`
-      : result.path;
+    let url = resolvePageUrl(result.path, result.prefix);
 
     // Add hash for non-page types
     if ('type' in result && result.type !== 'page') {

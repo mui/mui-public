@@ -6,9 +6,10 @@ import minifyErrorsPlugin from '@mui/internal-babel-plugin-minify-errors';
 import { globby } from 'globby';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { mapAsync } from 'es-toolkit/array';
 
 import { getWorkspacePackages } from './pnpm.mjs';
-import { BASE_IGNORES, mapConcurrently } from './build.mjs';
+import { BASE_IGNORES } from './build.mjs';
 
 /**
  * @typedef {Object} Args
@@ -52,7 +53,7 @@ async function getFilesForPackage(pkg) {
  * @param {import('@mui/internal-babel-plugin-minify-errors').Options['detection']} [detection='opt-in']
  */
 async function extractErrorCodesForWorkspace(files, errors, detection = 'opt-in') {
-  await mapConcurrently(
+  await mapAsync(
     files,
     async (fullPath) => {
       const code = await fs.readFile(fullPath, 'utf8');
@@ -71,7 +72,7 @@ async function extractErrorCodesForWorkspace(files, errors, detection = 'opt-in'
         code: false,
       });
     },
-    30,
+    { concurrency: 30 },
   );
 }
 

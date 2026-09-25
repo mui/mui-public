@@ -3,7 +3,7 @@
  * `@wooorm/starry-night` grammar module, so the bundler emits one chunk per
  * grammar instead of the all-in-one `./grammars` barrel. `ensureGrammars`
  * (in `./parseSource`) resolves only the scopes a block needs, keeping the
- * unused grammar payloads (~146&nbsp;KB gzip for all 10) out of the download.
+ * unused grammar payloads (~146&nbsp;KB+ gzip for all 11) out of the download.
  *
  * Keys are starry-night scope names — the same values `./grammarMaps` resolves
  * file extensions and language props to, so every detectable language has a
@@ -14,6 +14,7 @@ import type { Grammar } from '@wooorm/starry-night';
 export type GrammarLoader = () => Promise<Grammar>;
 
 export const grammarLoaders: Record<string, GrammarLoader> = {
+  'source.diff': () => import('@wooorm/starry-night/source.diff').then((mod) => mod.default),
   'source.js': () => import('@wooorm/starry-night/source.js').then((mod) => mod.default),
   'source.ts': () => import('@wooorm/starry-night/source.ts').then((mod) => mod.default),
   'source.tsx': () => import('@wooorm/starry-night/source.tsx').then((mod) => mod.default),

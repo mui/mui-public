@@ -24,6 +24,7 @@ export const extensionMap: Record<string, string> = {
  * Used when `language` prop is provided instead of fileName.
  */
 export const languageToGrammarMap: Record<string, string> = {
+  diff: 'source.diff',
   js: 'source.js',
   javascript: 'source.js',
   ts: 'source.ts',

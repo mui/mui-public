@@ -261,6 +261,21 @@ export const createParseSource = async (initialScopes?: string[]): Promise<Parse
 };
 
 /**
+ * Returns the shared Starry Night instance after registering every grammar.
+ *
+ * Inline highlighting can follow code that initialized a lazy subset, so it must
+ * initialize the complete registry before using the shared instance.
+ */
+export async function getStarryNightInstance(): Promise<StarryNight> {
+  await createParseSource();
+  const instance = getInstance();
+  if (!instance) {
+    throw new Error('Starry Night failed to initialize.');
+  }
+  return instance;
+}
+
+/**
  * Clears the global Starry Night singleton and registration state. Intended for
  * tests exercising lazy registration from a known-empty registry.
  */

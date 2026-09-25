@@ -56,6 +56,14 @@ To refresh installed skills later (`npx skills add` copies the content into your
 npx skills update
 ```
 
+### Renovate PR workflow
+
+Use [mui-renovate-triage](./skills/mui-renovate-triage/SKILL.md) to fetch a deterministic snapshot of open Renovate PRs and review them one at a time. For each PR, it shows a summary and link, asks whether to merge or continue when CI passes, and runs mui-renovate-fix when CI fails. Follow-up requests continue through the original snapshot without a persistent queue. Request read-only review to skip fixes.
+
+Use [mui-renovate-fix](./skills/mui-renovate-fix/SKILL.md) when you want to implement a dependency-related fix or migration identified during triage, such as an API adaptation, peer dependency mismatch, or reproducible failure caused by an update. It prefers a source-only draft PR when the fix works with both dependency versions. Otherwise, it updates a single-dependency Renovate PR or extracts the culprit bump and adaptation from a grouped PR into a new draft PR. You can also invoke it directly with a Renovate PR URL; it diagnoses the issue first.
+
+For example, ask the agent to "Use mui-renovate-triage to review the open Renovate PRs", then respond with "merge" or "continue" as it presents each passing PR. Visual approval alone, external-service failures, and unrelated flaky tests do not call for a dependency fix.
+
 ## Versioning
 
 Steps:
