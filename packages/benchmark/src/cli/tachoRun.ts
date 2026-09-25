@@ -48,6 +48,28 @@ const command: CommandModule<{}, Args> = {
         type: 'string',
         describe: 'Write the combined JSON report here. Default: .tachometer/results/report.json',
       })
+      .option('engine', {
+        type: 'string',
+        choices: ['tachometer', 'interleaved'] as const,
+        default: 'tachometer' as const,
+        describe:
+          "What measures the pages: 'tachometer', or 'interleaved', which alternates variants round by round in Playwright, compares paired differences, and also runs *.bench.tsx files",
+      })
+      .option('samples', {
+        type: 'number',
+        describe:
+          "Interleaved engine: measured rounds per case. Default: the case's sampleSize, else 30",
+      })
+      .option('warmup', {
+        type: 'number',
+        describe:
+          'Interleaved engine: discarded rounds before measuring. Default: 2 per page case, 5 per epoch for *.bench.tsx cases',
+      })
+      .option('epoch-size', {
+        type: 'number',
+        describe:
+          'Interleaved engine: measured rounds of a *.bench.tsx case before its pages are reopened in fresh processes. Default: 10',
+      })
       .epilogue(
         'Sampling (sampleSize, autoSampleConditions, timeout) is configured per case in its own tachometer.json — tachometer rejects those as CLI flags when a config file is used.',
       );
@@ -63,6 +85,10 @@ const command: CommandModule<{}, Args> = {
       install: argv.install,
       out: argv.out,
       upload: argv.upload,
+      engine: argv.engine,
+      samples: argv.samples,
+      warmup: argv.warmup,
+      epochSize: argv.epochSize,
     });
   },
 };

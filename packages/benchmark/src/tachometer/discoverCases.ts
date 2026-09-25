@@ -60,6 +60,11 @@ export interface DiscoverCasesOptions {
    * case-insensitively.
    */
   filters?: string[];
+  /**
+   * Return an empty list instead of throwing when no case is selected, for callers that also run
+   * other kinds of cases and decide for themselves whether finding nothing is an error.
+   */
+  allowEmpty?: boolean;
 }
 
 /** The file that marks a directory under `src/` as a benchmark case. */
@@ -150,6 +155,14 @@ async function parseLeafUrl(
   return { page: relative.split(path.sep).join('/'), suffix };
 }
 
+/** Whether a location under `src` is selected by the run's filters: all of them when there are none. */
+export function matchesFilters(location: string, filters: string[]): boolean {
+  return (
+    filters.length === 0 ||
+    filters.some((filter) => location.toLowerCase().includes(filter.toLowerCase()))
+  );
+}
+
 /**
  * Every directory under `srcDir` that holds a `tachometer.json`, as a posix path relative to it.
  *
@@ -179,19 +192,18 @@ async function findCaseLocations(srcDir: string): Promise<string[]> {
  * which is the regression case.
  */
 export async function discoverCases(options: DiscoverCasesOptions): Promise<BenchmarkCase[]> {
-  const { harnessDir, filters = [] } = options;
+  const { harnessDir, filters = [], allowEmpty = false } = options;
   const srcDir = path.join(harnessDir, 'src');
 
   const located = await findCaseLocations(srcDir);
   // Matched case-insensitively against the location, the way vitest matches its file filters: a
   // folder name selects everything under it without the filter having to know what a folder means.
-  const selected = located.filter(
-    (location) =>
-      filters.length === 0 ||
-      filters.some((filter) => location.toLowerCase().includes(filter.toLowerCase())),
-  );
+  const selected = located.filter((location) => matchesFilters(location, filters));
 
   if (selected.length === 0) {
+    if (allowEmpty) {
+      return [];
+    }
     throw new Error(
       filters.length > 0
         ? `No benchmark case under ${srcDir} matches ${filters.map((filter) => `"${filter}"`).join(', ')}.`

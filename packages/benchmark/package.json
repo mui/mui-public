@@ -14,6 +14,8 @@
     "./ciReport": "./src/ciReport.ts",
     "./reporter": "./src/reporter.ts",
     "./vitest": "./src/vitest.ts",
+    "./page": "./src/page/page.tsx",
+    "./page/vitest": "./src/page/vitestStub.ts",
     "./tachometerPlugin": "./src/tachometer/plugin.ts",
     "./tachometerReport": "./src/tachometer/renderReport.ts",
     "./tachometerFormat": "./src/tachometer/format.ts",

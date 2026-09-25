@@ -1,4 +1,4 @@
-import { Metric } from './Metric';
+import { Metric } from './metricCore';
 import type { MetricKind } from './types';
 
 /**

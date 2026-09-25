@@ -1,3 +1,5 @@
+import type { BenchmarkInput } from './input';
+
 export interface RenderEvent {
   id: string;
   /**
@@ -35,6 +37,11 @@ export interface InteractionContext {
    * already active.
    */
   resumeReactRecording: () => void;
+  /**
+   * Trusted input gestures (scroll, pinch, tap) dispatched by the browser itself, for interactions
+   * that should behave like a real mouse or trackpad rather than synthetic DOM events.
+   */
+  input: BenchmarkInput;
 }
 
 // One benchmark case's lifecycle. The measurement loop creates one per iteration and drives it

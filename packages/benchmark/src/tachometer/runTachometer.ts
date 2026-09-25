@@ -11,6 +11,8 @@ import type { PackedPackage } from '../utils/packWorkspace';
 import { resolveBaselineRef, WORKTREE_REF } from './refs';
 import type { ResolvedRef } from './refs';
 import { discoverCases, pagesOf } from './discoverCases';
+import { discoverBenchFiles } from './benchFiles';
+import { runInterleaved } from './runInterleaved';
 import type { BenchmarkCase, Leaf } from './discoverCases';
 import { isSummarized, refLabel } from './format';
 import { buildRefPages, restoreWorkspace } from './buildPages';
@@ -42,11 +44,11 @@ function fileSlugOf(name: string): string {
  * rather than being a case every later step has to allow for.
  */
 async function resolveBuilds(
-  cases: BenchmarkCase[],
+  needsBaseline: boolean,
   baseline: string | undefined,
   repoRoot: string,
 ): Promise<{ refs: ResolvedRef[]; buildFor: (leaf: Leaf) => ResolvedRef }> {
-  if (!cases.some((entry) => entry.comparison === 'baseline')) {
+  if (!needsBaseline) {
     return { refs: [WORKTREE_REF], buildFor: () => WORKTREE_REF };
   }
   const baselineRef = await resolveBaselineRef(baseline, repoRoot);
@@ -82,7 +84,21 @@ export interface RunTachometerOptions {
   upload?: boolean;
   /** How a ref's pages find the library under test. Defaults to `in-place`. */
   resolveMode?: ResolveMode;
+  /**
+   * What measures the pages. `tachometer` hands each case to tachometer. `interleaved` runs them
+   * in Playwright, alternating variants round by round and comparing paired differences — and is
+   * the engine that runs `*.bench.tsx` files. Defaults to `tachometer`.
+   */
+  engine?: Engine;
+  /** Interleaved engine only: measured rounds per case, overriding `sampleSize`. */
+  samples?: number;
+  /** Interleaved engine only: discarded rounds before measuring. */
+  warmup?: number;
+  /** Interleaved engine only: measured rounds of a `*.bench.tsx` case per set of pages. */
+  epochSize?: number;
 }
+
+export type Engine = 'tachometer' | 'interleaved';
 
 /**
  * Benchmarks the harness's pages across one or more builds of the workspace with tachometer, and
@@ -103,6 +119,10 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
     out,
     upload = false,
     resolveMode = 'in-place',
+    engine = 'tachometer',
+    samples,
+    warmup,
+    epochSize,
   } = options;
 
   const repoRoot = await findWorkspaceDir(harnessDir);
@@ -126,8 +146,26 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
   // back before doing anything else, whatever mode this run is in.
   await restoreWorkspace(repoRoot, outputDir);
 
-  const cases = await discoverCases({ harnessDir, filters });
-  const { refs, buildFor } = await resolveBuilds(cases, baseline, repoRoot);
+  const cases = await discoverCases({ harnessDir, filters, allowEmpty: true });
+  let benchFiles = await discoverBenchFiles({ harnessDir, filters });
+  if (engine === 'tachometer' && benchFiles.length > 0) {
+    console.warn(
+      chalk.yellow(
+        `Skipping ${benchFiles.length} *.bench.tsx file(s): only the interleaved engine runs them (--engine interleaved).`,
+      ),
+    );
+    benchFiles = [];
+  }
+  if (cases.length === 0 && benchFiles.length === 0) {
+    // Nothing selected: let discovery say what it looked for.
+    await discoverCases({ harnessDir, filters });
+  }
+  // A benchmark file always compares the working tree against the baseline.
+  const { refs, buildFor } = await resolveBuilds(
+    benchFiles.length > 0 || cases.some((entry) => entry.comparison === 'baseline'),
+    baseline,
+    repoRoot,
+  );
 
   // The commit follows the name, so a revision like `HEAD~1` still says which commit it landed on.
   const describeRef = (ref: ResolvedRef) =>
@@ -136,7 +174,10 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
   // Before any build: a driver that cannot open the browser fails the run either way, and finding
   // out now costs seconds instead of minutes of packing and installing.
   const browserBinary = await resolveBrowserBinary(harnessDir);
-  assertDriverMatchesBrowser(harnessDir, browserBinary);
+  // Only tachometer drives the browser through chromedriver.
+  if (engine === 'tachometer') {
+    assertDriverMatchesBrowser(harnessDir, browserBinary);
+  }
   // `getuid` is POSIX-only; on Windows nobody is root.
   const asRoot = process.getuid?.() === 0;
 
@@ -147,7 +188,9 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
       ? `${entry.name} (vs baseline)`
       : `${entry.name} (${entry.variants.length} variants)`;
 
+  console.log(chalk.cyan(`Engine:  ${engine}`));
   console.log(chalk.cyan(`Cases:   ${cases.map(describeCase).join(', ')}`));
+  console.log(chalk.cyan(`Files:   ${benchFiles.map((benchFile) => benchFile.file).join(', ')}`));
   console.log(chalk.cyan(`Pages:   ${pagesOf(cases).join(', ')}`));
   console.log(chalk.cyan(`Refs:    ${refs.map(describeRef).join(', ')}`));
   console.log(
@@ -195,11 +238,31 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
       });
     }
 
+    const results: Array<{ entry: BenchmarkCase; json?: any; error?: string }> = [];
+    if (engine === 'interleaved') {
+      const worktreeRef = refs.find((ref) => ref.kind === 'worktree') ?? WORKTREE_REF;
+      results.push(
+        ...(await runInterleaved({
+          harnessDir,
+          buildsDir,
+          cases,
+          benchFiles,
+          buildFor,
+          // The working tree first: the first variant is the reference a case is judged against.
+          benchRefs: [worktreeRef, ...refs.filter((ref) => ref !== worktreeRef)],
+          browserBinary,
+          asRoot,
+          samples,
+          warmup,
+          epochSize,
+        })),
+      );
+    }
+
     // Rewrite each leaf url to its ref's built page, then run each case's own config. Tachometer
     // resolves relative urls against the config file's directory and these configs are written to a
     // temp dir, so the rewritten urls are absolute.
-    const results: Array<{ entry: BenchmarkCase; json: any }> = [];
-    for (const entry of cases) {
+    for (const entry of engine === 'tachometer' ? cases : []) {
       for (const leaf of entry.leaves) {
         leaf.node.url = `${path.join(buildsDir, buildFor(leaf).id, leaf.page)}${leaf.suffix}`;
       }
@@ -253,7 +316,10 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
       // Summarising is best-effort per case: a case that produced no usable benchmarks must not
       // cost the whole run its report, since `raw` below is the only surviving copy of every other
       // case's samples once the temp dir is cleaned up.
-      cases: results.map(({ entry, json }): CaseResult => {
+      cases: results.map(({ entry, json, error: runError }): CaseResult => {
+        if (runError !== undefined) {
+          return { name: entry.name, comparison: entry.comparison, error: runError };
+        }
         try {
           return summarizeCase(entry, json);
         } catch (error) {
@@ -262,7 +328,9 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
           return { name: entry.name, comparison: entry.comparison, error: message };
         }
       }),
-      raw: Object.fromEntries(results.map(({ entry, json }) => [entry.name, json])),
+      raw: Object.fromEntries(
+        results.flatMap(({ entry, json }) => (json === undefined ? [] : [[entry.name, json]])),
+      ),
     };
     await mkdir(path.dirname(outPath), { recursive: true });
     await writeFile(outPath, `${JSON.stringify(report, null, 2)}\n`);
