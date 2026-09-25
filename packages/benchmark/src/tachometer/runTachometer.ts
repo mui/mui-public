@@ -94,8 +94,6 @@ export interface RunTachometerOptions {
   samples?: number;
   /** Interleaved engine only: discarded rounds before measuring. */
   warmup?: number;
-  /** Interleaved engine only: measured rounds of a `*.bench.tsx` case per set of pages. */
-  epochSize?: number;
 }
 
 export type Engine = 'tachometer' | 'interleaved';
@@ -122,7 +120,6 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
     engine = 'tachometer',
     samples,
     warmup,
-    epochSize,
   } = options;
 
   const repoRoot = await findWorkspaceDir(harnessDir);
@@ -254,7 +251,6 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
           asRoot,
           samples,
           warmup,
-          epochSize,
         })),
       );
     }
