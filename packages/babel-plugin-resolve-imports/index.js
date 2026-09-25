@@ -2,11 +2,12 @@
 
 /// <reference path="./resolve.d.ts" />
 
-const nodePath = require('node:path');
-const resolve = require('resolve/sync');
+import * as nodePath from 'node:path';
+import resolve from 'resolve/sync.js';
 
 /**
- * @typedef {typeof import('@babel/core')} babel
+ * @template {import('@babel/core').types.Node | null} [T=import('@babel/core').types.Node]
+ * @typedef {import('@babel/core').NodePath<T>} NodePath
  */
 
 /**
@@ -33,11 +34,11 @@ function pathToNodeImportSpecifier(importPath) {
  */
 
 /**
- * @param {babel} file
+ * @param {import('@babel/core').PluginAPI} file
  * @param {Options} options
- * @returns {babel.PluginObj}
+ * @returns {import('@babel/core').PluginObject}
  */
-module.exports = function plugin({ types: t }, { outExtension }) {
+export default function plugin({ types: t }, { outExtension }) {
   /** @type {Map<string, string>} */
   const cache = new Map();
   const extensions = ['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx'];
@@ -45,8 +46,8 @@ module.exports = function plugin({ types: t }, { outExtension }) {
 
   /**
    *
-   * @param {babel.NodePath<babel.types.StringLiteral>} importSource
-   * @param {babel.PluginPass} state
+   * @param {NodePath<import('@babel/core').types.StringLiteral>} importSource
+   * @param {import('@babel/core').PluginPass} state
    */
   function doResolve(importSource, state) {
     const importedPath = importSource.node.value;
@@ -102,8 +103,11 @@ module.exports = function plugin({ types: t }, { outExtension }) {
   return {
     visitor: {
       TSImportType(path, state) {
-        const source = path.get('argument');
-        doResolve(source, state);
+        // Babel 7 keeps the specifier in `argument`, Babel 8 renamed it to `source`.
+        const source = path.node.source ? path.get('source') : path.get('argument');
+        if (source.isStringLiteral()) {
+          doResolve(source, state);
+        }
       },
       CallExpression(path, state) {
         const callee = path.get('callee');
@@ -136,4 +140,4 @@ module.exports = function plugin({ types: t }, { outExtension }) {
       },
     },
   };
-};
+}

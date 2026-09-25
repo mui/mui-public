@@ -1,6 +1,6 @@
 {
   "name": "@mui/internal-test-utils",
-  "version": "2.0.17",
+  "version": "2.1.0",
   "author": "MUI Team",
   "description": "Utilities for MUI tests. This is an internal package not meant for general use.",
   "license": "MIT",
@@ -26,11 +26,11 @@
     "typescript": "tsc -noEmit"
   },
   "dependencies": {
-    "@types/chai-dom": "^1.11.3",
-    "@babel/runtime": "^7.29.7",
+    "@babel/runtime": "^8.0.5",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.7",
+    "@types/chai-dom": "^1.11.3",
     "assertion-error": "^2.0.1",
     "chai-dom": "^1.12.1",
     "dom-accessibility-api": "^0.7.1",

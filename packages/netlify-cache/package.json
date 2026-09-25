@@ -1,6 +1,6 @@
 {
   "name": "@mui/internal-netlify-cache",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "author": "MUI Team",
   "description": "Netlify plugin to cache Next.js output cache for MUI repos.",
   "license": "MIT",

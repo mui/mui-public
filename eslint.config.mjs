@@ -98,9 +98,17 @@ const config = defineConfig(
     language: 'json/jsonc',
   },
   {
+    // The babel plugin packages are ESM-only, so relative imports carry their extension.
     files: [`packages/babel-*/**/*${EXTENSION_TS}`],
     rules: {
-      '@typescript-eslint/no-require-imports': 'off',
+      'import/extensions': [
+        'error',
+        'ignorePackages',
+        {
+          js: 'always',
+          mjs: 'always',
+        },
+      ],
     },
   },
   {

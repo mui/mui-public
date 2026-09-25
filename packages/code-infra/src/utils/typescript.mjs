@@ -177,6 +177,7 @@ export async function moveAndTransformDeclarations({ inputDir, buildDir, bundles
           const outFileRelative = relativePath.replace(/\.d\.ts$/, newFileExtension);
           const outFilePath = path.join(buildDir, outFileRelative);
 
+          /** @type {import('@babel/core').PluginItem[]} */
           const babelPlugins = [
             [pluginTypescriptSyntax, { dts: true }],
             [pluginResolveImports, { outExtension: importExtension }],

@@ -1,6 +1,6 @@
 {
   "name": "@mui/internal-docs-infra",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "author": "MUI Team",
   "description": "MUI Infra - internal documentation creation tools.",
   "license": "MIT",
@@ -113,7 +113,7 @@
     "typescript": "tsc -noEmit"
   },
   "dependencies": {
-    "@babel/runtime": "^7.29.7",
+    "@babel/runtime": "^8.0.5",
     "@csstools/postcss-light-dark-function": "^3.0.4",
     "@csstools/postcss-relative-color-syntax": "^4.0.11",
     "@csstools/postcss-stepped-value-functions": "^5.0.5",
