@@ -218,11 +218,11 @@ importers:
         specifier: ^30.0.1
         version: 30.0.1
       prettier:
-        specifier: 3.9.6
-        version: 3.9.6
+        specifier: 3.9.9
+        version: 3.9.9
       pretty-quick:
         specifier: ^4.2.2
-        version: 4.2.2(prettier@3.9.6)
+        version: 4.2.2(prettier@3.9.9)
       semver:
         specifier: ^7.8.5
         version: 7.8.5
@@ -911,8 +911,8 @@ importers:
         specifier: 7.2.0
         version: 7.2.0
       prettier:
-        specifier: 3.9.6
-        version: 3.9.6
+        specifier: 3.9.9
+        version: 3.9.9
       remark:
         specifier: 15.0.1
         version: 15.0.1(supports-color@10.2.2)
@@ -1011,7 +1011,7 @@ importers:
         version: 4.0.0(postcss@8.5.28)
       prettier:
         specifier: ^3.0.0
-        version: 3.9.6
+        version: 3.9.9
       proper-lockfile:
         specifier: ^4.1.2
         version: 4.1.2
@@ -7269,8 +7269,8 @@ packages:
     resolution: {integrity: sha512-vkcDPrRZo1QZLbn5RLGPpg/WmIQ65qoWWhcGKf/b5eplkkarX0m9z8ppCat4mlOqUsWpyNuYgO3VRyrYHSzX5g==}
     engines: {node: '>= 0.8.0'}
 
-  prettier@3.9.6:
-    resolution: {integrity: sha512-OpN0zzVdiaiAhxpuuj5efpIS4sY9j7bY6uR5mnj5yPzGkdkjNKSJeUThPb60Jw29QuAZgA4o+/iB49kFiaBX6g==}
+  prettier@3.9.9:
+    resolution: {integrity: sha512-Z/CJHIkdujO/OtN7nXUii0Rf3VT5SRuhjBA82Xvu2XhBUgX3nhP67T0LHceBdQLex7OOFGTox+Q5Yg8Jk2Qivg==}
     engines: {node: '>=14'}
     hasBin: true
 
@@ -12261,7 +12261,7 @@ snapshots:
       '@babel/core': 8.0.5
       core-js: 3.50.0
       lodash.mergewith: 4.6.2
-      prettier: 3.9.6
+      prettier: 3.9.9
       pretty-format: 30.5.1
       rejoinder: 2.1.0
       strip-indent~3: strip-indent@3.0.0
@@ -15311,7 +15311,7 @@ snapshots:
 
   prelude-ls@1.2.1: {}
 
-  prettier@3.9.6: {}
+  prettier@3.9.9: {}
 
   pretty-format@27.5.1:
     dependencies:
@@ -15330,14 +15330,14 @@ snapshots:
     dependencies:
       parse-ms: 4.0.0
 
-  pretty-quick@4.2.2(prettier@3.9.6):
+  pretty-quick@4.2.2(prettier@3.9.9):
     dependencies:
       '@pkgr/core': 0.2.10
       ignore: 7.0.9
       mri: 1.2.0
       picocolors: 1.1.1
       picomatch: 4.0.7
-      prettier: 3.9.6
+      prettier: 3.9.9
       tinyexec: 0.3.2
       tslib: 2.8.1
 
