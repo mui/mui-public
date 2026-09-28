@@ -352,6 +352,11 @@ jobs:
             - ${{ runner.temp }}/flake-out/pr-body.md — what breaks and how often, the evidence
               (CircleCI links), why it started failing (the trigger) and why this change is the right
               response to it, what the change does, and what you did or did not verify.
+            - ${{ runner.temp }}/flake-out/resolves.txt — the exact fingerprint string(s) from
+              verdict.json this fix resolves, one per line (copied verbatim). Usually just the
+              target's; add another only when your single change genuinely removes its root cause too.
+              It tells the workflow which classified problems this PR handles, so it can flag any real
+              ones still left unaddressed.
 
       - name: Collect outputs
         if: ${{ always() }}
