@@ -453,18 +453,19 @@ jobs:
           # -R is required: gh runs from the workspace root, not the checkout, so it can't infer
           # the repo from the working directory.
           gh label create ci-flake-fix --force -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || true
+          # @-mention the code-infra team in the body instead of requesting them as a reviewer:
+          # a team review request needs an org-read scope the workflow token does not have.
           {
             cat "$input/pr-body.md"
-            printf '\n\n---\n_Opened by a sandboxed agent. Unverified beyond any local check noted above; CI on this PR is the real test._\n'
+            printf '\n\ncc @mui/infra\n'
+            printf '\n---\n_Opened by a sandboxed agent. Unverified beyond any local check noted above; CI on this PR is the real test._\n'
           } > "$RUNNER_TEMP/pr-body.md"
           url=$(gh pr create --draft --label ci-flake-fix -R "$GITHUB_REPOSITORY" --head "$branch" --base "$DEFAULT_BRANCH" \
             --title "$(head -n1 "$input/pr-title.txt")" --body-file "$RUNNER_TEMP/pr-body.md")
           echo "url=$url" >> "$GITHUB_OUTPUT"
 
-          # Route the PR to the code-infra team. Done after the PR exists, and best-effort, so a repo
-          # that is missing one of these labels or the team still keeps its PR.
+          # Label the PR, best-effort — a repo missing either label still keeps its PR.
           gh pr edit "$url" --add-label 'scope: code-infra' --add-label 'type: regression' || true
-          gh pr edit "$url" --add-reviewer mui/infra || true
 
       - name: Update the tracking dashboard issue
         if: ${{ always() }}
