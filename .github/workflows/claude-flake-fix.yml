@@ -485,79 +485,126 @@ jobs:
 
       - name: Update the tracking dashboard issue
         if: ${{ always() }}
-        working-directory: repo
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          GH_TOKEN: ${{ github.token }}
           PR_URL: ${{ steps.pr.outputs.url }}
           REPORT_ONLY: ${{ inputs.report-only }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          set -euo pipefail
-          input="$GITHUB_WORKSPACE/publish-input"
-          gh label create ci-flake-watch --force >/dev/null 2>&1 || true
-          # One long-lived issue whose BODY is rewritten each run — a Renovate-style dashboard of
-          # the current state, not a weekly comment stream. Past runs live in the Actions log and
-          # the closed fix PRs.
-          body_src="$input/report.md"
-          [ -s "$body_src" ] || body_src="$input/summary.txt"
-          body_file="$RUNNER_TEMP/issue-body.md"
-          # The workflow owns the intro line and footer; the agent's report is dropped in between.
-          {
-            echo 'A running summary of recent CI failures — which are flaky, which are real, which are outside problems.'
-            echo
-            cat "$body_src" 2>/dev/null || echo 'No CircleCI data this week.'
-            if [ -n "${PR_URL:-}" ]; then
-              printf '\n**Fix:** a draft PR is open — %s\n' "$PR_URL"
-            elif [ "${REPORT_ONLY:-}" = 'true' ]; then
-              printf '\n**Fix:** none — this was a report-only run.\n'
-            else
-              # Covers every no-PR case honestly — no confident fix, but also a timeout, a rejected
-              # patch, or a failed PR creation — without claiming which one it was.
-              printf '\n**Fix:** no fix PR was opened this run.\n'
-            fi
-            if [ -s "$input/insights.txt" ]; then
-              printf '\n[CircleCI insights for this branch](%s)\n' "$(cat "$input/insights.txt")"
-            fi
-            if [ -s "$input/cost.txt" ]; then
-              printf '\nAgent cost this run: $%s\n' "$(cat "$input/cost.txt")"
-            fi
-            printf '\n---\n_Kept up to date by [this workflow](%s) — do not edit; changes are overwritten on the next run._\n' "$RUN_URL"
-          } > "$body_file"
-          issue=$(gh issue list --label ci-flake-watch --state open --json number --jq '.[0].number // empty')
-          if [ -n "$issue" ]; then
-            gh issue edit "$issue" --body-file "$body_file"
-          else
-            created=$(gh issue create --label ci-flake-watch --title "CI flakiness watch" --body-file "$body_file")
-            issue="${created##*/}"
-          fi
+        with:
+          script: |
+            const fs = require('fs');
+            const input = `${process.env.GITHUB_WORKSPACE}/publish-input`;
+            const read = (name) => {
+              try {
+                return fs.readFileSync(`${input}/${name}`, 'utf8');
+              } catch {
+                return '';
+              }
+            };
+            const prUrl = process.env.PR_URL || '';
+            const reportOnly = process.env.REPORT_ONLY === 'true';
 
-          # Alert the code-infra team when a real (STRUCTURAL) regression is left unaddressed. Each
-          # verdict is per job, so one root cause spans several; the agent's resolves.txt (written
-          # only when a fix PR opened) names the fingerprints that PR handles. A structural fingerprint
-          # absent from it is a real problem nobody is fixing. The alert is a fresh comment — an edit
-          # would not notify — that replaces any prior one, so a resolved or quiet week leaves none.
-          # Skipped on report-only runs.
-          if [ "${REPORT_ONLY:-}" != 'true' ] && [ -n "$issue" ]; then
-            prior=$(gh api "repos/$GITHUB_REPOSITORY/issues/$issue/comments" \
-              --jq '.[] | select(.body | contains("<!-- flake-fix-alert -->")) | .id' 2>/dev/null || true)
-            for cid in $prior; do
-              gh api -X DELETE "repos/$GITHUB_REPOSITORY/issues/comments/$cid" >/dev/null 2>&1 || true
-            done
-            if [ -s "$input/verdict.json" ]; then
-              jq -r '.verdicts[] | select(.class == "STRUCTURAL") | .fingerprint' "$input/verdict.json" \
-                | sort -u > "$RUNNER_TEMP/structural.txt"
-              if [ -n "${PR_URL:-}" ] && [ -s "$input/resolves.txt" ]; then
-                sort -u "$input/resolves.txt" > "$RUNNER_TEMP/resolved.txt"
-              else
-                : > "$RUNNER_TEMP/resolved.txt"
-              fi
-              unresolved=$(comm -23 "$RUNNER_TEMP/structural.txt" "$RUNNER_TEMP/resolved.txt")
-              if [ -n "$unresolved" ]; then
-                count=$(printf '%s\n' "$unresolved" | grep -c . || true)
-                {
-                  printf '<!-- flake-fix-alert -->\n'
-                  printf '%s CI regression(s) still failing with no automated fix this run — see the dashboard above. cc @%s\n' "$count" "$INFRA_TEAM"
-                } | gh issue comment "$issue" --body-file -
-              fi
-            fi
-          fi
+            // One long-lived issue whose BODY is rewritten each run — a Renovate-style dashboard of
+            // the current state, not a comment stream. The workflow owns the intro and footer; the
+            // agent's report goes in between.
+            let report = read('report.md') || read('summary.txt') || 'No CircleCI data this week.';
+            if (!report.endsWith('\n')) {
+              report += '\n';
+            }
+            let fix;
+            if (prUrl) {
+              fix = `**Fix:** a draft PR is open — ${prUrl}`;
+            } else if (reportOnly) {
+              fix = '**Fix:** none — this was a report-only run.';
+            } else {
+              // Honest for every no-PR case — no confident fix, but also a timeout, a rejected patch,
+              // or a failed PR creation — without claiming which one it was.
+              fix = '**Fix:** no fix PR was opened this run.';
+            }
+            const insights = read('insights.txt').trim();
+            const cost = read('cost.txt').trim();
+            let body =
+              'A running summary of recent CI failures — which are flaky, which are real, which are outside problems.\n\n' +
+              report +
+              `\n${fix}\n`;
+            if (insights) {
+              body += `\n[CircleCI insights for this branch](${insights})\n`;
+            }
+            if (cost) {
+              body += `\nAgent cost this run: $${cost}\n`;
+            }
+            body += `\n---\n_Kept up to date by [this workflow](${process.env.RUN_URL}) — do not edit; changes are overwritten on the next run._\n`;
+
+            try {
+              await github.rest.issues.createLabel({ ...context.repo, name: 'ci-flake-watch', color: 'ededed' });
+            } catch {
+              // Already exists.
+            }
+            const open = await github.paginate(github.rest.issues.listForRepo, {
+              ...context.repo,
+              labels: 'ci-flake-watch',
+              state: 'open',
+              per_page: 100,
+            });
+            let issueNumber;
+            if (open.length > 0) {
+              issueNumber = open[0].number;
+              await github.rest.issues.update({ ...context.repo, issue_number: issueNumber, body });
+            } else {
+              const res = await github.rest.issues.create({
+                ...context.repo,
+                title: 'CI flakiness watch',
+                labels: ['ci-flake-watch'],
+                body,
+              });
+              issueNumber = res.data.number;
+            }
+
+            // Alert the infra team when a real (STRUCTURAL) regression is left unaddressed. Verdicts
+            // are per job, so one root cause spans several; resolves.txt (written only when a fix PR
+            // opened) names the fingerprints that PR handles, so a structural fingerprint absent from
+            // it is a real problem nobody is fixing. The alert is a fresh comment — editing one would
+            // not notify — that replaces any prior alert, so a resolved or quiet week leaves none.
+            // Best-effort, and skipped on report-only runs.
+            if (!reportOnly) {
+              const marker = '<!-- flake-fix-alert -->';
+              try {
+                const comments = await github.paginate(github.rest.issues.listComments, {
+                  ...context.repo,
+                  issue_number: issueNumber,
+                  per_page: 100,
+                });
+                for (const comment of comments) {
+                  if ((comment.body || '').includes(marker)) {
+                    await github.rest.issues.deleteComment({ ...context.repo, comment_id: comment.id });
+                  }
+                }
+                const verdict = read('verdict.json');
+                if (verdict) {
+                  const structural = new Set(
+                    (JSON.parse(verdict).verdicts || [])
+                      .filter((entry) => entry.class === 'STRUCTURAL')
+                      .map((entry) => entry.fingerprint),
+                  );
+                  const resolved = new Set();
+                  if (prUrl) {
+                    for (const line of read('resolves.txt').split('\n')) {
+                      const fingerprint = line.trim();
+                      if (fingerprint) {
+                        resolved.add(fingerprint);
+                      }
+                    }
+                  }
+                  const unresolved = [...structural].filter((fingerprint) => !resolved.has(fingerprint));
+                  if (unresolved.length > 0) {
+                    await github.rest.issues.createComment({
+                      ...context.repo,
+                      issue_number: issueNumber,
+                      body: `${marker}\n${unresolved.length} CI regression(s) still failing with no automated fix this run — see the dashboard above. cc @${process.env.INFRA_TEAM}`,
+                    });
+                  }
+                }
+              } catch (error) {
+                core.warning(`flake-fix alert skipped: ${error.message}`);
+              }
+            }
