@@ -324,6 +324,14 @@ jobs:
             Take the fix target the subagent named. If it named none — nothing fixable — change
             NOTHING and write no patch. Otherwise read ONLY that one log (jobs/NNNN.txt) for the
             exact error and root-cause it against the checkout.
+            Establish WHY it started failing, not just what the error is. From the timeline: did our
+            code change at the first failure, or did something external move — a dependency bump, or a
+            moving toolchain channel like `@next`/nightly/canary? Let that trigger decide the response:
+            our code is genuinely wrong → fix it and note what surfaced it; an external toolchain
+            tightened on purpose → adapting the code is right, but confirm the code really is at fault
+            and say so; it looks like an upstream regression (our code is fine, a pre-release
+            dependency broke it) → do NOT paper over it with a code change, which only hides the
+            upstream bug — abandon (report/pin/wait territory) rather than present a guess as a fix.
             Open a PR only if you are confident you understand the root cause and your change fixes
             it. The moment you lose that confidence — the cause stays unclear, the code doesn't
             match the error, the fix is a guess — STOP and write no patch. Abandoning is always a
@@ -342,7 +350,8 @@ jobs:
               applied as-is to open your pull request, so it must contain only your intended change.
             - ${{ runner.temp }}/flake-out/pr-title.txt — a single line.
             - ${{ runner.temp }}/flake-out/pr-body.md — what breaks and how often, the evidence
-              (CircleCI links), what the change does, and what you did or did not verify.
+              (CircleCI links), why it started failing (the trigger) and why this change is the right
+              response to it, what the change does, and what you did or did not verify.
 
       - name: Collect outputs
         if: ${{ always() }}
