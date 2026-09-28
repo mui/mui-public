@@ -566,45 +566,45 @@ jobs:
             // it is a real problem nobody is fixing. The alert is a fresh comment — editing one would
             // not notify — that replaces any prior alert, so a resolved or quiet week leaves none.
             // Best-effort, and skipped on report-only runs.
-            if (!reportOnly) {
-              const marker = '<!-- flake-fix-alert -->';
-              try {
-                const comments = await github.paginate(github.rest.issues.listComments, {
-                  ...context.repo,
-                  issue_number: issueNumber,
-                  per_page: 100,
-                });
-                for (const comment of comments) {
-                  if ((comment.body || '').includes(marker)) {
-                    await github.rest.issues.deleteComment({ ...context.repo, comment_id: comment.id });
-                  }
+            if (reportOnly) {
+              return;
+            }
+            const marker = '<!-- flake-fix-alert -->';
+            try {
+              const comments = await github.paginate(github.rest.issues.listComments, {
+                ...context.repo,
+                issue_number: issueNumber,
+                per_page: 100,
+              });
+              for (const comment of comments) {
+                if ((comment.body || '').includes(marker)) {
+                  await github.rest.issues.deleteComment({ ...context.repo, comment_id: comment.id });
                 }
-                const verdict = read('verdict.json');
-                if (verdict) {
-                  const structural = new Set(
-                    (JSON.parse(verdict).verdicts || [])
-                      .filter((entry) => entry.class === 'STRUCTURAL')
-                      .map((entry) => entry.fingerprint),
-                  );
-                  const resolved = new Set();
-                  if (prUrl) {
-                    for (const line of read('resolves.txt').split('\n')) {
-                      const fingerprint = line.trim();
-                      if (fingerprint) {
-                        resolved.add(fingerprint);
-                      }
-                    }
-                  }
-                  const unresolved = [...structural].filter((fingerprint) => !resolved.has(fingerprint));
-                  if (unresolved.length > 0) {
-                    await github.rest.issues.createComment({
-                      ...context.repo,
-                      issue_number: issueNumber,
-                      body: `${marker}\n${unresolved.length} CI regression(s) still failing with no automated fix this run — see the dashboard above. cc @${process.env.INFRA_TEAM}`,
-                    });
-                  }
-                }
-              } catch (error) {
-                core.warning(`flake-fix alert skipped: ${error.message}`);
               }
+              const verdict = read('verdict.json');
+              if (verdict) {
+                const structural = new Set(
+                  (JSON.parse(verdict).verdicts || [])
+                    .filter((entry) => entry.class === 'STRUCTURAL')
+                    .map((entry) => entry.fingerprint),
+                );
+                const resolved = new Set(
+                  prUrl
+                    ? read('resolves.txt')
+                        .split('\n')
+                        .map((line) => line.trim())
+                        .filter(Boolean)
+                    : [],
+                );
+                const unresolved = [...structural].filter((fingerprint) => !resolved.has(fingerprint));
+                if (unresolved.length > 0) {
+                  await github.rest.issues.createComment({
+                    ...context.repo,
+                    issue_number: issueNumber,
+                    body: `${marker}\n${unresolved.length} CI regression(s) still failing with no automated fix this run — see the dashboard above. cc @${process.env.INFRA_TEAM}`,
+                  });
+                }
+              }
+            } catch (error) {
+              core.warning(`flake-fix alert skipped: ${error.message}`);
             }
