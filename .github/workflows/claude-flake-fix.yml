@@ -399,6 +399,8 @@ jobs:
       contents: write # push the fix branch
       pull-requests: write # open the draft PR
       issues: write # rolling tracking issue + labels
+    env:
+      INFRA_TEAM: mui/infra # cc'd on fix PRs and unresolved-regression alerts
     steps:
       - name: Download the failure data
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -471,7 +473,7 @@ jobs:
           # a team review request needs an org-read scope the workflow token does not have.
           {
             cat "$input/pr-body.md"
-            printf '\n\ncc @mui/infra\n'
+            printf '\n\ncc @%s\n' "$INFRA_TEAM"
             printf '\n---\n_Opened by a sandboxed agent. Unverified beyond any local check noted above; CI on this PR is the real test._\n'
           } > "$RUNNER_TEMP/pr-body.md"
           url=$(gh pr create --draft --label ci-flake-fix -R "$GITHUB_REPOSITORY" --head "$branch" --base "$DEFAULT_BRANCH" \
@@ -554,7 +556,7 @@ jobs:
                 count=$(printf '%s\n' "$unresolved" | grep -c . || true)
                 {
                   printf '<!-- flake-fix-alert -->\n'
-                  printf '%s CI regression(s) still failing with no automated fix this run — see the dashboard above. cc @mui/infra\n' "$count"
+                  printf '%s CI regression(s) still failing with no automated fix this run — see the dashboard above. cc @%s\n' "$count" "$INFRA_TEAM"
                 } | gh issue comment "$issue" --body-file -
               fi
             fi
