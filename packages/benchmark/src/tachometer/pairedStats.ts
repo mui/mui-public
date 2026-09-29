@@ -1,3 +1,4 @@
+import { calculateMean } from '../stats';
 import type {
   ConfidenceInterval,
   TachometerBenchmark,
@@ -36,13 +37,9 @@ export function tCritical95(degreesOfFreedom: number): number {
   return z + (z ** 3 + z) / (4 * degreesOfFreedom);
 }
 
-function meanOf(values: number[]): number {
-  return values.reduce((sum, value) => sum + value, 0) / values.length;
-}
-
 /** The 95% confidence interval of the mean. A single value is its own degenerate interval. */
 export function meanInterval(values: number[]): ConfidenceInterval {
-  const mean = meanOf(values);
+  const mean = calculateMean(values);
   if (values.length < 2) {
     return { low: mean, high: mean };
   }
@@ -73,7 +70,7 @@ function pairedDifference(
     return null;
   }
   const absolute = meanInterval(differences);
-  const reference = meanOf(baseline);
+  const reference = calculateMean(baseline);
   return {
     absolute,
     percentChange: {

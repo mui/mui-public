@@ -1,13 +1,18 @@
 import type * as React from 'react';
 import { createInput } from '../input';
-import { measureIteration } from '../caseRuntime';
-import type { BenchmarkInteraction, CaseOptions } from '../caseRuntime';
+import { measureIteration, splitCaseArgs, warnIfNoGc } from '../caseRuntime';
+import type {
+  BenchmarkInteraction,
+  BenchmarkOptions,
+  CaseOptions,
+  VariantLoader,
+} from '../caseRuntime';
 import { setMetricRecorder } from '../metricCore';
 
 // What `@mui/internal-benchmark` resolves to when benchmark files are built into an A/B page
 // instead of run by Vitest. Same authoring API, different driver: `benchmark()` registers a case,
-// and the runner calls `window.benchmarkPage.sample()` to run one iteration of it at a time. Every result
-// leaves the page as a `performance.measure` entry, the same contract plain tachometer pages use.
+// and the runner calls `window.benchmarkPage.sample()` to run one iteration of it at a time. Every
+// result leaves the page as a `performance.measure` entry, so it also shows up in a DevTools trace.
 
 export type { RenderEvent, IterationData, InteractionContext } from '../types';
 export type {
@@ -18,17 +23,11 @@ export type {
   MetricDefinition,
 } from '../types';
 export type { BenchmarkInput } from '../input';
-export type { BenchmarkInteraction } from '../caseRuntime';
+export type { BenchmarkInteraction, BenchmarkOptions, VariantLoader } from '../caseRuntime';
 export { ElementTiming } from '../ElementTiming';
 export { Metric, type MetricRecordOptions } from '../metricCore';
 export { ScalarMetric } from '../ScalarMetric';
 export { DiscreteMetric } from '../DiscreteMetric';
-
-/** `benchmark()`'s options. The iteration counts are ignored here: the runner decides them. */
-export interface BenchmarkOptions extends CaseOptions {
-  runs?: number;
-  warmupRuns?: number;
-}
 
 interface PageCase {
   renderFn: () => React.ReactElement;
@@ -53,20 +52,9 @@ export function benchmark(
   if (registering.has(name)) {
     throw new Error(`Two benchmarks share the name "${name}". Benchmark names must be unique.`);
   }
-  const interaction = typeof interactionOrOptions === 'function' ? interactionOrOptions : undefined;
-  const options = typeof interactionOrOptions === 'object' ? interactionOrOptions : maybeOptions;
-  registering.set(name, {
-    renderFn,
-    interaction,
-    options: options && {
-      afterEach: options.afterEach,
-      reactRecordingPaused: options.reactRecordingPaused,
-    },
-  });
+  // The iteration counts in `options` are ignored here: the runner decides them.
+  registering.set(name, { renderFn, ...splitCaseArgs(interactionOrOptions, maybeOptions) });
 }
-
-/** Loads a variant's module, whose `benchmark()` calls define that variant's cases. */
-export type VariantLoader = () => Promise<unknown>;
 
 const comparisons = new Map<string, Record<string, VariantLoader>>();
 
@@ -161,12 +149,13 @@ function emitSample(
   // whatever the browser coalesced, so per-render entries would not line up across iterations. The
   // per-phase split only adds information when there is more than one phase.
   const byPhase = new Map<string, number>();
+  let total = 0;
   for (const render of result.renders) {
     byPhase.set(render.phase, (byPhase.get(render.phase) ?? 0) + render.actualDuration);
+    total += render.actualDuration;
   }
   if (result.renders.length > 0) {
     const start = result.renders[0].startTime;
-    const total = [...byPhase.values()].reduce((sum, duration) => sum + duration, 0);
     performance.measure('render', { start, duration: total, detail: { value: total } });
     if (byPhase.size > 1) {
       for (const [phase, duration] of byPhase) {
@@ -225,11 +214,7 @@ async function sample(name: string, { warmup }: { warmup: boolean }): Promise<vo
  * for `window.benchmarkPage`, or reads `window.benchmarkPageError` when getting ready failed.
  */
 export async function markPageReady(): Promise<void> {
-  if (typeof window.gc !== 'function') {
-    console.warn(
-      'window.gc is not available. Run with --js-flags=--expose-gc for consistent GC between iterations.',
-    );
-  }
+  warnIfNoGc();
   try {
     await selectVariant();
   } catch (error) {

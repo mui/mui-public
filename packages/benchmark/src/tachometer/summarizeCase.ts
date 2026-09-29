@@ -119,7 +119,18 @@ function indexByMeasurement(
  * The first declared variant is the reference, because that is the one under test: for the
  * auto-expanded regression case it is `[current]`.
  */
-export function summarizeCase(entry: BenchmarkCase, json: TachometerJson): CaseSummary {
+/** What a summary needs to know about a case, whichever engine measured it. */
+export type SummarizedCaseShape = Pick<
+  BenchmarkCase,
+  'name' | 'comparison' | 'variants' | 'measurements'
+>;
+
+/** One case as an engine ran it: its raw results, or the error that stopped it. */
+export type CaseRun =
+  | { entry: SummarizedCaseShape; json: TachometerJson }
+  | { entry: SummarizedCaseShape; error: string };
+
+export function summarizeCase(entry: SummarizedCaseShape, json: TachometerJson): CaseSummary {
   const [reference] = entry.variants;
   if (!reference) {
     throw new Error(`Case "${entry.name}" declares no variants.`);

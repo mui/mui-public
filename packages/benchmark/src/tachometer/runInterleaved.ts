@@ -1,162 +1,49 @@
 /* eslint-disable no-console */
 
-import * as path from 'node:path';
 import chalk from 'chalk';
 import type { Browser, BrowserContext, CDPSession, Page } from '@playwright/test';
 import { BENCHMARK_LAUNCH_ARGS } from '../launchArgs';
-import { measurementNameOf } from './discoverCases';
-import type { BenchmarkCase, CaseComparison, Leaf } from './discoverCases';
+import type { CaseComparison } from './discoverCases';
 import type { BenchFile } from './benchFiles';
 import type { ResolvedRef } from './refs';
 import { serveDirectory } from './serveDirectory';
 import { shuffledIndices, stableMeasurements, toTachometerJson } from './pairedStats';
 import type { Round } from './pairedStats';
-import type { TachometerJson } from './summarizeCase';
+import type { CaseRun, SummarizedCaseShape } from './summarizeCase';
 // Types for `window.benchmarkPage`, which the evaluated functions below call into.
 import type {} from '../page/page';
 
 /**
- * The interleaved engine: runs every case in Playwright instead of tachometer, sampling its variants
- * round by round in a shuffled order and comparing them on paired differences.
- *
- * Two kinds of case run here:
- *
- * - A `tachometer.json` case keeps tachometer's page contract. Every sample is a fresh load of the
- *   page, measured by the `performance.measure` entry (or first contentful paint) it names.
- * - A `*.bench.tsx` file runs its `benchmark()` cases in a page that stays open per build: every
- *   sample is one iteration, so module-scope data and the JIT stay warm, and interactions get
- *   trusted input through a CDP session the page is bridged to.
- *
- * Every variant gets a browser context of its own, so no two share a renderer process or a cache.
+ * The interleaved engine: runs the `benchmark()` cases of `*.bench.tsx` files in Playwright instead
+ * of tachometer. Every variant gets a page of its own, in a browser context of its own, that stays
+ * open for the whole case: every sample is one iteration, so module-scope data and the JIT stay
+ * warm, and interactions get trusted input through a CDP session the page is bridged to. Variants
+ * are sampled once per round in a shuffled order and compared on paired differences.
  */
 
-export interface InterleavedResult {
-  entry: BenchmarkCase;
-  json?: TachometerJson;
-  error?: string;
-}
-
 export interface RunInterleavedOptions {
-  harnessDir: string;
   /** Where each ref's pages were built, one directory per ref id. */
   buildsDir: string;
-  cases: BenchmarkCase[];
   benchFiles: BenchFile[];
-  buildFor: (leaf: Leaf) => ResolvedRef;
   /** The builds a benchmark file compares: the working tree first, then the baseline. */
   benchRefs: ResolvedRef[];
   browserBinary: string;
   asRoot: boolean;
-  /** Measured rounds per case. Defaults to a `tachometer.json`'s `sampleSize`, else 30. */
+  /** Measured rounds per case. Defaults to 30. */
   samples?: number;
-  /**
-   * Discarded rounds before measuring, once per case: default 2 for page loads, 10 for
-   * `*.bench.tsx` iterations.
-   */
+  /** Discarded rounds before measuring, once per case. Defaults to 10. */
   warmup?: number;
 }
 
-const DEFAULT_VIEWPORT = { width: 1920, height: 1080 };
+const VIEWPORT = { width: 1920, height: 1080 };
 const DEFAULT_SAMPLES = 30;
+const DEFAULT_WARMUP = 10;
 const SAMPLE_TIMEOUT_MS = 120_000;
 
 type CdpMethod = Parameters<CDPSession['send']>[0];
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? (error.stack ?? error.message) : String(error);
-}
-
-/** The Performance entry a tachometer measurement reads, under the name it reports it as. */
-interface EntrySpec {
-  name: string;
-  entryName: string;
-}
-
-function entrySpecsOf(node: any): EntrySpec[] {
-  return [node.measurement ?? 'callback'].flat().map((measurement: any): EntrySpec => {
-    const name = measurementNameOf(measurement, node.measurementExpression);
-    if (measurement === 'fcp') {
-      return { name, entryName: 'first-contentful-paint' };
-    }
-    if (typeof measurement === 'object' && measurement.mode === 'performance') {
-      return { name, entryName: measurement.entryName };
-    }
-    throw new Error(
-      `The interleaved engine reads Performance entries only; "${name}" in "${node.name}" is a ` +
-        `${typeof measurement === 'string' ? measurement : measurement.mode} measurement.`,
-    );
-  });
-}
-
-async function openContext(browser: Browser, viewport = DEFAULT_VIEWPORT) {
-  const context = await browser.newContext({ viewport });
-  const page = await context.newPage();
-  page.setDefaultTimeout(SAMPLE_TIMEOUT_MS);
-  page.on('pageerror', (error) => console.error(chalk.red(`  page error: ${error.message}`)));
-  return { context, page };
-}
-
-async function runPageCase(
-  browser: Browser,
-  origin: string,
-  entry: BenchmarkCase,
-  options: RunInterleavedOptions,
-): Promise<TachometerJson> {
-  const nodes: any[] = entry.config.benchmarks;
-  const targets = await Promise.all(
-    entry.leaves.map(async (leaf, index) => {
-      const node = nodes[index];
-      const opened = await openContext(browser, node.browser?.windowSize);
-      return {
-        ...opened,
-        url: `${origin}/${options.buildFor(leaf).id}/${leaf.page}${leaf.suffix}`,
-        specs: entrySpecsOf(node),
-      };
-    }),
-  );
-
-  try {
-    const sample = async ({ page, url, specs }: (typeof targets)[number]) => {
-      await page.goto(url);
-      const entryNames = specs.map((spec) => spec.entryName);
-      await page.waitForFunction(
-        (names) => names.every((name) => performance.getEntriesByName(name).length > 0),
-        entryNames,
-      );
-      return page.evaluate(
-        (specs) =>
-          Object.fromEntries(
-            specs.map(({ name, entryName }) => {
-              const [performanceEntry] = performance.getEntriesByName(entryName);
-              // A paint entry has no duration; tachometer reports its start time instead.
-              const value =
-                performanceEntry.entryType === 'paint'
-                  ? performanceEntry.startTime
-                  : performanceEntry.duration;
-              return [name, value];
-            }),
-          ),
-        specs,
-      );
-    };
-
-    const warmup = options.warmup ?? 2;
-    const samples = options.samples ?? entry.config.sampleSize ?? DEFAULT_SAMPLES;
-    const rounds: Round[] = [];
-    for (let roundIndex = 0; roundIndex < warmup + samples; roundIndex += 1) {
-      const round: Round = [];
-      for (const index of shuffledIndices(targets.length)) {
-        // eslint-disable-next-line no-await-in-loop
-        round[index] = await sample(targets[index]);
-      }
-      if (roundIndex >= warmup) {
-        rounds.push(round);
-      }
-    }
-    return toTachometerJson(entry.variants, entry.measurements, rounds);
-  } finally {
-    await Promise.all(targets.map((target) => target.context.close()));
-  }
 }
 
 /**
@@ -178,7 +65,10 @@ interface OpenedPage {
 }
 
 async function openBenchPage(browser: Browser, slot: PageSlot): Promise<OpenedPage> {
-  const { context, page } = await openContext(browser);
+  const context = await browser.newContext({ viewport: VIEWPORT });
+  const page = await context.newPage();
+  page.setDefaultTimeout(SAMPLE_TIMEOUT_MS);
+  page.on('pageerror', (error) => console.error(chalk.red(`  page error: ${error.message}`)));
   const session = await context.newCDPSession(page);
   // Interactions ask for trusted input through this bridge. `send` only accepts the protocol
   // methods Playwright knows by name; the page may ask for any, and Chrome rejects unknown ones.
@@ -188,23 +78,46 @@ async function openBenchPage(browser: Browser, slot: PageSlot): Promise<OpenedPa
       session.send(method as CdpMethod, params),
   );
   await page.goto(slot.url);
-  await page.waitForFunction(
-    () => window.benchmarkPage !== undefined || window.benchmarkPageError !== undefined,
-  );
-  const pageError = await page.evaluate(() => window.benchmarkPageError);
-  if (pageError !== undefined) {
+  const ready = await page.waitForFunction(() => {
+    if (window.benchmarkPageError !== undefined) {
+      return { error: window.benchmarkPageError };
+    }
+    if (window.benchmarkPage === undefined) {
+      return false;
+    }
+    return {
+      visibility: document.visibilityState,
+      caseNames: window.benchmarkPage.caseNames(),
+      comparisons: window.benchmarkPage.comparisons(),
+    };
+  });
+  const state = await ready.jsonValue();
+  if (!state) {
+    throw new Error(`${slot.url} never got ready.`);
+  }
+  if ('error' in state) {
     await context.close();
-    throw new Error(`${slot.url} could not get ready: ${pageError}`);
+    throw new Error(`${slot.url} could not get ready: ${state.error}`);
   }
-  const visibility = await page.evaluate(() => document.visibilityState);
-  if (visibility !== 'visible') {
-    console.warn(chalk.yellow(`  ${slot.url} is ${visibility}; rAF-based waits may stall.`));
+  if (state.visibility !== 'visible') {
+    console.warn(chalk.yellow(`  ${slot.url} is ${state.visibility}; rAF-based waits may stall.`));
   }
-  const { caseNames, comparisons } = await page.evaluate(() => ({
-    caseNames: window.benchmarkPage!.caseNames(),
-    comparisons: window.benchmarkPage!.comparisons(),
-  }));
-  return { slot, context, page, caseNames, comparisons };
+  return { slot, context, page, caseNames: state.caseNames, comparisons: state.comparisons };
+}
+
+async function closeBenchPages(targets: OpenedPage[]): Promise<void> {
+  await Promise.all(targets.map((target) => target.context.close()));
+}
+
+async function openBenchPages(browser: Browser, slots: PageSlot[]): Promise<OpenedPage[]> {
+  const settled = await Promise.allSettled(slots.map((slot) => openBenchPage(browser, slot)));
+  const opened = settled.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []));
+  const failed = settled.find((result) => result.status === 'rejected');
+  if (failed) {
+    await closeBenchPages(opened);
+    throw failed.reason;
+  }
+  return opened;
 }
 
 /** Runs one iteration; a measured one comes back as its `performance.measure` values by name. */
@@ -213,9 +126,9 @@ async function sampleBenchCase(
   name: string,
   warmup: boolean,
 ): Promise<Record<string, number> | undefined> {
-  await target.page.evaluate((args) => window.benchmarkPage!.sample(args.name, args), {
+  await target.page.evaluate((args) => window.benchmarkPage!.sample(args.name, args.options), {
     name,
-    warmup,
+    options: { warmup },
   });
   if (warmup) {
     return undefined;
@@ -232,27 +145,8 @@ async function sampleBenchCase(
   });
 }
 
-/** Opens a page per slot, in a random order so no slot always gets the first process. */
-async function openBenchPages(browser: Browser, slots: PageSlot[]): Promise<OpenedPage[]> {
-  const opened: OpenedPage[] = [];
-  try {
-    for (const index of shuffledIndices(slots.length)) {
-      // eslint-disable-next-line no-await-in-loop
-      opened[index] = await openBenchPage(browser, slots[index]);
-    }
-  } catch (error) {
-    await closeBenchPages(opened.filter(Boolean));
-    throw error;
-  }
-  return opened;
-}
-
-async function closeBenchPages(targets: OpenedPage[]): Promise<void> {
-  await Promise.all(targets.map((target) => target.context.close()));
-}
-
 /**
- * Measures one case: a page per slot stays open for the whole case, so iterations stay warm and
+ * Measures one case in fresh pages that stay open for the whole case, so iterations stay warm and
  * module-scope data is built once. Warmup and measured rounds alike run every slot once, in a
  * shuffled order.
  */
@@ -262,7 +156,7 @@ async function measureBenchCase(
   name: string,
   options: RunInterleavedOptions,
 ): Promise<Round[]> {
-  const warmup = options.warmup ?? 10;
+  const warmup = options.warmup ?? DEFAULT_WARMUP;
   const samples = options.samples ?? DEFAULT_SAMPLES;
   const rounds: Round[] = [];
   const targets = await openBenchPages(browser, slots);
@@ -283,34 +177,43 @@ async function measureBenchCase(
   return rounds;
 }
 
-/**
- * Runs every case the first slot defines across all slots, paired by name. The first slot is the
- * reference; a case another slot lacks is reported as an error rather than compared with nothing.
- */
-async function runSlotCases(
-  browser: Browser,
+function entryOf(
+  name: string,
+  comparison: CaseComparison,
   slots: PageSlot[],
+  measurements: string[] = [],
+): SummarizedCaseShape {
+  return {
+    name,
+    comparison,
+    variants: slots.map((slot) => `${name} [${slot.variant}]`),
+    measurements,
+  };
+}
+
+/**
+ * Runs every case the first listed page defines across all of them, paired by name. The first page
+ * is the reference; a case another page lacks is reported as an error rather than compared with
+ * nothing.
+ */
+async function runListedCases(
+  browser: Browser,
   listed: OpenedPage[],
   describe: { comparison: CaseComparison; nameOf: (caseName: string) => string; file: string },
   options: RunInterleavedOptions,
-): Promise<InterleavedResult[]> {
+): Promise<CaseRun[]> {
+  const slots = listed.map((target) => target.slot);
   const [reference, ...others] = listed;
-  const results: InterleavedResult[] = [];
+  const results: CaseRun[] = [];
   for (const caseName of reference.caseNames) {
     const name = describe.nameOf(caseName);
-    const entry: BenchmarkCase = {
-      name,
-      configPath: path.join(options.harnessDir, 'src', describe.file),
-      config: {},
-      comparison: describe.comparison,
-      leaves: [],
-      variants: slots.map((slot) => `${name} [${slot.variant}]`),
-      measurements: [],
-    };
     const missing = others.find((target) => !target.caseNames.includes(caseName));
     if (missing) {
       // A case added by the change under test, or one library lacks, has nothing to compare with.
-      results.push({ entry, error: `"${caseName}" does not exist in [${missing.slot.variant}].` });
+      results.push({
+        entry: entryOf(name, describe.comparison, slots),
+        error: `"${caseName}" does not exist in [${missing.slot.variant}].`,
+      });
       continue;
     }
 
@@ -320,11 +223,14 @@ async function runSlotCases(
       const rounds = await measureBenchCase(browser, slots, caseName, options);
       // A measurement some iteration did not produce (an interaction whose render count varies,
       // say) cannot be paired round by round, so only those every iteration reported are kept.
-      entry.measurements = stableMeasurements(rounds);
+      const entry = entryOf(name, describe.comparison, slots, stableMeasurements(rounds));
       results.push({ entry, json: toTachometerJson(entry.variants, entry.measurements, rounds) });
     } catch (error) {
       console.error(chalk.red(`  ${errorMessage(error)}`));
-      results.push({ entry, error: errorMessage(error) });
+      results.push({
+        entry: entryOf(name, describe.comparison, slots),
+        error: errorMessage(error),
+      });
     }
   }
   return results;
@@ -343,18 +249,18 @@ async function runBenchFile(
   origin: string,
   benchFile: BenchFile,
   options: RunInterleavedOptions,
-): Promise<InterleavedResult[]> {
+): Promise<CaseRun[]> {
   const buildSlots = options.benchRefs.map((ref): PageSlot => ({
     variant: ref.kind === 'worktree' ? 'current' : 'baseline',
     url: benchPageUrl(origin, ref, benchFile).href,
   }));
-  // Opened once just to learn which cases and comparisons each build defines.
+  // Opened once to learn which cases and comparisons each build defines; every case then measures
+  // in fresh pages of its own.
   const listed = await openBenchPages(browser, buildSlots);
   await closeBenchPages(listed);
 
-  const results = await runSlotCases(
+  const results = await runListedCases(
     browser,
-    buildSlots,
     listed,
     { comparison: 'baseline', nameOf: (caseName) => caseName, file: benchFile.file },
     options,
@@ -375,9 +281,8 @@ async function runBenchFile(
       await closeBenchPages(variantPages);
       results.push(
         // eslint-disable-next-line no-await-in-loop
-        ...(await runSlotCases(
+        ...(await runListedCases(
           browser,
-          variantSlots,
           variantPages,
           {
             comparison: 'variants',
@@ -389,45 +294,26 @@ async function runBenchFile(
       );
     } catch (error) {
       console.error(chalk.red(`  ${errorMessage(error)}`));
-      results.push({
-        entry: {
-          name: comparison,
-          configPath: path.join(options.harnessDir, 'src', benchFile.file),
-          config: {},
-          comparison: 'variants',
-          leaves: [],
-          variants: [],
-          measurements: [],
-        },
-        error: errorMessage(error),
-      });
+      results.push({ entry: entryOf(comparison, 'variants', []), error: errorMessage(error) });
     }
   }
   return results;
 }
 
-export async function runInterleaved(options: RunInterleavedOptions): Promise<InterleavedResult[]> {
+export async function runInterleaved(options: RunInterleavedOptions): Promise<CaseRun[]> {
   const { chromium } = await import('@playwright/test');
-  const server = await serveDirectory(options.buildsDir);
-  const browser = await chromium.launch({
-    executablePath: options.browserBinary,
-    headless: true,
-    args: [...BENCHMARK_LAUNCH_ARGS, ...(options.asRoot ? ['--no-sandbox'] : [])],
-  });
+  const [server, browser] = await Promise.all([
+    serveDirectory(options.buildsDir),
+    chromium.launch({
+      executablePath: options.browserBinary,
+      headless: true,
+      args: [...BENCHMARK_LAUNCH_ARGS, ...(options.asRoot ? ['--no-sandbox'] : [])],
+    }),
+  ]);
 
   try {
-    const results: InterleavedResult[] = [];
+    const results: CaseRun[] = [];
     // Sequential on purpose: concurrent cases would contend for the same machine.
-    for (const entry of options.cases) {
-      console.log(chalk.cyan(`\nRunning "${entry.name}"…`));
-      try {
-        // eslint-disable-next-line no-await-in-loop
-        results.push({ entry, json: await runPageCase(browser, server.origin, entry, options) });
-      } catch (error) {
-        console.error(chalk.red(`  ${errorMessage(error)}`));
-        results.push({ entry, error: errorMessage(error) });
-      }
-    }
     for (const benchFile of options.benchFiles) {
       // eslint-disable-next-line no-await-in-loop
       results.push(...(await runBenchFile(browser, server.origin, benchFile, options)));

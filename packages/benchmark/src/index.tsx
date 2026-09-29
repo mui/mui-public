@@ -7,8 +7,19 @@ import { ScalarMetric } from './ScalarMetric';
 import { metricsGate } from './metricsGate';
 import { runProfileSession } from './profileSession';
 import { createInput } from './input';
-import { createCaseRuntime, createElementTimingWaiter, measureIteration } from './caseRuntime';
-import type { BenchmarkInteraction, CaseOptions } from './caseRuntime';
+import {
+  createCaseRuntime,
+  createElementTimingWaiter,
+  measureIteration,
+  splitCaseArgs,
+  warnIfNoGc,
+} from './caseRuntime';
+import type {
+  BenchmarkInteraction,
+  BenchmarkOptions,
+  CaseOptions,
+  VariantLoader,
+} from './caseRuntime';
 // Installs the Vitest metric recorder.
 import './Metric';
 // Import for TaskMeta augmentation side effect
@@ -23,7 +34,7 @@ export type {
   MetricDefinition,
 } from './types';
 export type { BenchmarkInput } from './input';
-export type { BenchmarkInteraction } from './caseRuntime';
+export type { BenchmarkInteraction, BenchmarkOptions, VariantLoader } from './caseRuntime';
 export { ElementTiming } from './ElementTiming';
 export { Metric, type MetricRecordOptions } from './Metric';
 export { ScalarMetric };
@@ -41,11 +52,6 @@ type CdpMethod = Parameters<ReturnType<typeof cdp>['send']>[0];
 // session's `send` only accepts protocol method names it knows; `input.send` takes any string and
 // leaves unknown methods for Chrome to reject.
 const input = createInput((method, params) => cdp().send(method as CdpMethod, params));
-
-export interface BenchmarkOptions extends CaseOptions {
-  runs?: number;
-  warmupRuns?: number;
-}
 
 export interface RunCaseOptions extends CaseOptions {
   /**
@@ -74,25 +80,6 @@ const paint = new ScalarMetric({
   format: { style: 'unit', unit: 'millisecond', maximumFractionDigits: 2 },
 });
 
-async function measureAndRecord(
-  renderFn: () => React.ReactElement,
-  interaction: BenchmarkInteraction | undefined,
-  options: RunCaseOptions | undefined,
-): Promise<RunCaseResult> {
-  const { renders, paints, renderError, hadEmptyActiveWindow } = await measureIteration(
-    renderFn,
-    interaction,
-    options,
-    input,
-  );
-  if (!options?.warmup) {
-    for (const { id, start, end } of paints) {
-      paint.record(end - start, id !== undefined ? { id } : undefined);
-    }
-  }
-  return { renders, renderError, hadEmptyActiveWindow };
-}
-
 /**
  * Mounts, interacts with and unmounts a case exactly once, recording its renders and paint.
  *
@@ -109,26 +96,34 @@ export async function runCase(
   interactionOrOptions?: BenchmarkInteraction | RunCaseOptions,
   maybeOptions?: RunCaseOptions,
 ): Promise<RunCaseResult> {
-  const interaction = typeof interactionOrOptions === 'function' ? interactionOrOptions : undefined;
-  const options = typeof interactionOrOptions === 'object' ? interactionOrOptions : maybeOptions;
+  const { interaction, options } = splitCaseArgs(interactionOrOptions, maybeOptions);
 
   // Custom metrics recorded inside the case honor warmup exclusion through the gate, the same way
   // renders and `bench:paint` are excluded during warmup. The gate is keyed on the running test,
   // and is re-enabled afterwards so metrics the driver records between iterations are kept.
   const test = TestRunner.getCurrentTest<RunnerTestCase | undefined>();
-  if (!test) {
-    return measureAndRecord(renderFn, interaction, options);
+  if (test) {
+    metricsGate.setRecordingEnabled(test, !options?.warmup);
   }
-  metricsGate.setRecordingEnabled(test, !options?.warmup);
   try {
-    return await measureAndRecord(renderFn, interaction, options);
+    const { renders, paints, renderError, hadEmptyActiveWindow } = await measureIteration(
+      renderFn,
+      interaction,
+      options,
+      input,
+    );
+    if (!options?.warmup) {
+      for (const { id, start, end } of paints) {
+        paint.record(end - start, id !== undefined ? { id } : undefined);
+      }
+    }
+    return { renders, renderError, hadEmptyActiveWindow };
   } finally {
-    metricsGate.setRecordingEnabled(test, true);
+    if (test) {
+      metricsGate.setRecordingEnabled(test, true);
+    }
   }
 }
-
-/** Loads a variant's module, whose `benchmark()` calls define that variant's cases. */
-export type VariantLoader = () => Promise<unknown>;
 
 // The `compare()` variant whose module is loading, so its `benchmark()` calls can say whose they are.
 let loadingVariant: string | undefined;
@@ -161,8 +156,7 @@ export function benchmark(
   interactionOrOptions?: BenchmarkInteraction | BenchmarkOptions,
   maybeOptions?: BenchmarkOptions,
 ) {
-  const interaction = typeof interactionOrOptions === 'function' ? interactionOrOptions : undefined;
-  const options = typeof interactionOrOptions === 'object' ? interactionOrOptions : maybeOptions;
+  const { interaction, options } = splitCaseArgs(interactionOrOptions, maybeOptions);
   const name = loadingVariant === undefined ? caseName : `${caseName} [${loadingVariant}]`;
 
   // In profile mode, skip the automated measurement loop entirely: build a bare case runtime (no
@@ -194,11 +188,7 @@ export function benchmark(
     const runs = options?.runs ?? 20;
     const warmupRuns = options?.warmupRuns ?? 10;
 
-    if (typeof window.gc !== 'function') {
-      console.warn(
-        'window.gc is not available. Run with --js-flags=--expose-gc for consistent GC between iterations.',
-      );
-    }
+    warnIfNoGc();
 
     const iterations: IterationData[] = [];
     let renderError: unknown = null;
@@ -208,11 +198,7 @@ export function benchmark(
     for (let i = 0; i < warmupRuns + runs; i += 1) {
       const warmup = i < warmupRuns;
       // eslint-disable-next-line no-await-in-loop
-      const result = await runCase(renderFn, interaction, {
-        afterEach: options?.afterEach,
-        reactRecordingPaused: options?.reactRecordingPaused,
-        warmup,
-      });
+      const result = await runCase(renderFn, interaction, { ...options, warmup });
       if (result.renderError) {
         renderError = result.renderError;
         break;

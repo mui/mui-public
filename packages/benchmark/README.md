@@ -448,31 +448,26 @@ resolution there, leaving the repository untouched, at the cost of a second inst
 
 ### Interleaved engine
 
-`--engine interleaved` measures the same builds without tachometer: it drives Chromium through
-Playwright, samples every variant once per round in a shuffled order, and judges a difference on the
-per-round differences rather than on two independent sets of samples. Whatever the machine was doing
-during a round — thermal throttling, a background process — then affects both sides of it and
-cancels out, instead of counting as noise or, worse, as a difference. The report, the upload and the
-PR comment are the same as tachometer's.
+`--engine interleaved` measures the same builds without tachometer, and runs a different kind of
+case: the `*.bench.tsx` files under `src/`, written with `benchmark()` exactly as for Vitest.
+`tachometer.json` cases stay with the tachometer engine.
 
-It runs two kinds of case side by side:
-
-- **`tachometer.json` cases**, unchanged. Every sample is a fresh page load, measured by the
-  `performance.measure` entry (or `fcp`) the case names. Other measurement modes are tachometer-only.
-- **`*.bench.tsx` files** under `src/`, written with `benchmark()` exactly as for Vitest. The plugin
-  generates a page per file under `src/__bench__/`, where `@mui/internal-benchmark` resolves to a page
-  runtime instead of Vitest. The page stays open, so every sample is one warm iteration and
-  module-scope data is built once; renders, `bench:paint` and custom metrics are reported as
-  measurements. The iteration counts in `benchmark()`'s options are ignored — `--samples` and
-  `--warmup` decide.
+The plugin generates a page per benchmark file under `src/__bench__/`, where
+`@mui/internal-benchmark` resolves to a page runtime instead of Vitest. The runner drives Chromium
+through Playwright and gives every variant a page of its own, in a browser context of its own, that
+stays open for the whole case: every sample is one warm iteration, and module-scope data is built
+once. Variants are sampled once per round in a shuffled order, and a difference is judged on the
+per-round differences rather than on two independent sets of samples, so whatever the machine was
+doing during a round — thermal throttling, a background process — affects both sides of it and
+cancels out. Renders, `bench:paint` and custom metrics are reported as measurements; the report, the
+upload and the PR comment are the same as tachometer's.
 
 ```bash
 benchmark tacho run --engine interleaved --baseline "$(code-infra baseline)" --samples 30
 ```
 
-Every variant runs in a browser context of its own. A `*.bench.tsx` case opens one page per variant
-and keeps it open for the whole case: `--warmup` rounds (10 by default) are discarded once, then the
-measured rounds follow.
+The iteration counts in `benchmark()`'s options are ignored: `--warmup` rounds (10 by default) are
+discarded once per case, then `--samples` rounds (30 by default) are measured.
 
 ## API
 

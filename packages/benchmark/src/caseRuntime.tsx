@@ -32,6 +32,33 @@ export interface CaseOptions {
   reactRecordingPaused?: boolean;
 }
 
+/** `benchmark()`'s options. The page runtime ignores the iteration counts: the runner decides them. */
+export interface BenchmarkOptions extends CaseOptions {
+  runs?: number;
+  warmupRuns?: number;
+}
+
+/** Loads a `compare()` variant's module, whose `benchmark()` calls define that variant's cases. */
+export type VariantLoader = () => Promise<unknown>;
+
+/** Splits `benchmark()`-style arguments, where the interaction may be left out. */
+export function splitCaseArgs<Options extends object>(
+  interactionOrOptions: BenchmarkInteraction | Options | undefined,
+  maybeOptions: Options | undefined,
+): { interaction: BenchmarkInteraction | undefined; options: Options | undefined } {
+  return typeof interactionOrOptions === 'function'
+    ? { interaction: interactionOrOptions, options: maybeOptions }
+    : { interaction: undefined, options: interactionOrOptions ?? maybeOptions };
+}
+
+export function warnIfNoGc(): void {
+  if (typeof window.gc !== 'function') {
+    console.warn(
+      'window.gc is not available. Run with --js-flags=--expose-gc for consistent GC between iterations.',
+    );
+  }
+}
+
 function BenchProfiler({
   captures,
   recording,

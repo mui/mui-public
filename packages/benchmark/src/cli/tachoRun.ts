@@ -53,17 +53,15 @@ const command: CommandModule<{}, Args> = {
         choices: ['tachometer', 'interleaved'] as const,
         default: 'tachometer' as const,
         describe:
-          "What measures the pages: 'tachometer', or 'interleaved', which alternates variants round by round in Playwright, compares paired differences, and also runs *.bench.tsx files",
+          "What measures the harness: 'tachometer' runs its tachometer.json cases; 'interleaved' runs its *.bench.tsx files in Playwright, alternating variants round by round and comparing paired differences",
       })
       .option('samples', {
         type: 'number',
-        describe:
-          "Interleaved engine: measured rounds per case. Default: the case's sampleSize, else 30",
+        describe: 'Interleaved engine: measured rounds per case. Default: 30',
       })
       .option('warmup', {
         type: 'number',
-        describe:
-          'Interleaved engine: discarded rounds before measuring. Default: 2 for page cases, 10 for *.bench.tsx cases',
+        describe: 'Interleaved engine: discarded rounds before measuring. Default: 10',
       })
       .epilogue(
         'Sampling (sampleSize, autoSampleConditions, timeout) is configured per case in its own tachometer.json — tachometer rejects those as CLI flags when a config file is used.',

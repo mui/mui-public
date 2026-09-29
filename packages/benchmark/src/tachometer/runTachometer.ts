@@ -19,6 +19,7 @@ import { buildRefPages, restoreWorkspace } from './buildPages';
 import type { ResolveMode } from './buildPages';
 import { assertDriverMatchesBrowser, resolveBrowserBinary, withBrowserDefaults } from './browser';
 import { summarizeCase } from './summarizeCase';
+import type { CaseRun } from './summarizeCase';
 import { renderTachometerReport } from './renderReport';
 import { getCiMetadata } from '../ciReport';
 import { syncPrComment } from '../syncPrComment';
@@ -143,19 +144,17 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
   // back before doing anything else, whatever mode this run is in.
   await restoreWorkspace(repoRoot, outputDir);
 
-  const cases = await discoverCases({ harnessDir, filters, allowEmpty: true });
-  let benchFiles = await discoverBenchFiles({ harnessDir, filters });
-  if (engine === 'tachometer' && benchFiles.length > 0) {
-    console.warn(
-      chalk.yellow(
-        `Skipping ${benchFiles.length} *.bench.tsx file(s): only the interleaved engine runs them (--engine interleaved).`,
-      ),
+  // Each engine runs its own kind of case: tachometer the `tachometer.json` cases, the interleaved
+  // engine the `*.bench.tsx` files.
+  const cases = engine === 'tachometer' ? await discoverCases({ harnessDir, filters }) : [];
+  const benchFiles =
+    engine === 'interleaved' ? await discoverBenchFiles({ harnessDir, filters }) : [];
+  if (engine === 'interleaved' && benchFiles.length === 0) {
+    throw new Error(
+      filters.length > 0
+        ? `No *.bench.tsx file under ${path.join(harnessDir, 'src')} matches ${filters.map((filter) => `"${filter}"`).join(', ')}.`
+        : `No *.bench.tsx file found under ${path.join(harnessDir, 'src')}.`,
     );
-    benchFiles = [];
-  }
-  if (cases.length === 0 && benchFiles.length === 0) {
-    // Nothing selected: let discovery say what it looked for.
-    await discoverCases({ harnessDir, filters });
   }
   // A benchmark file always compares the working tree against the baseline.
   const { refs, buildFor } = await resolveBuilds(
@@ -186,9 +185,12 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
       : `${entry.name} (${entry.variants.length} variants)`;
 
   console.log(chalk.cyan(`Engine:  ${engine}`));
-  console.log(chalk.cyan(`Cases:   ${cases.map(describeCase).join(', ')}`));
-  console.log(chalk.cyan(`Files:   ${benchFiles.map((benchFile) => benchFile.file).join(', ')}`));
-  console.log(chalk.cyan(`Pages:   ${pagesOf(cases).join(', ')}`));
+  if (engine === 'tachometer') {
+    console.log(chalk.cyan(`Cases:   ${cases.map(describeCase).join(', ')}`));
+    console.log(chalk.cyan(`Pages:   ${pagesOf(cases).join(', ')}`));
+  } else {
+    console.log(chalk.cyan(`Files:   ${benchFiles.map((benchFile) => benchFile.file).join(', ')}`));
+  }
   console.log(chalk.cyan(`Refs:    ${refs.map(describeRef).join(', ')}`));
   console.log(
     chalk.cyan(`Browser: ${browserBinary}${asRoot ? ' (as root, so without its sandbox)' : ''}`),
@@ -235,30 +237,24 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
       });
     }
 
-    const results: Array<{ entry: BenchmarkCase; json?: any; error?: string }> = [];
-    if (engine === 'interleaved') {
-      const worktreeRef = refs.find((ref) => ref.kind === 'worktree') ?? WORKTREE_REF;
-      results.push(
-        ...(await runInterleaved({
-          harnessDir,
-          buildsDir,
-          cases,
-          benchFiles,
-          buildFor,
-          // The working tree first: the first variant is the reference a case is judged against.
-          benchRefs: [worktreeRef, ...refs.filter((ref) => ref !== worktreeRef)],
-          browserBinary,
-          asRoot,
-          samples,
-          warmup,
-        })),
-      );
-    }
+    const results: CaseRun[] =
+      engine === 'interleaved'
+        ? await runInterleaved({
+            buildsDir,
+            benchFiles,
+            // `resolveBuilds` lists the working tree first, which makes it the reference.
+            benchRefs: refs,
+            browserBinary,
+            asRoot,
+            samples,
+            warmup,
+          })
+        : [];
 
     // Rewrite each leaf url to its ref's built page, then run each case's own config. Tachometer
     // resolves relative urls against the config file's directory and these configs are written to a
     // temp dir, so the rewritten urls are absolute.
-    for (const entry of engine === 'tachometer' ? cases : []) {
+    for (const entry of cases) {
       for (const leaf of entry.leaves) {
         leaf.node.url = `${path.join(buildsDir, buildFor(leaf).id, leaf.page)}${leaf.suffix}`;
       }
@@ -312,12 +308,13 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
       // Summarising is best-effort per case: a case that produced no usable benchmarks must not
       // cost the whole run its report, since `raw` below is the only surviving copy of every other
       // case's samples once the temp dir is cleaned up.
-      cases: results.map(({ entry, json, error: runError }): CaseResult => {
-        if (runError !== undefined) {
-          return { name: entry.name, comparison: entry.comparison, error: runError };
+      cases: results.map((result): CaseResult => {
+        const { entry } = result;
+        if ('error' in result) {
+          return { name: entry.name, comparison: entry.comparison, error: result.error };
         }
         try {
-          return summarizeCase(entry, json);
+          return summarizeCase(entry, result.json);
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           console.error(chalk.yellow(`Could not summarize "${entry.name}": ${message}`));
@@ -325,7 +322,7 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
         }
       }),
       raw: Object.fromEntries(
-        results.flatMap(({ entry, json }) => (json === undefined ? [] : [[entry.name, json]])),
+        results.flatMap((result) => ('json' in result ? [[result.entry.name, result.json]] : [])),
       ),
     };
     await mkdir(path.dirname(outPath), { recursive: true });

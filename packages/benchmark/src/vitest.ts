@@ -56,9 +56,6 @@ function resolveViewport(option?: {
   return undefined;
 }
 
-// Shared by measurement and profiling; add project-specific flags via `launchArgs`.
-const LAUNCH_ARGS = BENCHMARK_LAUNCH_ARGS;
-
 export function createBenchmarkVitestConfig(
   options?: CreateBenchmarkVitestConfigOptions,
 ): ViteUserConfig {
@@ -70,7 +67,7 @@ export function createBenchmarkVitestConfig(
   // Vitest's `viewport` only sizes the iframe, so otherwise it's cropped/scrolled in the headed
   // window instead of filling it. (Measurement is headless, so it has no window to size.)
   const profileArgs = [
-    ...LAUNCH_ARGS,
+    ...BENCHMARK_LAUNCH_ARGS,
     '--auto-open-devtools-for-tabs',
     `--window-size=${viewport.width},${viewport.height}`,
   ];
@@ -105,7 +102,7 @@ export function createBenchmarkVitestConfig(
         ],
         provider: playwright({
           launchOptions: {
-            args: [...(profile ? profileArgs : LAUNCH_ARGS), ...launchArgs],
+            args: [...(profile ? profileArgs : BENCHMARK_LAUNCH_ARGS), ...launchArgs],
           },
         }),
       },
