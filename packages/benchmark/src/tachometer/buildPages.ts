@@ -11,7 +11,6 @@ import { parse, stringify } from 'yaml';
 // Self-referencing rather than `../../package.json`, which resolves only in the repository — see
 // the note in ../cli/index.ts.
 import pkgJson from '@mui/internal-benchmark/package.json' with { type: 'json' };
-import { tarballFor } from '../utils/packWorkspace';
 import type { PackedPackage } from '../utils/packWorkspace';
 import { installedVersions, readPackageJson, writePackageJson } from '../utils/pnpm';
 import { refLabel } from './format';
@@ -39,6 +38,18 @@ export type ResolveMode = 'isolated' | 'in-place';
  * dependency tree many times the size of a harness.
  */
 const RUNNER_ONLY_DEPS = ['tachometer', 'chromedriver', '@playwright/test', pkgJson.name];
+
+/** Looks up one packed package's tarball by name, naming what was packed when it is missing. */
+function tarballFor(packages: PackedPackage[], name: string): string {
+  const found = packages.find((pkg) => pkg.name === name);
+  if (!found) {
+    // A workspace dependency that was never packed is a packaging bug in the ref — usually a
+    // private package a public one depends on — so the message names what is available.
+    const available = packages.map((pkg) => pkg.name).join(', ') || '(none)';
+    throw new Error(`Package "${name}" was not packed. Packed: ${available}.`);
+  }
+  return found.tarball;
+}
 
 /**
  * A dependency map for a ref's tree: every `workspace:` entry points at that ref's packed tarball,
