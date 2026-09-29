@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { benchmark } from '@mui/internal-benchmark';
+import { reactBenchmark } from '@mui/internal-benchmark/page';
 import { makeValues, report } from './shared';
 
 /** A merge sort written in JavaScript, allocating as it goes — the slow variant of the three. */
@@ -33,4 +33,4 @@ function Sorted() {
   return <p>{report('beta', mergeSort(makeValues()))}</p>;
 }
 
-benchmark('sort', () => <Sorted />);
+reactBenchmark('sort', () => <Sorted />);

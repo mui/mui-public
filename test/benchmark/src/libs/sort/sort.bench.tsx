@@ -1,4 +1,4 @@
-import { compare } from '@mui/internal-benchmark';
+import { compare } from '@mui/internal-benchmark/page';
 
 /**
  * Three sorts compared with each other rather than across builds — the shape a comparison between

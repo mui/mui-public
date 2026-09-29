@@ -8,8 +8,9 @@ import { ElementTiming } from './ElementTiming';
 import { createReactRecordingControls } from './reactRecording';
 import type { ReactRecordingControls } from './reactRecording';
 
-// Everything here runs a case without knowing who drives it: the Vitest harness (`index.tsx`) and
-// the A/B page (`page/page.tsx`) both build on it, so nothing in this module may import Vitest.
+// Everything here runs a React case without knowing who drives it: the Vitest harness (`index.tsx`)
+// and the page runtime's `reactBenchmark()` both build on it, so nothing in this module may import
+// Vitest.
 
 interface PerformanceElementTiming extends PerformanceEntry {
   readonly entryType: 'element';
@@ -51,7 +52,7 @@ export interface CaseOptions {
   reactRecordingPaused?: boolean;
 }
 
-/** `benchmark()`'s options. The page runtime ignores the iteration counts: the runner decides them. */
+/** The Vitest `benchmark()`'s options. */
 export interface BenchmarkOptions extends CaseOptions {
   runs?: number;
   warmupRuns?: number;

@@ -14,8 +14,8 @@ import { buildsDirOf, prepareOutputDir, OUTPUT_DIR } from './outputDir';
  *
  * - A generated page per benchmark file, under `src/__bench__/`, and those pages as the build's
  *   entry points.
- * - `@mui/internal-benchmark` resolved to the page runtime, which runs the file's `benchmark()`
- *   cases one iteration at a time for `benchmark run`.
+ * - A clear error when a page imports Vitest, or the Vitest entry of this package instead of
+ *   `@mui/internal-benchmark/page`.
  * - `root` at the harness's `src/`, as an MPA (vite defaults to `spa`, whose fallback would rewrite
  *   unmatched urls toward a root `index.html` that does not exist here), and an index page listing
  *   the benchmark files.
@@ -99,21 +99,23 @@ export function benchmarkPlugin(options: BenchmarkPluginOptions = {}): Plugin {
 
   return {
     name: 'mui-benchmark:pages',
-    // Ahead of vite's own resolver, so the redirect below wins over the package's `exports`.
+    // Ahead of vite's own resolver, so the errors below win over the package's `exports`.
     enforce: 'pre',
 
-    // Benchmark files are written against `@mui/internal-benchmark`; in a page that is the page
-    // runtime, which the runner drives one iteration at a time. Tests are not benchmarks, so a page
-    // has no Vitest to import.
+    // Tests are not benchmarks, so a page has no Vitest to import — nor this package's Vitest entry,
+    // which imports it.
     async resolveId(source, importer) {
       if (source === '@mui/internal-benchmark') {
-        return this.resolve('@mui/internal-benchmark/page', importer, { skipSelf: true });
+        this.error(
+          `${importer ?? 'A benchmark page'} imports "@mui/internal-benchmark", the Vitest ` +
+            'harness. Benchmark files for `benchmark run` import "@mui/internal-benchmark/page".',
+        );
       }
       if (source === 'vitest' || source.startsWith('vitest/')) {
         this.error(
           `${importer ?? 'A benchmark page'} imports "${source}". Benchmark files run outside ` +
-            'Vitest: define cases with benchmark() or compare(), and use the interaction context ' +
-            '(input, waitForElementTiming, …) instead of Vitest APIs.',
+            'Vitest: define cases with benchmark(), reactBenchmark() or compare(), and use the ' +
+            'interaction context (input, waitForElementTiming, …) instead of Vitest APIs.',
         );
       }
       return null;

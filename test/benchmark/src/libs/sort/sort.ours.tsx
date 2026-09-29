@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { benchmark } from '@mui/internal-benchmark';
+import { reactBenchmark } from '@mui/internal-benchmark/page';
 import { makeValues, report } from './shared';
 
 /** Copies into a typed array first, so the engine sorts unboxed doubles with no comparator calls. */
@@ -9,4 +9,4 @@ function Sorted() {
   return <p>{report('ours', sorted)}</p>;
 }
 
-benchmark('sort', () => <Sorted />);
+reactBenchmark('sort', () => <Sorted />);

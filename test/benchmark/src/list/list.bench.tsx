@@ -1,12 +1,11 @@
 import * as React from 'react';
-import { benchmark, ScalarMetric } from '@mui/internal-benchmark';
+import { reactBenchmark, ScalarMetric } from '@mui/internal-benchmark/page';
 import { reactMajor } from '@mui/internal-test-utils/env';
 import { ScrollingList } from '../_shared/ScrollingList';
 
 /**
- * `benchmark()` cases, the same API Vitest runs. Under `benchmark run` each case runs one
- * iteration at a time in a page that stays open per build, with the builds alternating round by
- * round.
+ * `reactBenchmark()` cases. Under `benchmark run` each case runs one iteration at a time in a page
+ * that stays open per build, with the builds alternating round by round.
  *
  * Like the `workload` benchmark, it imports a workspace package so both builds resolve it from their
  * own packed tarball.
@@ -22,7 +21,7 @@ function List({ count }: { count: number }) {
   );
 }
 
-benchmark('list mount', () => <List count={1000} />);
+reactBenchmark('list mount', () => <List count={1000} />);
 
 const scrollDuration = new ScalarMetric({
   name: 'scroll_gesture',
@@ -31,7 +30,7 @@ const scrollDuration = new ScalarMetric({
 
 // A trusted wheel-style scroll: the browser generates the whole gesture at frame cadence, so the
 // list sees the event timing a real mouse wheel would produce.
-benchmark(
+reactBenchmark(
   'list scroll',
   () => (
     <ScrollingList>

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { benchmark } from '@mui/internal-benchmark';
+import { reactBenchmark } from '@mui/internal-benchmark/page';
 import { makeValues, report } from './shared';
 
 /** Sorts the boxed array in place, paying a comparator call per comparison. */
@@ -9,4 +9,4 @@ function Sorted() {
   return <p>{report('alpha', values)}</p>;
 }
 
-benchmark('sort', () => <Sorted />);
+reactBenchmark('sort', () => <Sorted />);

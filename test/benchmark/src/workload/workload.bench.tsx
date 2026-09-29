@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { benchmark } from '@mui/internal-benchmark';
+import { reactBenchmark } from '@mui/internal-benchmark/page';
 import { reactMajor } from '@mui/internal-test-utils/env';
 
 /**
@@ -43,5 +43,5 @@ function Workload({ size }: { size: number }) {
   );
 }
 
-benchmark('workload', () => <Workload size={50_000} />);
-benchmark('workload-large', () => <Workload size={400_000} />);
+reactBenchmark('workload', () => <Workload size={50_000} />);
+reactBenchmark('workload-large', () => <Workload size={400_000} />);

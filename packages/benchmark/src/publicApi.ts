@@ -1,6 +1,5 @@
-// What `@mui/internal-benchmark` exports whichever runtime it resolves to — the Vitest harness
-// (`index.tsx`) or the page runtime (`page/page.tsx`) — so a benchmark file type-checks and runs the
-// same against both. Each entry adds its own `benchmark`, `compare` and, for Vitest, `runCase`.
+// What both runtimes export: the Vitest harness (`@mui/internal-benchmark`) and the page runtime
+// `benchmark run` measures (`@mui/internal-benchmark/page`). Each entry adds its own case API.
 
 export type { RenderEvent, IterationData, InteractionContext } from './types';
 export type {

@@ -366,9 +366,8 @@ The feature is opt-in — without `BENCHMARK_BASELINE_PATH` (or the `baselinePat
 
 ## `benchmark run`
 
-`benchmark run` measures a harness package's `*.bench.tsx` files — the same `benchmark()` and
-`compare()` files Vitest runs — across two builds of the workspace: the working tree and a baseline.
-Run it from the harness, whose vite config uses the plugin:
+`benchmark run` measures a harness package's `*.bench.tsx` files across two builds of the workspace:
+the working tree and a baseline. Run it from the harness, whose vite config uses the plugin:
 
 ```js
 // vite.config.mjs
@@ -382,11 +381,49 @@ export default defineConfig({ plugins: [benchmarkPlugin()] });
 benchmark run --baseline "$(code-infra baseline)"
 ```
 
+### Defining cases
+
+Benchmark files import `@mui/internal-benchmark/page`. `benchmark()` registers a case: the runner
+calls its function once per sample, and the case records what it measures through a `ScalarMetric`
+or `DiscreteMetric`. Nothing is measured implicitly, and a sample that records nothing fails.
+
+```tsx
+import { benchmark, ScalarMetric } from '@mui/internal-benchmark/page';
+
+const parseTime = new ScalarMetric({ name: 'json:parse', alarm: {} });
+
+benchmark('parse', () => {
+  parseTime.time();
+  JSON.parse(payload);
+  parseTime.timeEnd();
+});
+```
+
+`reactBenchmark()` wraps it for React: every sample mounts the element, runs the interaction, waits
+for the paint and unmounts, and records `render` (total render duration), `render:count` and
+`bench:paint`, plus a `render:<phase>` split when there is more than one phase. It takes the same
+arguments as the Vitest `benchmark()` — so moving a file over is a rename and a new import.
+
+```tsx
+import { reactBenchmark } from '@mui/internal-benchmark/page';
+
+reactBenchmark('mount', () => <Grid rows={1000} />);
+reactBenchmark(
+  'scroll',
+  () => <Grid rows={1000} />,
+  async ({ input }) => {
+    await input.scroll({ x: 100, y: 100, deltaY: 2000 });
+  },
+);
+```
+
+`compare()` pairs cases across implementations, each a module of `benchmark()` or `reactBenchmark()`
+cases.
+
 ### How it measures
 
-The plugin generates a page per benchmark file under `src/__bench__/`, where
-`@mui/internal-benchmark` resolves to a page runtime instead of Vitest; a benchmark file that imports
-`vitest` fails the build. The runner drives Chromium through Playwright and gives every variant — the
+The plugin generates a page per benchmark file under `src/__bench__/`. A benchmark file that imports
+`vitest`, or the Vitest entry `@mui/internal-benchmark`, fails the build. The runner drives Chromium through Playwright and gives every variant — the
 current and the baseline build, or each variant of a `compare()` — a page of its own, in a browser
 context of its own, that stays open for the whole benchmark: every sample is one warm iteration, and
 module-scope data is built once.
@@ -394,8 +431,7 @@ module-scope data is built once.
 Every variant is sampled once per round, in a shuffled order, and a difference is judged on the
 per-round differences rather than on two independent sets of samples. Whatever the machine was doing
 during a round — thermal throttling, a background process — then affects both sides of it and cancels
-out. 10 warmup rounds are discarded once per benchmark, then 30 rounds are measured; the iteration
-counts in `benchmark()`'s options only apply under Vitest.
+out. 10 warmup rounds are discarded once per benchmark, then 30 rounds are measured.
 
 ### The report
 
@@ -407,9 +443,9 @@ history from it. The report holds **raw samples**, round-aligned across variants
 format and alarm — the builds, and the environment. Conclusions are computed from it, the same way
 everywhere, by `analyzeRun` from `@mui/internal-benchmark/runReport`: a 95% confidence interval on the
 paired difference per metric, a change (`better`, `worse`, `unsure`) that respects the metric's
-direction, and a severity from its alarm. The harness's own metrics are `render` (total render
-duration) and `render:count`, which alarm on any resolved change for the worse, and `bench:paint`,
-which is informational; custom metrics bring their own alarm.
+direction, and a severity from its alarm. `reactBenchmark()`'s `render` and `render:count` alarm on
+any resolved change for the worse, and `bench:paint` is informational; every other metric brings its
+own alarm.
 
 ### Choosing the baseline
 

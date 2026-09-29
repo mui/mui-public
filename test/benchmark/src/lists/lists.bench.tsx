@@ -1,8 +1,8 @@
-import { compare } from '@mui/internal-benchmark';
+import { compare } from '@mui/internal-benchmark/page';
 
 /**
  * Two implementations of the same list, compared with each other rather than across builds — the
- * shape a comparison between libraries takes. Each variant is a module of plain `benchmark()` cases;
+ * shape a comparison between libraries takes. Each variant is a module of plain `reactBenchmark()` cases;
  * cases with the same name are paired, and the first variant is the reference.
  *
  * Every variant gets a page of its own that loads only its own module, so neither implementation's

@@ -4,9 +4,9 @@ import { globby } from 'globby';
 import { escapeHtml } from '../utils/html';
 
 /**
- * `*.bench.tsx` files: `benchmark()` cases, the same files Vitest runs, measured by the interleaved
- * engine instead. Each file gets a generated page that loads it with `@mui/internal-benchmark`
- * swapped for the page runtime, so the file itself needs no page, config or entry of its own.
+ * `*.bench.tsx` files: cases defined with `@mui/internal-benchmark/page`, measured by the interleaved
+ * engine. Each file gets a generated page that loads it, so the file itself needs no page, config or
+ * entry of its own.
  */
 
 /** Where the generated pages live, under `src/`. Ignored from the inside, like `.benchmark/`. */

@@ -1,55 +1,43 @@
-import type * as React from 'react';
 import { createInput } from '../input';
-import {
-  EMPTY_RECORDING_MESSAGE,
-  measureIteration,
-  MILLISECONDS,
-  PAINT_METRIC_NAME,
-  splitCaseArgs,
-  warnIfNoGc,
-} from '../caseRuntime';
-import type {
-  BenchmarkInteraction,
-  BenchmarkOptions,
-  CaseOptions,
-  MeasuredIteration,
-  VariantLoader,
-} from '../caseRuntime';
+import type { BenchmarkInput } from '../input';
+import type { VariantLoader } from '../caseRuntime';
 import { seriesName, setMetricRecorder } from '../metricCore';
 import type { MetricDefinition } from '../types';
 
-// What `@mui/internal-benchmark` resolves to when benchmark files are built into a page for
-// `benchmark run`. Same authoring API, different driver: `benchmark()` registers a case, and the
-// runner calls `window.benchmarkPage.sample()` to run one iteration of it at a time. Every result
-// leaves the page as a `performance.measure` entry, so it also shows up in a DevTools trace.
+// The page runtime `benchmark run` measures. `benchmark()` registers a case, and the runner calls
+// `window.benchmarkPage.sample()` to run one iteration of it at a time. What a case measures is
+// whatever it records through a `Metric`; every recorded value leaves the page as a
+// `performance.measure` entry, so it also shows up in a DevTools trace.
 
-export * from '../publicApi';
-
-interface PageCase {
-  renderFn: () => React.ReactElement;
-  interaction: BenchmarkInteraction | undefined;
-  options: CaseOptions | undefined;
+/** What a case's `run` is handed on every iteration. */
+export interface BenchmarkContext {
+  /** Trusted input — scroll, pinch, tap — dispatched by the browser rather than from script. */
+  input: BenchmarkInput;
 }
 
+/**
+ * One iteration of a case. It records its results through `Metric`s — `ScalarMetric`,
+ * `DiscreteMetric` — and must record at least one value.
+ */
+export type BenchmarkRun = (context: BenchmarkContext) => Promise<void> | void;
+
 /** The file's own `benchmark()` cases. */
-const fileCases = new Map<string, PageCase>();
+const fileCases = new Map<string, BenchmarkRun>();
 // Where `benchmark()` registers: the file's own cases, except while a `compare()` variant module is
 // being loaded, whose cases belong to that variant.
 let registering = fileCases;
 // The cases this page runs: the file's own, or the variant the url selects.
 let pageCases = fileCases;
 
-export function benchmark(
-  name: string,
-  renderFn: () => React.ReactElement,
-  interactionOrOptions?: BenchmarkInteraction | BenchmarkOptions,
-  maybeOptions?: BenchmarkOptions,
-): void {
+/**
+ * Registers a benchmark case. The runner calls `run` once per sample, warmup included, and decides
+ * how many samples to take.
+ */
+export function benchmark(name: string, run: BenchmarkRun): void {
   if (registering.has(name)) {
     throw new Error(`Two benchmarks share the name "${name}". Benchmark names must be unique.`);
   }
-  // The iteration counts in `options` are ignored here: the runner decides them.
-  registering.set(name, { renderFn, ...splitCaseArgs(interactionOrOptions, maybeOptions) });
+  registering.set(name, run);
 }
 
 const comparisons = new Map<string, Record<string, VariantLoader>>();
@@ -82,7 +70,7 @@ async function selectVariant(): Promise<void> {
   if (!load) {
     throw new Error(`No variant "${variant}" in comparison "${comparison}".`);
   }
-  const variantCases = new Map<string, PageCase>();
+  const variantCases = new Map<string, BenchmarkRun>();
   registering = variantCases;
   try {
     await load();
@@ -97,20 +85,12 @@ interface RecordedValue {
   value: number;
 }
 
-// Values custom metrics record during a measured sample. `null` outside one (module scope, warmup),
-// where recorded values are dropped.
+// Values recorded during a measured sample. `null` outside one (module scope, warmup), where
+// recorded values are dropped.
 let sampleValues: RecordedValue[] | null = null;
 
-// The harness's own metrics. Render time and render count alarm on any resolved change for the
-// worse; paint dominates each case's duration and duplicates that signal, so it is informational.
-const metricDefinitions = new Map<string, MetricDefinition>([
-  ['render', { kind: 'scalar', format: MILLISECONDS, alarm: {} }],
-  ['render:count', { kind: 'discrete', alarm: {} }],
-  ['render:mount', { kind: 'scalar', format: MILLISECONDS }],
-  ['render:update', { kind: 'scalar', format: MILLISECONDS }],
-  ['render:nested-update', { kind: 'scalar', format: MILLISECONDS }],
-  [PAINT_METRIC_NAME, { kind: 'scalar', format: MILLISECONDS }],
-]);
+// Every metric recorded so far, by name, as the report describes it.
+const metricDefinitions = new Map<string, MetricDefinition>();
 
 setMetricRecorder((metric, value, options) => {
   if (!metricDefinitions.has(metric.name)) {
@@ -127,7 +107,7 @@ export interface BenchPage {
   caseNames: () => string[];
   /** The file's `compare()` calls, with their variant keys in order. */
   comparisons: () => Array<{ name: string; variants: string[] }>;
-  /** Every metric reported so far, by name: the harness's own and those the cases recorded. */
+  /** Every metric recorded so far, by name. */
   metricDefinitions: () => Record<string, MetricDefinition>;
   /**
    * Runs one iteration of a case. A measured sample leaves its results as `performance.measure`
@@ -154,70 +134,37 @@ const input = createInput((method, params) => {
   return window.benchmarkCdp(method, params);
 });
 
-function emitSample(result: MeasuredIteration, values: RecordedValue[]): void {
-  // Render time is reported as totals rather than per render: an interaction's render count follows
-  // whatever the browser coalesced, so per-render entries would not line up across iterations. The
-  // per-phase split only adds information when there is more than one phase.
-  const byPhase = new Map<string, number>();
-  let total = 0;
-  for (const render of result.renders) {
-    byPhase.set(render.phase, (byPhase.get(render.phase) ?? 0) + render.actualDuration);
-    total += render.actualDuration;
-  }
-  if (result.renders.length > 0) {
-    const start = result.renders[0].startTime;
-    performance.measure('render', { start, duration: total, detail: { value: total } });
-    performance.measure('render:count', {
-      start,
-      duration: 0,
-      detail: { value: result.renders.length },
-    });
-    if (byPhase.size > 1) {
-      for (const [phase, duration] of byPhase) {
-        performance.measure(`render:${phase}`, { start, duration, detail: { value: duration } });
-      }
-    }
-  }
-  for (const { id, start, end } of result.paints) {
-    performance.measure(seriesName(PAINT_METRIC_NAME, id), { start, end });
-  }
-  // Custom metrics aren't necessarily durations, so the value travels in `detail`.
-  const now = performance.now();
-  for (const { name, value } of values) {
-    performance.measure(name, { start: now, duration: 0, detail: { value } });
-  }
-}
-
 async function sample(name: string, { warmup }: { warmup: boolean }): Promise<void> {
-  const benchCase = pageCases.get(name);
-  if (!benchCase) {
+  const run = pageCases.get(name);
+  if (!run) {
     throw new Error(`No benchmark named "${name}". Known: ${[...pageCases.keys()].join(', ')}`);
   }
   performance.clearMarks();
   performance.clearMeasures();
 
   const values: RecordedValue[] = [];
-  sampleValues = warmup ? null : values;
-  let result: MeasuredIteration;
+  // Recorded even during warmup, so a case that records nothing fails before a single sample is
+  // measured; only a measured sample's values leave the page.
+  sampleValues = values;
   try {
-    result = await measureIteration(
-      benchCase.renderFn,
-      benchCase.interaction,
-      benchCase.options,
-      input,
-    );
+    await run({ input });
   } finally {
     sampleValues = null;
   }
 
-  if (result.renderError) {
-    throw result.renderError;
+  if (values.length === 0) {
+    throw new Error(
+      `Benchmark "${name}" recorded no value. Record its results through a ScalarMetric or DiscreteMetric.`,
+    );
   }
-  if (result.hadEmptyActiveWindow) {
-    throw new Error(EMPTY_RECORDING_MESSAGE);
+  if (warmup) {
+    return;
   }
-  if (!warmup) {
-    emitSample(result, values);
+  // The runner collects measures by name, and a value isn't necessarily a duration, so it travels
+  // in `detail`.
+  const now = performance.now();
+  for (const { name: series, value } of values) {
+    performance.measure(series, { start: now, duration: 0, detail: { value } });
   }
 }
 
@@ -226,7 +173,6 @@ async function sample(name: string, { warmup }: { warmup: boolean }): Promise<vo
  * for `window.benchmarkPage`, or reads `window.benchmarkPageError` when getting ready failed.
  */
 export async function markPageReady(): Promise<void> {
-  warnIfNoGc();
   try {
     await selectVariant();
   } catch (error) {

@@ -14,7 +14,7 @@
     "./ciReport": "./src/ciReport.ts",
     "./reporter": "./src/reporter.ts",
     "./vitest": "./src/vitest.ts",
-    "./page": "./src/page/page.tsx",
+    "./page": "./src/page/index.ts",
     "./vitePlugin": "./src/runner/plugin.ts",
     "./runReport": "./src/runReport/index.ts",
     "./tachometerPlugin": "./src/tachometer/plugin.ts",

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { benchmark } from '@mui/internal-benchmark';
+import { reactBenchmark } from '@mui/internal-benchmark/page';
 import { ScrollingList } from '../_shared/ScrollingList';
 
 const ROWS = 1000;
@@ -19,9 +19,9 @@ function List() {
   );
 }
 
-benchmark('mount', () => <List />);
+reactBenchmark('mount', () => <List />);
 
-benchmark(
+reactBenchmark(
   'scroll',
   () => (
     <ScrollingList>
