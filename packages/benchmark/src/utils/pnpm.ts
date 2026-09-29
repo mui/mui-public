@@ -18,15 +18,8 @@ interface ListedPackage {
 }
 
 /**
- * The publishable workspace packages of `cwd`, as `pnpm ls` resolves them.
- *
- * Asks pnpm rather than scanning directories, so the set follows `pnpm-workspace.yaml` and mirrors
- * exactly what a release publishes. A package is skipped when it says it is private, or when it
- * lacks the name or version that publishing requires.
- *
- * Deliberately narrower than the equivalent in `@mui/internal-code-infra`, which also filters by
- * pattern and by what changed since a ref: those need git and pnpm-filter semantics nothing here
- * wants. Named for what it does so the two cannot be mistaken for each other.
+ * The publishable workspace packages of `cwd`: those pnpm lists that are not private and have the
+ * name and version publishing requires.
  */
 export async function listPublishablePackages(cwd: string): Promise<PublishablePackage[]> {
   const result = await $({ cwd })`pnpm ls -r --json --depth -1`;

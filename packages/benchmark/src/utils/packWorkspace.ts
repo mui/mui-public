@@ -1,5 +1,8 @@
 /* eslint-disable no-console */
 
+// Packs a workspace's public packages with `pnpm pack`, so each tarball is exactly what
+// `pnpm publish` would upload — for installing a build the way a consumer installs a release.
+
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { createHash } from 'node:crypto';
@@ -12,15 +15,6 @@ import { execa, parseCommandString } from 'execa';
 import { resolveCommit } from './git';
 import { listPublishablePackages } from './pnpm';
 
-/**
- * Packs the public workspace packages at a given git ref into a folder of tarballs.
- *
- * The tarballs are produced with `pnpm pack`, so each is exactly what `pnpm publish` would upload —
- * honoring the package's `files`, `.npmignore`, and `publishConfig.directory`. That makes them
- * suitable for installing a ref's build the way a consumer would install a published release, which
- * is what benchmark harnesses and end-to-end install tests need.
- */
-
 export interface PackedPackage {
   /** Package name from its package.json. */
   name: string;
@@ -29,17 +23,11 @@ export interface PackedPackage {
   tarball: string;
 }
 
-interface RawManifestPackage {
-  name: string;
-  version: string;
-  /** Tarball name, relative to the folder, so the cache is relocatable. */
-  tarball: string;
-}
-
-interface RawManifest {
+interface Manifest {
   /** The build command used, part of the cache key. */
   buildCmd: string;
-  packages: RawManifestPackage[];
+  /** Tarball paths relative to the folder, so a restored cache still resolves. */
+  packages: PackedPackage[];
 }
 
 export interface PackRefOptions {
@@ -61,15 +49,9 @@ export interface PackRefOptions {
   buildCmd?: string;
 }
 
-/** Name of the file written into each packed folder describing its contents. */
 const MANIFEST = 'manifest.json';
 
-/**
- * Turns a package name into a filesystem-safe tarball basename: `@scope/pkg` → `scope+pkg.tgz`.
- *
- * `+` cannot appear in a package name, so no two packages share a tarball — `@mui/pkg` and
- * `mui-pkg` stay apart, where a `-` would fold them together.
- */
+/** `@scope/pkg` → `scope+pkg.tgz`; `+` cannot appear in a package name, so no two collide. */
 function tarballName(pkgName: string): string {
   return `${pkgName.replace(/^@/, '').replace('/', '+')}.tgz`;
 }
@@ -80,76 +62,62 @@ async function removeCheckout(repoRoot: string, checkout: string): Promise<void>
   await execa('git', ['worktree', 'prune'], { cwd: repoRoot });
 }
 
-/**
- * Content hash of a file, short enough to live in a filename.
- *
- * Streamed rather than read whole: these are tarballs of built packages, and every one of them
- * would otherwise be resident at once.
- */
+/** Runs `buildCmd` in `cwd`, with the nx daemon off so nothing keeps writing after it returns. */
+async function build(cwd: string, buildCmd: string): Promise<void> {
+  const [file, ...args] = parseCommandString(buildCmd);
+  await execa(file, args, {
+    cwd,
+    env: { NX_DAEMON: 'false' },
+    stdio: 'inherit',
+    verbose: 'short',
+  });
+}
+
+/** Content hash of a file, short enough to live in a filename. */
 async function hashFile(file: string): Promise<string> {
   const hash = createHash('sha256');
   await pipeline(createReadStream(file), hash);
   return hash.digest('hex').slice(0, 12);
 }
 
-/** Reads a folder's raw `manifest.json`, or `null` when it has none. */
-async function readRawManifest(dir: string): Promise<RawManifest | null> {
-  let text: string;
+/**
+ * `dir`'s packages if it holds a cache of the requested build — built with the same `buildCmd`,
+ * every tarball still present — or `null` otherwise.
+ */
+async function readFreshCache(dir: string, buildCmd: string): Promise<PackedPackage[] | null> {
+  let manifest: Manifest;
   try {
-    text = await readFile(path.join(dir, MANIFEST), 'utf8');
+    manifest = JSON.parse(await readFile(path.join(dir, MANIFEST), 'utf8'));
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       return null;
     }
     throw error;
   }
-  return JSON.parse(text);
-}
-
-/** A manifest's packages, their tarball names resolved to absolute paths under `dir`. */
-function packagesIn(raw: RawManifest, dir: string): PackedPackage[] {
-  return raw.packages.map((pkg) => ({ ...pkg, tarball: path.join(dir, pkg.tarball) }));
-}
-
-/**
- * Returns `dir`'s manifest if it is a usable cache for the requested build — produced with the same
- * `buildCmd`, with every tarball it references still present — or `null` otherwise.
- *
- * Returning the parsed manifest lets the caller reuse it without a second read. Guards against
- * reusing a folder built with a different build script, or one whose tarballs were partially
- * evicted or deleted.
- */
-async function readFreshCache(dir: string, buildCmd: string): Promise<RawManifest | null> {
-  const raw = await readRawManifest(dir);
-  if (raw === null || raw.buildCmd !== buildCmd) {
+  if (manifest.buildCmd !== buildCmd) {
     return null;
   }
-  const tarballs = await Promise.allSettled(
-    raw.packages.map((pkg) => access(path.join(dir, pkg.tarball))),
-  );
-  return tarballs.every((result) => result.status === 'fulfilled') ? raw : null;
+  const packages = manifest.packages.map((pkg) => ({
+    ...pkg,
+    tarball: path.join(dir, pkg.tarball),
+  }));
+  const present = await Promise.allSettled(packages.map((pkg) => access(pkg.tarball)));
+  return present.every((result) => result.status === 'fulfilled') ? packages : null;
 }
 
 /**
- * Packs the already-built public workspace packages of `checkoutDir` into `outDir`, one `.tgz` per
- * package. Packages must already be built.
+ * Packs the already-built public workspace packages of `workspaceDir` into `outDir`.
  *
- * Uses pnpm's own workspace resolution rather than scanning a directory, so the set follows
- * `pnpm-workspace.yaml` and mirrors exactly what a release publishes.
- *
- * A public package that (transitively) depends on a *private* workspace package cannot be resolved
- * by a consumer — the private package is never packed, so `pnpm install` looks for it on the
- * registry and 404s. That is a real packaging bug in the ref, not something to paper over here:
- * make the internal dependency public so it ships alongside the package that needs it.
+ * A public package that depends on a private workspace package cannot be installed from these —
+ * the private one is never packed — which is a packaging bug in the ref, not something to hide here.
  */
-async function packBuiltPackages(checkoutDir: string, outDir: string): Promise<PackedPackage[]> {
+async function packBuiltPackages(workspaceDir: string, outDir: string): Promise<PackedPackage[]> {
   await mkdir(outDir, { recursive: true });
-  const packages = await listPublishablePackages(checkoutDir);
+  const packages = await listPublishablePackages(workspaceDir);
   if (packages.length === 0) {
-    throw new Error(`No public workspace packages found in ${checkoutDir}.`);
+    throw new Error(`No public workspace packages found in ${workspaceDir}.`);
   }
-  // Each `pnpm pack` is its own node process, so a repository with a dozen public packages would
-  // otherwise start a dozen at once.
+  // Each `pnpm pack` is a node process of its own.
   return mapAsync(
     packages,
     async ({ path: pkgDir, name, version }) => {
@@ -165,16 +133,9 @@ async function packBuiltPackages(checkoutDir: string, outDir: string): Promise<P
  * Packs every public workspace package at `ref` into `<outRoot>/<sha>`, returning the packed
  * tarballs.
  *
- * The build is deterministic for a commit, so the folder is cached by SHA: a later call for the
- * same commit reuses it and skips the checkout, install, and build entirely — but only when it was
- * built with the same `buildCmd` and its tarballs are all present, so the cache can never hand back
- * stale or mismatched output.
- *
- * On a cache miss the ref is checked out in a throwaway location, installed, built, and packed; the
- * checkout is then removed, so the small tarballs are the only lasting artifact. The folder is
- * assembled in a staging directory and atomically renamed into place, and its `manifest.json`
- * stores tarball names relative to the folder — so the cache is safe to move between machines (for
- * example restored from a CI cache under a different absolute path).
+ * The folder is cached by SHA: a later call for the same commit, built with the same `buildCmd`,
+ * reuses it and skips the checkout, install and build. It is assembled in a staging folder and
+ * renamed into place, so an interrupted run never leaves something that looks like a cache.
  */
 export async function packRef(options: PackRefOptions): Promise<PackedPackage[]> {
   const {
@@ -188,16 +149,13 @@ export async function packRef(options: PackRefOptions): Promise<PackedPackage[]>
   const sha = await resolveCommit(repoRoot, ref);
   const dir = path.join(outRoot, sha);
 
-  // Cache hit: reuse the folder only if it was built the same way and its tarballs are all present.
   const cached = await readFreshCache(dir, buildCmd);
   if (cached) {
     console.log(chalk.green(`\nReusing packed workspace for "${ref}" (${sha.slice(0, 9)}).`));
-    return packagesIn(cached, dir);
+    return cached;
   }
 
   await mkdir(outRoot, { recursive: true });
-  // Assemble in a staging sibling on the same filesystem so the final rename into `<outRoot>/<sha>`
-  // is atomic — an interrupted run can never leave a partial folder that looks like a cache hit.
   const staging = await mkdtemp(path.join(outRoot, '.staging-'));
   const checkout = await mkdtemp(path.join(os.tmpdir(), 'pack-workspace-'));
   try {
@@ -212,36 +170,20 @@ export async function packRef(options: PackRefOptions): Promise<PackedPackage[]>
       await execa(installFile, installArgs, { cwd: checkout, stdio: 'inherit', verbose: 'short' });
     }
     console.log(chalk.cyan(`\nBuilding packages for ${sha.slice(0, 9)}…`));
-    // Disable the nx daemon (lerna runs builds through nx): a lingering daemon keeps writing into
-    // the checkout and makes removal fail with "Directory not empty". execa's `env` extends the
-    // current environment, so only NX_DAEMON is overridden.
-    const [buildFile, ...buildArgs] = parseCommandString(buildCmd);
-    await execa(buildFile, buildArgs, {
-      cwd: checkout,
-      env: { NX_DAEMON: 'false' },
-      stdio: 'inherit',
-      verbose: 'short',
-    });
+    await build(checkout, buildCmd);
 
     const packages = await packBuiltPackages(checkout, staging);
-    // Store tarballs by basename so the folder is relocatable; record buildCmd so a later run can
-    // tell whether the cache matches. Write the manifest last — it marks completeness.
-    const manifest: RawManifest = {
+    const manifest: Manifest = {
       buildCmd,
-      packages: packages.map(({ name, version, tarball }) => ({
-        name,
-        version,
-        tarball: path.basename(tarball),
-      })),
+      packages: packages.map((pkg) => ({ ...pkg, tarball: path.basename(pkg.tarball) })),
     };
+    // Written last: it is what marks the folder complete.
     await writeFile(path.join(staging, MANIFEST), `${JSON.stringify(manifest, null, 2)}\n`);
-    // Replace any pre-existing folder — a stale/partial one, or a mismatched cache we chose to
-    // rebuild — so the rename can't fail with ENOTEMPTY.
     await rm(dir, { recursive: true, force: true });
     await rename(staging, dir);
-    return packagesIn(manifest, dir);
+    return packages.map((pkg) => ({ ...pkg, tarball: path.join(dir, path.basename(pkg.tarball)) }));
   } finally {
-    // However the build went; on success the staging folder has already become `dir`.
+    // On success the staging folder has already become `dir`.
     await Promise.all([
       rm(staging, { recursive: true, force: true }),
       removeCheckout(repoRoot, checkout),
@@ -250,14 +192,8 @@ export async function packRef(options: PackRefOptions): Promise<PackedPackage[]>
 }
 
 /**
- * Builds and packs the working tree, naming each tarball by a hash of its bytes.
- *
- * A tarball path then never points at different content, which is what lets a consumer's installs
- * persist across runs: an unchanged build keeps its filename, so `pnpm install` has nothing to do,
- * while a changed one swaps a single package.
- *
- * The tree is mutable, so this always builds; a good `buildCmd` is cached (nx, turbo) and an
- * unchanged tree rebuilds in seconds.
+ * Builds and packs the working tree into `outRoot`, naming each tarball by a hash of its bytes: an
+ * unchanged build keeps its path, so an install that depends on it has nothing to redo.
  */
 export async function packWorkingTree(options: {
   /** The workspace to build and pack. */
@@ -270,33 +206,17 @@ export async function packWorkingTree(options: {
   const { repoRoot, outRoot, buildCmd = 'pnpm release:build' } = options;
 
   console.log(chalk.cyan(`\nBuilding workspace packages for "working tree" (${buildCmd})…`));
-  // Disable the nx daemon: it keeps writing into the workspace after the build returns.
-  const [file, ...args] = parseCommandString(buildCmd);
-  await execa(file, args, {
-    cwd: repoRoot,
-    env: { NX_DAEMON: 'false' },
-    stdio: 'inherit',
-    verbose: 'short',
-  });
+  await build(repoRoot, buildCmd);
 
   console.log(chalk.cyan('\nPacking the working tree…'));
-  // Stage next to the destination so the renames cannot cross filesystems.
-  const packedRoot = path.dirname(outRoot);
-  await mkdir(packedRoot, { recursive: true });
-  const staging = await mkdtemp(path.join(packedRoot, '.pack-'));
-  try {
-    const packed = await packBuiltPackages(repoRoot, staging);
-    await rm(outRoot, { recursive: true, force: true });
-    await mkdir(outRoot, { recursive: true });
-    return await Promise.all(
-      packed.map(async (pkg) => {
-        const hash = await hashFile(pkg.tarball);
-        const tarball = path.join(outRoot, `${path.basename(pkg.tarball, '.tgz')}-${hash}.tgz`);
-        await rename(pkg.tarball, tarball);
-        return { ...pkg, tarball };
-      }),
-    );
-  } finally {
-    await rm(staging, { recursive: true, force: true });
-  }
+  await rm(outRoot, { recursive: true, force: true });
+  const packed = await packBuiltPackages(repoRoot, outRoot);
+  return Promise.all(
+    packed.map(async (pkg) => {
+      const hash = await hashFile(pkg.tarball);
+      const tarball = path.join(outRoot, `${path.basename(pkg.tarball, '.tgz')}-${hash}.tgz`);
+      await rename(pkg.tarball, tarball);
+      return { ...pkg, tarball };
+    }),
+  );
 }
