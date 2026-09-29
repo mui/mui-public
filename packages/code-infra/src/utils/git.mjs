@@ -110,7 +110,7 @@ function branchNameOf(shortRef) {
  * @param {string} [cwd=process.cwd()]
  * @returns {Promise<string>}
  */
-export async function detectBaseBranch(cwd = process.cwd()) {
+async function detectBaseBranch(cwd = process.cwd()) {
   const listed = (await $({ cwd })`git remote`).stdout.trim().split('\n').filter(Boolean);
   // `origin` first: it is the one a clone records a HEAD for.
   const remotes = [...new Set(['origin', ...listed])].filter((remote) => listed.includes(remote));
@@ -145,7 +145,7 @@ export async function detectBaseBranch(cwd = process.cwd()) {
  * @param {string} [cwd=process.cwd()]
  * @returns {Promise<{ ref: string, mergeBase: string } | undefined>}
  */
-export async function closestBaseBranch(baseBranch, cwd = process.cwd()) {
+async function closestBaseBranch(baseBranch, cwd = process.cwd()) {
   // On ties (same merge base), prefer upstream's, then origin's, then a local base branch.
   const preference = [`upstream/${baseBranch}`, `origin/${baseBranch}`, baseBranch];
   /** @param {string} ref */
