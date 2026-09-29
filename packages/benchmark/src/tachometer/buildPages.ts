@@ -5,12 +5,12 @@ import { createRequire } from 'node:module';
 import { readFile, mkdir, rm, writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import chalk from 'chalk';
+import { execa } from 'execa';
 import type * as Vite from 'vite';
 import { parse, stringify } from 'yaml';
 // Self-referencing rather than `../../package.json`, which resolves only in the repository — see
 // the note in ../cli/index.ts.
 import pkgJson from '@mui/internal-benchmark/package.json' with { type: 'json' };
-import { run } from '../utils/exec';
 import { tarballFor } from '../utils/packWorkspace';
 import type { PackedPackage } from '../utils/packWorkspace';
 import { installedVersions, readPackageJson, writePackageJson } from '../utils/pnpm';
@@ -184,7 +184,10 @@ export async function restoreWorkspace(repoRoot: string, outputDir: string): Pro
   console.log(chalk.cyan('\nRestoring the repository install…'));
   await writeFile(path.join(repoRoot, 'pnpm-workspace.yaml'), await readFile(backupPath, 'utf8'));
   await rm(backupPath, { force: true });
-  await run('pnpm', ['install', '--prefer-offline', '--no-frozen-lockfile'], repoRoot);
+  await execa('pnpm', ['install', '--prefer-offline', '--no-frozen-lockfile'], {
+    cwd: repoRoot,
+    verbose: 'short',
+  });
 }
 
 /** Installs one ref's packed build, with the harness's own dependencies around it. */
@@ -245,10 +248,10 @@ async function installRefTree({
   // `--ignore-scripts`: this workspace has no build-script approvals, and pnpm fails an install
   // over unapproved ones rather than warning. Nothing installed here needs its scripts either — the
   // pages are built from the packages exactly as packed.
-  await run(
+  await execa(
     'pnpm',
     ['install', '--prefer-offline', '--ignore-scripts', '--config.engine-strict=false'],
-    treeDir,
+    { cwd: treeDir, verbose: 'short' },
   );
 }
 
@@ -300,7 +303,10 @@ export async function buildRefPages(options: {
     await pinPackedPackages(repoRoot, outputDir, packages);
     // `--no-frozen-lockfile` because changing the overrides is the point, and pnpm turns a frozen
     // install on by itself in CI — where it would refuse the very change being made.
-    await run('pnpm', ['install', '--prefer-offline', '--no-frozen-lockfile'], repoRoot);
+    await execa('pnpm', ['install', '--prefer-offline', '--no-frozen-lockfile'], {
+      cwd: repoRoot,
+      verbose: 'short',
+    });
   } else {
     await installRefTree({ harnessDir, repoRoot, packages, treeDir });
   }

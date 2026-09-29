@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import chalk from 'chalk';
-import { execaSync } from 'execa';
+import { execa, execaSync } from 'execa';
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import { packRef, packWorkingTree } from '../utils/packWorkspace';
 import type { PackedPackage } from '../utils/packWorkspace';
@@ -23,7 +23,6 @@ import { syncPrComment } from '../syncPrComment';
 import { uploadCiReport } from './ciReport';
 import type { CaseResult, TachometerReport } from './ciReport';
 import { buildsDirOf, prepareOutputDir } from './outputDir';
-import { run } from '../utils/exec';
 
 /**
  * A case's name as a filename component. Names come from the benchmark's own `name`, so they are
@@ -222,12 +221,11 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
       console.log(chalk.cyan(`\nRunning "${entry.name}"…`));
       const jsonPath = path.join(tmpBase, `result-${slug}.json`);
       // eslint-disable-next-line no-await-in-loop
-      await run(
-        'pnpm',
-        ['exec', 'tachometer', '--config', configPath, '--json-file', jsonPath],
-        harnessDir,
-        { verbose: true },
-      );
+      await execa('pnpm', ['exec', 'tachometer', '--config', configPath, '--json-file', jsonPath], {
+        cwd: harnessDir,
+        stdio: 'inherit',
+        verbose: 'short',
+      });
       // Cases run sequentially on purpose — concurrent browser benchmarks would contend for the
       // same machine and skew timings — so reading each result in turn is fine.
       // eslint-disable-next-line no-await-in-loop
@@ -236,8 +234,7 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
 
     const outPath = out ? path.resolve(out) : path.join(outputDir, 'results', 'report.json');
     const report = {
-      // Consumers render reports from several benchmark axes; the pair identifies which one this
-      // is and how to read it.
+      // The pair tells a consumer what kind of report this is and how to read it.
       version: 1 as const,
       reportType: 'tachometer' as const,
       generatedAt: new Date().toISOString(),
