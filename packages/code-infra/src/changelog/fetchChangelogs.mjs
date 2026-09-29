@@ -1,7 +1,5 @@
 import { Octokit } from '@octokit/rest';
-import { $ } from 'execa';
 
-import { getRepositoryInfo } from '../utils/git.mjs';
 import { persistentAuthStrategy } from '../utils/github.mjs';
 
 /**
@@ -19,25 +17,6 @@ import { persistentAuthStrategy } from '../utils/github.mjs';
  * @property {string} release
  * @property {string} [org='mui'] - GitHub organization name, defaults to 'mui'
  */
-
-/**
- * @param {Object} opts
- * @param {string} opts.cwd
- * @param {boolean} [opts.fetchAll=true] Whether to fetch all tags from all remotes before finding the latest tag.
- * @returns {Promise<string>}
- */
-export async function findLatestTaggedVersion(opts) {
-  const $$ = $({ cwd: opts.cwd });
-  const fetchAll = opts.fetchAll ?? true;
-  if (fetchAll) {
-    const { remoteName } = await getRepositoryInfo();
-    // Fetch all tags from the mui remote to ensure we have the latest tags.
-    // --force to update any existing tags that may have changed to avoid the clobering error.
-    await $$`git fetch --tags --force ${remoteName}`;
-  }
-  const { stdout } = await $$`git describe --tags --abbrev=0 --match ${'v*'}`; // only include "version-tags"
-  return stdout.trim();
-}
 
 /**
  * Fetches commits between two refs (lastRelease..release) including PR details.
