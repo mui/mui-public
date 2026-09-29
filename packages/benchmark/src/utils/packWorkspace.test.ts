@@ -3,7 +3,7 @@ import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import { execa } from 'execa';
 import { describe, expect, it } from 'vitest';
 import { makeTempDir } from './testUtils';
-import { packRef, packWorkingTree, readFreshCache, tarballFor, tarballName } from './packWorkspace';
+import { packRef, packWorkingTree, readFreshCache, tarballName } from './packWorkspace';
 
 describe('tarballName', () => {
   it('joins scope and name with a character no package name contains', () => {
@@ -17,26 +17,6 @@ describe('tarballName', () => {
   it('never gives two packages the same tarball', () => {
     const names = ['@mui/package', 'mui-package', '@a/b-c', '@a-b/c'];
     expect(new Set(names.map(tarballName)).size).toBe(names.length);
-  });
-});
-
-describe('tarballFor', () => {
-  const packages = [{ name: '@scope/one', version: '1.0.0', tarball: '/tmp/scope-one.tgz' }];
-
-  it('finds a packed package by name', () => {
-    expect(tarballFor(packages, '@scope/one')).toBe('/tmp/scope-one.tgz');
-  });
-
-  it('lists what was packed when a package is missing', () => {
-    // A workspace dependency that was never packed is a packaging bug in the ref — usually a
-    // private package a public one depends on — so the message has to name what is available.
-    expect(() => tarballFor(packages, '@scope/two')).toThrow(
-      'Package "@scope/two" was not packed. Packed: @scope/one.',
-    );
-  });
-
-  it('says so when nothing was packed at all', () => {
-    expect(() => tarballFor([], '@scope/two')).toThrow(/Packed: \(none\)\./);
   });
 });
 

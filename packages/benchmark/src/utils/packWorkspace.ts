@@ -350,13 +350,3 @@ export async function packWorkingTree(options: {
     await rm(staging, { recursive: true, force: true });
   }
 }
-
-/** Looks up one packed package's tarball by name, throwing a clear error if it was not packed. */
-export function tarballFor(packages: PackedPackage[], name: string): string {
-  const found = packages.find((pkg) => pkg.name === name);
-  if (!found) {
-    const available = packages.map((pkg) => pkg.name).join(', ') || '(none)';
-    throw new Error(`Package "${name}" was not packed. Packed: ${available}.`);
-  }
-  return found.tarball;
-}
