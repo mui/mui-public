@@ -29,6 +29,7 @@ import './Metric';
 import './taskMetaAugmentation';
 
 export * from './publicApi';
+export type { VariantLoader };
 
 // When true, `benchmark()` opens an interactive profiling session in a headed
 // browser instead of running the automated measurement loop. Enabled by

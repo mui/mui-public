@@ -12,8 +12,8 @@ import { serveDirectory } from './serveDirectory';
 import type {} from '../page/page';
 
 /**
- * Runs the `benchmark()` cases of `*.bench.tsx` files in Playwright. Every variant gets a page of
- * its own, in a browser context of its own, that stays open for the whole case: every sample is one
+ * Runs the cases of `*.bench.tsx` files in Playwright. Every variant gets a page of its own, in a
+ * browser context of its own, that stays open for the whole benchmark: every sample is one
  * iteration, so module-scope data and the JIT stay warm, and interactions get trusted input through
  * a CDP session the page is bridged to. Variants are sampled once per round in a shuffled order, so
  * the samples are round-aligned and can be compared on paired differences.
@@ -73,25 +73,21 @@ function stableMetrics(rounds: Round[]): string[] {
   );
 }
 
-/**
- * A page a benchmark file's cases are measured in: one build of the file, or one variant of a
- * `compare()` in it.
- */
-interface PageSlot {
-  /** How the slot is named in the report: `current`, `baseline`, or the variant's key. */
-  variant: string;
-  url: string;
+/** What a benchmark file's page defines. */
+interface PageListing {
+  /** The cases measured across the builds. */
+  caseNames: string[];
+  /** The cases measured against each other, on the working tree's build. */
+  comparisons: Array<{ name: string; cases: string[] }>;
 }
 
 interface OpenedPage {
-  slot: PageSlot;
   context: BrowserContext;
   page: Page;
-  caseNames: string[];
-  comparisons: Array<{ name: string; variants: string[] }>;
+  listing: PageListing;
 }
 
-async function openBenchPage(browser: Browser, slot: PageSlot): Promise<OpenedPage> {
+async function openBenchPage(browser: Browser, url: string): Promise<OpenedPage> {
   const context = await browser.newContext({ viewport: VIEWPORT });
   const page = await context.newPage();
   page.setDefaultTimeout(SAMPLE_TIMEOUT_MS);
@@ -104,11 +100,8 @@ async function openBenchPage(browser: Browser, slot: PageSlot): Promise<OpenedPa
     (_source, method: string, params?: Record<string, unknown>) =>
       session.send(method as CdpMethod, params),
   );
-  await page.goto(slot.url);
+  await page.goto(url);
   const ready = await page.waitForFunction(() => {
-    if (window.benchmarkPageError !== undefined) {
-      return { error: window.benchmarkPageError };
-    }
     if (window.benchmarkPage === undefined) {
       return false;
     }
@@ -120,24 +113,21 @@ async function openBenchPage(browser: Browser, slot: PageSlot): Promise<OpenedPa
   });
   const state = await ready.jsonValue();
   if (!state) {
-    throw new Error(`${slot.url} never got ready.`);
-  }
-  if ('error' in state) {
     await context.close();
-    throw new Error(`${slot.url} could not get ready: ${state.error}`);
+    throw new Error(`${url} never got ready.`);
   }
   if (state.visibility !== 'visible') {
-    console.warn(chalk.yellow(`  ${slot.url} is ${state.visibility}; rAF-based waits may stall.`));
+    console.warn(chalk.yellow(`  ${url} is ${state.visibility}; rAF-based waits may stall.`));
   }
-  return { slot, context, page, caseNames: state.caseNames, comparisons: state.comparisons };
+  return { context, page, listing: state };
 }
 
 async function closeBenchPages(targets: OpenedPage[]): Promise<void> {
   await Promise.all(targets.map((target) => target.context.close()));
 }
 
-async function openBenchPages(browser: Browser, slots: PageSlot[]): Promise<OpenedPage[]> {
-  const settled = await Promise.allSettled(slots.map((slot) => openBenchPage(browser, slot)));
+async function openBenchPages(browser: Browser, urls: string[]): Promise<OpenedPage[]> {
+  const settled = await Promise.allSettled(urls.map((url) => openBenchPage(browser, url)));
   const opened = settled.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []));
   const failed = settled.find((result) => result.status === 'rejected');
   if (failed) {
@@ -147,16 +137,23 @@ async function openBenchPages(browser: Browser, slots: PageSlot[]): Promise<Open
   return opened;
 }
 
+/** Opens pages just to learn what they define; every benchmark then measures in fresh ones. */
+async function listBenchPages(browser: Browser, urls: string[]): Promise<PageListing[]> {
+  const opened = await openBenchPages(browser, urls);
+  await closeBenchPages(opened);
+  return opened.map((target) => target.listing);
+}
+
 /**
  * Runs one iteration of a case. A measured one comes back as its `performance.measure` values by
  * name, read in the same round trip.
  */
 function sampleBenchCase(
-  target: OpenedPage,
+  page: Page,
   name: string,
   warmup: boolean,
 ): Promise<Record<string, number> | null> {
-  return target.page.evaluate(
+  return page.evaluate(
     async (args) => {
       await window.benchmarkPage!.sample(args.name, { warmup: args.warmup });
       if (args.warmup) {
@@ -175,28 +172,43 @@ function sampleBenchCase(
   );
 }
 
+/**
+ * A variant of a benchmark: the page it is sampled in and the case it runs there. One build of a
+ * benchmark file running a case, or the working tree's build running one case of a `compare()`.
+ */
+interface PageSlot {
+  /** How the slot is named in the report: `current`, `baseline`, or the compared case's name. */
+  variant: string;
+  url: string;
+  caseName: string;
+}
+
 interface CaseMeasurement {
   rounds: Round[];
   metrics: Record<string, RunMetricDefinition>;
 }
 
 /**
- * Measures one case in fresh pages that stay open for the whole case, so iterations stay warm and
+ * Measures one benchmark in fresh pages that stay open for all of it, so iterations stay warm and
  * module-scope data is built once. Warmup and measured rounds alike run every slot once, in a
  * shuffled order.
  */
-async function measureBenchCase(
+async function measureBenchmark(
   browser: Browser,
   slots: PageSlot[],
-  name: string,
   options: RunInterleavedOptions,
 ): Promise<CaseMeasurement> {
-  const targets = await openBenchPages(browser, slots);
+  const targets = await openBenchPages(
+    browser,
+    slots.map((slot) => slot.url),
+  );
+  const sampleSlot = (index: number, warmup: boolean) =>
+    sampleBenchCase(targets[index].page, slots[index].caseName, warmup);
   try {
     for (let roundIndex = 0; roundIndex < options.warmup; roundIndex += 1) {
       for (const index of shuffledIndices(targets.length)) {
         // eslint-disable-next-line no-await-in-loop
-        await sampleBenchCase(targets[index], name, true);
+        await sampleSlot(index, true);
       }
     }
     const rounds: Round[] = [];
@@ -204,7 +216,7 @@ async function measureBenchCase(
       const round: Round = [];
       for (const index of shuffledIndices(targets.length)) {
         // eslint-disable-next-line no-await-in-loop
-        round[index] = (await sampleBenchCase(targets[index], name, false)) ?? {};
+        round[index] = (await sampleSlot(index, false)) ?? {};
       }
       rounds.push(round);
     }
@@ -217,7 +229,7 @@ async function measureBenchCase(
   }
 }
 
-/** The round-aligned samples of a case, per variant and metric. */
+/** The round-aligned samples of a benchmark, per variant and metric. */
 function samplesOf(slots: PageSlot[], rounds: Round[]): RunBenchmark['samples'] {
   const metrics = stableMetrics(rounds);
   return Object.fromEntries(
@@ -236,81 +248,35 @@ interface CaseResult {
   metrics: Record<string, RunMetricDefinition>;
 }
 
-interface CaseGroup {
-  kind: RunBenchmark['kind'];
-  file: string;
-  nameOf: (caseName: string) => string;
-}
+type BenchmarkEntry = Pick<RunBenchmark, 'name' | 'file' | 'kind' | 'variants'>;
 
-/**
- * Runs every case the first listed page defines across all of them, paired by name. The first page
- * is the reference; a case another page lacks is reported as an error rather than compared with
- * nothing.
- */
-async function runListedCases(
+/** Measures one benchmark across its slots, or reports the error that stopped it. */
+async function runBenchmark(
   browser: Browser,
-  listed: OpenedPage[],
-  group: CaseGroup,
-  options: RunInterleavedOptions,
-): Promise<CaseResult[]> {
-  const slots = listed.map((target) => target.slot);
-  const variants = slots.map((slot) => slot.variant);
-  const [reference, ...others] = listed;
-  const results: CaseResult[] = [];
-  for (const caseName of reference.caseNames) {
-    const entry = { name: group.nameOf(caseName), file: group.file, kind: group.kind, variants };
-    const missing = others.find((target) => !target.caseNames.includes(caseName));
-    if (missing) {
-      // A case added by the change under test, or one library lacks, has nothing to compare with.
-      results.push({
-        benchmark: {
-          ...entry,
-          error: `"${caseName}" does not exist in [${missing.slot.variant}].`,
-        },
-        metrics: {},
-      });
-      continue;
-    }
-
-    console.log(chalk.cyan(`\nRunning "${entry.name}" (${group.file})…`));
-    try {
-      // eslint-disable-next-line no-await-in-loop
-      const measured = await measureBenchCase(browser, slots, caseName, options);
-      results.push({
-        benchmark: { ...entry, samples: samplesOf(slots, measured.rounds) },
-        metrics: measured.metrics,
-      });
-    } catch (error) {
-      console.error(chalk.red(`  ${errorMessage(error)}`));
-      results.push({ benchmark: { ...entry, error: errorMessage(error) }, metrics: {} });
-    }
-  }
-  return results;
-}
-
-/** Opens a set of pages just to learn what they define, then runs their cases. */
-async function listAndRun(
-  browser: Browser,
+  entry: BenchmarkEntry,
   slots: PageSlot[],
-  group: CaseGroup,
   options: RunInterleavedOptions,
-): Promise<{ results: CaseResult[]; comparisons: OpenedPage['comparisons'] }> {
-  // Every case then measures in fresh pages of its own.
-  const listed = await openBenchPages(browser, slots);
-  await closeBenchPages(listed);
-  return {
-    results: await runListedCases(browser, listed, group, options),
-    comparisons: listed[0].comparisons,
-  };
+): Promise<CaseResult> {
+  console.log(chalk.cyan(`\nRunning "${entry.name}" (${entry.file})…`));
+  try {
+    const measured = await measureBenchmark(browser, slots, options);
+    return {
+      benchmark: { ...entry, samples: samplesOf(slots, measured.rounds) },
+      metrics: measured.metrics,
+    };
+  } catch (error) {
+    console.error(chalk.red(`  ${errorMessage(error)}`));
+    return { benchmark: { ...entry, error: errorMessage(error) }, metrics: {} };
+  }
 }
 
-function benchPageUrl(origin: string, ref: ResolvedRef, benchFile: BenchFile): URL {
-  return new URL(`${ref.id}/${benchFile.page}`, `${origin}/`);
+function benchPageUrl(origin: string, ref: ResolvedRef, benchFile: BenchFile): string {
+  return new URL(`${ref.id}/${benchFile.page}`, `${origin}/`).href;
 }
 
 /**
- * Runs a benchmark file: its own `benchmark()` cases across the builds, and each `compare()` in it
- * across its variants, every variant built from the working tree.
+ * Runs a benchmark file: each case on its own across the builds, paired by name with the working
+ * tree as the reference, and each `compare()` across its cases on the working tree's build.
  */
 async function runBenchFile(
   browser: Browser,
@@ -318,51 +284,40 @@ async function runBenchFile(
   benchFile: BenchFile,
   options: RunInterleavedOptions,
 ): Promise<CaseResult[]> {
-  const buildSlots = options.benchRefs.map((ref): PageSlot => ({
-    variant: variantOf(ref),
-    url: benchPageUrl(origin, ref, benchFile).href,
-  }));
-  const { results, comparisons } = await listAndRun(
-    browser,
-    buildSlots,
-    { kind: 'baseline', file: benchFile.file, nameOf: (caseName) => caseName },
-    options,
-  );
+  const urls = options.benchRefs.map((ref) => benchPageUrl(origin, ref, benchFile));
+  const variants = options.benchRefs.map(variantOf);
+  const [reference, ...others] = await listBenchPages(browser, urls);
 
-  const [worktreeRef] = options.benchRefs;
-  for (const { name: comparison, variants } of comparisons) {
-    const variantSlots = variants.map((variant): PageSlot => {
-      const url = benchPageUrl(origin, worktreeRef, benchFile);
-      url.searchParams.set('compare', comparison);
-      url.searchParams.set('variant', variant);
-      return { variant, url: url.href };
-    });
-    try {
-      // eslint-disable-next-line no-await-in-loop
-      const compared = await listAndRun(
-        browser,
-        variantSlots,
-        {
-          kind: 'compare',
-          file: benchFile.file,
-          nameOf: (caseName) => `${comparison} / ${caseName}`,
-        },
-        options,
-      );
-      results.push(...compared.results);
-    } catch (error) {
-      console.error(chalk.red(`  ${errorMessage(error)}`));
+  const results: CaseResult[] = [];
+  for (const caseName of reference.caseNames) {
+    const entry: BenchmarkEntry = {
+      name: caseName,
+      file: benchFile.file,
+      kind: 'baseline',
+      variants,
+    };
+    const missing = others.findIndex((listing) => !listing.caseNames.includes(caseName));
+    if (missing !== -1) {
+      // A case added by the change under test has nothing to compare with.
       results.push({
         benchmark: {
-          name: comparison,
-          file: benchFile.file,
-          kind: 'compare',
-          variants,
-          error: errorMessage(error),
+          ...entry,
+          error: `"${caseName}" does not exist in [${variants[missing + 1]}].`,
         },
         metrics: {},
       });
+      continue;
     }
+    const slots = urls.map((url, index) => ({ variant: variants[index], url, caseName }));
+    // eslint-disable-next-line no-await-in-loop
+    results.push(await runBenchmark(browser, entry, slots, options));
+  }
+
+  for (const { name, cases } of reference.comparisons) {
+    const entry: BenchmarkEntry = { name, file: benchFile.file, kind: 'compare', variants: cases };
+    const slots = cases.map((caseName) => ({ variant: caseName, url: urls[0], caseName }));
+    // eslint-disable-next-line no-await-in-loop
+    results.push(await runBenchmark(browser, entry, slots, options));
   }
   return results;
 }

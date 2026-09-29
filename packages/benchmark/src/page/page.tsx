@@ -1,6 +1,5 @@
 import { createInput } from '../input';
 import type { BenchmarkInput } from '../input';
-import type { VariantLoader } from '../caseRuntime';
 import { seriesName, setMetricRecorder } from '../metricCore';
 import type { MetricDefinition } from '../types';
 
@@ -21,63 +20,55 @@ export interface BenchmarkContext {
  */
 export type BenchmarkRun = (context: BenchmarkContext) => Promise<void> | void;
 
-/** The file's own `benchmark()` cases. */
-const fileCases = new Map<string, BenchmarkRun>();
-// Where `benchmark()` registers: the file's own cases, except while a `compare()` variant module is
-// being loaded, whose cases belong to that variant.
-let registering = fileCases;
-// The cases this page runs: the file's own, or the variant the url selects.
-let pageCases = fileCases;
+/** A registered case, as `benchmark()` returns it for `compare()` to group. */
+export interface BenchmarkCase {
+  readonly name: string;
+}
+
+/** Every case the file registered, by name. */
+const cases = new Map<string, BenchmarkRun>();
 
 /**
  * Registers a benchmark case. The runner calls `run` once per sample, warmup included, and decides
- * how many samples to take.
+ * how many samples to take. A case on its own is measured across the builds; one passed to
+ * `compare()` is measured against the other cases there instead.
  */
-export function benchmark(name: string, run: BenchmarkRun): void {
-  if (registering.has(name)) {
+export function benchmark(name: string, run: BenchmarkRun): BenchmarkCase {
+  if (cases.has(name)) {
     throw new Error(`Two benchmarks share the name "${name}". Benchmark names must be unique.`);
   }
-  registering.set(name, run);
+  cases.set(name, run);
+  return { name };
 }
 
-const comparisons = new Map<string, Record<string, VariantLoader>>();
+/** Each `compare()`'s cases, by name, the reference first. */
+const comparisons = new Map<string, string[]>();
 
 /**
- * Compares implementations against each other — one library against another, say. Each variant is
- * a module of ordinary `benchmark()` calls; cases are paired across variants by name, and the first
- * variant is the reference. A variant's page loads only its own module, so no variant's code,
- * styles or module state is present while another is measured.
+ * Compares cases with each other — one library's implementation against another's, say — on the
+ * working tree's build, rather than each against its baseline. The first case is the reference.
+ *
+ * Every case is measured in a page of its own, but a page loads the whole file. Import what only one
+ * case needs inside that case (`await import()` resolves during warmup) to keep it out of the others'
+ * pages.
  */
-export function compare(name: string, variants: Record<string, VariantLoader>): void {
+export function compare(name: string, compared: BenchmarkCase[]): void {
   if (comparisons.has(name)) {
     throw new Error(`Two comparisons share the name "${name}". Comparison names must be unique.`);
   }
-  if (Object.keys(variants).length < 2) {
-    throw new Error(`Comparison "${name}" needs at least two variants.`);
+  if (compared.length < 2) {
+    throw new Error(`Comparison "${name}" needs at least two cases.`);
   }
-  comparisons.set(name, variants);
-}
-
-/** Loads the variant `?compare=<name>&variant=<key>` selects, if any, and runs its cases instead. */
-async function selectVariant(): Promise<void> {
-  const params = new URLSearchParams(window.location.search);
-  const comparison = params.get('compare');
-  const variant = params.get('variant');
-  if (comparison === null || variant === null) {
-    return;
+  for (const benchCase of compared) {
+    const owner = [...comparisons].find(([, names]) => names.includes(benchCase.name));
+    if (owner) {
+      throw new Error(`"${benchCase.name}" is already compared in "${owner[0]}".`);
+    }
   }
-  const load = comparisons.get(comparison)?.[variant];
-  if (!load) {
-    throw new Error(`No variant "${variant}" in comparison "${comparison}".`);
-  }
-  const variantCases = new Map<string, BenchmarkRun>();
-  registering = variantCases;
-  try {
-    await load();
-  } finally {
-    registering = fileCases;
-  }
-  pageCases = variantCases;
+  comparisons.set(
+    name,
+    compared.map((benchCase) => benchCase.name),
+  );
 }
 
 interface RecordedValue {
@@ -104,9 +95,10 @@ setMetricRecorder((metric, value, options) => {
 });
 
 export interface BenchPage {
+  /** The cases measured across the builds: every case no `compare()` took. */
   caseNames: () => string[];
-  /** The file's `compare()` calls, with their variant keys in order. */
-  comparisons: () => Array<{ name: string; variants: string[] }>;
+  /** The file's `compare()` calls, with their cases' names in order. */
+  comparisons: () => Array<{ name: string; cases: string[] }>;
   /** Every metric recorded so far, by name. */
   metricDefinitions: () => Record<string, MetricDefinition>;
   /**
@@ -120,8 +112,6 @@ declare global {
   interface Window {
     /** Set by `markPageReady()` once the benchmark file has registered its cases. */
     benchmarkPage?: BenchPage;
-    /** Set instead of `benchmarkPage` when the page could not get ready. */
-    benchmarkPageError?: string;
     /** Exposed by the runner: forwards a CDP command to this page's session. */
     benchmarkCdp?: (method: string, params?: Record<string, unknown>) => Promise<unknown>;
   }
@@ -135,9 +125,9 @@ const input = createInput((method, params) => {
 });
 
 async function sample(name: string, { warmup }: { warmup: boolean }): Promise<void> {
-  const run = pageCases.get(name);
+  const run = cases.get(name);
   if (!run) {
-    throw new Error(`No benchmark named "${name}". Known: ${[...pageCases.keys()].join(', ')}`);
+    throw new Error(`No benchmark named "${name}". Known: ${[...cases.keys()].join(', ')}`);
   }
   performance.clearMarks();
   performance.clearMeasures();
@@ -169,21 +159,15 @@ async function sample(name: string, { warmup }: { warmup: boolean }): Promise<vo
 }
 
 /**
- * Called by the generated page entry after it has imported every benchmark file. The runner waits
- * for `window.benchmarkPage`, or reads `window.benchmarkPageError` when getting ready failed.
+ * Called by the generated page entry after it has imported the benchmark file. The runner waits for
+ * `window.benchmarkPage`.
  */
-export async function markPageReady(): Promise<void> {
-  try {
-    await selectVariant();
-  } catch (error) {
-    window.benchmarkPageError =
-      error instanceof Error ? (error.stack ?? error.message) : String(error);
-    return;
-  }
+export function markPageReady(): void {
+  const compared = new Set([...comparisons.values()].flat());
   window.benchmarkPage = {
-    caseNames: () => [...pageCases.keys()],
+    caseNames: () => [...cases.keys()].filter((name) => !compared.has(name)),
     comparisons: () =>
-      [...comparisons].map(([name, variants]) => ({ name, variants: Object.keys(variants) })),
+      [...comparisons].map(([name, comparedNames]) => ({ name, cases: comparedNames })),
     metricDefinitions: () => Object.fromEntries(metricDefinitions),
     sample,
   };

@@ -11,6 +11,7 @@ import type { BenchmarkInteraction, CaseOptions } from '../caseRuntime';
 import { DiscreteMetric } from '../DiscreteMetric';
 import { ScalarMetric } from '../ScalarMetric';
 import { benchmark } from './page';
+import type { BenchmarkCase } from './page';
 
 export type ReactBenchmarkOptions = CaseOptions;
 
@@ -43,14 +44,14 @@ export function reactBenchmark(
   renderFn: () => React.ReactElement,
   interactionOrOptions?: BenchmarkInteraction | ReactBenchmarkOptions,
   maybeOptions?: ReactBenchmarkOptions,
-): void {
+): BenchmarkCase {
   if (!checkedGc) {
     checkedGc = true;
     warnIfNoGc();
   }
   const { interaction, options } = splitCaseArgs(interactionOrOptions, maybeOptions);
 
-  benchmark(name, async ({ input }) => {
+  return benchmark(name, async ({ input }) => {
     const result = await measureIteration(renderFn, interaction, options, input);
     if (result.renderError) {
       throw result.renderError;

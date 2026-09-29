@@ -17,15 +17,15 @@ For the real thing, see the consumers this tooling was extracted from — `base-
 | :---------------------------- | :------------------------------------------------------------------------ |
 | `workload/workload.bench.tsx` | The ordinary regression shape: current vs baseline, two sizes of workload |
 | `list/list.bench.tsx`         | A mount, and a trusted scroll gesture with a custom metric around it      |
-| `lists/lists.bench.tsx`       | `compare()` of two implementations, each a module of `benchmark()` cases  |
-| `libs/sort/sort.bench.tsx`    | `compare()` of three variants, standing in for competitor libraries       |
+| `lists/lists.bench.tsx`       | Two `compare()`s of two list implementations, one per scenario            |
+| `libs/sort/sort.bench.tsx`    | `compare()` of three sorts, standing in for competitor libraries          |
 
 `workload` and `list` import `@mui/internal-test-utils` and put its value on screen. That is the
 load-bearing part: every ref — the working tree included — resolves it from a packed tarball in that
 ref's own tree, so both sides of a comparison consume the library the way a consumer does. If that
 path breaks the page fails to build, rather than quietly measuring nothing.
 
-The `compare()` files cover the other axis, where nothing is compared across commits. Their variants
+The `compare()` files cover the other axis, where nothing is compared across commits. Their cases
 are built from the same commit and differ only in how they render or sort. A difference there is
 genuinely `worse` yet must never be reported as a regression, because both sides came from the same
 build.

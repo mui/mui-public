@@ -2,6 +2,6 @@
 
 export * from '../publicApi';
 export { benchmark, compare, markPageReady } from './page';
-export type { BenchmarkContext, BenchmarkRun, BenchPage } from './page';
+export type { BenchmarkCase, BenchmarkContext, BenchmarkRun, BenchPage } from './page';
 export { reactBenchmark } from './reactBenchmark';
 export type { ReactBenchmarkOptions } from './reactBenchmark';

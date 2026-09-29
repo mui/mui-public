@@ -417,14 +417,28 @@ reactBenchmark(
 );
 ```
 
-`compare()` pairs cases across implementations, each a module of `benchmark()` or `reactBenchmark()`
-cases.
+`compare()` measures cases against each other — one library's implementation against another's —
+on the working tree's build, instead of each against its baseline. The first case is the reference.
+
+```tsx
+compare('scatter', [
+  reactBenchmark('ours', () => <OurScatter points={points} />),
+  benchmark('other', async () => {
+    const { renderScatter } = await import('other-charts');
+    // …
+  }),
+]);
+```
+
+Every case is measured in a page of its own, but a page loads the whole benchmark file, so a static
+import reaches every case's page. Import what only one case needs inside that case: the first
+iteration is a warmup, so the `await import()` is never measured.
 
 ### How it measures
 
 The plugin generates a page per benchmark file under `src/__bench__/`. A benchmark file that imports
 `vitest`, or the Vitest entry `@mui/internal-benchmark`, fails the build. The runner drives Chromium through Playwright and gives every variant — the
-current and the baseline build, or each variant of a `compare()` — a page of its own, in a browser
+current and the baseline build, or each case of a `compare()` — a page of its own, in a browser
 context of its own, that stays open for the whole benchmark: every sample is one warm iteration, and
 module-scope data is built once.
 

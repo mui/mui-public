@@ -79,7 +79,7 @@ function pageEntry(benchFile: BenchFile): string {
   return `import '${specifier}';
 import { markPageReady } from '@mui/internal-benchmark/page';
 
-void markPageReady();
+markPageReady();
 `;
 }
 
