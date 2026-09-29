@@ -4,13 +4,11 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
-import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { pipeline } from 'node:stream/promises';
 import chalk from 'chalk';
+import { mapAsync } from 'es-toolkit/array';
 import { execa, parseCommandString } from 'execa';
-import { mapConcurrently } from './build';
-import { run } from './exec';
-import { pathExists } from './path';
 import { resolveCommit } from './git';
 import { listPublishablePackages } from './pnpm';
 
@@ -124,9 +122,18 @@ async function hashFile(file: string): Promise<string> {
   return hash.digest('hex').slice(0, 12);
 }
 
-/** Reads a folder's raw `manifest.json`. */
-async function readRawManifest(dir: string): Promise<RawManifest> {
-  return JSON.parse(await readFile(path.join(dir, MANIFEST), 'utf8'));
+/** Reads a folder's raw `manifest.json`, or `null` when it has none. */
+async function readRawManifest(dir: string): Promise<RawManifest | null> {
+  let text: string;
+  try {
+    text = await readFile(path.join(dir, MANIFEST), 'utf8');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return null;
+    }
+    throw error;
+  }
+  return JSON.parse(text);
 }
 
 /** Resolves a raw manifest's stored (relative) tarball names to absolute paths under `dir`. */
@@ -152,17 +159,14 @@ function resolveManifest(raw: RawManifest, dir: string): PackedWorkspace {
  * evicted or deleted.
  */
 export async function readFreshCache(dir: string, buildCmd: string): Promise<RawManifest | null> {
-  if (!(await pathExists(path.join(dir, MANIFEST)))) {
-    return null;
-  }
   const raw = await readRawManifest(dir);
-  if (raw.buildCmd !== buildCmd) {
+  if (raw === null || raw.buildCmd !== buildCmd) {
     return null;
   }
-  const tarballsPresent = await Promise.all(
-    raw.packages.map((pkg) => pathExists(path.join(dir, pkg.tarball))),
+  const tarballs = await Promise.allSettled(
+    raw.packages.map((pkg) => access(path.join(dir, pkg.tarball))),
   );
-  return tarballsPresent.every(Boolean) ? raw : null;
+  return tarballs.every((result) => result.status === 'fulfilled') ? raw : null;
 }
 
 /**
@@ -200,14 +204,14 @@ export async function packBuiltPackages(
   }
   // Each `pnpm pack` is its own node process, so a repository with a dozen public packages would
   // otherwise start a dozen at once.
-  return mapConcurrently(
+  return mapAsync(
     packages,
     async ({ path: pkgDir, name, version }) => {
       const tarball = path.join(outDir, tarballName(name));
-      await run('pnpm', ['pack', '--out', tarball], pkgDir);
+      await execa('pnpm', ['pack', '--out', tarball], { cwd: pkgDir, verbose: 'short' });
       return { name, version, tarball };
     },
-    os.availableParallelism(),
+    { concurrency: os.availableParallelism() },
   );
 }
 
@@ -252,18 +256,26 @@ export async function packRef(options: PackRefOptions): Promise<PackedWorkspace>
   const checkout = await mkdtemp(path.join(os.tmpdir(), 'pack-workspace-'));
   try {
     console.log(chalk.cyan(`\nChecking out "${ref}" (${sha.slice(0, 9)}) at ${checkout}`));
-    await run('git', ['worktree', 'add', '--detach', checkout, sha], repoRoot);
+    await execa('git', ['worktree', 'add', '--detach', checkout, sha], {
+      cwd: repoRoot,
+      verbose: 'short',
+    });
     if (installCmd) {
       console.log(chalk.cyan(`\nInstalling dependencies for ${sha.slice(0, 9)}…`));
       const [installFile, ...installArgs] = parseCommandString(installCmd);
-      await run(installFile, installArgs, checkout, { verbose: true });
+      await execa(installFile, installArgs, { cwd: checkout, stdio: 'inherit', verbose: 'short' });
     }
     console.log(chalk.cyan(`\nBuilding packages for ${sha.slice(0, 9)}…`));
     // Disable the nx daemon (lerna runs builds through nx): a lingering daemon keeps writing into
     // the checkout and makes removal fail with "Directory not empty". execa's `env` extends the
     // current environment, so only NX_DAEMON is overridden.
     const [buildFile, ...buildArgs] = parseCommandString(buildCmd);
-    await run(buildFile, buildArgs, checkout, { env: { NX_DAEMON: 'false' }, verbose: true });
+    await execa(buildFile, buildArgs, {
+      cwd: checkout,
+      env: { NX_DAEMON: 'false' },
+      stdio: 'inherit',
+      verbose: 'short',
+    });
 
     const packages = await packBuiltPackages(checkout, staging);
     // Store tarballs by basename so the folder is relocatable; record buildCmd so a later run can
@@ -317,7 +329,12 @@ export async function packWorkingTree(options: {
   console.log(chalk.cyan(`\nBuilding workspace packages for "working tree" (${buildCmd})…`));
   // Disable the nx daemon: it keeps writing into the workspace after the build returns.
   const [file, ...args] = parseCommandString(buildCmd);
-  await run(file, args, repoRoot, { env: { NX_DAEMON: 'false' }, verbose: true });
+  await execa(file, args, {
+    cwd: repoRoot,
+    env: { NX_DAEMON: 'false' },
+    stdio: 'inherit',
+    verbose: 'short',
+  });
 
   console.log(chalk.cyan('\nPacking the working tree…'));
   // Stage next to the destination so the renames cannot cross filesystems.
