@@ -414,7 +414,17 @@ async function validateWithPublint(buildDir) {
     import('publint/utils'),
   ]);
   // Everything in the output directory is published, so there is nothing to pack.
-  const { messages, pkg } = await publint({ pkgDir: buildDir, pack: false, level: 'warning' });
+  const result = await publint({ pkgDir: buildDir, pack: false, level: 'warning' });
+  const { pkg } = result;
+  // publint checks `browser` values that point at another package as local files.
+  // Remove once https://github.com/publint/publint/pull/265 is released.
+  const messages = result.messages.filter((message) => {
+    if (message.code !== 'FILE_DOES_NOT_EXIST' || message.path[0] !== 'browser') {
+      return true;
+    }
+    const value = message.path.length === 2 ? pkg.browser?.[message.path[1]] : undefined;
+    return typeof value !== 'string' || value.startsWith('.');
+  });
 
   for (const message of messages) {
     const log = message.type === 'error' ? console.error : console.warn;
