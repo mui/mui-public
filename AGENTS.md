@@ -76,7 +76,8 @@ Applies to the whole repository.
 - **Test through the public API.** Cover a module through what it exports, and check the shape of
   that API rather than how it is built. Do not export a function only so a test can call it, and do
   not unit-test a helper the exported entry points already exercise — reach its edge cases through
-  those entry points instead.
+  those entry points instead. A genuinely generic utility — string manipulation, HTTP, paths,
+  formatting — is a module of its own: extract it, and test it through its own API.
 
 ## Common Tasks
 
@@ -175,15 +176,6 @@ All commands are fast in this repository, but network issues or system load can 
 
 Follow additional instructions when working in the `@mui/internal-docs-infra` (`packages/docs-infra`) package or `docs/app/docs-infra` docs:
 
-### Development Process
-
-- **1.1** Create or modify tests `*.test.ts` files before making changes to implementation files. Confirm the test expectations are correct before touching implementation code.
-- **1.2** When modifying existing code, try to maintain clean diffs and add tests in within the right `describe` blocks.
-- **1.3** When creating new functionality, first write the docs, then the types, then the tests, then the implementation, then the demos. Ensure that the user explicitly reviews test cases and docs before implementation.
-- **1.4** When updating functionality across multiple units, ensure that integration tests pass before updating unit tests. This ensures that the overall behavior remains correct before focusing on individual components.
-- **1.5** Write tests using generic placeholder data rather than production-specific names. When fixing a bug, avoid copying exact component names, file paths, or values from the bug report. Instead, use simple generic examples (like `Button`, `Checkbox`, `myFunction`) that are consistent with existing test cases in the file. This makes tests more maintainable, focused on the logic being tested, and easier to understand without domain knowledge.
-- **1.6** When writing tests where the output is a long string, prefer using inline snapshots. If there is a lot of noise in this output, consider a normal snapshot test. Multiple assertions that a string contains something don't ensure the strings come in the correct order or can be parsed.
-
 ### Code Architecture & Design
 
 - **2.1** Avoid using Node.js native modules like `fs` or `path` or Browser only APIs (like `window` or `document`) when functionality can be achieved using isomorphic code that can also run in the browser and Node.js. When necessary, isolate platform specific code behind interfaces or abstractions so that it can later be replaced in browser environments.
@@ -194,15 +186,6 @@ Follow additional instructions when working in the `@mui/internal-docs-infra` (`
 - **2.4** Value progressive complexity for developers using the library. Start with straightforward defaults and layer optional extension points or advanced behavior that teams can opt into. Keep complex internals behind simple interfaces to enable incremental adoption, easier testing, and maintainable abstractions.
 - **2.5** Create functionality in a generic sense, allowing for easy reuse and adaptation in different contexts.
 - **2.6** Value the idea of progressive enhancement for end users. Ensure the core experience functions in baseline browsers or runtimes, then add optional user-facing improvements that detect and leverage richer platform capabilities without breaking the fundamentals.
-
-### Testing Strategy
-
-- **3.1** Test each export through its public API (at `src/{functionName}/{functionName}.test.ts`, and integration tests at `src/{functionName}/user.spec.ts`). See [Testing](#testing): helpers are covered through the export that uses them, not tested on their own.
-- **3.2** Use `vitest` for testing. Use `describe`, `it`, and `expect` from `vitest`. Avoid using `beforeEach` and `afterEach` unless absolutely necessary. Each test should be independent and self-contained. Write `describe` and `it` block names prioritizing clarity and readability. Create nested describe blocks when helpful to group related tests. Use `it` blocks for individual test cases.
-- **3.3** When debugging, create new test cases to reproduce issues. It's helpful to create new cases to reproduce issues and avoid regressions. Try to reproduce issues in the most specific test case possible.
-- **3.4** Integration tests (`user.spec.ts`) should be written to cover real user cases and serve as supplemental documentation. Prioritize readability. Reading these tests cases should describe all user cases considered. Try to avoid too much overlap between unit and integration tests. A change of an existing integration test would clearly indicate a breaking change.
-- **3.5** Avoid mocks in unit tests. Use real implementations whenever possible to ensure tests are reliable and maintainable. See [Testing](#testing) for what counts as a mock and what may be faked — those rules apply repository-wide, not only here.
-- **3.6** Test the performance of code within `src/{functionName}/optimization.test.ts` when performance is critical. Functions should use `performance.now()` to measure time taken. When helpful, functions should log using `performance.mark()` and `performance.measure()` which appear when profiling or can be logged with a `PerformanceObserver`.
 
 ### Documentation & Examples
 
