@@ -47,6 +47,17 @@ describe('createPackageJsonConfig', () => {
       expect(await lintPackageJson(PUBLIC_PACKAGE)).toEqual([]);
     });
 
+    it('accepts a CLI-only package without exports', async () => {
+      const { exports, ...packageJson } = PUBLIC_PACKAGE;
+      expect(await lintPackageJson({ ...packageJson, bin: './cli.js' })).toEqual([]);
+    });
+
+    it('accepts the object form of browser', async () => {
+      expect(
+        await lintPackageJson({ ...PUBLIC_PACKAGE, browser: { 'dep/cjs/a.js': 'dep/esm/a.js' } }),
+      ).toEqual([]);
+    });
+
     it('requires a license', async () => {
       const { license, ...packageJson } = PUBLIC_PACKAGE;
       expect(await lintPackageJson(packageJson)).toContain('package-json/require-license');

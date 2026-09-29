@@ -37,6 +37,10 @@ export function createPackageJsonConfig() {
         'package-json/require-type': 'off',
         // Peer dependencies are installed once at the workspace root.
         'package-json/specify-peers-locally': 'off',
+        // CLI-only packages have no "exports".
+        'package-json/require-exports': 'off',
+        // Rejects the object form of "browser", which the browser field spec allows.
+        'package-json/valid-browser': 'off',
         // npm only auto-includes "main" when it has no "./" prefix; removing it from "files" can drop the entry point.
         'package-json/no-redundant-files': 'off',
       },
