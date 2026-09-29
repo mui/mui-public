@@ -1,6 +1,6 @@
 import * as React from 'react';
-import { ScrollingList } from '../_shared/ScrollingList';
 import { benchmark } from '@mui/internal-benchmark';
+import { ScrollingList } from '../_shared/ScrollingList';
 
 const ROWS = 1000;
 

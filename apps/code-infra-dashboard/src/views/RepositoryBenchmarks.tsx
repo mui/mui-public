@@ -6,6 +6,7 @@ import Link from '@mui/material/Link';
 import Alert from '@mui/material/Alert';
 import Heading from '../components/Heading';
 import DailyBenchmarkChart from '../components/DailyBenchmarkChart';
+import BenchmarkRunHistory from '../components/BenchmarkRunHistory';
 import { repositories } from '../constants';
 
 export default function RepositoryBenchmarks() {
@@ -34,7 +35,10 @@ export default function RepositoryBenchmarks() {
           API.
         </Alert>
       ) : (
-        <DailyBenchmarkChart repo={fullRepo} />
+        <React.Fragment>
+          <DailyBenchmarkChart repo={fullRepo} />
+          {repoConfig?.prComment?.benchmarkRun && <BenchmarkRunHistory repo={fullRepo} />}
+        </React.Fragment>
       )}
     </React.Fragment>
   );

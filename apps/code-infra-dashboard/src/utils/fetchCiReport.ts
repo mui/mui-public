@@ -1,12 +1,12 @@
 import type { SizeSnapshotWithMetadata } from '@/lib/bundleSize/types';
 import type { BenchmarkReport, BenchmarkUpload } from '@/lib/benchmark/types';
-import type { TachometerReport } from '@mui/internal-benchmark/tachometerReport';
+import type { BenchmarkRunReport } from '@mui/internal-benchmark/runReport';
 import { migrateBenchmarkReport } from '@/lib/benchmark/migrateBenchmarkReport';
 
 export interface CiReportTypes {
   'benchmark.json': BenchmarkUpload;
   'size-snapshot.json': SizeSnapshotWithMetadata;
-  'tachometer.json': TachometerReport;
+  'benchmark-run.json': BenchmarkRunReport;
 }
 
 export type CiReportName = keyof CiReportTypes;

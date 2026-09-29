@@ -1,11 +1,11 @@
 import type * as React from 'react';
 import { createInput } from '../input';
 import { measureIteration, PAINT_METRIC_NAME, splitCaseArgs, warnIfNoGc } from '../caseRuntime';
-import type { MeasuredIteration } from '../caseRuntime';
 import type {
   BenchmarkInteraction,
   BenchmarkOptions,
   CaseOptions,
+  MeasuredIteration,
   VariantLoader,
 } from '../caseRuntime';
 import { seriesName, setMetricRecorder } from '../metricCore';

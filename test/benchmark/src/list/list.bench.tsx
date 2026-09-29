@@ -1,7 +1,7 @@
 import * as React from 'react';
-import { ScrollingList } from '../_shared/ScrollingList';
 import { benchmark, ScalarMetric } from '@mui/internal-benchmark';
 import { reactMajor } from '@mui/internal-test-utils/env';
+import { ScrollingList } from '../_shared/ScrollingList';
 
 /**
  * `benchmark()` cases, the same API Vitest runs. Under `benchmark run` each case runs one

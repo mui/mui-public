@@ -1,6 +1,6 @@
 import * as React from 'react';
 import type { Metadata } from 'next';
-import TachometerDetails from '@/views/TachometerDetails';
+import BenchmarkRunDetails from '@/views/BenchmarkRunDetails';
 
 export async function generateMetadata({
   params,
@@ -8,9 +8,9 @@ export async function generateMetadata({
   params: Promise<{ owner: string; repo: string }>;
 }): Promise<Metadata> {
   const { owner, repo } = await params;
-  return { title: `Tachometer Details - ${owner}/${repo}` };
+  return { title: `Benchmark run - ${owner}/${repo}` };
 }
 
-export default function TachometerDetailsPage() {
-  return <TachometerDetails />;
+export default function BenchmarkRunPage() {
+  return <BenchmarkRunDetails />;
 }
