@@ -394,8 +394,8 @@ module-scope data is built once.
 Every variant is sampled once per round, in a shuffled order, and a difference is judged on the
 per-round differences rather than on two independent sets of samples. Whatever the machine was doing
 during a round — thermal throttling, a background process — then affects both sides of it and cancels
-out. `--warmup` rounds (10 by default) are discarded once per benchmark, then `--samples` rounds (30
-by default) are measured; the iteration counts in `benchmark()`'s options only apply under Vitest.
+out. 10 warmup rounds are discarded once per benchmark, then 30 rounds are measured; the iteration
+counts in `benchmark()`'s options only apply under Vitest.
 
 ### The report
 
@@ -436,7 +436,7 @@ Packed builds are cached by commit SHA under `.benchmark/packed/`, so repeating 
 the same commit skips the rebuild; the working tree is never cached. In CI, cache that directory
 keyed on the baseline SHA, and check out with full history so a fork point can be resolved.
 
-By default a run resolves **in place**: it pins the packed build in the repository's own
+A run resolves **in place**: it pins the packed build in the repository's own
 `pnpm-workspace.yaml`, installs it there, and resolution is then ordinary. The repository is put
 back, and reinstalled, when the run ends — including when it fails, and at the start of the next run
 if one was killed outright. Two things follow from it. A tracked file names tarballs under
@@ -444,11 +444,7 @@ if one was killed outright. Two things follow from it. A tracked file names tarb
 the workspace for that time, because pnpm scopes an override by parent package name and a harness has
 none — so nothing else should build against the same checkout meanwhile.
 
-`--resolve-mode isolated` avoids both: it installs each ref into a directory of its own and points
-resolution there, leaving the repository untouched, at the cost of a second install tree per ref.
-
-`--launch-arg` passes a flag to Chromium, e.g. `--use-angle=metal` for hardware-rendered paint
-timings. `--no-install` skips a ref's install. `benchmark run --help` lists the rest.
+`benchmark run --help` lists the remaining options.
 
 ## Tachometer
 

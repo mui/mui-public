@@ -13,7 +13,6 @@ import type { ResolvedRef } from './refs';
 import { discoverBenchFiles } from './benchFiles';
 import { runInterleaved } from './runInterleaved';
 import { buildRefPages, restoreWorkspace } from './buildPages';
-import type { ResolveMode } from './buildPages';
 import { resolveBrowserBinary } from './browser';
 import { printRunReport } from './printReport';
 import { publishRunReport } from './upload';
@@ -35,21 +34,16 @@ export interface RunBenchmarksOptions {
    * Defaults to `pnpm release:build`.
    */
   buildCmd?: string;
-  /** Whether to install inside a ref's checkout. Defaults to true. */
-  install?: boolean;
   /** Where to write the JSON report. Defaults to `.benchmark/results/report.json`. */
   out?: string;
   /** Upload the report and refresh the pull request comment. */
   upload?: boolean;
-  /** How a ref's pages find the library under test. Defaults to `in-place`. */
-  resolveMode?: ResolveMode;
-  /** Measured rounds per case. Defaults to 30. */
-  samples?: number;
-  /** Discarded rounds before measuring, once per case. Defaults to 10. */
-  warmup?: number;
-  /** Extra Chromium launch arguments, e.g. to select a hardware GPU backend for paint timings. */
-  launchArgs?: string[];
 }
+
+/** Measured rounds per benchmark; each round samples every variant once. */
+const SAMPLES = 30;
+/** Discarded rounds before measuring, once per benchmark. */
+const WARMUP = 10;
 
 /**
  * Benchmarks a harness's `*.bench.tsx` files across two builds of the workspace — the working tree
@@ -64,13 +58,8 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
     filters = [],
     baseline,
     buildCmd = 'pnpm release:build',
-    install = true,
     out,
     upload = false,
-    resolveMode = 'in-place',
-    samples = 30,
-    warmup = 10,
-    launchArgs = [],
   } = options;
 
   const repoRoot = await findWorkspaceDir(harnessDir);
@@ -80,18 +69,15 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
 
   // Everything a run writes goes under one directory, so a harness has one thing to ignore and
   // deleting it is the whole reset story. `packed` holds tarballs — a ref's keyed by commit SHA,
-  // the working tree's by content hash — and is the one worth caching in CI; `trees` holds the
-  // install each ref's pages resolve through, cheap to recreate and not portable between
-  // containers, since its links point into a pnpm store; `builds` holds the pages built per ref;
-  // `results` the report.
+  // the working tree's by content hash — and is the one worth caching in CI; `builds` holds the
+  // pages built per ref; `results` the report.
   const outputDir = await prepareOutputDir(harnessDir);
   const buildsDir = buildsDirOf(harnessDir);
   const packedDir = path.join(outputDir, 'packed');
-  const treesDir = path.join(outputDir, 'trees');
 
   // A run killed outright — Ctrl-C, not a thrown error — never reaches the restore below, leaving
   // the repository pinned to tarballs. The copy it left behind is how that is noticed, so put it
-  // back before doing anything else, whatever mode this run is in.
+  // back before doing anything else.
   await restoreWorkspace(repoRoot, outputDir);
 
   const benchFiles = await discoverBenchFiles({ harnessDir, filters });
@@ -110,14 +96,14 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
   // costs seconds instead of minutes of packing and installing.
   const browserBinary = await resolveBrowserBinary(harnessDir);
   // `getuid` is POSIX-only; on Windows nobody is root. Chrome cannot enter its sandbox as root.
-  const allLaunchArgs = process.getuid?.() === 0 ? [...launchArgs, '--no-sandbox'] : launchArgs;
+  const launchArgs = process.getuid?.() === 0 ? ['--no-sandbox'] : [];
 
   // The commit follows the name, so a revision like `HEAD~1` still says which commit it landed on.
   const describeRef = (ref: ResolvedRef) =>
     ref.sha ? `${refLabel(ref)} (${ref.sha.slice(0, 9)})` : refLabel(ref);
   console.log(chalk.cyan(`Files:   ${benchFiles.map((benchFile) => benchFile.file).join(', ')}`));
   console.log(chalk.cyan(`Refs:    ${refs.map(describeRef).join(', ')}`));
-  console.log(chalk.cyan(`Browser: ${browserBinary} ${allLaunchArgs.join(' ')}`));
+  console.log(chalk.cyan(`Browser: ${browserBinary} ${launchArgs.join(' ')}`));
 
   try {
     // Pack both sides at once: each builds in its own checkout, and nothing is measured yet.
@@ -127,21 +113,14 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
           return packWorkingTree({ repoRoot, outRoot: path.join(packedDir, 'current'), buildCmd });
         }
         // packRef caches a ref's tarballs by SHA; a hit skips the checkout, install, and build.
-        const packed = await packRef({
-          repoRoot,
-          ref: ref.sha,
-          outRoot: packedDir,
-          // An empty install command means "skip"; otherwise packRef's default install runs.
-          installCmd: install ? undefined : '',
-          buildCmd,
-        });
+        const packed = await packRef({ repoRoot, ref: ref.sha, outRoot: packedDir, buildCmd });
         return packed.packages;
       }),
     );
 
-    // Then build one set of pages per ref, each resolving through its own install so both sides of
-    // a comparison resolve the library identically. One at a time: an in-place build pins the
-    // repository's own workspace file.
+    // Then build one set of pages per ref, each against its own packed build so both sides of a
+    // comparison resolve the library identically. One at a time: a build pins the repository's own
+    // workspace file.
     for (const [index, ref] of refs.entries()) {
       // eslint-disable-next-line no-await-in-loop
       await buildRefPages({
@@ -149,10 +128,8 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
         repoRoot,
         ref,
         packages: packedByRef[index],
-        treeDir: path.join(treesDir, ref.id),
         outputDir,
         outDir: path.join(buildsDir, ref.id),
-        resolveMode,
       });
     }
 
@@ -161,9 +138,9 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
       benchFiles,
       benchRefs: refs,
       browserBinary,
-      launchArgs: allLaunchArgs,
-      samples,
-      warmup,
+      launchArgs,
+      samples: SAMPLES,
+      warmup: WARMUP,
     });
 
     const report: BenchmarkRunReport = {
@@ -178,9 +155,9 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
         browser: `Chromium ${results.browserVersion}`,
         platform: process.platform,
         arch: process.arch,
-        launchArgs: allLaunchArgs,
+        launchArgs,
       },
-      sampling: { samples, warmup },
+      sampling: { samples: SAMPLES, warmup: WARMUP },
       builds: Object.fromEntries(
         refs.map((ref) => [variantOf(ref), { sha: ref.sha, label: refLabel(ref) }]),
       ),
@@ -206,10 +183,8 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
     }
     return report;
   } finally {
-    // Always, including after a failure: an in-place run leaves the repository resolving the library
-    // to a tarball until this puts it back.
-    if (resolveMode === 'in-place') {
-      await restoreWorkspace(repoRoot, outputDir);
-    }
+    // Always, including after a failure: the repository resolves the library to a tarball until
+    // this puts it back.
+    await restoreWorkspace(repoRoot, outputDir);
   }
 }

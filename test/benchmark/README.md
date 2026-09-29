@@ -41,7 +41,7 @@ Or from here, with the usual filters and flags:
 
 ```bash
 pnpm -F ./test/benchmark benchmark:run workload
-pnpm -F ./test/benchmark benchmark:run --baseline HEAD --samples 10
+pnpm -F ./test/benchmark benchmark:run --baseline HEAD
 ```
 
 A filter is a case-insensitive substring of a benchmark file's path under `src/`, the way vitest
@@ -49,8 +49,8 @@ matches test files. Because both sides run identical code, the expected result i
 the "no change" outcome, not a failure.
 
 Everything a run writes goes under `.benchmark/`: the report in `results/`, the pages built per ref in
-`builds/`, the packed tarballs in `packed/` (the one worth caching in CI, keyed by commit SHA) and the
-install each ref resolves through in `trees/`. Deleting that directory resets the harness completely.
+`builds/` and the packed tarballs in `packed/` (the one worth caching in CI, keyed by commit SHA).
+Deleting that directory resets the harness completely.
 The pages generated per benchmark file live in `src/__bench__/`, which is ignored too.
 
 ### Prerequisites
