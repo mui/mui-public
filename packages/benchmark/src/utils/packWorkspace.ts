@@ -87,32 +87,15 @@ function tarballName(pkgName: string): string {
 }
 
 /**
- * Removes a temporary git worktree, best-effort.
+ * Removes a temporary checkout, and git's record of it.
  *
- * Removal can fail with "Directory not empty" when a background task runner (nx, via lerna)
- * repopulates the tree while git is deleting it; fall back to force-removing the directory and
- * pruning git's bookkeeping. Never throws — by the time this runs the packed tarballs are already
- * safe, so a leftover temp checkout must not fail the run.
+ * A plain delete and a prune rather than `git worktree remove`, which fails with "Directory not
+ * empty" when a background task runner (nx, via lerna) is still writing into the tree; `rm` retries
+ * through that.
  */
 async function removeCheckout(repoRoot: string, checkout: string): Promise<void> {
-  const removed = await execa('git', ['worktree', 'remove', '--force', checkout], {
-    cwd: repoRoot,
-    reject: false,
-  });
-  if (removed.exitCode !== 0) {
-    try {
-      await rm(checkout, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
-    } catch (error) {
-      console.warn(
-        chalk.yellow(
-          `Could not remove temporary checkout ${checkout}: ${error instanceof Error ? error.message : error}. ` +
-            `Delete it and prune git's bookkeeping to clean up.`,
-        ),
-      );
-    }
-    // Drop git's now-dangling admin entry regardless of whether the directory delete stuck.
-    await execa('git', ['worktree', 'prune'], { cwd: repoRoot, reject: false });
-  }
+  await rm(checkout, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+  await execa('git', ['worktree', 'prune'], { cwd: repoRoot });
 }
 
 /**
@@ -290,8 +273,7 @@ export async function packRef(options: PackRefOptions): Promise<PackedWorkspace>
     await rm(staging, { recursive: true, force: true });
     throw error;
   } finally {
-    // Runs even if the checkout failed (leaving an empty temp dir) — removeCheckout falls back to a
-    // plain delete, so the temp checkout never leaks.
+    // However the build went, including a checkout that never happened.
     await removeCheckout(repoRoot, checkout);
   }
 }
