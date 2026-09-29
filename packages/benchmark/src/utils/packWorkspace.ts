@@ -86,13 +86,7 @@ function tarballName(pkgName: string): string {
   return `${pkgName.replace(/^@/, '').replace('/', '+')}.tgz`;
 }
 
-/**
- * Removes a temporary checkout, and git's record of it.
- *
- * A plain delete and a prune rather than `git worktree remove`, which fails with "Directory not
- * empty" when a background task runner (nx, via lerna) is still writing into the tree; `rm` retries
- * through that.
- */
+/** Removes a temporary checkout, and git's record of it. */
 async function removeCheckout(repoRoot: string, checkout: string): Promise<void> {
   await rm(checkout, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
   await execa('git', ['worktree', 'prune'], { cwd: repoRoot });
