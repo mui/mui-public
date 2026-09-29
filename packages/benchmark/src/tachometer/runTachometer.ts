@@ -170,7 +170,7 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
       } else {
         // packRef caches a ref's tarballs by SHA; a hit skips the checkout, install, and build.
         // eslint-disable-next-line no-await-in-loop
-        const packed = await packRef({
+        packages = await packRef({
           repoRoot,
           ref: ref.sha,
           outRoot: packedDir,
@@ -178,7 +178,6 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
           installCmd: install ? undefined : '',
           buildCmd,
         });
-        packages = packed.packages;
       }
 
       // eslint-disable-next-line no-await-in-loop
