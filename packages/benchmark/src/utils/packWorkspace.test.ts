@@ -152,6 +152,25 @@ describe('packRef', () => {
     expect(await readdir(outRoot)).toEqual([sha.trim()]);
   });
 
+  it('leaves nothing behind when the build fails', { timeout: 120_000 }, async () => {
+    const { repoRoot } = await makeFixtureRepo();
+    const outRoot = path.join(await makeTempDir(), 'cache');
+
+    await expect(
+      packRef({
+        repoRoot,
+        ref: 'HEAD',
+        outRoot,
+        installCmd: '',
+        buildCmd: 'node -e process.exit(1)',
+      }),
+    ).rejects.toThrow();
+
+    expect(await readdir(outRoot)).toEqual([]);
+    const worktrees = await execa('git', ['worktree', 'list'], { cwd: repoRoot });
+    expect(worktrees.stdout.trim().split('\n')).toHaveLength(1);
+  });
+
   it('reports a ref it cannot resolve', async () => {
     const { repoRoot, buildCmd } = await makeFixtureRepo();
     const outRoot = path.join(await makeTempDir(), 'cache');
