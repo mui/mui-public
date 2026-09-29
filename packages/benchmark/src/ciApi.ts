@@ -1,21 +1,13 @@
 /* eslint-disable no-console -- progress belongs in the CI log. */
 
-/**
- * The dashboard's CI-report API.
- *
- * Every call is the same shape — a bearer-token POST of one JSON body — and the token is the OIDC
- * one CircleCI mints for the job. Keeping that in one place is what stops the endpoint host, the
- * environment variable and the error handling from drifting between calls, where a divergence
- * would only ever show up in CI.
- */
+// The dashboard's CI-report API: a bearer-token POST of one JSON body, with the OIDC token
+// CircleCI mints for the job.
 
 const DEFAULT_API_URL = 'https://frontend-public.mui.com';
 
 /**
- * Posts `body` to the dashboard, authenticated as this CI job, and returns the response text.
- *
- * `what` names the call in both errors it can raise, so a failure says which request failed rather
- * than only that one did.
+ * Posts `body` to the dashboard, authenticated as this CI job, and returns the response text. `what`
+ * names the request in the errors it raises.
  */
 export async function postToDashboard(
   pathname: string,
