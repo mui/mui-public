@@ -1,15 +1,14 @@
 # Benchmark
 
-Two ways to measure, for two different questions.
+Two ways to run the same `benchmark()` files, for two different questions.
 
-**Render durations** — a React component benchmarking tool built on Vitest and Playwright, using
-React's profiling build to capture accurate render durations against your source. Everything up to
-[Tachometer](#tachometer) covers it.
+**Under Vitest** — a React component benchmarking tool built on Vitest and Playwright, using React's
+profiling build to capture render durations against your source, tracked commit by commit. Everything
+up to [`benchmark run`](#benchmark-run) covers it.
 
-**Wall-clock time** — [Tachometer](#tachometer) below: Google's
-[tachometer](https://github.com/google/tachometer) driving a real browser against your **built**
-package, comparing two commits of it with interleaved sampling. No profiler and no render counts,
-only elapsed milliseconds on what a consumer installs.
+**`benchmark run`** — below: the working tree against a baseline commit, both **built** and installed
+the way a consumer gets them, sampled alternately in one browser run and compared on paired
+differences, so a small change resolves instead of drowning in run-to-run noise.
 
 ## Features
 
@@ -119,7 +118,7 @@ benchmark(
 );
 ```
 
-Under the interleaved engine every variant gets a page of its own that loads only its own module, so
+Under `benchmark run` every variant gets a page of its own that loads only its own module, so
 no variant's code, styles or module state is present while another is measured; all variants come
 from the working tree. Under Vitest, which has no notion of variants, each variant's cases simply run
 as tests of their own, named `mount [recharts]`.
@@ -361,61 +360,61 @@ BENCHMARK_BASELINE_PATH=/tmp/base-bench.json pnpm test:bench   # head run, inlin
 
 The feature is opt-in — without `BENCHMARK_BASELINE_PATH` (or the `baselinePath` config option), the dashboard falls back to fetching the base from S3 by merge-base SHA as before.
 
-## Tachometer
+## `benchmark run`
 
-`benchmark tacho run` measures a harness package in a real browser, building the workspace once per
-commit under comparison and serving the pages from those builds. Run it from the harness.
+`benchmark run` measures a harness package's `*.bench.tsx` files — the same `benchmark()` and
+`compare()` files Vitest runs — across two builds of the workspace: the working tree and a baseline.
+Run it from the harness, whose vite config uses the plugin:
 
-A harness is a package holding a `src/` tree of **case folders**, each with a page and a plain,
-unmodified [tachometer config](https://github.com/google/tachometer#config-file). The configs are the
-source of truth for which pages exist: the runner reads the selected ones, works out which pages they
-reference, builds one variant per distinct commit, and rewrites each url to the built page. Filtering
-to one case therefore narrows the build too.
+```js
+// vite.config.mjs
+import { defineConfig } from 'vite';
+import { benchmarkPlugin } from '@mui/internal-benchmark/vitePlugin';
 
-Sampling — `sampleSize`, `autoSampleConditions`, `timeout` — is set per case in its own config,
-because tachometer rejects those as flags once a config file is in play. A case samples until its
-difference resolves or the timeout is hit; two builds of equal speed cannot be separated, so such a
-case reports `unsure`, which is the expected "nothing changed" outcome rather than a failure.
-
-### What a case compares
-
-A case is one of two things, and its `expand` decides which.
-
-**No `expand`** is the ordinary regression shape. It is expanded for you into `[current]` — the
-working tree — against `[baseline]`, both loading the same page:
-
-```jsonc
-{ "benchmarks": [{ "name": "init", "url": "./index.html" }] }
+export default defineConfig({ plugins: [benchmarkPlugin()] });
 ```
 
-**Its own `expand`** compares the pages it names with each other, every one of them built from the
-working tree. That is how one implementation is measured against another:
-
-```jsonc
-"expand": [
-  { "name": "[mosaic]", "url": "./index.html" },
-  { "name": "[tanstack]", "url": "./tanstack.html" }
-]
+```bash
+benchmark run --baseline "$(code-infra baseline)"
 ```
 
-Such a case reports no regression, by construction: there is no baseline in it to regress against.
-Every run says which shape each case has before it starts, so this is visible rather than inferred
-from an empty result. To sweep a parameter and still measure it against the baseline, give each
-value its own case folder pointing at the shared page — `expand` would turn the case into the other
-shape.
+### How it measures
+
+The plugin generates a page per benchmark file under `src/__bench__/`, where
+`@mui/internal-benchmark` resolves to a page runtime instead of Vitest; a benchmark file that imports
+`vitest` fails the build. The runner drives Chromium through Playwright and gives every variant — the
+current and the baseline build, or each variant of a `compare()` — a page of its own, in a browser
+context of its own, that stays open for the whole benchmark: every sample is one warm iteration, and
+module-scope data is built once.
+
+Every variant is sampled once per round, in a shuffled order, and a difference is judged on the
+per-round differences rather than on two independent sets of samples. Whatever the machine was doing
+during a round — thermal throttling, a background process — then affects both sides of it and cancels
+out. `--warmup` rounds (10 by default) are discarded once per benchmark, then `--samples` rounds (30
+by default) are measured; the iteration counts in `benchmark()`'s options only apply under Vitest.
+
+### The report
+
+The run writes `.benchmark/results/report.json`, prints it as tables, and with `--upload` sends it to
+the dashboard, which renders the pull request comment and the repository's history from it. The
+report holds **raw samples**, round-aligned across variants, plus what each metric is — its kind,
+format and alarm — the builds, and the environment. Conclusions are computed from it, the same way
+everywhere, by `analyzeRun` from `@mui/internal-benchmark/runReport`: a 95% confidence interval on the
+paired difference per metric, a change (`better`, `worse`, `unsure`) that respects the metric's
+direction, and a severity from its alarm. The harness's own metrics are `render` (total render
+duration) and `render:count`, which alarm on any resolved change for the worse, and `bench:paint`,
+which is informational; custom metrics bring their own alarm.
 
 ### Baselines
 
-`--baseline` names the build every `[baseline]` variant loads: a revision — a SHA, a tag, a branch,
-`HEAD~1` — on its own or behind `git:`. It is resolved to an immutable SHA before anything is
-cached, and defaults to `HEAD~1`, which needs no policy to decide.
+`--baseline` names the build the working tree is compared against: a revision — a SHA, a tag, a
+branch, `HEAD~1` — on its own or behind `git:`. It is resolved to an immutable SHA before anything is
+cached, and defaults to `HEAD~1`, the parent commit.
 
-Which commit a branch should actually be compared against is `code-infra baseline`'s question — it
-answers the same way for every job that compares a branch to its base — so pass it in:
-
-```bash
-benchmark tacho run --baseline "$(code-infra baseline)"
-```
+Which commit a branch should actually be compared against is `code-infra baseline`'s question: on a
+feature branch the fork point, on the base branch the previous commit. On master, then, every commit
+is measured against its parent, and the history the dashboard draws is each commit's own paired
+change — which commit moved a number reads off the chart rather than out of a noisy trend.
 
 `github:<owner>/<repo>#<sha>` and `preview:<sha>` are reserved for a baseline that is not a commit in
 this repository. Neither is implemented, and both are rejected by name rather than handed to git.
@@ -423,11 +422,11 @@ this repository. Neither is implemented, and both are rejected by name rather th
 ### Builds and caching
 
 Both sides are built the same way, from packed tarballs installed into an isolated tree, so neither
-resolves the library through a workspace link. The benchmark pages themselves stay on the current
+resolves the library through a workspace link. The benchmark files themselves stay on the current
 branch and only the built library changes between refs — so a commit whose public API differs from
-today's pages will fail that ref's build, with the error surfaced.
+today's benchmarks will fail that ref's build, with the error surfaced.
 
-Packed builds are cached by commit SHA under `.tachometer/packed/`, so repeating a comparison against
+Packed builds are cached by commit SHA under `.benchmark/packed/`, so repeating a comparison against
 the same commit skips the rebuild; the working tree is never cached. In CI, cache that directory
 keyed on the baseline SHA, and check out with full history so a fork point can be resolved. A run
 never modifies the checkout it was started from.
@@ -436,44 +435,24 @@ By default a run resolves **in place**: it pins the packed build in the reposito
 `pnpm-workspace.yaml`, installs it there, and resolution is then ordinary. The repository is put
 back, and reinstalled, when the run ends — including when it fails, and at the start of the next run
 if one was killed outright. Two things follow from it. A tracked file names tarballs under
-`.tachometer/` until the run ends, so do not commit while one is in flight. And the pins are global
-to the workspace for that time, because pnpm scopes an override by parent package name and a harness
-has none — so nothing else should build against the same checkout meanwhile.
+`.benchmark/` until the run ends, so do not commit while one is in flight. And the pins are global to
+the workspace for that time, because pnpm scopes an override by parent package name and a harness has
+none — so nothing else should build against the same checkout meanwhile.
 
 `--resolve-mode isolated` avoids both: it installs each ref into a directory of its own and points
 resolution there, leaving the repository untouched, at the cost of a second install tree per ref.
 
-`--no-install` skips a ref's install. `benchmark tacho run --help` lists the rest, and
-`benchmark tacho report` prints the table again from a saved JSON report.
-
-### Interleaved engine
-
-`--engine interleaved` measures the same builds without tachometer, and runs a different kind of
-case: the `*.bench.tsx` files under `src/`, written with `benchmark()` exactly as for Vitest.
-`tachometer.json` cases stay with the tachometer engine.
-
-The plugin generates a page per benchmark file under `src/__bench__/`, where
-`@mui/internal-benchmark` resolves to a page runtime instead of Vitest. The runner drives Chromium
-through Playwright and gives every variant a page of its own, in a browser context of its own, that
-stays open for the whole case: every sample is one warm iteration, and module-scope data is built
-once. Variants are sampled once per round in a shuffled order, and a difference is judged on the
-per-round differences rather than on two independent sets of samples, so whatever the machine was
-doing during a round — thermal throttling, a background process — affects both sides of it and
-cancels out. Renders, `bench:paint` and custom metrics are reported as measurements; the report, the
-upload and the PR comment are the same as tachometer's.
-
-```bash
-benchmark tacho run --engine interleaved --baseline "$(code-infra baseline)" --samples 30
-```
-
-The iteration counts in `benchmark()`'s options are ignored: `--warmup` rounds (10 by default) are
-discarded once per case, then `--samples` rounds (30 by default) are measured.
+`--launch-arg` passes a flag to Chromium, e.g. `--use-angle=metal` for hardware-rendered paint
+timings. `--no-install` skips a ref's install. `benchmark run --help` lists the rest, and
+`benchmark report` prints the tables again from a saved JSON report.
 
 ## API
 
 - `benchmark` — define a benchmark test case
 - `compare` — compare implementations, each a lazily loaded module of `benchmark()` cases
 - `runCase` — run a single iteration of a case, for custom drivers
+- `@mui/internal-benchmark/vitePlugin` — `benchmarkPlugin()`, the harness's vite plugin for `benchmark run`
+- `@mui/internal-benchmark/runReport` — the `benchmark run` report schema and `analyzeRun`
 - `ElementTiming` — invisible marker component for paint timing (renders a `<span>` tracked by the Element Timing API)
 - `ScalarMetric` — record a continuous custom measurement (with a `console.time`-style timing helper)
 - `DiscreteMetric` — record a discrete custom count
