@@ -3,7 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { describe, expect, it, onTestFinished } from 'vitest';
 import { execa } from 'execa';
-import { detectBaseBranch, resolveBaseline } from './git.mjs';
+import { resolveBaseline } from './git.mjs';
 
 /**
  * A repository with three commits on `main`.
@@ -42,7 +42,7 @@ async function makeRepo() {
   const git = gitWith(undefined);
 
   await git('init', '--initial-branch=main');
-  // A day apart each: `closestBaseBranch` picks the candidate whose merge base is most recent, and
+  // A day apart each: the baseline comes from the candidate whose merge base is most recent, and
   // three commits made in a loop otherwise share a second and leave that comparison to a tie-break.
   for (const [index, message] of ['first', 'second', 'third'].entries()) {
     // Empty commits: nothing here reads a file, only the commits' identities matter.
@@ -138,24 +138,30 @@ describe('resolveBaseline', () => {
   });
 });
 
-describe('detectBaseBranch', () => {
-  it('reads the default branch from origin/HEAD', async () => {
-    const { repoRoot, git } = await makeRepo();
+describe('resolveBaseline without a base branch named', () => {
+  // Each default branch points at an older commit than the local `main`, so taking the wrong branch
+  // as the base would answer a different fork point.
+  it('forks from the default branch origin/HEAD records', async () => {
+    const { repoRoot, shas, git } = await makeRepo();
     await git('remote', 'add', 'origin', repoRoot);
-    await git('update-ref', 'refs/remotes/origin/trunk', 'HEAD');
+    await git('update-ref', 'refs/remotes/origin/trunk', shas[0]);
     await git('symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/trunk');
+    await git('checkout', '-b', 'feature');
+    await git('commit', '--allow-empty', '-m', 'work');
 
-    expect(await detectBaseBranch(repoRoot)).toBe('trunk');
+    expect(await resolveBaseline({ cwd: repoRoot })).toBe(shas[0]);
   });
 
-  it('reads it from another remote when origin records none', async () => {
+  it('reads the default branch from another remote when origin records none', async () => {
     // A remote added by hand has no HEAD unless someone wrote one. If they did, it still counts.
-    const { repoRoot, git } = await makeRepo();
+    const { repoRoot, shas, git } = await makeRepo();
     await git('remote', 'add', 'upstream', repoRoot);
-    await git('update-ref', 'refs/remotes/upstream/release', 'HEAD');
+    await git('update-ref', 'refs/remotes/upstream/release', shas[1]);
     await git('symbolic-ref', 'refs/remotes/upstream/HEAD', 'refs/remotes/upstream/release');
+    await git('checkout', '-b', 'feature');
+    await git('commit', '--allow-empty', '-m', 'work');
 
-    expect(await detectBaseBranch(repoRoot)).toBe('release');
+    expect(await resolveBaseline({ cwd: repoRoot })).toBe(shas[1]);
   });
 
   it('does not take a conventional name as evidence', async () => {
@@ -164,13 +170,15 @@ describe('detectBaseBranch', () => {
     await git('remote', 'add', 'origin', repoRoot);
     await git('update-ref', 'refs/remotes/origin/main', 'HEAD');
 
-    await expect(detectBaseBranch(repoRoot)).rejects.toThrow(/no remote records a default branch/);
+    await expect(resolveBaseline({ cwd: repoRoot })).rejects.toThrow(
+      /no remote records a default branch/,
+    );
   });
 
   it('fails when there is no remote at all', async () => {
     const { repoRoot } = await makeRepo();
 
-    await expect(detectBaseBranch(repoRoot)).rejects.toThrow(/Could not tell which branch/);
+    await expect(resolveBaseline({ cwd: repoRoot })).rejects.toThrow(/Could not tell which branch/);
   });
 });
 
