@@ -7,7 +7,7 @@ import * as path from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import { $ } from 'execa';
-import { mapConcurrently } from '../utils/build.mjs';
+import { mapAsync } from 'es-toolkit/array';
 
 const LATEST_RELEASE_URL = 'https://api.github.com/repos/vale-cli/vale/releases/latest';
 
@@ -342,7 +342,7 @@ export function getReplacementText(alert) {
 export async function applyFixes(results, fixLevel) {
   const entries = Object.entries(results);
 
-  const perFileResults = await mapConcurrently(
+  const perFileResults = await mapAsync(
     entries,
     async ([filePath, alerts]) => {
       const content = await fs.readFile(filePath, 'utf-8');
@@ -406,15 +406,12 @@ export async function applyFixes(results, fixLevel) {
 
       return { fixed: fileFixed, skipped: alerts.length - fixableAlerts.length };
     },
-    10,
+    { concurrency: 10 },
   );
 
   let fixed = 0;
   let skipped = 0;
   for (const result of perFileResults) {
-    if (result instanceof Error) {
-      throw result;
-    }
     fixed += result.fixed;
     skipped += result.skipped;
   }

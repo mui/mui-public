@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type * as tae from 'typescript-api-extractor';
 import { formatRawData, formatReExportData, isRawType } from './formatRaw';
+import { parseTestSources } from './parseTestSources';
 import { buildTypeCompatibilityMap } from './rewriteTypes';
 import type { TypeRewriteContext } from './rewriteTypes';
 
@@ -715,6 +716,23 @@ describe('formatRaw', () => {
         expect(result.formattedCode).toContain('&');
       });
     });
+
+    // The `${}` in these strings is template literal type syntax, not interpolation.
+    /* eslint-disable no-template-curly-in-string */
+    describe('template literal types', () => {
+      it('should expand a re-exported template literal alias instead of naming itself', async () => {
+        const [exportNode] = parseTestSources({
+          'index.ts': "export * as Size from './parts';",
+          'parts.ts': "export type { SizeFraction as Fraction } from './types';",
+          'types.ts': 'export type SizeFraction = `${number}fr`;',
+        });
+
+        const result = await formatRawData(exportNode, 'Size.Fraction', {}, defaultRewriteContext);
+
+        expect(result.formattedCode).toBe('type SizeFraction = `${number}fr`;');
+      });
+    });
+    /* eslint-enable no-template-curly-in-string */
   });
 
   describe('formatReExportData', () => {
