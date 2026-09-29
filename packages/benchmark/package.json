@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "author": "MUI Team",
   "description": "Benchmark utilities for MUI projects. Internal package.",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mui/mui-public.git",

@@ -17,6 +17,7 @@ import { createCoreConfig } from './mui/config.mjs';
 import muiPlugin from './mui/index.mjs';
 import { EXTENSION_TS } from './extensions.mjs';
 import { createJsonConfig } from './jsonConfig.mjs';
+import { createPackageJsonConfig } from './packageJsonConfig.mjs';
 
 /**
  * @param {string} filePath
@@ -73,6 +74,7 @@ export function createBaseConfig({
     includeIgnoreIfExists(path.join(baseDirectory, '.gitignore'), `Ignore rules from .gitignore`),
     includeIgnoreIfExists(path.join(baseDirectory, '.lintignore'), `Ignore rules from .lintignore`),
     createJsonConfig(),
+    createPackageJsonConfig(),
     prettier,
     // Markdown + MDX linting via eslint-plugin-mdx. Severities for markdown
     // quality checks live in the project's `.remarkrc` (see
