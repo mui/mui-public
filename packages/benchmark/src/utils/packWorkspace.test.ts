@@ -6,12 +6,17 @@ import { makeTempDir } from './testUtils';
 import { packRef, packWorkingTree, readFreshCache, tarballFor, tarballName } from './packWorkspace';
 
 describe('tarballName', () => {
-  it('flattens a scoped name into a filesystem-safe basename', () => {
-    expect(tarballName('@base-ui/mosaic')).toBe('base-ui-mosaic.tgz');
+  it('joins scope and name with a character no package name contains', () => {
+    expect(tarballName('@base-ui/mosaic')).toBe('base-ui+mosaic.tgz');
   });
 
-  it('leaves an unscoped name alone', () => {
+  it('keeps an unscoped name as is', () => {
     expect(tarballName('mosaic')).toBe('mosaic.tgz');
+  });
+
+  it('never gives two packages the same tarball', () => {
+    const names = ['@mui/package', 'mui-package', '@a/b-c', '@a-b/c'];
+    expect(new Set(names.map(tarballName)).size).toBe(names.length);
   });
 });
 
@@ -148,7 +153,7 @@ describe('packRef', () => {
       // absolute path still resolves.
       const manifest = JSON.parse(await readFile(path.join(packed.dir, 'manifest.json'), 'utf8'));
       expect(manifest.packages).toEqual([
-        { name: '@fixture/public', version: '1.0.0', tarball: 'fixture-public.tgz' },
+        { name: '@fixture/public', version: '1.0.0', tarball: 'fixture+public.tgz' },
       ]);
       expect(manifest.buildCmd).toBe(buildCmd);
 
@@ -217,7 +222,7 @@ describe('packWorkingTree', () => {
     // An unchanged build keeps its filename, which is what lets a consumer's isolated install
     // persist: the dependency path does not move, so pnpm has nothing to do.
     expect(first.map((pkg) => pkg.tarball)).toEqual(unchanged.map((pkg) => pkg.tarball));
-    expect(path.basename(first[0].tarball)).toMatch(/^fixture-public-[0-9a-f]{12}\.tgz$/);
+    expect(path.basename(first[0].tarball)).toMatch(/^fixture\+public-[0-9a-f]{12}\.tgz$/);
     await expect(stat(first[0].tarball)).resolves.toBeTruthy();
   });
 
