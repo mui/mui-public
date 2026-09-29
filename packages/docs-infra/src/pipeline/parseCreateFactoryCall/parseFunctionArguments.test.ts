@@ -44,6 +44,18 @@ describe('parseFunctionArguments', () => {
     expect(result).toEqual(['`template, with comma`', 'other', '`another, template`']);
   });
 
+  it('should handle regular expression literals containing delimiters', () => {
+    const input = 'matches(/[(,)]/), /a{1,2}/, other';
+    const result = parseFunctionArguments(input);
+    expect(result).toEqual([['matches', ['/[(,)]/']], '/a{1,2}/', 'other']);
+  });
+
+  it('should not interpret comparison operators as generic delimiters', () => {
+    const input = 'first < second, third > fourth, last';
+    const result = parseFunctionArguments(input);
+    expect(result).toEqual(['first < second', 'third > fourth', 'last']);
+  });
+
   it('should handle complex nested structures', () => {
     const input =
       'import.meta.url, { Default: BasicDemo as React.ComponentType<{ prop: boolean }>, WithProps }, { name: "My Demo" }';
@@ -100,6 +112,14 @@ describe('parseFunctionArguments', () => {
     const input = '(a) => a + 1, { transform: (x) => x * 2 }, regular';
     const result = parseFunctionArguments(input);
     expect(result).toEqual([[['a'], 'a + 1'], { transform: [['x'], 'x * 2'] }, 'regular']);
+  });
+
+  it('should preserve optional and readonly generic property names', () => {
+    const input = 'Component<{ optional?: string, readonly fixed: number }>';
+    const result = parseFunctionArguments(input);
+    expect(result).toEqual([
+      ['Component', [{ 'optional?': 'string', 'readonly fixed': 'number' }], []],
+    ]);
   });
 
   it('should handle complex TypeScript type with generics', () => {

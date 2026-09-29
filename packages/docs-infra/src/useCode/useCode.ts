@@ -12,7 +12,7 @@ import type {
   VariantCode,
 } from '../CodeHighlighter/types';
 import { useControlledCode } from '../CodeControllerContext';
-import { extractNameAndSlugFromUrl } from '../pipeline/loaderUtils';
+import { extractNameAndSlugFromUrl } from '../pipeline/loaderUtils/extractNameAndSlugFromUrl';
 import { useVariantSelection } from './useVariantSelection';
 import { useTransformManagement } from './useTransformManagement';
 import { useFileNavigation } from './useFileNavigation';

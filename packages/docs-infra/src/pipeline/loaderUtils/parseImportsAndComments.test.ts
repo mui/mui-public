@@ -273,6 +273,23 @@ describe('parseImportsAndComments', () => {
     });
   });
 
+  it('should handle Unicode import names', () => {
+    const code = `import { café as coffee } from './module' with { type: 'json' };`;
+    const result = parseImportsAndComments(code, '/src/demo.ts');
+    const pathStart = code.indexOf("'./module'");
+
+    expect(result).toEqual({
+      relative: {
+        './module': {
+          url: 'file:///src/module',
+          names: [{ name: 'café', alias: 'coffee', type: 'named' }],
+          positions: [{ start: pathStart, end: pathStart + "'./module'".length }],
+        },
+      },
+      externals: {},
+    });
+  });
+
   it('should handle mixed type and value imports from same module', async () => {
     const code = `
       import type { Props } from './Component';
@@ -3507,8 +3524,24 @@ describe('Export-from statement parsing', () => {
           names: [{ name: 'Component', type: 'named' }],
           positions: [{ start: 26, end: 39 }],
         },
+        './Button': {
+          url: 'file:///src/Button',
+          names: [{ name: 'Button', type: 'named' }],
+          positions: [{ start: 63, end: 73 }],
+        },
       },
       externals: {},
+    });
+  });
+
+  it('should handle namespace export-from statements', () => {
+    const code = `export * as utilities from './utilities';`;
+    const result = parseImportsAndComments(code, '/src/index.ts');
+
+    expect(result.relative['./utilities']).toEqual({
+      url: 'file:///src/utilities',
+      names: [{ name: 'utilities', type: 'namespace' }],
+      positions: [{ start: 27, end: 40 }],
     });
   });
 

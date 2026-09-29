@@ -2,7 +2,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parseCreateFactoryCall } from '../pipeline/parseCreateFactoryCall/parseCreateFactoryCall';
 import { serializeFunctionArguments } from '../pipeline/parseCreateFactoryCall/serializeFunctionArguments';
-import type { ImportsAndComments } from '../pipeline/loaderUtils';
+import type { ImportsAndComments } from '../pipeline/loaderUtils/parseImportsAndComments';
 import type { DemoClientRequirement } from './loadNextConfig';
 import { findDemoIndexFiles } from './findDemoIndexFiles';
 import { fileExists, formatWithPrettier } from './fileUtils';
