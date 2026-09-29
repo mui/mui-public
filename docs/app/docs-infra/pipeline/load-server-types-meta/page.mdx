@@ -160,6 +160,8 @@ export const accordionPanelHeight = '--accordion-panel-height';
 
 Both produce identical documentation. The constant form lets application bundlers inline and tree-shake the values, since nothing references a runtime enum object. Constants re-exported from another meta file (`export * from '../combobox/clear/ComboboxClearDataAttributes'`) are collected too, and belong to the group named after the re-exporting file.
 
+Type-only exports (type aliases, interfaces) have no runtime constant to document and may sit next to either style as typing helpers. Mixing the two styles in one file is rejected: standalone constants next to the file's enum would silently disappear from the documentation, so the build fails instead.
+
 ### 4. Process Types in Worker
 
 Type extraction is offloaded to a dedicated worker thread. Inside the worker:
