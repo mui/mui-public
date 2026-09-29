@@ -458,7 +458,7 @@ metric when none does.
 
 | Option                 | Default  | Meaning                                                               |
 | :--------------------- | :------- | :-------------------------------------------------------------------- |
-| `sampleSize`           | `30`     | Rounds measured before deciding whether to continue                   |
+| `sampleSize`           | `50`     | Rounds measured before deciding whether to continue                   |
 | `timeout`              | `3`      | Minutes to keep sampling while a difference is unresolved             |
 | `autoSampleConditions` | `['0%']` | Horizons to resolve: by default, until each change is better or worse |
 
@@ -469,7 +469,7 @@ is an error.
 ```tsx
 reactBenchmark('mount', () => <Grid rows={1000} />, { timeout: 1, autoSampleConditions: ['5%'] });
 
-compare('scatter', [ours, other], { sampleSize: 50 });
+compare('scatter', [ours, other], { sampleSize: 100 });
 ```
 
 Two builds that perform the same never resolve against `0%`, so an unchanged benchmark samples until

@@ -6,7 +6,7 @@ import type { BenchmarkAnalysis } from './runReport/analyzeRun';
  * `autoSampleConditions` horizon, for up to `timeout` minutes.
  */
 export interface SamplingOptions {
-  /** Rounds measured before deciding whether to continue. Defaults to 30. */
+  /** Rounds measured before deciding whether to continue. Defaults to 50. */
   sampleSize?: number;
   /**
    * Minutes to keep sampling after `sampleSize` rounds while a difference is unresolved. `0`
@@ -25,7 +25,7 @@ export interface SamplingOptions {
 }
 
 export const DEFAULT_SAMPLING: Required<SamplingOptions> = {
-  sampleSize: 30,
+  sampleSize: 50,
   timeout: 3,
   autoSampleConditions: ['0%'],
 };
