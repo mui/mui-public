@@ -25,7 +25,6 @@ export interface Repository {
   prComment?: {
     bundleSize?: boolean;
     benchmark?: boolean;
-    tachometer?: boolean;
     netlifyDocs?:
       | boolean
       | {
@@ -167,7 +166,6 @@ export const repositories = new Map<string, Repository>(
         prComment: {
           bundleSize: true,
           benchmark: true,
-          tachometer: true,
         },
       },
       {
@@ -195,7 +193,6 @@ export const repositories = new Map<string, Repository>(
         prComment: {
           bundleSize: true,
           benchmark: true,
-          tachometer: true,
           netlifyDocs: {
             siteId: 'mui-internal',
             formatDocPath: (filePath) => {

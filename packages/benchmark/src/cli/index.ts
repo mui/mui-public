@@ -9,8 +9,6 @@ import { hideBin } from 'yargs/helpers';
 // cannot reach the manifest from both — and the repository's workspace symlink hides the break.
 import pkgJson from '@mui/internal-benchmark/package.json' with { type: 'json' };
 import run from './run';
-import tachoReport from './tachoReport';
-import tachoRun from './tachoRun';
 
 let globalArgv: { verbose?: boolean } = {};
 
@@ -28,14 +26,6 @@ await yargs(hideBin(process.argv))
     globalArgv = argv;
   }, true)
   .command(run)
-  .command({
-    command: 'tacho <command>',
-    describe: 'Benchmark a tachometer harness, and read the reports it writes.',
-    builder: (group) =>
-      group.command(tachoRun).command(tachoReport).demandCommand(1, 'Specify a tacho subcommand.'),
-    // The group itself does nothing; `demandCommand` above means a subcommand always runs.
-    handler: () => {},
-  })
   .fail((msg, err, yargsInstance) => {
     if (msg) {
       yargsInstance.showHelp();

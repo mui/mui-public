@@ -6,7 +6,6 @@ packages:
 engineStrict: true
 strictDepBuilds: true
 allowBuilds:
-  chromedriver: true
   esbuild: true
   nx: true
   sharp: true
