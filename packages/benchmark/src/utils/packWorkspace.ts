@@ -76,9 +76,14 @@ export interface PackRefOptions {
 /** Name of the file written into each packed folder describing its contents. */
 const MANIFEST = 'manifest.json';
 
-/** Turns a package name into a filesystem-safe tarball basename (`@scope/pkg` → `scope-pkg.tgz`). */
+/**
+ * Turns a package name into a filesystem-safe tarball basename: `@scope/pkg` → `scope+pkg.tgz`.
+ *
+ * `+` cannot appear in a package name, so no two packages share a tarball — `@mui/pkg` and
+ * `mui-pkg` stay apart, where a `-` would fold them together.
+ */
 export function tarballName(pkgName: string): string {
-  return `${pkgName.replace(/^@/, '').replace(/\//g, '-')}.tgz`;
+  return `${pkgName.replace(/^@/, '').replace('/', '+')}.tgz`;
 }
 
 /**
@@ -189,18 +194,6 @@ export async function packBuiltPackages(
   const packages = await listPublishablePackages(checkoutDir);
   if (packages.length === 0) {
     throw new Error(`No public workspace packages found in ${checkoutDir}.`);
-  }
-  // `@a/b-c` and `@a-b/c` both name `a-b-c.tgz`, and these pack concurrently into one directory —
-  // so without this the last writer wins and a ref's tree installs one package's build under the
-  // other's name.
-  const byTarball = new Map<string, string>();
-  for (const { name } of packages) {
-    const tarball = tarballName(name);
-    const clash = byTarball.get(tarball);
-    if (clash) {
-      throw new Error(`"${clash}" and "${name}" would both pack to ${tarball}.`);
-    }
-    byTarball.set(tarball, name);
   }
   // Each `pnpm pack` is its own node process, so a repository with a dozen public packages would
   // otherwise start a dozen at once.

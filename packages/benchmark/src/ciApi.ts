@@ -1,12 +1,12 @@
 /* eslint-disable no-console -- progress belongs in the CI log. */
 
 /**
- * The dashboard's CI-report API, which both benchmark axes talk to.
+ * The dashboard's CI-report API.
  *
  * Every call is the same shape — a bearer-token POST of one JSON body — and the token is the OIDC
  * one CircleCI mints for the job. Keeping that in one place is what stops the endpoint host, the
- * environment variable and the error handling from drifting between the two axes, where a
- * divergence would only ever show up in CI, on whichever one nobody edited.
+ * environment variable and the error handling from drifting between calls, where a divergence
+ * would only ever show up in CI.
  */
 
 const DEFAULT_API_URL = 'https://frontend-public.mui.com';
