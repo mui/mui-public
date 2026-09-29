@@ -99,9 +99,12 @@ function summarizeSamples(values: number[]): SampleSummary {
 const DEFAULT_DEFINITION: RunMetricDefinition = { kind: 'scalar' };
 
 /** A metric's definition; a `name#id` sub-series is defined by its base metric. */
-function definitionOf(report: BenchmarkRunReport, metric: string): RunMetricDefinition {
+function definitionOf(
+  metrics: Record<string, RunMetricDefinition>,
+  metric: string,
+): RunMetricDefinition {
   const [base] = metric.split('#');
-  return report.metrics[metric] ?? report.metrics[base] ?? DEFAULT_DEFINITION;
+  return metrics[metric] ?? metrics[base] ?? DEFAULT_DEFINITION;
 }
 
 /**
@@ -176,7 +179,11 @@ function pairsOf(benchmark: RunBenchmark): Array<{ subject: string; against: str
     : others.map((other) => ({ subject: other, against: reference }));
 }
 
-function analyzeBenchmark(report: BenchmarkRunReport, benchmark: RunBenchmark): BenchmarkAnalysis {
+/** Analyses one benchmark, its metrics described by `metrics` (a report's, or a run's so far). */
+export function analyzeBenchmark(
+  metrics: Record<string, RunMetricDefinition>,
+  benchmark: RunBenchmark,
+): BenchmarkAnalysis {
   const { samples } = benchmark;
   if (!samples) {
     return { benchmark, metrics: [] };
@@ -184,8 +191,8 @@ function analyzeBenchmark(report: BenchmarkRunReport, benchmark: RunBenchmark): 
   const [reference] = benchmark.variants;
   const metricNames = Object.keys(samples[reference] ?? {});
 
-  const metrics = metricNames.map((metric): MetricAnalysis => {
-    const definition = definitionOf(report, metric);
+  const analyses = metricNames.map((metric): MetricAnalysis => {
+    const definition = definitionOf(metrics, metric);
     const valuesOf = (variant: string) => samples[variant]?.[metric] ?? [];
     return {
       metric,
@@ -202,11 +209,11 @@ function analyzeBenchmark(report: BenchmarkRunReport, benchmark: RunBenchmark): 
       ),
     };
   });
-  return { benchmark, metrics };
+  return { benchmark, metrics: analyses };
 }
 
 export function analyzeRun(report: BenchmarkRunReport): BenchmarkAnalysis[] {
-  return report.benchmarks.map((benchmark) => analyzeBenchmark(report, benchmark));
+  return report.benchmarks.map((benchmark) => analyzeBenchmark(report.metrics, benchmark));
 }
 
 export interface Regression {

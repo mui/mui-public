@@ -2,6 +2,7 @@ import * as React from 'react';
 import { compare, reactBenchmark } from '@mui/internal-benchmark/page';
 import type { BenchmarkInteraction } from '@mui/internal-benchmark/page';
 import { ScrollingList } from '../_shared/ScrollingList';
+import { SMOKE_SAMPLING } from '../_shared/sampling';
 import { TableList } from './lists.table';
 import { UlList } from './lists.ul';
 
@@ -22,10 +23,14 @@ const scroll: BenchmarkInteraction = async ({
   await input.scroll({ x: 200, y: 150, deltaY: 1200, speed: 2400 });
 };
 
-compare('lists mount', [
-  reactBenchmark('ul mount', () => <UlList />),
-  reactBenchmark('table mount', () => <TableList />),
-]);
+compare(
+  'lists mount',
+  [
+    reactBenchmark('ul mount', () => <UlList />),
+    reactBenchmark('table mount', () => <TableList />),
+  ],
+  SMOKE_SAMPLING,
+);
 
 function scrollCase(name: string, List: React.ComponentType) {
   return reactBenchmark(
@@ -40,4 +45,8 @@ function scrollCase(name: string, List: React.ComponentType) {
   );
 }
 
-compare('lists scroll', [scrollCase('ul scroll', UlList), scrollCase('table scroll', TableList)]);
+compare(
+  'lists scroll',
+  [scrollCase('ul scroll', UlList), scrollCase('table scroll', TableList)],
+  SMOKE_SAMPLING,
+);

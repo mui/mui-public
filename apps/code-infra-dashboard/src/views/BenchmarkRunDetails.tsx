@@ -185,9 +185,8 @@ export default function BenchmarkRunDetails() {
               {RUN_REPORT_FOOTNOTE}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              {report.sampling.samples} rounds after {report.sampling.warmup} warmup ·{' '}
-              {report.environment.browser} on {report.environment.platform}/
-              {report.environment.arch}
+              {report.sampling.warmup} warmup rounds per benchmark · {report.environment.browser} on{' '}
+              {report.environment.platform}/{report.environment.arch}
               {report.environment.launchArgs.length > 0 &&
                 ` · ${report.environment.launchArgs.join(' ')}`}
             </Typography>

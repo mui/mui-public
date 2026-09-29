@@ -26,7 +26,7 @@ function reportOf(benchmarks: RunBenchmark[], metrics: BenchmarkRunReport['metri
     generatedAt: '2026-01-01T00:00:00.000Z',
     head: { sha: 'abc' },
     environment: { browser: 'Chromium', platform: 'linux', arch: 'x64', launchArgs: [] },
-    sampling: { samples: 10, warmup: 2 },
+    sampling: { warmup: 2 },
     builds: { current: { label: 'working tree' }, baseline: { sha: 'def', label: 'HEAD~1' } },
     metrics,
     benchmarks,

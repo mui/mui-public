@@ -445,7 +445,34 @@ benchmark: every sample is one warm iteration, and module-scope data is built on
 Every variant is sampled once per round, in a shuffled order, and a difference is judged on the
 per-round differences rather than on two independent sets of samples. Whatever the machine was doing
 during a round — thermal throttling, a background process — then affects both sides of it and cancels
-out. 10 warmup rounds are discarded once per benchmark, then 30 rounds are measured.
+out. 10 warmup rounds are discarded once per benchmark before any is measured.
+
+### Sampling
+
+How many rounds a benchmark is measured for adapts to its results, the way tachometer's
+auto-sampling does and under tachometer's names. After `sampleSize` rounds, rounds keep being added
+while any difference is unresolved against an `autoSampleConditions` horizon, for up to `timeout`
+minutes. A difference is resolved against a horizon once its confidence interval lies entirely on
+one side of it; `'10%'` stands for both `'-10%'` and `'+10%'`. The metrics that alarm decide, or every
+metric when none does.
+
+| Option                 | Default  | Meaning                                                               |
+| :--------------------- | :------- | :-------------------------------------------------------------------- |
+| `sampleSize`           | `30`     | Rounds measured before deciding whether to continue                   |
+| `timeout`              | `3`      | Minutes to keep sampling while a difference is unresolved             |
+| `autoSampleConditions` | `['0%']` | Horizons to resolve: by default, until each change is better or worse |
+
+They are set per benchmark: the last argument of `benchmark()` and `compare()`, and among
+`reactBenchmark()`'s options.
+
+```tsx
+reactBenchmark('mount', () => <Grid rows={1000} />, { timeout: 1, autoSampleConditions: ['5%'] });
+
+compare('scatter', [ours, other], { sampleSize: 50 });
+```
+
+Two builds that perform the same never resolve against `0%`, so an unchanged benchmark samples until
+its timeout; a horizon such as `'5%'` settles once a difference is known to be smaller than that.
 
 ### The report
 

@@ -10,10 +10,11 @@ import {
 import type { BenchmarkInteraction, CaseOptions } from '../caseRuntime';
 import { DiscreteMetric } from '../DiscreteMetric';
 import { ScalarMetric } from '../ScalarMetric';
+import type { SamplingOptions } from '../sampling';
 import { benchmark } from './page';
-import type { BenchmarkCase } from './page';
+import type { BenchmarkCase, BenchmarkContext } from './page';
 
-export type ReactBenchmarkOptions = CaseOptions;
+export interface ReactBenchmarkOptions extends CaseOptions, SamplingOptions {}
 
 // Render time and render count alarm on any resolved change for the worse; paint dominates each
 // case's duration and duplicates that signal, so it is informational, as is the per-phase split.
@@ -49,10 +50,12 @@ export function reactBenchmark(
     checkedGc = true;
     warnIfNoGc();
   }
-  const { interaction, options } = splitCaseArgs(interactionOrOptions, maybeOptions);
+  const { interaction, options = {} } = splitCaseArgs(interactionOrOptions, maybeOptions);
+  const { sampleSize, timeout, autoSampleConditions, ...caseOptions } = options;
+  const sampling = { sampleSize, timeout, autoSampleConditions };
 
-  return benchmark(name, async ({ input }) => {
-    const result = await measureIteration(renderFn, interaction, options, input);
+  const run = async ({ input }: BenchmarkContext) => {
+    const result = await measureIteration(renderFn, interaction, caseOptions, input);
     if (result.renderError) {
       throw result.renderError;
     }
@@ -81,5 +84,6 @@ export function reactBenchmark(
     for (const { id, start, end } of result.paints) {
       paintMetric.record(end - start, id === undefined ? undefined : { id });
     }
-  });
+  };
+  return benchmark(name, run, sampling);
 }

@@ -2,6 +2,7 @@ import * as React from 'react';
 import { reactBenchmark, ScalarMetric } from '@mui/internal-benchmark/page';
 import { reactMajor } from '@mui/internal-test-utils/env';
 import { ScrollingList } from '../_shared/ScrollingList';
+import { SMOKE_SAMPLING } from '../_shared/sampling';
 
 /**
  * `reactBenchmark()` cases. Under `benchmark run` each case runs one iteration at a time in a page
@@ -21,7 +22,7 @@ function List({ count }: { count: number }) {
   );
 }
 
-reactBenchmark('list mount', () => <List count={1000} />);
+reactBenchmark('list mount', () => <List count={1000} />, SMOKE_SAMPLING);
 
 const scrollDuration = new ScalarMetric({
   name: 'scroll_gesture',
@@ -45,5 +46,5 @@ reactBenchmark(
     await input.scroll({ x: 200, y: 150, deltaY: 1200, speed: 2400 });
     scrollDuration.timeEnd();
   },
-  { reactRecordingPaused: true },
+  { reactRecordingPaused: true, ...SMOKE_SAMPLING },
 );

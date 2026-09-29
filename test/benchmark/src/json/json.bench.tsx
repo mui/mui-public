@@ -1,4 +1,5 @@
 import { benchmark, ScalarMetric } from '@mui/internal-benchmark/page';
+import { SMOKE_SAMPLING } from '../_shared/sampling';
 
 /**
  * A `benchmark()` case without React: every sample runs the function once, and what it measures is
@@ -19,8 +20,12 @@ const payload = JSON.stringify(
   })),
 );
 
-benchmark('parse', () => {
-  parseTime.time();
-  JSON.parse(payload);
-  parseTime.timeEnd();
-});
+benchmark(
+  'parse',
+  () => {
+    parseTime.time();
+    JSON.parse(payload);
+    parseTime.timeEnd();
+  },
+  SMOKE_SAMPLING,
+);

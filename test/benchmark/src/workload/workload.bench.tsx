@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { reactBenchmark } from '@mui/internal-benchmark/page';
 import { reactMajor } from '@mui/internal-test-utils/env';
+import { SMOKE_SAMPLING } from '../_shared/sampling';
 
 /**
  * A deterministic CPU workload, sized per case.
@@ -43,5 +44,5 @@ function Workload({ size }: { size: number }) {
   );
 }
 
-reactBenchmark('workload', () => <Workload size={50_000} />);
-reactBenchmark('workload-large', () => <Workload size={400_000} />);
+reactBenchmark('workload', () => <Workload size={50_000} />, SMOKE_SAMPLING);
+reactBenchmark('workload-large', () => <Workload size={400_000} />, SMOKE_SAMPLING);

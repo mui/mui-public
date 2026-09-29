@@ -70,7 +70,8 @@ export const benchmarkRunReportSchema = z.object({
     arch: z.string(),
     launchArgs: z.array(z.string()),
   }),
-  sampling: z.object({ samples: z.number(), warmup: z.number() }),
+  /** Rounds per benchmark vary with its sampling options; warmup is the same for every one. */
+  sampling: z.object({ warmup: z.number() }),
   /** What the `baseline`-kind variant names refer to. */
   builds: z.record(z.string(), buildSchema),
   /** Every metric the benchmarks report, keyed by name; `name#id` sub-series share `name`'s entry. */

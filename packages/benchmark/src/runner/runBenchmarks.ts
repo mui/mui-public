@@ -40,8 +40,6 @@ export interface RunBenchmarksOptions {
   upload?: boolean;
 }
 
-/** Measured rounds per benchmark; each round samples every variant once. */
-const SAMPLES = 30;
 /** Discarded rounds before measuring, once per benchmark. */
 const WARMUP = 10;
 
@@ -139,7 +137,6 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
       benchRefs: refs,
       browserBinary,
       launchArgs,
-      samples: SAMPLES,
       warmup: WARMUP,
     });
 
@@ -157,7 +154,7 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
         arch: process.arch,
         launchArgs,
       },
-      sampling: { samples: SAMPLES, warmup: WARMUP },
+      sampling: { warmup: WARMUP },
       builds: Object.fromEntries(
         refs.map((ref) => [variantOf(ref), { sha: ref.sha, label: refLabel(ref) }]),
       ),

@@ -10,7 +10,7 @@ function reportOf(benchmarks: RunBenchmark[]): BenchmarkRunReport {
     generatedAt: '2026-01-01T00:00:00.000Z',
     head: { sha: 'abc' },
     environment: { browser: 'Chromium 151', platform: 'linux', arch: 'x64', launchArgs: [] },
-    sampling: { samples: 4, warmup: 2 },
+    sampling: { warmup: 2 },
     builds: { current: { label: 'working tree' }, baseline: { sha: 'def', label: 'HEAD~1' } },
     metrics: {
       render: { kind: 'scalar', format: MS, alarm: {} },

@@ -3,7 +3,10 @@
 import chalk from 'chalk';
 import type { Browser, BrowserContext, CDPSession, Page } from '@playwright/test';
 import { BENCHMARK_LAUNCH_ARGS } from '../launchArgs';
+import { analyzeBenchmark } from '../runReport';
 import type { RunBenchmark, RunMetricDefinition } from '../runReport';
+import { differencesResolved, parseHorizons, resolveSampling } from '../sampling';
+import type { SamplingOptions } from '../sampling';
 import type { BenchFile } from './benchFiles';
 import { variantOf } from './refs';
 import type { ResolvedRef } from './refs';
@@ -26,8 +29,7 @@ export interface RunInterleavedOptions {
   benchRefs: ResolvedRef[];
   browserBinary: string;
   launchArgs: string[];
-  samples: number;
-  /** Discarded rounds before measuring, once per case. */
+  /** Discarded rounds before measuring, once per benchmark. */
   warmup: number;
 }
 
@@ -73,7 +75,7 @@ function stableMetrics(rounds: Round[]): string[] {
 }
 
 /** What a benchmark file's page defines. */
-type PageListing = Pick<BenchPage, 'caseNames' | 'comparisons'>;
+type PageListing = Pick<BenchPage, 'cases' | 'comparisons'>;
 
 interface OpenedPage {
   context: BrowserContext;
@@ -101,7 +103,7 @@ async function openBenchPage(browser: Browser, url: string): Promise<OpenedPage>
     }
     return {
       visibility: document.visibilityState,
-      caseNames: window.benchmarkPage.caseNames,
+      cases: window.benchmarkPage.cases,
       comparisons: window.benchmarkPage.comparisons,
     };
   });
@@ -154,46 +156,71 @@ interface PageSlot {
   caseName: string;
 }
 
-interface CaseMeasurement {
-  rounds: Round[];
+/** A benchmark as it goes into the report, with the definitions of the metrics it reported. */
+interface CaseResult {
+  benchmark: RunBenchmark;
   metrics: Record<string, RunMetricDefinition>;
 }
+
+type BenchmarkEntry = Pick<RunBenchmark, 'name' | 'file' | 'kind' | 'variants'>;
 
 /**
  * Measures one benchmark in fresh pages that stay open for all of it, so iterations stay warm and
  * module-scope data is built once. Warmup and measured rounds alike run every slot once, in a
- * shuffled order.
+ * shuffled order. After `sampleSize` rounds it keeps adding rounds while a difference is unresolved
+ * against the horizons, until the timeout.
  */
 async function measureBenchmark(
   browser: Browser,
+  entry: BenchmarkEntry,
   slots: PageSlot[],
+  sampling: SamplingOptions,
   options: RunInterleavedOptions,
-): Promise<CaseMeasurement> {
+): Promise<CaseResult> {
+  const { sampleSize, timeout, autoSampleConditions } = resolveSampling(sampling);
+  const horizons = parseHorizons(autoSampleConditions);
   const targets = await openBenchPages(
     browser,
     slots.map((slot) => slot.url),
   );
-  const sampleSlot = (index: number) => sampleBenchCase(targets[index].page, slots[index].caseName);
+  const runRound = async (): Promise<Round> => {
+    const round: Round = [];
+    for (const index of shuffledIndices(targets.length)) {
+      // eslint-disable-next-line no-await-in-loop
+      round[index] = await sampleBenchCase(targets[index].page, slots[index].caseName);
+    }
+    return round;
+  };
   try {
     for (let roundIndex = 0; roundIndex < options.warmup; roundIndex += 1) {
-      for (const index of shuffledIndices(targets.length)) {
-        // eslint-disable-next-line no-await-in-loop
-        await sampleSlot(index);
-      }
+      // eslint-disable-next-line no-await-in-loop
+      await runRound();
     }
     const rounds: Round[] = [];
-    for (let roundIndex = 0; roundIndex < options.samples; roundIndex += 1) {
-      const round: Round = [];
-      for (const index of shuffledIndices(targets.length)) {
-        // eslint-disable-next-line no-await-in-loop
-        round[index] = await sampleSlot(index);
-      }
-      rounds.push(round);
+    for (let roundIndex = 0; roundIndex < sampleSize; roundIndex += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      rounds.push(await runRound());
     }
     // Read from the reference page: a metric whose config the change under test altered is
-    // described the way the change describes it.
+    // described the way the change describes it. Every metric has been recorded by now.
     const metrics = await targets[0].page.evaluate(() => window.benchmarkPage!.metricDefinitions());
-    return { rounds, metrics };
+    const benchmarkOf = (): RunBenchmark => ({ ...entry, samples: samplesOf(slots, rounds) });
+
+    const deadline = Date.now() + timeout * 60_000;
+    let resolved = differencesResolved(analyzeBenchmark(metrics, benchmarkOf()), horizons);
+    while (!resolved && Date.now() < deadline) {
+      // eslint-disable-next-line no-await-in-loop
+      rounds.push(await runRound());
+      resolved = differencesResolved(analyzeBenchmark(metrics, benchmarkOf()), horizons);
+    }
+    if (rounds.length > sampleSize || !resolved) {
+      console.log(
+        chalk.dim(
+          `  ${rounds.length} rounds, ${resolved ? 'resolved' : `unresolved after ${timeout} min`}`,
+        ),
+      );
+    }
+    return { benchmark: benchmarkOf(), metrics };
   } finally {
     await closeBenchPages(targets);
   }
@@ -212,28 +239,17 @@ function samplesOf(slots: PageSlot[], rounds: Round[]): RunBenchmark['samples'] 
   );
 }
 
-/** A benchmark as it goes into the report, with the definitions of the metrics it reported. */
-interface CaseResult {
-  benchmark: RunBenchmark;
-  metrics: Record<string, RunMetricDefinition>;
-}
-
-type BenchmarkEntry = Pick<RunBenchmark, 'name' | 'file' | 'kind' | 'variants'>;
-
 /** Measures one benchmark across its slots, or reports the error that stopped it. */
 async function runBenchmark(
   browser: Browser,
   entry: BenchmarkEntry,
   slots: PageSlot[],
+  sampling: SamplingOptions,
   options: RunInterleavedOptions,
 ): Promise<CaseResult> {
   console.log(chalk.cyan(`\nRunning "${entry.name}" (${entry.file})…`));
   try {
-    const measured = await measureBenchmark(browser, slots, options);
-    return {
-      benchmark: { ...entry, samples: samplesOf(slots, measured.rounds) },
-      metrics: measured.metrics,
-    };
+    return await measureBenchmark(browser, entry, slots, sampling, options);
   } catch (error) {
     console.error(chalk.red(`  ${errorMessage(error)}`));
     return { benchmark: { ...entry, error: errorMessage(error) }, metrics: {} };
@@ -259,17 +275,19 @@ async function runBenchFile(
   // The other builds only matter for cases measured across them; a file of `compare()`s alone
   // never loads them.
   const [reference] = await listBenchPages(browser, urls.slice(0, 1));
-  const others = reference.caseNames.length > 0 ? await listBenchPages(browser, urls.slice(1)) : [];
+  const others = reference.cases.length > 0 ? await listBenchPages(browser, urls.slice(1)) : [];
 
   const results: CaseResult[] = [];
-  for (const caseName of reference.caseNames) {
+  for (const { name: caseName, sampling } of reference.cases) {
     const entry: BenchmarkEntry = {
       name: caseName,
       file: benchFile.file,
       kind: 'baseline',
       variants,
     };
-    const missing = others.findIndex((listing) => !listing.caseNames.includes(caseName));
+    const missing = others.findIndex(
+      (listing) => !listing.cases.some((benchCase) => benchCase.name === caseName),
+    );
     if (missing !== -1) {
       // A case added by the change under test has nothing to compare with.
       results.push({
@@ -283,14 +301,14 @@ async function runBenchFile(
     }
     const slots = urls.map((url, index) => ({ variant: variants[index], url, caseName }));
     // eslint-disable-next-line no-await-in-loop
-    results.push(await runBenchmark(browser, entry, slots, options));
+    results.push(await runBenchmark(browser, entry, slots, sampling, options));
   }
 
-  for (const { name, cases } of reference.comparisons) {
+  for (const { name, cases, sampling } of reference.comparisons) {
     const entry: BenchmarkEntry = { name, file: benchFile.file, kind: 'compare', variants: cases };
     const slots = cases.map((caseName) => ({ variant: caseName, url: urls[0], caseName }));
     // eslint-disable-next-line no-await-in-loop
-    results.push(await runBenchmark(browser, entry, slots, options));
+    results.push(await runBenchmark(browser, entry, slots, sampling, options));
   }
   return results;
 }

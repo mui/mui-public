@@ -1,6 +1,8 @@
 import { createInput } from '../input';
 import type { BenchmarkInput } from '../input';
 import { seriesName, setMetricRecorder } from '../metricCore';
+import { validateSampling } from '../sampling';
+import type { SamplingOptions } from '../sampling';
 import type { MetricDefinition } from '../types';
 
 // The page runtime `benchmark run` measures. `benchmark()` registers a case, and the runner calls
@@ -26,25 +28,30 @@ export interface BenchmarkCase {
 }
 
 /** Every case the file registered, by name. */
-const cases = new Map<string, BenchmarkRun>();
+const cases = new Map<string, { run: BenchmarkRun; sampling: SamplingOptions }>();
 
 /**
- * Registers a benchmark case. The runner calls `run` once per sample, warmup included, and decides
- * how many samples to take. A case on its own is measured across the builds; one passed to
- * `compare()` is measured against the other cases there instead.
+ * Registers a benchmark case. The runner calls `run` once per sample, warmup included, for as many
+ * rounds as `sampling` asks. A case on its own is measured across the builds; one passed to
+ * `compare()` is measured against the other cases there instead, sampled as the `compare()` asks.
  */
-export function benchmark(name: string, run: BenchmarkRun): BenchmarkCase {
+export function benchmark(
+  name: string,
+  run: BenchmarkRun,
+  sampling: SamplingOptions = {},
+): BenchmarkCase {
   if (cases.has(name)) {
     throw new Error(`Two benchmarks share the name "${name}". Benchmark names must be unique.`);
   }
-  cases.set(name, run);
+  validateSampling(sampling);
+  cases.set(name, { run, sampling });
   return { name };
 }
 
 /** The `compare()` each compared case belongs to, by case name. */
 const comparedIn = new Map<string, string>();
 /** Each `compare()`, with its cases' names, the reference first. */
-const comparisons: Array<{ name: string; cases: string[] }> = [];
+const comparisons: Array<{ name: string; cases: string[]; sampling: SamplingOptions }> = [];
 
 /**
  * Compares cases with each other — one library's implementation against another's, say — on the
@@ -54,13 +61,18 @@ const comparisons: Array<{ name: string; cases: string[] }> = [];
  * case needs inside that case (`await import()` resolves during warmup) to keep it out of the others'
  * pages.
  */
-export function compare(name: string, compared: BenchmarkCase[]): void {
+export function compare(
+  name: string,
+  compared: BenchmarkCase[],
+  sampling: SamplingOptions = {},
+): void {
   if (comparisons.some((comparison) => comparison.name === name)) {
     throw new Error(`Two comparisons share the name "${name}". Comparison names must be unique.`);
   }
   if (compared.length < 2) {
     throw new Error(`Comparison "${name}" needs at least two cases.`);
   }
+  validateSampling(sampling);
   for (const benchCase of compared) {
     const owner = comparedIn.get(benchCase.name);
     if (owner !== undefined) {
@@ -68,7 +80,7 @@ export function compare(name: string, compared: BenchmarkCase[]): void {
     }
     comparedIn.set(benchCase.name, name);
   }
-  comparisons.push({ name, cases: compared.map((benchCase) => benchCase.name) });
+  comparisons.push({ name, cases: compared.map((benchCase) => benchCase.name), sampling });
 }
 
 // Values recorded during a sample, summed per series: a metric recorded more than once in an
@@ -95,9 +107,9 @@ setMetricRecorder((metric, value, options) => {
 
 export interface BenchPage {
   /** The cases measured across the builds: every case no `compare()` took. */
-  caseNames: string[];
+  cases: Array<{ name: string; sampling: SamplingOptions }>;
   /** The file's `compare()` calls, with their cases' names in order. */
-  comparisons: Array<{ name: string; cases: string[] }>;
+  comparisons: Array<{ name: string; cases: string[]; sampling: SamplingOptions }>;
   /** Every metric recorded so far, by name. */
   metricDefinitions: () => Record<string, MetricDefinition>;
   /** Runs one iteration of a case, and returns what it recorded, by series. */
@@ -121,7 +133,7 @@ const input = createInput((method, params) => {
 });
 
 async function sample(name: string): Promise<Record<string, number>> {
-  const run = cases.get(name);
+  const run = cases.get(name)?.run;
   if (!run) {
     throw new Error(`No benchmark named "${name}". Known: ${[...cases.keys()].join(', ')}`);
   }
@@ -155,7 +167,9 @@ async function sample(name: string): Promise<Record<string, number>> {
  */
 export function markPageReady(): void {
   window.benchmarkPage = {
-    caseNames: [...cases.keys()].filter((name) => !comparedIn.has(name)),
+    cases: [...cases]
+      .filter(([name]) => !comparedIn.has(name))
+      .map(([name, { sampling }]) => ({ name, sampling })),
     comparisons,
     metricDefinitions: () => Object.fromEntries(metricDefinitions),
     sample,
