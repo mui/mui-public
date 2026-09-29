@@ -1,5 +1,6 @@
 import * as React from 'react';
-import * as ReactDOMClient from 'react-dom/client'; // aliased to react-dom/profiling by Vite
+// React only reports render durations from its profiling build.
+import * as ReactDOMClient from 'react-dom/profiling';
 import * as ReactDOM from 'react-dom';
 import type { RenderEvent, InteractionContext, BenchmarkCaseRuntime } from './types';
 import type { BenchmarkInput } from './input';
@@ -21,6 +22,12 @@ interface PerformanceElementTiming extends PerformanceEntry {
 }
 
 export type BenchmarkInteraction = (ctx: InteractionContext) => Promise<void> | void;
+
+/**
+ * The harness-owned paint metric: the default sentinel is the base series (`bench:paint`) and named
+ * `elementtiming` markers are sub-series (`bench:paint#grid-header`, …).
+ */
+export const PAINT_METRIC_NAME = 'bench:paint';
 
 export interface CaseOptions {
   afterEach?: () => Promise<void> | void;

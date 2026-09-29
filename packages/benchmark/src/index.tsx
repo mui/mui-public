@@ -11,6 +11,7 @@ import {
   createCaseRuntime,
   createElementTimingWaiter,
   measureIteration,
+  PAINT_METRIC_NAME,
   splitCaseArgs,
   warnIfNoGc,
 } from './caseRuntime';
@@ -76,7 +77,7 @@ export interface RunCaseResult {
 // alarm): it dominates each test's total duration, so a per-test paint alarm just duplicates the
 // Duration regression signal and floods the report on any broadly-regressed run.
 const paint = new ScalarMetric({
-  name: 'bench:paint',
+  name: PAINT_METRIC_NAME,
   format: { style: 'unit', unit: 'millisecond', maximumFractionDigits: 2 },
 });
 

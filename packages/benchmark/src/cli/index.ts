@@ -8,8 +8,8 @@ import { hideBin } from 'yargs/helpers';
 // repository than in the published package, which is built from `build/`, so a relative path
 // cannot reach the manifest from both — and the repository's workspace symlink hides the break.
 import pkgJson from '@mui/internal-benchmark/package.json' with { type: 'json' };
-import tachoReport from './tachoReport';
-import tachoRun from './tachoRun';
+import report from './report';
+import run from './run';
 
 let globalArgv: { verbose?: boolean } = {};
 
@@ -26,14 +26,8 @@ await yargs(hideBin(process.argv))
   .middleware((argv) => {
     globalArgv = argv;
   }, true)
-  .command({
-    command: 'tacho <command>',
-    describe: 'Benchmark a tachometer harness, and read the reports it writes.',
-    builder: (group) =>
-      group.command(tachoRun).command(tachoReport).demandCommand(1, 'Specify a tacho subcommand.'),
-    // The group itself does nothing; `demandCommand` above means a subcommand always runs.
-    handler: () => {},
-  })
+  .command(run)
+  .command(report)
   .fail((msg, err, yargsInstance) => {
     if (msg) {
       yargsInstance.showHelp();

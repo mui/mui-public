@@ -114,7 +114,7 @@ jobs:
             BENCHMARK_UPLOAD: 'true'
           command: pnpm -F ./test/performance benchmark
 
-  test_tachometer:
+  test_benchmark_run:
     <<: *default-job
     executor:
       name: code-infra/mui-node-browser
@@ -133,26 +133,26 @@ jobs:
             # is the command's own job, so there is nothing to keep in step with it here.
             BASE_SHA=$(pnpm code-infra baseline --base-branch master)
             echo "Baseline commit: $BASE_SHA"
-            echo "$BASE_SHA" > .tachometer-baseline-sha
+            echo "$BASE_SHA" > .benchmark-baseline-sha
       - restore_cache:
           name: Restore the packed-baseline cache
           keys:
-            - tachometer-cache-v1-{{ checksum ".tachometer-baseline-sha" }}
+            - benchmark-run-cache-v1-{{ checksum ".benchmark-baseline-sha" }}
       - run:
-          name: Run the tachometer smoke test
+          name: Run the benchmark smoke test
           no_output_timeout: 30m
           environment:
-            TACHO_UPLOAD: 'true'
-            # TEMPORARY: production does not know the tachometer report type until this pull
+            BENCHMARK_UPLOAD: 'true'
+            # TEMPORARY: production does not know the benchmark-run report type until this pull
             # request lands, so it would reject the upload. Points at this pull request's own
             # dashboard preview until then — remove the line before merging.
-            CI_REPORT_API_URL: https://code-infra-dashboard-pr-1829.onrender.com
-          command: pnpm test:tacho --baseline "$(cat .tachometer-baseline-sha)"
+            CI_REPORT_API_URL: https://code-infra-dashboard-pr-1898.onrender.com
+          command: pnpm test:benchmark-run --baseline "$(cat .benchmark-baseline-sha)"
       - save_cache:
           name: Save the packed-baseline cache
-          key: tachometer-cache-v1-{{ checksum ".tachometer-baseline-sha" }}
+          key: benchmark-run-cache-v1-{{ checksum ".benchmark-baseline-sha" }}
           paths:
-            - test/tachometer/.tachometer/packed
+            - test/benchmark/.benchmark/packed
 
   test_browser:
     <<: *default-job
@@ -195,7 +195,7 @@ workflows:
           <<: *default-context
       - test_benchmark:
           <<: *default-context
-      - test_tachometer:
+      - test_benchmark_run:
           <<: *default-context
       - test_browser:
           <<: *default-context

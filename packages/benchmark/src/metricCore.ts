@@ -9,6 +9,11 @@ export interface MetricRecordOptions {
  * Where recorded values go. The runtime a benchmark runs under installs one: the Vitest harness
  * accumulates them per running test, the A/B page emits them as `performance.measure` entries.
  */
+/** The name a sub-series is reported under: `name#id`, or `name` for the base series. */
+export function seriesName(name: string, id: string | undefined): string {
+  return id === undefined ? name : `${name}#${id}`;
+}
+
 export type MetricRecorder = (
   metric: Metric,
   value: number,
