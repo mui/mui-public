@@ -29,16 +29,6 @@ export interface PackedPackage {
   tarball: string;
 }
 
-export interface PackedWorkspace {
-  /** The ref that was packed, verbatim as given. */
-  ref: string;
-  /** The resolved commit SHA. */
-  sha: string;
-  /** Absolute path to the folder holding the tarballs and `manifest.json`. */
-  dir: string;
-  packages: PackedPackage[];
-}
-
 interface RawManifestPackage {
   name: string;
   version: string;
@@ -47,8 +37,6 @@ interface RawManifestPackage {
 }
 
 interface RawManifest {
-  ref: string;
-  sha: string;
   /** The build command used, part of the cache key. */
   buildCmd: string;
   packages: RawManifestPackage[];
@@ -118,18 +106,9 @@ async function readRawManifest(dir: string): Promise<RawManifest | null> {
   return JSON.parse(text);
 }
 
-/** Resolves a raw manifest's stored (relative) tarball names to absolute paths under `dir`. */
-function resolveManifest(raw: RawManifest, dir: string): PackedWorkspace {
-  return {
-    ref: raw.ref,
-    sha: raw.sha,
-    dir,
-    packages: raw.packages.map((pkg) => ({
-      name: pkg.name,
-      version: pkg.version,
-      tarball: path.join(dir, pkg.tarball),
-    })),
-  };
+/** A manifest's packages, their tarball names resolved to absolute paths under `dir`. */
+function packagesIn(raw: RawManifest, dir: string): PackedPackage[] {
+  return raw.packages.map((pkg) => ({ ...pkg, tarball: path.join(dir, pkg.tarball) }));
 }
 
 /**
@@ -183,8 +162,8 @@ async function packBuiltPackages(checkoutDir: string, outDir: string): Promise<P
 }
 
 /**
- * Packs every public workspace package at `ref` into `<outRoot>/<sha>`, returning the folder and a
- * manifest of the packed tarballs.
+ * Packs every public workspace package at `ref` into `<outRoot>/<sha>`, returning the packed
+ * tarballs.
  *
  * The build is deterministic for a commit, so the folder is cached by SHA: a later call for the
  * same commit reuses it and skips the checkout, install, and build entirely — but only when it was
@@ -197,7 +176,7 @@ async function packBuiltPackages(checkoutDir: string, outDir: string): Promise<P
  * stores tarball names relative to the folder — so the cache is safe to move between machines (for
  * example restored from a CI cache under a different absolute path).
  */
-export async function packRef(options: PackRefOptions): Promise<PackedWorkspace> {
+export async function packRef(options: PackRefOptions): Promise<PackedPackage[]> {
   const {
     repoRoot,
     ref,
@@ -213,7 +192,7 @@ export async function packRef(options: PackRefOptions): Promise<PackedWorkspace>
   const cached = await readFreshCache(dir, buildCmd);
   if (cached) {
     console.log(chalk.green(`\nReusing packed workspace for "${ref}" (${sha.slice(0, 9)}).`));
-    return resolveManifest(cached, dir);
+    return packagesIn(cached, dir);
   }
 
   await mkdir(outRoot, { recursive: true });
@@ -248,8 +227,6 @@ export async function packRef(options: PackRefOptions): Promise<PackedWorkspace>
     // Store tarballs by basename so the folder is relocatable; record buildCmd so a later run can
     // tell whether the cache matches. Write the manifest last — it marks completeness.
     const manifest: RawManifest = {
-      ref,
-      sha,
       buildCmd,
       packages: packages.map(({ name, version, tarball }) => ({
         name,
@@ -262,7 +239,7 @@ export async function packRef(options: PackRefOptions): Promise<PackedWorkspace>
     // rebuild — so the rename can't fail with ENOTEMPTY.
     await rm(dir, { recursive: true, force: true });
     await rename(staging, dir);
-    return resolveManifest(manifest, dir);
+    return packagesIn(manifest, dir);
   } catch (error) {
     await rm(staging, { recursive: true, force: true });
     throw error;
