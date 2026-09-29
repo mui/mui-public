@@ -1,84 +1,28 @@
 import * as path from 'node:path';
-import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { execa } from 'execa';
 import { describe, expect, it } from 'vitest';
 import { makeTempDir } from './testUtils';
-import { packRef, packWorkingTree, readFreshCache, tarballName } from './packWorkspace';
+import { packRef, packWorkingTree } from './packWorkspace';
 
-describe('tarballName', () => {
-  it('joins scope and name with a character no package name contains', () => {
-    expect(tarballName('@base-ui/mosaic')).toBe('base-ui+mosaic.tgz');
-  });
+interface FixturePackage {
+  dir: string;
+  pkg: { name: string; version: string; private?: boolean };
+}
 
-  it('keeps an unscoped name as is', () => {
-    expect(tarballName('mosaic')).toBe('mosaic.tgz');
-  });
-
-  it('never gives two packages the same tarball', () => {
-    const names = ['@mui/package', 'mui-package', '@a/b-c', '@a-b/c'];
-    expect(new Set(names.map(tarballName)).size).toBe(names.length);
-  });
-});
-
-describe('readFreshCache', () => {
-  /** Writes a packed folder with a manifest and its tarballs. */
-  async function makePackedDir({
-    buildCmd,
-    withTarball = true,
-  }: {
-    /** The build command to record. */
-    buildCmd: string;
-    /** Whether to actually create the tarball file. */
-    withTarball?: boolean;
-  }): Promise<string> {
-    const dir = await makeTempDir();
-    await writeFile(
-      path.join(dir, 'manifest.json'),
-      JSON.stringify({
-        ref: 'HEAD',
-        sha: 'abc',
-        buildCmd,
-        packages: [{ name: '@scope/one', version: '1.0.0', tarball: 'scope-one.tgz' }],
-      }),
-    );
-    if (withTarball) {
-      await writeFile(path.join(dir, 'scope-one.tgz'), 'tarball');
-    }
-    return dir;
-  }
-
-  it('returns the manifest when the folder matches the requested build', async () => {
-    const dir = await makePackedDir({ buildCmd: 'pnpm release:build' });
-
-    expect(await readFreshCache(dir, 'pnpm release:build')).toMatchObject({ sha: 'abc' });
-  });
-
-  it('misses when the folder was built with a different command', async () => {
-    const dir = await makePackedDir({ buildCmd: 'pnpm build' });
-
-    expect(await readFreshCache(dir, 'pnpm release:build')).toBeNull();
-  });
-
-  it('misses when a referenced tarball has been evicted', async () => {
-    const dir = await makePackedDir({ buildCmd: 'pnpm release:build', withTarball: false });
-
-    expect(await readFreshCache(dir, 'pnpm release:build')).toBeNull();
-  });
-
-  it('misses when there is no manifest', async () => {
-    expect(await readFreshCache(await makeTempDir(), 'pnpm release:build')).toBeNull();
-  });
-});
+const DEFAULT_PACKAGES: FixturePackage[] = [
+  { dir: 'public', pkg: { name: '@fixture/public', version: '1.0.0' } },
+  { dir: 'private', pkg: { name: '@fixture/private', version: '1.0.0', private: true } },
+];
 
 /**
- * Creates a git repository holding a two-package pnpm workspace: one publishable, one private.
+ * Creates a git repository holding a pnpm workspace of `packages` — by default one publishable and
+ * one private.
  *
  * The build command is a script that appends to `marker`, so a later assertion can tell whether a
  * build actually ran or the cache was reused.
- *
- * @returns {Promise<{ repoRoot: string, marker: string, buildCmd: string }>}
  */
-async function makeFixtureRepo() {
+async function makeFixtureRepo(packages: FixturePackage[] = DEFAULT_PACKAGES) {
   const repoRoot = await makeTempDir();
   const marker = path.join(repoRoot, 'builds.log');
 
@@ -94,14 +38,14 @@ async function makeFixtureRepo() {
   );
 
   await Promise.all(
-    [
-      { dir: 'public', pkg: { name: '@fixture/public', version: '1.0.0' } },
-      { dir: 'private', pkg: { name: '@fixture/private', version: '1.0.0', private: true } },
-    ].map(async ({ dir, pkg }) => {
+    packages.map(async ({ dir, pkg }) => {
       const pkgDir = path.join(repoRoot, 'packages', dir);
       await mkdir(pkgDir, { recursive: true });
       await writeFile(path.join(pkgDir, 'package.json'), JSON.stringify(pkg, null, 2));
-      await writeFile(path.join(pkgDir, 'index.js'), 'export default 1;\n');
+      await writeFile(
+        path.join(pkgDir, 'index.js'),
+        `export default ${JSON.stringify(pkg.name)};\n`,
+      );
     }),
   );
 
@@ -126,17 +70,7 @@ describe('packRef', () => {
 
       // The private package is never packed: a release would not publish it.
       expect(packed.packages.map((pkg) => pkg.name)).toEqual(['@fixture/public']);
-      expect(packed.dir).toBe(path.join(outRoot, packed.sha));
       await expect(stat(packed.packages[0].tarball)).resolves.toBeTruthy();
-
-      // Tarball names are stored relative to the folder, so a cache restored under a different
-      // absolute path still resolves.
-      const manifest = JSON.parse(await readFile(path.join(packed.dir, 'manifest.json'), 'utf8'));
-      expect(manifest.packages).toEqual([
-        { name: '@fixture/public', version: '1.0.0', tarball: 'fixture+public.tgz' },
-      ]);
-      expect(manifest.buildCmd).toBe(buildCmd);
-
       expect(await readFile(marker, 'utf8')).toBe('built\n');
 
       // The temporary checkout is cleaned up, leaving the tarballs as the only artifact.
@@ -147,6 +81,30 @@ describe('packRef', () => {
       const again = await packRef({ repoRoot, ref: 'HEAD', outRoot, installCmd: '', buildCmd });
       expect(again.sha).toBe(packed.sha);
       expect(await readFile(marker, 'utf8')).toBe('built\n');
+    },
+  );
+
+  it(
+    'reuses a cache restored under a different path, as a CI cache is',
+    { timeout: 120_000 },
+    async () => {
+      const { repoRoot, marker, buildCmd } = await makeFixtureRepo();
+      const outRoot = path.join(await makeTempDir(), 'cache');
+      await packRef({ repoRoot, ref: 'HEAD', outRoot, installCmd: '', buildCmd });
+
+      const restoredRoot = path.join(await makeTempDir(), 'restored');
+      await rename(outRoot, restoredRoot);
+      const restored = await packRef({
+        repoRoot,
+        ref: 'HEAD',
+        outRoot: restoredRoot,
+        installCmd: '',
+        buildCmd,
+      });
+
+      expect(await readFile(marker, 'utf8')).toBe('built\n');
+      expect(restored.packages[0].tarball.startsWith(restoredRoot)).toBe(true);
+      await expect(stat(restored.packages[0].tarball)).resolves.toBeTruthy();
     },
   );
 
@@ -170,6 +128,18 @@ describe('packRef', () => {
     },
   );
 
+  it('rebuilds when a cached tarball has gone missing', { timeout: 120_000 }, async () => {
+    const { repoRoot, marker, buildCmd } = await makeFixtureRepo();
+    const outRoot = path.join(await makeTempDir(), 'cache');
+
+    const packed = await packRef({ repoRoot, ref: 'HEAD', outRoot, installCmd: '', buildCmd });
+    await rm(packed.packages[0].tarball);
+    const again = await packRef({ repoRoot, ref: 'HEAD', outRoot, installCmd: '', buildCmd });
+
+    expect(await readFile(marker, 'utf8')).toBe('built\nbuilt\n');
+    await expect(stat(again.packages[0].tarball)).resolves.toBeTruthy();
+  });
+
   it('leaves no staging directory behind', { timeout: 120_000 }, async () => {
     const { repoRoot, buildCmd } = await makeFixtureRepo();
     const outRoot = path.join(await makeTempDir(), 'cache');
@@ -192,30 +162,40 @@ describe('packRef', () => {
 });
 
 describe('packWorkingTree', () => {
-  it('names each tarball by a hash of its content', { timeout: 120_000 }, async () => {
+  it('keeps a tarball path until its content changes', { timeout: 120_000 }, async () => {
     const { repoRoot, buildCmd } = await makeFixtureRepo();
     const outRoot = path.join(await makeTempDir(), 'packed', 'current');
 
     const first = await packWorkingTree({ repoRoot, outRoot, buildCmd });
     const unchanged = await packWorkingTree({ repoRoot, outRoot, buildCmd });
 
-    // An unchanged build keeps its filename, which is what lets a consumer's isolated install
-    // persist: the dependency path does not move, so pnpm has nothing to do.
-    expect(first.map((pkg) => pkg.tarball)).toEqual(unchanged.map((pkg) => pkg.tarball));
-    expect(path.basename(first[0].tarball)).toMatch(/^fixture\+public-[0-9a-f]{12}\.tgz$/);
+    // An unchanged build keeps its path, so an install that depends on it has nothing to redo.
+    expect(unchanged.map((pkg) => pkg.tarball)).toEqual(first.map((pkg) => pkg.tarball));
     await expect(stat(first[0].tarball)).resolves.toBeTruthy();
-  });
 
-  it('renames when the packed content changes', { timeout: 120_000 }, async () => {
-    const { repoRoot, buildCmd } = await makeFixtureRepo();
-    const outRoot = path.join(await makeTempDir(), 'packed', 'current');
-
-    const before = await packWorkingTree({ repoRoot, outRoot, buildCmd });
     await writeFile(path.join(repoRoot, 'packages', 'public', 'index.js'), 'export default 2;\n');
-    const after = await packWorkingTree({ repoRoot, outRoot, buildCmd });
+    const changed = await packWorkingTree({ repoRoot, outRoot, buildCmd });
 
-    expect(after[0].tarball).not.toBe(before[0].tarball);
+    expect(changed[0].tarball).not.toBe(first[0].tarball);
     // The directory is replaced, so a stale tarball cannot accumulate or be resolved by mistake.
-    expect(await readdir(outRoot)).toEqual([path.basename(after[0].tarball)]);
+    expect(await readdir(outRoot)).toEqual([path.basename(changed[0].tarball)]);
   });
+
+  it(
+    'packs packages whose names only differ in their scope separately',
+    { timeout: 120_000 },
+    async () => {
+      const { repoRoot, buildCmd } = await makeFixtureRepo([
+        { dir: 'scoped', pkg: { name: '@mui/package', version: '1.0.0' } },
+        { dir: 'unscoped', pkg: { name: 'mui-package', version: '1.0.0' } },
+      ]);
+      const outRoot = path.join(await makeTempDir(), 'packed', 'current');
+
+      const packed = await packWorkingTree({ repoRoot, outRoot, buildCmd });
+
+      expect(packed.map((pkg) => pkg.name).sort()).toEqual(['@mui/package', 'mui-package']);
+      expect(new Set(packed.map((pkg) => pkg.tarball)).size).toBe(2);
+      await Promise.all(packed.map((pkg) => expect(stat(pkg.tarball)).resolves.toBeTruthy()));
+    },
+  );
 });
