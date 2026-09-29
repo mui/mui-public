@@ -147,7 +147,7 @@ jobs:
             # TEMPORARY: production does not know the tachometer report type until this pull
             # request lands, so it would reject the upload. Points at this pull request's own
             # dashboard preview until then — remove the line before merging.
-            CI_REPORT_API_URL: https://code-infra-dashboard-pr-1829.onrender.com
+            CI_REPORT_API_URL: https://code-infra-dashboard-pr-1898.onrender.com
           command: pnpm test:tacho --baseline "$(cat .tachometer-baseline-sha)"
       - save_cache:
           name: Save the packed-baseline cache
