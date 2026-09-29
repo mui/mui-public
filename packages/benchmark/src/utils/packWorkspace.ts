@@ -240,12 +240,12 @@ export async function packRef(options: PackRefOptions): Promise<PackedPackage[]>
     await rm(dir, { recursive: true, force: true });
     await rename(staging, dir);
     return packagesIn(manifest, dir);
-  } catch (error) {
-    await rm(staging, { recursive: true, force: true });
-    throw error;
   } finally {
-    // However the build went, including a checkout that never happened.
-    await removeCheckout(repoRoot, checkout);
+    // However the build went; on success the staging folder has already become `dir`.
+    await Promise.all([
+      rm(staging, { recursive: true, force: true }),
+      removeCheckout(repoRoot, checkout),
+    ]);
   }
 }
 
