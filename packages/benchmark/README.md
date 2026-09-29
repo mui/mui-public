@@ -463,7 +463,8 @@ metric when none does.
 | `autoSampleConditions` | `['0%']` | Horizons to resolve: by default, until each change is better or worse |
 
 They are set per benchmark: the last argument of `benchmark()` and `compare()`, and among
-`reactBenchmark()`'s options.
+`reactBenchmark()`'s options. A compared case is sampled as its `compare()` asks, so setting its own
+is an error.
 
 ```tsx
 reactBenchmark('mount', () => <Grid rows={1000} />, { timeout: 1, autoSampleConditions: ['5%'] });

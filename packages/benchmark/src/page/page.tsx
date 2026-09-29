@@ -1,7 +1,7 @@
 import { createInput } from '../input';
 import type { BenchmarkInput } from '../input';
 import { seriesName, setMetricRecorder } from '../metricCore';
-import { validateSampling } from '../sampling';
+import { hasSampling, resolveSampling } from '../sampling';
 import type { SamplingOptions } from '../sampling';
 import type { MetricDefinition } from '../types';
 
@@ -28,7 +28,10 @@ export interface BenchmarkCase {
 }
 
 /** Every case the file registered, by name. */
-const cases = new Map<string, { run: BenchmarkRun; sampling: SamplingOptions }>();
+const cases = new Map<
+  string,
+  { run: BenchmarkRun; sampling: Required<SamplingOptions>; ownSampling: boolean }
+>();
 
 /**
  * Registers a benchmark case. The runner calls `run` once per sample, warmup included, for as many
@@ -43,15 +46,22 @@ export function benchmark(
   if (cases.has(name)) {
     throw new Error(`Two benchmarks share the name "${name}". Benchmark names must be unique.`);
   }
-  validateSampling(sampling);
-  cases.set(name, { run, sampling });
+  cases.set(name, {
+    run,
+    sampling: resolveSampling(sampling),
+    ownSampling: hasSampling(sampling),
+  });
   return { name };
 }
 
 /** The `compare()` each compared case belongs to, by case name. */
 const comparedIn = new Map<string, string>();
 /** Each `compare()`, with its cases' names, the reference first. */
-const comparisons: Array<{ name: string; cases: string[]; sampling: SamplingOptions }> = [];
+const comparisons: Array<{
+  name: string;
+  cases: string[];
+  sampling: Required<SamplingOptions>;
+}> = [];
 
 /**
  * Compares cases with each other — one library's implementation against another's, say — on the
@@ -72,15 +82,25 @@ export function compare(
   if (compared.length < 2) {
     throw new Error(`Comparison "${name}" needs at least two cases.`);
   }
-  validateSampling(sampling);
+  const resolved = resolveSampling(sampling);
   for (const benchCase of compared) {
+    if (cases.get(benchCase.name)?.ownSampling) {
+      throw new Error(
+        `"${benchCase.name}" sets its own sampling, but a compared case is sampled as its ` +
+          `compare() asks: pass the options to compare("${name}", …) instead.`,
+      );
+    }
     const owner = comparedIn.get(benchCase.name);
     if (owner !== undefined) {
       throw new Error(`"${benchCase.name}" is already compared in "${owner}".`);
     }
     comparedIn.set(benchCase.name, name);
   }
-  comparisons.push({ name, cases: compared.map((benchCase) => benchCase.name), sampling });
+  comparisons.push({
+    name,
+    cases: compared.map((benchCase) => benchCase.name),
+    sampling: resolved,
+  });
 }
 
 // Values recorded during a sample, summed per series: a metric recorded more than once in an
@@ -107,9 +127,9 @@ setMetricRecorder((metric, value, options) => {
 
 export interface BenchPage {
   /** The cases measured across the builds: every case no `compare()` took. */
-  cases: Array<{ name: string; sampling: SamplingOptions }>;
+  cases: Array<{ name: string; sampling: Required<SamplingOptions> }>;
   /** The file's `compare()` calls, with their cases' names in order. */
-  comparisons: Array<{ name: string; cases: string[]; sampling: SamplingOptions }>;
+  comparisons: Array<{ name: string; cases: string[]; sampling: Required<SamplingOptions> }>;
   /** Every metric recorded so far, by name. */
   metricDefinitions: () => Record<string, MetricDefinition>;
   /** Runs one iteration of a case, and returns what it recorded, by series. */

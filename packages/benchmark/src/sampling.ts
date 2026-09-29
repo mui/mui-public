@@ -30,15 +30,6 @@ export const DEFAULT_SAMPLING: Required<SamplingOptions> = {
   autoSampleConditions: ['0%'],
 };
 
-/** The options with a default for every one left out, or left `undefined`. */
-export function resolveSampling(options: SamplingOptions): Required<SamplingOptions> {
-  return {
-    sampleSize: options.sampleSize ?? DEFAULT_SAMPLING.sampleSize,
-    timeout: options.timeout ?? DEFAULT_SAMPLING.timeout,
-    autoSampleConditions: options.autoSampleConditions ?? DEFAULT_SAMPLING.autoSampleConditions,
-  };
-}
-
 /** Parses `autoSampleConditions` into signed horizons, in percent. */
 export function parseHorizons(conditions: string[]): number[] {
   return conditions.flatMap((condition) => {
@@ -54,18 +45,33 @@ export function parseHorizons(conditions: string[]): number[] {
   });
 }
 
-/** Checks sampling options when a case registers, so a mistake fails the page, not a round. */
-export function validateSampling(options: SamplingOptions): void {
-  const { sampleSize, timeout, autoSampleConditions } = options;
-  if (sampleSize !== undefined && !(Number.isInteger(sampleSize) && sampleSize >= 2)) {
+/**
+ * Checks sampling options and fills in the defaults. Called when a case registers, so a mistake fails
+ * the page rather than a round, and the runner gets complete options.
+ */
+export function resolveSampling(options: SamplingOptions): Required<SamplingOptions> {
+  const {
+    sampleSize = DEFAULT_SAMPLING.sampleSize,
+    timeout = DEFAULT_SAMPLING.timeout,
+    autoSampleConditions = DEFAULT_SAMPLING.autoSampleConditions,
+  } = options;
+  if (!(Number.isInteger(sampleSize) && sampleSize >= 2)) {
     throw new Error(`Invalid sampleSize ${sampleSize}: expected an integer of at least 2.`);
   }
-  if (timeout !== undefined && !(timeout >= 0)) {
+  if (!(timeout >= 0)) {
     throw new Error(`Invalid timeout ${timeout}: expected a number of minutes, 0 or more.`);
   }
-  if (autoSampleConditions !== undefined) {
-    parseHorizons(autoSampleConditions);
-  }
+  parseHorizons(autoSampleConditions);
+  return { sampleSize, timeout, autoSampleConditions };
+}
+
+/** Whether any sampling option is set. */
+export function hasSampling(options: SamplingOptions): boolean {
+  return (
+    options.sampleSize !== undefined ||
+    options.timeout !== undefined ||
+    options.autoSampleConditions !== undefined
+  );
 }
 
 /** Whether an interval lies entirely on one side of every horizon. */

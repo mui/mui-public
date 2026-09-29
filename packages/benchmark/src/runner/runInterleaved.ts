@@ -5,7 +5,7 @@ import type { Browser, BrowserContext, CDPSession, Page } from '@playwright/test
 import { BENCHMARK_LAUNCH_ARGS } from '../launchArgs';
 import { analyzeBenchmark } from '../runReport';
 import type { RunBenchmark, RunMetricDefinition } from '../runReport';
-import { differencesResolved, parseHorizons, resolveSampling } from '../sampling';
+import { differencesResolved, parseHorizons } from '../sampling';
 import type { SamplingOptions } from '../sampling';
 import type { BenchFile } from './benchFiles';
 import { variantOf } from './refs';
@@ -168,21 +168,19 @@ type BenchmarkEntry = Pick<RunBenchmark, 'name' | 'file' | 'kind' | 'variants'>;
  * Measures one benchmark in fresh pages that stay open for all of it, so iterations stay warm and
  * module-scope data is built once. Warmup and measured rounds alike run every slot once, in a
  * shuffled order. After `sampleSize` rounds it keeps adding rounds while a difference is unresolved
- * against the horizons, until the timeout.
+ * against the horizons, until the timeout. A failure is reported as the benchmark's error.
  */
-async function measureBenchmark(
+async function runBenchmark(
   browser: Browser,
   entry: BenchmarkEntry,
   slots: PageSlot[],
-  sampling: SamplingOptions,
+  sampling: Required<SamplingOptions>,
   options: RunInterleavedOptions,
 ): Promise<CaseResult> {
-  const { sampleSize, timeout, autoSampleConditions } = resolveSampling(sampling);
+  console.log(chalk.cyan(`\nRunning "${entry.name}" (${entry.file})…`));
+  const { sampleSize, timeout, autoSampleConditions } = sampling;
   const horizons = parseHorizons(autoSampleConditions);
-  const targets = await openBenchPages(
-    browser,
-    slots.map((slot) => slot.url),
-  );
+  let targets: OpenedPage[] = [];
   const runRound = async (): Promise<Round> => {
     const round: Round = [];
     for (const index of shuffledIndices(targets.length)) {
@@ -192,6 +190,10 @@ async function measureBenchmark(
     return round;
   };
   try {
+    targets = await openBenchPages(
+      browser,
+      slots.map((slot) => slot.url),
+    );
     for (let roundIndex = 0; roundIndex < options.warmup; roundIndex += 1) {
       // eslint-disable-next-line no-await-in-loop
       await runRound();
@@ -206,12 +208,14 @@ async function measureBenchmark(
     const metrics = await targets[0].page.evaluate(() => window.benchmarkPage!.metricDefinitions());
     const benchmarkOf = (): RunBenchmark => ({ ...entry, samples: samplesOf(slots, rounds) });
 
+    const isSettled = () => differencesResolved(analyzeBenchmark(metrics, benchmarkOf()), horizons);
+
     const deadline = Date.now() + timeout * 60_000;
-    let resolved = differencesResolved(analyzeBenchmark(metrics, benchmarkOf()), horizons);
+    let resolved = isSettled();
     while (!resolved && Date.now() < deadline) {
       // eslint-disable-next-line no-await-in-loop
       rounds.push(await runRound());
-      resolved = differencesResolved(analyzeBenchmark(metrics, benchmarkOf()), horizons);
+      resolved = isSettled();
     }
     if (rounds.length > sampleSize || !resolved) {
       console.log(
@@ -221,6 +225,9 @@ async function measureBenchmark(
       );
     }
     return { benchmark: benchmarkOf(), metrics };
+  } catch (error) {
+    console.error(chalk.red(`  ${errorMessage(error)}`));
+    return { benchmark: { ...entry, error: errorMessage(error) }, metrics: {} };
   } finally {
     await closeBenchPages(targets);
   }
@@ -237,23 +244,6 @@ function samplesOf(slots: PageSlot[], rounds: Round[]): RunBenchmark['samples'] 
       ),
     ]),
   );
-}
-
-/** Measures one benchmark across its slots, or reports the error that stopped it. */
-async function runBenchmark(
-  browser: Browser,
-  entry: BenchmarkEntry,
-  slots: PageSlot[],
-  sampling: SamplingOptions,
-  options: RunInterleavedOptions,
-): Promise<CaseResult> {
-  console.log(chalk.cyan(`\nRunning "${entry.name}" (${entry.file})…`));
-  try {
-    return await measureBenchmark(browser, entry, slots, sampling, options);
-  } catch (error) {
-    console.error(chalk.red(`  ${errorMessage(error)}`));
-    return { benchmark: { ...entry, error: errorMessage(error) }, metrics: {} };
-  }
 }
 
 function benchPageUrl(origin: string, ref: ResolvedRef, benchFile: BenchFile): string {

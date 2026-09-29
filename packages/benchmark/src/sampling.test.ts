@@ -7,16 +7,7 @@ import {
   isResolved,
   parseHorizons,
   resolveSampling,
-  validateSampling,
 } from './sampling';
-
-describe('resolveSampling', () => {
-  it('defaults an option left undefined, not only one left out', () => {
-    expect(
-      resolveSampling({ sampleSize: undefined, timeout: 1, autoSampleConditions: undefined }),
-    ).toEqual({ ...DEFAULT_SAMPLING, timeout: 1 });
-  });
-});
 
 describe('parseHorizons', () => {
   it('expands an unsigned percentage to both signs', () => {
@@ -55,20 +46,33 @@ describe('isResolved', () => {
   });
 });
 
-describe('validateSampling', () => {
+describe('resolveSampling', () => {
+  it('fills in a default for every option left out or undefined', () => {
+    expect(resolveSampling({ timeout: 1, autoSampleConditions: undefined })).toEqual({
+      ...DEFAULT_SAMPLING,
+      timeout: 1,
+    });
+  });
+
   it('accepts the documented ranges', () => {
     expect(() =>
-      validateSampling({ sampleSize: 2, timeout: 0, autoSampleConditions: ['1%'] }),
+      resolveSampling({ sampleSize: 2, timeout: 0, autoSampleConditions: ['1%'] }),
     ).not.toThrow();
   });
 
   it('rejects a sample size that cannot form an interval', () => {
-    expect(() => validateSampling({ sampleSize: 1 })).toThrow(/Invalid sampleSize 1/);
-    expect(() => validateSampling({ sampleSize: 2.5 })).toThrow(/Invalid sampleSize 2.5/);
+    expect(() => resolveSampling({ sampleSize: 1 })).toThrow(/Invalid sampleSize 1/);
+    expect(() => resolveSampling({ sampleSize: 2.5 })).toThrow(/Invalid sampleSize 2.5/);
   });
 
   it('rejects a negative timeout', () => {
-    expect(() => validateSampling({ timeout: -1 })).toThrow(/Invalid timeout -1/);
+    expect(() => resolveSampling({ timeout: -1 })).toThrow(/Invalid timeout -1/);
+  });
+
+  it('rejects an invalid condition', () => {
+    expect(() => resolveSampling({ autoSampleConditions: ['5ms'] })).toThrow(
+      /Invalid auto-sample condition "5ms"/,
+    );
   });
 });
 
@@ -77,15 +81,19 @@ describe('differencesResolved', () => {
   const clearlySlower = noisy.map((value) => value * 2);
   const sameish = [11, 9, 10, 12, 11, 10, 9, 12];
 
-  function benchmarkOf(samples: Record<string, number[]>): RunBenchmark {
+  /** A current-vs-baseline benchmark; `paint` follows `render` unless given. */
+  function benchmarkOf(
+    render: { current: number[]; baseline: number[] },
+    paint = render,
+  ): RunBenchmark {
     return {
       name: 'mount',
       file: 'button.bench.tsx',
       kind: 'baseline',
       variants: ['current', 'baseline'],
       samples: {
-        current: { render: samples.current, paint: samples.current },
-        baseline: { render: samples.baseline, paint: samples.baseline },
+        current: { render: render.current, paint: paint.current },
+        baseline: { render: render.baseline, paint: paint.baseline },
       },
     };
   }
@@ -114,13 +122,10 @@ describe('differencesResolved', () => {
   it('ignores metrics that do not alarm when some do', () => {
     const analysis = analyzeBenchmark(
       { render: { kind: 'scalar', alarm: {} }, paint: { kind: 'scalar' } },
-      {
-        ...benchmarkOf({ current: clearlySlower, baseline: noisy }),
-        samples: {
-          current: { render: clearlySlower, paint: sameish },
-          baseline: { render: noisy, paint: noisy },
-        },
-      },
+      benchmarkOf(
+        { current: clearlySlower, baseline: noisy },
+        { current: sameish, baseline: noisy },
+      ),
     );
     expect(differencesResolved(analysis, [0])).toBe(true);
   });
@@ -128,13 +133,10 @@ describe('differencesResolved', () => {
   it('judges every metric when none alarms', () => {
     const analysis = analyzeBenchmark(
       { render: { kind: 'scalar' }, paint: { kind: 'scalar' } },
-      {
-        ...benchmarkOf({ current: clearlySlower, baseline: noisy }),
-        samples: {
-          current: { render: clearlySlower, paint: sameish },
-          baseline: { render: noisy, paint: noisy },
-        },
-      },
+      benchmarkOf(
+        { current: clearlySlower, baseline: noisy },
+        { current: sameish, baseline: noisy },
+      ),
     );
     expect(differencesResolved(analysis, [0])).toBe(false);
   });

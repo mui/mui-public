@@ -50,12 +50,10 @@ export function reactBenchmark(
     checkedGc = true;
     warnIfNoGc();
   }
-  const { interaction, options = {} } = splitCaseArgs(interactionOrOptions, maybeOptions);
-  const { sampleSize, timeout, autoSampleConditions, ...caseOptions } = options;
-  const sampling = { sampleSize, timeout, autoSampleConditions };
+  const { interaction, options } = splitCaseArgs(interactionOrOptions, maybeOptions);
 
   const run = async ({ input }: BenchmarkContext) => {
-    const result = await measureIteration(renderFn, interaction, caseOptions, input);
+    const result = await measureIteration(renderFn, interaction, options, input);
     if (result.renderError) {
       throw result.renderError;
     }
@@ -85,5 +83,5 @@ export function reactBenchmark(
       paintMetric.record(end - start, id === undefined ? undefined : { id });
     }
   };
-  return benchmark(name, run, sampling);
+  return benchmark(name, run, options);
 }
