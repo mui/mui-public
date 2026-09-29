@@ -8,7 +8,6 @@ import { hideBin } from 'yargs/helpers';
 // repository than in the published package, which is built from `build/`, so a relative path
 // cannot reach the manifest from both — and the repository's workspace symlink hides the break.
 import pkgJson from '@mui/internal-benchmark/package.json' with { type: 'json' };
-import report from './report';
 import run from './run';
 import tachoReport from './tachoReport';
 import tachoRun from './tachoRun';
@@ -29,7 +28,6 @@ await yargs(hideBin(process.argv))
     globalArgv = argv;
   }, true)
   .command(run)
-  .command(report)
   .command({
     command: 'tacho <command>',
     describe: 'Benchmark a tachometer harness, and read the reports it writes.',

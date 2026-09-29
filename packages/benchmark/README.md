@@ -448,8 +448,7 @@ none — so nothing else should build against the same checkout meanwhile.
 resolution there, leaving the repository untouched, at the cost of a second install tree per ref.
 
 `--launch-arg` passes a flag to Chromium, e.g. `--use-angle=metal` for hardware-rendered paint
-timings. `--no-install` skips a ref's install. `benchmark run --help` lists the rest, and
-`benchmark report` prints the tables again from a saved JSON report.
+timings. `--no-install` skips a ref's install. `benchmark run --help` lists the rest.
 
 ## Tachometer
 
