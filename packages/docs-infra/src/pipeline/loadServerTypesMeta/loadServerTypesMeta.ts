@@ -1,9 +1,8 @@
 // Can use node: imports here since this is server-only code
 import path from 'node:path';
-import { readFile, stat } from 'node:fs/promises';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { pathToFileURL } from 'node:url';
 
-import { parseImportsAndComments, extractNameAndSlugFromUrl } from '../loaderUtils';
+import { extractNameAndSlugFromUrl } from '../loaderUtils';
 import { nameMark, performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { loadTypescriptConfig } from './loadTypescriptConfig';
 import { resolveLibrarySourceFiles } from './resolveLibrarySourceFiles';
@@ -29,7 +28,7 @@ import type { InheritedExternalPropsConfig } from './inheritedExternalProps';
 import { buildTypeCompatibilityMap } from './rewriteTypes';
 import type { TypeRewriteContext } from './rewriteTypes';
 import type { ExternalTypeMeta, ExternalTypesCollector } from './externalTypes';
-import { findMetaFiles } from './findMetaFiles';
+import { matchConstantGroups } from './constantGroups';
 import { getWorkerManager } from './workerManager';
 import { reconstructPerformanceLogs } from './performanceTracking';
 import { typeSuffixes as defaultTypeSuffixes } from '../loadServerTypesText/order';
@@ -167,7 +166,6 @@ export interface LoadServerTypesMetaResult extends OrganizeTypesResult<TypesMeta
  * This function handles:
  * - Loading TypeScript configuration
  * - Resolving library source files and variants
- * - Finding meta files (DataAttributes, CssVars)
  * - Processing types via worker thread
  * - Formatting component, hook, function, and raw types
  * - Collecting external types referenced in props/params
@@ -226,102 +224,6 @@ export async function loadServerTypesMeta(
     );
   }
 
-  // Collect all entrypoints for optimized program creation
-  // Include both the component entrypoints and their meta files (DataAttributes, CssVars)
-  // These are file:// URLs from resolveLibrarySourceFiles
-  const resolvedEntrypointUrls = Array.from(resolvedVariantMap.values());
-
-  // Parse exports from library source files to find re-exported directories
-  // This helps us discover DataAttributes/CssVars files from re-exported components
-  const reExportedDirUrls = new Set<string>();
-
-  await Promise.all(
-    resolvedEntrypointUrls.map(async (entrypointUrl) => {
-      try {
-        // Convert file:// URL to filesystem path for Node.js fs APIs
-        const fsEntrypoint = fileURLToPath(entrypointUrl);
-        const sourceCode = await readFile(fsEntrypoint, 'utf-8');
-        const parsed = parseImportsAndComments(sourceCode, entrypointUrl);
-
-        // Look for relative exports (e.g., '../menu/', './Button', etc.)
-        await Promise.all(
-          Object.keys(parsed.relative || {}).map(async (exportPath) => {
-            if (exportPath.startsWith('..') || exportPath.startsWith('.')) {
-              // Resolve to absolute filesystem path
-              const absoluteFsPath = path.resolve(path.dirname(fsEntrypoint), exportPath);
-
-              // Check if this path exists as a directory
-              // If not, it might be a module reference (e.g., '../menu/backdrop/MenuBackdrop' -> MenuBackdrop.tsx)
-              // In that case, we want to add the parent directory
-              try {
-                const stats = await stat(absoluteFsPath);
-                if (stats.isDirectory()) {
-                  // It's a directory, add it with trailing slash so path.dirname returns this directory
-                  reExportedDirUrls.add(pathToFileURL(`${absoluteFsPath}/`).href);
-                }
-              } catch {
-                // Path doesn't exist as-is. Check if it exists with common extensions
-                const extensions = ['.tsx', '.ts', '.jsx', '.js', '.mjs', '.cjs'];
-
-                for (const ext of extensions) {
-                  try {
-                    // eslint-disable-next-line no-await-in-loop
-                    const fileStats = await stat(absoluteFsPath + ext);
-                    if (fileStats.isFile()) {
-                      // It's a file reference, add the parent directory as file:// URL
-                      // Add trailing slash so path.dirname returns this directory, not its parent
-                      const parentDir = path.dirname(absoluteFsPath);
-                      reExportedDirUrls.add(pathToFileURL(`${parentDir}/`).href);
-                      break;
-                    }
-                  } catch {
-                    // Continue checking other extensions
-                  }
-                }
-
-                // If not found as file or directory, it might be a bare module reference - skip it
-              }
-            }
-          }),
-        );
-      } catch (error) {
-        // If we can't parse a file, just skip it
-        console.warn(
-          `[Main] Failed to parse exports from ${entrypointUrl}:`,
-          error instanceof Error ? error.message : error,
-        );
-      }
-    }),
-  );
-
-  // Find meta files from the library source directories and re-exported directories
-  // Convert file:// URLs to filesystem paths for findMetaFiles
-  const entrypointFiles = resolvedEntrypointUrls.map((url) => fileURLToPath(url));
-  const reExportedDirs = Array.from(reExportedDirUrls).map((url) => fileURLToPath(url));
-
-  // findMetaFiles accepts filesystem paths and returns filesystem paths
-  // We search both entrypoint files and re-exported directories for meta files,
-  // but only include actual files (entrypoints + found meta files), not directories
-  const metaFilesFromEntrypoints = await Promise.all(
-    entrypointFiles.map((fsPath) => findMetaFiles(fsPath)),
-  ).then((results) => results.flat());
-
-  const metaFilesFromReExports = await Promise.all(
-    reExportedDirs.map((fsPath) => findMetaFiles(fsPath)),
-  ).then((results) => results.flat());
-
-  // Meta files are DataAttributes/CssVars files that aren't imported but contain type info
-  const metaFiles = [...metaFilesFromEntrypoints, ...metaFilesFromReExports];
-
-  // All files needed for the TypeScript program (entrypoints + meta files)
-  const allEntrypoints = [...entrypointFiles, ...metaFiles];
-
-  currentMark = performanceMeasure(
-    currentMark,
-    { mark: 'Meta Files Resolved', measure: 'Meta Files Resolution' },
-    [functionName, relativePath],
-  );
-
   // Process types — use the worker manager singleton (which adapts to main vs worker thread)
   const workerManager = getWorkerManager();
   const workerStartTime = performance.now();
@@ -329,8 +231,6 @@ export async function loadServerTypesMeta(
   const workerResult = await workerManager.processTypes({
     projectPath: config.projectPath,
     compilerOptions: config.options,
-    allEntrypoints,
-    metaFiles,
     resolvedVariantMap: Array.from(resolvedVariantMap.entries()),
     dependencies: config.dependencies,
     rootContextDir,
@@ -375,7 +275,7 @@ export async function loadServerTypesMeta(
 
   // Build type compatibility map once from all exports across all variants
   // This map is used to rewrite type references (e.g., Dialog.Trigger.State -> AlertDialog.Trigger.State)
-  const allRawExports = Object.values(rawVariantData).flatMap((v) => v.allTypes);
+  const allRawExports = Object.values(rawVariantData).flatMap((v) => v.exports);
   const allExportNames = Array.from(new Set(allRawExports.map((exp) => exp.name)));
   const typeCompatibilityMap = buildTypeCompatibilityMap(allRawExports, allExportNames);
 
@@ -402,10 +302,13 @@ export async function loadServerTypesMeta(
       // Each variant shares the same collected map so types are deduplicated automatically.
       const externalTypesCollector: ExternalTypesCollector = {
         collected: collectedExternalTypes,
-        allExports: variantResult.allTypes,
+        allExports: variantResult.exports,
         pattern: externalTypesPatternRegex,
         typeNameMap: variantResult.typeNameMap,
       };
+
+      const constantGroups = matchConstantGroups(variantResult.exports);
+      const constantNamespaces = new Set(variantResult.constantNamespaces);
 
       // Process all exports in parallel within each variant
       const types = await Promise.all(
@@ -413,13 +316,13 @@ export async function loadServerTypesMeta(
           if (isPublicComponent(exportNode)) {
             const formattedData = await formatComponentData(
               exportNode,
-              variantResult.allTypes,
               variantResult.typeNameMap || {},
               rewriteContext,
               {
                 formatting: formattingOptions,
                 externalTypes: externalTypesCollector,
                 ordering: options.ordering,
+                constantGroups: constantGroups.byComponent.get(exportNode.name),
                 descriptionReplacements: options.descriptionReplacements,
               },
             );
@@ -498,6 +401,8 @@ export async function loadServerTypesMeta(
               formatting: formattingOptions,
               externalTypes: externalTypesCollector,
               descriptionReplacements: options.descriptionReplacements,
+              constantGroup: constantGroups.targets.get(exportNode.name),
+              constantNamespace: constantNamespaces.has(exportNode.name),
             },
           );
 
@@ -695,12 +600,12 @@ export async function loadServerTypesMeta(
 
     // Extract component name and suffix (e.g., "ButtonProps" -> component: "Button", suffix: "Props")
     // Handle both namespaced (ContextMenu.Root.Props) and non-namespaced (ButtonProps) names
-    const parts = typeMeta.name.match(/^(.+)\.(Props|State|DataAttributes|CssVars)$/);
+    const parts = typeMeta.name.match(/^(.+)\.Props$/);
     if (!parts) {
       return typeMeta;
     }
 
-    const [, componentName, suffix] = parts;
+    const [, componentName] = parts;
 
     // Find the corresponding component by checking both the full name and just the last part
     // e.g., for "ContextMenu.Root.Props", check both "ContextMenu.Root" and "Root"
@@ -715,7 +620,7 @@ export async function loadServerTypesMeta(
     }
 
     // Check if Props is a re-export of the component's props
-    if (suffix === 'Props' && correspondingComponent.data.props) {
+    if (correspondingComponent.data.props) {
       const hasProps = Object.keys(correspondingComponent.data.props).length > 0;
       if (hasProps) {
         // Extract the display name (last part after dot) for the link text
@@ -732,52 +637,6 @@ export async function loadServerTypesMeta(
               name: displayName,
               slug: `#${displayName.toLowerCase()}`,
               suffix: 'props' as const,
-            },
-          },
-        };
-      }
-    }
-
-    // Check if DataAttributes is a re-export of the component's data attributes
-    if (suffix === 'DataAttributes' && correspondingComponent.data.dataAttributes) {
-      const hasDataAttributes = Object.keys(correspondingComponent.data.dataAttributes).length > 0;
-      if (hasDataAttributes) {
-        // Extract the display name (last part after dot) for the link text
-        const displayName = componentName.includes('.')
-          ? componentName.split('.').pop()!
-          : componentName;
-        return {
-          type: 'raw' as const,
-          name: typeMeta.name,
-          data: {
-            ...typeMeta.data,
-            reExportOf: {
-              name: displayName,
-              slug: `#${displayName.toLowerCase()}`,
-              suffix: 'data-attributes' as const,
-            },
-          },
-        };
-      }
-    }
-
-    // Check if CssVars is a re-export of the component's CSS variables
-    if (suffix === 'CssVars' && correspondingComponent.data.cssVariables) {
-      const hasCssVariables = Object.keys(correspondingComponent.data.cssVariables).length > 0;
-      if (hasCssVariables) {
-        // Extract the display name (last part after dot) for the link text
-        const displayName = componentName.includes('.')
-          ? componentName.split('.').pop()!
-          : componentName;
-        return {
-          type: 'raw' as const,
-          name: typeMeta.name,
-          data: {
-            ...typeMeta.data,
-            reExportOf: {
-              name: displayName,
-              slug: `#${displayName.toLowerCase()}`,
-              suffix: 'css-variables' as const,
             },
           },
         };
