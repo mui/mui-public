@@ -1,5 +1,5 @@
+import { access } from 'node:fs/promises';
 import type * as PlaywrightTest from '@playwright/test';
-import { pathExists } from '../utils/path';
 
 /**
  * Resolves the browser every benchmark runs on: Playwright's pinned Chrome for Testing, rather than
@@ -17,7 +17,9 @@ export async function resolveBrowserBinary(harnessDir: string): Promise<string> 
   }
 
   const binary = playwright.chromium.executablePath();
-  if (!binary || !(await pathExists(binary))) {
+  try {
+    await access(binary);
+  } catch {
     throw new Error(
       `Playwright's Chromium is not installed at "${binary}". Run \`pnpm exec playwright install chromium\`.`,
     );

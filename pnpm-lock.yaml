@@ -534,6 +534,9 @@ importers:
       env-ci:
         specifier: ^11.2.0
         version: 11.2.0
+      es-toolkit:
+        specifier: ^1.52.0
+        version: 1.52.0
       execa:
         specifier: ^10.0.1
         version: 10.0.1

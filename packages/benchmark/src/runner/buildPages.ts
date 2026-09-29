@@ -2,19 +2,18 @@
 
 import * as path from 'node:path';
 import { createRequire } from 'node:module';
-import { readFile, rm, writeFile } from 'node:fs/promises';
+import { constants, copyFile, readFile, rm, writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import chalk from 'chalk';
+import { execa } from 'execa';
 import type * as Vite from 'vite';
 import { parse, stringify } from 'yaml';
 // Self-referencing rather than `../../package.json`, which resolves only in the repository — see
 // the note in ../cli/index.ts.
 import pkgJson from '@mui/internal-benchmark/package.json' with { type: 'json' };
-import { run } from '../utils/exec';
 import type { PackedPackage } from '../utils/packWorkspace';
 import { refLabel } from './refs';
 import type { ResolvedRef } from './refs';
-import { pathExists } from '../utils/path';
 
 /**
  * Packages the run itself resolves from the harness, so they are never pinned to a ref's build: the
@@ -57,8 +56,13 @@ async function pinPackedPackages(
 ): Promise<void> {
   const manifestPath = path.join(repoRoot, 'pnpm-workspace.yaml');
   const backupPath = backupPathOf(outputDir);
-  if (!(await pathExists(backupPath))) {
-    await writeFile(backupPath, await readFile(manifestPath, 'utf8'));
+  // The first ref sets the repository's manifest aside; a later one finds that copy and keeps it.
+  try {
+    await copyFile(manifestPath, backupPath, constants.COPYFILE_EXCL);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
+      throw error;
+    }
   }
 
   const config = parse(await readFile(backupPath, 'utf8')) ?? {};
@@ -79,13 +83,23 @@ async function pinPackedPackages(
  */
 export async function restoreWorkspace(repoRoot: string, outputDir: string): Promise<void> {
   const backupPath = backupPathOf(outputDir);
-  if (!(await pathExists(backupPath))) {
-    return;
+  let original: string;
+  try {
+    original = await readFile(backupPath, 'utf8');
+  } catch (error) {
+    // No copy set aside: nothing was pinned.
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return;
+    }
+    throw error;
   }
   console.log(chalk.cyan('\nRestoring the repository install…'));
-  await writeFile(path.join(repoRoot, 'pnpm-workspace.yaml'), await readFile(backupPath, 'utf8'));
+  await writeFile(path.join(repoRoot, 'pnpm-workspace.yaml'), original);
   await rm(backupPath, { force: true });
-  await run('pnpm', ['install', '--prefer-offline', '--no-frozen-lockfile'], repoRoot);
+  await execa('pnpm', ['install', '--prefer-offline', '--no-frozen-lockfile'], {
+    cwd: repoRoot,
+    verbose: 'short',
+  });
 }
 
 /**
@@ -120,7 +134,10 @@ export async function buildRefPages(options: {
   await pinPackedPackages(repoRoot, outputDir, packages);
   // `--no-frozen-lockfile` because changing the overrides is the point, and pnpm turns a frozen
   // install on by itself in CI — where it would refuse the very change being made.
-  await run('pnpm', ['install', '--prefer-offline', '--no-frozen-lockfile'], repoRoot);
+  await execa('pnpm', ['install', '--prefer-offline', '--no-frozen-lockfile'], {
+    cwd: repoRoot,
+    verbose: 'short',
+  });
 
   // vite is the harness's own, not this package's: the harness declares the version its pages are
   // built with, and the config being run is the harness's.
