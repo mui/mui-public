@@ -82,7 +82,7 @@ const MANIFEST = 'manifest.json';
  * `+` cannot appear in a package name, so no two packages share a tarball — `@mui/pkg` and
  * `mui-pkg` stay apart, where a `-` would fold them together.
  */
-export function tarballName(pkgName: string): string {
+function tarballName(pkgName: string): string {
   return `${pkgName.replace(/^@/, '').replace('/', '+')}.tgz`;
 }
 
@@ -163,7 +163,7 @@ function resolveManifest(raw: RawManifest, dir: string): PackedWorkspace {
  * reusing a folder built with a different build script, or one whose tarballs were partially
  * evicted or deleted.
  */
-export async function readFreshCache(dir: string, buildCmd: string): Promise<RawManifest | null> {
+async function readFreshCache(dir: string, buildCmd: string): Promise<RawManifest | null> {
   const raw = await readRawManifest(dir);
   if (raw === null || raw.buildCmd !== buildCmd) {
     return null;
@@ -186,10 +186,7 @@ export async function readFreshCache(dir: string, buildCmd: string): Promise<Raw
  * registry and 404s. That is a real packaging bug in the ref, not something to paper over here:
  * make the internal dependency public so it ships alongside the package that needs it.
  */
-export async function packBuiltPackages(
-  checkoutDir: string,
-  outDir: string,
-): Promise<PackedPackage[]> {
+async function packBuiltPackages(checkoutDir: string, outDir: string): Promise<PackedPackage[]> {
   await mkdir(outDir, { recursive: true });
   const packages = await listPublishablePackages(checkoutDir);
   if (packages.length === 0) {
