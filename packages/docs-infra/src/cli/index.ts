@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import { createRequire } from 'node:module';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
