@@ -9,7 +9,11 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { BarChartPro } from '@mui/x-charts-pro/BarChartPro';
 import { analyzeRun, formatComparison } from '@mui/internal-benchmark/runReport';
-import type { MetricComparison } from '@mui/internal-benchmark/runReport';
+import type {
+  BenchmarkRunReport,
+  Change,
+  MetricComparison,
+} from '@mui/internal-benchmark/runReport';
 import { isBenchmarkRunUpload } from '@/utils/fetchCiReport';
 import { useMasterCommits } from '../hooks/useMasterCommits';
 import { useCiReports } from '../hooks/useCiReports';
@@ -21,19 +25,40 @@ import ErrorDisplay from './ErrorDisplay';
  * read off the chart directly, rather than inferred from a noisy trend.
  */
 
-type Change = MetricComparison['change'];
-
 const CHANGE_COLORS: Record<Change, string> = {
   worse: 'var(--mui-palette-error-main)',
   better: 'var(--mui-palette-success-main)',
   unsure: 'var(--mui-palette-grey-500)',
 };
 
+/** Per benchmark, per metric: a commit's change against its parent. */
+type CommitComparisons = Map<string, Map<string, MetricComparison>>;
+
 interface CommitPoint {
   sha: string;
   date: Date;
-  /** Per benchmark, per metric: this commit's change against its parent. */
-  comparisons: Map<string, Map<string, MetricComparison>>;
+  comparisons: CommitComparisons;
+}
+
+// A report is analysed once, however often the list of loaded reports changes around it. Keyed by
+// the report object, which the query cache keeps stable for as long as it holds the report.
+const comparisonsByReport = new WeakMap<BenchmarkRunReport, CommitComparisons>();
+
+function comparisonsOf(report: BenchmarkRunReport): CommitComparisons {
+  let comparisons = comparisonsByReport.get(report);
+  if (!comparisons) {
+    comparisons = new Map();
+    for (const { benchmark, metrics } of analyzeRun(report)) {
+      if (benchmark.kind === 'baseline') {
+        comparisons.set(
+          benchmark.name,
+          new Map(metrics.map(({ metric, comparisons: [comparison] }) => [metric, comparison])),
+        );
+      }
+    }
+    comparisonsByReport.set(report, comparisons);
+  }
+  return comparisons;
 }
 
 interface BenchmarkRunHistoryProps {
@@ -53,18 +78,9 @@ export default function BenchmarkRunHistory({ repo }: BenchmarkRunHistoryProps) 
         if (!upload || !isBenchmarkRunUpload(upload)) {
           return [];
         }
-        const { report } = upload;
-        const comparisons = new Map<string, Map<string, MetricComparison>>();
-        for (const { benchmark, metrics } of analyzeRun(report)) {
-          if (benchmark.kind !== 'baseline') {
-            continue;
-          }
-          comparisons.set(
-            benchmark.name,
-            new Map(metrics.map(({ metric, comparisons: [comparison] }) => [metric, comparison])),
-          );
-        }
-        return [{ sha: commit.sha, date: new Date(timestamp), comparisons }];
+        return [
+          { sha: commit.sha, date: new Date(timestamp), comparisons: comparisonsOf(upload.report) },
+        ];
       }),
     [commits, reports],
   );
@@ -90,27 +106,28 @@ export default function BenchmarkRunHistory({ repo }: BenchmarkRunHistoryProps) 
   const [userMetric, setUserMetric] = React.useState<string | null>(null);
   const metric = userMetric !== null && metricNames.includes(userMetric) ? userMetric : 'render';
 
-  const comparisonAt = (point: CommitPoint) =>
-    benchmark === null ? undefined : point.comparisons.get(benchmark)?.get(metric);
-
   // One series per kind of change, so each bar takes its change's colour. A commit's bar is the
   // midpoint of its confidence interval; the tooltip gives the interval itself.
-  const series = (['worse', 'better', 'unsure'] as const).map((change) => ({
-    type: 'bar' as const,
-    stack: 'change',
-    label: change,
-    color: CHANGE_COLORS[change],
-    data: points.map((point) => {
-      const comparison = comparisonAt(point);
-      return comparison?.change === change
-        ? (comparison.relative.low + comparison.relative.high) / 2
-        : null;
-    }),
-    valueFormatter: (_value: number | null, { dataIndex }: { dataIndex: number }) => {
-      const comparison = comparisonAt(points[dataIndex]);
-      return comparison?.change === change ? formatComparison(comparison) : null;
-    },
-  }));
+  const series = React.useMemo(() => {
+    const selected = points.map((point) =>
+      benchmark === null ? undefined : point.comparisons.get(benchmark)?.get(metric),
+    );
+    return (['worse', 'better', 'unsure'] as const satisfies Change[]).map((change) => ({
+      type: 'bar' as const,
+      stack: 'change',
+      label: change,
+      color: CHANGE_COLORS[change],
+      data: selected.map((comparison) =>
+        comparison?.change === change
+          ? (comparison.relative.low + comparison.relative.high) / 2
+          : null,
+      ),
+      valueFormatter: (_value: number | null, { dataIndex }: { dataIndex: number }) => {
+        const comparison = selected[dataIndex];
+        return comparison?.change === change ? formatComparison(comparison) : null;
+      },
+    }));
+  }, [points, benchmark, metric]);
 
   const [selectedSha, setSelectedSha] = React.useState<string | null>(null);
 

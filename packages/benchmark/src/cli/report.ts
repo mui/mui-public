@@ -2,14 +2,14 @@ import * as path from 'node:path';
 import { readFile } from 'node:fs/promises';
 import { z } from 'zod/v4';
 import type { CommandModule } from 'yargs';
-import { OUTPUT_DIR } from '../runner/outputDir';
+import { resultsPathOf } from '../runner/outputDir';
 
 interface Args {
   /** Path to a JSON report written by `benchmark run`. */
   file: string;
 }
 
-const DEFAULT_REPORT = path.join(OUTPUT_DIR, 'results', 'report.json');
+const DEFAULT_REPORT = path.relative(process.cwd(), resultsPathOf(process.cwd()));
 
 const command: CommandModule<{}, Args> = {
   command: 'report [file]',

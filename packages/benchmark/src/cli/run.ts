@@ -22,13 +22,12 @@ const command: CommandModule<{}, Args> = {
       })
       .option('samples', {
         type: 'number',
-        default: 30,
-        describe: 'Measured rounds per benchmark; each round samples every variant once',
+        describe:
+          'Measured rounds per benchmark; each round samples every variant once. Default: 30',
       })
       .option('warmup', {
         type: 'number',
-        default: 10,
-        describe: 'Discarded rounds before measuring, once per benchmark',
+        describe: 'Discarded rounds before measuring, once per benchmark. Default: 10',
       })
       .option('launch-arg', {
         type: 'string',
@@ -39,20 +38,18 @@ const command: CommandModule<{}, Args> = {
       .option('resolve-mode', {
         type: 'string',
         choices: ['isolated', 'in-place'] as const,
-        default: 'in-place' as const,
         describe:
-          "How pages find the library: 'isolated' installs each ref beside the repository, 'in-place' pins it in the repository's own pnpm-workspace.yaml for the length of the run",
+          "How pages find the library: 'isolated' installs each ref beside the repository, 'in-place' pins it in the repository's own pnpm-workspace.yaml for the length of the run. Default: in-place",
       })
       .option('build-cmd', {
         type: 'string',
-        default: 'pnpm release:build',
         describe:
-          "Command that builds the publishable workspace packages, in each ref's checkout and in the working tree",
+          "Command that builds the publishable workspace packages, in each ref's checkout and in the working tree. Default: pnpm release:build",
       })
       .option('install', {
         type: 'boolean',
-        default: true,
-        describe: "Install dependencies inside a ref's checkout. Use --no-install to skip",
+        describe:
+          "Install dependencies inside a ref's checkout (the default). Use --no-install to skip",
       })
       .option('upload', {
         type: 'boolean',

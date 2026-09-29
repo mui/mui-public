@@ -2,17 +2,10 @@
 
 import chalk from 'chalk';
 import { postToDashboard } from '../ciApi';
-import { ciReportUploadSchema, getCiMetadata } from '../ciReport';
+import { getCiMetadata } from '../ciReport';
 import { syncPrComment } from '../syncPrComment';
-import { benchmarkRunReportSchema } from '../runReport';
+import { benchmarkRunUploadSchema } from '../runReport';
 import type { BenchmarkRunReport } from '../runReport';
-
-/**
- * Version 2 of the `benchmark` upload. It shares the report type with the Vitest reporter's version
- * 1 — and so the commit's one `benchmark.json` — so a repository uploads one or the other; the
- * dashboard reads each by its version.
- */
-const benchmarkUploadV2Schema = ciReportUploadSchema('benchmark', 2, benchmarkRunReportSchema);
 
 /**
  * Uploads a report and refreshes the pull request comment.
@@ -30,7 +23,7 @@ export async function publishRunReport(report: BenchmarkRunReport): Promise<void
     return;
   }
 
-  const upload = benchmarkUploadV2Schema.parse({
+  const upload = benchmarkRunUploadSchema.parse({
     version: 2,
     reportType: 'benchmark',
     ...metadata,

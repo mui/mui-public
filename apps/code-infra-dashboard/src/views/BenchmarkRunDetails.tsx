@@ -15,7 +15,13 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
 import { fetchCiReport, isBenchmarkRunUpload } from '@/utils/fetchCiReport';
-import { analyzeRun, formatComparison, formatValue } from '@mui/internal-benchmark/runReport';
+import {
+  analyzeRun,
+  formatComparison,
+  formatComparisonLabel,
+  formatValue,
+  RUN_REPORT_FOOTNOTE,
+} from '@mui/internal-benchmark/runReport';
 import type {
   BenchmarkAnalysis,
   BenchmarkRunReport,
@@ -57,9 +63,9 @@ function BenchmarkTable({ analysis }: { analysis: BenchmarkAnalysis }) {
                 {variant}
               </TableCell>
             ))}
-            {comparisons.map(({ subject, against }) => (
-              <TableCell key={`${subject}:${against}`}>
-                {benchmark.kind === 'baseline' ? `Δ vs ${against}` : `${subject} vs ${against}`}
+            {comparisons.map((comparison) => (
+              <TableCell key={`${comparison.subject}:${comparison.against}`}>
+                {formatComparisonLabel(benchmark, comparison)}
               </TableCell>
             ))}
             <TableCell align="right">Rounds</TableCell>
@@ -176,9 +182,7 @@ export default function BenchmarkRunDetails() {
         {report && (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
             <Typography variant="body2" color="text.secondary">
-              Each value is a median. Each Δ is a 95% confidence interval on the paired per-round
-              difference, relative to the variant it is measured against; &quot;unsure&quot; means
-              it straddles zero.
+              {RUN_REPORT_FOOTNOTE}
             </Typography>
             <Typography variant="body2" color="text.secondary">
               {report.sampling.samples} rounds after {report.sampling.warmup} warmup ·{' '}

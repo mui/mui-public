@@ -29,6 +29,18 @@ export type BenchmarkInteraction = (ctx: InteractionContext) => Promise<void> | 
  */
 export const PAINT_METRIC_NAME = 'bench:paint';
 
+/** How the harness's time metrics are formatted. */
+export const MILLISECONDS: Intl.NumberFormatOptions = {
+  style: 'unit',
+  unit: 'millisecond',
+  maximumFractionDigits: 2,
+};
+
+/** Why a case failed when React recording was active yet captured no renders. */
+export const EMPTY_RECORDING_MESSAGE =
+  'React recording was active but captured no renders. If you only measure imperative DOM ' +
+  'updates or custom metrics, keep recording paused (reactRecordingPaused) instead of resuming.';
+
 export interface CaseOptions {
   afterEach?: () => Promise<void> | void;
   /**

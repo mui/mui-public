@@ -1,4 +1,5 @@
 import { z } from 'zod/v4';
+import type { MetricDefinition } from '../types';
 
 /**
  * The report `benchmark run` produces, uploads and the dashboard reads: version 2 of the `benchmark`
@@ -24,12 +25,14 @@ const alarmSchema = z.object({
   error: z.number().min(0).optional(),
 });
 
+// The same shape a page reports and a metric's config declares, so a field added there has to be
+// added here too — `satisfies` fails the build otherwise, rather than zod dropping it at upload.
 const metricDefinitionSchema = z.object({
   kind: z.enum(['scalar', 'discrete']),
   format: z.custom<Intl.NumberFormatOptions>().optional(),
   /** Present when a change in this metric is a regression; without it the metric is informational. */
   alarm: alarmSchema.optional(),
-});
+}) satisfies z.ZodType<MetricDefinition>;
 
 /** A build the benchmark pages were loaded from. */
 const buildSchema = z.object({
@@ -75,19 +78,23 @@ export const benchmarkRunReportSchema = z.object({
   benchmarks: z.array(benchmarkSchema),
 });
 
-export type BenchmarkRunReport = z.infer<typeof benchmarkRunReportSchema>;
+/**
+ * The version 2 `benchmark` upload, which the dashboard stores as the commit's `benchmark.json`: the
+ * same envelope as every CI report around this report. Declared here, browser-safe, so the runner
+ * validates with it and the dashboard reads with its type.
+ */
+export const benchmarkRunUploadSchema = z.object({
+  version: z.literal(2),
+  timestamp: z.number(),
+  commitSha: z.string().regex(/^[0-9a-f]{40}$/, 'Must be a 40-character hex string'),
+  repo: z.string().includes('/', 'Must be in owner/repo format'),
+  reportType: z.literal('benchmark'),
+  prNumber: z.number().int().positive().optional(),
+  branch: z.string(),
+  report: benchmarkRunReportSchema,
+});
 
-/** The version 2 `benchmark.json` as the dashboard stores it: the upload envelope around the report. */
-export interface BenchmarkRunUpload {
-  version: 2;
-  timestamp: number;
-  commitSha: string;
-  repo: string;
-  reportType: 'benchmark';
-  prNumber?: number;
-  branch: string;
-  report: BenchmarkRunReport;
-}
+export type BenchmarkRunReport = z.infer<typeof benchmarkRunReportSchema>;
+export type BenchmarkRunUpload = z.infer<typeof benchmarkRunUploadSchema>;
 export type RunMetricDefinition = z.infer<typeof metricDefinitionSchema>;
 export type RunBenchmark = z.infer<typeof benchmarkSchema>;
-export type RunBuild = z.infer<typeof buildSchema>;

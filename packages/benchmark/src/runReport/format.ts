@@ -1,5 +1,5 @@
-import type { Interval, MetricComparison } from './analyzeRun';
-import type { RunMetricDefinition } from './schema';
+import type { BenchmarkAnalysis, Interval, MetricComparison, Regression } from './analyzeRun';
+import type { RunBenchmark, RunMetricDefinition } from './schema';
 
 /**
  * How a run report's numbers read, for every renderer of one: the terminal table, the pull request
@@ -27,3 +27,31 @@ export function formatPercent(interval: Interval): string {
 export function formatComparison(comparison: MetricComparison): string {
   return `${comparison.change} ${formatPercent(comparison.relative)}`;
 }
+
+/** What a comparison column is headed: `Δ vs baseline` for a build, `theirs vs ours` for a variant. */
+export function formatComparisonLabel(
+  benchmark: RunBenchmark,
+  { subject, against }: Pick<MetricComparison, 'subject' | 'against'>,
+): string {
+  return benchmark.kind === 'baseline' ? `Δ vs ${against}` : `${subject} vs ${against}`;
+}
+
+/** The line a run is summed up in: how many benchmarks measured, regressed and failed. */
+export function formatRunSummary(analyses: BenchmarkAnalysis[], regressions: Regression[]): string {
+  const measured = analyses.filter((analysis) => !analysis.benchmark.error).length;
+  const failed = analyses.length - measured;
+  const regressed = new Set(regressions.map((regression) => regression.benchmark)).size;
+  return [
+    `${measured} benchmark${measured === 1 ? '' : 's'} measured`,
+    regressed > 0 ? `${regressed} with regressions` : 'no regressions',
+    failed > 0 ? `${failed} failed` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+
+/** How to read the numbers, under every rendering of a run. */
+export const RUN_REPORT_FOOTNOTE =
+  'Each value is a median. Each Δ is a 95% confidence interval on the paired per-round ' +
+  'difference, relative to the variant it is measured against; "unsure" means it straddles ' +
+  'zero — the expected result for two equivalent builds.';

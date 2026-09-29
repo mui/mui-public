@@ -1,6 +1,13 @@
 import type * as React from 'react';
 import { createInput } from '../input';
-import { measureIteration, PAINT_METRIC_NAME, splitCaseArgs, warnIfNoGc } from '../caseRuntime';
+import {
+  EMPTY_RECORDING_MESSAGE,
+  measureIteration,
+  MILLISECONDS,
+  PAINT_METRIC_NAME,
+  splitCaseArgs,
+  warnIfNoGc,
+} from '../caseRuntime';
 import type {
   BenchmarkInteraction,
   BenchmarkOptions,
@@ -9,27 +16,14 @@ import type {
   VariantLoader,
 } from '../caseRuntime';
 import { seriesName, setMetricRecorder } from '../metricCore';
-import type { MetricConfig, MetricKind } from '../types';
+import type { MetricDefinition } from '../types';
 
 // What `@mui/internal-benchmark` resolves to when benchmark files are built into a page for
 // `benchmark run`. Same authoring API, different driver: `benchmark()` registers a case, and the
 // runner calls `window.benchmarkPage.sample()` to run one iteration of it at a time. Every result
 // leaves the page as a `performance.measure` entry, so it also shows up in a DevTools trace.
 
-export type { RenderEvent, IterationData, InteractionContext } from '../types';
-export type {
-  MetricKind,
-  MetricDirection,
-  MetricAlarm,
-  MetricConfig,
-  MetricDefinition,
-} from '../types';
-export type { BenchmarkInput } from '../input';
-export type { BenchmarkInteraction, BenchmarkOptions, VariantLoader } from '../caseRuntime';
-export { ElementTiming } from '../ElementTiming';
-export { Metric, type MetricRecordOptions } from '../metricCore';
-export { ScalarMetric } from '../ScalarMetric';
-export { DiscreteMetric } from '../DiscreteMetric';
+export * from '../publicApi';
 
 interface PageCase {
   renderFn: () => React.ReactElement;
@@ -107,22 +101,9 @@ interface RecordedValue {
 // where recorded values are dropped.
 let sampleValues: RecordedValue[] | null = null;
 
-/** How the runner is told to read a metric: what its report carries per metric name. */
-export interface PageMetricDefinition {
-  kind: MetricKind;
-  format?: Intl.NumberFormatOptions;
-  alarm?: MetricConfig['alarm'];
-}
-
-const MILLISECONDS: Intl.NumberFormatOptions = {
-  style: 'unit',
-  unit: 'millisecond',
-  maximumFractionDigits: 2,
-};
-
 // The harness's own metrics. Render time and render count alarm on any resolved change for the
 // worse; paint dominates each case's duration and duplicates that signal, so it is informational.
-const metricDefinitions = new Map<string, PageMetricDefinition>([
+const metricDefinitions = new Map<string, MetricDefinition>([
   ['render', { kind: 'scalar', format: MILLISECONDS, alarm: {} }],
   ['render:count', { kind: 'discrete', alarm: {} }],
   ['render:mount', { kind: 'scalar', format: MILLISECONDS }],
@@ -147,7 +128,7 @@ export interface BenchPage {
   /** The file's `compare()` calls, with their variant keys in order. */
   comparisons: () => Array<{ name: string; variants: string[] }>;
   /** Every metric reported so far, by name: the harness's own and those the cases recorded. */
-  metricDefinitions: () => Record<string, PageMetricDefinition>;
+  metricDefinitions: () => Record<string, MetricDefinition>;
   /**
    * Runs one iteration of a case. A measured sample leaves its results as `performance.measure`
    * entries for the runner to collect; a warmup sample leaves none.
@@ -233,10 +214,7 @@ async function sample(name: string, { warmup }: { warmup: boolean }): Promise<vo
     throw result.renderError;
   }
   if (result.hadEmptyActiveWindow) {
-    throw new Error(
-      'React recording was active but captured no renders. If you only measure imperative DOM ' +
-        'updates or custom metrics, keep recording paused (reactRecordingPaused) instead of resuming.',
-    );
+    throw new Error(EMPTY_RECORDING_MESSAGE);
   }
   if (!warmup) {
     emitSample(result, values);

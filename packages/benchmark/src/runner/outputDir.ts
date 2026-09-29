@@ -30,6 +30,11 @@ export async function prepareOutputDir(harnessDir: string): Promise<string> {
  * agree on it: the runner serves every ref's pages from under this path, and a plain `vite build`
  * has to land somewhere that does not collide.
  */
+/** Where a run writes its JSON report, unless told otherwise. */
+export function resultsPathOf(harnessDir: string): string {
+  return path.join(harnessDir, OUTPUT_DIR, 'results', 'report.json');
+}
+
 export function buildsDirOf(harnessDir: string, refId?: string): string {
   const builds = path.join(harnessDir, OUTPUT_DIR, 'builds');
   return refId ? path.join(builds, refId) : builds;

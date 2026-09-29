@@ -25,6 +25,14 @@ export function refLabel(ref: ResolvedRef): string {
   return ref.kind === 'worktree' ? 'working tree' : ref.requested;
 }
 
+/**
+ * The variant name a ref's pages are reported under: `current` for the working tree, `baseline` for
+ * the revision it is compared against. The report's `builds` are keyed by the same names.
+ */
+export function variantOf(ref: ResolvedRef): 'current' | 'baseline' {
+  return ref.kind === 'worktree' ? 'current' : 'baseline';
+}
+
 /** The working tree, which every run builds. Never cached, having no immutable identity. */
 export const WORKTREE_REF: ResolvedRef = { kind: 'worktree', id: 'current' };
 

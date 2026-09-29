@@ -10,7 +10,9 @@ import { createInput } from './input';
 import {
   createCaseRuntime,
   createElementTimingWaiter,
+  EMPTY_RECORDING_MESSAGE,
   measureIteration,
+  MILLISECONDS,
   PAINT_METRIC_NAME,
   splitCaseArgs,
   warnIfNoGc,
@@ -26,20 +28,7 @@ import './Metric';
 // Import for TaskMeta augmentation side effect
 import './taskMetaAugmentation';
 
-export type { RenderEvent, IterationData, InteractionContext } from './types';
-export type {
-  MetricKind,
-  MetricDirection,
-  MetricAlarm,
-  MetricConfig,
-  MetricDefinition,
-} from './types';
-export type { BenchmarkInput } from './input';
-export type { BenchmarkInteraction, BenchmarkOptions, VariantLoader } from './caseRuntime';
-export { ElementTiming } from './ElementTiming';
-export { Metric, type MetricRecordOptions } from './Metric';
-export { ScalarMetric };
-export { DiscreteMetric } from './DiscreteMetric';
+export * from './publicApi';
 
 // When true, `benchmark()` opens an interactive profiling session in a headed
 // browser instead of running the automated measurement loop. Enabled by
@@ -78,7 +67,7 @@ export interface RunCaseResult {
 // Duration regression signal and floods the report on any broadly-regressed run.
 const paint = new ScalarMetric({
   name: PAINT_METRIC_NAME,
-  format: { style: 'unit', unit: 'millisecond', maximumFractionDigits: 2 },
+  format: MILLISECONDS,
 });
 
 /**
@@ -221,11 +210,7 @@ export function benchmark(
 
     // Every active recording window must capture at least one render. Windows where recording was
     // never running (e.g. a fully-paused, metric-only benchmark) are not checked.
-    expect(
-      sawEmptyActiveWindow,
-      'React recording was active but captured no renders. If you only measure imperative DOM ' +
-        'updates or custom metrics, keep recording paused (reactRecordingPaused) instead of resuming.',
-    ).toBe(false);
+    expect(sawEmptyActiveWindow, EMPTY_RECORDING_MESSAGE).toBe(false);
 
     // Validate all iterations produced the same render events (count + order).
     // This runs after meta is set so the reporter can still display results on failure.

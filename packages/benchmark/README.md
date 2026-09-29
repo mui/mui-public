@@ -427,15 +427,14 @@ this repository. Neither is implemented, and both are rejected by name rather th
 
 ### Building and installing each side
 
-Both sides are built the same way, from packed tarballs installed into an isolated tree, so neither
-resolves the library through a workspace link. The benchmark files themselves stay on the current
-branch and only the built library changes between refs — so a commit whose public API differs from
-today's benchmarks will fail that ref's build, with the error surfaced.
+Both sides are built the same way: packed to tarballs, in parallel, and installed the way a consumer
+gets them, so neither resolves the library through a workspace link. The benchmark files themselves
+stay on the current branch and only the built library changes between refs — so a commit whose public
+API differs from today's benchmarks will fail that ref's build, with the error surfaced.
 
 Packed builds are cached by commit SHA under `.benchmark/packed/`, so repeating a comparison against
 the same commit skips the rebuild; the working tree is never cached. In CI, cache that directory
-keyed on the baseline SHA, and check out with full history so a fork point can be resolved. A run
-never modifies the checkout it was started from.
+keyed on the baseline SHA, and check out with full history so a fork point can be resolved.
 
 By default a run resolves **in place**: it pins the packed build in the repository's own
 `pnpm-workspace.yaml`, installs it there, and resolution is then ordinary. The repository is put

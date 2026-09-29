@@ -3,12 +3,12 @@
 import * as path from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
 import chalk from 'chalk';
-import { execaSync } from 'execa';
+import { execa } from 'execa';
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import { packRef, packWorkingTree } from '../utils/packWorkspace';
-import type { PackedPackage } from '../utils/packWorkspace';
+import { resolveCommit } from '../utils/git';
 import type { BenchmarkRunReport } from '../runReport';
-import { refLabel, resolveBaselineRef, WORKTREE_REF } from './refs';
+import { refLabel, resolveBaselineRef, variantOf, WORKTREE_REF } from './refs';
 import type { ResolvedRef } from './refs';
 import { discoverBenchFiles } from './benchFiles';
 import { runInterleaved } from './runInterleaved';
@@ -17,7 +17,7 @@ import type { ResolveMode } from './buildPages';
 import { resolveBrowserBinary } from './browser';
 import { printRunReport } from './printReport';
 import { publishRunReport } from './upload';
-import { buildsDirOf, prepareOutputDir } from './outputDir';
+import { buildsDirOf, prepareOutputDir, resultsPathOf } from './outputDir';
 
 export interface RunBenchmarksOptions {
   /** The harness package directory (where the command was run). */
@@ -120,20 +120,13 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
   console.log(chalk.cyan(`Browser: ${browserBinary} ${allLaunchArgs.join(' ')}`));
 
   try {
-    // Build one variant per ref, each resolving through its own install so both sides of a
-    // comparison resolve the library identically.
-    for (const ref of refs) {
-      let packages: PackedPackage[];
-      if (ref.kind === 'worktree') {
-        // eslint-disable-next-line no-await-in-loop
-        packages = await packWorkingTree({
-          repoRoot,
-          outRoot: path.join(packedDir, 'current'),
-          buildCmd,
-        });
-      } else {
+    // Pack both sides at once: each builds in its own checkout, and nothing is measured yet.
+    const packedByRef = await Promise.all(
+      refs.map(async (ref) => {
+        if (ref.kind === 'worktree') {
+          return packWorkingTree({ repoRoot, outRoot: path.join(packedDir, 'current'), buildCmd });
+        }
         // packRef caches a ref's tarballs by SHA; a hit skips the checkout, install, and build.
-        // eslint-disable-next-line no-await-in-loop
         const packed = await packRef({
           repoRoot,
           ref: ref.sha,
@@ -142,15 +135,20 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
           installCmd: install ? undefined : '',
           buildCmd,
         });
-        packages = packed.packages;
-      }
+        return packed.packages;
+      }),
+    );
 
+    // Then build one set of pages per ref, each resolving through its own install so both sides of
+    // a comparison resolve the library identically. One at a time: an in-place build pins the
+    // repository's own workspace file.
+    for (const [index, ref] of refs.entries()) {
       // eslint-disable-next-line no-await-in-loop
       await buildRefPages({
         harnessDir,
         repoRoot,
         ref,
-        packages,
+        packages: packedByRef[index],
         treeDir: path.join(treesDir, ref.id),
         outputDir,
         outDir: path.join(buildsDir, ref.id),
@@ -172,10 +170,9 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
       version: 2,
       generatedAt: new Date().toISOString(),
       head: {
-        sha: execaSync('git', ['rev-parse', 'HEAD'], { cwd: repoRoot }).stdout.trim(),
-        branch: execaSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
-          cwd: repoRoot,
-        }).stdout.trim(),
+        sha: await resolveCommit(repoRoot, 'HEAD'),
+        branch: (await execa('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: repoRoot }))
+          .stdout,
       },
       environment: {
         browser: `Chromium ${results.browserVersion}`,
@@ -185,16 +182,13 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
       },
       sampling: { samples, warmup },
       builds: Object.fromEntries(
-        refs.map((ref) => [
-          ref.kind === 'worktree' ? 'current' : 'baseline',
-          { sha: ref.sha, label: refLabel(ref) },
-        ]),
+        refs.map((ref) => [variantOf(ref), { sha: ref.sha, label: refLabel(ref) }]),
       ),
       metrics: results.metrics,
       benchmarks: results.benchmarks,
     };
 
-    const outPath = out ? path.resolve(out) : path.join(outputDir, 'results', 'report.json');
+    const outPath = out ? path.resolve(out) : resultsPathOf(harnessDir);
     await mkdir(path.dirname(outPath), { recursive: true });
     await writeFile(outPath, `${JSON.stringify(report, null, 2)}\n`);
     console.log('');

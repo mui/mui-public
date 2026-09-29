@@ -5,6 +5,7 @@ import type { Browser, BrowserContext, CDPSession, Page } from '@playwright/test
 import { BENCHMARK_LAUNCH_ARGS } from '../launchArgs';
 import type { RunBenchmark, RunMetricDefinition } from '../runReport';
 import type { BenchFile } from './benchFiles';
+import { variantOf } from './refs';
 import type { ResolvedRef } from './refs';
 import { serveDirectory } from './serveDirectory';
 // Types for `window.benchmarkPage`, which the evaluated functions below call into.
@@ -207,15 +208,9 @@ async function measureBenchCase(
       }
       rounds.push(round);
     }
-    // Every page defines the same harness metrics, and a custom metric in whichever case records it.
-    const metrics = Object.assign(
-      {},
-      ...(await Promise.all(
-        targets.map((target) =>
-          target.page.evaluate(() => window.benchmarkPage!.metricDefinitions()),
-        ),
-      )),
-    );
+    // Read from the reference page: a metric whose config the change under test altered is
+    // described the way the change describes it.
+    const metrics = await targets[0].page.evaluate(() => window.benchmarkPage!.metricDefinitions());
     return { rounds, metrics };
   } finally {
     await closeBenchPages(targets);
@@ -235,6 +230,12 @@ function samplesOf(slots: PageSlot[], rounds: Round[]): RunBenchmark['samples'] 
   );
 }
 
+/** A benchmark as it goes into the report, with the definitions of the metrics it reported. */
+interface CaseResult {
+  benchmark: RunBenchmark;
+  metrics: Record<string, RunMetricDefinition>;
+}
+
 interface CaseGroup {
   kind: RunBenchmark['kind'];
   file: string;
@@ -251,20 +252,22 @@ async function runListedCases(
   listed: OpenedPage[],
   group: CaseGroup,
   options: RunInterleavedOptions,
-  metrics: Record<string, RunMetricDefinition>,
-): Promise<RunBenchmark[]> {
+): Promise<CaseResult[]> {
   const slots = listed.map((target) => target.slot);
   const variants = slots.map((slot) => slot.variant);
   const [reference, ...others] = listed;
-  const benchmarks: RunBenchmark[] = [];
+  const results: CaseResult[] = [];
   for (const caseName of reference.caseNames) {
     const entry = { name: group.nameOf(caseName), file: group.file, kind: group.kind, variants };
     const missing = others.find((target) => !target.caseNames.includes(caseName));
     if (missing) {
       // A case added by the change under test, or one library lacks, has nothing to compare with.
-      benchmarks.push({
-        ...entry,
-        error: `"${caseName}" does not exist in [${missing.slot.variant}].`,
+      results.push({
+        benchmark: {
+          ...entry,
+          error: `"${caseName}" does not exist in [${missing.slot.variant}].`,
+        },
+        metrics: {},
       });
       continue;
     }
@@ -273,14 +276,16 @@ async function runListedCases(
     try {
       // eslint-disable-next-line no-await-in-loop
       const measured = await measureBenchCase(browser, slots, caseName, options);
-      Object.assign(metrics, measured.metrics);
-      benchmarks.push({ ...entry, samples: samplesOf(slots, measured.rounds) });
+      results.push({
+        benchmark: { ...entry, samples: samplesOf(slots, measured.rounds) },
+        metrics: measured.metrics,
+      });
     } catch (error) {
       console.error(chalk.red(`  ${errorMessage(error)}`));
-      benchmarks.push({ ...entry, error: errorMessage(error) });
+      results.push({ benchmark: { ...entry, error: errorMessage(error) }, metrics: {} });
     }
   }
-  return benchmarks;
+  return results;
 }
 
 /** Opens a set of pages just to learn what they define, then runs their cases. */
@@ -289,13 +294,12 @@ async function listAndRun(
   slots: PageSlot[],
   group: CaseGroup,
   options: RunInterleavedOptions,
-  metrics: Record<string, RunMetricDefinition>,
-): Promise<{ benchmarks: RunBenchmark[]; comparisons: OpenedPage['comparisons'] }> {
+): Promise<{ results: CaseResult[]; comparisons: OpenedPage['comparisons'] }> {
   // Every case then measures in fresh pages of its own.
   const listed = await openBenchPages(browser, slots);
   await closeBenchPages(listed);
   return {
-    benchmarks: await runListedCases(browser, listed, group, options, metrics),
+    results: await runListedCases(browser, listed, group, options),
     comparisons: listed[0].comparisons,
   };
 }
@@ -313,18 +317,16 @@ async function runBenchFile(
   origin: string,
   benchFile: BenchFile,
   options: RunInterleavedOptions,
-  metrics: Record<string, RunMetricDefinition>,
-): Promise<RunBenchmark[]> {
+): Promise<CaseResult[]> {
   const buildSlots = options.benchRefs.map((ref): PageSlot => ({
-    variant: ref.kind === 'worktree' ? 'current' : 'baseline',
+    variant: variantOf(ref),
     url: benchPageUrl(origin, ref, benchFile).href,
   }));
-  const { benchmarks, comparisons } = await listAndRun(
+  const { results, comparisons } = await listAndRun(
     browser,
     buildSlots,
     { kind: 'baseline', file: benchFile.file, nameOf: (caseName) => caseName },
     options,
-    metrics,
   );
 
   const [worktreeRef] = options.benchRefs;
@@ -346,21 +348,23 @@ async function runBenchFile(
           nameOf: (caseName) => `${comparison} / ${caseName}`,
         },
         options,
-        metrics,
       );
-      benchmarks.push(...compared.benchmarks);
+      results.push(...compared.results);
     } catch (error) {
       console.error(chalk.red(`  ${errorMessage(error)}`));
-      benchmarks.push({
-        name: comparison,
-        file: benchFile.file,
-        kind: 'compare',
-        variants,
-        error: errorMessage(error),
+      results.push({
+        benchmark: {
+          name: comparison,
+          file: benchFile.file,
+          kind: 'compare',
+          variants,
+          error: errorMessage(error),
+        },
+        metrics: {},
       });
     }
   }
-  return benchmarks;
+  return results;
 }
 
 export async function runInterleaved(options: RunInterleavedOptions): Promise<InterleavedResults> {
@@ -375,14 +379,17 @@ export async function runInterleaved(options: RunInterleavedOptions): Promise<In
   ]);
 
   try {
-    const benchmarks: RunBenchmark[] = [];
-    const metrics: Record<string, RunMetricDefinition> = {};
+    const results: CaseResult[] = [];
     // Sequential on purpose: concurrent cases would contend for the same machine.
     for (const benchFile of options.benchFiles) {
       // eslint-disable-next-line no-await-in-loop
-      benchmarks.push(...(await runBenchFile(browser, server.origin, benchFile, options, metrics)));
+      results.push(...(await runBenchFile(browser, server.origin, benchFile, options)));
     }
-    return { benchmarks, metrics, browserVersion: browser.version() };
+    return {
+      benchmarks: results.map((result) => result.benchmark),
+      metrics: Object.assign({}, ...results.map((result) => result.metrics)),
+      browserVersion: browser.version(),
+    };
   } finally {
     await browser.close();
     await server.close();

@@ -5,9 +5,27 @@ import { buildBenchmarkMarkdownReport } from '@/lib/benchmark/buildMarkdownRepor
 import { buildBenchmarkRunMarkdownReport } from '@/lib/benchmarkRun/buildMarkdownReport';
 import { DASHBOARD_ORIGIN } from '@/constants';
 
+import type { BenchmarkRunReport } from '@mui/internal-benchmark/runReport';
 import type { ReportOptions, ReportResult } from './types';
 
 export const BENCHMARK_SECTION_TITLE = 'Performance';
+
+/** A version 2 report measured its own baseline in the same run, so it is rendered on its own. */
+function generateBenchmarkRunSection(
+  { repo, prNumber, commitSha }: ReportOptions,
+  report: BenchmarkRunReport,
+): ReportResult {
+  const runUrl = new URL(`${DASHBOARD_ORIGIN}/benchmark-run/${repo}`);
+  runUrl.searchParams.set('sha', commitSha);
+  // The details view reads this to title the page and link back to the PR overview.
+  runUrl.searchParams.set('prNumber', String(prNumber));
+  return {
+    content: buildBenchmarkRunMarkdownReport(report, {
+      title: BENCHMARK_SECTION_TITLE,
+      detailsUrl: runUrl.href,
+    }),
+  };
+}
 
 /**
  * Generates the benchmark section of the pull request comment from the head commit's report.
@@ -22,28 +40,20 @@ export async function generateBenchmarkReport(
 ): Promise<ReportResult | null> {
   const { repo, prNumber, commitSha, pr, baseCandidates } = options;
 
-  const [baseResult, headReport] = await Promise.all([
-    fetchCiReportWithFallback(repo, baseCandidates, 'benchmark.json'),
-    fetchCiReport(repo, commitSha, 'benchmark.json'),
-  ]);
+  // Started before the head is known so a version 1 report does not wait for it twice; a version 2
+  // report does not need it, and returns without waiting for it at all.
+  const baseResultPromise = fetchCiReportWithFallback(repo, baseCandidates, 'benchmark.json');
+  baseResultPromise.catch(() => {});
 
+  const headReport = await fetchCiReport(repo, commitSha, 'benchmark.json');
   if (!headReport) {
     return null;
   }
-
   if (isBenchmarkRunUpload(headReport)) {
-    const runUrl = new URL(`${DASHBOARD_ORIGIN}/benchmark-run/${repo}`);
-    runUrl.searchParams.set('sha', commitSha);
-    // The details view reads this to title the page and link back to the PR overview.
-    runUrl.searchParams.set('prNumber', String(prNumber));
-    return {
-      content: buildBenchmarkRunMarkdownReport(headReport.report, {
-        title: BENCHMARK_SECTION_TITLE,
-        detailsUrl: runUrl.href,
-      }),
-    };
+    return generateBenchmarkRunSection(options, headReport.report);
   }
 
+  const baseResult = await baseResultPromise;
   const inlinedBase = headReport.base;
   const { actualCommit: actualBaseCommit } = baseResult;
   const fetchedBaseUpload =

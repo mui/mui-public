@@ -3,7 +3,10 @@ import {
   analyzeRun,
   findRegressions,
   formatComparison,
+  formatComparisonLabel,
+  formatRunSummary,
   formatValue,
+  RUN_REPORT_FOOTNOTE,
 } from '@mui/internal-benchmark/runReport';
 import type { BenchmarkAnalysis, BenchmarkRunReport } from '@mui/internal-benchmark/runReport';
 
@@ -17,8 +20,6 @@ interface BuildOptions {
 /** One table per benchmark: every metric, the median of every variant, every comparison. */
 function renderBenchmarkTable({ benchmark, metrics }: BenchmarkAnalysis): string {
   const comparisons = metrics[0]?.comparisons ?? [];
-  const comparisonHeader = (subject: string, against: string) =>
-    benchmark.kind === 'baseline' ? `Δ vs ${against}` : `${subject} vs ${against}`;
 
   const columns = [
     { field: 'metric', header: 'Metric', align: 'left' as const },
@@ -27,9 +28,9 @@ function renderBenchmarkTable({ benchmark, metrics }: BenchmarkAnalysis): string
       header: variant,
       align: 'right' as const,
     })),
-    ...comparisons.map(({ subject, against }) => ({
-      field: `comparison:${subject}:${against}`,
-      header: comparisonHeader(subject, against),
+    ...comparisons.map((comparison) => ({
+      field: `comparison:${comparison.subject}:${comparison.against}`,
+      header: formatComparisonLabel(benchmark, comparison),
       align: 'left' as const,
     })),
   ];
@@ -78,19 +79,7 @@ export function buildBenchmarkRunMarkdownReport(
     lines.push('');
   }
 
-  const regressedBenchmarks = new Set(regressions.map((regression) => regression.benchmark));
-  lines.push(
-    [
-      `${measured.length} benchmark${measured.length === 1 ? '' : 's'} measured`,
-      regressedBenchmarks.size > 0
-        ? `${regressedBenchmarks.size} with regressions`
-        : 'no regressions',
-      failed.length > 0 ? `${failed.length} failed` : null,
-    ]
-      .filter(Boolean)
-      .join(' · '),
-    '',
-  );
+  lines.push(formatRunSummary(analyses, regressions), '');
 
   for (const { benchmark } of failed) {
     lines.push(`❌ **${benchmark.name}**: ${benchmark.error}`);
@@ -102,14 +91,7 @@ export function buildBenchmarkRunMarkdownReport(
   if (measured.length > 0) {
     lines.push('<details>', '<summary>Full results</summary>', '');
     lines.push(measured.map(renderBenchmarkTable).join('\n\n'));
-    lines.push(
-      '',
-      '_Each value is a median. Each Δ is a 95% confidence interval on the paired per-round ' +
-        'difference, relative to the variant it is measured against; "unsure" means it straddles ' +
-        'zero — the expected result for two equivalent builds._',
-      '',
-      '</details>',
-    );
+    lines.push('', `_${RUN_REPORT_FOOTNOTE}_`, '', '</details>');
   }
 
   if (options.detailsUrl) {

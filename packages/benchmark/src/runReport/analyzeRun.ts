@@ -1,4 +1,4 @@
-import { calculateMean } from '../stats';
+import { calculateMean, quantile } from '../stats';
 import type { BenchmarkRunReport, RunBenchmark, RunMetricDefinition } from './schema';
 
 /**
@@ -86,19 +86,20 @@ export function meanInterval(values: number[]): Interval {
 }
 
 export function median(values: number[]): number {
-  const sorted = [...values].sort((left, right) => left - right);
-  const middle = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle];
+  return quantile(
+    [...values].sort((left, right) => left - right),
+    0.5,
+  );
 }
 
-export function summarizeSamples(values: number[]): SampleSummary {
+function summarizeSamples(values: number[]): SampleSummary {
   return { count: values.length, median: median(values), mean: meanInterval(values) };
 }
 
 const DEFAULT_DEFINITION: RunMetricDefinition = { kind: 'scalar' };
 
 /** A metric's definition; a `name#id` sub-series is defined by its base metric. */
-export function definitionOf(report: BenchmarkRunReport, metric: string): RunMetricDefinition {
+function definitionOf(report: BenchmarkRunReport, metric: string): RunMetricDefinition {
   const [base] = metric.split('#');
   return report.metrics[metric] ?? report.metrics[base] ?? DEFAULT_DEFINITION;
 }
@@ -118,7 +119,7 @@ function worseningAtLeast(
   return (lowerIsBetter ? comparison.relative.low : -comparison.relative.high) / 100;
 }
 
-export function severityOf(
+function severityOf(
   comparison: Pick<MetricComparison, 'absolute' | 'relative' | 'change'>,
   definition: RunMetricDefinition,
 ): Severity {
@@ -175,10 +176,7 @@ function pairsOf(benchmark: RunBenchmark): Array<{ subject: string; against: str
     : others.map((other) => ({ subject: other, against: reference }));
 }
 
-export function analyzeBenchmark(
-  report: BenchmarkRunReport,
-  benchmark: RunBenchmark,
-): BenchmarkAnalysis {
+function analyzeBenchmark(report: BenchmarkRunReport, benchmark: RunBenchmark): BenchmarkAnalysis {
   const { samples } = benchmark;
   if (!samples) {
     return { benchmark, metrics: [] };
