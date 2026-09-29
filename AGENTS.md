@@ -73,6 +73,10 @@ Applies to the whole repository.
 - **Prove the test can fail.** A test that passes when you break the code it covers is not covering
   it. When a fake stands in for something, check that deleting the logic under test actually turns
   the suite red.
+- **Test through the public API.** Cover a module through what it exports, and check the shape of
+  that API rather than how it is built. Do not export a function only so a test can call it, and do
+  not unit-test a helper the exported entry points already exercise — reach its edge cases through
+  those entry points instead.
 
 ## Common Tasks
 
@@ -193,10 +197,10 @@ Follow additional instructions when working in the `@mui/internal-docs-infra` (`
 
 ### Testing Strategy
 
-- **3.1** Prioritize achieving deep unit tests first for each helper function (at `src/{functionName}/{helperFunction}.test.ts`), then integration tests (at `src/{functionName}/user.spec.ts`) for the main function.
+- **3.1** Test each export through its public API (at `src/{functionName}/{functionName}.test.ts`, and integration tests at `src/{functionName}/user.spec.ts`). See [Testing](#testing): helpers are covered through the export that uses them, not tested on their own.
 - **3.2** Use `vitest` for testing. Use `describe`, `it`, and `expect` from `vitest`. Avoid using `beforeEach` and `afterEach` unless absolutely necessary. Each test should be independent and self-contained. Write `describe` and `it` block names prioritizing clarity and readability. Create nested describe blocks when helpful to group related tests. Use `it` blocks for individual test cases.
-- **3.3** When debugging, create new test cases to reproduce issues. It's helpful to create new cases to reproduce issues and avoid regressions. If this is difficult, the bugged code might need to be extracted into its own file to make it easier to test. Try to reproduce issues in the most specific test case possible.
-- **3.4** Integration tests (`user.spec.ts`) should be written to cover real user cases and serve as supplemental documentation. Prioritize readability. Reading these tests cases should describe all user cases considered. Unit tests should cover all edges cases but may never be hit in real user cases. When in doubt add it in a unit test first. Try to avoid too much overlap between unit and integration tests. A change of an existing integration test would clearly indicate a breaking change.
+- **3.3** When debugging, create new test cases to reproduce issues. It's helpful to create new cases to reproduce issues and avoid regressions. Try to reproduce issues in the most specific test case possible.
+- **3.4** Integration tests (`user.spec.ts`) should be written to cover real user cases and serve as supplemental documentation. Prioritize readability. Reading these tests cases should describe all user cases considered. Try to avoid too much overlap between unit and integration tests. A change of an existing integration test would clearly indicate a breaking change.
 - **3.5** Avoid mocks in unit tests. Use real implementations whenever possible to ensure tests are reliable and maintainable. See [Testing](#testing) for what counts as a mock and what may be faked — those rules apply repository-wide, not only here.
 - **3.6** Test the performance of code within `src/{functionName}/optimization.test.ts` when performance is critical. Functions should use `performance.now()` to measure time taken. When helpful, functions should log using `performance.mark()` and `performance.measure()` which appear when profiling or can be logged with a `PerformanceObserver`.
 
