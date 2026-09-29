@@ -17,19 +17,17 @@ import {
   splitCaseArgs,
   warnIfNoGc,
 } from './caseRuntime';
-import type {
-  BenchmarkInteraction,
-  BenchmarkOptions,
-  CaseOptions,
-  VariantLoader,
-} from './caseRuntime';
+import type { BenchmarkInteraction, BenchmarkOptions, CaseOptions } from './caseRuntime';
 // Installs the Vitest metric recorder.
 import './Metric';
 // Import for TaskMeta augmentation side effect
 import './taskMetaAugmentation';
 
 export * from './publicApi';
-export type { VariantLoader };
+export type { BenchmarkOptions };
+
+/** Loads a `compare()` variant's module, whose `benchmark()` calls define that variant's cases. */
+export type VariantLoader = () => Promise<unknown>;
 
 // When true, `benchmark()` opens an interactive profiling session in a headed
 // browser instead of running the automated measurement loop. Enabled by

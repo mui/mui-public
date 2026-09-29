@@ -58,9 +58,6 @@ export interface BenchmarkOptions extends CaseOptions {
   warmupRuns?: number;
 }
 
-/** Loads a `compare()` variant's module, whose `benchmark()` calls define that variant's cases. */
-export type VariantLoader = () => Promise<unknown>;
-
 /** Splits `benchmark()`-style arguments, where the interaction may be left out. */
 export function splitCaseArgs<Options extends object>(
   interactionOrOptions: BenchmarkInteraction | Options | undefined,

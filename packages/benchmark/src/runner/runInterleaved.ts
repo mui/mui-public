@@ -8,8 +8,7 @@ import type { BenchFile } from './benchFiles';
 import { variantOf } from './refs';
 import type { ResolvedRef } from './refs';
 import { serveDirectory } from './serveDirectory';
-// Types for `window.benchmarkPage`, which the evaluated functions below call into.
-import type {} from '../page/page';
+import type { BenchPage } from '../page/page';
 
 /**
  * Runs the cases of `*.bench.tsx` files in Playwright. Every variant gets a page of its own, in a
@@ -74,12 +73,7 @@ function stableMetrics(rounds: Round[]): string[] {
 }
 
 /** What a benchmark file's page defines. */
-interface PageListing {
-  /** The cases measured across the builds. */
-  caseNames: string[];
-  /** The cases measured against each other, on the working tree's build. */
-  comparisons: Array<{ name: string; cases: string[] }>;
-}
+type PageListing = Pick<BenchPage, 'caseNames' | 'comparisons'>;
 
 interface OpenedPage {
   context: BrowserContext;
@@ -107,8 +101,8 @@ async function openBenchPage(browser: Browser, url: string): Promise<OpenedPage>
     }
     return {
       visibility: document.visibilityState,
-      caseNames: window.benchmarkPage.caseNames(),
-      comparisons: window.benchmarkPage.comparisons(),
+      caseNames: window.benchmarkPage.caseNames,
+      comparisons: window.benchmarkPage.comparisons,
     };
   });
   const state = await ready.jsonValue();
@@ -144,32 +138,9 @@ async function listBenchPages(browser: Browser, urls: string[]): Promise<PageLis
   return opened.map((target) => target.listing);
 }
 
-/**
- * Runs one iteration of a case. A measured one comes back as its `performance.measure` values by
- * name, read in the same round trip.
- */
-function sampleBenchCase(
-  page: Page,
-  name: string,
-  warmup: boolean,
-): Promise<Record<string, number> | null> {
-  return page.evaluate(
-    async (args) => {
-      await window.benchmarkPage!.sample(args.name, { warmup: args.warmup });
-      if (args.warmup) {
-        return null;
-      }
-      const values: Record<string, number> = {};
-      for (const measure of performance.getEntriesByType('measure') as PerformanceMeasure[]) {
-        const detailValue: unknown = measure.detail?.value;
-        const value = typeof detailValue === 'number' ? detailValue : measure.duration;
-        // A metric recorded more than once in an iteration counts its total for that iteration.
-        values[measure.name] = (values[measure.name] ?? 0) + value;
-      }
-      return values;
-    },
-    { name, warmup },
-  );
+/** Runs one iteration of a case, and returns what it recorded, by series. */
+function sampleBenchCase(page: Page, name: string): Promise<Record<string, number>> {
+  return page.evaluate((caseName) => window.benchmarkPage!.sample(caseName), name);
 }
 
 /**
@@ -202,13 +173,12 @@ async function measureBenchmark(
     browser,
     slots.map((slot) => slot.url),
   );
-  const sampleSlot = (index: number, warmup: boolean) =>
-    sampleBenchCase(targets[index].page, slots[index].caseName, warmup);
+  const sampleSlot = (index: number) => sampleBenchCase(targets[index].page, slots[index].caseName);
   try {
     for (let roundIndex = 0; roundIndex < options.warmup; roundIndex += 1) {
       for (const index of shuffledIndices(targets.length)) {
         // eslint-disable-next-line no-await-in-loop
-        await sampleSlot(index, true);
+        await sampleSlot(index);
       }
     }
     const rounds: Round[] = [];
@@ -216,7 +186,7 @@ async function measureBenchmark(
       const round: Round = [];
       for (const index of shuffledIndices(targets.length)) {
         // eslint-disable-next-line no-await-in-loop
-        round[index] = (await sampleSlot(index, false)) ?? {};
+        round[index] = await sampleSlot(index);
       }
       rounds.push(round);
     }
@@ -286,7 +256,10 @@ async function runBenchFile(
 ): Promise<CaseResult[]> {
   const urls = options.benchRefs.map((ref) => benchPageUrl(origin, ref, benchFile));
   const variants = options.benchRefs.map(variantOf);
-  const [reference, ...others] = await listBenchPages(browser, urls);
+  // The other builds only matter for cases measured across them; a file of `compare()`s alone
+  // never loads them.
+  const [reference] = await listBenchPages(browser, urls.slice(0, 1));
+  const others = reference.caseNames.length > 0 ? await listBenchPages(browser, urls.slice(1)) : [];
 
   const results: CaseResult[] = [];
   for (const caseName of reference.caseNames) {

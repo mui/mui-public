@@ -41,8 +41,10 @@ export function benchmark(name: string, run: BenchmarkRun): BenchmarkCase {
   return { name };
 }
 
-/** Each `compare()`'s cases, by name, the reference first. */
-const comparisons = new Map<string, string[]>();
+/** The `compare()` each compared case belongs to, by case name. */
+const comparedIn = new Map<string, string>();
+/** Each `compare()`, with its cases' names, the reference first. */
+const comparisons: Array<{ name: string; cases: string[] }> = [];
 
 /**
  * Compares cases with each other — one library's implementation against another's, say — on the
@@ -53,32 +55,26 @@ const comparisons = new Map<string, string[]>();
  * pages.
  */
 export function compare(name: string, compared: BenchmarkCase[]): void {
-  if (comparisons.has(name)) {
+  if (comparisons.some((comparison) => comparison.name === name)) {
     throw new Error(`Two comparisons share the name "${name}". Comparison names must be unique.`);
   }
   if (compared.length < 2) {
     throw new Error(`Comparison "${name}" needs at least two cases.`);
   }
   for (const benchCase of compared) {
-    const owner = [...comparisons].find(([, names]) => names.includes(benchCase.name));
-    if (owner) {
-      throw new Error(`"${benchCase.name}" is already compared in "${owner[0]}".`);
+    const owner = comparedIn.get(benchCase.name);
+    if (owner !== undefined) {
+      throw new Error(`"${benchCase.name}" is already compared in "${owner}".`);
     }
+    comparedIn.set(benchCase.name, name);
   }
-  comparisons.set(
-    name,
-    compared.map((benchCase) => benchCase.name),
-  );
+  comparisons.push({ name, cases: compared.map((benchCase) => benchCase.name) });
 }
 
-interface RecordedValue {
-  name: string;
-  value: number;
-}
-
-// Values recorded during a measured sample. `null` outside one (module scope, warmup), where
+// Values recorded during a sample, summed per series: a metric recorded more than once in an
+// iteration counts its total for that iteration. `null` outside a sample (module scope), where
 // recorded values are dropped.
-let sampleValues: RecordedValue[] | null = null;
+let sampleValues: Map<string, number> | null = null;
 
 // Every metric recorded so far, by name, as the report describes it.
 const metricDefinitions = new Map<string, MetricDefinition>();
@@ -91,21 +87,21 @@ setMetricRecorder((metric, value, options) => {
       alarm: metric.config.alarm,
     });
   }
-  sampleValues?.push({ name: seriesName(metric.name, options?.id), value });
+  if (sampleValues) {
+    const series = seriesName(metric.name, options?.id);
+    sampleValues.set(series, (sampleValues.get(series) ?? 0) + value);
+  }
 });
 
 export interface BenchPage {
   /** The cases measured across the builds: every case no `compare()` took. */
-  caseNames: () => string[];
+  caseNames: string[];
   /** The file's `compare()` calls, with their cases' names in order. */
-  comparisons: () => Array<{ name: string; cases: string[] }>;
+  comparisons: Array<{ name: string; cases: string[] }>;
   /** Every metric recorded so far, by name. */
   metricDefinitions: () => Record<string, MetricDefinition>;
-  /**
-   * Runs one iteration of a case. A measured sample leaves its results as `performance.measure`
-   * entries for the runner to collect; a warmup sample leaves none.
-   */
-  sample: (name: string, options: { warmup: boolean }) => Promise<void>;
+  /** Runs one iteration of a case, and returns what it recorded, by series. */
+  sample: (name: string) => Promise<Record<string, number>>;
 }
 
 declare global {
@@ -124,7 +120,7 @@ const input = createInput((method, params) => {
   return window.benchmarkCdp(method, params);
 });
 
-async function sample(name: string, { warmup }: { warmup: boolean }): Promise<void> {
+async function sample(name: string): Promise<Record<string, number>> {
   const run = cases.get(name);
   if (!run) {
     throw new Error(`No benchmark named "${name}". Known: ${[...cases.keys()].join(', ')}`);
@@ -132,9 +128,7 @@ async function sample(name: string, { warmup }: { warmup: boolean }): Promise<vo
   performance.clearMarks();
   performance.clearMeasures();
 
-  const values: RecordedValue[] = [];
-  // Recorded even during warmup, so a case that records nothing fails before a single sample is
-  // measured; only a measured sample's values leave the page.
+  const values = new Map<string, number>();
   sampleValues = values;
   try {
     await run({ input });
@@ -142,20 +136,17 @@ async function sample(name: string, { warmup }: { warmup: boolean }): Promise<vo
     sampleValues = null;
   }
 
-  if (values.length === 0) {
+  if (values.size === 0) {
     throw new Error(
       `Benchmark "${name}" recorded no value. Record its results through a ScalarMetric or DiscreteMetric.`,
     );
   }
-  if (warmup) {
-    return;
-  }
-  // The runner collects measures by name, and a value isn't necessarily a duration, so it travels
-  // in `detail`.
+  // Also left as `performance.measure` entries, so a sample shows up in a DevTools trace.
   const now = performance.now();
-  for (const { name: series, value } of values) {
+  for (const [series, value] of values) {
     performance.measure(series, { start: now, duration: 0, detail: { value } });
   }
+  return Object.fromEntries(values);
 }
 
 /**
@@ -163,11 +154,9 @@ async function sample(name: string, { warmup }: { warmup: boolean }): Promise<vo
  * `window.benchmarkPage`.
  */
 export function markPageReady(): void {
-  const compared = new Set([...comparisons.values()].flat());
   window.benchmarkPage = {
-    caseNames: () => [...cases.keys()].filter((name) => !compared.has(name)),
-    comparisons: () =>
-      [...comparisons].map(([name, comparedNames]) => ({ name, cases: comparedNames })),
+    caseNames: [...cases.keys()].filter((name) => !comparedIn.has(name)),
+    comparisons,
     metricDefinitions: () => Object.fromEntries(metricDefinitions),
     sample,
   };

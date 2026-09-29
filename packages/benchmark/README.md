@@ -437,10 +437,10 @@ iteration is a warmup, so the `await import()` is never measured.
 ### How it measures
 
 The plugin generates a page per benchmark file under `src/__bench__/`. A benchmark file that imports
-`vitest`, or the Vitest entry `@mui/internal-benchmark`, fails the build. The runner drives Chromium through Playwright and gives every variant — the
-current and the baseline build, or each case of a `compare()` — a page of its own, in a browser
-context of its own, that stays open for the whole benchmark: every sample is one warm iteration, and
-module-scope data is built once.
+`vitest`, or the Vitest entry `@mui/internal-benchmark`, fails the build. The runner drives Chromium
+through Playwright and gives every variant — the current and the baseline build, or each case of a
+`compare()` — a page of its own, in a browser context of its own, that stays open for the whole
+benchmark: every sample is one warm iteration, and module-scope data is built once.
 
 Every variant is sampled once per round, in a shuffled order, and a difference is judged on the
 per-round differences rather than on two independent sets of samples. Whatever the machine was doing
@@ -486,8 +486,8 @@ Packed builds are cached by commit SHA under `.benchmark/packed/`, so repeating 
 the same commit skips the rebuild; the working tree is never cached. In CI, cache that directory
 keyed on the baseline SHA, and check out with full history so a fork point can be resolved.
 
-A run resolves **in place**: it pins the packed build in the repository's own
-`pnpm-workspace.yaml`, installs it there, and resolution is then ordinary. The repository is put
+A run pins the packed build in the repository's own `pnpm-workspace.yaml`, installs it there, and
+resolution is then ordinary. The repository is put
 back, and reinstalled, when the run ends — including when it fails, and at the start of the next run
 if one was killed outright. Two things follow from it. A tracked file names tarballs under
 `.benchmark/` until the run ends, so do not commit while one is in flight. And the pins are global to

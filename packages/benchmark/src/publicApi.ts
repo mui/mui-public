@@ -10,7 +10,7 @@ export type {
   MetricDefinition,
 } from './types';
 export type { BenchmarkInput } from './input';
-export type { BenchmarkInteraction, BenchmarkOptions } from './caseRuntime';
+export type { BenchmarkInteraction } from './caseRuntime';
 export { ElementTiming } from './ElementTiming';
 export { Metric, type MetricRecordOptions } from './metricCore';
 export { ScalarMetric } from './ScalarMetric';

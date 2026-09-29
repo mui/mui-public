@@ -27,25 +27,17 @@ compare('lists mount', [
   reactBenchmark('table mount', () => <TableList />),
 ]);
 
-compare('lists scroll', [
-  reactBenchmark(
-    'ul scroll',
+function scrollCase(name: string, List: React.ComponentType) {
+  return reactBenchmark(
+    name,
     () => (
       <ScrollingList>
-        <UlList />
+        <List />
       </ScrollingList>
     ),
     scroll,
     { reactRecordingPaused: true },
-  ),
-  reactBenchmark(
-    'table scroll',
-    () => (
-      <ScrollingList>
-        <TableList />
-      </ScrollingList>
-    ),
-    scroll,
-    { reactRecordingPaused: true },
-  ),
-]);
+  );
+}
+
+compare('lists scroll', [scrollCase('ul scroll', UlList), scrollCase('table scroll', TableList)]);
