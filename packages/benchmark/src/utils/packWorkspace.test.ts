@@ -69,8 +69,8 @@ describe('packRef', () => {
       const packed = await packRef({ repoRoot, ref: 'HEAD', outRoot, installCmd: '', buildCmd });
 
       // The private package is never packed: a release would not publish it.
-      expect(packed.packages.map((pkg) => pkg.name)).toEqual(['@fixture/public']);
-      await expect(stat(packed.packages[0].tarball)).resolves.toBeTruthy();
+      expect(packed.map((pkg) => pkg.name)).toEqual(['@fixture/public']);
+      await expect(stat(packed[0].tarball)).resolves.toBeTruthy();
       expect(await readFile(marker, 'utf8')).toBe('built\n');
 
       // The temporary checkout is cleaned up, leaving the tarballs as the only artifact.
@@ -79,7 +79,7 @@ describe('packRef', () => {
 
       // A second call for the same commit reuses the folder and never builds again.
       const again = await packRef({ repoRoot, ref: 'HEAD', outRoot, installCmd: '', buildCmd });
-      expect(again.sha).toBe(packed.sha);
+      expect(again).toEqual(packed);
       expect(await readFile(marker, 'utf8')).toBe('built\n');
     },
   );
@@ -103,8 +103,8 @@ describe('packRef', () => {
       });
 
       expect(await readFile(marker, 'utf8')).toBe('built\n');
-      expect(restored.packages[0].tarball.startsWith(restoredRoot)).toBe(true);
-      await expect(stat(restored.packages[0].tarball)).resolves.toBeTruthy();
+      expect(restored[0].tarball.startsWith(restoredRoot)).toBe(true);
+      await expect(stat(restored[0].tarball)).resolves.toBeTruthy();
     },
   );
 
@@ -133,22 +133,23 @@ describe('packRef', () => {
     const outRoot = path.join(await makeTempDir(), 'cache');
 
     const packed = await packRef({ repoRoot, ref: 'HEAD', outRoot, installCmd: '', buildCmd });
-    await rm(packed.packages[0].tarball);
+    await rm(packed[0].tarball);
     const again = await packRef({ repoRoot, ref: 'HEAD', outRoot, installCmd: '', buildCmd });
 
     expect(await readFile(marker, 'utf8')).toBe('built\nbuilt\n');
-    await expect(stat(again.packages[0].tarball)).resolves.toBeTruthy();
+    await expect(stat(again[0].tarball)).resolves.toBeTruthy();
   });
 
   it('leaves no staging directory behind', { timeout: 120_000 }, async () => {
     const { repoRoot, buildCmd } = await makeFixtureRepo();
     const outRoot = path.join(await makeTempDir(), 'cache');
 
-    const packed = await packRef({ repoRoot, ref: 'HEAD', outRoot, installCmd: '', buildCmd });
+    await packRef({ repoRoot, ref: 'HEAD', outRoot, installCmd: '', buildCmd });
+    const { stdout: sha } = await execa('git', ['rev-parse', 'HEAD'], { cwd: repoRoot });
 
     // The folder is assembled in a staging sibling and atomically renamed, so an interrupted run
     // can never leave something that looks like a cache hit.
-    expect(await readdir(outRoot)).toEqual([packed.sha]);
+    expect(await readdir(outRoot)).toEqual([sha.trim()]);
   });
 
   it('reports a ref it cannot resolve', async () => {

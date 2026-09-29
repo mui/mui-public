@@ -111,8 +111,7 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
           return packWorkingTree({ repoRoot, outRoot: path.join(packedDir, 'current'), buildCmd });
         }
         // packRef caches a ref's tarballs by SHA; a hit skips the checkout, install, and build.
-        const packed = await packRef({ repoRoot, ref: ref.sha, outRoot: packedDir, buildCmd });
-        return packed.packages;
+        return packRef({ repoRoot, ref: ref.sha, outRoot: packedDir, buildCmd });
       }),
     );
 
