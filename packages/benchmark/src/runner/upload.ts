@@ -7,13 +7,12 @@ import { syncPrComment } from '../syncPrComment';
 import { benchmarkRunReportSchema } from '../runReport';
 import type { BenchmarkRunReport } from '../runReport';
 
-export const BENCHMARK_RUN_REPORT_TYPE = 'benchmark-run';
-
-const benchmarkRunUploadSchema = ciReportUploadSchema(
-  BENCHMARK_RUN_REPORT_TYPE,
-  1,
-  benchmarkRunReportSchema,
-);
+/**
+ * Version 2 of the `benchmark` upload. It shares the report type with the Vitest reporter's version
+ * 1 — and so the commit's one `benchmark.json` — so a repository uploads one or the other; the
+ * dashboard reads each by its version.
+ */
+const benchmarkUploadV2Schema = ciReportUploadSchema('benchmark', 2, benchmarkRunReportSchema);
 
 /**
  * Uploads a report and refreshes the pull request comment.
@@ -31,9 +30,9 @@ export async function publishRunReport(report: BenchmarkRunReport): Promise<void
     return;
   }
 
-  const upload = benchmarkRunUploadSchema.parse({
-    version: 1,
-    reportType: BENCHMARK_RUN_REPORT_TYPE,
+  const upload = benchmarkUploadV2Schema.parse({
+    version: 2,
+    reportType: 'benchmark',
     ...metadata,
     report,
   });

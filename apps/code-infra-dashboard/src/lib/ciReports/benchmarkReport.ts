@@ -1,7 +1,8 @@
-import { fetchCiReport } from '@/utils/fetchCiReport';
+import { fetchCiReport, isBenchmarkRunUpload } from '@/utils/fetchCiReport';
 import { fetchCiReportWithFallback } from '@/utils/fetchCiReportWithFallback';
 import { compareBenchmarkReports } from '@/lib/benchmark/compareBenchmarkReports';
 import { buildBenchmarkMarkdownReport } from '@/lib/benchmark/buildMarkdownReport';
+import { buildBenchmarkRunMarkdownReport } from '@/lib/benchmarkRun/buildMarkdownReport';
 import { DASHBOARD_ORIGIN } from '@/constants';
 
 import type { ReportOptions, ReportResult } from './types';
@@ -9,8 +10,12 @@ import type { ReportOptions, ReportResult } from './types';
 export const BENCHMARK_SECTION_TITLE = 'Performance';
 
 /**
- * Generates a complete benchmark report by fetching and comparing benchmark results.
+ * Generates the benchmark section of the pull request comment from the head commit's report.
  * Returns null if the head benchmark report is not available.
+ *
+ * A version 2 report measured its own baseline in the same run, so it is rendered on its own. A
+ * version 1 report is compared against the base commit's report, fetched separately — which has to
+ * be version 1 too, since the two shapes cannot be compared.
  */
 export async function generateBenchmarkReport(
   options: ReportOptions,
@@ -26,8 +31,23 @@ export async function generateBenchmarkReport(
     return null;
   }
 
+  if (isBenchmarkRunUpload(headReport)) {
+    const runUrl = new URL(`${DASHBOARD_ORIGIN}/benchmark-run/${repo}`);
+    runUrl.searchParams.set('sha', commitSha);
+    // The details view reads this to title the page and link back to the PR overview.
+    runUrl.searchParams.set('prNumber', String(prNumber));
+    return {
+      content: buildBenchmarkRunMarkdownReport(headReport.report, {
+        title: BENCHMARK_SECTION_TITLE,
+        detailsUrl: runUrl.href,
+      }),
+    };
+  }
+
   const inlinedBase = headReport.base;
-  const { report: fetchedBaseUpload, actualCommit: actualBaseCommit } = baseResult;
+  const { actualCommit: actualBaseCommit } = baseResult;
+  const fetchedBaseUpload =
+    baseResult.report && !isBenchmarkRunUpload(baseResult.report) ? baseResult.report : null;
   const fetchedBaseReport = fetchedBaseUpload?.report ?? null;
   const mergeBaseCommit = baseCandidates[0];
 

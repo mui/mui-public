@@ -10,6 +10,7 @@ import Typography from '@mui/material/Typography';
 import { BarChartPro } from '@mui/x-charts-pro/BarChartPro';
 import { analyzeRun, formatComparison } from '@mui/internal-benchmark/runReport';
 import type { MetricComparison } from '@mui/internal-benchmark/runReport';
+import { isBenchmarkRunUpload } from '@/utils/fetchCiReport';
 import { useMasterCommits } from '../hooks/useMasterCommits';
 import { useCiReports } from '../hooks/useCiReports';
 import ErrorDisplay from './ErrorDisplay';
@@ -42,15 +43,17 @@ interface BenchmarkRunHistoryProps {
 export default function BenchmarkRunHistory({ repo }: BenchmarkRunHistoryProps) {
   const { commits, isLoading, isFetchingNextPage, hasNextPage, error, fetchNextPage } =
     useMasterCommits(repo);
-  const { reports, isLoading: reportsLoading } = useCiReports(repo, commits, 'benchmark-run.json');
+  const { reports, isLoading: reportsLoading } = useCiReports(repo, commits, 'benchmark.json');
 
   const points = React.useMemo(
     () =>
       commits.flatMap(({ timestamp, commit }): CommitPoint[] => {
-        const report = reports[commit.sha];
-        if (!report) {
+        const upload = reports[commit.sha];
+        // Version 1 reports are `DailyBenchmarkChart`'s.
+        if (!upload || !isBenchmarkRunUpload(upload)) {
           return [];
         }
+        const { report } = upload;
         const comparisons = new Map<string, Map<string, MetricComparison>>();
         for (const { benchmark, metrics } of analyzeRun(report)) {
           if (benchmark.kind !== 'baseline') {
@@ -110,6 +113,11 @@ export default function BenchmarkRunHistory({ repo }: BenchmarkRunHistoryProps) 
   }));
 
   const [selectedSha, setSelectedSha] = React.useState<string | null>(null);
+
+  // A repository still on version 1 reports has nothing to draw here.
+  if (!error && !isLoading && !reportsLoading && points.length === 0) {
+    return null;
+  }
 
   return (
     <Paper elevation={2} sx={{ p: 3, mt: 3 }}>

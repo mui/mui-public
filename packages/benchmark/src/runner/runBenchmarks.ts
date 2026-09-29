@@ -169,7 +169,7 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
     });
 
     const report: BenchmarkRunReport = {
-      version: 1,
+      version: 2,
       generatedAt: new Date().toISOString(),
       head: {
         sha: execaSync('git', ['rev-parse', 'HEAD'], { cwd: repoRoot }).stdout.trim(),

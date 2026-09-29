@@ -17,6 +17,9 @@
     "./page": "./src/page/page.tsx",
     "./vitePlugin": "./src/runner/plugin.ts",
     "./runReport": "./src/runReport/index.ts",
+    "./tachometerPlugin": "./src/tachometer/plugin.ts",
+    "./tachometerReport": "./src/tachometer/renderReport.ts",
+    "./tachometerFormat": "./src/tachometer/format.ts",
     "./cli": "./src/cli/index.ts"
   },
   "scripts": {

@@ -11,9 +11,9 @@ import {
 import { generateBenchmarkReport, BENCHMARK_SECTION_TITLE } from '@/lib/ciReports/benchmarkReport';
 import { generateDeployPreviewReport } from '@/lib/ciReports/deployPreviewReport';
 import {
-  generateBenchmarkRunReport,
-  BENCHMARK_RUN_SECTION_TITLE,
-} from '@/lib/ciReports/benchmarkRunReport';
+  generateTachometerReport,
+  TACHOMETER_SECTION_TITLE,
+} from '@/lib/ciReports/tachometerReport';
 import type { ReportResult } from '@/lib/ciReports/types';
 import { fetchParentCommits } from '@/utils/fetchCiReportWithFallback';
 import { getOctokit } from '@/lib/github';
@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
 
   // Generate all configured report sections in parallel.
   // Each generator is wrapped in .catch() so a failure in one doesn't block the others.
-  const [bundleSizeReport, benchmarkReportResult, benchmarkRunReportResult, deployPreviewReport] =
+  const [bundleSizeReport, benchmarkReportResult, tachometerReportResult, deployPreviewReport] =
     await Promise.all([
       prCommentConfig?.bundleSize
         ? generateBundleSizeReport(reportOptions).catch((error): ReportResult => {
@@ -140,11 +140,11 @@ export async function POST(request: NextRequest) {
             };
           })
         : null,
-      prCommentConfig?.benchmarkRun
-        ? generateBenchmarkRunReport(reportOptions).catch((error): ReportResult => {
-            console.error('Failed to generate benchmark run report:', error);
+      prCommentConfig?.tachometer
+        ? generateTachometerReport(reportOptions).catch((error): ReportResult => {
+            console.error('Failed to generate tachometer report:', error);
             return {
-              content: `## ${BENCHMARK_RUN_SECTION_TITLE}\n\n:warning: Failed to generate the benchmark report.`,
+              content: `## ${TACHOMETER_SECTION_TITLE}\n\n:warning: Failed to generate tachometer report.`,
             };
           })
         : null,
@@ -164,7 +164,7 @@ export async function POST(request: NextRequest) {
     deployPreviewReport,
     bundleSizeReport,
     benchmarkReportResult,
-    benchmarkRunReportResult,
+    tachometerReportResult,
   ]
     .filter((report): report is ReportResult => report !== null)
     .map((report) => report.content)

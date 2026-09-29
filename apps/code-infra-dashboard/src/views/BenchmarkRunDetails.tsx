@@ -14,7 +14,7 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
-import { fetchCiReport } from '@/utils/fetchCiReport';
+import { fetchCiReport, isBenchmarkRunUpload } from '@/utils/fetchCiReport';
 import { analyzeRun, formatComparison, formatValue } from '@mui/internal-benchmark/runReport';
 import type {
   BenchmarkAnalysis,
@@ -108,7 +108,10 @@ export default function BenchmarkRunDetails() {
     error,
   } = useQuery<BenchmarkRunReport | null>({
     queryKey: ['benchmark-run-report', repo, sha],
-    queryFn: () => fetchCiReport(repo, sha!, 'benchmark-run.json'),
+    queryFn: async () => {
+      const upload = await fetchCiReport(repo, sha!, 'benchmark.json');
+      return upload && isBenchmarkRunUpload(upload) ? upload.report : null;
+    },
     retry: 1,
     enabled: Boolean(sha),
   });

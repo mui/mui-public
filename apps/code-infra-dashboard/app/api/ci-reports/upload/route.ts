@@ -5,7 +5,7 @@ import { uploadReport } from '@/lib/ciReports/s3';
 import { verifyOidcToken } from '@/lib/ciReports/oidcAuth';
 import { findAssociatedPr } from '@/lib/ciReports/findAssociatedPr';
 
-const VALID_REPORT_TYPES = new Set(['size-snapshot', 'benchmark', 'benchmark-run']);
+const VALID_REPORT_TYPES = new Set(['size-snapshot', 'benchmark', 'tachometer']);
 
 const uploadSchema = z.object({
   version: z.number(),
@@ -56,9 +56,9 @@ export async function POST(request: NextRequest) {
   const { commitSha, repo, reportType, branch, report } = parsed.data;
 
   // A benchmark report is stored as the whole envelope, every other type as just the inner report.
-  // Historic, and kept because artifacts written that way are still read back. A benchmark-run
-  // report needs none of it: it carries its own `version` and `head`, the repo is in the S3 key, and
-  // the generator reads the rest from its own route params.
+  // Historic, and kept because artifacts written that way are still read back. A tachometer report
+  // needs none of it: it carries its own `version`, `reportType` and `head`, the repo is in the S3
+  // key, and the generator reads the rest from its own route params.
   const storedBody =
     reportType === 'benchmark' ? JSON.stringify(parsed.data) : JSON.stringify(report);
 

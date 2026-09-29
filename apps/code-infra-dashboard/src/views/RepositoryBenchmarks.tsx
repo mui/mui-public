@@ -37,7 +37,7 @@ export default function RepositoryBenchmarks() {
       ) : (
         <React.Fragment>
           <DailyBenchmarkChart repo={fullRepo} />
-          {repoConfig?.prComment?.benchmarkRun && <BenchmarkRunHistory repo={fullRepo} />}
+          <BenchmarkRunHistory repo={fullRepo} />
         </React.Fragment>
       )}
     </React.Fragment>

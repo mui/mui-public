@@ -6,7 +6,7 @@ const MS = { style: 'unit', unit: 'millisecond', maximumFractionDigits: 2 } as c
 
 function reportOf(benchmarks: RunBenchmark[]): BenchmarkRunReport {
   return {
-    version: 1,
+    version: 2,
     generatedAt: '2026-01-01T00:00:00.000Z',
     head: { sha: 'abc' },
     environment: { browser: 'Chromium 151', platform: 'linux', arch: 'x64', launchArgs: [] },
@@ -60,19 +60,24 @@ const broken: RunBenchmark = {
 
 describe('buildBenchmarkRunMarkdownReport', () => {
   it('states nothing but the summary when no benchmark regressed', () => {
-    const markdown = buildBenchmarkRunMarkdownReport(reportOf([unchanged]));
+    const markdown = buildBenchmarkRunMarkdownReport(reportOf([unchanged]), {
+      title: 'Performance',
+    });
 
     expect(markdown.split('\n').slice(0, 3)).toEqual([
-      '## Benchmarks',
+      '## Performance',
       '',
       '1 benchmark measured · no regressions',
     ]);
   });
 
   it('lists regressions above the collapsed results, and marks the heading', () => {
-    expect(buildBenchmarkRunMarkdownReport(reportOf([slower, libraries, broken])))
-      .toMatchInlineSnapshot(`
-        "## Benchmarks ⚠️
+    expect(
+      buildBenchmarkRunMarkdownReport(reportOf([slower, libraries, broken]), {
+        title: 'Performance',
+      }),
+    ).toMatchInlineSnapshot(`
+        "## Performance ⚠️
 
         🔴 **Grid scroll** · render · \`worse +9.3% – +9.3%\`
 
@@ -105,7 +110,9 @@ describe('buildBenchmarkRunMarkdownReport', () => {
   });
 
   it('does not count a difference between libraries as a regression', () => {
-    const markdown = buildBenchmarkRunMarkdownReport(reportOf([libraries]));
+    const markdown = buildBenchmarkRunMarkdownReport(reportOf([libraries]), {
+      title: 'Performance',
+    });
 
     expect(markdown).toContain('no regressions');
     expect(markdown).not.toContain('🔴');
@@ -113,6 +120,7 @@ describe('buildBenchmarkRunMarkdownReport', () => {
 
   it('links the full run when given where it is', () => {
     const markdown = buildBenchmarkRunMarkdownReport(reportOf([unchanged]), {
+      title: 'Performance',
       detailsUrl: 'https://example.com/run',
     });
 

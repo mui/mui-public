@@ -10,6 +10,8 @@ import { hideBin } from 'yargs/helpers';
 import pkgJson from '@mui/internal-benchmark/package.json' with { type: 'json' };
 import report from './report';
 import run from './run';
+import tachoReport from './tachoReport';
+import tachoRun from './tachoRun';
 
 let globalArgv: { verbose?: boolean } = {};
 
@@ -28,6 +30,14 @@ await yargs(hideBin(process.argv))
   }, true)
   .command(run)
   .command(report)
+  .command({
+    command: 'tacho <command>',
+    describe: 'Benchmark a tachometer harness, and read the reports it writes.',
+    builder: (group) =>
+      group.command(tachoRun).command(tachoReport).demandCommand(1, 'Specify a tacho subcommand.'),
+    // The group itself does nothing; `demandCommand` above means a subcommand always runs.
+    handler: () => {},
+  })
   .fail((msg, err, yargsInstance) => {
     if (msg) {
       yargsInstance.showHelp();

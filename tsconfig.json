@@ -26,7 +26,8 @@
     { "path": "scripts" },
     { "path": "docs" },
     { "path": "test/performance" },
-    { "path": "test/benchmark" }
+    { "path": "test/benchmark" },
+    { "path": "test/tachometer" }
   ],
   "files": []
 }

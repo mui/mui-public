@@ -22,7 +22,7 @@ function drifting(shift: number) {
 
 function reportOf(benchmarks: RunBenchmark[], metrics: BenchmarkRunReport['metrics'] = {}) {
   const report: BenchmarkRunReport = {
-    version: 1,
+    version: 2,
     generatedAt: '2026-01-01T00:00:00.000Z',
     head: { sha: 'abc' },
     environment: { browser: 'Chromium', platform: 'linux', arch: 'x64', launchArgs: [] },

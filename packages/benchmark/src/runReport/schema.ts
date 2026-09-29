@@ -1,7 +1,9 @@
 import { z } from 'zod/v4';
 
 /**
- * The report `benchmark run` produces, uploads and the dashboard reads.
+ * The report `benchmark run` produces, uploads and the dashboard reads: version 2 of the `benchmark`
+ * report, which the Vitest reporter uploads as version 1. A repository uploads one or the other, and
+ * the dashboard reads each by its version.
  *
  * It holds raw samples rather than conclusions: every variant of a benchmark is sampled once per
  * round, and index `i` of every sample array is round `i`, so any statistic — paired differences
@@ -56,7 +58,7 @@ const benchmarkSchema = z.object({
 });
 
 export const benchmarkRunReportSchema = z.object({
-  version: z.literal(1),
+  version: z.literal(2),
   generatedAt: z.string(),
   head: z.object({ sha: z.string(), branch: z.string().optional() }),
   environment: z.object({
@@ -74,6 +76,18 @@ export const benchmarkRunReportSchema = z.object({
 });
 
 export type BenchmarkRunReport = z.infer<typeof benchmarkRunReportSchema>;
+
+/** The version 2 `benchmark.json` as the dashboard stores it: the upload envelope around the report. */
+export interface BenchmarkRunUpload {
+  version: 2;
+  timestamp: number;
+  commitSha: string;
+  repo: string;
+  reportType: 'benchmark';
+  prNumber?: number;
+  branch: string;
+  report: BenchmarkRunReport;
+}
 export type RunMetricDefinition = z.infer<typeof metricDefinitionSchema>;
 export type RunBenchmark = z.infer<typeof benchmarkSchema>;
 export type RunBuild = z.infer<typeof buildSchema>;
