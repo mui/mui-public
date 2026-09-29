@@ -110,8 +110,9 @@ jobs:
           command: pnpm release:build
       - run:
           name: Run benchmarks
-          environment:
-            BENCHMARK_UPLOAD: 'true'
+          # TEMPORARY: `test_benchmark_run` uploads this commit's `benchmark.json` as version 2
+          # instead, so the pull request comment shows the new report. Restore
+          # `BENCHMARK_UPLOAD: 'true'` here before merging.
           command: pnpm -F ./test/performance benchmark
 
   test_tachometer:
@@ -179,8 +180,12 @@ jobs:
       - run:
           name: Run the benchmark smoke test
           no_output_timeout: 30m
-          # No upload: this repository still uploads its version 1 benchmark report from
-          # `test_benchmark`, and both write the commit's one `benchmark.json`.
+          environment:
+            # TEMPORARY: uploads in place of `test_benchmark`, since both write the commit's one
+            # `benchmark.json`, and to this pull request's dashboard preview, since production does
+            # not read version 2 reports yet. Remove both lines before merging.
+            BENCHMARK_UPLOAD: 'true'
+            CI_REPORT_API_URL: https://code-infra-dashboard-pr-1898.onrender.com
           command: pnpm test:benchmark-run --baseline "$(cat .benchmark-baseline-sha)"
       - save_cache:
           name: Save the packed-baseline cache
