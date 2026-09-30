@@ -1,5 +1,5 @@
 import type * as React from 'react';
-import { describe, expect, it, TestRunner } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type { RunnerTestCase } from 'vitest';
 import { cdp } from 'vitest/browser';
 import type { RenderEvent, IterationData } from './types';
@@ -10,7 +10,6 @@ import { createInput } from './input';
 import {
   createCaseRuntime,
   createElementTimingWaiter,
-  EMPTY_RECORDING_MESSAGE,
   measureIteration,
   MILLISECONDS,
   PAINT_METRIC_NAME,
@@ -42,23 +41,6 @@ type CdpMethod = Parameters<ReturnType<typeof cdp>['send']>[0];
 // leaves unknown methods for Chrome to reject.
 const input = createInput((method, params) => cdp().send(method as CdpMethod, params));
 
-export interface RunCaseOptions extends CaseOptions {
-  /**
-   * Run the iteration without recording anything: no `bench:paint`, and custom metrics recorded
-   * inside the case are dropped. Defaults to `false`.
-   */
-  warmup?: boolean;
-}
-
-export interface RunCaseResult {
-  /** Renders captured while React recording was active. */
-  renders: RenderEvent[];
-  /** The error a render threw, if one did. The iteration stops at mount when it does. */
-  renderError: unknown;
-  /** Whether a recording window was active yet captured no renders. */
-  hadEmptyActiveWindow: boolean;
-}
-
 // Paint timings are recorded as one harness-owned `bench:paint` metric: the default sentinel
 // is the base series (`bench:paint`) and named `elementtiming` markers are sub-series
 // (`bench:paint#grid-header`, …), all sharing a single definition. Paint is informational (no
@@ -70,47 +52,30 @@ const paint = new ScalarMetric({
 });
 
 /**
- * Mounts, interacts with and unmounts a case exactly once, recording its renders and paint.
- *
- * This is the primitive `benchmark()` loops over. How many iterations to run, in which order, and
- * how to aggregate them is up to the caller, so a driver can run cases differently — e.g. an A/B
- * runner alternating two builds iteration by iteration instead of in blocks. It registers and
- * asserts nothing; the caller decides what a render error or empty recording window means.
- *
- * Metrics resolve the running Vitest test when they record, so measured (non-warmup) iterations
- * must run inside one.
+ * Runs one iteration of a case inside the running Vitest test, returning its renders. A warmup
+ * iteration records nothing: no `bench:paint`, and custom metrics recorded inside the case are
+ * dropped.
  */
-export async function runCase(
+async function runIteration(
+  test: RunnerTestCase,
   renderFn: () => React.ReactElement,
-  interactionOrOptions?: BenchmarkInteraction | RunCaseOptions,
-  maybeOptions?: RunCaseOptions,
-): Promise<RunCaseResult> {
-  const { interaction, options } = splitCaseArgs(interactionOrOptions, maybeOptions);
-
+  interaction: BenchmarkInteraction | undefined,
+  options: CaseOptions | undefined,
+  warmup: boolean,
+): Promise<RenderEvent[]> {
   // Custom metrics recorded inside the case honor warmup exclusion through the gate, the same way
-  // renders and `bench:paint` are excluded during warmup. The gate is keyed on the running test,
-  // and is re-enabled afterwards so metrics the driver records between iterations are kept.
-  const test = TestRunner.getCurrentTest<RunnerTestCase | undefined>();
-  if (test) {
-    metricsGate.setRecordingEnabled(test, !options?.warmup);
-  }
+  // renders and `bench:paint` are excluded during warmup.
+  metricsGate.setRecordingEnabled(test, !warmup);
   try {
-    const { renders, paints, renderError, hadEmptyActiveWindow } = await measureIteration(
-      renderFn,
-      interaction,
-      options,
-      input,
-    );
-    if (!options?.warmup) {
+    const { renders, paints } = await measureIteration(renderFn, interaction, options, input);
+    if (!warmup) {
       for (const { id, start, end } of paints) {
         paint.record(end - start, id !== undefined ? { id } : undefined);
       }
     }
-    return { renders, renderError, hadEmptyActiveWindow };
+    return renders;
   } finally {
-    if (test) {
-      metricsGate.setRecordingEnabled(test, true);
-    }
+    metricsGate.setRecordingEnabled(test, true);
   }
 }
 
@@ -180,36 +145,20 @@ export function benchmark(
     warnIfNoGc();
 
     const iterations: IterationData[] = [];
-    let renderError: unknown = null;
-    // Set if any iteration had a recording window that was active yet captured no renders.
-    let sawEmptyActiveWindow = false;
-
-    for (let i = 0; i < warmupRuns + runs; i += 1) {
-      const warmup = i < warmupRuns;
-      // eslint-disable-next-line no-await-in-loop
-      const result = await runCase(renderFn, interaction, { ...options, warmup });
-      if (result.renderError) {
-        renderError = result.renderError;
-        break;
+    try {
+      for (let i = 0; i < warmupRuns + runs; i += 1) {
+        const warmup = i < warmupRuns;
+        // eslint-disable-next-line no-await-in-loop
+        const renders = await runIteration(task, renderFn, interaction, options, warmup);
+        if (!warmup) {
+          iterations.push({ renders });
+        }
       }
-      if (result.hadEmptyActiveWindow) {
-        sawEmptyActiveWindow = true;
-      }
-      if (!warmup) {
-        iterations.push({ renders: result.renders });
-      }
+    } finally {
+      // Set even when an iteration throws, so the reporter can show what was measured.
+      task.meta.benchmarkIterations = iterations;
+      task.meta.benchmarkName = name;
     }
-
-    task.meta.benchmarkIterations = iterations;
-    task.meta.benchmarkName = name;
-
-    if (renderError) {
-      throw renderError;
-    }
-
-    // Every active recording window must capture at least one render. Windows where recording was
-    // never running (e.g. a fully-paused, metric-only benchmark) are not checked.
-    expect(sawEmptyActiveWindow, EMPTY_RECORDING_MESSAGE).toBe(false);
 
     // Validate all iterations produced the same render events (count + order).
     // This runs after meta is set so the reporter can still display results on failure.

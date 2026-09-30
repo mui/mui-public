@@ -38,7 +38,7 @@ export const MILLISECONDS: Intl.NumberFormatOptions = {
 };
 
 /** Why a case failed when React recording was active yet captured no renders. */
-export const EMPTY_RECORDING_MESSAGE =
+const EMPTY_RECORDING_MESSAGE =
   'React recording was active but captured no renders. If you only measure imperative DOM ' +
   'updates or custom metrics, keep recording paused (reactRecordingPaused) instead of resuming.';
 
@@ -280,15 +280,13 @@ export interface MeasuredIteration {
   renders: RenderEvent[];
   /** Element paints that happened while React recording was active. */
   paints: PaintTiming[];
-  /** The error a render threw, if one did. The iteration stops at mount when it does. */
-  renderError: unknown;
-  /** Whether a recording window was active yet captured no renders. */
-  hadEmptyActiveWindow: boolean;
 }
 
 /**
  * Mounts, interacts with and unmounts a case once. Records nothing itself: renders and paints are
  * returned, and the driver decides whether they count (they don't during warmup) and where they go.
+ *
+ * Throws what a render throws, and throws when React recording was active but captured no renders.
  */
 export async function measureIteration(
   renderFn: () => React.ReactElement,
@@ -306,7 +304,8 @@ export async function measureIteration(
 
   const captures: RenderEvent[] = [];
   const timing = createElementTimingWaiter();
-  let renderError: unknown = null;
+  // Asserted rather than annotated: only the callback assigns it, which narrowing cannot see.
+  let renderFailure = null as { error: unknown } | null;
 
   const runtime = createCaseRuntime({
     // Wrap the case in BenchProfiler so its renders are captured; the runtime mounts whatever
@@ -324,7 +323,7 @@ export async function measureIteration(
       input,
     },
     onUncaughtError: (error) => {
-      renderError = error;
+      renderFailure = { error };
     },
   });
 
@@ -332,10 +331,10 @@ export async function measureIteration(
 
   runtime.mount();
 
-  if (renderError) {
+  if (renderFailure) {
     timing.disconnect();
     runtime.unmount();
-    return { renders: captures, paints: [], renderError, hadEmptyActiveWindow: false };
+    throw renderFailure.error;
   }
 
   await runtime.interact?.();
@@ -366,10 +365,10 @@ export async function measureIteration(
     await options.afterEach();
   }
 
-  return {
-    renders: captures,
-    paints,
-    renderError,
-    hadEmptyActiveWindow: recording.hadEmptyActiveWindow,
-  };
+  // Windows where recording never ran (e.g. a fully paused, metric-only case) are not checked.
+  if (recording.hadEmptyActiveWindow) {
+    throw new Error(EMPTY_RECORDING_MESSAGE);
+  }
+
+  return { renders: captures, paints };
 }

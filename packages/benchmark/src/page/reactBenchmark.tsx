@@ -1,6 +1,5 @@
 import type * as React from 'react';
 import {
-  EMPTY_RECORDING_MESSAGE,
   measureIteration,
   MILLISECONDS,
   PAINT_METRIC_NAME,
@@ -54,12 +53,6 @@ export function reactBenchmark(
 
   const run = async ({ input }: BenchmarkContext) => {
     const result = await measureIteration(renderFn, interaction, options, input);
-    if (result.renderError) {
-      throw result.renderError;
-    }
-    if (result.hadEmptyActiveWindow) {
-      throw new Error(EMPTY_RECORDING_MESSAGE);
-    }
 
     // Render time is reported as totals rather than per render: an interaction's render count
     // follows whatever the browser coalesced, so per-render values would not line up across
