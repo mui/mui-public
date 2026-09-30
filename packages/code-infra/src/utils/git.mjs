@@ -9,62 +9,51 @@ import gitUrlParse from 'git-url-parse';
  */
 
 /**
- * Get current repository info from git remote.
- *
- * Reads each remote's configured URL, which `url.<base>.insteadOf` does not rewrite.
+ * The remote of the canonical repository, as opposed to a fork: the one named by
+ * `git config code-infra.canonicalRemote`, else `upstream`, else `origin`.
  * @param {string} [cwd=process.cwd()]
- * @returns {Promise<RepoInfo>} Repository owner and name
+ * @returns {Promise<string>}
+ */
+async function getCanonicalRemote(cwd = process.cwd()) {
+  const [configured, listed] = await Promise.all([
+    // Exits 1 when the key is not set.
+    $({ cwd, reject: false })`git config --get code-infra.canonicalRemote`,
+    $({ cwd })`git remote`,
+  ]);
+  const remotes = listed.stdout.split('\n').filter(Boolean);
+  const override = configured.stdout.trim();
+  if (override) {
+    if (!remotes.includes(override)) {
+      throw new Error(
+        `code-infra.canonicalRemote names "${override}", which is not a remote of this repository.`,
+      );
+    }
+    return override;
+  }
+  const remote = ['upstream', 'origin'].find((name) => remotes.includes(name));
+  if (!remote) {
+    throw new Error(
+      'No canonical remote: add an `upstream` or `origin` remote, or name one with ' +
+        '`git config code-infra.canonicalRemote <remote>`.',
+    );
+  }
+  return remote;
+}
+
+/**
+ * The GitHub repository of the canonical remote (see {@link getCanonicalRemote}).
+ * @param {string} [cwd=process.cwd()]
+ * @returns {Promise<RepoInfo>}
  */
 export async function getRepositoryInfo(cwd = process.cwd()) {
-  /**
-   * @type {Record<string, string>}
-   */
-  const cause = {};
-  // Exits 1 when no remote is configured; the error below reports that.
-  const { stdout } = await $({
-    cwd,
-    reject: false,
-  })`git config --get-regexp ${'^remote\\..*\\.url$'}`;
-  /**
-   * @type {Set<string>}
-   */
-  const repoRemotes = new Set();
-  /**
-   * @type {Map<string, { owner: string, repo: string }>}
-   */
-  const validRemotes = new Map();
-
-  for (const line of stdout.split('\n').filter(Boolean)) {
-    // "remote.<name>.url <url>"; a remote name may itself contain dots.
-    const [key, url] = line.split(' ', 2);
-    const remoteName = key.slice('remote.'.length, -'.url'.length);
-    repoRemotes.add(remoteName);
-    try {
-      const parsed = gitUrlParse(url);
-      if (parsed.source !== 'github.com' || parsed.owner !== 'mui') {
-        cause[remoteName] = `Remote is not a GitHub repository under 'mui' organization: ${url}`;
-        continue;
-      }
-      if (!validRemotes.has(remoteName)) {
-        validRemotes.set(remoteName, { owner: parsed.owner, repo: parsed.name });
-      }
-    } catch (error) {
-      cause[remoteName] = `Failed to parse URL for remote ${remoteName}: ${url}`;
-    }
+  const remoteName = await getCanonicalRemote(cwd);
+  const { stdout } = await $({ cwd })`git remote get-url ${remoteName}`;
+  const url = stdout.trim();
+  const parsed = gitUrlParse(url);
+  if (parsed.source !== 'github.com') {
+    throw new Error(`Remote "${remoteName}" is not a GitHub repository: ${url}`);
   }
-
-  const preferredOrder = ['upstream', 'origin', ...validRemotes.keys()];
-  for (const name of preferredOrder) {
-    const match = validRemotes.get(name);
-    if (match) {
-      return { ...match, remoteName: name };
-    }
-  }
-
-  throw new Error(
-    `Failed to find correct remote(s) in : ${Array.from(repoRemotes.keys()).join(', ')}`,
-    { cause },
-  );
+  return { owner: parsed.owner, repo: parsed.name, remoteName };
 }
 
 /**
@@ -108,12 +97,12 @@ async function defaultBranchOf(remote, cwd) {
  * when HEAD is already on the base branch.
  * @param {Object} [options]
  * @param {string} [options.cwd]
- * @param {string} [options.baseBranch] - Defaults to the mui remote's default branch.
+ * @param {string} [options.baseBranch] - Defaults to the canonical remote's default branch.
  * @returns {Promise<string>}
  */
 export async function resolveBaseline(options = {}) {
   const cwd = options.cwd ?? process.cwd();
-  const { remoteName: remote } = await getRepositoryInfo(cwd);
+  const remote = await getCanonicalRemote(cwd);
   const baseBranch = options.baseBranch ?? (await defaultBranchOf(remote, cwd));
 
   await $({ cwd })`git fetch --no-tags ${remote} ${baseBranch}`;
@@ -145,10 +134,8 @@ export async function findLatestTaggedVersion(opts) {
   const $$ = $({ cwd: opts.cwd });
   const fetchAll = opts.fetchAll ?? true;
   if (fetchAll) {
-    const { remoteName } = await getRepositoryInfo(opts.cwd);
-    // Fetch all tags from the mui remote to ensure we have the latest tags.
     // --force to update any existing tags that may have changed to avoid the clobering error.
-    await $$`git fetch --tags --force ${remoteName}`;
+    await $$`git fetch --tags --force ${await getCanonicalRemote(opts.cwd)}`;
   }
   const { stdout } = await $$`git describe --tags --abbrev=0 --match ${'v*'}`; // only include "version-tags"
   return stdout.trim();
