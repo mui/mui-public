@@ -3,7 +3,7 @@ import * as chai from 'chai';
 import './chaiTypes';
 // eslint-disable-next-line import/extensions
 import { cleanup, act } from '@testing-library/react/pure.js';
-import { afterEach, vi } from 'vitest';
+import { beforeEach, vi } from 'vitest';
 import chaiDom from 'chai-dom';
 import chaiPlugin from './chaiPlugin';
 import { configure } from './configure';
@@ -21,16 +21,20 @@ export default function setupVitest({
   // Instead call `setupVitest` in one of the `setupFiles`, which are not cached and executed
   // per suite.
 
-  afterEach(async () => {
-    if (vi.isFakeTimers()) {
-      await act(async () => {
-        vi.runOnlyPendingTimers();
-      });
-    }
+  // Vitest skips the remaining `afterEach` hooks when one hook throws (for example, the console
+  // check below). It always runs the `onTestFinished` callbacks.
+  beforeEach(({ onTestFinished }) => {
+    onTestFinished(async () => {
+      if (vi.isFakeTimers()) {
+        await act(async () => {
+          vi.runOnlyPendingTimers();
+        });
+      }
 
-    vi.useRealTimers();
+      vi.useRealTimers();
 
-    cleanup();
+      cleanup();
+    });
   });
 
   if (failOnConsoleEnabled) {
