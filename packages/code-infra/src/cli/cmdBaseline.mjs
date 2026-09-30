@@ -15,7 +15,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
   builder: (yargs) => {
     return yargs.option('base-branch', {
       type: 'string',
-      description: "Branch pull requests fork from. Default: the remote's default branch",
+      description: "Branch pull requests fork from. Default: the mui remote's default branch",
     });
   },
   handler: async (argv) => {
