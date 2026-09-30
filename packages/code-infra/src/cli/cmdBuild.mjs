@@ -416,8 +416,9 @@ async function validateWithPublint(buildDir) {
   // Everything in the output directory is published, so there is nothing to pack.
   const result = await publint({ pkgDir: buildDir, pack: false, level: 'warning' });
   const { pkg } = result;
-  // publint checks `browser` values that point at another package as local files.
-  // Remove once https://github.com/publint/publint/pull/265 is released.
+  // TODO: remove this filter and bump publint to >=0.3.25, which ships the fix from
+  // https://github.com/publint/publint/pull/265 (publint checks `browser` values
+  // that point at another package as local files).
   const messages = result.messages.filter((message) => {
     if (message.code !== 'FILE_DOES_NOT_EXIST' || message.path[0] !== 'browser') {
       return true;
