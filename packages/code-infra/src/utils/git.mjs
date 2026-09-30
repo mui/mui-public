@@ -9,7 +9,9 @@ import gitUrlParse from 'git-url-parse';
  */
 
 /**
- * Get current repository info from git remote
+ * Get current repository info from git remote.
+ *
+ * Reads each remote's configured URL, which `url.<base>.insteadOf` does not rewrite.
  * @param {string} [cwd=process.cwd()]
  * @returns {Promise<RepoInfo>} Repository owner and name
  */
@@ -18,8 +20,11 @@ export async function getRepositoryInfo(cwd = process.cwd()) {
    * @type {Record<string, string>}
    */
   const cause = {};
-  const { stdout } = await $({ cwd })`git remote -v`;
-  const lines = stdout.trim().split('\n');
+  // Exits 1 when no remote is configured; the error below reports that.
+  const { stdout } = await $({
+    cwd,
+    reject: false,
+  })`git config --get-regexp ${'^remote\\..*\\.url$'}`;
   /**
    * @type {Set<string>}
    */
@@ -29,25 +34,22 @@ export async function getRepositoryInfo(cwd = process.cwd()) {
    */
   const validRemotes = new Map();
 
-  for (const line of lines) {
-    // Match pattern: "remoteName url (fetch|push)"
-    const [remoteName, url, type] = line.trim().split(/\s+/, 3);
+  for (const line of stdout.split('\n').filter(Boolean)) {
+    // "remote.<name>.url <url>"; a remote name may itself contain dots.
+    const [key, url] = line.split(' ', 2);
+    const remoteName = key.slice('remote.'.length, -'.url'.length);
     repoRemotes.add(remoteName);
-    if (type === '(fetch)') {
-      try {
-        const parsed = gitUrlParse(url);
-        if (parsed.source !== 'github.com' || parsed.owner !== 'mui') {
-          cause[remoteName] = `Remote is not a GitHub repository under 'mui' organization: ${url}`;
-          continue;
-        }
-        if (!validRemotes.has(remoteName)) {
-          validRemotes.set(remoteName, { owner: parsed.owner, repo: parsed.name });
-        }
-      } catch (error) {
-        cause[remoteName] = `Failed to parse URL for remote ${remoteName}: ${url}`;
+    try {
+      const parsed = gitUrlParse(url);
+      if (parsed.source !== 'github.com' || parsed.owner !== 'mui') {
+        cause[remoteName] = `Remote is not a GitHub repository under 'mui' organization: ${url}`;
+        continue;
       }
-    } else if (type !== '(push)') {
-      throw new Error(`Unexpected line format for "git remote -v": "${line}"`);
+      if (!validRemotes.has(remoteName)) {
+        validRemotes.set(remoteName, { owner: parsed.owner, repo: parsed.name });
+      }
+    } catch (error) {
+      cause[remoteName] = `Failed to parse URL for remote ${remoteName}: ${url}`;
     }
   }
 
@@ -87,17 +89,6 @@ export async function remoteGitTagExists(tagName, cwd = process.cwd()) {
 }
 
 /**
- * The remote the base branch lives on: `upstream` when there is one, as in a fork's clone, or
- * `origin`.
- * @param {string} cwd
- * @returns {Promise<string>}
- */
-async function baseRemote(cwd) {
-  const { stdout } = await $({ cwd })`git remote`;
-  return stdout.split('\n').includes('upstream') ? 'upstream' : 'origin';
-}
-
-/**
  * The default branch of `remote`, as the remote itself reports it.
  * @param {string} remote
  * @param {string} cwd
@@ -117,12 +108,12 @@ async function defaultBranchOf(remote, cwd) {
  * when HEAD is already on the base branch.
  * @param {Object} [options]
  * @param {string} [options.cwd]
- * @param {string} [options.baseBranch] - Defaults to the remote's default branch.
+ * @param {string} [options.baseBranch] - Defaults to the mui remote's default branch.
  * @returns {Promise<string>}
  */
 export async function resolveBaseline(options = {}) {
   const cwd = options.cwd ?? process.cwd();
-  const remote = await baseRemote(cwd);
+  const { remoteName: remote } = await getRepositoryInfo(cwd);
   const baseBranch = options.baseBranch ?? (await defaultBranchOf(remote, cwd));
 
   await $({ cwd })`git fetch --no-tags ${remote} ${baseBranch}`;
