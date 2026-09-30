@@ -9,33 +9,16 @@ import gitUrlParse from 'git-url-parse';
  */
 
 /**
- * The remote of the canonical repository, as opposed to a fork: the one named by
- * `git config code-infra.canonicalRemote`, else `upstream`, else `origin`.
+ * The remote of the canonical repository, as opposed to a fork: `upstream`, else `origin`.
  * @param {string} [cwd=process.cwd()]
  * @returns {Promise<string>}
  */
 async function getCanonicalRemote(cwd = process.cwd()) {
-  const [configured, listed] = await Promise.all([
-    // Exits 1 when the key is not set.
-    $({ cwd, reject: false })`git config --get code-infra.canonicalRemote`,
-    $({ cwd })`git remote`,
-  ]);
-  const remotes = listed.stdout.split('\n').filter(Boolean);
-  const override = configured.stdout.trim();
-  if (override) {
-    if (!remotes.includes(override)) {
-      throw new Error(
-        `code-infra.canonicalRemote names "${override}", which is not a remote of this repository.`,
-      );
-    }
-    return override;
-  }
+  const { stdout } = await $({ cwd })`git remote`;
+  const remotes = stdout.split('\n');
   const remote = ['upstream', 'origin'].find((name) => remotes.includes(name));
   if (!remote) {
-    throw new Error(
-      'No canonical remote: add an `upstream` or `origin` remote, or name one with ' +
-        '`git config code-infra.canonicalRemote <remote>`.',
-    );
+    throw new Error('No canonical remote: this repository has neither `upstream` nor `origin`.');
   }
   return remote;
 }
@@ -97,12 +80,13 @@ async function defaultBranchOf(remote, cwd) {
  * when HEAD is already on the base branch.
  * @param {Object} [options]
  * @param {string} [options.cwd]
- * @param {string} [options.baseBranch] - Defaults to the canonical remote's default branch.
+ * @param {string} [options.remote] - Defaults to the canonical remote.
+ * @param {string} [options.baseBranch] - Defaults to the remote's default branch.
  * @returns {Promise<string>}
  */
 export async function resolveBaseline(options = {}) {
   const cwd = options.cwd ?? process.cwd();
-  const remote = await getCanonicalRemote(cwd);
+  const remote = options.remote ?? (await getCanonicalRemote(cwd));
   const baseBranch = options.baseBranch ?? (await defaultBranchOf(remote, cwd));
 
   await $({ cwd })`git fetch --no-tags ${remote} ${baseBranch}`;

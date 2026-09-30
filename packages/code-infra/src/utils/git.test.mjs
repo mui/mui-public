@@ -135,28 +135,24 @@ describe('resolveBaseline: the canonical remote', () => {
     expect(await resolveBaseline({ cwd: work.dir })).toBe(remote.shas[1]);
   });
 
-  it('uses the remote code-infra.canonicalRemote names', async () => {
+  it('uses the remote it is given', async () => {
     const { remote, work } = await makeForkClone('mui');
-    await work.git('config', 'code-infra.canonicalRemote', 'mui');
 
-    expect(await resolveBaseline({ cwd: work.dir })).toBe(remote.shas[1]);
+    expect(await resolveBaseline({ cwd: work.dir, remote: 'mui' })).toBe(remote.shas[1]);
   });
 
   it('goes by name, not by what a remote points at', async () => {
-    // Without the setting, `mui` is just another remote and the fork's `origin` is canonical.
+    // Unless it is named, `mui` is just another remote and the fork's `origin` is canonical.
     const { remote, work } = await makeForkClone('mui');
 
     expect(await resolveBaseline({ cwd: work.dir })).toBe(remote.shas[0]);
   });
 
-  it('fails when code-infra.canonicalRemote names a missing remote', async () => {
+  it('fails for a remote the repository does not have', async () => {
     const remote = await makeRemote();
     const work = await clone(remote.dir);
-    await work.git('config', 'code-infra.canonicalRemote', 'mui');
 
-    await expect(resolveBaseline({ cwd: work.dir })).rejects.toThrow(
-      /"mui", which is not a remote/,
-    );
+    await expect(resolveBaseline({ cwd: work.dir, remote: 'mui' })).rejects.toThrow(/'mui'/);
   });
 
   it('fails without upstream or origin', async () => {
