@@ -217,12 +217,12 @@ it('A/B', async () => {
     await runCase(renderB, interaction, { warmup: true });
     const b = await runCase(renderB, interaction);
 
-    // compare a.renders with b.renders, check a.renderError, ...
+    // compare a.renders with b.renders, ...
   }
 });
 ```
 
-`runCase()` takes the same `renderFn`, interaction and `afterEach`/`reactRecordingPaused` options as `benchmark()`, plus `warmup`, which skips `bench:paint` and drops custom metrics for that iteration. It registers and asserts nothing. Measured iterations record metrics against the running Vitest test, so call it from inside one.
+`runCase()` takes the same `renderFn`, interaction and `afterEach`/`reactRecordingPaused` options as `benchmark()`, plus `warmup`, which skips `bench:paint` and drops custom metrics for that iteration. It registers no test, and throws when a render throws or when React recording was active but captured no renders. Measured iterations record metrics against the running Vitest test, so call it from inside one.
 
 ### Running
 

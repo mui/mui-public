@@ -260,10 +260,6 @@ export interface RunCaseOptions extends CaseOptions {
 export interface RunCaseResult {
   /** Renders captured while React recording was active. */
   renders: RenderEvent[];
-  /** The error a render threw, if one did. The iteration stops at mount when it does. */
-  renderError: unknown;
-  /** Whether a recording window was active yet captured no renders. */
-  hadEmptyActiveWindow: boolean;
 }
 
 // Paint timings are recorded as one harness-owned `bench:paint` metric: the default sentinel
@@ -291,7 +287,8 @@ async function measureIteration(
 
   const captures: RenderEvent[] = [];
   const timing = createElementTimingWaiter();
-  let renderError: unknown = null;
+  // Asserted rather than annotated: only the callback assigns it, which narrowing cannot see.
+  let renderFailure = null as { error: unknown } | null;
 
   const runtime = createCaseRuntime({
     // Wrap the case in BenchProfiler so its renders are captured; the runtime mounts whatever
@@ -308,7 +305,7 @@ async function measureIteration(
       resumeReactRecording: recording.resumeReactRecording,
     },
     onUncaughtError: (error) => {
-      renderError = error;
+      renderFailure = { error };
     },
   });
 
@@ -316,10 +313,10 @@ async function measureIteration(
 
   runtime.mount();
 
-  if (renderError) {
+  if (renderFailure) {
     timing.disconnect();
     runtime.unmount();
-    return { renders: captures, renderError, hadEmptyActiveWindow: false };
+    throw renderFailure.error;
   }
 
   await runtime.interact?.();
@@ -327,7 +324,7 @@ async function measureIteration(
   // Wait for the bench sentinel paint entry (relies on test timeout)
   await timing.waitForElementTiming('default', 0);
 
-  // Close the final window so an active window that measured no renders is flagged.
+  // Close the final window, so an active window that measured no renders is flagged below.
   recording.finalizeWindow();
 
   timing.disconnect();
@@ -351,7 +348,15 @@ async function measureIteration(
     await options.afterEach();
   }
 
-  return { renders: captures, renderError, hadEmptyActiveWindow: recording.hadEmptyActiveWindow };
+  // Windows where recording never ran (e.g. a fully paused, metric-only case) are not checked.
+  if (recording.hadEmptyActiveWindow) {
+    throw new Error(
+      'React recording was active but captured no renders. If you only measure imperative DOM ' +
+        'updates or custom metrics, keep recording paused (reactRecordingPaused) instead of resuming.',
+    );
+  }
+
+  return { renders: captures };
 }
 
 /**
@@ -359,8 +364,9 @@ async function measureIteration(
  *
  * This is the primitive `benchmark()` loops over. How many iterations to run, in which order, and
  * how to aggregate them is up to the caller, so a driver can run cases differently — e.g. an A/B
- * runner alternating two builds iteration by iteration instead of in blocks. It registers and
- * asserts nothing; the caller decides what a render error or empty recording window means.
+ * runner alternating two builds iteration by iteration instead of in blocks. It registers no test.
+ *
+ * Throws what a render throws, and throws when React recording was active but captured no renders.
  *
  * Metrics resolve the running Vitest test when they record, so measured (non-warmup) iterations
  * must run inside one.
@@ -432,44 +438,24 @@ export function benchmark(
     }
 
     const iterations: IterationData[] = [];
-    let renderError: unknown = null;
-    // Set if any iteration had a recording window that was active yet captured no renders.
-    let sawEmptyActiveWindow = false;
-
-    for (let i = 0; i < warmupRuns + runs; i += 1) {
-      const warmup = i < warmupRuns;
-      // eslint-disable-next-line no-await-in-loop
-      const result = await runCase(renderFn, interaction, {
-        afterEach: options?.afterEach,
-        reactRecordingPaused: options?.reactRecordingPaused,
-        warmup,
-      });
-      if (result.renderError) {
-        renderError = result.renderError;
-        break;
+    try {
+      for (let i = 0; i < warmupRuns + runs; i += 1) {
+        const warmup = i < warmupRuns;
+        // eslint-disable-next-line no-await-in-loop
+        const { renders } = await runCase(renderFn, interaction, {
+          afterEach: options?.afterEach,
+          reactRecordingPaused: options?.reactRecordingPaused,
+          warmup,
+        });
+        if (!warmup) {
+          iterations.push({ renders });
+        }
       }
-      if (result.hadEmptyActiveWindow) {
-        sawEmptyActiveWindow = true;
-      }
-      if (!warmup) {
-        iterations.push({ renders: result.renders });
-      }
+    } finally {
+      // Set even when an iteration throws, so the reporter can show what was measured.
+      task.meta.benchmarkIterations = iterations;
+      task.meta.benchmarkName = name;
     }
-
-    task.meta.benchmarkIterations = iterations;
-    task.meta.benchmarkName = name;
-
-    if (renderError) {
-      throw renderError;
-    }
-
-    // Every active recording window must capture at least one render. Windows where recording was
-    // never running (e.g. a fully-paused, metric-only benchmark) are not checked.
-    expect(
-      sawEmptyActiveWindow,
-      'React recording was active but captured no renders. If you only measure imperative DOM ' +
-        'updates or custom metrics, keep recording paused (reactRecordingPaused) instead of resuming.',
-    ).toBe(false);
 
     // Validate all iterations produced the same render events (count + order).
     // This runs after meta is set so the reporter can still display results on failure.
