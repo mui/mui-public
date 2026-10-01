@@ -120,6 +120,9 @@ jobs:
     executor:
       name: code-infra/mui-node-browser
       playwright-img-version: 'v1.62.1-noble'
+    # 2 vCPUs starve V8's background compilers, and pages of identical code then settle at different
+    # speeds; see the benchmark package's README.
+    resource_class: medium+
     steps:
       - checkout
       - code-infra/install-deps

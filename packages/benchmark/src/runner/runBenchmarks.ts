@@ -1,5 +1,6 @@
 /* eslint-disable no-console */
 
+import * as os from 'node:os';
 import * as path from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
 import chalk from 'chalk';
@@ -16,6 +17,9 @@ import { resolveBrowserBinary } from './browser';
 import { printRunReport } from './printReport';
 import { publishRunReport } from './upload';
 import { buildsDirOf, prepareOutputDir, resultsPathOf } from './outputDir';
+
+/** Fewer logical CPUs than this let pages of identical code settle at different speeds. */
+const MIN_CPUS = 3;
 
 export interface RunBenchmarksOptions {
   /** The harness package directory (where the command was run). */
@@ -96,6 +100,19 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
   console.log(chalk.cyan(`Files:   ${benchFiles.map((benchFile) => benchFile.file).join(', ')}`));
   console.log(chalk.cyan(`Refs:    ${refs.map(describeRef).join(', ')}`));
   console.log(chalk.cyan(`Browser: ${browserBinary} ${launchArgs.join(' ')}`));
+  // Logical CPUs (hardware threads, vCPUs in CI), not physical cores; it honours CPU affinity, and
+  // in practice a container's CPU quota.
+  const cpus = os.availableParallelism();
+  console.log(chalk.cyan(`CPUs:    ${cpus}`));
+  if (cpus < MIN_CPUS) {
+    console.warn(
+      chalk.yellow(
+        `Only ${cpus} logical CPUs are available; use at least ${MIN_CPUS}. With fewer, V8's background ` +
+          'compilers are starved, so a page can settle into a slower tier of the same code and stay ' +
+          'there — which a comparison reads as a difference between builds.',
+      ),
+    );
+  }
 
   try {
     // Pack both sides at once: each builds in its own checkout, and nothing is measured yet.

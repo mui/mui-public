@@ -387,6 +387,10 @@ per-round differences rather than on two independent sets of samples. Whatever t
 during a round — thermal throttling, a background process — then affects both sides of it and cancels
 out. 10 warmup rounds are discarded once per benchmark before any is measured.
 
+Run it with at least 3 logical CPUs (vCPUs in CI); it warns with fewer. On 2, V8's background
+compilers are starved, and a page can settle into a slower tier of the same code for the whole
+benchmark, which shows up as a difference between identical builds.
+
 ### Sampling
 
 How many rounds a benchmark is measured for adapts to its results, the way tachometer's
