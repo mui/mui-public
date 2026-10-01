@@ -132,7 +132,7 @@
     {
       "groupName": "MUI public packages",
       "description": "Exclude -dev versions, which are an early experiment with canary publishing and can cause conflicting packages when installed.",
-      "matchPackageNames": ["@mui/*", "!@mui/internal-*", "!@mui/docs"],
+      "matchPackageNames": ["@mui/*", "!@mui/internal-*"],
       "allowedVersions": "!/-dev/"
     },
     {
@@ -142,12 +142,12 @@
     },
     {
       "groupName": "MUI docs infra packages",
-      "matchPackageNames": ["@mui/internal-docs-infra", "@mui/docs", "@mui/internal-core-docs"],
+      "matchPackageNames": ["@mui/internal-docs-infra", "@mui/internal-core-docs"],
       "reviewers": ["team:infra"]
     },
     {
-      "description": "Canaries publish on every mui-public merge. Without a schedule each one re-pushes the infra branches and reruns the full CI of every repo. Batch them once a day.",
-      "matchPackageNames": ["@mui/internal-*", "@mui/docs", "https://github.com/mui/mui-public"],
+      "description": "Infra packages publish a canary on every merge. Without a schedule each one re-pushes the infra branches and reruns the full CI of every repo. Batch them once a day.",
+      "matchPackageNames": ["@mui/internal-*", "https://github.com/mui/mui-public"],
       "schedule": ["* 0-1 * * *"],
       "updateNotScheduled": false
     },
