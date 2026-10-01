@@ -67,8 +67,10 @@ commands:
       - run:
           name: Configure pnpm cache dir
           command: echo 'export pnpm_config_cache_dir=/tmp/pnpm-cache' >> "$BASH_ENV"
-      # Records are saved per branch. A branch only reads its own and master's, so a pull request
-      # can't seed a record that master trusts.
+      # Records are saved per branch, and a branch only reads its own and master's. The record makes
+      # pnpm skip the supply-chain check, so a forged one would let a lockfile that breaks the policies
+      # (e.g. a package newer than minimumReleaseAge) install on master unchecked. Scoping the key to
+      # the branch means a pull request can only seed records for itself.
       - restore_cache:
           name: Restore lockfile verification
           keys:
