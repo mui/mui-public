@@ -33,7 +33,23 @@ export function parseTestSources(
   sources: Record<string, string>,
   options: ParseTestSourcesOptions = {},
 ): tae.ExportNode[] {
-  const { lib, parserOptions } = options;
+  const { program, entrypoint } = createTestProgram(sources, options.lib);
+
+  return parseFromProgram(entrypoint, program, {
+    ...PARSER_OPTIONS,
+    ...options.parserOptions,
+  }).exports;
+}
+
+/**
+ * Builds a TypeScript program over in-memory sources, for tests that need the checker
+ * itself rather than parsed exports. Sources are keyed and resolved as in
+ * `parseTestSources`, and `entrypoint` is the path of the first one.
+ */
+export function createTestProgram(
+  sources: Record<string, string>,
+  lib?: string,
+): { program: ts.Program; entrypoint: string } {
   const sourceFiles = new Map<string, ts.SourceFile>();
 
   if (lib !== undefined) {
@@ -72,8 +88,5 @@ export function parseTestSources(
     host,
   );
 
-  return parseFromProgram(entryPaths[0], program, {
-    ...PARSER_OPTIONS,
-    ...parserOptions,
-  }).exports;
+  return { program, entrypoint: entryPaths[0] };
 }
