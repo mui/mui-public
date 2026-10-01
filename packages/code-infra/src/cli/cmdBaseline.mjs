@@ -21,7 +21,8 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       })
       .option('remote', {
         type: 'string',
-        description: 'Remote the base branch is fetched from. Default: upstream, else origin',
+        description:
+          'Remote the base branch is fetched from. Default: upstream, else origin, whichever points at a mui repository',
       });
   },
   handler: async (argv) => {
