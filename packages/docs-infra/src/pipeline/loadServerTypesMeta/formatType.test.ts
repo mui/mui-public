@@ -589,6 +589,38 @@ describe('formatType', () => {
     });
   });
 
+  // The `${}` in these strings is template literal type syntax, not interpolation.
+  /* eslint-disable no-template-curly-in-string */
+  describe('template literal formatting', () => {
+    it('should format a template literal with its placeholders', () => {
+      const source = 'export interface Props {\n  width?: `${number}px`;\n}';
+
+      expect(formatProp(source, 'width')).toBe('`${number}px`');
+    });
+
+    it('should keep a type parameter placeholder by name in raw declarations', () => {
+      const source = 'export interface Listener<T extends string> {\n  event: `on${T}`;\n}';
+
+      expect(formatProp(source, 'event')).toBe('`on${string}`');
+      expect(formatProp(source, 'event', { preserveTypeParameters: true })).toBe('`on${T}`');
+    });
+
+    it('should keep a referenced template literal alias by name', () => {
+      const source =
+        "type Percentage = `${number}%`;\nexport interface Props {\n  minimum: number | Percentage | 'auto';\n}";
+
+      expect(formatProp(source, 'minimum')).toBe("number | Percentage | 'auto'");
+    });
+
+    it('should escape text that would change the template when read back', () => {
+      const source = 'export type Code = `\\`\\${${string}}\\\\\\r`;';
+
+      // A raw carriage return would be read back as a line feed.
+      expect(formatAlias(source)).toBe('`\\`\\${${string}}\\\\\\r`');
+    });
+  });
+  /* eslint-enable no-template-curly-in-string */
+
   describe('function type formatting', () => {
     it('should format function with required parameters', () => {
       const functionType: tae.FunctionNode = {

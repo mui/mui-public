@@ -11,7 +11,7 @@ The `useSearch` hook provides a powerful client-side search engine using [Orama]
 ### Key Features
 
 - **Fast in-memory search** with Orama's optimized indexing
-- **Automatic stemming** and stop word filtering for English
+- **Automatic stemming** for English
 - **Fuzzy matching** with configurable tolerance
 - **Result boosting** by field or result type
 - **Multiple result types** including pages, sections, parts, and exports
@@ -57,7 +57,7 @@ function SearchComponent() {
 
 ## Configuration
 
-### Stemming and Stop Words
+### Stemming
 
 Enable stemming to improve search quality by reducing words to their root form:
 
@@ -69,6 +69,8 @@ const { search } = useSearch({
 ```
 
 When enabled, searches for "running" will also match "run", "runs", and "runner".
+
+Stop words are preserved so partial queries such as "me" can match "menu".
 
 ### Fuzzy Matching
 

@@ -17,6 +17,7 @@ module.exports = function getBabelConfig(api) {
     ...baseConfig,
     plugins: [...(baseConfig.plugins ?? [])],
     overrides: [
+      ...(baseConfig.overrides ?? []),
       {
         // Reduces cold start time of tests. Hoisting the elements is also almost never intended for test files.
         // Context https://github.com/mui/material-ui/pull/26448

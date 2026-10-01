@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { unified } from 'unified';
 import rehypeParse from 'rehype-parse';
 import rehypeStringify from 'rehype-stringify';
+import { createParseSource, resetStarryNight } from '../parseSource/parseSource';
 import transformHtmlCodeInline from './transformHtmlCodeInline';
 
 /**
@@ -33,6 +34,17 @@ describe('transformHtmlCodeInline', () => {
   }
 
   describe('inline code highlighting in MDX documentation', () => {
+    it('registers inline grammars when Starry Night was initialized lazily', async () => {
+      resetStarryNight();
+      await createParseSource([]);
+
+      const output = await processHtml('<code class="language-tsx">const value = 1</code>');
+
+      expect(output).toMatchInlineSnapshot(
+        `"<code class="language-tsx" data-inline=""><span class="pl-k">const</span> <span class="pl-c1">value</span> <span class="pl-k di-pu">=</span> <span class="pl-c1 di-num">1</span></code>"`,
+      );
+    });
+
     it('highlights TypeScript variable declarations', async () => {
       // Documenting a TypeScript constant with type annotation
       const input = '<code class="language-ts">const x: string = "hello"</code>';

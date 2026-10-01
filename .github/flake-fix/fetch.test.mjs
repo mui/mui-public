@@ -1,5 +1,5 @@
 // Offline test for the CircleCI fetcher. Stands up a fake CircleCI API, runs fetch.mjs against it
-// as a subprocess, and asserts the per-job files, their headers, and the classify signal.
+// as a subprocess, and asserts the per-job files, the timeline, and the classify signal.
 //
 // Run: pnpm test (this is a vitest project; see vitest.config.mts).
 
@@ -12,12 +12,86 @@ import os from 'node:os';
 import path from 'node:path';
 
 const FETCH = new URL('./fetch.mjs', import.meta.url).pathname;
+const HOUR = 3_600_000;
 
-// A tiny fake CircleCI: one v2 API for pipelines/workflows/jobs, one v1.1 API for job detail, and
-// a log endpoint. `scenario` decides what the workflow/job layer returns. The handler returns no
-// value on any branch (consistent-return): it writes the response and falls through.
+const makeJob = (jobNumber, name, status) => ({ job_number: jobNumber, name, status });
+const makeWorkflow = (id, name, status, createdAt, jobs) => ({ id, name, status, createdAt, jobs });
+const makePipeline = (id, number, createdAt, subject, workflows) => ({
+  id,
+  number,
+  createdAt,
+  subject,
+  workflows,
+});
+
+// Each scenario is plain data: which pipelines/workflows/jobs exist, and the log text per failed
+// job number. The server below just serves it, so a test reads as the CI history it describes.
+function scenarioModel(scenario) {
+  const now = Date.now();
+  const iso = (msAgo) => new Date(now - msAgo).toISOString();
+
+  if (scenario === 'no-pipelines') {
+    return { pipelines: [], logs: {} };
+  }
+  if (scenario === 'clean') {
+    return {
+      pipelines: [
+        makePipeline('pipe-1', 100, iso(0), 'fix the thing', [
+          makeWorkflow('wf-1', 'build', 'success', iso(0), [makeJob(5, 'lint', 'success')]),
+        ]),
+      ],
+      logs: {},
+    };
+  }
+  if (scenario === 'no-failed-jobs') {
+    // The workflow is red but its only job passed — nothing to classify.
+    return {
+      pipelines: [
+        makePipeline('pipe-1', 100, iso(0), 'fix the thing', [
+          makeWorkflow('wf-1', 'test', 'failed', iso(0), [makeJob(5, 'lint', 'success')]),
+        ]),
+      ],
+      logs: {},
+    };
+  }
+  if (scenario === 'timeline') {
+    // The `unit` job failed on two older commits, then passed on the newest — "already fixed".
+    return {
+      pipelines: [
+        makePipeline('pipe-3', 102, iso(0), 'newest green', [
+          makeWorkflow('wf-3', 'test', 'success', iso(0), [makeJob(72, 'unit', 'success')]),
+        ]),
+        makePipeline('pipe-2', 101, iso(HOUR), 'Bump zod #23515', [
+          makeWorkflow('wf-2', 'test', 'failed', iso(HOUR), [makeJob(71, 'unit', 'failed')]),
+        ]),
+        makePipeline('pipe-1', 100, iso(2 * HOUR), 'Bump playwright #23507', [
+          makeWorkflow('wf-1', 'test', 'failed', iso(2 * HOUR), [makeJob(70, 'unit', 'failed')]),
+        ]),
+      ],
+      logs: { 70: 'MISSING_EXPORT "StyleSheetManager"', 71: 'MISSING_EXPORT "StyleSheetManager"' },
+    };
+  }
+  // 'failing': one red run, one failed job.
+  return {
+    pipelines: [
+      makePipeline('pipe-1', 100, iso(0), 'fix the thing', [
+        makeWorkflow('wf-1', 'test', 'failed', iso(0), [makeJob(7, 'unit', 'failed')]),
+      ]),
+    ],
+    logs: { 7: 'FAIL: expected 1 to equal 2\n\x1b[31mred text\x1b[0m' },
+  };
+}
+
+// A tiny fake CircleCI: v2 pipelines/workflows/jobs, v1.1 job detail, and a log endpoint — all
+// served from the scenario model. The handler writes a response on every branch and returns nothing.
 function fakeCircleCI(scenario) {
-  const now = new Date().toISOString();
+  const model = scenarioModel(scenario);
+  const workflowsById = new Map();
+  for (const pipeline of model.pipelines) {
+    for (const workflow of pipeline.workflows) {
+      workflowsById.set(workflow.id, workflow);
+    }
+  }
   return createServer((request, response) => {
     const url = request.url || '';
     const json = (payload) => {
@@ -26,54 +100,61 @@ function fakeCircleCI(scenario) {
     };
 
     if (url.startsWith('/project/') && url.includes('/pipeline?')) {
-      const items =
-        scenario === 'no-pipelines'
-          ? []
-          : [
+      json({
+        items: model.pipelines.map((pipeline) => ({
+          id: pipeline.id,
+          number: pipeline.number,
+          created_at: pipeline.createdAt,
+          vcs: { commit: { subject: pipeline.subject } },
+        })),
+      });
+      return;
+    }
+    const workflowMatch = url.match(/^\/pipeline\/([^/]+)\/workflow$/);
+    if (workflowMatch) {
+      const pipeline = model.pipelines.find((entry) => entry.id === workflowMatch[1]);
+      json({
+        items: (pipeline?.workflows ?? []).map((workflow) => ({
+          id: workflow.id,
+          name: workflow.name,
+          status: workflow.status,
+          created_at: workflow.createdAt,
+        })),
+      });
+      return;
+    }
+    const jobMatch = url.match(/^\/workflow\/([^/]+)\/job$/);
+    if (jobMatch) {
+      const workflow = workflowsById.get(jobMatch[1]);
+      json({ items: workflow?.jobs ?? [] });
+      return;
+    }
+    const detailMatch = url.match(/^\/project\/[^/]+\/[^/]+\/[^/]+\/(\d+)$/);
+    if (detailMatch) {
+      const jobNumber = Number(detailMatch[1]);
+      const hasLog = Object.hasOwn(model.logs, jobNumber);
+      const outputUrl = `http://127.0.0.1:${response.socket.localPort}/logs/${jobNumber}`;
+      json({
+        steps: hasLog
+          ? [
               {
-                id: 'pipe-1',
-                number: 100,
-                created_at: now,
-                vcs: { commit: { subject: 'fix the thing' } },
+                name: 'run tests',
+                actions: [{ failed: true, status: 'failed', output_url: outputUrl }],
               },
-            ];
-      json({ items });
-    } else if (url === '/pipeline/pipe-1/workflow') {
-      const clean = scenario === 'clean';
-      json({
-        items: [
-          {
-            id: 'wf-1',
-            name: clean ? 'build' : 'test',
-            status: clean ? 'success' : 'failed',
-            created_at: now,
-          },
-        ],
+            ]
+          : [],
       });
-    } else if (url === '/workflow/wf-1/job') {
-      const job =
-        scenario === 'no-failed-jobs'
-          ? { job_number: 5, name: 'lint', status: 'success' }
-          : { job_number: 7, name: 'unit', status: 'failed' };
-      json({ items: [job] });
-    } else if (url.startsWith('/project/') && url.endsWith('/7')) {
-      const outputUrl = `http://127.0.0.1:${response.socket.localPort}/logs/7`;
-      json({
-        steps: [
-          {
-            name: 'run tests',
-            actions: [{ failed: true, status: 'failed', output_url: outputUrl }],
-          },
-        ],
-      });
-    } else if (url === '/logs/7') {
+      return;
+    }
+    const logMatch = url.match(/^\/logs\/(\d+)$/);
+    if (logMatch) {
       // \x1b is a real ESC byte at runtime, so the fetcher has actual ANSI to strip.
-      const message = 'FAIL: expected 1 to equal 2\n\x1b[31mred text\x1b[0m';
+      const message = model.logs[Number(logMatch[1])] ?? '';
       response.writeHead(200, { 'content-type': 'application/json' });
       response.end(JSON.stringify([{ message }]));
-    } else {
-      response.writeHead(404).end();
+      return;
     }
+    response.writeHead(404).end();
   });
 }
 
@@ -125,14 +206,37 @@ describe('fetch', () => {
     const { code, dataDir, classify } = await runFetch('failing');
     expect(code).toBe(0);
     expect(classify).toBe('classify=true');
-    const jobFile = path.join(dataDir, 'jobs', '0000.txt');
-    expect(fs.existsSync(jobFile)).toBe(true);
-    const content = fs.readFileSync(jobFile, 'utf8');
+    const content = fs.readFileSync(path.join(dataDir, 'jobs', '0000.txt'), 'utf8');
     expect(content).toMatch(/JOB=unit/);
     expect(content).toMatch(/WORKFLOW=test/);
     expect(content).toMatch(/STATUS=failed/);
     expect(content).toMatch(/FAIL: expected 1 to equal 2/);
     expect(content).not.toContain('\x1b[');
+  });
+
+  it('builds a timeline.json that shows passes, in time order, with log pointers to the failures', async () => {
+    const { code, dataDir, classify } = await runFetch('timeline');
+    expect(code).toBe(0);
+    expect(classify).toBe('classify=true');
+    const timeline = JSON.parse(fs.readFileSync(path.join(dataDir, 'timeline.json'), 'utf8'));
+    const unit = timeline.jobs.find((job) => job.job === 'unit');
+    expect(unit.workflow).toBe('test');
+    // The newest run passed; the two failures are older — the "already fixed" shape. The whole
+    // point is that the PASS is present, newest first, alongside the failures.
+    expect(unit.runs.map((run) => run.result)).toEqual(['PASS', 'FAIL', 'FAIL']);
+    expect(unit.runs.map((run) => run.pipeline)).toEqual([102, 101, 100]);
+    expect(unit.runs[0].log).toBe(null);
+    expect(unit.runs[1].log).toBe('jobs/0000.txt');
+    expect(unit.runs[2].log).toBe('jobs/0001.txt');
+    // jobs/0000.txt is the newest failure (#101 / "Bump zod").
+    const newest = fs.readFileSync(path.join(dataDir, 'jobs', '0000.txt'), 'utf8');
+    expect(newest).toMatch(/COMMIT=Bump zod/);
+    expect(newest).toMatch(/MISSING_EXPORT/);
+    // A CircleCI Insights link for the busiest failing workflow, for the dashboard footer.
+    const insights = fs.readFileSync(path.join(dataDir, 'insights.txt'), 'utf8').trim();
+    expect(insights).toContain('/insights/github/acme/widget/workflows/test/overview');
+    expect(insights).toContain('branch=master');
+    expect(insights).toContain('reporting-window=last-7-days');
   });
 
   it('signals classify=false and writes no jobs when nothing failed', async () => {

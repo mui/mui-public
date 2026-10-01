@@ -8,6 +8,7 @@ import {
   isArrayType,
   isFunctionType,
   isLiteralType,
+  isTemplateLiteralType,
   isEnumType,
   isTupleType,
   isTypeParameterType,
@@ -62,6 +63,16 @@ describe('type guard helpers', () => {
     const literalType = { kind: 'literal', value: 'test' };
     expect(isLiteralType(literalType)).toBe(true);
     expect(isFunctionType(literalType)).toBe(false);
+  });
+
+  it('should identify template literal types', () => {
+    const templateLiteralType = {
+      kind: 'templateLiteral',
+      texts: ['', 'px'],
+      types: [{ kind: 'intrinsic', intrinsic: 'number' }],
+    };
+    expect(isTemplateLiteralType(templateLiteralType)).toBe(true);
+    expect(isLiteralType(templateLiteralType)).toBe(false);
   });
 
   it('should identify enum types', () => {

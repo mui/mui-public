@@ -5,13 +5,13 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { sep as posixSep } from 'node:path/posix';
 import * as semver from 'semver';
+import { mapAsync } from 'es-toolkit/array';
 
 import {
   createPackageBin,
   createPackageExports,
   createPackageImports,
   getOutExtension,
-  mapConcurrently,
   validatePkgJson,
 } from '../utils/build.mjs';
 import { readPnpmConfig } from '../utils/pnpm.mjs';
@@ -478,7 +478,7 @@ async function copyHandler({ cwd, globs = [], buildDir, verbose = false }) {
       console.log('⓿ No files to copy.');
     }
   }
-  await mapConcurrently(
+  await mapAsync(
     defaultFiles,
     async (file) => {
       if (typeof file === 'string') {
@@ -491,7 +491,7 @@ async function copyHandler({ cwd, globs = [], buildDir, verbose = false }) {
         await recursiveCopy({ source: file.sourcePath, target: file.targetPath, verbose });
       }
     },
-    20,
+    { concurrency: 20 },
   );
   console.log(`📋 Copied ${defaultFiles.length} files.`);
 }

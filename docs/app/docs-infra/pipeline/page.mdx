@@ -929,14 +929,14 @@ The core server-side function for loading and formatting TypeScript type metadat
   - Processing Pipeline
     - 1\. Load TypeScript Configuration
     - 2\. Resolve Library Source Files
-    - 3\. Find Meta Files
-    - 4\. Process Types in Worker
-    - 5\. Build Type Compatibility Map
-    - 6\. Format Types
-    - 7\. Group by Component
-    - 8\. Deduplicate and Normalize
-    - 9\. Detect Re-exports
-    - 10\. Organize by Export
+    - 3\. Process Types in Worker
+      - Constant Groups
+    - 4\. Build Type Compatibility Map
+    - 5\. Format Types
+    - 6\. Group by Component
+    - 7\. Deduplicate and Normalize
+    - 8\. Detect Re-exports
+    - 9\. Organize by Export
   - Worker Architecture
     - Main Thread Responsibilities
     - Worker Thread Responsibilities
@@ -1037,6 +1037,8 @@ The loader utilities provide a comprehensive set of functions for resolving, par
     - Parameters: extension
   - isJavaScriptModule
     - Parameters: path
+  - isRouteGroup
+    - Parameters: segment
   - normalizeLanguage
     - Parameters: language
   - parseImportsAndComments
@@ -1059,6 +1061,10 @@ The loader utilities provide a comprehensive set of functions for resolving, par
     - Parameters: source, importPathMapping, importResult
   - rewriteImportsToNull
     - Parameters: source, importPathsToRewrite, importResult
+  - routeGroupName
+    - Parameters: segment
+  - stripRouteGroupSegments
+    - Parameters: pathOrUrl
 - Types: DirectoryEntry, ExternalImport, IGNORE_COMMENT_PREFIXES, ImportName, ImportPathPosition, ImportsAndComments, JAVASCRIPT_MODULE_EXTENSIONS, ProcessImportsResult, RelativeImport, ResolveModulePathOptions, StoreAtMode, TYPE_IMPORT_EXTENSIONS, TypeAwareResolveResult, VALUE_IMPORT_EXTENSIONS, languageAliasMap, languageMap
 
 </details>
@@ -1182,9 +1188,12 @@ The `syncPageIndex` function automatically maintains index pages by extracting m
     - mergeMetadataMarkdown
   - File Locking
   - Route Group Handling
+    - Route Group Sections
   - Types
   - Related
 - Exports:
+  - indexRelativePagePath
+    - Parameters: pageDir, pageFileName
   - syncPageIndex
     - Parameters: options
 - Types: SyncPageIndexOptions

@@ -30,7 +30,13 @@ import { getCurrentGitSha, getRepositoryInfo, remoteGitTagExists } from '../util
 const isCI = envCI().isCi;
 
 function getOctokit() {
-  return new Octokit({ authStrategy: isCI ? createActionAuth : persistentAuthStrategy });
+  const octokit = new Octokit({
+    authStrategy: isCI ? createActionAuth : persistentAuthStrategy,
+  });
+  octokit.hook.before('request', (requestOptions) => {
+    requestOptions.headers['x-github-api-version'] = '2026-03-10';
+  });
+  return octokit;
 }
 
 /**

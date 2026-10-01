@@ -1,0 +1,1 @@
+export { resolvePageUrl } from './resolvePageUrl';

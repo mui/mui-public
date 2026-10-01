@@ -4,6 +4,7 @@ import type { ParseSource } from '../../CodeHighlighter/types';
 import { resolveGrammarScope } from './grammarMaps';
 import { grammarLoaders } from './grammarLoaders';
 import { starryNightGutter } from './addLineGutters';
+import { createPlainTextRoot } from './createPlainTextRoot';
 import { extendSyntaxTokens } from './extendSyntaxTokens';
 
 type StarryNight = Awaited<ReturnType<typeof createStarryNight>>;
@@ -36,41 +37,7 @@ function getState(): StarryNightState {
   return state;
 }
 
-// Builds the plain-text HAST fallback used for unsupported file types and for a
-// mapped-but-not-yet-registered scope. Line gutters are still added so the
-// enhancer pipeline (e.g. auto-focus frames) can operate on the result.
-function createPlainTextRoot(source: string): ReturnType<ParseSource> {
-  const root: ReturnType<ParseSource> = {
-    type: 'root',
-    children: [
-      {
-        type: 'text',
-        value: source,
-      },
-    ],
-  };
-  const sourceLines = source.split(/\r?\n|\r/);
-  starryNightGutter(root, sourceLines);
-  return root;
-}
-
-/**
- * Parses source into a line-guttered HAST **without** syntax highlighting — the
- * raw text wrapped in the same `.line`/`.frame` structure `parseSource` produces,
- * just no starry-night tokenization. It is a `ParseSource` so it can be dropped
- * into the loader in place of the highlighting parser.
- *
- * Used for the deferred (un-highlighted) fallback: the enhancer pipeline needs the
- * line/frame structure to compute focus windows and truncation, but the syntax
- * colors are exactly the part being deferred — so we skip them. Cheap (no grammar,
- * no `getInstance`); the frames it produces collapse back to text via `buildRootFallback`.
- *
- * Takes only `source` (it ignores file name / language since it never highlights) but
- * stays structurally assignable to `ParseSource`, so it drops into the loader in place
- * of the highlighting parser.
- */
-export const parsePlainText = (source: string): ReturnType<ParseSource> =>
-  createPlainTextRoot(source);
+export { parsePlainText } from './createPlainTextRoot';
 
 /**
  * Parses source code into a HAST tree with syntax highlighting.
@@ -259,6 +226,21 @@ export const createParseSource = async (initialScopes?: string[]): Promise<Parse
 
   return parseSource;
 };
+
+/**
+ * Returns the shared Starry Night instance after registering every grammar.
+ *
+ * Inline highlighting can follow code that initialized a lazy subset, so it must
+ * initialize the complete registry before using the shared instance.
+ */
+export async function getStarryNightInstance(): Promise<StarryNight> {
+  await createParseSource();
+  const instance = getInstance();
+  if (!instance) {
+    throw new Error('Starry Night failed to initialize.');
+  }
+  return instance;
+}
 
 /**
  * Clears the global Starry Night singleton and registration state. Intended for

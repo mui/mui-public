@@ -16,6 +16,7 @@ import textHtmlBasic from '@wooorm/starry-night/text.html.basic';
 import sourceCss from '@wooorm/starry-night/source.css';
 import sourceShell from '@wooorm/starry-night/source.shell';
 import sourceYaml from '@wooorm/starry-night/source.yaml';
+import sourceDiff from '@wooorm/starry-night/source.diff';
 
 export const grammars = [
   sourceJs,
@@ -28,4 +29,5 @@ export const grammars = [
   sourceCss,
   sourceShell,
   sourceYaml,
+  sourceDiff,
 ];

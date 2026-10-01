@@ -46,8 +46,6 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     const { folder, verbose = false } = argv;
 
     const argosToken = requireEnv('ARGOS_TOKEN');
-    const circleSha1 = requireEnv('CIRCLE_SHA1');
-    const circleBranch = requireEnv('CIRCLE_BRANCH');
     const circleBuildNum = requireEnv('CIRCLE_BUILD_NUM');
 
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'argos-screenshots-'));
@@ -92,8 +90,8 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         // eslint-disable-next-line no-await-in-loop
         const result = await upload({
           root: `${tempDir}/${i}`,
-          commit: circleSha1,
-          branch: circleBranch,
+          // The SDK resolves `commit` and `branch`: it reads `ARGOS_COMMIT` and `ARGOS_BRANCH`
+          // first and falls back to `CIRCLE_SHA1` and `CIRCLE_BRANCH`.
           token: argosToken,
           threshold,
           parallel: {

@@ -53,6 +53,14 @@ runs:
       env:
         SCOPE_ALIAS: ${{ inputs.scope-alias }}
       run: pnpm code-infra rename-scope "$SCOPE_ALIAS"
+    # The rename changes workspace package names and points dependents at
+    # workspace: aliases, so neither the lockfile nor the workspace state matches
+    # the manifests any more. pnpm verifies both before every run and exec, and on
+    # CI that check installs with a frozen lockfile, so resync it here instead.
+    - name: Sync the lockfile after the rename
+      if: inputs.scope-alias != ''
+      shell: bash
+      run: pnpm install --no-frozen-lockfile
     - name: Build packages
       shell: bash
       run: pnpm run release:build

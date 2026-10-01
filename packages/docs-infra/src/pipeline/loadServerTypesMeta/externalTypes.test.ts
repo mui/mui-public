@@ -755,4 +755,82 @@ describe('external types collection via formatType', () => {
       });
     });
   });
+
+  // The `${}` in these strings is template literal type syntax, not interpolation.
+  /* eslint-disable no-template-curly-in-string */
+  describe('template literals', () => {
+    /** Formats the first property of the parsed `Props` and returns what it collected. */
+    function collectFrom(sources: Record<string, string>, lib?: string): ExternalTypesCollector {
+      const exports = parseTestSources(sources, { lib });
+      const props = exports.find((exportNode) => exportNode.name === 'Props');
+      if (!props || !isObjectType(props.type)) {
+        throw new Error('expected an exported Props interface');
+      }
+      const collector = createCollector(exports);
+      formatType(props.type.properties[0].type, {
+        exportNames: [],
+        typeNameMap: {},
+        externalTypesCollector: collector,
+      });
+      return collector;
+    }
+
+    it('should collect a named template literal', () => {
+      const collector = collectFrom({
+        'types.ts':
+          "type Percentage = `${number}%`;\nexport interface Props {\n  value: number | Percentage | 'auto';\n}",
+      });
+
+      expect(collector.collected.get('Percentage')).toEqual({
+        name: 'Percentage',
+        definition: '`${number}%`',
+      });
+    });
+
+    it('should collect a union with template literal members', () => {
+      const collector = collectFrom({
+        'types.ts':
+          "type Size = 'auto' | `${number}px`;\nexport interface Props {\n  value: Size;\n}",
+      });
+
+      expect(collector.collected.get('Size')).toEqual({
+        name: 'Size',
+        definition: "'auto' | `${number}px`",
+      });
+    });
+
+    it('should skip a template literal that is an own export', () => {
+      const collector = collectFrom({
+        'types.ts':
+          'export type Percentage = `${number}%`;\nexport interface Props {\n  value: Percentage;\n}',
+      });
+
+      expect(collector.collected.size).toBe(0);
+    });
+
+    it('should not collect a template literal whose placeholder is not a simple intrinsic', () => {
+      // Declared in a package, so the placeholder is the external `Uppercase<string>` reference
+      // the pipeline sees.
+      const collector = collectFrom({
+        'types.ts':
+          "import type { Uppercase } from 'mapping';\ntype Shout = `${Uppercase<string>}!`;\nexport interface Props {\n  value: Shout;\n}",
+        'node_modules/mapping/index.d.ts': 'export type Uppercase<S extends string> = intrinsic;',
+      });
+
+      expect(collector.collected.size).toBe(0);
+    });
+
+    it('should render a template literal inside an external function signature', () => {
+      const collector = collectFrom(
+        { 'types.ts': 'export interface Props {\n  value: Listener;\n}' },
+        'type Listener = (event: `on${string}`) => void;',
+      );
+
+      expect(collector.collected.get('Listener')).toEqual({
+        name: 'Listener',
+        definition: '(event: `on${string}`) => void',
+      });
+    });
+  });
+  /* eslint-enable no-template-curly-in-string */
 });
