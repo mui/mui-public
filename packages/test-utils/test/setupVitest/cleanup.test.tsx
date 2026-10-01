@@ -1,11 +1,8 @@
 import * as React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createRenderer, screen } from './createRenderer';
-import setupVitest from './setupVitest';
+import { createRenderer, screen } from '../../src/createRenderer';
 
-describe('setupVitest', () => {
-  setupVitest();
-
+describe('setupVitest cleanup order', () => {
   const { render } = createRenderer();
 
   const itWithFixture = it.extend<{ teardownChecks: void }>({
@@ -46,44 +43,6 @@ describe('setupVitest', () => {
 
       vi.useFakeTimers();
       render(<div data-testid="callback" />);
-    });
-  });
-
-  it('cleans up after attempts that fail the console check', { retry: 2 }, ({ task }) => {
-    expect(screen.queryByTestId('leaked')).to.equal(null);
-    expect(vi.isFakeTimers()).to.equal(false);
-
-    // The first two attempts fail the console check. Each retry must start with a clean state.
-    if (task.result?.retryCount !== 2) {
-      vi.useFakeTimers();
-      render(<div data-testid="leaked" />);
-      console.error('Unexpected error');
-    }
-  });
-});
-
-describe('setupVitest fallback', () => {
-  beforeEach(({ onTestFinished }) => {
-    onTestFinished(() => {
-      try {
-        /* eslint-disable vitest/no-standalone-expect -- This callback runs after setupVitest's fallback. */
-        expect(vi.isFakeTimers()).to.equal(true);
-        expect(vi.getTimerCount()).to.equal(1);
-        /* eslint-enable vitest/no-standalone-expect */
-      } finally {
-        vi.useRealTimers();
-      }
-    });
-  });
-
-  setupVitest();
-
-  it('preserves timers created by a later cleanup callback', ({ onTestFinished }) => {
-    expect(vi.isFakeTimers()).to.equal(false);
-
-    onTestFinished(() => {
-      vi.useFakeTimers();
-      setTimeout(() => {}, 0);
     });
   });
 });
