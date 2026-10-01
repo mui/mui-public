@@ -62,6 +62,19 @@ commands:
         default: false
     steps:
       - install-pnpm
+      # pnpm skips the ~20s supply-chain check of the lockfile when it finds a record of a past pass.
+      # A fixed cache dir lets the record restore under any image user: circleci (/home/circleci) or root.
+      - run:
+          name: Configure pnpm cache dir
+          command: echo 'export pnpm_config_cache_dir=/tmp/pnpm-cache' >> "$BASH_ENV"
+      # Records are saved per branch. A branch only reads its own and master's, so a pull request
+      # can't seed a record that master trusts.
+      - restore_cache:
+          name: Restore lockfile verification
+          keys:
+            - pnpm-verified-v3-{{ .Branch }}-{{ checksum "pnpm-lock.yaml" }}
+            # #default-branch-switch
+            - pnpm-verified-v3-master-{{ checksum "pnpm-lock.yaml" }}
       - when:
           condition: << parameters.ignore-workspace >>
           steps:
@@ -102,6 +115,11 @@ commands:
                   if [ -n "$args" ]; then
                     pnpm code-infra set-version-overrides --pkg $args
                   fi
+      - save_cache:
+          name: Save lockfile verification
+          key: pnpm-verified-v3-{{ .Branch }}-{{ checksum "pnpm-lock.yaml" }}
+          paths:
+            - /tmp/pnpm-cache/lockfile-verified.jsonl
   eslint:
     description: 'Runs ESLint on the codebase'
     steps:
