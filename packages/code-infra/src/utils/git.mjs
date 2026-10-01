@@ -9,34 +9,54 @@ import gitUrlParse from 'git-url-parse';
  */
 
 /**
- * The remote of the canonical repository, as opposed to a fork: `upstream`, else `origin`.
- * @param {string} [cwd=process.cwd()]
- * @returns {Promise<string>}
+ * The repository a remote URL points at, if it is a GitHub repository under `mui`.
+ * @param {string} url
+ * @returns {{ owner: string, repo: string } | null}
  */
-async function getCanonicalRemote(cwd = process.cwd()) {
-  const { stdout } = await $({ cwd })`git remote`;
-  const remotes = stdout.split('\n');
-  const remote = ['upstream', 'origin'].find((name) => remotes.includes(name));
-  if (!remote) {
-    throw new Error('No canonical remote: this repository has neither `upstream` nor `origin`.');
+function muiRepositoryOf(url) {
+  try {
+    const parsed = gitUrlParse(url);
+    return parsed.source === 'github.com' && parsed.owner === 'mui'
+      ? { owner: parsed.owner, repo: parsed.name }
+      : null;
+  } catch {
+    // Not a URL git-url-parse understands, such as a local path: not a mui repository either.
+    return null;
   }
-  return remote;
 }
 
 /**
- * The GitHub repository of the canonical remote (see {@link getCanonicalRemote}).
+ * The canonical repository's remote, as opposed to a fork's: `upstream`, else `origin`, each only if
+ * it points at a mui repository. Reads the configured URLs, which `insteadOf` does not rewrite.
  * @param {string} [cwd=process.cwd()]
  * @returns {Promise<RepoInfo>}
  */
 export async function getRepositoryInfo(cwd = process.cwd()) {
-  const remoteName = await getCanonicalRemote(cwd);
-  const { stdout } = await $({ cwd })`git remote get-url ${remoteName}`;
-  const url = stdout.trim();
-  const parsed = gitUrlParse(url);
-  if (parsed.source !== 'github.com') {
-    throw new Error(`Remote "${remoteName}" is not a GitHub repository: ${url}`);
+  // Exits 1 when neither remote is configured; the error below reports that.
+  const { stdout } = await $({
+    cwd,
+    reject: false,
+  })`git config --get-regexp ${'^remote\\.(upstream|origin)\\.url$'}`;
+  /** @type {Map<string, string>} */
+  const urls = new Map();
+  for (const line of stdout.split('\n').filter(Boolean)) {
+    const [key, url] = line.split(' ', 2);
+    urls.set(key.slice('remote.'.length, -'.url'.length), url);
   }
-  return { owner: parsed.owner, repo: parsed.name, remoteName };
+
+  for (const remoteName of ['upstream', 'origin']) {
+    const url = urls.get(remoteName);
+    const repository = url ? muiRepositoryOf(url) : null;
+    if (repository) {
+      return { ...repository, remoteName };
+    }
+  }
+
+  const found = [...urls].map(([name, url]) => `${name}: ${url}`).join(', ') || 'none';
+  throw new Error(
+    `No canonical remote: neither \`upstream\` nor \`origin\` points at a mui repository (${found}). ` +
+      'Add an `upstream` remote for it, or name the remote explicitly where the command allows it.',
+  );
 }
 
 /**
@@ -66,7 +86,7 @@ export async function remoteGitTagExists(tagName, cwd = process.cwd()) {
  * @param {string} cwd
  * @returns {Promise<string>}
  */
-async function defaultBranchOf(remote, cwd) {
+async function getDefaultBranchOf(remote, cwd) {
   const { stdout } = await $({ cwd })`git ls-remote --symref ${remote} HEAD`;
   const match = /^ref: refs\/heads\/(\S+)\tHEAD$/m.exec(stdout);
   if (!match) {
@@ -86,8 +106,8 @@ async function defaultBranchOf(remote, cwd) {
  */
 export async function resolveBaseline(options = {}) {
   const cwd = options.cwd ?? process.cwd();
-  const remote = options.remote ?? (await getCanonicalRemote(cwd));
-  const baseBranch = options.baseBranch ?? (await defaultBranchOf(remote, cwd));
+  const remote = options.remote ?? (await getRepositoryInfo(cwd)).remoteName;
+  const baseBranch = options.baseBranch ?? (await getDefaultBranchOf(remote, cwd));
 
   await $({ cwd })`git fetch --no-tags ${remote} ${baseBranch}`;
   const [forkPoint, head] = await Promise.all([
@@ -119,7 +139,8 @@ export async function findLatestTaggedVersion(opts) {
   const fetchAll = opts.fetchAll ?? true;
   if (fetchAll) {
     // --force to update any existing tags that may have changed to avoid the clobering error.
-    await $$`git fetch --tags --force ${await getCanonicalRemote(opts.cwd)}`;
+    const { remoteName } = await getRepositoryInfo(opts.cwd);
+    await $$`git fetch --tags --force ${remoteName}`;
   }
   const { stdout } = await $$`git describe --tags --abbrev=0 --match ${'v*'}`; // only include "version-tags"
   return stdout.trim();
