@@ -18,7 +18,7 @@ export class Handle {
   /**
    * A unique identifier for this handle instance.
    */
-  readonly id: string = Math.random().toString(36).slice(2);
+  declare readonly id: string;
 
   /**
    * Creates a new Handle instance.
@@ -26,6 +26,7 @@ export class Handle {
    */
   constructor(initialOpen: boolean = false) {
     this.isOpen = initialOpen;
+    this.id = Math.random().toString(36).slice(2);
   }
 
   /**
