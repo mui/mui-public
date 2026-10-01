@@ -50,9 +50,9 @@ class InMemoryLanguageServiceHost implements ts.LanguageServiceHost {
    */
   private projectVersion = 0;
 
-  private options: ts.CompilerOptions;
+  declare private options: ts.CompilerOptions;
 
-  private projectPath: string;
+  declare private projectPath: string;
 
   private getVersionCallCount = 0;
 

@@ -416,6 +416,7 @@ export function createCoreConfig(options = {}) {
             }
           : {}),
         'mui/no-guarded-throw': 'error',
+        'mui/no-constructor-assigned-field': 'error',
         'mui/straight-quotes': 'off',
         'mui/consistent-production-guard': 'error',
         'mui/add-undef-to-optional': 'off',

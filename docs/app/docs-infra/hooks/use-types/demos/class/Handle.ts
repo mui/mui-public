@@ -13,12 +13,12 @@ export class Handle {
   /**
    * Whether the dialog is currently open.
    */
-  private isOpen: boolean = false;
+  declare private isOpen: boolean;
 
   /**
    * A unique identifier for this handle instance.
    */
-  readonly id: string;
+  readonly id: string = Math.random().toString(36).slice(2);
 
   /**
    * Creates a new Handle instance.
@@ -26,7 +26,6 @@ export class Handle {
    */
   constructor(initialOpen: boolean = false) {
     this.isOpen = initialOpen;
-    this.id = Math.random().toString(36).slice(2);
   }
 
   /**

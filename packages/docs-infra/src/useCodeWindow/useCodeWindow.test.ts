@@ -7,7 +7,7 @@ import { useCodeWindow } from './useCodeWindow';
 
 class MockResizeObserver {
   static instances: MockResizeObserver[] = [];
-  callback: ResizeObserverCallback;
+  declare callback: ResizeObserverCallback;
   observed: Element[] = [];
   disconnected = false;
 

@@ -28,14 +28,9 @@ class TypesMetaWorkerManager implements TypesProcessor {
 
   private requestId = 0;
 
-  private workerPath: string;
-
-  constructor() {
-    // Worker file must be compiled JS, not TS
-    // Use import.meta.url to get current directory in ESM
-    const currentDir = path.dirname(fileURLToPath(import.meta.url));
-    this.workerPath = path.join(currentDir, 'worker.mjs');
-  }
+  // Worker file must be compiled JS, not TS
+  // Use import.meta.url to get current directory in ESM
+  private workerPath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'worker.mjs');
 
   private ensureWorker(): Worker {
     if (!this.worker) {
