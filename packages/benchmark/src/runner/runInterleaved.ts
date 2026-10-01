@@ -223,27 +223,46 @@ async function openPagesSampler(browser: Browser, slots: PageSlot[]): Promise<Sa
 }
 
 function iframeHostHtml(slots: PageSlot[]): string {
+  const { width, height } = BENCHMARK_VIEWPORT;
   const frames = slots
-    .map((slot, index) => `<iframe name="slot-${index}" src="${slot.url}"></iframe>`)
+    .map(
+      (slot, index) =>
+        `<iframe name="slot-${index}" src="${slot.url}" style="left: ${index * width}px"></iframe>`,
+    )
     .join('');
   return `<!doctype html><html><head><style>
-html, body { margin: 0; height: 100%; overflow: hidden; }
-iframe { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; background: white; z-index: 0; }
-iframe.front { z-index: 1; }
+html, body { margin: 0; overflow: hidden; }
+iframe { position: absolute; top: 0; width: ${width}px; height: ${height}px; border: 0; }
 </style></head><body>${frames}</body></html>`;
 }
 
 /**
- * Every slot in a full-viewport iframe of one page, all same-origin, so they share a renderer
- * process, its main thread and its heap. The measured one is raised to the front: it is the one
- * that paints on top and that trusted input lands in.
+ * Every slot in an iframe of one page, all same-origin, so they share a renderer process, its main
+ * thread and its heap. The frames sit side by side in a viewport as wide as all of them, each the
+ * size a page would be, so every frame is always on screen and nothing changes between samples. A
+ * frame's trusted input is shifted by the frame's offset, so it lands in that frame.
  */
 async function openIframesSampler(browser: Browser, slots: PageSlot[]): Promise<Sampler> {
-  const context = await browser.newContext({ viewport: BENCHMARK_VIEWPORT });
+  const context = await browser.newContext({
+    viewport: {
+      width: BENCHMARK_VIEWPORT.width * slots.length,
+      height: BENCHMARK_VIEWPORT.height,
+    },
+  });
   try {
     const page = await context.newPage();
     watchErrors(page);
-    await bridgeCdp(context, page);
+    const session = await context.newCDPSession(page);
+    await page.exposeBinding(
+      'benchmarkCdp',
+      ({ frame }, method: string, params?: Record<string, unknown>) => {
+        const index = Number(frame.name().slice('slot-'.length));
+        const offset = Number.isInteger(index) ? index * BENCHMARK_VIEWPORT.width : 0;
+        const shifted =
+          typeof params?.x === 'number' ? { ...params, x: params.x + offset } : params;
+        return session.send(method as CdpMethod, shifted);
+      },
+    );
     const hostUrl = new URL('/__benchmark-host.html', slots[0].url).href;
     const html = iframeHostHtml(slots);
     await page.route(hostUrl, (route) => route.fulfill({ contentType: 'text/html', body: html }));
@@ -258,18 +277,7 @@ async function openIframesSampler(browser: Browser, slots: PageSlot[]): Promise<
     await Promise.all(frames.map((frame) => loadBenchPage(frame)));
     return {
       warmup: true,
-      async sample(index) {
-        // Raise the measured frame, then let a frame render so the swap is not part of the sample.
-        await page.evaluate(async (front) => {
-          for (const frame of document.querySelectorAll('iframe')) {
-            frame.classList.toggle('front', frame.name === `slot-${front}`);
-          }
-          await new Promise((resolve) => {
-            requestAnimationFrame(() => requestAnimationFrame(resolve));
-          });
-        }, index);
-        return sampleBenchCase(frames[index], slots[index].caseName);
-      },
+      sample: (index) => sampleBenchCase(frames[index], slots[index].caseName),
       metricDefinitions: () => frames[0].evaluate(() => window.benchmarkPage!.metricDefinitions()),
       close: () => context.close(),
     };
@@ -282,29 +290,44 @@ async function openIframesSampler(browser: Browser, slots: PageSlot[]): Promise<
 /**
  * Every sample in a page of its own: each round loads one fresh page per slot — all at once, before
  * anything is measured — samples each once, cold, and closes them. Nothing carries over between
- * samples, so neither warmup nor a GC between them has anything to do. Each page gets a context of
- * its own, as in the `pages` mode: pages sharing one are tabs of one window, and only the last one
- * opened renders at full priority.
+ * samples, so neither warmup nor a GC between them has anything to do. A slot keeps one context for
+ * the whole benchmark, so its HTTP cache stays warm, and holds one page at a time: pages sharing a
+ * context are tabs of one window, and only the last one opened renders at full priority.
  */
 async function openFreshSampler(browser: Browser, slots: PageSlot[]): Promise<Sampler> {
-  let targets: OpenedPage[] = [];
+  const contexts = await Promise.all(
+    slots.map(() => browser.newContext({ viewport: BENCHMARK_VIEWPORT })),
+  );
+  let pages: Page[] = [];
   let definitions: Record<string, RunMetricDefinition> = {};
+  const closeRound = async () => {
+    const closing = pages;
+    pages = [];
+    await Promise.all(closing.map((page) => page.close()));
+  };
   return {
     warmup: false,
     async beginRound() {
-      targets = await openBenchPages(
-        browser,
-        slots.map((slot) => slot.url),
+      pages = await Promise.all(
+        slots.map(async (slot, index) => {
+          const page = await contexts[index].newPage();
+          watchErrors(page);
+          await bridgeCdp(contexts[index], page);
+          await loadBenchPage(page, slot.url);
+          return page;
+        }),
       );
     },
-    sample: (index) => sampleBenchCase(targets[index].page, slots[index].caseName, false),
+    sample: (index) => sampleBenchCase(pages[index], slots[index].caseName, false),
     async endRound() {
-      definitions = await targets[0].page.evaluate(() => window.benchmarkPage!.metricDefinitions());
-      await closeBenchPages(targets);
-      targets = [];
+      definitions = await pages[0].evaluate(() => window.benchmarkPage!.metricDefinitions());
+      await closeRound();
     },
     metricDefinitions: async () => definitions,
-    close: () => closeBenchPages(targets),
+    async close() {
+      await closeRound();
+      await Promise.all(contexts.map((context) => context.close()));
+    },
   };
 }
 
