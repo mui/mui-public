@@ -1,11 +1,10 @@
 import { formatMarkdownTable } from '@/utils/formatters';
 import {
   analyzeRun,
+  benchmarkTable,
   findRegressions,
   formatComparison,
-  formatComparisonLabel,
   formatRunSummary,
-  formatValue,
   RUN_REPORT_FOOTNOTE,
 } from '@mui/internal-benchmark/runReport';
 import type { BenchmarkAnalysis, BenchmarkRunReport } from '@mui/internal-benchmark/runReport';
@@ -18,39 +17,24 @@ interface BuildOptions {
 }
 
 /** One table per benchmark: every metric, the median of every variant, every comparison. */
-function renderBenchmarkTable({ benchmark, metrics }: BenchmarkAnalysis): string {
-  const comparisons = metrics[0]?.comparisons ?? [];
-
-  const columns = [
-    { field: 'metric', header: 'Metric', align: 'left' as const },
-    ...benchmark.variants.map((variant) => ({
-      field: `variant:${variant}`,
-      header: variant,
-      align: 'right' as const,
+function renderBenchmarkTable(analysis: BenchmarkAnalysis): string {
+  const { columns, rows } = benchmarkTable(analysis);
+  const table = formatMarkdownTable(
+    columns.map(({ header, kind }, column) => ({
+      field: String(column),
+      header,
+      align: kind === 'value' ? ('right' as const) : ('left' as const),
     })),
-    ...comparisons.map((comparison) => ({
-      field: `comparison:${comparison.subject}:${comparison.against}`,
-      header: formatComparisonLabel(benchmark, comparison),
-      align: 'left' as const,
-    })),
-  ];
-  const rows = metrics.map(({ metric, definition, variants, comparisons: metricComparisons }) => ({
-    metric,
-    ...Object.fromEntries(
-      benchmark.variants.map((variant) => [
-        `variant:${variant}`,
-        formatValue(variants[variant].median, definition),
-      ]),
+    rows.map(({ cells }) =>
+      Object.fromEntries(
+        cells.map((cell, column) => [
+          String(column),
+          columns[column].kind === 'comparison' ? `\`${cell}\`` : cell,
+        ]),
+      ),
     ),
-    ...Object.fromEntries(
-      metricComparisons.map((comparison) => [
-        `comparison:${comparison.subject}:${comparison.against}`,
-        `\`${formatComparison(comparison)}\``,
-      ]),
-    ),
-  }));
-
-  return `**${benchmark.name}**\n\n${formatMarkdownTable(columns, rows)}`;
+  );
+  return `**${analysis.benchmark.name}**\n\n${table}`;
 }
 
 /**

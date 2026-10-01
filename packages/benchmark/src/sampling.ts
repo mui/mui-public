@@ -1,4 +1,4 @@
-import type { BenchmarkAnalysis } from './runReport/analyzeRun';
+import type { MetricComparisons } from './runReport/analyzeRun';
 
 /**
  * How many rounds a benchmark is sampled for: tachometer's knobs, under tachometer's names. After
@@ -83,7 +83,10 @@ export function isResolved(interval: { low: number; high: number }, horizons: nu
  * Whether sampling a benchmark can stop: every comparison it reports has resolved against the
  * horizons, on the metrics that alarm, or on every metric when none does.
  */
-export function differencesResolved(analysis: BenchmarkAnalysis, horizons: number[]): boolean {
+export function differencesResolved(
+  analysis: { metrics: MetricComparisons[] },
+  horizons: number[],
+): boolean {
   const alarmed = analysis.metrics.filter((metric) => metric.definition.alarm !== undefined);
   const judged = alarmed.length > 0 ? alarmed : analysis.metrics;
   return judged.every((metric) =>

@@ -3,41 +3,25 @@
 import { dim, printTable, red, yellow } from '../format';
 import {
   analyzeRun,
+  benchmarkTable,
   findRegressions,
   formatComparison,
-  formatComparisonLabel,
   formatRunSummary,
-  formatValue,
   RUN_REPORT_FOOTNOTE,
 } from '../runReport';
 import type { BenchmarkAnalysis, BenchmarkRunReport } from '../runReport';
 
-function printBenchmark({ benchmark, metrics }: BenchmarkAnalysis): void {
-  const [reference] = benchmark.variants;
-
-  const headers = [
-    'Metric',
-    ...benchmark.variants.map((variant) => `${variant} (median)`),
-    ...(metrics[0]?.comparisons ?? []).map((comparison) =>
-      formatComparisonLabel(benchmark, comparison),
-    ),
-    'Rounds',
-  ];
-  const rows = metrics.map(({ metric, definition, variants, comparisons }) => [
-    metric,
-    ...benchmark.variants.map((variant) => formatValue(variants[variant].median, definition)),
-    ...comparisons.map(formatComparison),
-    String(variants[reference].count),
-  ]);
-  const widths = headers.map((header, column) =>
-    Math.max(header.length, ...rows.map((row) => row[column].length)),
-  );
-
+function printBenchmark(analysis: BenchmarkAnalysis): void {
+  const { columns, rows } = benchmarkTable(analysis);
+  const cells = rows.map((row) => row.cells);
   printTable(
-    headers.map((header, column) => ({ header, width: widths[column] })),
-    rows,
+    columns.map(({ header }, column) => ({
+      header,
+      width: Math.max(header.length, ...cells.map((row) => row[column].length)),
+    })),
+    cells,
     undefined,
-    `${benchmark.name}  (${benchmark.file})`,
+    `${analysis.benchmark.name}  (${analysis.benchmark.file})`,
   );
 }
 

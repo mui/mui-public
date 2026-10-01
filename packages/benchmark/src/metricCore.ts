@@ -10,10 +10,13 @@ export function seriesName(name: string, id: string | undefined): string {
   return id === undefined ? name : `${name}#${id}`;
 }
 
-/**
- * Where recorded values go. The runtime a benchmark runs under installs one: the Vitest harness
- * accumulates them per running test, the page runtime emits them as `performance.measure` entries.
- */
+/** The metric a series belongs to: `name#id` without its `#id`. */
+export function baseMetricName(series: string): string {
+  const hashIndex = series.indexOf('#');
+  return hashIndex === -1 ? series : series.slice(0, hashIndex);
+}
+
+/** Where recorded values go: the runtime a benchmark runs under installs one. */
 export type MetricRecorder = (
   metric: Metric,
   value: number,

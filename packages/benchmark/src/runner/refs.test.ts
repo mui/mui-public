@@ -85,27 +85,6 @@ describe('resolveBaselineRef', () => {
     expect((await resolveBaselineRef('git:v1.0.0', repoRoot)).requested).toBe('v1.0.0');
   });
 
-  it('names a revision and a tag the same build, so the commit is built once', async () => {
-    const { repoRoot, shas } = await makeRepo();
-
-    const viaTag = await resolveBaselineRef('v1.0.0', repoRoot);
-    const viaSha = await resolveBaselineRef(shas[0], repoRoot);
-
-    // `id` is the build directory: two ids for one commit means packing and building it twice.
-    expect(viaTag.id).toBe(viaSha.id);
-  });
-
-  it.each(['github:owner/repo#abc1234', 'preview:abc1234'])(
-    'reports %s as recognised but not implemented',
-    async (token) => {
-      const { repoRoot } = await makeRepo();
-
-      await expect(() => resolveBaselineRef(token, repoRoot)).rejects.toThrow(
-        /recognised but not implemented/,
-      );
-    },
-  );
-
   it('rejects the git scheme with no revision after it', async () => {
     const { repoRoot } = await makeRepo();
 

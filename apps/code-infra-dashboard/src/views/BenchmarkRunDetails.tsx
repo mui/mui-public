@@ -15,13 +15,7 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
 import { fetchCiReport, isBenchmarkRunUpload } from '@/utils/fetchCiReport';
-import {
-  analyzeRun,
-  formatComparison,
-  formatComparisonLabel,
-  formatValue,
-  RUN_REPORT_FOOTNOTE,
-} from '@mui/internal-benchmark/runReport';
+import { analyzeRun, benchmarkTable, RUN_REPORT_FOOTNOTE } from '@mui/internal-benchmark/runReport';
 import type {
   BenchmarkAnalysis,
   BenchmarkRunReport,
@@ -43,8 +37,10 @@ function comparisonColor(comparison: MetricComparison): string {
 }
 
 function BenchmarkTable({ analysis }: { analysis: BenchmarkAnalysis }) {
-  const { benchmark, metrics } = analysis;
-  const comparisons = metrics[0]?.comparisons ?? [];
+  const { benchmark } = analysis;
+  const { columns, rows } = benchmarkTable(analysis);
+  const firstComparison = columns.findIndex((column) => column.kind === 'comparison');
+  const alignOf = (column: number) => (columns[column].kind === 'value' ? 'right' : undefined);
 
   return (
     <TableContainer sx={{ mb: 4, overflowX: 'auto' }}>
@@ -57,37 +53,31 @@ function BenchmarkTable({ analysis }: { analysis: BenchmarkAnalysis }) {
       <Table size="small">
         <TableHead>
           <TableRow>
-            <TableCell>Metric</TableCell>
-            {benchmark.variants.map((variant) => (
-              <TableCell key={variant} align="right">
-                {variant}
+            {columns.map(({ header }, column) => (
+              <TableCell key={column} align={alignOf(column)}>
+                {header}
               </TableCell>
             ))}
-            {comparisons.map((comparison) => (
-              <TableCell key={`${comparison.subject}:${comparison.against}`}>
-                {formatComparisonLabel(benchmark, comparison)}
-              </TableCell>
-            ))}
-            <TableCell align="right">Rounds</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
-          {metrics.map(({ metric, definition, variants, comparisons: metricComparisons }) => (
-            <TableRow key={metric}>
-              <TableCell>{metric}</TableCell>
-              {benchmark.variants.map((variant) => (
-                <TableCell key={variant} align="right">
-                  {formatValue(variants[variant].median, definition)}
+          {rows.map((row) => (
+            <TableRow key={row.metric}>
+              {row.cells.map((cell, column) => (
+                <TableCell key={column} align={alignOf(column)}>
+                  {columns[column].kind === 'comparison' ? (
+                    <Typography
+                      variant="body2"
+                      component="span"
+                      color={comparisonColor(row.comparisons[column - firstComparison])}
+                    >
+                      {cell}
+                    </Typography>
+                  ) : (
+                    cell
+                  )}
                 </TableCell>
               ))}
-              {metricComparisons.map((comparison) => (
-                <TableCell key={`${comparison.subject}:${comparison.against}`}>
-                  <Typography variant="body2" component="span" color={comparisonColor(comparison)}>
-                    {formatComparison(comparison)}
-                  </Typography>
-                </TableCell>
-              ))}
-              <TableCell align="right">{variants[benchmark.variants[0]].count}</TableCell>
             </TableRow>
           ))}
         </TableBody>

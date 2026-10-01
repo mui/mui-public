@@ -21,13 +21,7 @@ import type { ResolvedRef } from './refs';
  */
 const RUNNER_ONLY_DEPS = ['@playwright/test', pkgJson.name];
 
-/**
- * The packed pins a run adds to the repository's overrides.
- *
- * Everything the run itself resolves is left alone, this package above all: pinning it would hand
- * the harness's vite config the ref's copy of the very tool doing the building, and a ref old enough
- * not to export the plugin then fails to configure at all.
- */
+/** The packed pins a run adds to the repository's overrides, leaving what the run resolves itself. */
 function packedPins(packages: PackedPackage[]): Record<string, string> {
   return Object.fromEntries(
     packages
@@ -42,12 +36,8 @@ function backupPathOf(outputDir: string): string {
 }
 
 /**
- * Points the repository's own install at this ref's packed build, through its overrides.
- *
- * The manifest is copied aside first and rewritten from that copy each time, so a second ref pins
- * over the original rather than over the first ref's pins. A run that dies leaves both the pins and
- * the copy: the manifest then names tarballs under the output directory, which fails the next
- * install rather than resolving something else and saying nothing.
+ * Points the repository's own install at this ref's packed build, through its overrides. The
+ * manifest is rewritten from a copy set aside first, so a second ref pins over the original.
  */
 async function pinPackedPackages(
   repoRoot: string,
@@ -73,14 +63,17 @@ async function pinPackedPackages(
 }
 
 /**
- * Puts the repository's manifest back, and installs from it.
- *
- * The install is the point: without it the tree on disk still resolves the library to a tarball
- * under the output directory, and that surfaces at the next unrelated command instead of here.
- *
- * `--no-frozen-lockfile` because pnpm turns a frozen install on by itself in CI, and the lockfile
- * here still carries the pins this is undoing.
+ * Installs the repository after its overrides changed. Not frozen: pnpm freezes the lockfile by
+ * itself in CI, and changing it is the point.
  */
+async function installWorkspace(repoRoot: string): Promise<void> {
+  await execa('pnpm', ['install', '--prefer-offline', '--no-frozen-lockfile'], {
+    cwd: repoRoot,
+    verbose: 'short',
+  });
+}
+
+/** Puts the repository's manifest back, and installs from it. */
 export async function restoreWorkspace(repoRoot: string, outputDir: string): Promise<void> {
   const backupPath = backupPathOf(outputDir);
   let original: string;
@@ -96,23 +89,13 @@ export async function restoreWorkspace(repoRoot: string, outputDir: string): Pro
   console.log(chalk.cyan('\nRestoring the repository install…'));
   await writeFile(path.join(repoRoot, 'pnpm-workspace.yaml'), original);
   await rm(backupPath, { force: true });
-  await execa('pnpm', ['install', '--prefer-offline', '--no-frozen-lockfile'], {
-    cwd: repoRoot,
-    verbose: 'short',
-  });
+  await installWorkspace(repoRoot);
 }
 
 /**
- * Builds the benchmark pages against one ref's packed build.
- *
- * The pages are built **where they live**, from the harness's own directory and its own vite config,
- * so a `benchmark run` build sees exactly what a plain `vite build` sees — the same tsconfig, the same
- * postcss config, the same everything. Only the library differs: the repository's install is pinned
- * to that ref's packed build first, so both sides resolve it the same way. Building one side through a
- * workspace link instead would compare two different resolution paths, and that difference would land
- * in the measurement rather than in the library.
- *
- * The pins stay until `restoreWorkspace` puts the repository back.
+ * Builds the benchmark pages against one ref's packed build, in place with the harness's own vite
+ * config, so only the library differs from a plain `vite build`. The pins stay until
+ * `restoreWorkspace` puts the repository back.
  */
 export async function buildRefPages(options: {
   /** The harness package directory, built in place. */
@@ -132,15 +115,9 @@ export async function buildRefPages(options: {
   console.log(chalk.cyan(`\nBuilding benchmark pages for "${refLabel(ref)}"…`));
 
   await pinPackedPackages(repoRoot, outputDir, packages);
-  // `--no-frozen-lockfile` because changing the overrides is the point, and pnpm turns a frozen
-  // install on by itself in CI — where it would refuse the very change being made.
-  await execa('pnpm', ['install', '--prefer-offline', '--no-frozen-lockfile'], {
-    cwd: repoRoot,
-    verbose: 'short',
-  });
+  await installWorkspace(repoRoot);
 
-  // vite is the harness's own, not this package's: the harness declares the version its pages are
-  // built with, and the config being run is the harness's.
+  // The harness's own vite, the version its pages are built with.
   const requireFromHarness = createRequire(path.join(harnessDir, 'package.json'));
   const vite: typeof Vite = await import(pathToFileURL(requireFromHarness.resolve('vite')).href);
 

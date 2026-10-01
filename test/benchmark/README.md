@@ -2,14 +2,8 @@
 
 A working harness for `benchmark run`, used to exercise that tooling end to end.
 
-This is **not** a meaningful benchmark, and it is not trying to be. This repository ships build and
-test tooling, not a browser library, so there is nothing here whose render time is worth tracking.
-The benchmarks run deterministic workloads purely so the pipeline has something real to drive:
-discovering benchmark files, resolving the baseline, packing a commit's workspace to tarballs,
-building each ref's pages, and sampling them in Chromium.
-
-For the real thing, see the consumers this tooling was extracted from — `base-ui-mosaic` and
-`base-ui-charts` benchmark actual data grids and charts.
+Its benchmarks are deterministic workloads, not numbers worth tracking: they give the pipeline something
+real to drive. For real benchmarks, see `base-ui-mosaic` and `base-ui-charts`.
 
 ## What it covers
 

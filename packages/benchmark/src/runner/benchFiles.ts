@@ -2,6 +2,7 @@ import * as path from 'node:path';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { globby } from 'globby';
 import { escapeHtml } from '../utils/html';
+import { markIgnored } from './outputDir';
 
 /**
  * `*.bench.tsx` files: cases defined with `@mui/internal-benchmark/page`, measured by the interleaved
@@ -95,7 +96,7 @@ export async function writeBenchPages(harnessDir: string, benchFiles: BenchFile[
   }
   await mkdir(pagesDir, { recursive: true });
   await Promise.all([
-    writeFile(path.join(pagesDir, '.gitignore'), '*\n'),
+    markIgnored(pagesDir),
     ...benchFiles.flatMap((benchFile) => {
       const html = path.join(harnessDir, 'src', benchFile.page);
       const entry = `${path.basename(benchFile.page, '.html')}.entry.ts`;

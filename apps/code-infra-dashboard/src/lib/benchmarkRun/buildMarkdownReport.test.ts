@@ -77,36 +77,36 @@ describe('buildBenchmarkRunMarkdownReport', () => {
         title: 'Performance',
       }),
     ).toMatchInlineSnapshot(`
-        "## Performance ⚠️
+      "## Performance ⚠️
 
-        🔴 **Grid scroll** · render · \`worse +9.3% – +9.3%\`
+      🔴 **Grid scroll** · render · \`worse +9.3% – +9.3%\`
 
-        2 benchmarks measured · 1 with regressions · 1 failed
+      2 benchmarks measured · 1 with regressions · 1 failed
 
-        ❌ **Chart zoom**: Render failed
+      ❌ **Chart zoom**: Render failed
 
-        <details>
-        <summary>Full results</summary>
+      <details>
+      <summary>Full results</summary>
 
-        **Grid scroll**
+      **Grid scroll**
 
-        | Metric | current | baseline | Δ vs baseline |
-        |:----------|----------:|----------:|:----------|
-        | render | 23.5 ms | 21.5 ms | \`worse +9.3% – +9.3%\` |
-        | bench:paint | 30.5 ms | 30.5 ms | \`unsure +0.0% – +0.0%\` |
-
-
-        **libs / mount**
-
-        | Metric | ours | theirs | theirs vs ours |
-        |:----------|----------:|----------:|:----------|
-        | render | 10 ms | 20.5 ms | \`worse +95.8% – +114.2%\` |
+      | Metric | current | baseline | Δ vs baseline | Rounds |
+      |:----------|----------:|----------:|:----------|----------:|
+      | render | 23.5 ms | 21.5 ms | \`worse +9.3% – +9.3%\` | 4 |
+      | bench:paint | 30.5 ms | 30.5 ms | \`unsure +0.0% – +0.0%\` | 4 |
 
 
-        _Each value is a median. Each Δ is a 95% confidence interval on the paired per-round difference, relative to the variant it is measured against; "unsure" means it straddles zero — the expected result for two equivalent builds._
+      **libs / mount**
 
-        </details>"
-      `);
+      | Metric | ours | theirs | theirs vs ours | Rounds |
+      |:----------|----------:|----------:|:----------|----------:|
+      | render | 10 ms | 20.5 ms | \`worse +95.8% – +114.2%\` | 4 |
+
+
+      _Each value is a median. Each Δ is a 95% confidence interval on the paired per-round difference, relative to the variant it is measured against; "unsure" means it straddles zero — the expected result for two equivalent builds._
+
+      </details>"
+    `);
   });
 
   it('does not count a difference between libraries as a regression', () => {

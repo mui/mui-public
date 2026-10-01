@@ -3,12 +3,11 @@
 import * as path from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
 import chalk from 'chalk';
-import { execa } from 'execa';
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import { packRef, packWorkingTree } from '../utils/packWorkspace';
-import { resolveCommit } from '../utils/git';
+import { getCiMetadata } from '../ciReport';
 import type { BenchmarkRunReport } from '../runReport';
-import { refLabel, resolveBaselineRef, variantOf, WORKTREE_REF } from './refs';
+import { refLabel, resolveBaselineRef, WORKTREE_REF } from './refs';
 import type { ResolvedRef } from './refs';
 import { discoverBenchFiles } from './benchFiles';
 import { runInterleaved } from './runInterleaved';
@@ -65,17 +64,13 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
     throw new Error(`Could not find a pnpm workspace root above ${harnessDir}.`);
   }
 
-  // Everything a run writes goes under one directory, so a harness has one thing to ignore and
-  // deleting it is the whole reset story. `packed` holds tarballs — a ref's keyed by commit SHA,
-  // the working tree's by content hash — and is the one worth caching in CI; `builds` holds the
-  // pages built per ref; `results` the report.
+  // `packed` holds tarballs — a ref's keyed by commit SHA, the working tree's by content hash — and is
+  // the one worth caching in CI.
   const outputDir = await prepareOutputDir(harnessDir);
   const buildsDir = buildsDirOf(harnessDir);
   const packedDir = path.join(outputDir, 'packed');
 
-  // A run killed outright — Ctrl-C, not a thrown error — never reaches the restore below, leaving
-  // the repository pinned to tarballs. The copy it left behind is how that is noticed, so put it
-  // back before doing anything else.
+  // A run killed outright never reaches the restore below; undo what it left pinned first.
   await restoreWorkspace(repoRoot, outputDir);
 
   const benchFiles = await discoverBenchFiles({ harnessDir, filters });
@@ -90,8 +85,7 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
   // The working tree first: it is the reference every comparison is judged from.
   const refs: ResolvedRef[] = [WORKTREE_REF, await resolveBaselineRef(baseline, repoRoot)];
 
-  // Before any build: a browser that is not installed fails the run either way, and finding out now
-  // costs seconds instead of minutes of packing and installing.
+  // Before any build, so a missing browser fails in seconds rather than after the packing.
   const browserBinary = await resolveBrowserBinary(harnessDir);
   // `getuid` is POSIX-only; on Windows nobody is root. Chrome cannot enter its sandbox as root.
   const launchArgs = process.getuid?.() === 0 ? ['--no-sandbox'] : [];
@@ -107,7 +101,7 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
     // Pack both sides at once: each builds in its own checkout, and nothing is measured yet.
     const packedByRef = await Promise.all(
       refs.map(async (ref) => {
-        if (ref.kind === 'worktree') {
+        if (ref.variant === 'current') {
           return packWorkingTree({ repoRoot, outRoot: path.join(packedDir, 'current'), buildCmd });
         }
         // packRef caches a ref's tarballs by SHA; a hit skips the checkout, install, and build.
@@ -126,7 +120,7 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
         ref,
         packages: packedByRef[index],
         outputDir,
-        outDir: path.join(buildsDir, ref.id),
+        outDir: path.join(buildsDir, ref.variant),
       });
     }
 
@@ -139,14 +133,11 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
       warmup: WARMUP,
     });
 
+    const { commitSha, branch } = await getCiMetadata();
     const report: BenchmarkRunReport = {
       version: 2,
       generatedAt: new Date().toISOString(),
-      head: {
-        sha: await resolveCommit(repoRoot, 'HEAD'),
-        branch: (await execa('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: repoRoot }))
-          .stdout,
-      },
+      head: { sha: commitSha, branch },
       environment: {
         browser: `Chromium ${results.browserVersion}`,
         platform: process.platform,
@@ -155,7 +146,7 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
       },
       sampling: { warmup: WARMUP },
       builds: Object.fromEntries(
-        refs.map((ref) => [variantOf(ref), { sha: ref.sha, label: refLabel(ref) }]),
+        refs.map((ref) => [ref.variant, { sha: ref.sha, label: refLabel(ref) }]),
       ),
       metrics: results.metrics,
       benchmarks: results.benchmarks,

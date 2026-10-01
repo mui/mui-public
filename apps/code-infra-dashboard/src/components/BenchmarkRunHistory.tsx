@@ -104,13 +104,18 @@ export default function BenchmarkRunHistory({ repo }: BenchmarkRunHistoryProps) 
     [points, benchmark],
   );
   const [userMetric, setUserMetric] = React.useState<string | null>(null);
-  const metric = userMetric !== null && metricNames.includes(userMetric) ? userMetric : 'render';
+  const metric =
+    [userMetric, 'render', metricNames[0]].find(
+      (name): name is string => name != null && metricNames.includes(name),
+    ) ?? null;
 
   // One series per kind of change, so each bar takes its change's colour. A commit's bar is the
   // midpoint of its confidence interval; the tooltip gives the interval itself.
   const series = React.useMemo(() => {
     const selected = points.map((point) =>
-      benchmark === null ? undefined : point.comparisons.get(benchmark)?.get(metric),
+      benchmark === null || metric === null
+        ? undefined
+        : point.comparisons.get(benchmark)?.get(metric),
     );
     return (['worse', 'better', 'unsure'] as const satisfies Change[]).map((change) => ({
       type: 'bar' as const,
@@ -162,7 +167,7 @@ export default function BenchmarkRunHistory({ repo }: BenchmarkRunHistoryProps) 
             />
             <Autocomplete
               options={metricNames}
-              value={metricNames.includes(metric) ? metric : null}
+              value={metric}
               onChange={(_event, value) => setUserMetric(value)}
               size="small"
               sx={{ minWidth: 200 }}

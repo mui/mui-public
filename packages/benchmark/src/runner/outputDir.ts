@@ -1,41 +1,31 @@
 import * as path from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
 
-/**
- * Everything a run writes — packed tarballs, built pages, the report — lives
- * under this one directory inside the harness, so a repository has a single thing to ignore and
- * deleting it is the whole reset story.
- */
+/** Everything a run writes lives here, so there is one thing to ignore and deleting it resets. */
 export const OUTPUT_DIR = '.benchmark';
 
 /**
- * Creates the output directory, marking it ignored from the inside.
- *
- * A `.gitignore` holding `*` ignores the directory's contents and itself, the way pytest marks its
- * cache, so a harness that forgets to list it does not end up offering built pages and tarballs for
- * commit. It does not replace an entry in the repository's own ignore file: tools that read only
- * the root one — this repository's ESLint config among them — never see a nested `.gitignore`.
+ * Marks a generated directory ignored from the inside: a `.gitignore` holding `*` ignores its
+ * contents and itself. Tools that read only the root ignore file still need an entry there.
  */
+export async function markIgnored(dir: string): Promise<void> {
+  await writeFile(path.join(dir, '.gitignore'), '*\n');
+}
+
+/** Creates the output directory, marked ignored. */
 export async function prepareOutputDir(harnessDir: string): Promise<string> {
   const outputDir = path.join(harnessDir, OUTPUT_DIR);
   await mkdir(outputDir, { recursive: true });
-  await writeFile(path.join(outputDir, '.gitignore'), '*\n');
+  await markIgnored(outputDir);
   return outputDir;
 }
 
-/**
- * Where the pages built for `refId` go, or the root of every ref's pages when it is omitted.
- *
- * Named here rather than composed at each call site because the runner and the vite plugin have to
- * agree on it: the runner serves every ref's pages from under this path, and a plain `vite build`
- * has to land somewhere that does not collide.
- */
 /** Where a run writes its JSON report, unless told otherwise. */
 export function resultsPathOf(harnessDir: string): string {
   return path.join(harnessDir, OUTPUT_DIR, 'results', 'report.json');
 }
 
-export function buildsDirOf(harnessDir: string, refId?: string): string {
-  const builds = path.join(harnessDir, OUTPUT_DIR, 'builds');
-  return refId ? path.join(builds, refId) : builds;
+/** Where the pages of every ref are built, one directory per variant. */
+export function buildsDirOf(harnessDir: string): string {
+  return path.join(harnessDir, OUTPUT_DIR, 'builds');
 }

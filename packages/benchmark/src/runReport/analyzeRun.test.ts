@@ -75,7 +75,6 @@ describe('compareSamples', () => {
 
     expect(comparison.absolute).toEqual({ low: 2, high: 2 });
     expect(comparison.change).toBe('worse');
-    expect(comparison.rounds).toBe(10);
   });
 
   it('reads the direction from the alarm', () => {

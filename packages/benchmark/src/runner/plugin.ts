@@ -4,7 +4,7 @@ import type { Plugin } from 'vite';
 import { escapeHtml } from '../utils/html';
 import { discoverBenchFiles, writeBenchPages } from './benchFiles';
 import type { BenchFile } from './benchFiles';
-import { buildsDirOf, prepareOutputDir, OUTPUT_DIR } from './outputDir';
+import { buildsDirOf, prepareOutputDir } from './outputDir';
 
 /**
  * Vite plugin for a benchmark harness.
@@ -128,17 +128,9 @@ export function benchmarkPlugin(options: BenchmarkPluginOptions = {}): Plugin {
         ...pkg.devDependencies,
       });
 
-      // The run output directory, next to the per-ref directories the runner writes — vite would
-      // otherwise default to `<root>/dist`, i.e. inside `src/` next to the benchmark sources.
-      //
-      // Resolved for every command, not just `build`: `vite preview` runs as `serve` but serves
-      // `build.outDir`, so leaving it unset there sends preview looking for `<root>/dist` and it
-      // exits rather than serving the pages that were just built.
-      //
-      // Only fill it in when the caller said nothing: a plugin's returned config is merged *over*
-      // the inline config, so unconditionally setting it here would silently override
-      // `vite build --outDir`, which is exactly how `benchmark run` directs each ref's build.
-      const outDir = userConfig.build?.outDir ?? buildsDirOf(harnessDir, 'manual');
+      // Set for every command, since `vite preview` serves `build.outDir` too; only when the caller
+      // gave none, because returned config is merged over `vite build --outDir`.
+      const outDir = userConfig.build?.outDir ?? path.join(buildsDirOf(harnessDir), 'manual');
 
       // Written for every command, so the dev server serves a benchmark file's page as well.
       benchFiles = await discoverBenchFiles({ harnessDir });
@@ -147,18 +139,18 @@ export function benchmarkPlugin(options: BenchmarkPluginOptions = {}): Plugin {
       }
       await writeBenchPages(harnessDir, benchFiles);
       // One React for the harness, its benchmark files and the page runtime they run under.
-      const resolve = { dedupe: ['react', 'react-dom'] };
+      const base = {
+        root: srcDir,
+        appType: 'mpa' as const,
+        resolve: { dedupe: ['react', 'react-dom'] },
+      };
 
       if (env.command !== 'build') {
-        return { root: srcDir, appType: 'mpa', resolve, build: { outDir } };
+        return { ...base, build: { outDir } };
       }
 
-      // Mark the output directory ignored from the inside before the build writes into it, so a
-      // harness that does not list `.benchmark` is not offered its built pages for commit. Keyed on
-      // where the output actually lands rather than on who chose it: `benchmark run` passes its own
-      // `outDir` under the same directory and prepares it itself, and any other caller that writes
-      // there deserves the marker too. Vite resolves a relative `outDir` against `root`.
-      if (path.resolve(srcDir, outDir).startsWith(path.join(harnessDir, OUTPUT_DIR))) {
+      // A plain `vite build` into the output directory marks it ignored, as `benchmark run` does.
+      if (!userConfig.build?.outDir) {
         await prepareOutputDir(harnessDir);
       }
 
@@ -170,9 +162,7 @@ export function benchmarkPlugin(options: BenchmarkPluginOptions = {}): Plugin {
       );
 
       return {
-        root: srcDir,
-        appType: 'mpa',
-        resolve,
+        ...base,
         // Relative asset urls: the runner serves each ref's build under its own path, so absolute
         // "/assets/…" paths would 404.
         base: './',

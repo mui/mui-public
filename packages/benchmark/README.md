@@ -89,41 +89,6 @@ iteration to the next. Wait for the mount to be painted — `await waitForElemen
 before starting a gesture on something the case just rendered; until then, the browser may not route
 the gesture to it.
 
-### Comparing implementations
-
-`compare()` measures implementations against each other — one library against another — instead of
-one build against another. Each variant is a module of ordinary `benchmark()` calls, loaded lazily;
-cases are paired across variants by name, and the first variant is the reference:
-
-```tsx
-// scatter.bench.tsx
-import { compare } from '@mui/internal-benchmark';
-
-compare('scatter', {
-  ours: () => import('./scatter.ours'),
-  recharts: () => import('./scatter.recharts'),
-});
-```
-
-```tsx
-// scatter.recharts.tsx
-import { benchmark } from '@mui/internal-benchmark';
-
-benchmark('mount', () => <RechartsScatter data={points} />);
-benchmark(
-  'zoom',
-  () => <RechartsScatter data={points} />,
-  async ({ input }) => {
-    await input.pinch({ x: 400, y: 300, scaleFactor: 2 });
-  },
-);
-```
-
-Under `benchmark run` every variant gets a page of its own that loads only its own module, so
-no variant's code, styles or module state is present while another is measured; all variants come
-from the working tree. Under Vitest, which has no notion of variants, each variant's cases simply run
-as tests of their own, named `mount [recharts]`.
-
 ### Scoping which renders are measured
 
 By default a benchmark records every React render and paint, from the mount through the whole interaction. To measure only part of an interaction — or to exclude the mount — pause and resume recording from the interaction callback:
@@ -453,16 +418,16 @@ its timeout; a horizon such as `'5%'` settles once a difference is known to be s
 ### The report
 
 The run writes `.benchmark/results/report.json`, prints it as tables, and with `--upload` sends it to
-the dashboard as version 2 of the `benchmark` report — the commit's `benchmark.json`, which the Vitest
-reporter writes as version 1, so a repository switches from one to the other rather than running
-both. The dashboard renders the pull request comment's Performance section and the repository's
-history from it. The report holds **raw samples**, round-aligned across variants, plus what each metric is — its kind,
-format and alarm — the builds, and the environment. Conclusions are computed from it, the same way
-everywhere, by `analyzeRun` from `@mui/internal-benchmark/runReport`: a 95% confidence interval on the
-paired difference per metric, a change (`better`, `worse`, `unsure`) that respects the metric's
-direction, and a severity from its alarm. `reactBenchmark()`'s `render` and `render:count` alarm on
-any resolved change for the worse, and `bench:paint` is informational; every other metric brings its
-own alarm.
+the dashboard, which renders the pull request comment's Performance section and the repository's
+history from it.
+
+- The report holds **raw samples**, round-aligned across variants, plus each metric's kind, format
+  and alarm, the builds, and the environment.
+- `analyzeRun` from `@mui/internal-benchmark/runReport` draws every conclusion from it: a 95%
+  confidence interval on the paired difference per metric, a change (`better`, `worse`, `unsure`),
+  and a severity from the metric's alarm.
+- `reactBenchmark()`'s `render` and `render:count` alarm on any resolved change for the worse;
+  `bench:paint` is informational; every other metric brings its own alarm.
 
 ### Choosing the baseline
 
@@ -474,9 +439,6 @@ Which commit a branch should actually be compared against is `code-infra baselin
 feature branch the fork point, on the base branch the previous commit. On master, then, every commit
 is measured against its parent, and the history the dashboard draws is each commit's own paired
 change — which commit moved a number reads off the chart rather than out of a noisy trend.
-
-`github:<owner>/<repo>#<sha>` and `preview:<sha>` are reserved for a baseline that is not a commit in
-this repository. Neither is implemented, and both are rejected by name rather than handed to git.
 
 ### Building and installing each side
 
@@ -502,7 +464,6 @@ none — so nothing else should build against the same checkout meanwhile.
 ## API
 
 - `benchmark` — define a benchmark test case
-- `compare` — compare implementations, each a lazily loaded module of `benchmark()` cases
 - `@mui/internal-benchmark/vitePlugin` — `benchmarkPlugin()`, the harness's vite plugin for `benchmark run`
 - `@mui/internal-benchmark/runReport` — the `benchmark run` report schema and `analyzeRun`
 - `ElementTiming` — invisible marker component for paint timing (renders a `<span>` tracked by the Element Timing API)

@@ -27,11 +27,8 @@ export interface BenchmarkCase {
   readonly name: string;
 }
 
-/** Every case the file registered, by name. */
-const cases = new Map<
-  string,
-  { run: BenchmarkRun; sampling: Required<SamplingOptions>; ownSampling: boolean }
->();
+/** Every case the file registered, by name, with its sampling options as given. */
+const cases = new Map<string, { run: BenchmarkRun; sampling: SamplingOptions }>();
 
 /**
  * Registers a benchmark case. The runner calls `run` once per sample, warmup included, for as many
@@ -46,16 +43,12 @@ export function benchmark(
   if (cases.has(name)) {
     throw new Error(`Two benchmarks share the name "${name}". Benchmark names must be unique.`);
   }
-  cases.set(name, {
-    run,
-    sampling: resolveSampling(sampling),
-    ownSampling: hasSampling(sampling),
-  });
+  // Resolved here only to reject invalid options where they were written.
+  resolveSampling(sampling);
+  cases.set(name, { run, sampling });
   return { name };
 }
 
-/** The `compare()` each compared case belongs to, by case name. */
-const comparedIn = new Map<string, string>();
 /** Each `compare()`, with its cases' names, the reference first. */
 const comparisons: Array<{
   name: string;
@@ -84,17 +77,17 @@ export function compare(
   }
   const resolved = resolveSampling(sampling);
   for (const benchCase of compared) {
-    if (cases.get(benchCase.name)?.ownSampling) {
+    const own = cases.get(benchCase.name)?.sampling;
+    if (own && hasSampling(own)) {
       throw new Error(
         `"${benchCase.name}" sets its own sampling, but a compared case is sampled as its ` +
           `compare() asks: pass the options to compare("${name}", …) instead.`,
       );
     }
-    const owner = comparedIn.get(benchCase.name);
-    if (owner !== undefined) {
-      throw new Error(`"${benchCase.name}" is already compared in "${owner}".`);
+    const owner = comparisons.find((comparison) => comparison.cases.includes(benchCase.name));
+    if (owner) {
+      throw new Error(`"${benchCase.name}" is already compared in "${owner.name}".`);
     }
-    comparedIn.set(benchCase.name, name);
   }
   comparisons.push({
     name,
@@ -188,8 +181,8 @@ async function sample(name: string): Promise<Record<string, number>> {
 export function markPageReady(): void {
   window.benchmarkPage = {
     cases: [...cases]
-      .filter(([name]) => !comparedIn.has(name))
-      .map(([name, { sampling }]) => ({ name, sampling })),
+      .filter(([name]) => !comparisons.some((comparison) => comparison.cases.includes(name)))
+      .map(([name, { sampling }]) => ({ name, sampling: resolveSampling(sampling) })),
     comparisons,
     metricDefinitions: () => Object.fromEntries(metricDefinitions),
     sample,

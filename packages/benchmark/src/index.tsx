@@ -1,5 +1,5 @@
 import type * as React from 'react';
-import { describe, expect, it } from 'vitest';
+import { expect, it } from 'vitest';
 import type { RunnerTestCase } from 'vitest';
 import { cdp } from 'vitest/browser';
 import type { RenderEvent, IterationData } from './types';
@@ -24,9 +24,6 @@ import './taskMetaAugmentation';
 
 export * from './publicApi';
 export type { BenchmarkOptions };
-
-/** Loads a `compare()` variant's module, whose `benchmark()` calls define that variant's cases. */
-export type VariantLoader = () => Promise<unknown>;
 
 // When true, `benchmark()` opens an interactive profiling session in a headed
 // browser instead of running the automated measurement loop. Enabled by
@@ -79,39 +76,13 @@ async function runIteration(
   }
 }
 
-// The `compare()` variant whose module is loading, so its `benchmark()` calls can say whose they are.
-let loadingVariant: string | undefined;
-
-/**
- * Compares implementations against each other — one library against another, say. Each variant is
- * a module of ordinary `benchmark()` calls; cases are paired across variants by name, and the first
- * variant is the reference.
- *
- * Vitest has no notion of variants, so here every variant's cases simply run as tests of their own,
- * suffixed with the variant: `mount [recharts]`. The interleaved engine is what compares them.
- */
-export function compare(name: string, variants: Record<string, VariantLoader>): void {
-  describe(name, async () => {
-    for (const [key, load] of Object.entries(variants)) {
-      loadingVariant = key;
-      try {
-        // eslint-disable-next-line no-await-in-loop
-        await load();
-      } finally {
-        loadingVariant = undefined;
-      }
-    }
-  });
-}
-
 export function benchmark(
-  caseName: string,
+  name: string,
   renderFn: () => React.ReactElement,
   interactionOrOptions?: BenchmarkInteraction | BenchmarkOptions,
   maybeOptions?: BenchmarkOptions,
 ) {
   const { interaction, options } = splitCaseArgs(interactionOrOptions, maybeOptions);
-  const name = loadingVariant === undefined ? caseName : `${caseName} [${loadingVariant}]`;
 
   // In profile mode, skip the automated measurement loop entirely: build a bare case runtime (no
   // BenchProfiler wrapper, no-op recording since the user drives DevTools by hand) and hand it to

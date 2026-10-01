@@ -2,13 +2,12 @@
 
 import chalk from 'chalk';
 import type { Browser, BrowserContext, CDPSession, Page } from '@playwright/test';
-import { BENCHMARK_LAUNCH_ARGS } from '../launchArgs';
-import { analyzeBenchmark } from '../runReport';
+import { BENCHMARK_LAUNCH_ARGS, BENCHMARK_VIEWPORT } from '../launchArgs';
+import { compareBenchmark } from '../runReport';
 import type { RunBenchmark, RunMetricDefinition } from '../runReport';
 import { differencesResolved, parseHorizons } from '../sampling';
 import type { SamplingOptions } from '../sampling';
 import type { BenchFile } from './benchFiles';
-import { variantOf } from './refs';
 import type { ResolvedRef } from './refs';
 import { serveDirectory } from './serveDirectory';
 import type { BenchPage } from '../page/page';
@@ -40,7 +39,6 @@ export interface InterleavedResults {
   browserVersion: string;
 }
 
-const VIEWPORT = { width: 1920, height: 1080 };
 const SAMPLE_TIMEOUT_MS = 120_000;
 
 type CdpMethod = Parameters<CDPSession['send']>[0];
@@ -84,7 +82,7 @@ interface OpenedPage {
 }
 
 async function openBenchPage(browser: Browser, url: string): Promise<OpenedPage> {
-  const context = await browser.newContext({ viewport: VIEWPORT });
+  const context = await browser.newContext({ viewport: BENCHMARK_VIEWPORT });
   const page = await context.newPage();
   page.setDefaultTimeout(SAMPLE_TIMEOUT_MS);
   page.on('pageerror', (error) => console.error(chalk.red(`  page error: ${error.message}`)));
@@ -208,7 +206,7 @@ async function runBenchmark(
     const metrics = await targets[0].page.evaluate(() => window.benchmarkPage!.metricDefinitions());
     const benchmarkOf = (): RunBenchmark => ({ ...entry, samples: samplesOf(slots, rounds) });
 
-    const isSettled = () => differencesResolved(analyzeBenchmark(metrics, benchmarkOf()), horizons);
+    const isSettled = () => differencesResolved(compareBenchmark(metrics, benchmarkOf()), horizons);
 
     const deadline = Date.now() + timeout * 60_000;
     let resolved = isSettled();
@@ -247,7 +245,7 @@ function samplesOf(slots: PageSlot[], rounds: Round[]): RunBenchmark['samples'] 
 }
 
 function benchPageUrl(origin: string, ref: ResolvedRef, benchFile: BenchFile): string {
-  return new URL(`${ref.id}/${benchFile.page}`, `${origin}/`).href;
+  return new URL(`${ref.variant}/${benchFile.page}`, `${origin}/`).href;
 }
 
 /**
@@ -261,7 +259,7 @@ async function runBenchFile(
   options: RunInterleavedOptions,
 ): Promise<CaseResult[]> {
   const urls = options.benchRefs.map((ref) => benchPageUrl(origin, ref, benchFile));
-  const variants = options.benchRefs.map(variantOf);
+  const variants = options.benchRefs.map((ref) => ref.variant);
   // The other builds only matter for cases measured across them; a file of `compare()`s alone
   // never loads them.
   const [reference] = await listBenchPages(browser, urls.slice(0, 1));

@@ -1,4 +1,5 @@
 import { calculateMean, quantile } from '../stats';
+import { baseMetricName } from '../metricCore';
 import type { BenchmarkRunReport, RunBenchmark, RunMetricDefinition } from './schema';
 
 /**
@@ -18,8 +19,6 @@ export interface Interval {
 export interface SampleSummary {
   count: number;
   median: number;
-  /** 95% confidence interval of the mean. */
-  mean: Interval;
 }
 
 /** Which way a resolved change went, given the metric's direction; `unsure` if it did not resolve. */
@@ -39,8 +38,6 @@ export interface MetricComparison {
   relative: Interval;
   change: Change;
   severity: Severity;
-  /** Rounds both variants were measured in. */
-  rounds: number;
 }
 
 export interface MetricAnalysis {
@@ -93,7 +90,7 @@ export function median(values: number[]): number {
 }
 
 function summarizeSamples(values: number[]): SampleSummary {
-  return { count: values.length, median: median(values), mean: meanInterval(values) };
+  return { count: values.length, median: median(values) };
 }
 
 const DEFAULT_DEFINITION: RunMetricDefinition = { kind: 'scalar' };
@@ -103,8 +100,7 @@ function definitionOf(
   metrics: Record<string, RunMetricDefinition>,
   metric: string,
 ): RunMetricDefinition {
-  const [base] = metric.split('#');
-  return metrics[metric] ?? metrics[base] ?? DEFAULT_DEFINITION;
+  return metrics[metric] ?? metrics[baseMetricName(metric)] ?? DEFAULT_DEFINITION;
 }
 
 /**
@@ -168,7 +164,7 @@ export function compareSamples(
   }
 
   const comparison = { subject: subject.name, against: against.name, absolute, relative, change };
-  return { ...comparison, severity: severityOf(comparison, definition), rounds };
+  return { ...comparison, severity: severityOf(comparison, definition) };
 }
 
 /** The pairs a benchmark's kind compares: the current build against the baseline, or every variant against the reference. */
@@ -179,37 +175,58 @@ function pairsOf(benchmark: RunBenchmark): Array<{ subject: string; against: str
     : others.map((other) => ({ subject: other, against: reference }));
 }
 
-/** Analyses one benchmark, its metrics described by `metrics` (a report's, or a run's so far). */
+export type MetricComparisons = Omit<MetricAnalysis, 'variants'>;
+
+/**
+ * Compares one benchmark's variants, its metrics described by `metrics` (a report's, or a run's so
+ * far). The comparisons alone, which is all deciding whether to keep sampling needs.
+ */
+export function compareBenchmark(
+  metrics: Record<string, RunMetricDefinition>,
+  benchmark: RunBenchmark,
+): { metrics: MetricComparisons[] } {
+  const { samples } = benchmark;
+  if (!samples) {
+    return { metrics: [] };
+  }
+  const [reference] = benchmark.variants;
+  return {
+    metrics: Object.keys(samples[reference] ?? {}).map((metric) => {
+      const definition = definitionOf(metrics, metric);
+      const valuesOf = (variant: string) => samples[variant]?.[metric] ?? [];
+      return {
+        metric,
+        definition,
+        comparisons: pairsOf(benchmark).map(({ subject, against }) =>
+          compareSamples(
+            { name: subject, values: valuesOf(subject) },
+            { name: against, values: valuesOf(against) },
+            definition,
+          ),
+        ),
+      };
+    }),
+  };
+}
+
+/** Analyses one benchmark: its comparisons, and a summary of each variant's samples. */
 export function analyzeBenchmark(
   metrics: Record<string, RunMetricDefinition>,
   benchmark: RunBenchmark,
 ): BenchmarkAnalysis {
   const { samples } = benchmark;
-  if (!samples) {
-    return { benchmark, metrics: [] };
-  }
-  const [reference] = benchmark.variants;
-  const metricNames = Object.keys(samples[reference] ?? {});
-
-  const analyses = metricNames.map((metric): MetricAnalysis => {
-    const definition = definitionOf(metrics, metric);
-    const valuesOf = (variant: string) => samples[variant]?.[metric] ?? [];
-    return {
-      metric,
-      definition,
+  return {
+    benchmark,
+    metrics: compareBenchmark(metrics, benchmark).metrics.map((comparison) => ({
+      ...comparison,
       variants: Object.fromEntries(
-        benchmark.variants.map((variant) => [variant, summarizeSamples(valuesOf(variant))]),
+        benchmark.variants.map((variant) => [
+          variant,
+          summarizeSamples(samples?.[variant]?.[comparison.metric] ?? []),
+        ]),
       ),
-      comparisons: pairsOf(benchmark).map(({ subject, against }) =>
-        compareSamples(
-          { name: subject, values: valuesOf(subject) },
-          { name: against, values: valuesOf(against) },
-          definition,
-        ),
-      ),
-    };
-  });
-  return { benchmark, metrics: analyses };
+    })),
+  };
 }
 
 export function analyzeRun(report: BenchmarkRunReport): BenchmarkAnalysis[] {
