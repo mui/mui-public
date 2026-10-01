@@ -1,94 +1,34 @@
+import { ASTUtils } from '@typescript-eslint/utils';
+
 /**
- * @typedef {import('estree').Node} Node
- * @typedef {import('estree').PropertyDefinition & {
- *   declare?: boolean;
- *   decorators?: Node[];
- *   typeAnnotation?: Node;
- * }} PropertyDefinition
+ * @typedef {import('@typescript-eslint/utils').TSESTree.Node} Node
+ * @typedef {import('@typescript-eslint/utils').TSESTree.PropertyDefinition} PropertyDefinition
  */
 
-const FUNCTION_OR_CLASS_TYPES = new Set([
+const FUNCTION_TYPES = new Set([
   'FunctionDeclaration',
   'FunctionExpression',
   'ArrowFunctionExpression',
-  'ClassDeclaration',
-  'ClassExpression',
 ]);
 
-const ACCESSIBILITY_MODIFIERS = new Set(['public', 'private', 'protected']);
-
 /**
- * Returns the static name of a non-private member key, or `null` when it can't be determined.
- * @param {Node} key
- * @param {boolean} computed
- * @returns {string | null}
- */
-function getStaticName(key, computed) {
-  if (!computed && key.type === 'Identifier') {
-    return key.name;
-  }
-  if (key.type === 'Literal' && typeof key.value === 'string') {
-    return key.value;
-  }
-  return null;
-}
-
-/**
- * Returns the property name when `node` is `this.<name>` or `this['<name>']`.
+ * Returns the class body of the constructor whose own code contains `node`, or `null` when
+ * `node` is outside a constructor or inside a nested function or class field.
  * @param {Node} node
- * @returns {string | null}
+ * @returns {import('@typescript-eslint/utils').TSESTree.ClassBody | null}
  */
-function getThisMemberName(node) {
-  if (node.type !== 'MemberExpression' || node.object.type !== 'ThisExpression') {
-    return null;
-  }
-  if (node.property.type === 'PrivateIdentifier') {
-    return null;
-  }
-  return getStaticName(node.property, node.computed);
-}
-
-/**
- * Whether `field` can be marked `declare`: TypeScript disallows it with an initializer or
- * decorators, and it's not valid JavaScript, so only typed fields qualify.
- * @param {PropertyDefinition} field
- * @returns {boolean}
- */
-function canDeclare(field) {
-  return !field.value && !field.decorators?.length && Boolean(field.typeAnnotation);
-}
-
-/**
- * Collects the names of `this` members assigned in `node`, without descending into nested
- * functions or classes, as those run later (or bind a different `this`).
- * @param {Node | null | undefined} node
- * @param {Set<string>} names
- */
-function collectThisAssignments(node, names) {
-  if (!node || typeof node !== 'object' || FUNCTION_OR_CLASS_TYPES.has(node.type)) {
-    return;
-  }
-
-  if (node.type === 'AssignmentExpression') {
-    const name = getThisMemberName(node.left);
-    if (name !== null) {
-      names.add(name);
+function getConstructorClassBody(node) {
+  let current = node.parent;
+  while (current && !FUNCTION_TYPES.has(current.type)) {
+    if (current.type === 'PropertyDefinition' || current.type === 'StaticBlock') {
+      return null;
     }
+    current = current.parent;
   }
-
-  for (const key of Object.keys(node)) {
-    if (key === 'parent') {
-      continue;
-    }
-    const child = /** @type {unknown} */ (/** @type {any} */ (node)[key]);
-    if (Array.isArray(child)) {
-      for (const item of child) {
-        collectThisAssignments(item, names);
-      }
-    } else if (child && typeof child === 'object' && /** @type {Node} */ (child).type) {
-      collectThisAssignments(/** @type {Node} */ (child), names);
-    }
-  }
+  const method = current?.parent;
+  return method?.type === 'MethodDefinition' && method.kind === 'constructor'
+    ? method.parent
+    : null;
 }
 
 /**
@@ -100,7 +40,8 @@ function collectThisAssignments(node, names) {
  * the constructor. Either initialize the field at its declaration, or mark it `declare` so it
  * only serves as a type annotation.
  *
- * Private (`#`) fields are ignored as they can't be marked `declare`.
+ * Private (`#`) fields are ignored: they are runtime JavaScript, not type-only declarations,
+ * and often have no alternative to constructor initialization.
  *
  * @example
  * // Invalid
@@ -140,72 +81,62 @@ const rule = {
       assignedInConstructor:
         "Field '{{name}}' is declared as a class field and also assigned in the constructor. " +
         'Either initialize it at the declaration and remove the constructor assignment, or mark it `declare`.',
+      assignedInConstructorUntyped:
+        "Field '{{name}}' is declared as a class field and also assigned in the constructor. " +
+        'Either initialize it at the declaration and remove the constructor assignment, or remove the field.',
       addDeclare: 'Mark the field `declare`.',
     },
     schema: [],
   },
   create(context) {
-    const sourceCode = context.sourceCode;
-
-    /**
-     * Returns the token `declare` goes in front of: after the accessibility modifier, which
-     * TypeScript requires to precede `declare`.
-     * @param {PropertyDefinition} field
-     */
-    function getDeclareAnchor(field) {
-      let token = sourceCode.getFirstToken(field);
-      if (token && ACCESSIBILITY_MODIFIERS.has(token.value)) {
-        token = sourceCode.getTokenAfter(token);
-      }
-      return /** @type {import('eslint').AST.Token} */ (token);
-    }
+    /** @type {Set<PropertyDefinition>} */
+    const reported = new Set();
 
     return {
-      ClassBody(node) {
-        const constructor = node.body.find(
-          (member) => member.type === 'MethodDefinition' && member.kind === 'constructor',
-        );
-        if (!constructor) {
+      AssignmentExpression(estreeNode) {
+        const node =
+          /** @type {import('@typescript-eslint/utils').TSESTree.AssignmentExpression} */ (
+            /** @type {unknown} */ (estreeNode)
+          );
+        if (node.left.type !== 'MemberExpression' || node.left.object.type !== 'ThisExpression') {
+          return;
+        }
+        const name = ASTUtils.getPropertyName(node.left);
+        const classBody = name === null ? null : getConstructorClassBody(node);
+        if (!classBody) {
           return;
         }
 
-        /** @type {Set<string>} */
-        const assigned = new Set();
-        collectThisAssignments(
-          /** @type {import('estree').MethodDefinition} */ (constructor).value.body,
-          assigned,
+        const field = classBody.body.find(
+          /** @returns {member is PropertyDefinition} */
+          (member) =>
+            member.type === 'PropertyDefinition' &&
+            !member.static &&
+            !member.declare &&
+            ASTUtils.getPropertyName(member) === name,
         );
-        if (assigned.size === 0) {
+        if (!field || reported.has(field)) {
           return;
         }
+        reported.add(field);
 
-        for (const member of node.body) {
-          if (member.type !== 'PropertyDefinition') {
-            continue;
-          }
-          const field = /** @type {PropertyDefinition} */ (member);
-          if (field.static || field.declare || field.key.type === 'PrivateIdentifier') {
-            continue;
-          }
-          const name = getStaticName(field.key, field.computed);
-          if (name === null || !assigned.has(name)) {
-            continue;
-          }
-
-          context.report({
-            node: field,
-            messageId: 'assignedInConstructor',
-            data: { name },
-            suggest: canDeclare(field)
-              ? [
-                  {
-                    messageId: 'addDeclare',
-                    fix: (fixer) => fixer.insertTextBefore(getDeclareAnchor(field), 'declare '),
-                  },
-                ]
-              : [],
-          });
-        }
+        // `declare` isn't valid with an initializer or decorators, nor in JavaScript.
+        const canDeclare = !field.value && field.decorators.length === 0 && field.typeAnnotation;
+        context.report({
+          node: /** @type {import('estree').Node} */ (/** @type {unknown} */ (field)),
+          messageId: field.typeAnnotation
+            ? 'assignedInConstructor'
+            : 'assignedInConstructorUntyped',
+          data: { name },
+          suggest: canDeclare
+            ? [
+                {
+                  messageId: 'addDeclare',
+                  fix: (fixer) => fixer.insertTextBeforeRange(field.range, 'declare '),
+                },
+              ]
+            : [],
+        });
       },
     };
   },

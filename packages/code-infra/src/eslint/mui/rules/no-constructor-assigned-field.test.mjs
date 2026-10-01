@@ -148,7 +148,7 @@ class Manager {
               messageId: 'addDeclare',
               output: `
 class Manager {
-  private declare containers: string[];
+  declare private containers: string[];
   private items: string[];
   constructor() {
     this.items = [];
@@ -168,7 +168,7 @@ class Manager {
               output: `
 class Manager {
   private containers: string[];
-  private declare items: string[];
+  declare private items: string[];
   constructor() {
     this.items = [];
     this.containers = [];
@@ -247,7 +247,7 @@ class Counter {
   }
 }
       `,
-      errors: [{ messageId: 'assignedInConstructor' }],
+      errors: [{ messageId: 'assignedInConstructorUntyped', suggestions: [] }],
     },
     // Should fail: Computed string key assignment
     {
@@ -259,7 +259,7 @@ class Manager {
   }
 }
       `,
-      errors: [{ messageId: 'assignedInConstructor', suggestions: [] }],
+      errors: [{ messageId: 'assignedInConstructorUntyped', suggestions: [] }],
     },
     // Should fail: Assigned once, reported once
     {
@@ -272,7 +272,7 @@ class Manager {
   }
 }
       `,
-      errors: [{ messageId: 'assignedInConstructor', suggestions: [] }],
+      errors: [{ messageId: 'assignedInConstructorUntyped', suggestions: [] }],
     },
   ],
 });
