@@ -235,6 +235,31 @@ class Manager {
   }
 }
       `,
+      errors: [{ messageId: 'assignedInConstructorNoDeclare', suggestions: [] }],
+    },
+    // Should fail: Overriding field, which can't be marked `declare`
+    {
+      code: `
+class Manager extends Base {
+  override items: string[];
+  constructor() {
+    super();
+    this.items = [];
+  }
+}
+      `,
+      errors: [{ messageId: 'assignedInConstructorNoDeclare', suggestions: [] }],
+    },
+    // Should fail: Definite assignment assertion, which can't be combined with `declare`
+    {
+      code: `
+class Manager {
+  private items!: string[];
+  constructor() {
+    this.items = [];
+  }
+}
+      `,
       errors: [{ messageId: 'assignedInConstructor', suggestions: [] }],
     },
     // Should fail: Compound assignment
@@ -247,7 +272,7 @@ class Counter {
   }
 }
       `,
-      errors: [{ messageId: 'assignedInConstructorUntyped', suggestions: [] }],
+      errors: [{ messageId: 'assignedInConstructorNoDeclare', suggestions: [] }],
     },
     // Should fail: Computed string key assignment
     {
@@ -259,7 +284,7 @@ class Manager {
   }
 }
       `,
-      errors: [{ messageId: 'assignedInConstructorUntyped', suggestions: [] }],
+      errors: [{ messageId: 'assignedInConstructorNoDeclare', suggestions: [] }],
     },
     // Should fail: Assigned once, reported once
     {
@@ -272,7 +297,7 @@ class Manager {
   }
 }
       `,
-      errors: [{ messageId: 'assignedInConstructorUntyped', suggestions: [] }],
+      errors: [{ messageId: 'assignedInConstructorNoDeclare', suggestions: [] }],
     },
   ],
 });

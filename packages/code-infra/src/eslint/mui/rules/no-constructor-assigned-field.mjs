@@ -81,7 +81,7 @@ const rule = {
       assignedInConstructor:
         "Field '{{name}}' is declared as a class field and also assigned in the constructor. " +
         'Either initialize it at the declaration and remove the constructor assignment, or mark it `declare`.',
-      assignedInConstructorUntyped:
+      assignedInConstructorNoDeclare:
         "Field '{{name}}' is declared as a class field and also assigned in the constructor. " +
         'Either initialize it at the declaration and remove the constructor assignment, or remove the field.',
       addDeclare: 'Mark the field `declare`.',
@@ -120,13 +120,14 @@ const rule = {
         }
         reported.add(field);
 
-        // `declare` isn't valid with an initializer or decorators, nor in JavaScript.
-        const canDeclare = !field.value && field.decorators.length === 0 && field.typeAnnotation;
+        // TypeScript disallows `declare` with decorators or `override`, and it isn't valid JavaScript.
+        const declarable =
+          Boolean(field.typeAnnotation) && field.decorators.length === 0 && !field.override;
+        // Adding `declare` directly also requires no initializer and no `!` assertion.
+        const canDeclare = declarable && !field.value && !field.definite;
         context.report({
           node: /** @type {import('estree').Node} */ (/** @type {unknown} */ (field)),
-          messageId: field.typeAnnotation
-            ? 'assignedInConstructor'
-            : 'assignedInConstructorUntyped',
+          messageId: declarable ? 'assignedInConstructor' : 'assignedInConstructorNoDeclare',
           data: { name },
           suggest: canDeclare
             ? [
