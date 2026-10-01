@@ -86,7 +86,7 @@ export async function remoteGitTagExists(tagName, cwd = process.cwd()) {
  * @param {string} cwd
  * @returns {Promise<string>}
  */
-async function defaultBranchOf(remote, cwd) {
+async function getDefaultBranchOf(remote, cwd) {
   const { stdout } = await $({ cwd })`git ls-remote --symref ${remote} HEAD`;
   const match = /^ref: refs\/heads\/(\S+)\tHEAD$/m.exec(stdout);
   if (!match) {
@@ -107,7 +107,7 @@ async function defaultBranchOf(remote, cwd) {
 export async function resolveBaseline(options = {}) {
   const cwd = options.cwd ?? process.cwd();
   const remote = options.remote ?? (await getRepositoryInfo(cwd)).remoteName;
-  const baseBranch = options.baseBranch ?? (await defaultBranchOf(remote, cwd));
+  const baseBranch = options.baseBranch ?? (await getDefaultBranchOf(remote, cwd));
 
   await $({ cwd })`git fetch --no-tags ${remote} ${baseBranch}`;
   const [forkPoint, head] = await Promise.all([
