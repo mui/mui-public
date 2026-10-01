@@ -19,7 +19,8 @@ export function createPackageJsonConfig() {
         'package-json/require-description': ['error', { ignorePrivate: true }],
         'package-json/restrict-private-properties': [
           'error',
-          { blockedProperties: ['files', 'publishConfig', 'license'] },
+          // `publishConfig.directory` is allowed: `code-infra build` reads it, also for private packages.
+          { blockedProperties: ['files', 'license'] },
         ],
         'no-restricted-syntax': [
           'error',

@@ -98,10 +98,16 @@ describe('createPackageJsonConfig', () => {
       ]);
     });
 
-    it('disallows publishConfig', async () => {
+    it('disallows files', async () => {
+      expect(await lintPackageJson({ ...PRIVATE_PACKAGE, files: ['build'] })).toEqual([
+        'package-json/restrict-private-properties',
+      ]);
+    });
+
+    it('accepts a publish directory for code-infra build', async () => {
       expect(
         await lintPackageJson({ ...PRIVATE_PACKAGE, publishConfig: { directory: 'build' } }),
-      ).toEqual(['package-json/restrict-private-properties']);
+      ).toEqual([]);
     });
   });
 });
