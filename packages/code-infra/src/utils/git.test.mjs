@@ -44,27 +44,45 @@ async function makeRemote(commits = ['first', 'second', 'third']) {
 }
 
 /**
- * Clones `remoteDir` as `origin`.
- * @param {string} remoteDir
- * @param {string[]} [cloneArgs]
+ * Adds remote `name`, named by a GitHub URL under `owner` that `insteadOf` sends to the local
+ * `dir`: the code under test sees the GitHub URL, while git fetches locally.
+ * @param {(...args: string[]) => Promise<any>} git
+ * @param {string} name
+ * @param {string} owner
+ * @param {string} dir
+ * @param {'add' | 'set-url'} [verb]
  */
-async function clone(remoteDir, cloneArgs = []) {
-  const dir = await tempDir('baseline-clone-');
-  await execa('git', ['clone', ...cloneArgs, remoteDir, dir], { env: GIT_ENV });
-  return { dir, git: gitIn(dir) };
+async function setRemote(git, name, owner, dir, verb = 'add') {
+  const url = `https://github.com/${owner}/${path.basename(dir)}.git`;
+  await git('remote', verb, name, url);
+  await git('config', `url.${dir}.insteadOf`, url);
 }
 
 /**
- * A clone whose `origin` is a fork stuck at the first commit, with `remote` reachable under
- * `remoteName`, and a `feature` branch forked from the remote's second commit.
- * @param {string} remoteName
+ * Clones `remoteDir`, its `origin` named as a repository of `owner`.
+ * @param {string} remoteDir
+ * @param {{ owner?: string, cloneArgs?: string[] }} [options]
  */
-async function makeForkClone(remoteName) {
+async function clone(remoteDir, { owner = 'mui', cloneArgs = [] } = {}) {
+  const dir = await tempDir('baseline-clone-');
+  await execa('git', ['clone', ...cloneArgs, remoteDir, dir], { env: GIT_ENV });
+  const git = gitIn(dir);
+  await setRemote(git, 'origin', owner, remoteDir, 'set-url');
+  return { dir, git };
+}
+
+/**
+ * A clone whose `origin` is a copy stuck at the first commit, by default someone's fork, with the
+ * mui repository added as `remoteName`, and a `feature` branch forked from its second commit.
+ * @param {string} remoteName
+ * @param {string} [originOwner]
+ */
+async function makeForkClone(remoteName, originOwner = 'someone') {
   const remote = await makeRemote();
   const fork = await clone(remote.dir);
   await fork.git('reset', '--hard', remote.shas[0]);
-  const work = await clone(fork.dir);
-  await work.git('remote', 'add', remoteName, remote.dir);
+  const work = await clone(fork.dir, { owner: originOwner });
+  await setRemote(work.git, remoteName, 'mui', remote.dir);
   await work.git('fetch', remoteName);
   await work.git('checkout', '-b', 'feature', remote.shas[1]);
   await work.git('commit', '--allow-empty', '-m', 'work');
@@ -93,7 +111,9 @@ describe('resolveBaseline', () => {
     await remote.git('checkout', '-b', 'feature', remote.shas[0]);
     await remote.git('commit', '--allow-empty', '-m', 'work');
     await remote.git('checkout', 'main');
-    const work = await clone(remote.dir, ['--single-branch', '--branch', 'feature']);
+    const work = await clone(remote.dir, {
+      cloneArgs: ['--single-branch', '--branch', 'feature'],
+    });
 
     expect(await resolveBaseline({ cwd: work.dir })).toBe(remote.shas[0]);
   });
@@ -129,23 +149,46 @@ describe('resolveBaseline', () => {
 });
 
 describe('resolveBaseline: the canonical remote', () => {
-  it('prefers upstream over origin', async () => {
+  it('prefers upstream over a fork as origin', async () => {
     const { remote, work } = await makeForkClone('upstream');
 
     expect(await resolveBaseline({ cwd: work.dir })).toBe(remote.shas[1]);
   });
 
-  it('uses the remote it is given', async () => {
+  it('prefers upstream when origin is a mui repository too', async () => {
+    const { remote, work } = await makeForkClone('upstream', 'mui');
+
+    expect(await resolveBaseline({ cwd: work.dir })).toBe(remote.shas[1]);
+  });
+
+  it('skips an upstream that is not a mui repository', async () => {
+    const remote = await makeRemote();
+    const unrelated = await makeRemote(['other']);
+    const work = await clone(remote.dir);
+    await setRemote(work.git, 'upstream', 'someone', unrelated.dir);
+
+    expect(await resolveBaseline({ cwd: work.dir })).toBe(remote.shas[1]);
+  });
+
+  it('fails when origin is a fork and there is no upstream', async () => {
+    const remote = await makeRemote();
+    const work = await clone(remote.dir, { owner: 'someone' });
+
+    await expect(resolveBaseline({ cwd: work.dir })).rejects.toThrow(
+      /No canonical remote.*github\.com\/someone\//,
+    );
+  });
+
+  it('does not fall back to a mui remote under another name', async () => {
+    const { work } = await makeForkClone('mui');
+
+    await expect(resolveBaseline({ cwd: work.dir })).rejects.toThrow(/No canonical remote/);
+  });
+
+  it('uses the remote it is given, whatever it points at', async () => {
     const { remote, work } = await makeForkClone('mui');
 
     expect(await resolveBaseline({ cwd: work.dir, remote: 'mui' })).toBe(remote.shas[1]);
-  });
-
-  it('goes by name, not by what a remote points at', async () => {
-    // Unless it is named, `mui` is just another remote and the fork's `origin` is canonical.
-    const { remote, work } = await makeForkClone('mui');
-
-    expect(await resolveBaseline({ cwd: work.dir })).toBe(remote.shas[0]);
   });
 
   it('fails for a remote the repository does not have', async () => {
@@ -153,13 +196,5 @@ describe('resolveBaseline: the canonical remote', () => {
     const work = await clone(remote.dir);
 
     await expect(resolveBaseline({ cwd: work.dir, remote: 'mui' })).rejects.toThrow(/'mui'/);
-  });
-
-  it('fails without upstream or origin', async () => {
-    const remote = await makeRemote();
-    const work = await clone(remote.dir);
-    await work.git('remote', 'rename', 'origin', 'mui');
-
-    await expect(resolveBaseline({ cwd: work.dir })).rejects.toThrow(/No canonical remote/);
   });
 });
