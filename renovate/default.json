@@ -146,6 +146,12 @@
       "reviewers": ["team:infra"]
     },
     {
+      "description": "Canaries publish on every mui-public merge. Without a schedule each one re-pushes the infra branches and reruns the full CI of every repo. Batch them once a day.",
+      "matchPackageNames": ["@mui/internal-*", "@mui/docs", "https://github.com/mui/mui-public"],
+      "schedule": ["* 0-1 * * *"],
+      "updateNotScheduled": false
+    },
+    {
       "matchSourceUrls": ["https://github.com/mui/mui-public"],
       "matchDatasources": ["npm"],
       "followTag": "canary"
