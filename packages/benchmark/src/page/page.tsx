@@ -126,8 +126,11 @@ export interface BenchPage {
   comparisons: Array<{ name: string; cases: string[]; sampling: Required<SamplingOptions> }>;
   /** Every metric recorded so far, by name. */
   metricDefinitions: () => Record<string, MetricDefinition>;
-  /** Runs one iteration of a case, and returns what it recorded, by series. */
-  sample: (name: string) => Promise<Record<string, number>>;
+  /**
+   * Runs one iteration of a case, and returns what it recorded, by series. `collectGarbage: false`
+   * skips the settle and GC before it, for a page that is fresh anyway.
+   */
+  sample: (name: string, options?: { collectGarbage?: boolean }) => Promise<Record<string, number>>;
 }
 
 declare global {
@@ -146,12 +149,17 @@ const input = createInput((method, params) => {
   return window.benchmarkCdp(method, params);
 });
 
-async function sample(name: string): Promise<Record<string, number>> {
+async function sample(
+  name: string,
+  { collectGarbage: collect = true }: { collectGarbage?: boolean } = {},
+): Promise<Record<string, number>> {
   const run = cases.get(name)?.run;
   if (!run) {
     throw new Error(`No benchmark named "${name}". Known: ${[...cases.keys()].join(', ')}`);
   }
-  await collectGarbage();
+  if (collect) {
+    await collectGarbage();
+  }
   performance.clearMarks();
   performance.clearMeasures();
 

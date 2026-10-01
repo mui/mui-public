@@ -6,4 +6,4 @@ import type { SamplingOptions } from '@mui/internal-benchmark/page';
  * sample until the timeout; a close `compare()` can take as long. A `10%` horizon settles as soon as
  * a difference is known to be larger or smaller than that.
  */
-export const SMOKE_SAMPLING: SamplingOptions = { timeout: 1, autoSampleConditions: ['10%'] };
+export const SMOKE_SAMPLING: SamplingOptions = { sampleSize: 40, timeout: 0 };

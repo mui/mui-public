@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 
 import chalk from 'chalk';
-import type { Browser, BrowserContext, CDPSession, Page } from '@playwright/test';
+import type { Browser, BrowserContext, CDPSession, Frame, Page } from '@playwright/test';
 import { BENCHMARK_LAUNCH_ARGS, BENCHMARK_VIEWPORT } from '../launchArgs';
 import { compareBenchmark } from '../runReport';
 import type { RunBenchmark, RunMetricDefinition } from '../runReport';
@@ -81,11 +81,8 @@ interface OpenedPage {
   listing: PageListing;
 }
 
-async function openBenchPage(browser: Browser, url: string): Promise<OpenedPage> {
-  const context = await browser.newContext({ viewport: BENCHMARK_VIEWPORT });
-  const page = await context.newPage();
-  page.setDefaultTimeout(SAMPLE_TIMEOUT_MS);
-  page.on('pageerror', (error) => console.error(chalk.red(`  page error: ${error.message}`)));
+/** Bridges a page's trusted-input requests to a CDP session on it. */
+async function bridgeCdp(context: BrowserContext, page: Page): Promise<void> {
   const session = await context.newCDPSession(page);
   // Interactions ask for trusted input through this bridge. `send` only accepts the protocol
   // methods Playwright knows by name; the page may ask for any, and Chrome rejects unknown ones.
@@ -94,7 +91,18 @@ async function openBenchPage(browser: Browser, url: string): Promise<OpenedPage>
     (_source, method: string, params?: Record<string, unknown>) =>
       session.send(method as CdpMethod, params),
   );
-  await page.goto(url);
+}
+
+function watchErrors(page: Page): void {
+  page.setDefaultTimeout(SAMPLE_TIMEOUT_MS);
+  page.on('pageerror', (error) => console.error(chalk.red(`  page error: ${error.message}`)));
+}
+
+/** Loads a benchmark page into `page` and waits until it has registered its cases. */
+async function loadBenchPage(page: Page | Frame, url?: string): Promise<PageListing> {
+  if (url) {
+    await page.goto(url);
+  }
   const ready = await page.waitForFunction(() => {
     if (window.benchmarkPage === undefined) {
       return false;
@@ -107,13 +115,27 @@ async function openBenchPage(browser: Browser, url: string): Promise<OpenedPage>
   });
   const state = await ready.jsonValue();
   if (!state) {
-    await context.close();
-    throw new Error(`${url} never got ready.`);
+    throw new Error(`${page.url()} never got ready.`);
   }
   if (state.visibility !== 'visible') {
-    console.warn(chalk.yellow(`  ${url} is ${state.visibility}; rAF-based waits may stall.`));
+    console.warn(
+      chalk.yellow(`  ${page.url()} is ${state.visibility}; rAF-based waits may stall.`),
+    );
   }
-  return { context, page, listing: state };
+  return state;
+}
+
+async function openBenchPage(browser: Browser, url: string): Promise<OpenedPage> {
+  const context = await browser.newContext({ viewport: BENCHMARK_VIEWPORT });
+  try {
+    const page = await context.newPage();
+    watchErrors(page);
+    await bridgeCdp(context, page);
+    return { context, page, listing: await loadBenchPage(page, url) };
+  } catch (error) {
+    await context.close();
+    throw error;
+  }
 }
 
 async function closeBenchPages(targets: OpenedPage[]): Promise<void> {
@@ -139,8 +161,15 @@ async function listBenchPages(browser: Browser, urls: string[]): Promise<PageLis
 }
 
 /** Runs one iteration of a case, and returns what it recorded, by series. */
-function sampleBenchCase(page: Page, name: string): Promise<Record<string, number>> {
-  return page.evaluate((caseName) => window.benchmarkPage!.sample(caseName), name);
+function sampleBenchCase(
+  target: Page | Frame,
+  name: string,
+  collectGarbage = true,
+): Promise<Record<string, number>> {
+  return target.evaluate(
+    ([caseName, collect]) => window.benchmarkPage!.sample(caseName, { collectGarbage: collect }),
+    [name, collectGarbage] as const,
+  );
 }
 
 /**
@@ -162,11 +191,150 @@ interface CaseResult {
 
 type BenchmarkEntry = Pick<RunBenchmark, 'name' | 'file' | 'kind' | 'variants'>;
 
+/** How the variants of a benchmark are isolated from each other. EXPERIMENT. */
+type Isolation = 'pages' | 'iframes' | 'fresh';
+
+const ISOLATION: Isolation = (process.env.BENCHMARK_ISOLATION as Isolation | undefined) ?? 'pages';
+
+/** Runs the slots of one benchmark, one sample at a time. */
+interface Sampler {
+  /** Whether warmup rounds are worth running: not when every sample gets a fresh page. */
+  warmup: boolean;
+  beginRound?: () => Promise<void>;
+  sample: (index: number) => Promise<Record<string, number>>;
+  endRound?: () => Promise<void>;
+  metricDefinitions: () => Promise<Record<string, RunMetricDefinition>>;
+  close: () => Promise<void>;
+}
+
+/** Every slot in a page of its own, open for the whole benchmark. */
+async function openPagesSampler(browser: Browser, slots: PageSlot[]): Promise<Sampler> {
+  const targets = await openBenchPages(
+    browser,
+    slots.map((slot) => slot.url),
+  );
+  return {
+    warmup: true,
+    sample: (index) => sampleBenchCase(targets[index].page, slots[index].caseName),
+    metricDefinitions: () =>
+      targets[0].page.evaluate(() => window.benchmarkPage!.metricDefinitions()),
+    close: () => closeBenchPages(targets),
+  };
+}
+
+function iframeHostHtml(slots: PageSlot[]): string {
+  const frames = slots
+    .map((slot, index) => `<iframe name="slot-${index}" src="${slot.url}"></iframe>`)
+    .join('');
+  return `<!doctype html><html><head><style>
+html, body { margin: 0; height: 100%; overflow: hidden; }
+iframe { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; background: white; z-index: 0; }
+iframe.front { z-index: 1; }
+</style></head><body>${frames}</body></html>`;
+}
+
 /**
- * Measures one benchmark in fresh pages that stay open for all of it, so iterations stay warm and
- * module-scope data is built once. Warmup and measured rounds alike run every slot once, in a
- * shuffled order. After `sampleSize` rounds it keeps adding rounds while a difference is unresolved
- * against the horizons, until the timeout. A failure is reported as the benchmark's error.
+ * Every slot in a full-viewport iframe of one page, all same-origin, so they share a renderer
+ * process, its main thread and its heap. The measured one is raised to the front: it is the one
+ * that paints on top and that trusted input lands in.
+ */
+async function openIframesSampler(browser: Browser, slots: PageSlot[]): Promise<Sampler> {
+  const context = await browser.newContext({ viewport: BENCHMARK_VIEWPORT });
+  try {
+    const page = await context.newPage();
+    watchErrors(page);
+    await bridgeCdp(context, page);
+    const hostUrl = new URL('/__benchmark-host.html', slots[0].url).href;
+    const html = iframeHostHtml(slots);
+    await page.route(hostUrl, (route) => route.fulfill({ contentType: 'text/html', body: html }));
+    await page.goto(hostUrl);
+    const frames = slots.map((_, index) => {
+      const frame = page.frame({ name: `slot-${index}` });
+      if (!frame) {
+        throw new Error(`No frame for slot ${index}.`);
+      }
+      return frame;
+    });
+    await Promise.all(frames.map((frame) => loadBenchPage(frame)));
+    return {
+      warmup: true,
+      async sample(index) {
+        // Raise the measured frame, then let a frame render so the swap is not part of the sample.
+        await page.evaluate(async (front) => {
+          for (const frame of document.querySelectorAll('iframe')) {
+            frame.classList.toggle('front', frame.name === `slot-${front}`);
+          }
+          await new Promise((resolve) => {
+            requestAnimationFrame(() => requestAnimationFrame(resolve));
+          });
+        }, index);
+        return sampleBenchCase(frames[index], slots[index].caseName);
+      },
+      metricDefinitions: () => frames[0].evaluate(() => window.benchmarkPage!.metricDefinitions()),
+      close: () => context.close(),
+    };
+  } catch (error) {
+    await context.close();
+    throw error;
+  }
+}
+
+/**
+ * Every sample in a page of its own: each round loads one fresh page per slot — all at once, before
+ * anything is measured — samples each once, cold, and closes them. Nothing carries over between
+ * samples, so neither warmup nor a GC between them has anything to do.
+ */
+async function openFreshSampler(browser: Browser, slots: PageSlot[]): Promise<Sampler> {
+  // One context for the whole benchmark: its HTTP cache keeps reloading cheap.
+  const context = await browser.newContext({ viewport: BENCHMARK_VIEWPORT });
+  let pages: Page[] = [];
+  let definitions: Record<string, RunMetricDefinition> = {};
+  const closeRound = async () => {
+    const closing = pages;
+    pages = [];
+    await Promise.all(closing.map((page) => page.close()));
+  };
+  return {
+    warmup: false,
+    async beginRound() {
+      pages = await Promise.all(
+        slots.map(async (slot) => {
+          const page = await context.newPage();
+          watchErrors(page);
+          await bridgeCdp(context, page);
+          await loadBenchPage(page, slot.url);
+          return page;
+        }),
+      );
+    },
+    sample: (index) => sampleBenchCase(pages[index], slots[index].caseName, false),
+    async endRound() {
+      definitions = await pages[0].evaluate(() => window.benchmarkPage!.metricDefinitions());
+      await closeRound();
+    },
+    metricDefinitions: async () => definitions,
+    async close() {
+      await closeRound();
+      await context.close();
+    },
+  };
+}
+
+function openSampler(browser: Browser, slots: PageSlot[]): Promise<Sampler> {
+  switch (ISOLATION) {
+    case 'iframes':
+      return openIframesSampler(browser, slots);
+    case 'fresh':
+      return openFreshSampler(browser, slots);
+    default:
+      return openPagesSampler(browser, slots);
+  }
+}
+
+/**
+ * Measures one benchmark. Warmup and measured rounds alike run every slot once, in a shuffled
+ * order. After `sampleSize` rounds it keeps adding rounds while a difference is unresolved against
+ * the horizons, until the timeout. A failure is reported as the benchmark's error.
  */
 async function runBenchmark(
   browser: Browser,
@@ -175,24 +343,25 @@ async function runBenchmark(
   sampling: Required<SamplingOptions>,
   options: RunInterleavedOptions,
 ): Promise<CaseResult> {
-  console.log(chalk.cyan(`\nRunning "${entry.name}" (${entry.file})…`));
+  console.log(chalk.cyan(`\nRunning "${entry.name}" (${entry.file}) [${ISOLATION}]…`));
+  const startedAt = Date.now();
   const { sampleSize, timeout, autoSampleConditions } = sampling;
   const horizons = parseHorizons(autoSampleConditions);
-  let targets: OpenedPage[] = [];
+  let sampler: Sampler | undefined;
   const runRound = async (): Promise<Round> => {
+    await sampler!.beginRound?.();
     const round: Round = [];
-    for (const index of shuffledIndices(targets.length)) {
+    for (const index of shuffledIndices(slots.length)) {
       // eslint-disable-next-line no-await-in-loop
-      round[index] = await sampleBenchCase(targets[index].page, slots[index].caseName);
+      round[index] = await sampler!.sample(index);
     }
+    await sampler!.endRound?.();
     return round;
   };
   try {
-    targets = await openBenchPages(
-      browser,
-      slots.map((slot) => slot.url),
-    );
-    for (let roundIndex = 0; roundIndex < options.warmup; roundIndex += 1) {
+    sampler = await openSampler(browser, slots);
+    const warmupRounds = sampler.warmup ? options.warmup : 0;
+    for (let roundIndex = 0; roundIndex < warmupRounds; roundIndex += 1) {
       // eslint-disable-next-line no-await-in-loop
       await runRound();
     }
@@ -203,7 +372,7 @@ async function runBenchmark(
     }
     // Read from the reference page: a metric whose config the change under test altered is
     // described the way the change describes it. Every metric has been recorded by now.
-    const metrics = await targets[0].page.evaluate(() => window.benchmarkPage!.metricDefinitions());
+    const metrics = await sampler.metricDefinitions();
     const benchmarkOf = (): RunBenchmark => ({ ...entry, samples: samplesOf(slots, rounds) });
 
     const isSettled = () => differencesResolved(compareBenchmark(metrics, benchmarkOf()), horizons);
@@ -215,13 +384,12 @@ async function runBenchmark(
       rounds.push(await runRound());
       resolved = isSettled();
     }
-    if (rounds.length > sampleSize || !resolved) {
-      console.log(
-        chalk.dim(
-          `  ${rounds.length} rounds, ${resolved ? 'resolved' : `unresolved after ${timeout} min`}`,
-        ),
-      );
-    }
+    console.log(
+      chalk.dim(
+        `  ${rounds.length} rounds, ${resolved ? 'resolved' : `unresolved after ${timeout} min`}, ` +
+          `${((Date.now() - startedAt) / 1000).toFixed(1)}s`,
+      ),
+    );
     return {
       benchmark: { ...benchmarkOf(), sampling: { sampleSize, timedOut: !resolved } },
       metrics,
@@ -230,7 +398,7 @@ async function runBenchmark(
     console.error(chalk.red(`  ${errorMessage(error)}`));
     return { benchmark: { ...entry, error: errorMessage(error) }, metrics: {} };
   } finally {
-    await closeBenchPages(targets);
+    await sampler?.close();
   }
 }
 
