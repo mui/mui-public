@@ -68,14 +68,6 @@ export function splitCaseArgs<Options extends object>(
     : { interaction: undefined, options: interactionOrOptions ?? maybeOptions };
 }
 
-export function warnIfNoGc(): void {
-  if (typeof window.gc !== 'function') {
-    console.warn(
-      'window.gc is not available. Run with --js-flags=--expose-gc for consistent GC between iterations.',
-    );
-  }
-}
-
 function BenchProfiler({
   captures,
   recording,
@@ -102,29 +94,6 @@ function BenchProfiler({
       {children}
     </React.Profiler>
   );
-}
-
-// Double GC: the first pass collects garbage, the second catches weak refs
-// and prevent leaking into the next iteration.
-function forceGC() {
-  if (typeof window.gc === 'function') {
-    window.gc();
-    window.gc();
-  }
-}
-
-declare global {
-  interface Window {
-    gc?: () => void;
-  }
-}
-
-// Flush pending microtasks and React cleanup effects (e.g. from a previous unmount)
-// so they don't interfere with the next iteration's timing.
-function settle(): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, 0);
-  });
 }
 
 function supportsElementTiming(): boolean {
@@ -297,10 +266,6 @@ export async function measureIteration(
   // Per-iteration switch for the harness's React render/paint recording. Starts paused when
   // `reactRecordingPaused` is set; the interaction callback drives it from there.
   const recording = createReactRecordingControls(!(options?.reactRecordingPaused ?? false));
-
-  // Drain event loop from previous unmount, then double GC for thorough cleanup
-  await settle();
-  forceGC();
 
   const captures: RenderEvent[] = [];
   const timing = createElementTimingWaiter();

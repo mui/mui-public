@@ -56,6 +56,11 @@ const benchmarkSchema = z.object({
   variants: z.array(z.string()),
   /** Per variant, per metric: one value per round, round-aligned across variants and metrics. */
   samples: z.record(z.string(), z.record(z.string(), z.array(z.number()))).optional(),
+  /**
+   * How sampling went: rounds past `sampleSize` were added while a difference was unresolved, and
+   * `timedOut` says it was still unresolved when the timeout stopped it.
+   */
+  sampling: z.object({ sampleSize: z.number(), timedOut: z.boolean() }).optional(),
   /** Why the benchmark produced no samples. */
   error: z.string().optional(),
 });

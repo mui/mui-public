@@ -1,11 +1,5 @@
 import type * as React from 'react';
-import {
-  measureIteration,
-  MILLISECONDS,
-  PAINT_METRIC_NAME,
-  splitCaseArgs,
-  warnIfNoGc,
-} from '../caseRuntime';
+import { measureIteration, MILLISECONDS, PAINT_METRIC_NAME, splitCaseArgs } from '../caseRuntime';
 import type { BenchmarkInteraction, CaseOptions } from '../caseRuntime';
 import { DiscreteMetric } from '../DiscreteMetric';
 import { ScalarMetric } from '../ScalarMetric';
@@ -31,9 +25,6 @@ function phaseMetricOf(phase: string): ScalarMetric {
   return metric;
 }
 
-// Every iteration forces a GC before mounting, which needs `--expose-gc`; warned about once.
-let checkedGc = false;
-
 /**
  * Registers a React benchmark case: every sample mounts `renderFn()`, runs the interaction, waits
  * for the paint and unmounts. It records the renders React's profiler captured and the time to
@@ -45,10 +36,6 @@ export function reactBenchmark(
   interactionOrOptions?: BenchmarkInteraction | ReactBenchmarkOptions,
   maybeOptions?: ReactBenchmarkOptions,
 ): BenchmarkCase {
-  if (!checkedGc) {
-    checkedGc = true;
-    warnIfNoGc();
-  }
   const { interaction, options } = splitCaseArgs(interactionOrOptions, maybeOptions);
 
   const run = async ({ input }: BenchmarkContext) => {

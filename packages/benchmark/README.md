@@ -422,7 +422,7 @@ the dashboard, which renders the pull request comment's Performance section and 
 history from it.
 
 - The report holds **raw samples**, round-aligned across variants, plus each metric's kind, format
-  and alarm, the builds, and the environment.
+  and alarm, how each benchmark's sampling went, the builds, and the environment.
 - `analyzeRun` from `@mui/internal-benchmark/runReport` draws every conclusion from it: a 95%
   confidence interval on the paired difference per metric, a change (`better`, `worse`, `unsure`),
   and a severity from the metric's alarm.

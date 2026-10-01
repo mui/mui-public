@@ -40,6 +40,7 @@ const slower: RunBenchmark = {
     current: { render: [22, 24, 23, 25], 'bench:paint': [30, 31, 30, 31] },
     baseline: { render: [20, 22, 21, 23], 'bench:paint': [30, 31, 30, 31] },
   },
+  sampling: { sampleSize: 3, timedOut: true },
 };
 
 const libraries: RunBenchmark = {
@@ -81,26 +82,26 @@ describe('buildBenchmarkRunMarkdownReport', () => {
 
       🔴 **Grid scroll** · render · \`worse +9.3% – +9.3%\`
 
-      2 benchmarks measured · 1 with regressions · 1 failed
+      2 benchmarks measured · 1 with regressions · 1 timed out · 1 failed
 
       ❌ **Chart zoom**: Render failed
 
       <details>
       <summary>Full results</summary>
 
-      **Grid scroll**
+      **Grid scroll** · 3 + 1 rounds · timed out
 
-      | Metric | current | baseline | Δ vs baseline | Rounds |
-      |:----------|----------:|----------:|:----------|----------:|
-      | render | 23.5 ms | 21.5 ms | \`worse +9.3% – +9.3%\` | 4 |
-      | bench:paint | 30.5 ms | 30.5 ms | \`unsure +0.0% – +0.0%\` | 4 |
+      | Metric | current | baseline | Δ vs baseline |
+      |:----------|----------:|----------:|:----------|
+      | render | 23.5 ms | 21.5 ms | \`worse +9.3% – +9.3%\` |
+      | bench:paint | 30.5 ms | 30.5 ms | \`unsure +0.0% – +0.0%\` |
 
 
-      **libs / mount**
+      **libs / mount** · 4 rounds
 
-      | Metric | ours | theirs | theirs vs ours | Rounds |
-      |:----------|----------:|----------:|:----------|----------:|
-      | render | 10 ms | 20.5 ms | \`worse +95.8% – +114.2%\` | 4 |
+      | Metric | ours | theirs | theirs vs ours |
+      |:----------|----------:|----------:|:----------|
+      | render | 10 ms | 20.5 ms | \`worse +95.8% – +114.2%\` |
 
 
       _Each value is a median. Each Δ is a 95% confidence interval on the paired per-round difference, relative to the variant it is measured against; "unsure" means it straddles zero — the expected result for two equivalent builds._

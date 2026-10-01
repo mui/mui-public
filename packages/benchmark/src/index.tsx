@@ -7,6 +7,7 @@ import { ScalarMetric } from './ScalarMetric';
 import { metricsGate } from './metricsGate';
 import { runProfileSession } from './profileSession';
 import { createInput } from './input';
+import { collectGarbage } from './gc';
 import {
   createCaseRuntime,
   createElementTimingWaiter,
@@ -14,7 +15,6 @@ import {
   MILLISECONDS,
   PAINT_METRIC_NAME,
   splitCaseArgs,
-  warnIfNoGc,
 } from './caseRuntime';
 import type { BenchmarkInteraction, BenchmarkOptions, CaseOptions } from './caseRuntime';
 // Installs the Vitest metric recorder.
@@ -62,6 +62,7 @@ async function runIteration(
 ): Promise<RenderEvent[]> {
   // Custom metrics recorded inside the case honor warmup exclusion through the gate, the same way
   // renders and `bench:paint` are excluded during warmup.
+  await collectGarbage();
   metricsGate.setRecordingEnabled(test, !warmup);
   try {
     const { renders, paints } = await measureIteration(renderFn, interaction, options, input);
@@ -112,8 +113,6 @@ export function benchmark(
   it(name, async ({ task }) => {
     const runs = options?.runs ?? 20;
     const warmupRuns = options?.warmupRuns ?? 10;
-
-    warnIfNoGc();
 
     const iterations: IterationData[] = [];
     try {

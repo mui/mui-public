@@ -3,6 +3,7 @@ import {
   analyzeRun,
   benchmarkTable,
   findRegressions,
+  formatRounds,
   formatComparison,
   formatRunSummary,
   RUN_REPORT_FOOTNOTE,
@@ -34,7 +35,7 @@ function renderBenchmarkTable(analysis: BenchmarkAnalysis): string {
       ),
     ),
   );
-  return `**${analysis.benchmark.name}**\n\n${table}`;
+  return `**${analysis.benchmark.name}** · ${formatRounds(analysis.benchmark)}\n\n${table}`;
 }
 
 /**

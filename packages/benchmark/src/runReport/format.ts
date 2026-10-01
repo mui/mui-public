@@ -59,14 +59,13 @@ export interface BenchmarkTableRow {
 }
 
 /**
- * A benchmark's results as one table, for every renderer of it: per metric, each variant's median,
- * each comparison, and the rounds measured.
+ * A benchmark's results as one table, for every renderer of it: per metric, each variant's median
+ * and each comparison.
  */
 export function benchmarkTable({ benchmark, metrics }: BenchmarkAnalysis): {
   columns: BenchmarkTableColumn[];
   rows: BenchmarkTableRow[];
 } {
-  const [reference] = benchmark.variants;
   const columns: BenchmarkTableColumn[] = [
     { header: 'Metric', kind: 'label' },
     ...benchmark.variants.map((variant) => ({ header: variant, kind: 'value' as const })),
@@ -74,7 +73,6 @@ export function benchmarkTable({ benchmark, metrics }: BenchmarkAnalysis): {
       header: formatComparisonLabel(benchmark, comparison),
       kind: 'comparison' as const,
     })),
-    { header: 'Rounds', kind: 'value' },
   ];
   const rows = metrics.map(({ metric, definition, variants, comparisons }) => ({
     metric,
@@ -83,20 +81,37 @@ export function benchmarkTable({ benchmark, metrics }: BenchmarkAnalysis): {
       metric,
       ...benchmark.variants.map((variant) => formatValue(variants[variant].median, definition)),
       ...comparisons.map(formatComparison),
-      String(variants[reference].count),
     ],
   }));
   return { columns, rows };
 }
 
-/** The line a run is summed up in: how many benchmarks measured, regressed and failed. */
+/**
+ * How many rounds a benchmark ran, and whether sampling resolved: `50 rounds`, `50 + 23 rounds` past
+ * the sample size, `50 + 312 rounds · timed out`. `null` for a benchmark that measured nothing.
+ */
+export function formatRounds(benchmark: RunBenchmark): string | null {
+  const [reference] = benchmark.variants;
+  const rounds = Object.values(benchmark.samples?.[reference] ?? {})[0]?.length;
+  if (rounds === undefined) {
+    return null;
+  }
+  const sampleSize = benchmark.sampling?.sampleSize ?? rounds;
+  const counted =
+    rounds > sampleSize ? `${sampleSize} + ${rounds - sampleSize} rounds` : `${rounds} rounds`;
+  return benchmark.sampling?.timedOut ? `${counted} · timed out` : counted;
+}
+
+/** The line a run is summed up in: how many benchmarks measured, regressed, timed out and failed. */
 export function formatRunSummary(analyses: BenchmarkAnalysis[], regressions: Regression[]): string {
   const measured = analyses.filter((analysis) => !analysis.benchmark.error).length;
   const failed = analyses.length - measured;
   const regressed = new Set(regressions.map((regression) => regression.benchmark)).size;
+  const timedOut = analyses.filter((analysis) => analysis.benchmark.sampling?.timedOut).length;
   return [
     `${measured} benchmark${measured === 1 ? '' : 's'} measured`,
     regressed > 0 ? `${regressed} with regressions` : 'no regressions',
+    timedOut > 0 ? `${timedOut} timed out` : null,
     failed > 0 ? `${failed} failed` : null,
   ]
     .filter(Boolean)

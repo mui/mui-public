@@ -1,3 +1,4 @@
+import { collectGarbage } from '../gc';
 import { createInput } from '../input';
 import type { BenchmarkInput } from '../input';
 import { seriesName, setMetricRecorder } from '../metricCore';
@@ -150,6 +151,7 @@ async function sample(name: string): Promise<Record<string, number>> {
   if (!run) {
     throw new Error(`No benchmark named "${name}". Known: ${[...cases.keys()].join(', ')}`);
   }
+  await collectGarbage();
   performance.clearMarks();
   performance.clearMeasures();
 

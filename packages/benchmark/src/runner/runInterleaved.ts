@@ -222,7 +222,10 @@ async function runBenchmark(
         ),
       );
     }
-    return { benchmark: benchmarkOf(), metrics };
+    return {
+      benchmark: { ...benchmarkOf(), sampling: { sampleSize, timedOut: !resolved } },
+      metrics,
+    };
   } catch (error) {
     console.error(chalk.red(`  ${errorMessage(error)}`));
     return { benchmark: { ...entry, error: errorMessage(error) }, metrics: {} };

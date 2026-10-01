@@ -13,9 +13,15 @@ import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
+import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { fetchCiReport, isBenchmarkRunUpload } from '@/utils/fetchCiReport';
-import { analyzeRun, benchmarkTable, RUN_REPORT_FOOTNOTE } from '@mui/internal-benchmark/runReport';
+import {
+  analyzeRun,
+  benchmarkTable,
+  formatRounds,
+  RUN_REPORT_FOOTNOTE,
+} from '@mui/internal-benchmark/runReport';
 import type {
   BenchmarkAnalysis,
   BenchmarkRunReport,
@@ -47,7 +53,22 @@ function BenchmarkTable({ analysis }: { analysis: BenchmarkAnalysis }) {
       <Typography variant="subtitle1" component="h3">
         {benchmark.name}{' '}
         <Typography component="span" variant="body2" color="text.secondary">
-          {benchmark.file}
+          {benchmark.file} ·{' '}
+          <Tooltip
+            title={
+              benchmark.sampling?.timedOut
+                ? 'Still unresolved when the timeout stopped sampling'
+                : 'Rounds past the sample size were added while a difference was unresolved'
+            }
+          >
+            <Typography
+              component="span"
+              variant="body2"
+              color={benchmark.sampling?.timedOut ? 'warning.main' : 'text.secondary'}
+            >
+              {formatRounds(benchmark)}
+            </Typography>
+          </Tooltip>
         </Typography>
       </Typography>
       <Table size="small">

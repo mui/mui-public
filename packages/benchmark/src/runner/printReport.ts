@@ -4,6 +4,7 @@ import { dim, printTable, red, yellow } from '../format';
 import {
   analyzeRun,
   benchmarkTable,
+  formatRounds,
   findRegressions,
   formatComparison,
   formatRunSummary,
@@ -21,7 +22,7 @@ function printBenchmark(analysis: BenchmarkAnalysis): void {
     })),
     cells,
     undefined,
-    `${analysis.benchmark.name}  (${analysis.benchmark.file})`,
+    `${analysis.benchmark.name}  (${analysis.benchmark.file} · ${formatRounds(analysis.benchmark)})`,
   );
 }
 
