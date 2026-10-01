@@ -28,15 +28,18 @@ export default function setupVitest({
   async function cleanupTest(task: TestContext['task']) {
     cleanupStarted.add(task);
 
-    if (vi.isFakeTimers()) {
-      await act(async () => {
-        vi.runOnlyPendingTimers();
-      });
+    // A pending timer can throw during the flush. Release the timers and roots anyway.
+    try {
+      if (vi.isFakeTimers()) {
+        await act(async () => {
+          vi.runOnlyPendingTimers();
+        });
+      }
+    } finally {
+      vi.useRealTimers();
+
+      cleanup();
     }
-
-    vi.useRealTimers();
-
-    cleanup();
   }
 
   // Keep cleanup before fixture teardown and test-finished callbacks, which may need real timers.
