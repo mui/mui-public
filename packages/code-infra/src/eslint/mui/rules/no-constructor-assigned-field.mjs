@@ -1,34 +1,27 @@
-import { ASTUtils } from '@typescript-eslint/utils';
+import { ASTUtils, ESLintUtils } from '@typescript-eslint/utils';
 
-/**
- * @typedef {import('@typescript-eslint/utils').TSESTree.Node} Node
- * @typedef {import('@typescript-eslint/utils').TSESTree.PropertyDefinition} PropertyDefinition
- */
+/** @typedef {import('@typescript-eslint/utils').TSESTree.PropertyDefinition} PropertyDefinition */
 
-const FUNCTION_TYPES = new Set([
-  'FunctionDeclaration',
-  'FunctionExpression',
-  'ArrowFunctionExpression',
-]);
+const createRule = ESLintUtils.RuleCreator(
+  (name) =>
+    `https://github.com/mui/mui-public/blob/master/packages/code-infra/src/eslint/mui/rules/${name}.mjs`,
+);
 
 /**
  * Returns the class body of the constructor whose own code contains `node`, or `null` when
- * `node` is outside a constructor or inside a nested function or class field.
- * @param {Node} node
- * @returns {import('@typescript-eslint/utils').TSESTree.ClassBody | null}
+ * `node` is outside a constructor or inside a nested function or class.
+ * @param {import('@typescript-eslint/utils').TSESTree.Node} node
  */
 function getConstructorClassBody(node) {
   let current = node.parent;
-  while (current && !FUNCTION_TYPES.has(current.type)) {
-    if (current.type === 'PropertyDefinition' || current.type === 'StaticBlock') {
+  while (current && !ASTUtils.isFunction(current)) {
+    if (current.type === 'ClassBody') {
       return null;
     }
     current = current.parent;
   }
   const method = current?.parent;
-  return method?.type === 'MethodDefinition' && method.kind === 'constructor'
-    ? method.parent
-    : null;
+  return method && ASTUtils.isConstructor(method) ? method.parent : null;
 }
 
 /**
@@ -66,10 +59,9 @@ function getConstructorClassBody(node) {
  *     this.modals = [];
  *   }
  * }
- *
- * @type {import('eslint').Rule.RuleModule}
  */
-const rule = {
+export default createRule({
+  name: 'no-constructor-assigned-field',
   meta: {
     type: 'problem',
     docs: {
@@ -88,21 +80,21 @@ const rule = {
     },
     schema: [],
   },
+  defaultOptions: [],
   create(context) {
     /** @type {Set<PropertyDefinition>} */
     const reported = new Set();
 
     return {
-      AssignmentExpression(estreeNode) {
-        const node =
-          /** @type {import('@typescript-eslint/utils').TSESTree.AssignmentExpression} */ (
-            /** @type {unknown} */ (estreeNode)
-          );
+      AssignmentExpression(node) {
         if (node.left.type !== 'MemberExpression' || node.left.object.type !== 'ThisExpression') {
           return;
         }
         const name = ASTUtils.getPropertyName(node.left);
-        const classBody = name === null ? null : getConstructorClassBody(node);
+        if (name === null) {
+          return;
+        }
+        const classBody = getConstructorClassBody(node);
         if (!classBody) {
           return;
         }
@@ -120,27 +112,25 @@ const rule = {
         }
         reported.add(field);
 
-        // TypeScript disallows `declare` with decorators or `override`, and it isn't valid JavaScript.
-        const declarable =
-          Boolean(field.typeAnnotation) && field.decorators.length === 0 && !field.override;
-        // Adding `declare` directly also requires no initializer and no `!` assertion.
-        const canDeclare = declarable && !field.value && !field.definite;
+        // TypeScript disallows `declare` with decorators, and it isn't valid JavaScript.
+        const declarable = Boolean(field.typeAnnotation) && field.decorators.length === 0;
         context.report({
-          node: /** @type {import('estree').Node} */ (/** @type {unknown} */ (field)),
+          node: field,
           messageId: declarable ? 'assignedInConstructor' : 'assignedInConstructorNoDeclare',
           data: { name },
-          suggest: canDeclare
-            ? [
-                {
-                  messageId: 'addDeclare',
-                  fix: (fixer) => fixer.insertTextBeforeRange(field.range, 'declare '),
-                },
-              ]
-            : [],
+          // Prepending `declare` alone isn't enough when the field also has an initializer,
+          // a `!` assertion, or `override`, as TypeScript rejects those with `declare`.
+          suggest:
+            declarable && !field.value && !field.definite && !field.override
+              ? [
+                  {
+                    messageId: 'addDeclare',
+                    fix: (fixer) => fixer.insertTextBefore(field, 'declare '),
+                  },
+                ]
+              : [],
         });
       },
     };
   },
-};
-
-export default rule;
+});

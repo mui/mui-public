@@ -1,8 +1,8 @@
-import eslint from 'eslint';
+import { RuleTester } from '@typescript-eslint/rule-tester';
 import parser from '@typescript-eslint/parser';
 import rule from './no-constructor-assigned-field.mjs';
 
-const ruleTester = new eslint.RuleTester({
+const ruleTester = new RuleTester({
   languageOptions: {
     parser,
   },
@@ -109,6 +109,19 @@ class Outer {
       constructor() {
         this.items = [];
       }
+    };
+  }
+}
+      `,
+    },
+    // Should pass: Assigned in a field initializer of a nested class
+    {
+      code: `
+class Outer {
+  items: string[] = [];
+  constructor() {
+    this.inner = class Inner {
+      accessor value = (this.items = []);
     };
   }
 }
@@ -237,7 +250,7 @@ class Manager {
       `,
       errors: [{ messageId: 'assignedInConstructorNoDeclare', suggestions: [] }],
     },
-    // Should fail: Overriding field, which can't be marked `declare`
+    // Should fail: Overriding field, which needs `override` dropped to be marked `declare`
     {
       code: `
 class Manager extends Base {
@@ -248,7 +261,7 @@ class Manager extends Base {
   }
 }
       `,
-      errors: [{ messageId: 'assignedInConstructorNoDeclare', suggestions: [] }],
+      errors: [{ messageId: 'assignedInConstructor', suggestions: [] }],
     },
     // Should fail: Definite assignment assertion, which can't be combined with `declare`
     {

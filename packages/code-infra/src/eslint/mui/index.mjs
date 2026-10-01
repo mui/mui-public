@@ -40,7 +40,7 @@ const muiPlugin = {
     'flatten-parentheses': /** @type {any} */ (flattenParentheses),
     'no-presentation-role': noPresentationRole,
     'no-floating-cleanup': /** @type {any} */ (noFloatingCleanup),
-    'no-constructor-assigned-field': noConstructorAssignedField,
+    'no-constructor-assigned-field': /** @type {any} */ (noConstructorAssignedField),
   },
 };
 
