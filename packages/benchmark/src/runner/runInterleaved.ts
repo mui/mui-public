@@ -282,41 +282,29 @@ async function openIframesSampler(browser: Browser, slots: PageSlot[]): Promise<
 /**
  * Every sample in a page of its own: each round loads one fresh page per slot — all at once, before
  * anything is measured — samples each once, cold, and closes them. Nothing carries over between
- * samples, so neither warmup nor a GC between them has anything to do.
+ * samples, so neither warmup nor a GC between them has anything to do. Each page gets a context of
+ * its own, as in the `pages` mode: pages sharing one are tabs of one window, and only the last one
+ * opened renders at full priority.
  */
 async function openFreshSampler(browser: Browser, slots: PageSlot[]): Promise<Sampler> {
-  // One context for the whole benchmark: its HTTP cache keeps reloading cheap.
-  const context = await browser.newContext({ viewport: BENCHMARK_VIEWPORT });
-  let pages: Page[] = [];
+  let targets: OpenedPage[] = [];
   let definitions: Record<string, RunMetricDefinition> = {};
-  const closeRound = async () => {
-    const closing = pages;
-    pages = [];
-    await Promise.all(closing.map((page) => page.close()));
-  };
   return {
     warmup: false,
     async beginRound() {
-      pages = await Promise.all(
-        slots.map(async (slot) => {
-          const page = await context.newPage();
-          watchErrors(page);
-          await bridgeCdp(context, page);
-          await loadBenchPage(page, slot.url);
-          return page;
-        }),
+      targets = await openBenchPages(
+        browser,
+        slots.map((slot) => slot.url),
       );
     },
-    sample: (index) => sampleBenchCase(pages[index], slots[index].caseName, false),
+    sample: (index) => sampleBenchCase(targets[index].page, slots[index].caseName, false),
     async endRound() {
-      definitions = await pages[0].evaluate(() => window.benchmarkPage!.metricDefinitions());
-      await closeRound();
+      definitions = await targets[0].page.evaluate(() => window.benchmarkPage!.metricDefinitions());
+      await closeBenchPages(targets);
+      targets = [];
     },
     metricDefinitions: async () => definitions,
-    async close() {
-      await closeRound();
-      await context.close();
-    },
+    close: () => closeBenchPages(targets),
   };
 }
 
