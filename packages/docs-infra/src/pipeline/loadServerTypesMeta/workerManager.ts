@@ -8,8 +8,12 @@ import { isMainThread, Worker } from 'worker_threads';
 import { SocketClient, tryAcquireServerLock, releaseServerLock } from './socketClient';
 import type { WorkerRequest, WorkerResponse } from './worker';
 
-// Worker file must be compiled JS, not TS
-const WORKER_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), 'worker.mjs');
+/**
+ * Returns the path of the worker file, which must be compiled JS, not TS.
+ */
+function getWorkerPath() {
+  return path.join(path.dirname(fileURLToPath(import.meta.url)), 'worker.mjs');
+}
 
 /**
  * Shared interface for types processing managers.
@@ -33,7 +37,7 @@ class TypesMetaWorkerManager implements TypesProcessor {
 
   private ensureWorker(): Worker {
     if (!this.worker) {
-      this.worker = new Worker(WORKER_PATH);
+      this.worker = new Worker(getWorkerPath());
 
       this.worker.on('message', (response: WorkerResponse & { requestId?: number }) => {
         const { requestId, ...rest } = response;
@@ -125,7 +129,7 @@ class WorkerThreadTypesProcessor implements TypesProcessor {
     if (isServer) {
       // We won the lock — spawn the bare worker which will become a socket server.
       // Keep the lock held so no other worker tries to spawn a second server.
-      this.serverWorker = new Worker(WORKER_PATH, {
+      this.serverWorker = new Worker(getWorkerPath(), {
         workerData: { isServer: true },
       });
 

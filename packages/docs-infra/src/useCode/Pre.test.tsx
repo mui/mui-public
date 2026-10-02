@@ -63,7 +63,7 @@ let resizeObserverInstances: Array<{
 
 beforeAll(async () => {
   class MockIntersectionObserver {
-    declare private readonly callback: IntersectionObserverCallback;
+    private readonly callback: IntersectionObserverCallback;
 
     constructor(callback: IntersectionObserverCallback) {
       this.callback = callback;

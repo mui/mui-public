@@ -138,6 +138,65 @@ class Manager {
 }
       `,
     },
+    // Should pass: Compound assignment reads the field rather than re-initializing it
+    {
+      code: `
+class Counter {
+  count = 0;
+  constructor(start) {
+    this.count += start;
+  }
+}
+      `,
+    },
+    // Should pass: Conditional override of a default
+    {
+      code: `
+class Manager {
+  items: string[] = [];
+  constructor(options) {
+    if (options.items) {
+      this.items = options.items;
+    }
+  }
+}
+      `,
+    },
+    // Should pass: Decorated field, which `declare` can't replace
+    {
+      code: `
+class Manager {
+  @observable protected items: string[];
+  constructor() {
+    this.items = [];
+  }
+}
+      `,
+    },
+    // Should pass: Non-constant computed key
+    {
+      code: `
+class Manager {
+  items: string[];
+  constructor(key) {
+    this[key] = [];
+  }
+}
+      `,
+    },
+    // Should pass: Assigned in a field initializer or static block of the same class
+    {
+      code: `
+class Manager {
+  items: string[];
+  other = (this.items = []);
+  static {
+    this.items = [];
+  }
+  constructor() {}
+}
+      `,
+    },
   ],
   invalid: [
     // Should fail: Typed fields without initializer assigned in the constructor
@@ -155,7 +214,7 @@ class Manager {
       errors: [
         {
           messageId: 'assignedInConstructor',
-          data: { name: 'containers' },
+          data: { name: 'containers', declareHint: '' },
           suggestions: [
             {
               messageId: 'addDeclare',
@@ -174,7 +233,7 @@ class Manager {
         },
         {
           messageId: 'assignedInConstructor',
-          data: { name: 'items' },
+          data: { name: 'items', declareHint: '' },
           suggestions: [
             {
               messageId: 'addDeclare',
@@ -193,7 +252,7 @@ class Manager {
         },
       ],
     },
-    // Should fail: Field with initializer reassigned in the constructor
+    // Should fail: Field with initializer overwritten unconditionally
     {
       code: `
 class Manager {
@@ -203,9 +262,15 @@ class Manager {
   }
 }
       `,
-      errors: [{ messageId: 'assignedInConstructor', suggestions: [] }],
+      errors: [
+        {
+          messageId: 'assignedInConstructor',
+          data: { name: 'items', declareHint: ' (drop its initializer)' },
+          suggestions: [],
+        },
+      ],
     },
-    // Should fail: Conditional assignment in the constructor
+    // Should fail: Conditional assignment, without a suggestion as `declare` would hide TS2564
     {
       code: `
 class Manager {
@@ -217,6 +282,21 @@ class Manager {
   }
 }
       `,
+      errors: [{ messageId: 'assignedInConstructor', suggestions: [] }],
+    },
+    // Should fail: Conditional and unconditional assignment
+    {
+      code: `
+class Manager {
+  items: string[];
+  constructor(items) {
+    if (items) {
+      this.items = items;
+    }
+    this.items = [];
+  }
+}
+      `,
       errors: [
         {
           messageId: 'assignedInConstructor',
@@ -225,11 +305,12 @@ class Manager {
               messageId: 'addDeclare',
               output: `
 class Manager {
-  declare readonly items: string[];
+  declare items: string[];
   constructor(items) {
     if (items) {
       this.items = items;
     }
+    this.items = [];
   }
 }
       `,
@@ -237,18 +318,6 @@ class Manager {
           ],
         },
       ],
-    },
-    // Should fail: Decorated field, which can't be marked `declare`
-    {
-      code: `
-class Manager {
-  @observable protected items: string[];
-  constructor() {
-    this.items = [];
-  }
-}
-      `,
-      errors: [{ messageId: 'assignedInConstructorNoDeclare', suggestions: [] }],
     },
     // Should fail: Overriding field, which needs `override` dropped to be marked `declare`
     {
@@ -261,9 +330,15 @@ class Manager extends Base {
   }
 }
       `,
-      errors: [{ messageId: 'assignedInConstructor', suggestions: [] }],
+      errors: [
+        {
+          messageId: 'assignedInConstructor',
+          data: { name: 'items', declareHint: ' (drop `override`)' },
+          suggestions: [],
+        },
+      ],
     },
-    // Should fail: Definite assignment assertion, which can't be combined with `declare`
+    // Should fail: Definite assignment assertion, which needs `!` dropped to be marked `declare`
     {
       code: `
 class Manager {
@@ -273,19 +348,13 @@ class Manager {
   }
 }
       `,
-      errors: [{ messageId: 'assignedInConstructor', suggestions: [] }],
-    },
-    // Should fail: Compound assignment
-    {
-      code: `
-class Counter {
-  count = 0;
-  constructor(start) {
-    this.count += start;
-  }
-}
-      `,
-      errors: [{ messageId: 'assignedInConstructorNoDeclare', suggestions: [] }],
+      errors: [
+        {
+          messageId: 'assignedInConstructor',
+          data: { name: 'items', declareHint: ' (drop the `!`)' },
+          suggestions: [],
+        },
+      ],
     },
     // Should fail: Computed string key assignment
     {
@@ -297,20 +366,55 @@ class Manager {
   }
 }
       `,
-      errors: [{ messageId: 'assignedInConstructorNoDeclare', suggestions: [] }],
+      errors: [
+        {
+          messageId: 'assignedInConstructor',
+          suggestions: [
+            {
+              messageId: 'addDeclare',
+              output: `
+class Manager {
+  declare items;
+  constructor() {
+    this['items'] = [];
+  }
+}
+      `,
+            },
+          ],
+        },
+      ],
     },
-    // Should fail: Assigned once, reported once
+    // Should fail: Assigned twice, reported once
     {
       code: `
 class Manager {
-  items;
+  items: string[];
   constructor(items) {
     this.items = [];
     this.items = items;
   }
 }
       `,
-      errors: [{ messageId: 'assignedInConstructorNoDeclare', suggestions: [] }],
+      errors: [
+        {
+          messageId: 'assignedInConstructor',
+          suggestions: [
+            {
+              messageId: 'addDeclare',
+              output: `
+class Manager {
+  declare items: string[];
+  constructor(items) {
+    this.items = [];
+    this.items = items;
+  }
+}
+      `,
+            },
+          ],
+        },
+      ],
     },
   ],
 });
