@@ -334,7 +334,8 @@ async function openFreshSampler(browser: Browser, slots: PageSlot[]): Promise<Sa
 /**
  * One tab for the whole benchmark, which loads the variant to be measured before every sample: each
  * sample is a cold first iteration, as in the `fresh` mode, but every variant runs in the same
- * renderer process, so whatever belongs to the process affects them all alike.
+ * renderer process, so whatever belongs to the process affects them all alike. The process outlives
+ * each page, so the previous page's garbage is collected before every sample.
  */
 async function openRecycleSampler(browser: Browser, slots: PageSlot[]): Promise<Sampler> {
   const context = await browser.newContext({ viewport: BENCHMARK_VIEWPORT });
@@ -348,7 +349,7 @@ async function openRecycleSampler(browser: Browser, slots: PageSlot[]): Promise<
       warmup: false,
       async sample(index) {
         await loadBenchPage(page, slots[index].url);
-        const values = await sampleBenchCase(page, slots[index].caseName, false);
+        const values = await sampleBenchCase(page, slots[index].caseName);
         if (index === 0) {
           definitions = await page.evaluate(() => window.benchmarkPage!.metricDefinitions());
         }
