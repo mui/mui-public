@@ -193,6 +193,12 @@
       "enabled": false
     },
     {
+      "description": "The @N selector pins the major. brace-expansion 5 exports only `{ expand }`: minimatch@3 throws on brace patterns, minimatch@9 fails to import it.",
+      "matchDepNames": ["brace-expansion@1", "brace-expansion@2"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
       "groupName": "eslint",
       "extends": ["monorepo:eslint", "monorepo:typescript-eslint"]
     },
