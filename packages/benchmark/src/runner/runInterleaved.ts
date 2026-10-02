@@ -1,0 +1,334 @@
+/* eslint-disable no-console */
+
+import chalk from 'chalk';
+import type { Browser, BrowserContext, CDPSession, Page } from '@playwright/test';
+import { BENCHMARK_LAUNCH_ARGS, BENCHMARK_VIEWPORT } from '../launchArgs';
+import { compareBenchmark } from '../runReport';
+import type { RunBenchmark, RunMetricDefinition } from '../runReport';
+import { differencesResolved, parseHorizons } from '../sampling';
+import type { SamplingOptions } from '../sampling';
+import type { BenchFile } from './benchFiles';
+import type { ResolvedRef } from './refs';
+import { serveDirectory } from './serveDirectory';
+import type { BenchPage } from '../page/page';
+
+/**
+ * Runs the cases of `*.bench.tsx` files in Playwright. Every variant gets a page of its own, in a
+ * browser context of its own, that stays open for the whole benchmark: every sample is one
+ * iteration, so module-scope data and the JIT stay warm, and interactions get trusted input through
+ * a CDP session the page is bridged to. Variants are sampled once per round in a shuffled order, so
+ * the samples are round-aligned and can be compared on paired differences.
+ */
+
+export interface RunInterleavedOptions {
+  /** Where each ref's pages were built, one directory per ref id. */
+  buildsDir: string;
+  benchFiles: BenchFile[];
+  /** The builds a benchmark file compares: the working tree first, then the baseline. */
+  benchRefs: ResolvedRef[];
+  browserBinary: string;
+  launchArgs: string[];
+  /** Discarded rounds before measuring, once per benchmark. */
+  warmup: number;
+}
+
+export interface InterleavedResults {
+  benchmarks: RunBenchmark[];
+  metrics: Record<string, RunMetricDefinition>;
+  /** The browser as it reports itself, e.g. `151.0.7922.34`. */
+  browserVersion: string;
+}
+
+const SAMPLE_TIMEOUT_MS = 120_000;
+
+type CdpMethod = Parameters<CDPSession['send']>[0];
+
+/** One measured round: every variant's values by metric name, in slot order. */
+type Round = Array<Record<string, number>>;
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? (error.stack ?? error.message) : String(error);
+}
+
+/** A random permutation of `0..length-1`, so no variant always runs first in its round. */
+function shuffledIndices(length: number): number[] {
+  const indices = Array.from({ length }, (_, index) => index);
+  for (let index = indices.length - 1; index > 0; index -= 1) {
+    const swap = Math.floor(Math.random() * (index + 1));
+    [indices[index], indices[swap]] = [indices[swap], indices[index]];
+  }
+  return indices;
+}
+
+/**
+ * The metrics every variant reported in every round. One some iteration did not produce — a
+ * per-phase render split that only sometimes has a second phase, say — cannot be paired round by
+ * round, so it is left out.
+ */
+function stableMetrics(rounds: Round[]): string[] {
+  const [first] = rounds;
+  return Object.keys(first?.[0] ?? {}).filter((metric) =>
+    rounds.every((round) => round.every((values) => values[metric] !== undefined)),
+  );
+}
+
+/** What a benchmark file's page defines. */
+type PageListing = Pick<BenchPage, 'cases' | 'comparisons'>;
+
+interface OpenedPage {
+  context: BrowserContext;
+  page: Page;
+  listing: PageListing;
+}
+
+async function openBenchPage(browser: Browser, url: string): Promise<OpenedPage> {
+  const context = await browser.newContext({ viewport: BENCHMARK_VIEWPORT });
+  const page = await context.newPage();
+  page.setDefaultTimeout(SAMPLE_TIMEOUT_MS);
+  page.on('pageerror', (error) => console.error(chalk.red(`  page error: ${error.message}`)));
+  const session = await context.newCDPSession(page);
+  // Interactions ask for trusted input through this bridge. `send` only accepts the protocol
+  // methods Playwright knows by name; the page may ask for any, and Chrome rejects unknown ones.
+  await page.exposeBinding(
+    'benchmarkCdp',
+    (_source, method: string, params?: Record<string, unknown>) =>
+      session.send(method as CdpMethod, params),
+  );
+  await page.goto(url);
+  const ready = await page.waitForFunction(() => {
+    if (window.benchmarkPage === undefined) {
+      return false;
+    }
+    return {
+      visibility: document.visibilityState,
+      cases: window.benchmarkPage.cases,
+      comparisons: window.benchmarkPage.comparisons,
+    };
+  });
+  const state = await ready.jsonValue();
+  if (!state) {
+    await context.close();
+    throw new Error(`${url} never got ready.`);
+  }
+  if (state.visibility !== 'visible') {
+    console.warn(chalk.yellow(`  ${url} is ${state.visibility}; rAF-based waits may stall.`));
+  }
+  return { context, page, listing: state };
+}
+
+async function closeBenchPages(targets: OpenedPage[]): Promise<void> {
+  await Promise.all(targets.map((target) => target.context.close()));
+}
+
+async function openBenchPages(browser: Browser, urls: string[]): Promise<OpenedPage[]> {
+  const settled = await Promise.allSettled(urls.map((url) => openBenchPage(browser, url)));
+  const opened = settled.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []));
+  const failed = settled.find((result) => result.status === 'rejected');
+  if (failed) {
+    await closeBenchPages(opened);
+    throw failed.reason;
+  }
+  return opened;
+}
+
+/** Opens pages just to learn what they define; every benchmark then measures in fresh ones. */
+async function listBenchPages(browser: Browser, urls: string[]): Promise<PageListing[]> {
+  const opened = await openBenchPages(browser, urls);
+  await closeBenchPages(opened);
+  return opened.map((target) => target.listing);
+}
+
+/** Runs one iteration of a case, and returns what it recorded, by series. */
+function sampleBenchCase(page: Page, name: string): Promise<Record<string, number>> {
+  return page.evaluate((caseName) => window.benchmarkPage!.sample(caseName), name);
+}
+
+/**
+ * A variant of a benchmark: the page it is sampled in and the case it runs there. One build of a
+ * benchmark file running a case, or the working tree's build running one case of a `compare()`.
+ */
+interface PageSlot {
+  /** How the slot is named in the report: `current`, `baseline`, or the compared case's name. */
+  variant: string;
+  url: string;
+  caseName: string;
+}
+
+/** A benchmark as it goes into the report, with the definitions of the metrics it reported. */
+interface CaseResult {
+  benchmark: RunBenchmark;
+  metrics: Record<string, RunMetricDefinition>;
+}
+
+type BenchmarkEntry = Pick<RunBenchmark, 'name' | 'file' | 'kind' | 'variants'>;
+
+/**
+ * Measures one benchmark in fresh pages that stay open for all of it, so iterations stay warm and
+ * module-scope data is built once. Warmup and measured rounds alike run every slot once, in a
+ * shuffled order. After `sampleSize` rounds it keeps adding rounds while a difference is unresolved
+ * against the horizons, until the timeout. A failure is reported as the benchmark's error.
+ */
+async function runBenchmark(
+  browser: Browser,
+  entry: BenchmarkEntry,
+  slots: PageSlot[],
+  sampling: Required<SamplingOptions>,
+  options: RunInterleavedOptions,
+): Promise<CaseResult> {
+  console.log(chalk.cyan(`\nRunning "${entry.name}" (${entry.file})…`));
+  const { sampleSize, timeout, autoSampleConditions } = sampling;
+  const horizons = parseHorizons(autoSampleConditions);
+  let targets: OpenedPage[] = [];
+  const runRound = async (): Promise<Round> => {
+    const round: Round = [];
+    for (const index of shuffledIndices(targets.length)) {
+      // eslint-disable-next-line no-await-in-loop
+      round[index] = await sampleBenchCase(targets[index].page, slots[index].caseName);
+    }
+    return round;
+  };
+  try {
+    targets = await openBenchPages(
+      browser,
+      slots.map((slot) => slot.url),
+    );
+    for (let roundIndex = 0; roundIndex < options.warmup; roundIndex += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await runRound();
+    }
+    const rounds: Round[] = [];
+    for (let roundIndex = 0; roundIndex < sampleSize; roundIndex += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      rounds.push(await runRound());
+    }
+    // Read from the reference page: a metric whose config the change under test altered is
+    // described the way the change describes it. Every metric has been recorded by now.
+    const metrics = await targets[0].page.evaluate(() => window.benchmarkPage!.metricDefinitions());
+    const benchmarkOf = (): RunBenchmark => ({ ...entry, samples: samplesOf(slots, rounds) });
+
+    const isSettled = () => differencesResolved(compareBenchmark(metrics, benchmarkOf()), horizons);
+
+    const deadline = Date.now() + timeout * 60_000;
+    let resolved = isSettled();
+    while (!resolved && Date.now() < deadline) {
+      // eslint-disable-next-line no-await-in-loop
+      rounds.push(await runRound());
+      resolved = isSettled();
+    }
+    if (rounds.length > sampleSize || !resolved) {
+      console.log(
+        chalk.dim(
+          `  ${rounds.length} rounds, ${resolved ? 'resolved' : `unresolved after ${timeout} min`}`,
+        ),
+      );
+    }
+    return {
+      benchmark: { ...benchmarkOf(), sampling: { sampleSize, timedOut: !resolved } },
+      metrics,
+    };
+  } catch (error) {
+    console.error(chalk.red(`  ${errorMessage(error)}`));
+    return { benchmark: { ...entry, error: errorMessage(error) }, metrics: {} };
+  } finally {
+    await closeBenchPages(targets);
+  }
+}
+
+/** The round-aligned samples of a benchmark, per variant and metric. */
+function samplesOf(slots: PageSlot[], rounds: Round[]): RunBenchmark['samples'] {
+  const metrics = stableMetrics(rounds);
+  return Object.fromEntries(
+    slots.map((slot, index) => [
+      slot.variant,
+      Object.fromEntries(
+        metrics.map((metric) => [metric, rounds.map((round) => round[index][metric])]),
+      ),
+    ]),
+  );
+}
+
+function benchPageUrl(origin: string, ref: ResolvedRef, benchFile: BenchFile): string {
+  return new URL(`${ref.variant}/${benchFile.page}`, `${origin}/`).href;
+}
+
+/**
+ * Runs a benchmark file: each case on its own across the builds, paired by name with the working
+ * tree as the reference, and each `compare()` across its cases on the working tree's build.
+ */
+async function runBenchFile(
+  browser: Browser,
+  origin: string,
+  benchFile: BenchFile,
+  options: RunInterleavedOptions,
+): Promise<CaseResult[]> {
+  const urls = options.benchRefs.map((ref) => benchPageUrl(origin, ref, benchFile));
+  const variants = options.benchRefs.map((ref) => ref.variant);
+  // The other builds only matter for cases measured across them; a file of `compare()`s alone
+  // never loads them.
+  const [reference] = await listBenchPages(browser, urls.slice(0, 1));
+  const others = reference.cases.length > 0 ? await listBenchPages(browser, urls.slice(1)) : [];
+
+  const results: CaseResult[] = [];
+  for (const { name: caseName, sampling } of reference.cases) {
+    const entry: BenchmarkEntry = {
+      name: caseName,
+      file: benchFile.file,
+      kind: 'baseline',
+      variants,
+    };
+    const missing = others.findIndex(
+      (listing) => !listing.cases.some((benchCase) => benchCase.name === caseName),
+    );
+    if (missing !== -1) {
+      // A case added by the change under test has nothing to compare with.
+      results.push({
+        benchmark: {
+          ...entry,
+          error: `"${caseName}" does not exist in [${variants[missing + 1]}].`,
+        },
+        metrics: {},
+      });
+      continue;
+    }
+    const slots = urls.map((url, index) => ({ variant: variants[index], url, caseName }));
+    // eslint-disable-next-line no-await-in-loop
+    results.push(await runBenchmark(browser, entry, slots, sampling, options));
+  }
+
+  for (const { name, cases, sampling } of reference.comparisons) {
+    const entry: BenchmarkEntry = { name, file: benchFile.file, kind: 'compare', variants: cases };
+    const slots = cases.map((caseName) => ({ variant: caseName, url: urls[0], caseName }));
+    // eslint-disable-next-line no-await-in-loop
+    results.push(await runBenchmark(browser, entry, slots, sampling, options));
+  }
+  return results;
+}
+
+export async function runInterleaved(options: RunInterleavedOptions): Promise<InterleavedResults> {
+  const { chromium } = await import('@playwright/test');
+  const [server, browser] = await Promise.all([
+    serveDirectory(options.buildsDir),
+    chromium.launch({
+      executablePath: options.browserBinary,
+      headless: true,
+      args: [...BENCHMARK_LAUNCH_ARGS, ...options.launchArgs],
+    }),
+  ]);
+
+  try {
+    const results: CaseResult[] = [];
+    // Sequential on purpose: concurrent cases would contend for the same machine.
+    for (const benchFile of options.benchFiles) {
+      // eslint-disable-next-line no-await-in-loop
+      results.push(...(await runBenchFile(browser, server.origin, benchFile, options)));
+    }
+    return {
+      benchmarks: results.map((result) => result.benchmark),
+      metrics: Object.assign({}, ...results.map((result) => result.metrics)),
+      browserVersion: browser.version(),
+    };
+  } finally {
+    await browser.close();
+    await server.close();
+  }
+}

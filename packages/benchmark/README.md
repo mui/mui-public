@@ -1,6 +1,15 @@
 # Benchmark
 
-A React component render benchmarking tool built on Vitest and Playwright. Runs benchmarks in a real browser using React's profiling build to capture accurate render durations.
+Two ways to measure, while repositories move from the first to the second.
+
+**Under Vitest** — a React component benchmarking tool built on Vitest and Playwright, using React's
+profiling build to capture render durations against your source. Everything up to
+[`benchmark run`](#benchmark-run) covers it. It uploads version 1 of the `benchmark` report.
+
+**`benchmark run`** — `benchmark()` and `reactBenchmark()` files, the working tree against a baseline
+commit, both **built** and installed the way a consumer gets them, sampled alternately in one browser
+run and compared on paired differences. It uploads version 2 of the `benchmark` report. A repository
+uploads one version or the other; the dashboard reads each by its version.
 
 ## Features
 
@@ -60,6 +69,25 @@ benchmark(
   },
 );
 ```
+
+For input that should behave like a real mouse or trackpad, the interaction context has `input`:
+trusted gestures the browser generates itself at frame cadence, one command per gesture.
+
+```tsx
+benchmark(
+  'Chart zoom',
+  () => <Chart />,
+  async ({ input }) => {
+    await input.scroll({ x: 400, y: 300, deltaY: 600 });
+    await input.pinch({ x: 400, y: 300, scaleFactor: 2 });
+  },
+);
+```
+
+A gesture's event count follows what the browser coalesced, so its render count can vary from one
+iteration to the next. Wait for the mount to be painted — `await waitForElementTiming('default')` —
+before starting a gesture on something the case just rendered; until then, the browser may not route
+the gesture to it.
 
 ### Scoping which renders are measured
 
@@ -276,9 +304,172 @@ BENCHMARK_BASELINE_PATH=/tmp/base-bench.json pnpm test:bench   # head run, inlin
 
 The feature is opt-in — without `BENCHMARK_BASELINE_PATH` (or the `baselinePath` config option), the dashboard falls back to fetching the base from S3 by merge-base SHA as before.
 
+## `benchmark run`
+
+`benchmark run` measures a harness package's `*.bench.tsx` files across two builds of the workspace:
+the working tree and a baseline. Run it from the harness, whose vite config uses the plugin:
+
+```js
+// vite.config.mjs
+import { defineConfig } from 'vite';
+import { benchmarkPlugin } from '@mui/internal-benchmark/vitePlugin';
+
+export default defineConfig({ plugins: [benchmarkPlugin()] });
+```
+
+```bash
+benchmark run --baseline "$(code-infra baseline)"
+```
+
+### Defining cases
+
+Benchmark files import `@mui/internal-benchmark/page`. `benchmark()` registers a case: the runner
+calls its function once per sample, and the case records what it measures through a `ScalarMetric`
+or `DiscreteMetric`. Nothing is measured implicitly, and a sample that records nothing fails.
+
+```tsx
+import { benchmark, ScalarMetric } from '@mui/internal-benchmark/page';
+
+const parseTime = new ScalarMetric({ name: 'json:parse', alarm: {} });
+
+benchmark('parse', () => {
+  parseTime.time();
+  JSON.parse(payload);
+  parseTime.timeEnd();
+});
+```
+
+`reactBenchmark()` wraps it for React: every sample mounts the element, runs the interaction, waits
+for the paint and unmounts, and records `render` (total render duration), `render:count` and
+`bench:paint`, plus a `render:<phase>` split when there is more than one phase. It takes the same
+arguments as the Vitest `benchmark()` — so moving a file over is a rename and a new import.
+
+```tsx
+import { reactBenchmark } from '@mui/internal-benchmark/page';
+
+reactBenchmark('mount', () => <Grid rows={1000} />);
+reactBenchmark(
+  'scroll',
+  () => <Grid rows={1000} />,
+  async ({ input }) => {
+    await input.scroll({ x: 100, y: 100, deltaY: 2000 });
+  },
+);
+```
+
+`compare()` measures cases against each other — one library's implementation against another's —
+on the working tree's build, instead of each against its baseline. The first case is the reference.
+
+```tsx
+compare('scatter', [
+  reactBenchmark('ours', () => <OurScatter points={points} />),
+  benchmark('other', async () => {
+    const { renderScatter } = await import('other-charts');
+    // …
+  }),
+]);
+```
+
+Every case is measured in a page of its own, but a page loads the whole benchmark file, so a static
+import reaches every case's page. Import what only one case needs inside that case: the first
+iteration is a warmup, so the `await import()` is never measured.
+
+### How it measures
+
+The plugin generates a page per benchmark file under `src/__bench__/`. A benchmark file that imports
+`vitest`, or the Vitest entry `@mui/internal-benchmark`, fails the build. The runner drives Chromium
+through Playwright and gives every variant — the current and the baseline build, or each case of a
+`compare()` — a page of its own, in a browser context of its own, that stays open for the whole
+benchmark: every sample is one warm iteration, and module-scope data is built once.
+
+Every variant is sampled once per round, in a shuffled order, and a difference is judged on the
+per-round differences rather than on two independent sets of samples. Whatever the machine was doing
+during a round — thermal throttling, a background process — then affects both sides of it and cancels
+out. 10 warmup rounds are discarded once per benchmark before any is measured.
+
+Run it with at least 3 logical CPUs (vCPUs in CI); it warns with fewer. On 2, V8's background
+compilers are starved, and a page can settle into a slower tier of the same code for the whole
+benchmark, which shows up as a difference between identical builds.
+
+### Sampling
+
+How many rounds a benchmark is measured for adapts to its results, the way tachometer's
+auto-sampling does and under tachometer's names. After `sampleSize` rounds, rounds keep being added
+while any difference is unresolved against an `autoSampleConditions` horizon, for up to `timeout`
+minutes. A difference is resolved against a horizon once its confidence interval lies entirely on
+one side of it; `'10%'` stands for both `'-10%'` and `'+10%'`. The metrics that alarm decide, or every
+metric when none does.
+
+| Option                 | Default  | Meaning                                                               |
+| :--------------------- | :------- | :-------------------------------------------------------------------- |
+| `sampleSize`           | `50`     | Rounds measured before deciding whether to continue                   |
+| `timeout`              | `3`      | Minutes to keep sampling while a difference is unresolved             |
+| `autoSampleConditions` | `['0%']` | Horizons to resolve: by default, until each change is better or worse |
+
+They are set per benchmark: the last argument of `benchmark()` and `compare()`, and among
+`reactBenchmark()`'s options. A compared case is sampled as its `compare()` asks, so setting its own
+is an error.
+
+```tsx
+reactBenchmark('mount', () => <Grid rows={1000} />, { timeout: 1, autoSampleConditions: ['5%'] });
+
+compare('scatter', [ours, other], { sampleSize: 100 });
+```
+
+Two builds that perform the same never resolve against `0%`, so an unchanged benchmark samples until
+its timeout; a horizon such as `'5%'` settles once a difference is known to be smaller than that.
+
+### The report
+
+The run writes `.benchmark/results/report.json`, prints it as tables, and with `--upload` sends it to
+the dashboard, which renders the pull request comment's Performance section and the repository's
+history from it.
+
+- The report holds **raw samples**, round-aligned across variants, plus each metric's kind, format
+  and alarm, how each benchmark's sampling went, the builds, and the environment.
+- `analyzeRun` from `@mui/internal-benchmark/runReport` draws every conclusion from it: a 95%
+  confidence interval on the paired difference per metric, a change (`better`, `worse`, `unsure`),
+  and a severity from the metric's alarm.
+- `reactBenchmark()`'s `render` and `render:count` alarm on any resolved change for the worse;
+  `bench:paint` is informational; every other metric brings its own alarm.
+
+### Choosing the baseline
+
+`--baseline` names the build the working tree is compared against: a revision — a SHA, a tag, a
+branch, `HEAD~1` — on its own or behind `git:`. It is resolved to an immutable SHA before anything is
+cached, and defaults to `HEAD~1`, the parent commit.
+
+Which commit a branch should actually be compared against is `code-infra baseline`'s question: on a
+feature branch the fork point, on the base branch the previous commit. On master, then, every commit
+is measured against its parent, and the history the dashboard draws is each commit's own paired
+change — which commit moved a number reads off the chart rather than out of a noisy trend.
+
+### Building and installing each side
+
+Both sides are built the same way: packed to tarballs, in parallel, and installed the way a consumer
+gets them, so neither resolves the library through a workspace link. The benchmark files themselves
+stay on the current branch and only the built library changes between refs — so a commit whose public
+API differs from today's benchmarks will fail that ref's build, with the error surfaced.
+
+Packed builds are cached by commit SHA under `.benchmark/packed/`, so repeating a comparison against
+the same commit skips the rebuild; the working tree is never cached. In CI, cache that directory
+keyed on the baseline SHA, and check out with full history so a fork point can be resolved.
+
+A run pins the packed build in the repository's own `pnpm-workspace.yaml`, installs it there, and
+resolution is then ordinary. The repository is put
+back, and reinstalled, when the run ends — including when it fails, and at the start of the next run
+if one was killed outright. Two things follow from it. A tracked file names tarballs under
+`.benchmark/` until the run ends, so do not commit while one is in flight. And the pins are global to
+the workspace for that time, because pnpm scopes an override by parent package name and a harness has
+none — so nothing else should build against the same checkout meanwhile.
+
+`benchmark run --help` lists the remaining options.
+
 ## API
 
 - `benchmark` — define a benchmark test case
+- `@mui/internal-benchmark/vitePlugin` — `benchmarkPlugin()`, the harness's vite plugin for `benchmark run`
+- `@mui/internal-benchmark/runReport` — the `benchmark run` report schema and `analyzeRun`
 - `ElementTiming` — invisible marker component for paint timing (renders a `<span>` tracked by the Element Timing API)
 - `ScalarMetric` — record a continuous custom measurement (with a `console.time`-style timing helper)
 - `DiscreteMetric` — record a discrete custom count

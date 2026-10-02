@@ -12,6 +12,7 @@ import { BarChartPro } from '@mui/x-charts-pro/BarChartPro';
 import { useXScale, useDrawingArea } from '@mui/x-charts-pro/hooks';
 import type { BenchmarkReport, MetricDefinition } from '@/lib/benchmark/types';
 import { formatMs } from '@/utils/formatters';
+import { isBenchmarkRunUpload } from '@/utils/fetchCiReport';
 import { useMasterCommits } from '../hooks/useMasterCommits';
 import type { GitHubCommit } from '../hooks/useMasterCommits';
 import { useCiReports } from '../hooks/useCiReports';
@@ -124,12 +125,17 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
 
   const chartData: CommitReportData[] = React.useMemo(
     () =>
-      commits.map(({ timestamp, commit }) => ({
-        timestamp,
-        commit,
-        report: reports[commit.sha]?.report ?? null,
-        metricDefinitions: reports[commit.sha]?.metricDefinitions,
-      })),
+      commits.map(({ timestamp, commit }) => {
+        // This chart reads version 1 reports; `BenchmarkRunHistory` draws version 2.
+        const upload = reports[commit.sha];
+        const version1 = upload && !isBenchmarkRunUpload(upload) ? upload : undefined;
+        return {
+          timestamp,
+          commit,
+          report: version1?.report ?? null,
+          metricDefinitions: version1?.metricDefinitions,
+        };
+      }),
     [commits, reports],
   );
 

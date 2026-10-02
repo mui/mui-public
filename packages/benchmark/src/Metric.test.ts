@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+// Installs the Vitest metric recorder.
+import './Metric';
 import { ScalarMetric } from './ScalarMetric';
 import { DiscreteMetric } from './DiscreteMetric';
 

@@ -98,7 +98,7 @@ describe('printTable', () => {
     consoleSpy.mockRestore();
   });
 
-  it('truncates long titles with ellipsis', () => {
+  it('widens the table to fit a long title', () => {
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
     const longTitle = 'A'.repeat(200);
@@ -115,18 +115,11 @@ describe('printTable', () => {
 
     const calls = consoleSpy.mock.calls.map((call) => call[0] as string);
 
-    // Title top border determines the table width
-    const topBorder = calls[0];
-    const tableWidth = stripAnsi(topBorder).length;
-
-    // Title line should not exceed the table width
-    const titleLine = calls[1];
-    expect(stripAnsi(titleLine).length).toBe(tableWidth);
-
-    // Title should end with ellipsis and a trailing space before the closing border
-    const strippedTitle = stripAnsi(titleLine);
-    expect(strippedTitle).toContain('…');
-    expect(strippedTitle).toMatch(/… │$/);
+    const tableWidth = stripAnsi(calls[0]).length;
+    const titleLine = stripAnsi(calls[1]);
+    expect(titleLine).toBe(`│ ${longTitle} │`);
+    // Every line of the table is as wide as the title line.
+    expect(calls.every((line) => stripAnsi(line).length === tableWidth)).toBe(true);
 
     consoleSpy.mockRestore();
   });
