@@ -3,7 +3,8 @@ import * as chai from 'chai';
 import './chaiTypes';
 // eslint-disable-next-line import/extensions
 import { cleanup, act } from '@testing-library/react/pure.js';
-import { afterEach, vi } from 'vitest';
+import { afterEach, beforeEach, vi } from 'vitest';
+import type { TestContext } from 'vitest';
 import chaiDom from 'chai-dom';
 import chaiPlugin from './chaiPlugin';
 import { configure } from './configure';
@@ -21,16 +22,38 @@ export default function setupVitest({
   // Instead call `setupVitest` in one of the `setupFiles`, which are not cached and executed
   // per suite.
 
-  afterEach(async () => {
-    if (vi.isFakeTimers()) {
-      await act(async () => {
-        vi.runOnlyPendingTimers();
-      });
+  const cleanupStarted = new WeakSet<TestContext['task']>();
+
+  /** Flush pending updates and release the test's timers and rendered roots. */
+  async function cleanupTest(task: TestContext['task']) {
+    cleanupStarted.add(task);
+
+    // A pending timer can throw during the flush. Release the timers and roots anyway.
+    try {
+      if (vi.isFakeTimers()) {
+        await act(async () => {
+          vi.runOnlyPendingTimers();
+        });
+      }
+    } finally {
+      vi.useRealTimers();
+
+      cleanup();
     }
+  }
 
-    vi.useRealTimers();
+  // Keep cleanup before fixture teardown and test-finished callbacks, which may need real timers.
+  afterEach(({ task }) => cleanupTest(task));
 
-    cleanup();
+  // Vitest skips the remaining `afterEach` hooks when one throws (for example, the console
+  // check below). Use `onTestFinished` as a fallback only when cleanup did not already run.
+  beforeEach(({ task, onTestFinished }) => {
+    cleanupStarted.delete(task);
+    onTestFinished(async () => {
+      if (!cleanupStarted.has(task)) {
+        await cleanupTest(task);
+      }
+    });
   });
 
   if (failOnConsoleEnabled) {
