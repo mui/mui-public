@@ -25,7 +25,7 @@
     "env-ci": "^11.2.0",
     "es-toolkit": "^1.52.0",
     "execa": "^10.0.1",
-    "zod": "^4.6.4"
+    "zod": "^4.6.5"
   },
   "peerDependencies": {
     "@vitest/browser-playwright": ">=4.1",
@@ -37,7 +37,7 @@
     "@types/env-ci": "3.1.4",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
-    "vitest": "5.0.1"
+    "vitest": "5.0.2"
   },
   "publishConfig": {
     "access": "public",
