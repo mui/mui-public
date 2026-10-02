@@ -75,21 +75,24 @@ function setupFileWatcher(configPath: string): void {
   })();
 }
 
-function mergeConfig(target: any, source: any): any {
-  for (const key in source) {
-    if (Object.prototype.hasOwnProperty.call(source, key)) {
-      if (
-        typeof target[key] === 'object' &&
-        target[key] !== null &&
-        typeof source[key] === 'object' &&
-        source[key] !== null &&
-        !Array.isArray(target[key]) &&
-        !Array.isArray(source[key])
-      ) {
-        mergeConfig(target[key], source[key]);
-      } else {
-        target[key] = source[key];
-      }
+export function mergeConfig(target: any, source: any): any {
+  for (const key of Object.keys(source)) {
+    // Guard against prototype pollution from extended tsconfig files
+    // that may contain `__proto__`, `constructor`, or `prototype` keys.
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+      continue;
+    }
+    if (
+      typeof target[key] === 'object' &&
+      target[key] !== null &&
+      typeof source[key] === 'object' &&
+      source[key] !== null &&
+      !Array.isArray(target[key]) &&
+      !Array.isArray(source[key])
+    ) {
+      mergeConfig(target[key], source[key]);
+    } else {
+      target[key] = source[key];
     }
   }
 
