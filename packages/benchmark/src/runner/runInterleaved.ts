@@ -192,7 +192,7 @@ interface CaseResult {
 type BenchmarkEntry = Pick<RunBenchmark, 'name' | 'file' | 'kind' | 'variants'>;
 
 /** How the variants of a benchmark are isolated from each other. EXPERIMENT. */
-type Isolation = 'pages' | 'iframes' | 'fresh';
+type Isolation = 'pages' | 'iframes' | 'fresh' | 'recycle';
 
 const ISOLATION: Isolation = (process.env.BENCHMARK_ISOLATION as Isolation | undefined) ?? 'pages';
 
@@ -331,10 +331,44 @@ async function openFreshSampler(browser: Browser, slots: PageSlot[]): Promise<Sa
   };
 }
 
+/**
+ * One tab for the whole benchmark, which loads the variant to be measured before every sample: each
+ * sample is a cold first iteration, as in the `fresh` mode, but every variant runs in the same
+ * renderer process, so whatever belongs to the process affects them all alike.
+ */
+async function openRecycleSampler(browser: Browser, slots: PageSlot[]): Promise<Sampler> {
+  const context = await browser.newContext({ viewport: BENCHMARK_VIEWPORT });
+  try {
+    const page = await context.newPage();
+    watchErrors(page);
+    // The binding survives navigations, so one bridge serves every load.
+    await bridgeCdp(context, page);
+    let definitions: Record<string, RunMetricDefinition> = {};
+    return {
+      warmup: false,
+      async sample(index) {
+        await loadBenchPage(page, slots[index].url);
+        const values = await sampleBenchCase(page, slots[index].caseName, false);
+        if (index === 0) {
+          definitions = await page.evaluate(() => window.benchmarkPage!.metricDefinitions());
+        }
+        return values;
+      },
+      metricDefinitions: async () => definitions,
+      close: () => context.close(),
+    };
+  } catch (error) {
+    await context.close();
+    throw error;
+  }
+}
+
 function openSampler(browser: Browser, slots: PageSlot[]): Promise<Sampler> {
   switch (ISOLATION) {
     case 'iframes':
       return openIframesSampler(browser, slots);
+    case 'recycle':
+      return openRecycleSampler(browser, slots);
     case 'fresh':
       return openFreshSampler(browser, slots);
     default:
