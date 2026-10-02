@@ -63,6 +63,7 @@ export function createTestConfig() {
         'import/named': 'off',
         'mui/disallow-active-element-as-key-event-target': 'error',
         'mui/consistent-production-guard': 'off',
+        'mui/no-constructor-assigned-field': 'off',
 
         // disable eslint-plugin-jsx-a11y
         // tests are not driven by assistive technology

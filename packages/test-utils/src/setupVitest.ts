@@ -89,7 +89,7 @@ export default function setupVitest({
     if (window.navigator.userAgent.includes('jsdom')) {
       // Not yet supported: https://github.com/jsdom/jsdom/issues/2152
       (globalThis as any).window.Touch ??= class Touch {
-        instance: any;
+        declare instance: any;
 
         constructor(instance: any) {
           this.instance = instance;
