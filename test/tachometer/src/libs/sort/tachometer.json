@@ -1,0 +1,22 @@
+{
+  "$schema": "../../../node_modules/tachometer/config.schema.json",
+  "sampleSize": 10,
+  "timeout": 1,
+  "autoSampleConditions": ["10%"],
+  "benchmarks": [
+    {
+      "name": "libs-sort",
+      "measurement": { "mode": "performance", "entryName": "mount" },
+      "browser": {
+        "name": "chrome",
+        "headless": true,
+        "windowSize": { "width": 1024, "height": 768 }
+      },
+      "expand": [
+        { "name": "libs-sort [ours]", "url": "./ours.html" },
+        { "name": "libs-sort [alpha]", "url": "./alpha.html" },
+        { "name": "libs-sort [beta]", "url": "./beta.html" }
+      ]
+    }
+  ]
+}
