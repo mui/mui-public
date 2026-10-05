@@ -281,7 +281,11 @@ commands:
     steps:
       - run:
           name: Upload screenshots to Argos CI
-          command: pnpm code-infra argos-push --folder << parameters.folder >>
+          command: |
+            # CircleCI exposes no pull request base branch, so Argos would fall back to the default branch.
+            # #default-branch-switch
+            export ARGOS_REFERENCE_BRANCH="${ARGOS_REFERENCE_BRANCH:-${BASE_BRANCH:-master}}"
+            pnpm code-infra argos-push --folder << parameters.folder >>
 
   test-types-next:
     description: 'Type-checks against typescript@next without failing the job'
