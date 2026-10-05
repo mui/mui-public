@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { EncryptJWT, jwtDecrypt } from 'jose';
 import { cookies } from 'next/headers';
 import { z } from 'zod/v4';
-import { SESSION_COOKIE, SESSION_MAX_AGE_SECONDS } from './config';
+import { BASE_COOKIE_OPTIONS, SESSION_COOKIE, SESSION_MAX_AGE_SECONDS } from './config';
 
 /**
  * `expiresAt` and the refresh fields are only present when the GitHub App has
@@ -21,13 +21,7 @@ const sessionSchema = z.object({
 
 export type Session = z.infer<typeof sessionSchema>;
 
-let cachedKey: Uint8Array | null = null;
-
 function getKey(): Uint8Array {
-  if (cachedKey) {
-    return cachedKey;
-  }
-
   const secret = process.env.SESSION_SECRET;
   if (!secret) {
     throw new Error('SESSION_SECRET is not configured.');
@@ -36,13 +30,7 @@ function getKey(): Uint8Array {
   // Hashed rather than decoded so that any sufficiently random string works as
   // the secret, including a Render `generateValue` one, which has no length or
   // alphabet guarantees. A256GCM needs exactly 32 bytes.
-  cachedKey = new Uint8Array(createHash('sha256').update(secret).digest());
-  return cachedKey;
-}
-
-/** Whether a browser login can work at all in this deploy. */
-export function isSessionConfigured(): boolean {
-  return Boolean(process.env.SESSION_SECRET);
+  return new Uint8Array(createHash('sha256').update(secret).digest());
 }
 
 export async function writeSession(session: Session): Promise<void> {
@@ -54,10 +42,7 @@ export async function writeSession(session: Session): Promise<void> {
 
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, jwt, {
-    httpOnly: true,
-    // Render terminates TLS, but local dev is plain http.
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    ...BASE_COOKIE_OPTIONS,
     path: '/',
     maxAge: SESSION_MAX_AGE_SECONDS,
   });

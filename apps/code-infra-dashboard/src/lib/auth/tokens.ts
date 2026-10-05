@@ -32,9 +32,9 @@ function isRefreshTokenUsable(session: Session): boolean {
   return Date.parse(session.refreshTokenExpiresAt) > Date.now();
 }
 
-async function exchange(session: Session): Promise<Session | null> {
+async function exchange(session: Session, refreshToken: string): Promise<Session | null> {
   const client = getOAuthClient();
-  if (!client || !session.refreshToken) {
+  if (!client) {
     return null;
   }
 
@@ -42,13 +42,11 @@ async function exchange(session: Session): Promise<Session | null> {
     clientType: 'github-app',
     clientId: client.clientId,
     clientSecret: client.clientSecret,
-    refreshToken: session.refreshToken,
+    refreshToken,
   });
 
   return {
-    login: session.login,
-    name: session.name,
-    avatarUrl: session.avatarUrl,
+    ...session,
     token: authentication.token,
     expiresAt: authentication.expiresAt,
     refreshToken: authentication.refreshToken,
@@ -76,7 +74,7 @@ export async function getRefreshedSession(session: Session): Promise<Session | n
 
   let pending = inFlightRefreshes.get(refreshToken);
   if (!pending) {
-    pending = exchange(session).finally(() => {
+    pending = exchange(session, refreshToken).finally(() => {
       inFlightRefreshes.delete(refreshToken);
     });
     inFlightRefreshes.set(refreshToken, pending);

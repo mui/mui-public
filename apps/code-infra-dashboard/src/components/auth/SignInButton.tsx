@@ -10,19 +10,19 @@ import MenuItem from '@mui/material/MenuItem';
 import ListItemText from '@mui/material/ListItemText';
 import Skeleton from '@mui/material/Skeleton';
 import Tooltip from '@mui/material/Tooltip';
-import { useSession } from './SessionProvider';
+import { signIn, signOut, useSession } from '../../hooks/useSession';
 
 export default function SignInButton() {
-  const { session, isLoading, signIn, signOut } = useSession();
+  const { session, isPending } = useSession();
   const [anchorEl, setAnchorEl] = React.useState<HTMLElement | null>(null);
 
-  if (isLoading || !session) {
+  if (isPending) {
     return <Skeleton variant="rounded" width={88} height={30} />;
   }
 
   // Preview deploys have an origin GitHub can't redirect back to, so sign-in is
   // simply unavailable there rather than broken.
-  if (!session.available) {
+  if (!session?.available) {
     return (
       <Tooltip title="GitHub sign-in is not configured for this deployment">
         <span>

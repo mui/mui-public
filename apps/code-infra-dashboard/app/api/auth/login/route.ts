@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import {
+  BASE_COOKIE_OPTIONS,
   GITHUB_AUTHORIZE_URL,
   OAUTH_STATE_COOKIE,
   OAUTH_STATE_COOKIE_PATH,
@@ -8,12 +9,6 @@ import {
   REDIRECT_URI,
   getOAuthClient,
 } from '@/lib/auth/config';
-import { isSessionConfigured } from '@/lib/auth/session';
-
-export const dynamic = 'force-dynamic';
-export const fetchCache = 'force-no-store';
-export const revalidate = 0;
-export const runtime = 'nodejs';
 
 /**
  * Only same-origin paths may be returned to. Rejects absolute URLs and
@@ -28,7 +23,7 @@ function sanitizeReturnTo(requested: string | null): string {
 
 export async function GET(request: NextRequest) {
   const client = getOAuthClient();
-  if (!client || !isSessionConfigured()) {
+  if (!client) {
     return NextResponse.json(
       { error: 'GitHub sign-in is not configured for this deployment.' },
       { status: 503 },
@@ -48,9 +43,7 @@ export async function GET(request: NextRequest) {
   // The return path rides along with the state so it can't be tampered with
   // independently of the CSRF check that validates it.
   response.cookies.set(OAUTH_STATE_COOKIE, `${state}:${returnTo}`, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    ...BASE_COOKIE_OPTIONS,
     path: OAUTH_STATE_COOKIE_PATH,
     maxAge: OAUTH_STATE_MAX_AGE_SECONDS,
   });

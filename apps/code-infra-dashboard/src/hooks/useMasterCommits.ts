@@ -2,8 +2,7 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import * as React from 'react';
 import type { RestEndpointMethodTypes } from '@octokit/rest';
 import { parseRepo } from '../utils/github';
-import { useSession } from '../components/auth/SessionProvider';
-import { useOctokit } from './useOctokit';
+import { useGitHubClient } from './useGitHubClient';
 
 export type GitHubCommit =
   RestEndpointMethodTypes['repos']['listCommits']['response']['data'][number];
@@ -69,12 +68,11 @@ export function useMasterCommits(
   repo: string,
   { groupByDay = false }: UseMasterCommitsOptions = {},
 ): UseMasterCommits {
-  const octokit = useOctokit();
-  const { identity } = useSession();
+  const { octokit, ready, key } = useGitHubClient();
 
   const { data, isLoading, isFetchingNextPage, hasNextPage, error, fetchNextPage } =
     useInfiniteQuery({
-      queryKey: ['master-commits', identity, repo, groupByDay ? 'daily' : 'per-commit'],
+      queryKey: key('master-commits', repo, groupByDay ? 'daily' : 'per-commit'),
       queryFn: async ({ pageParam }: { pageParam: PageParam }): Promise<PageData> => {
         const { owner, repo: repoName } = parseRepo(repo);
 
@@ -126,7 +124,7 @@ export function useMasterCommits(
         return undefined;
       }, []),
       retry: 1,
-      enabled: Boolean(repo),
+      enabled: ready && Boolean(repo),
       staleTime: 5 * 60 * 1000,
     });
 

@@ -12,11 +12,6 @@ import {
 } from '@/lib/auth/config';
 import { writeSession } from '@/lib/auth/session';
 
-export const dynamic = 'force-dynamic';
-export const fetchCache = 'force-no-store';
-export const revalidate = 0;
-export const runtime = 'nodejs';
-
 function matchesState(received: string, expected: string): boolean {
   const receivedBytes = Buffer.from(received);
   const expectedBytes = Buffer.from(expected);
@@ -68,15 +63,20 @@ export async function GET(request: NextRequest) {
     auth: authentication.token,
   }).rest.users.getAuthenticated();
 
+  // Which of these GitHub sends depends on the app's "Expire user authorization
+  // tokens" setting: nothing, an expiry alone, or an expiry with a refresh token.
   await writeSession({
     login: user.login,
     name: user.name ?? null,
     avatarUrl: user.avatar_url,
     token: authentication.token,
-    expiresAt: 'expiresAt' in authentication ? authentication.expiresAt : undefined,
-    refreshToken: 'refreshToken' in authentication ? authentication.refreshToken : undefined,
-    refreshTokenExpiresAt:
-      'refreshTokenExpiresAt' in authentication ? authentication.refreshTokenExpiresAt : undefined,
+    ...('expiresAt' in authentication ? { expiresAt: authentication.expiresAt } : {}),
+    ...('refreshToken' in authentication
+      ? {
+          refreshToken: authentication.refreshToken,
+          refreshTokenExpiresAt: authentication.refreshTokenExpiresAt,
+        }
+      : {}),
   });
 
   const response = NextResponse.redirect(new URL(returnTo, DASHBOARD_ORIGIN));

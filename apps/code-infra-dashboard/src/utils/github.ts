@@ -7,20 +7,51 @@ import { Octokit } from '@octokit/rest';
  */
 export const anonymousOctokit: Octokit = new Octokit({});
 
-let proxiedOctokit: Octokit | undefined;
+const GITHUB_API_ORIGIN = 'https://api.github.com';
+const GITHUB_PROXY_PATH = '/api/github';
+
+let pendingSessionRefresh: Promise<unknown> | null = null;
+
+/** Many requests can find the token expired at once; refresh it only once. */
+function refreshSession(): Promise<unknown> {
+  pendingSessionRefresh ??= (async () => {
+    try {
+      return await fetch('/api/auth/session');
+    } finally {
+      pendingSessionRefresh = null;
+    }
+  })();
+  return pendingSessionRefresh;
+}
+
+/**
+ * Redirects every request into the proxy at the transport level rather than via
+ * `baseUrl`: Octokit's pagination follows the absolute api.github.com URLs in
+ * GitHub's `Link` header verbatim, and those would bypass a `baseUrl`.
+ *
+ * The proxy refuses an expired token instead of refreshing it, so a 401 gets one
+ * retry after the session endpoint has rotated the token.
+ */
+async function fetchThroughProxy(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const target = String(input);
+  const url = target.startsWith(GITHUB_API_ORIGIN)
+    ? `${GITHUB_PROXY_PATH}${target.slice(GITHUB_API_ORIGIN.length)}`
+    : target;
+
+  const response = await fetch(url, init);
+  if (response.status !== 401) {
+    return response;
+  }
+
+  await refreshSession();
+  return fetch(url, init);
+}
 
 /**
  * Signed in: through our own server, which attaches the user's GitHub token and
  * lifts the limit to 5000 requests/hour.
- *
- * The base URL is absolute because Octokit concatenates it as a plain string and
- * never re-parses it; a relative one would throw if this module were ever
- * evaluated during server rendering.
  */
-export function getProxiedOctokit(): Octokit {
-  proxiedOctokit ??= new Octokit({ baseUrl: `${window.location.origin}/api/github` });
-  return proxiedOctokit;
-}
+export const proxiedOctokit: Octokit = new Octokit({ request: { fetch: fetchThroughProxy } });
 
 // Helper to parse repo string "org/repo" into owner and repo
 export function parseRepo(input: string): { owner: string; repo: string } {

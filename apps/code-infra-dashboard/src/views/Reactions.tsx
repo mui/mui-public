@@ -23,8 +23,7 @@ import ErrorDisplay from '../components/ErrorDisplay';
 import { useSearchParamsState } from '../hooks/useSearchParamsState';
 import { parseIssueUrl } from '../utils/github';
 import type { IssueReactionTarget } from '../utils/github';
-import { useSession } from '../components/auth/SessionProvider';
-import { useOctokit } from '../hooks/useOctokit';
+import { useGitHubClient } from '../hooks/useGitHubClient';
 
 const EXAMPLES = [
   { label: 'mui-design-kits#10', url: 'https://github.com/mui/mui-design-kits/issues/10' },
@@ -198,13 +197,12 @@ export default function Reactions() {
   );
   const parseError = Boolean(searchParams.url) && target === null;
 
-  const octokit = useOctokit();
-  const { identity } = useSession();
+  const { octokit, ready, key } = useGitHubClient();
 
   const query = useQuery({
-    queryKey: ['reactions', identity, target ? targetKey(target) : null, unbounded],
+    queryKey: key('reactions', target ? targetKey(target) : null, unbounded),
     queryFn: () => fetchReactions(octokit, target!, unbounded),
-    enabled: Boolean(target),
+    enabled: ready && Boolean(target),
     staleTime: 60 * 1000,
     retry: false,
   });

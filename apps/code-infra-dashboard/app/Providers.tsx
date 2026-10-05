@@ -9,7 +9,6 @@ import CssBaseline from '@mui/material/CssBaseline';
 import { LocalizationProvider } from '@mui/x-date-pickers-pro/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers-pro/AdapterDayjs';
 import { LicenseInfo } from '@mui/x-license';
-import SessionProvider from '../src/components/auth/SessionProvider';
 
 declare module '@mui/material/styles' {
   interface CssThemeVariables {
@@ -123,35 +122,18 @@ const theme = createTheme({
   spacing: 4,
 });
 
-let browserQueryClient: QueryClient | undefined;
-
-/**
- * A module-scope client would be shared by every render in the server process,
- * which would serve one signed-in user's cached data to another. The server gets
- * a fresh client per request; the browser keeps one for the tab's lifetime.
- */
-function getQueryClient(): QueryClient {
-  if (typeof window === 'undefined') {
-    return new QueryClient();
-  }
-  browserQueryClient ??= new QueryClient();
-  return browserQueryClient;
-}
+const queryClient = new QueryClient();
 
 export default function Providers({ children }: { children: React.ReactNode }) {
-  const [queryClient] = React.useState(getQueryClient);
-
   return (
     <AppRouterCacheProvider>
       <QueryClientProvider client={queryClient}>
-        <SessionProvider>
-          <ThemeProvider theme={theme}>
-            <LocalizationProvider dateAdapter={AdapterDayjs}>
-              <CssBaseline enableColorScheme />
-              {children}
-            </LocalizationProvider>
-          </ThemeProvider>
-        </SessionProvider>
+        <ThemeProvider theme={theme}>
+          <LocalizationProvider dateAdapter={AdapterDayjs}>
+            <CssBaseline enableColorScheme />
+            {children}
+          </LocalizationProvider>
+        </ThemeProvider>
       </QueryClientProvider>
     </AppRouterCacheProvider>
   );
