@@ -318,12 +318,15 @@ export async function measureIteration(
   for (const entry of timing.elementEntries) {
     // Skip paints that happened while recording was paused. Attribute by the paint's
     // `paintTime`, not by when the observer callback fired (which can lag the paint).
-    if (!recording.activeAt(entry.paintTime)) {
+    const since = recording.activeSince(entry.paintTime);
+    if (since === null) {
       continue;
     }
-    // The default sentinel is the base series; named markers become sub-series.
+    // The default sentinel is the base series; named markers become sub-series. A paint is timed
+    // from when its recording window began — the mount, or where the interaction resumed
+    // recording — so a case that starts paused doesn't count the mount it chose to leave out.
     const id = entry.identifier === 'default' ? undefined : entry.identifier;
-    paints.push({ id, start: iterationStart, end: entry.paintTime });
+    paints.push({ id, start: Math.max(iterationStart, since), end: entry.paintTime });
   }
 
   if (options?.afterEach) {
