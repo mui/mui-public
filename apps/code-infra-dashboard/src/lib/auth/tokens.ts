@@ -38,12 +38,20 @@ async function exchange(session: Session, refreshToken: string): Promise<Session
     return null;
   }
 
-  const { authentication } = await exchangeRefreshToken({
-    clientType: 'github-app',
-    clientId: client.clientId,
-    clientSecret: client.clientSecret,
-    refreshToken,
-  });
+  let authentication;
+  try {
+    ({ authentication } = await exchangeRefreshToken({
+      clientType: 'github-app',
+      clientId: client.clientId,
+      clientSecret: client.clientSecret,
+      refreshToken,
+    }));
+  } catch (error) {
+    // GitHub refuses refresh tokens that were revoked or already rotated. Either
+    // way the session can't be saved, and the user has to sign in again.
+    console.error('GitHub sign-in: refreshing the user token failed.', error);
+    return null;
+  }
 
   return {
     ...session,

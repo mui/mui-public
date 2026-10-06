@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { readSession } from '@/lib/auth/session';
+import { clearSession, readSession } from '@/lib/auth/session';
 import { isTokenExpired } from '@/lib/auth/tokens';
 
 const GITHUB_API_ORIGIN = 'https://api.github.com';
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pat
 
   // An expired token is refused rather than refreshed here: refreshing rotates
   // the refresh token, and only /api/auth/session does that, once, before the
-  // browser retries.
+  // browser retries. This route only ever clears the session, never writes it.
   const session = await readSession();
   if (!session || isTokenExpired(session)) {
     return NextResponse.json({ error: 'Not signed in to GitHub.' }, { status: 401 });
@@ -78,12 +78,22 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pat
   upstreamHeaders.set('user-agent', USER_AGENT);
   upstreamHeaders.set('authorization', `Bearer ${session.token}`);
 
+  // Redirects are followed here rather than handed to the browser: GitHub
+  // redirects renamed and transferred repositories to another api.github.com
+  // URL, which the browser would request directly, without the token.
   const upstreamResponse = await fetch(upstreamUrl, {
     method: request.method,
     headers: upstreamHeaders,
     cache: 'no-store',
-    redirect: 'manual',
+    redirect: 'follow',
   });
+
+  // GitHub rejecting a token we haven't seen expire means it was revoked. Drop
+  // the session so the visitor falls back to anonymous instead of every request
+  // failing until they sign out by hand.
+  if (upstreamResponse.status === 401) {
+    await clearSession();
+  }
 
   const responseHeaders = copyHeaders(upstreamResponse.headers, FORWARDED_RESPONSE_HEADERS);
   // Let the browser hold a copy but revalidate every time, so it sends the etag

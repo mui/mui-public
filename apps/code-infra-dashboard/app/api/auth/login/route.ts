@@ -8,18 +8,8 @@ import {
   OAUTH_STATE_MAX_AGE_SECONDS,
   REDIRECT_URI,
   getOAuthClient,
+  resolveReturnTo,
 } from '@/lib/auth/config';
-
-/**
- * Only same-origin paths may be returned to. Rejects absolute URLs and
- * protocol-relative "//evil.example", both of which would leave the dashboard.
- */
-function sanitizeReturnTo(requested: string | null): string {
-  if (!requested || !requested.startsWith('/') || requested.startsWith('//')) {
-    return '/';
-  }
-  return requested;
-}
 
 export async function GET(request: NextRequest) {
   const client = getOAuthClient();
@@ -31,7 +21,8 @@ export async function GET(request: NextRequest) {
   }
 
   const state = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64url');
-  const returnTo = sanitizeReturnTo(request.nextUrl.searchParams.get('returnTo'));
+  const returnUrl = resolveReturnTo(request.nextUrl.searchParams.get('returnTo'));
+  const returnTo = `${returnUrl.pathname}${returnUrl.search}`;
 
   const authorizeUrl = new URL(GITHUB_AUTHORIZE_URL);
   authorizeUrl.searchParams.set('client_id', client.clientId);

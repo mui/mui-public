@@ -1,5 +1,6 @@
 import { vi, describe, it, expect, afterEach } from 'vitest';
-import { getOAuthClient } from './config';
+import { DASHBOARD_ORIGIN } from '@/constants';
+import { getOAuthClient, resolveReturnTo } from './config';
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -40,5 +41,32 @@ describe('getOAuthClient', () => {
     vi.stubEnv('IS_PULL_REQUEST', 'true');
 
     expect(getOAuthClient()).toBe(null);
+  });
+});
+
+describe('resolveReturnTo', () => {
+  const dashboardRoot = new URL('/', DASHBOARD_ORIGIN).href;
+
+  it('resolves a path on the dashboard, keeping its query', () => {
+    expect(resolveReturnTo('/repository/acme/widgets/prs?page=2').href).toBe(
+      new URL('/repository/acme/widgets/prs?page=2', DASHBOARD_ORIGIN).href,
+    );
+  });
+
+  it('falls back to the dashboard root without a return path', () => {
+    expect(resolveReturnTo(null).href).toBe(dashboardRoot);
+    expect(resolveReturnTo('').href).toBe(dashboardRoot);
+  });
+
+  it.each([
+    ['an absolute URL', 'https://evil.example/'],
+    ['a protocol-relative URL', '//evil.example/'],
+    // The URL parser treats a backslash as a slash in http(s) URLs...
+    ['a backslash after the leading slash', '/\\evil.example/'],
+    // ...and strips tabs and newlines before parsing.
+    ['a tab between the slashes', '/\t/evil.example/'],
+    ['a newline between the slashes', '/\n/evil.example/'],
+  ])('refuses to leave the dashboard via %s', (_label, requested) => {
+    expect(resolveReturnTo(requested).href).toBe(dashboardRoot);
   });
 });

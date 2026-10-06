@@ -30,6 +30,20 @@ export const BASE_COOKIE_OPTIONS = {
 export const REDIRECT_URI = new URL('/api/auth/callback', DASHBOARD_ORIGIN).toString();
 
 /**
+ * Resolves where to send the user after signing in, falling back to the
+ * dashboard root for anything that would leave it.
+ *
+ * Decided on the parsed URL, never the raw string: the parser treats `\` as `/`
+ * and strips tabs and newlines, so input like `/\evil.example` that looks like a
+ * local path resolves to another origin.
+ */
+export function resolveReturnTo(requested: string | null): URL {
+  const dashboard = new URL('/', DASHBOARD_ORIGIN);
+  const resolved = requested ? URL.parse(requested, dashboard) : null;
+  return resolved?.origin === dashboard.origin ? resolved : dashboard;
+}
+
+/**
  * The GitHub App backing the browser login, or null wherever sign-in can't
  * complete, so that those deploys degrade to the anonymous experience rather than
  * failing to boot or offering a broken button.
