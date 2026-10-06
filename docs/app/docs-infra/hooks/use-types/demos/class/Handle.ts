@@ -13,12 +13,12 @@ export class Handle {
   /**
    * Whether the dialog is currently open.
    */
-  private isOpen: boolean = false;
+  declare private isOpen: boolean;
 
   /**
    * A unique identifier for this handle instance.
    */
-  readonly id: string;
+  declare readonly id: string;
 
   /**
    * Creates a new Handle instance.

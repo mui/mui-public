@@ -37,6 +37,13 @@ commands:
             node --version
             command -v pnpm
             pnpm --version
+            # Host CPU model and SIMD features, to tell apart the machines a job lands on.
+            if [ -r /proc/cpuinfo ]; then
+              grep -m1 'model name' /proc/cpuinfo || true
+              (grep -m1 '^flags' /proc/cpuinfo || true) | (grep -ow 'avx2\|avx512[a-z_0-9]*\|fma\|f16c' || true) | sort -u | tr '\n' ' '
+              echo
+              nproc
+            fi
   install-deps:
     description: 'Installs JavaScript dependencies using pnpm'
     parameters:

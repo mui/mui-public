@@ -1,5 +1,5 @@
 import { defineConfig } from 'eslint/config';
-import { EXTENSION_DTS } from '../extensions.mjs';
+import { EXTENSION_DTS, EXTENSION_TS_ONLY } from '../extensions.mjs';
 
 const restrictedMethods = ['setTimeout', 'setInterval', 'clearTimeout', 'clearInterval'];
 
@@ -536,6 +536,13 @@ export function createCoreConfig(options = {}) {
         // Prevent the use of `e` as a shorthand for `event`, `error`, etc.
         'id-denylist': ['error', 'e'],
         '@typescript-eslint/return-await': 'off',
+      },
+    },
+    {
+      name: 'mui-base/ts',
+      files: [`**/*${EXTENSION_TS_ONLY}`],
+      rules: {
+        'mui/no-constructor-assigned-field': 'error',
       },
     },
     {

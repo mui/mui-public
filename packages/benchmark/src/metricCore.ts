@@ -43,9 +43,9 @@ export function setMetricRecorder(next: MetricRecorder): void {
 export abstract class Metric {
   abstract readonly kind: MetricKind;
 
-  readonly name: string;
+  declare readonly name: string;
 
-  readonly config: MetricConfig;
+  declare readonly config: MetricConfig;
 
   constructor(config: MetricConfig | string) {
     this.config = typeof config === 'string' ? { name: config } : config;

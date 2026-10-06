@@ -277,11 +277,11 @@ class BenchmarkReporter implements Reporter {
 
   private metricDefinitions: Record<string, MetricDefinition> = {};
 
-  private outputPath: string;
+  declare private outputPath: string;
 
-  private upload: boolean;
+  declare private upload: boolean;
 
-  private baselinePath: string | undefined;
+  declare private baselinePath: string | undefined;
 
   private hasFailures = false;
 
