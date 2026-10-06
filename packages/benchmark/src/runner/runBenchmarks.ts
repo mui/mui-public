@@ -6,7 +6,6 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import chalk from 'chalk';
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import { packRef, packWorkingTree } from '../utils/packWorkspace';
-import { ensurePnpmOnPath } from '../utils/pnpm';
 import { getCiMetadata } from '../ciReport';
 import type { BenchmarkRunReport } from '../runReport';
 import { refLabel, resolveBaselineRef, WORKTREE_REF } from './refs';
@@ -72,8 +71,6 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
   const outputDir = await prepareOutputDir(harnessDir);
   const buildsDir = buildsDirOf(harnessDir);
   const packedDir = path.join(outputDir, 'packed');
-
-  await ensurePnpmOnPath(path.join(outputDir, 'bin'));
 
   // A run killed outright never reaches the restore below; undo what it left pinned first.
   await restoreWorkspace(repoRoot, outputDir);
