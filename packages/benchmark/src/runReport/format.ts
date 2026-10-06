@@ -40,7 +40,7 @@ export function formatPercent(interval: Interval): string {
 /** A comparison as one phrase: `worse +2.7% – +6.8%`, `unsure -1.2% – +0.9%`, `unchanged`. */
 export function formatComparison(comparison: MetricComparison): string {
   return comparison.change === 'unchanged'
-    ? comparison.change
+    ? 'unchanged'
     : `${comparison.change} ${formatPercent(comparison.relative)}`;
 }
 
@@ -75,22 +75,22 @@ export function benchmarkTable({ benchmark, metrics }: BenchmarkAnalysis): {
 } {
   // Builds read old to new, the baseline first, like a diff; compared cases keep the reference
   // first, as the comparison columns measure against it.
-  const variants =
+  const columnOrder =
     benchmark.kind === 'baseline' ? [...benchmark.variants].reverse() : benchmark.variants;
   const columns: BenchmarkTableColumn[] = [
     { header: 'Metric', kind: 'label' },
-    ...variants.map((variant) => ({ header: variant, kind: 'value' as const })),
+    ...columnOrder.map((variant) => ({ header: variant, kind: 'value' as const })),
     ...(metrics[0]?.comparisons ?? []).map((comparison) => ({
       header: formatComparisonLabel(benchmark, comparison),
       kind: 'comparison' as const,
     })),
   ];
-  const rows = metrics.map(({ metric, definition, variants: medians, comparisons }) => ({
+  const rows = metrics.map(({ metric, definition, variants, comparisons }) => ({
     metric,
     comparisons,
     cells: [
       metric,
-      ...variants.map((variant) => formatValue(medians[variant].median, definition)),
+      ...columnOrder.map((variant) => formatValue(variants[variant].median, definition)),
       ...comparisons.map(formatComparison),
     ],
   }));

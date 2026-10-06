@@ -24,11 +24,11 @@ interface BuildOptions {
  */
 function renderBenchmarkTable(analysis: BenchmarkAnalysis): string {
   const heading = `**${analysis.benchmark.name}** · ${formatRounds(analysis.benchmark)}`;
-  const { columns, rows: allRows } = benchmarkTable(analysis);
-  const rows = allRows.filter((row) =>
+  const { columns, rows } = benchmarkTable(analysis);
+  const changed = rows.filter((row) =>
     row.comparisons.some(({ change }) => change === 'better' || change === 'worse'),
   );
-  if (rows.length === 0) {
+  if (changed.length === 0) {
     return `${heading} · no change detected`;
   }
   const table = formatMarkdownTable(
@@ -37,7 +37,7 @@ function renderBenchmarkTable(analysis: BenchmarkAnalysis): string {
       header,
       align: kind === 'value' ? ('right' as const) : ('left' as const),
     })),
-    rows.map(({ cells }) =>
+    changed.map(({ cells }) =>
       Object.fromEntries(
         cells.map((cell, column) => [
           String(column),
