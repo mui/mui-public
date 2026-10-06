@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 
 import chalk from 'chalk';
-import type { Browser, BrowserContext, CDPSession, Page } from '@playwright/test';
+import type { Browser, CDPSession, Page } from '@playwright/test';
 import { BENCHMARK_LAUNCH_ARGS, BENCHMARK_VIEWPORT } from '../launchArgs';
 import { compareBenchmark, countAlarmedComparisons } from '../runReport';
 import type { RunBenchmark, RunMetricDefinition } from '../runReport';
@@ -76,13 +76,11 @@ function stableMetrics(rounds: Round[]): string[] {
 /** What a benchmark file's page defines. */
 type PageListing = Pick<BenchPage, 'cases' | 'comparisons'>;
 
-interface BenchTab {
-  context: BrowserContext;
-  page: Page;
-}
-
-/** Opens a tab, in a browser context of its own, bridged to a CDP session for trusted input. */
-async function openBenchTab(browser: Browser): Promise<BenchTab> {
+/**
+ * Opens a tab, in a browser context of its own, bridged to a CDP session for trusted input. Closing
+ * its context closes it.
+ */
+async function openBenchTab(browser: Browser): Promise<Page> {
   const context = await browser.newContext({ viewport: BENCHMARK_VIEWPORT });
   try {
     const page = await context.newPage();
@@ -97,7 +95,7 @@ async function openBenchTab(browser: Browser): Promise<BenchTab> {
       (_source, method: string, params?: Record<string, unknown>) =>
         session.send(method as CdpMethod, params),
     );
-    return { context, page };
+    return page;
   } catch (error) {
     await context.close();
     throw error;
@@ -129,12 +127,12 @@ async function loadBenchPage(
 
 /** Loads pages just to learn what they define. */
 async function listBenchPages(browser: Browser, urls: string[]): Promise<PageListing[]> {
-  const tab = await openBenchTab(browser);
+  const page = await openBenchTab(browser);
   try {
     const listings: PageListing[] = [];
     for (const url of urls) {
       // eslint-disable-next-line no-await-in-loop
-      const { visibility, ...listing } = await loadBenchPage(tab.page, url);
+      const { visibility, ...listing } = await loadBenchPage(page, url);
       if (visibility !== 'visible') {
         console.warn(chalk.yellow(`  ${url} is ${visibility}; rAF-based waits may stall.`));
       }
@@ -142,7 +140,7 @@ async function listBenchPages(browser: Browser, urls: string[]): Promise<PageLis
     }
     return listings;
   } finally {
-    await tab.context.close();
+    await page.context().close();
   }
 }
 
@@ -170,10 +168,15 @@ interface CaseResult {
 
 type BenchmarkEntry = Pick<RunBenchmark, 'name' | 'file' | 'kind' | 'variants'>;
 
+/** A benchmark to measure: its variants' slots, sampled as its options ask. */
+interface MeasuredBenchmark {
+  entry: BenchmarkEntry;
+  slots: PageSlot[];
+  sampling: Required<SamplingOptions>;
+}
+
 /** A benchmark to measure, or why it can't be. */
-type PlannedBenchmark =
-  | { entry: BenchmarkEntry; slots: PageSlot[]; sampling: Required<SamplingOptions> }
-  | { entry: BenchmarkEntry; error: string };
+type PlannedBenchmark = MeasuredBenchmark | { entry: BenchmarkEntry; error: string };
 
 /**
  * Measures one benchmark in a tab of its own, loading each slot's page before sampling it. Every
@@ -187,17 +190,17 @@ type PlannedBenchmark =
  */
 async function runBenchmark(
   browser: Browser,
-  { entry, slots, sampling }: Extract<PlannedBenchmark, { slots: PageSlot[] }>,
+  { entry, slots, sampling }: MeasuredBenchmark,
   otherBaselineBenchmarks: number,
 ): Promise<CaseResult> {
   console.log(chalk.cyan(`\nRunning "${entry.name}" (${entry.file})…`));
   const { sampleSize, timeout, autoSampleConditions } = sampling;
   const horizons = parseHorizons(autoSampleConditions);
-  let tab: BenchTab | undefined;
+  let opened: Page | undefined;
   try {
-    tab = await openBenchTab(browser);
-    const { page } = tab;
-    let metrics: Record<string, RunMetricDefinition> = {};
+    const page = await openBenchTab(browser);
+    opened = page;
+    let metrics: Record<string, RunMetricDefinition> | undefined;
     const runRound = async (): Promise<Round> => {
       const round: Round = [];
       for (const index of shuffledIndices(slots.length)) {
@@ -205,10 +208,10 @@ async function runBenchmark(
         await loadBenchPage(page, slots[index].url);
         // eslint-disable-next-line no-await-in-loop
         round[index] = await sampleBenchCase(page, slots[index].caseName);
-        if (index === 0) {
+        if (index === 0 && !metrics) {
           // Read from the reference page: a metric whose config the change under test altered is
-          // described the way the change describes it. A freshly loaded page knows the metrics it
-          // recorded itself.
+          // described the way the change describes it. Its first sample recorded every metric the
+          // report keeps, as those are the ones recorded in every round.
           // eslint-disable-next-line no-await-in-loop
           metrics = await page.evaluate(() => window.benchmarkPage!.metricDefinitions());
         }
@@ -221,12 +224,14 @@ async function runBenchmark(
       // eslint-disable-next-line no-await-in-loop
       rounds.push(await runRound());
     }
+    const definitions = metrics ?? {};
     const benchmarkOf = (): RunBenchmark => ({ ...entry, samples: samplesOf(slots, rounds) });
 
     const isSettled = () => {
       const benchmark = benchmarkOf();
-      const familySize = countAlarmedComparisons(metrics, [benchmark]) + otherBaselineBenchmarks;
-      return differencesResolved(compareBenchmark(metrics, benchmark, familySize), horizons);
+      const familySize =
+        countAlarmedComparisons(definitions, [benchmark]) + otherBaselineBenchmarks;
+      return differencesResolved(compareBenchmark(definitions, benchmark, familySize), horizons);
     };
 
     const deadline = Date.now() + timeout * 60_000;
@@ -245,13 +250,13 @@ async function runBenchmark(
     }
     return {
       benchmark: { ...benchmarkOf(), sampling: { sampleSize, timedOut: !resolved } },
-      metrics,
+      metrics: definitions,
     };
   } catch (error) {
     console.error(chalk.red(`  ${errorMessage(error)}`));
     return { benchmark: { ...entry, error: errorMessage(error) }, metrics: {} };
   } finally {
-    await tab?.context.close();
+    await opened?.context().close();
   }
 }
 
@@ -329,12 +334,14 @@ export async function runInterleaved(options: RunInterleavedOptions): Promise<In
 
   try {
     // Every file is listed before any is measured, so each benchmark knows how many others share
-    // the run's chance of a false alarm.
-    const planned: PlannedBenchmark[] = [];
-    for (const benchFile of options.benchFiles) {
-      // eslint-disable-next-line no-await-in-loop
-      planned.push(...(await planBenchFile(browser, server.origin, benchFile, options)));
-    }
+    // the run's chance of a false alarm. Nothing is measured yet, so the files list at once.
+    const planned = (
+      await Promise.all(
+        options.benchFiles.map((benchFile) =>
+          planBenchFile(browser, server.origin, benchFile, options),
+        ),
+      )
+    ).flat();
     const baselineBenchmarks = planned.filter(
       (plan) => 'slots' in plan && plan.entry.kind === 'baseline',
     ).length;

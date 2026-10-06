@@ -36,6 +36,8 @@ export interface MetricComparison {
   subject: string;
   /** The variant it is measured against. */
   against: string;
+  /** The level of the intervals: 95%, or stricter where a change can raise an alarm. */
+  confidence: number;
   /** `subject − against`, in the metric's unit: confidence interval of the mean difference. */
   absolute: Interval;
   /** The same, as a percentage of `against`'s mean. */
@@ -253,7 +255,14 @@ export function compareSamples(
     change = increased === lowerIsBetter ? 'worse' : 'better';
   }
 
-  const comparison = { subject: subject.name, against: against.name, absolute, relative, change };
+  const comparison = {
+    subject: subject.name,
+    against: against.name,
+    confidence,
+    absolute,
+    relative,
+    change,
+  };
   return { ...comparison, severity: severityOf(comparison, definition) };
 }
 
@@ -267,37 +276,56 @@ function pairsOf(benchmark: RunBenchmark): Array<{ subject: string; against: str
 
 export type MetricComparisons = Omit<MetricAnalysis, 'variants'>;
 
-/** Whether a metric's change can raise an alarm: an alarmed metric of a `baseline` benchmark. */
-function canAlarm(benchmark: RunBenchmark, definition: RunMetricDefinition): boolean {
-  return benchmark.kind === 'baseline' && definition.alarm !== undefined;
+interface PairedMetric {
+  metric: string;
+  definition: RunMetricDefinition;
+  canAlarm: boolean;
+  pairs: Array<{
+    subject: { name: string; values: number[] };
+    against: { name: string; values: number[] };
+  }>;
+}
+
+/** Every metric a benchmark reported, with the pairs of variants its kind compares on it. */
+function pairedMetricsOf(
+  metrics: Record<string, RunMetricDefinition>,
+  benchmark: RunBenchmark,
+): PairedMetric[] {
+  const { samples } = benchmark;
+  const [reference] = benchmark.variants;
+  return Object.keys(samples?.[reference] ?? {}).map((metric) => {
+    const definition = definitionOf(metrics, metric);
+    const sideOf = (name: string) => ({ name, values: samples?.[name]?.[metric] ?? [] });
+    return {
+      metric,
+      definition,
+      canAlarm: benchmark.kind === 'baseline' && definition.alarm !== undefined,
+      pairs: pairsOf(benchmark).map(({ subject, against }) => ({
+        subject: sideOf(subject),
+        against: sideOf(against),
+      })),
+    };
+  });
 }
 
 /**
- * How many comparisons share the run's 5% chance of a false alarm: those that can raise an alarm,
- * leaving out any whose per-round differences never varied. Those can't be flagged by chance — a
- * render count that is the same in every round — so they would only make the others stricter.
+ * How many comparisons share the run's 5% chance of a false alarm: those that can raise an alarm —
+ * alarmed metrics of `baseline` benchmarks — leaving out any whose per-round differences never
+ * varied. Those can't be flagged by chance — a render count that is the same in every round — so
+ * they would only make the others stricter.
  */
 export function countAlarmedComparisons(
   metrics: Record<string, RunMetricDefinition>,
   benchmarks: RunBenchmark[],
 ): number {
-  let count = 0;
-  for (const benchmark of benchmarks) {
-    const { samples } = benchmark;
-    const [reference] = benchmark.variants;
-    const valuesOf = (variant: string, metric: string) => samples?.[variant]?.[metric] ?? [];
-    for (const metric of Object.keys(samples?.[reference] ?? {})) {
-      if (canAlarm(benchmark, definitionOf(metrics, metric))) {
-        for (const { subject, against } of pairsOf(benchmark)) {
-          const differences = differencesOf(valuesOf(subject, metric), valuesOf(against, metric));
-          if (differences.some((difference) => difference !== differences[0])) {
-            count += 1;
-          }
-        }
-      }
-    }
-  }
-  return count;
+  return benchmarks
+    .flatMap((benchmark) => pairedMetricsOf(metrics, benchmark))
+    .filter((paired) => paired.canAlarm)
+    .flatMap((paired) => paired.pairs)
+    .filter(({ subject, against }) => {
+      const differences = differencesOf(subject.values, against.values);
+      return differences.some((difference) => difference !== differences[0]);
+    }).length;
 }
 
 /**
@@ -310,28 +338,14 @@ export function compareBenchmark(
   benchmark: RunBenchmark,
   familySize = 1,
 ): { metrics: MetricComparisons[] } {
-  const { samples } = benchmark;
-  if (!samples) {
-    return { metrics: [] };
-  }
-  const [reference] = benchmark.variants;
   return {
-    metrics: Object.keys(samples[reference] ?? {}).map((metric) => {
-      const definition = definitionOf(metrics, metric);
-      const confidence = canAlarm(benchmark, definition)
-        ? alarmedConfidence(familySize)
-        : CONFIDENCE;
-      const valuesOf = (variant: string) => samples[variant]?.[metric] ?? [];
+    metrics: pairedMetricsOf(metrics, benchmark).map(({ metric, definition, canAlarm, pairs }) => {
+      const confidence = canAlarm ? alarmedConfidence(familySize) : CONFIDENCE;
       return {
         metric,
         definition,
-        comparisons: pairsOf(benchmark).map(({ subject, against }) =>
-          compareSamples(
-            { name: subject, values: valuesOf(subject) },
-            { name: against, values: valuesOf(against) },
-            definition,
-            confidence,
-          ),
+        comparisons: pairs.map(({ subject, against }) =>
+          compareSamples(subject, against, definition, confidence),
         ),
       };
     }),

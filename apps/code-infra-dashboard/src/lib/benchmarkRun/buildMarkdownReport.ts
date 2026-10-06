@@ -76,7 +76,7 @@ export function buildBenchmarkRunMarkdownReport(
   if (measured.length > 0) {
     lines.push('<details>', '<summary>Full results</summary>', '');
     lines.push(measured.map(renderBenchmarkTable).join('\n\n'));
-    lines.push('', `_${runReportFootnote(report)}_`, '', '</details>');
+    lines.push('', `_${runReportFootnote(analyses)}_`, '', '</details>');
   }
 
   if (options.detailsUrl) {

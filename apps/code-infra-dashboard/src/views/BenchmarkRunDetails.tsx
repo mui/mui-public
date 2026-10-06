@@ -193,7 +193,7 @@ export default function BenchmarkRunDetails() {
         {report && (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
             <Typography variant="body2" color="text.secondary">
-              {runReportFootnote(report)}
+              {runReportFootnote(analyses)}
             </Typography>
             <Typography variant="body2" color="text.secondary">
               {report.environment.browser} on {report.environment.platform}/

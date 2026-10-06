@@ -1,6 +1,6 @@
-import { alarmedConfidence, CONFIDENCE, countAlarmedComparisons } from './analyzeRun';
+import { CONFIDENCE } from './analyzeRun';
 import type { BenchmarkAnalysis, Interval, MetricComparison, Regression } from './analyzeRun';
-import type { BenchmarkRunReport, RunBenchmark, RunMetricDefinition } from './schema';
+import type { RunBenchmark, RunMetricDefinition } from './schema';
 
 /**
  * How a run report's numbers read, for every renderer of one: the terminal table, the pull request
@@ -13,18 +13,22 @@ const DEFAULT_DISCRETE_FORMAT: Intl.NumberFormatOptions = { maximumFractionDigit
 // Constructing a formatter is the expensive part, and a table formats every cell.
 const formatters = new Map<string, Intl.NumberFormat>();
 
-/** A value in its metric's own format — `12.3 ms`, `4`. */
-export function formatValue(value: number, definition: RunMetricDefinition): string {
-  const options =
-    definition.format ??
-    (definition.kind === 'discrete' ? DEFAULT_DISCRETE_FORMAT : DEFAULT_SCALAR_FORMAT);
+function formatterFor(options: Intl.NumberFormatOptions): Intl.NumberFormat {
   const key = JSON.stringify(options);
   let formatter = formatters.get(key);
   if (!formatter) {
     formatter = new Intl.NumberFormat('en-US', options);
     formatters.set(key, formatter);
   }
-  return formatter.format(value);
+  return formatter;
+}
+
+/** A value in its metric's own format — `12.3 ms`, `4`. */
+export function formatValue(value: number, definition: RunMetricDefinition): string {
+  const options =
+    definition.format ??
+    (definition.kind === 'discrete' ? DEFAULT_DISCRETE_FORMAT : DEFAULT_SCALAR_FORMAT);
+  return formatterFor(options).format(value);
 }
 
 /** Both bounds signed, so the direction of a difference reads without the verdict beside it. */
@@ -120,14 +124,19 @@ export function formatRunSummary(analyses: BenchmarkAnalysis[], regressions: Reg
 }
 
 /** How to read a run's numbers, under every rendering of it. */
-export function runReportFootnote(report: BenchmarkRunReport): string {
-  const familySize = countAlarmedComparisons(report.metrics, report.benchmarks);
+export function runReportFootnote(analyses: BenchmarkAnalysis[]): string {
+  const alarmed = Math.max(
+    CONFIDENCE,
+    ...analyses.flatMap(({ metrics }) =>
+      metrics.flatMap(({ comparisons }) => comparisons.map((comparison) => comparison.confidence)),
+    ),
+  );
   const interval =
-    familySize > 1
+    alarmed > CONFIDENCE
       ? 'Each Δ is a confidence interval on the paired per-round difference, relative to the ' +
-        `variant it is measured against: ${formatConfidence(alarmedConfidence(familySize))} for ` +
-        `the ${familySize} comparisons that can raise an alarm, which together raise a false one ` +
-        `at most 5% of the time, and ${formatConfidence(CONFIDENCE)} for the rest`
+        `variant it is measured against: ${formatConfidence(alarmed)} where a change can raise ` +
+        'an alarm, so that together they raise a false one at most 5% of the time, and ' +
+        `${formatConfidence(CONFIDENCE)} for the rest`
       : `Each Δ is a ${formatConfidence(CONFIDENCE)} confidence interval on the paired per-round ` +
         'difference, relative to the variant it is measured against';
   return (
@@ -137,5 +146,5 @@ export function runReportFootnote(report: BenchmarkRunReport): string {
 }
 
 function formatConfidence(fraction: number): string {
-  return `${new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(fraction * 100)}%`;
+  return `${formatterFor(DEFAULT_SCALAR_FORMAT).format(fraction * 100)}%`;
 }
