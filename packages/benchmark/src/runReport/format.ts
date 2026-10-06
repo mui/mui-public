@@ -43,16 +43,9 @@ export function formatPercent(interval: Interval): string {
   return `${signed(interval.low)} – ${signed(interval.high)}`;
 }
 
-const CHANGE_LABELS: Record<Change, string> = {
-  better: 'better',
-  worse: 'worse',
-  undetected: 'no change detected',
-  unchanged: 'unchanged',
-};
-
 /** How a change reads: `better`, `worse`, `no change detected`, `unchanged`. */
 export function formatChange(change: Change): string {
-  return CHANGE_LABELS[change];
+  return change === 'undetected' ? 'no change detected' : change;
 }
 
 /**
@@ -168,8 +161,9 @@ export function runReportFootnote(analyses: BenchmarkAnalysis[]): string {
       : `Each Δ is a ${formatConfidence(CONFIDENCE)} confidence interval on the paired per-round ` +
         'difference, relative to the variant it is measured against';
   return (
-    `Each value is a median. ${interval}; "no change detected" means it straddles zero — the expected ` +
-    'result for two equivalent builds — and "unchanged" that every round measured the same.'
+    `Each value is a median. ${interval}; "${formatChange('undetected')}" means it straddles ` +
+    'zero — the expected result for two equivalent builds — and ' +
+    `"${formatChange('unchanged')}" that every round measured the same.`
   );
 }
 

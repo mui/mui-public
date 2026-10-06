@@ -282,7 +282,7 @@ describe('analyzeRun', () => {
       expect(widthOf(withSteady)).toBe(widthOf(single));
     });
 
-    it('can leave undetected what 95% would have flagged', () => {
+    it('can miss a change that 95% would have flagged', () => {
       const { base, shifted } = drifting(2);
       const flagged = benchmarkOf('d', {
         current: { render: shifted.map((value, round) => value + (round % 2 ? 2 : -2)) },

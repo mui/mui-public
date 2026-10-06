@@ -26,9 +26,9 @@ export interface SampleSummary {
 }
 
 /**
- * Which way a resolved change went, given the metric's direction; `undetected` if it did not
- * resolve — no change detected — and `unchanged` if every round measured the same on both sides,
- * a render count, say.
+ * Which way a resolved change went, given the metric's direction; `undetected` (shown as "no change
+ * detected") if it did not resolve; `unchanged` if every round measured the same on both sides, a
+ * render count, say.
  */
 export type Change = 'better' | 'worse' | 'undetected' | 'unchanged';
 
