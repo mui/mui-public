@@ -61,6 +61,8 @@ const benchmarkSchema = z.object({
    * `timedOut` says it was still unresolved when the timeout stopped it.
    */
   sampling: z.object({ sampleSize: z.number(), timedOut: z.boolean() }).optional(),
+  /** How long measuring it took, page loads included. */
+  durationMs: z.number().optional(),
   /** Why the benchmark produced no samples. */
   error: z.string().optional(),
 });
@@ -68,6 +70,8 @@ const benchmarkSchema = z.object({
 export const benchmarkRunReportSchema = z.object({
   version: z.literal(2),
   generatedAt: z.string(),
+  /** How long the whole run took, packing and building both refs included. */
+  durationMs: z.number().optional(),
   head: z.object({ sha: z.string(), branch: z.string().optional() }),
   environment: z.object({
     browser: z.string(),

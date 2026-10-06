@@ -43,6 +43,23 @@ export function formatPercent(interval: Interval): string {
   return `${signed(interval.low)} – ${signed(interval.high)}`;
 }
 
+/**
+ * The colour a comparison draws the eye with: `error` for a regression that fails the check,
+ * `warning` for any other change for the worse, `success` for one for the better, and `none` when
+ * nothing moved.
+ */
+export type ChangeTone = 'error' | 'warning' | 'success' | 'none';
+
+export function changeTone({ change, severity }: MetricComparison): ChangeTone {
+  if (severity === 'error') {
+    return 'error';
+  }
+  if (change === 'worse') {
+    return 'warning';
+  }
+  return change === 'better' ? 'success' : 'none';
+}
+
 /** How a change reads: `better`, `worse`, `no change detected`, `unchanged`. */
 export function formatChange(change: Change): string {
   return change === 'undetected' ? 'no change detected' : change;
@@ -112,9 +129,26 @@ export function benchmarkTable({ benchmark, metrics }: BenchmarkAnalysis): {
   return { columns, rows };
 }
 
+/** A duration at a glance: `850ms`, `42s`, `3m 05s`, `1h 02m`. */
+export function formatDuration(durationMs: number): string {
+  if (durationMs < 1000) {
+    return `${Math.round(durationMs)}ms`;
+  }
+  const seconds = Math.round(durationMs / 1000);
+  if (seconds < 60) {
+    return `${seconds}s`;
+  }
+  const minutes = Math.floor(seconds / 60);
+  const twoDigits = (value: number) => String(value).padStart(2, '0');
+  return minutes < 60
+    ? `${minutes}m ${twoDigits(seconds % 60)}s`
+    : `${Math.floor(minutes / 60)}h ${twoDigits(minutes % 60)}m`;
+}
+
 /**
- * How many rounds a benchmark ran, and whether sampling resolved: `50 rounds`, `50 + 23 rounds` past
- * the sample size, `50 + 312 rounds · timed out`. `null` for a benchmark that measured nothing.
+ * How many rounds a benchmark ran, how long it took, and whether sampling resolved: `50 rounds`,
+ * `50 + 23 rounds · 1m 12s` past the sample size, `50 + 312 rounds · 3m 04s · timed out`. `null`
+ * for a benchmark that measured nothing.
  */
 export function formatRounds(benchmark: RunBenchmark): string | null {
   const [reference] = benchmark.variants;
@@ -123,13 +157,24 @@ export function formatRounds(benchmark: RunBenchmark): string | null {
     return null;
   }
   const sampleSize = benchmark.sampling?.sampleSize ?? rounds;
-  const counted =
-    rounds > sampleSize ? `${sampleSize} + ${rounds - sampleSize} rounds` : `${rounds} rounds`;
-  return benchmark.sampling?.timedOut ? `${counted} · timed out` : counted;
+  return [
+    rounds > sampleSize ? `${sampleSize} + ${rounds - sampleSize} rounds` : `${rounds} rounds`,
+    benchmark.durationMs === undefined ? null : formatDuration(benchmark.durationMs),
+    benchmark.sampling?.timedOut ? 'timed out' : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 }
 
-/** The line a run is summed up in: how many benchmarks measured, regressed, timed out and failed. */
-export function formatRunSummary(analyses: BenchmarkAnalysis[], regressions: Regression[]): string {
+/**
+ * The line a run is summed up in: how many benchmarks measured, regressed, timed out and failed, and
+ * how long the run took when the report says.
+ */
+export function formatRunSummary(
+  analyses: BenchmarkAnalysis[],
+  regressions: Regression[],
+  durationMs?: number,
+): string {
   const measured = analyses.filter((analysis) => !analysis.benchmark.error).length;
   const failed = analyses.length - measured;
   const regressed = new Set(regressions.map((regression) => regression.benchmark)).size;
@@ -139,6 +184,7 @@ export function formatRunSummary(analyses: BenchmarkAnalysis[], regressions: Reg
     regressed > 0 ? `${regressed} with regressions` : 'no regressions',
     timedOut > 0 ? `${timedOut} timed out` : null,
     failed > 0 ? `${failed} failed` : null,
+    durationMs === undefined ? null : `ran ${formatDuration(durationMs)}`,
   ]
     .filter(Boolean)
     .join(' · ');
@@ -152,19 +198,11 @@ export function runReportFootnote(analyses: BenchmarkAnalysis[]): string {
       metrics.flatMap(({ comparisons }) => comparisons.map((comparison) => comparison.confidence)),
     ),
   );
-  const interval =
+  const levels =
     alarmed > CONFIDENCE
-      ? 'Each Δ is a confidence interval on the paired per-round difference, relative to the ' +
-        `variant it is measured against: ${formatConfidence(alarmed)} where a change can raise ` +
-        'an alarm, so that together they raise a false one at most 5% of the time, and ' +
-        `${formatConfidence(CONFIDENCE)} for the rest`
-      : `Each Δ is a ${formatConfidence(CONFIDENCE)} confidence interval on the paired per-round ` +
-        'difference, relative to the variant it is measured against';
-  return (
-    `Each value is a median. ${interval}; "${formatChange('undetected')}" means it straddles ` +
-    'zero — the expected result for two equivalent builds — and ' +
-    `"${formatChange('unchanged')}" that every round measured the same.`
-  );
+      ? `${formatConfidence(alarmed)} for alarmed metrics, ${formatConfidence(CONFIDENCE)} otherwise`
+      : formatConfidence(CONFIDENCE);
+  return `Medians; Δ is the confidence interval of the paired per-round difference (${levels}).`;
 }
 
 function formatConfidence(fraction: number): string {

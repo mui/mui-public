@@ -350,9 +350,11 @@ export function compareBenchmark(
       return {
         metric,
         definition,
-        comparisons: pairs.map(({ subject, against }) =>
-          compareSamples(subject, against, definition, confidence),
-        ),
+        comparisons: pairs.map(({ subject, against }) => {
+          const comparison = compareSamples(subject, against, definition, confidence);
+          // Variants of a `compare()` differ on purpose: no difference between them is a regression.
+          return canAlarm ? comparison : { ...comparison, severity: 'none' as const };
+        }),
       };
     }),
   };

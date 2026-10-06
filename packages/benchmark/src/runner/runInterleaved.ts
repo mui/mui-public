@@ -194,6 +194,7 @@ async function runBenchmark(
   otherBaselineBenchmarks: number,
 ): Promise<CaseResult> {
   console.log(chalk.cyan(`\nRunning "${entry.name}" (${entry.file})…`));
+  const startedAt = Date.now();
   const { sampleSize, timeout, autoSampleConditions } = sampling;
   const horizons = parseHorizons(autoSampleConditions);
   let opened: Page | undefined;
@@ -249,12 +250,19 @@ async function runBenchmark(
       );
     }
     return {
-      benchmark: { ...benchmarkOf(), sampling: { sampleSize, timedOut: !resolved } },
+      benchmark: {
+        ...benchmarkOf(),
+        sampling: { sampleSize, timedOut: !resolved },
+        durationMs: Date.now() - startedAt,
+      },
       metrics: definitions,
     };
   } catch (error) {
     console.error(chalk.red(`  ${errorMessage(error)}`));
-    return { benchmark: { ...entry, error: errorMessage(error) }, metrics: {} };
+    return {
+      benchmark: { ...entry, error: errorMessage(error), durationMs: Date.now() - startedAt },
+      metrics: {},
+    };
   } finally {
     await opened?.context().close();
   }

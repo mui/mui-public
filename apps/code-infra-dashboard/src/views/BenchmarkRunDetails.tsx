@@ -15,38 +15,52 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
+import { alpha } from '@mui/material/styles';
+import type { SxProps, Theme } from '@mui/material/styles';
 import { fetchCiReport, isBenchmarkRunUpload } from '@/utils/fetchCiReport';
 import {
   analyzeRun,
   benchmarkTable,
+  changeTone,
+  formatDuration,
   formatRounds,
   runReportFootnote,
 } from '@mui/internal-benchmark/runReport';
 import type {
   BenchmarkAnalysis,
   BenchmarkRunReport,
+  BenchmarkTableColumn,
   MetricComparison,
 } from '@mui/internal-benchmark/runReport';
 import Heading from '../components/Heading';
 import ReportHeader from '../components/ReportHeader';
 import ErrorDisplay from '../components/ErrorDisplay';
 
-/** A regression is coloured by severity; `better` is green; no change detected is the expected result. */
-function comparisonColor(comparison: MetricComparison): string {
-  if (comparison.severity === 'error') {
-    return 'error';
+/** A comparison cell's colours: a tinted background where something moved, so the eye finds it. */
+function comparisonSx(comparison: MetricComparison): SxProps<Theme> {
+  const tone = changeTone(comparison);
+  if (tone === 'none') {
+    return { color: 'text.secondary' };
   }
-  if (comparison.severity === 'warning') {
-    return 'warning.main';
-  }
-  return comparison.change === 'better' ? 'success.main' : 'text.secondary';
+  return (theme) => ({
+    color: theme.palette[tone].main,
+    bgcolor: alpha(theme.palette[tone].main, 0.12),
+  });
 }
+
+// Fixed widths per kind of column, so the columns of every benchmark's table line up.
+const COLUMN_WIDTHS: Record<BenchmarkTableColumn['kind'], number> = {
+  label: 220,
+  value: 120,
+  comparison: 280,
+};
 
 function BenchmarkTable({ analysis }: { analysis: BenchmarkAnalysis }) {
   const { benchmark } = analysis;
   const { columns, rows } = benchmarkTable(analysis);
   const firstComparison = columns.findIndex((column) => column.kind === 'comparison');
   const alignOf = (column: number) => (columns[column].kind === 'value' ? 'right' : undefined);
+  const tableWidth = columns.reduce((sum, column) => sum + COLUMN_WIDTHS[column.kind], 0);
 
   return (
     <TableContainer sx={{ mb: 4, overflowX: 'auto' }}>
@@ -71,7 +85,12 @@ function BenchmarkTable({ analysis }: { analysis: BenchmarkAnalysis }) {
           </Tooltip>
         </Typography>
       </Typography>
-      <Table size="small">
+      <Table size="small" sx={{ tableLayout: 'fixed', width: tableWidth }}>
+        <colgroup>
+          {columns.map((column, index) => (
+            <col key={index} style={{ width: COLUMN_WIDTHS[column.kind] }} />
+          ))}
+        </colgroup>
         <TableHead>
           <TableRow>
             {columns.map(({ header }, column) => (
@@ -84,21 +103,20 @@ function BenchmarkTable({ analysis }: { analysis: BenchmarkAnalysis }) {
         <TableBody>
           {rows.map((row) => (
             <TableRow key={row.metric}>
-              {row.cells.map((cell, column) => (
-                <TableCell key={column} align={alignOf(column)}>
-                  {columns[column].kind === 'comparison' ? (
-                    <Typography
-                      variant="body2"
-                      component="span"
-                      color={comparisonColor(row.comparisons[column - firstComparison])}
-                    >
-                      {cell}
-                    </Typography>
-                  ) : (
-                    cell
-                  )}
-                </TableCell>
-              ))}
+              {row.cells.map((cell, column) =>
+                columns[column].kind === 'comparison' ? (
+                  <TableCell
+                    key={column}
+                    sx={comparisonSx(row.comparisons[column - firstComparison])}
+                  >
+                    {cell}
+                  </TableCell>
+                ) : (
+                  <TableCell key={column} align={alignOf(column)}>
+                    {cell}
+                  </TableCell>
+                ),
+              )}
             </TableRow>
           ))}
         </TableBody>
@@ -196,6 +214,7 @@ export default function BenchmarkRunDetails() {
               {runReportFootnote(analyses)}
             </Typography>
             <Typography variant="body2" color="text.secondary">
+              {report.durationMs !== undefined && `Ran ${formatDuration(report.durationMs)} · `}
               {report.environment.browser} on {report.environment.platform}/
               {report.environment.arch}
               {report.environment.launchArgs.length > 0 &&

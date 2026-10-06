@@ -51,6 +51,7 @@ export interface RunBenchmarksOptions {
  * neither resolves the library through a workspace link.
  */
 export async function runBenchmarks(options: RunBenchmarksOptions): Promise<BenchmarkRunReport> {
+  const startedAt = Date.now();
   const {
     harnessDir,
     filters = [],
@@ -150,6 +151,7 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
     const report: BenchmarkRunReport = {
       version: 2,
       generatedAt: new Date().toISOString(),
+      durationMs: Date.now() - startedAt,
       head: { sha: commitSha, branch },
       environment: {
         browser: `Chromium ${results.browserVersion}`,

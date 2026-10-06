@@ -64,7 +64,7 @@ describe('buildBenchmarkRunMarkdownReport', () => {
       title: 'Performance',
     });
 
-    expect(markdown).toContain('**Button mount** · 4 rounds · no change detected');
+    expect(markdown).toContain('No change detected: **Button mount**');
     expect(markdown).not.toContain('| render |');
   });
 
@@ -97,21 +97,19 @@ describe('buildBenchmarkRunMarkdownReport', () => {
       <details>
       <summary>Changes</summary>
 
-      **Grid scroll** · 3 + 1 rounds · timed out
-
-      | Metric | baseline | current | Δ vs baseline |
-      |:----------|----------:|----------:|:----------|
-      | render | 21.5 ms | 23.5 ms | \`worse +9.3% – +9.3%\` |
+      | Benchmark | Metric | baseline | current | Δ vs baseline |
+      |:----------|:----------|----------:|----------:|:----------|
+      | **Grid scroll** | render | 21.5 ms | 23.5 ms | 🔴 \`worse +9.3% – +9.3%\` |
 
 
       **libs / mount** · 4 rounds
 
       | Metric | ours | theirs | theirs vs ours |
       |:----------|----------:|----------:|:----------|
-      | render | 10 ms | 20.5 ms | \`worse +95.8% – +114.2%\` |
+      | render | 10 ms | 20.5 ms | 🟠 \`worse +95.8% – +114.2%\` |
 
 
-      _Each value is a median. Each Δ is a 95% confidence interval on the paired per-round difference, relative to the variant it is measured against; "no change detected" means it straddles zero — the expected result for two equivalent builds — and "unchanged" that every round measured the same._
+      _Medians; Δ is the confidence interval of the paired per-round difference (95%)._
 
       </details>"
     `);

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { analyzeRun } from './analyzeRun';
-import { benchmarkTable, runReportFootnote } from './format';
+import {
+  benchmarkTable,
+  formatDuration,
+  formatRounds,
+  formatRunSummary,
+  runReportFootnote,
+} from './format';
 import type { BenchmarkRunReport, RunBenchmark } from './schema';
 
 function reportOf(benchmarks: RunBenchmark[]): BenchmarkRunReport {
@@ -74,10 +80,33 @@ describe('benchmarkTable', () => {
   });
 });
 
+describe('formatDuration', () => {
+  it('reads at a glance from milliseconds to hours', () => {
+    expect(formatDuration(850)).toBe('850ms');
+    expect(formatDuration(42_000)).toBe('42s');
+    expect(formatDuration(185_000)).toBe('3m 05s');
+    expect(formatDuration(3_720_000)).toBe('1h 02m');
+  });
+});
+
+describe('formatRounds', () => {
+  it('says how long a benchmark took next to its rounds', () => {
+    expect(formatRounds({ ...benchmarkOf('a'), durationMs: 72_000 })).toBe('4 rounds · 1m 12s');
+  });
+});
+
+describe('formatRunSummary', () => {
+  it('ends with how long the run took', () => {
+    expect(formatRunSummary(analyzeRun(reportOf([benchmarkOf('a')])), [], 845_000)).toBe(
+      '1 benchmark measured · no regressions · ran 14m 05s',
+    );
+  });
+});
+
 describe('runReportFootnote', () => {
   it('states one level when at most one comparison can raise an alarm', () => {
-    expect(runReportFootnote(analyzeRun(reportOf([benchmarkOf('a')])))).toContain(
-      'Each Δ is a 95% confidence interval',
+    expect(runReportFootnote(analyzeRun(reportOf([benchmarkOf('a')])))).toBe(
+      'Medians; Δ is the confidence interval of the paired per-round difference (95%).',
     );
   });
 
@@ -87,7 +116,6 @@ describe('runReportFootnote', () => {
         reportOf([benchmarkOf('a'), benchmarkOf('b'), benchmarkOf('c'), benchmarkOf('d')]),
       ),
     );
-    expect(footnote).toContain('98.75% where a change can raise an alarm');
-    expect(footnote).toContain('95% for the rest');
+    expect(footnote).toContain('(98.75% for alarmed metrics, 95% otherwise)');
   });
 });

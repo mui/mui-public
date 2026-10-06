@@ -47,6 +47,6 @@ export function printRunReport(report: BenchmarkRunReport): void {
     const color = comparison.severity === 'error' ? red : yellow;
     console.log(color(`⚠ ${benchmark} · ${metric} · ${formatComparison(comparison)}`));
   }
-  console.log(formatRunSummary(analyses, regressions));
+  console.log(formatRunSummary(analyses, regressions, report.durationMs));
   console.log(dim(runReportFootnote(analyses)));
 }
