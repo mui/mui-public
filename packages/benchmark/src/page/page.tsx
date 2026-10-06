@@ -32,8 +32,8 @@ export interface BenchmarkCase {
 const cases = new Map<string, { run: BenchmarkRun; sampling: SamplingOptions }>();
 
 /**
- * Registers a benchmark case. The runner calls `run` once per sample, warmup included, for as many
- * rounds as `sampling` asks. A case on its own is measured across the builds; one passed to
+ * Registers a benchmark case. The runner calls `run` once per sample, each time in a freshly loaded
+ * page, for as many rounds as `sampling` asks. A case on its own is measured across the builds; one passed to
  * `compare()` is measured against the other cases there instead, sampled as the `compare()` asks.
  */
 export function benchmark(
@@ -61,9 +61,8 @@ const comparisons: Array<{
  * Compares cases with each other — one library's implementation against another's, say — on the
  * working tree's build, rather than each against its baseline. The first case is the reference.
  *
- * Every case is measured in a page of its own, but a page loads the whole file. Import what only one
- * case needs inside that case (`await import()` resolves during warmup) to keep it out of the others'
- * pages.
+ * Every sample loads the whole file in a fresh page. Import what only one case needs inside that
+ * case, before the part it times, to keep it out of the others' samples.
  */
 export function compare(
   name: string,

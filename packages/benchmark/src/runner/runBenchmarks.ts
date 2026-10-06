@@ -18,7 +18,7 @@ import { printRunReport } from './printReport';
 import { publishRunReport } from './upload';
 import { buildsDirOf, prepareOutputDir, resultsPathOf } from './outputDir';
 
-/** Fewer logical CPUs than this let pages of identical code settle at different speeds. */
+/** Fewer logical CPUs than this starve V8's background compilers. */
 const MIN_CPUS = 3;
 
 export interface RunBenchmarksOptions {
@@ -42,9 +42,6 @@ export interface RunBenchmarksOptions {
   /** Upload the report and refresh the pull request comment. */
   upload?: boolean;
 }
-
-/** Discarded rounds before measuring, once per benchmark. */
-const WARMUP = 10;
 
 /**
  * Benchmarks a harness's `*.bench.tsx` files across two builds of the workspace — the working tree
@@ -108,8 +105,8 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
     console.warn(
       chalk.yellow(
         `Only ${cpus} logical CPUs are available; use at least ${MIN_CPUS}. With fewer, V8's background ` +
-          'compilers are starved, so a page can settle into a slower tier of the same code and stay ' +
-          'there — which a comparison reads as a difference between builds.',
+          'compilers are starved, so how fast the same code runs depends on how its compilation ' +
+          'happened to go, which costs the results precision.',
       ),
     );
   }
@@ -147,7 +144,6 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
       benchRefs: refs,
       browserBinary,
       launchArgs,
-      warmup: WARMUP,
     });
 
     const { commitSha, branch } = await getCiMetadata();
@@ -161,7 +157,6 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
         arch: process.arch,
         launchArgs,
       },
-      sampling: { warmup: WARMUP },
       builds: Object.fromEntries(
         refs.map((ref) => [ref.variant, { sha: ref.sha, label: refLabel(ref) }]),
       ),

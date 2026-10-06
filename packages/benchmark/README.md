@@ -370,26 +370,29 @@ compare('scatter', [
 ]);
 ```
 
-Every case is measured in a page of its own, but a page loads the whole benchmark file, so a static
-import reaches every case's page. Import what only one case needs inside that case: the first
-iteration is a warmup, so the `await import()` is never measured.
+Every sample loads the whole benchmark file in a fresh page, so a static import reaches every case.
+Import what only one case needs inside that case, before the part it times: it then loads in that
+case's samples only.
 
 ### How it measures
 
 The plugin generates a page per benchmark file under `src/__bench__/`. A benchmark file that imports
 `vitest`, or the Vitest entry `@mui/internal-benchmark`, fails the build. The runner drives Chromium
-through Playwright and gives every variant — the current and the baseline build, or each case of a
-`compare()` — a page of its own, in a browser context of its own, that stays open for the whole
-benchmark: every sample is one warm iteration, and module-scope data is built once.
+through Playwright and runs each benchmark in one tab, which loads the page of the variant to be
+measured — the current or the baseline build, or a case of a `compare()` — before every sample.
+Every sample is the first iteration of a freshly loaded page, with garbage collected right before
+it, and every variant runs in the same renderer process. Whatever a page or a process holds on to —
+the JIT tier its code settled into, the heap it grew — then never favours one variant for the whole
+benchmark, which the paired rounds below could not tell from a real difference.
 
 Every variant is sampled once per round, in a shuffled order, and a difference is judged on the
 per-round differences rather than on two independent sets of samples. Whatever the machine was doing
 during a round — thermal throttling, a background process — then affects both sides of it and cancels
-out. 10 warmup rounds are discarded once per benchmark before any is measured.
+out.
 
 Run it with at least 3 logical CPUs (vCPUs in CI); it warns with fewer. On 2, V8's background
-compilers are starved, and a page can settle into a slower tier of the same code for the whole
-benchmark, which shows up as a difference between identical builds.
+compilers are starved, so how fast the same code runs depends on how its compilation happened to go,
+which costs the results precision.
 
 ### Sampling
 

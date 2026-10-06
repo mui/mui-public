@@ -25,8 +25,8 @@ export interface StaticServer {
 }
 
 /**
- * Serves a directory of built pages on a free local port. Nothing is cached by the server; the
- * browser's own cache is per context, so each side of a comparison warms its own.
+ * Serves a directory of built pages on a free local port. Nothing is cached by the server; each
+ * build is served under its own path, so each side of a comparison warms its own browser cache.
  */
 export async function serveDirectory(root: string): Promise<StaticServer> {
   const server = http.createServer(async (request, response) => {

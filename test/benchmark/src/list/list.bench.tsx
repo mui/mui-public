@@ -5,8 +5,8 @@ import { ScrollingList } from '../_shared/ScrollingList';
 import { SMOKE_SAMPLING } from '../_shared/sampling';
 
 /**
- * `reactBenchmark()` cases. Under `benchmark run` each case runs one iteration at a time in a page
- * that stays open per build, with the builds alternating round by round.
+ * `reactBenchmark()` cases. Under `benchmark run` each sample runs one iteration in a freshly loaded
+ * page, with the builds alternating round by round.
  *
  * Like the `workload` benchmark, it imports a workspace package so both builds resolve it from their
  * own packed tarball.
