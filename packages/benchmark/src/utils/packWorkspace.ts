@@ -7,13 +7,12 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
-import { access, mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { pipeline } from 'node:stream/promises';
 import chalk from 'chalk';
 import { mapAsync } from 'es-toolkit/array';
 import { execa, parseCommandString } from 'execa';
 import { resolveCommit } from './git';
-import { onInterrupt } from './interrupt';
 import { listPublishablePackages } from './pnpm';
 
 export interface PackedPackage {
@@ -61,6 +60,59 @@ function tarballName(pkgName: string): string {
 async function removeCheckout(repoRoot: string, checkout: string): Promise<void> {
   await rm(checkout, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
   await execa('git', ['worktree', 'prune'], { cwd: repoRoot });
+}
+
+const CHECKOUT_RECORD_PREFIX = '.checkout-';
+
+/**
+ * Where a checkout's record is kept while it exists — which process made it, and where it is — next
+ * to the packed refs.
+ */
+function checkoutRecordPathOf(outRoot: string, checkout: string): string {
+  return path.join(outRoot, `${CHECKOUT_RECORD_PREFIX}${path.basename(checkout)}.json`);
+}
+
+interface CheckoutRecord {
+  pid: number;
+  checkout: string;
+}
+
+function isRunning(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    // EPERM: it runs, as someone else.
+    return (error as NodeJS.ErrnoException).code === 'EPERM';
+  }
+}
+
+/**
+ * Removes the checkouts that interrupted runs left behind — those recorded by a process that is
+ * no longer running, whatever stopped it — and their records. A live run's checkouts are its own.
+ */
+async function removeAbandonedCheckouts(repoRoot: string, outRoot: string): Promise<void> {
+  let names: string[];
+  try {
+    names = await readdir(outRoot);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return;
+    }
+    throw error;
+  }
+  await Promise.all(
+    names
+      .filter((name) => name.startsWith(CHECKOUT_RECORD_PREFIX))
+      .map(async (name) => {
+        const recordPath = path.join(outRoot, name);
+        const record: CheckoutRecord = JSON.parse(await readFile(recordPath, 'utf8'));
+        if (!isRunning(record.pid)) {
+          await removeCheckout(repoRoot, record.checkout);
+          await rm(recordPath, { force: true });
+        }
+      }),
+  );
 }
 
 /** Runs `buildCmd` in `cwd`, with the nx daemon off so nothing keeps writing after it returns. */
@@ -150,6 +202,7 @@ export async function packRef(options: PackRefOptions): Promise<PackedPackage[]>
   const sha = await resolveCommit(repoRoot, ref);
   const dir = path.join(outRoot, sha);
 
+  await removeAbandonedCheckouts(repoRoot, outRoot);
   const cached = await readFreshCache(dir, buildCmd);
   if (cached) {
     console.log(chalk.green(`\nReusing packed workspace for "${ref}" (${sha.slice(0, 9)}).`));
@@ -159,7 +212,11 @@ export async function packRef(options: PackRefOptions): Promise<PackedPackage[]>
   await mkdir(outRoot, { recursive: true });
   const staging = await mkdtemp(path.join(outRoot, '.staging-'));
   const checkout = await mkdtemp(path.join(os.tmpdir(), 'pack-workspace-'));
-  const stopWatching = onInterrupt(() => removeCheckout(repoRoot, checkout));
+  // Recorded until it is removed: a run stopped before its `finally` leaves the next one to remove
+  // it.
+  const recordPath = checkoutRecordPathOf(outRoot, checkout);
+  const record: CheckoutRecord = { pid: process.pid, checkout };
+  await writeFile(recordPath, JSON.stringify(record));
   try {
     console.log(chalk.cyan(`\nChecking out "${ref}" (${sha.slice(0, 9)}) at ${checkout}`));
     await execa('git', ['worktree', 'add', '--detach', checkout, sha], {
@@ -185,12 +242,12 @@ export async function packRef(options: PackRefOptions): Promise<PackedPackage[]>
     await rename(staging, dir);
     return packages.map((pkg) => ({ ...pkg, tarball: path.join(dir, path.basename(pkg.tarball)) }));
   } finally {
-    stopWatching();
     // On success the staging folder has already become `dir`.
     await Promise.all([
       rm(staging, { recursive: true, force: true }),
       removeCheckout(repoRoot, checkout),
     ]);
+    await rm(recordPath, { force: true });
   }
 }
 

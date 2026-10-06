@@ -4,7 +4,6 @@ import {
   benchmarkTable,
   changeTone,
   findRegressions,
-  formatDuration,
   formatRounds,
   formatComparison,
   formatRunSummary,
@@ -14,8 +13,8 @@ import type {
   BenchmarkAnalysis,
   BenchmarkRunReport,
   BenchmarkTableColumn,
-  BenchmarkTableRow,
   ChangeTone,
+  RunBenchmark,
 } from '@mui/internal-benchmark/runReport';
 
 interface BuildOptions {
@@ -32,36 +31,43 @@ const TONE_MARKERS: Record<ChangeTone, string> = {
   none: '',
 };
 
-/** The rows of a benchmark's table that changed — better or worse — with their columns. */
-function changedRowsOf(analysis: BenchmarkAnalysis) {
+/** A benchmark's name, with how many rounds it ran and how long it took. */
+function labelOf(benchmark: RunBenchmark): string {
+  const rounds = formatRounds(benchmark);
+  return rounds ? `**${benchmark.name}** (${rounds})` : `**${benchmark.name}**`;
+}
+
+/**
+ * A benchmark's table, keeping the rows that changed — better or worse — as markdown cells: each
+ * comparison as code, behind a marker of which way it went.
+ */
+function changedRowsOf(analysis: BenchmarkAnalysis): {
+  columns: BenchmarkTableColumn[];
+  rows: string[][];
+} {
   const { columns, rows } = benchmarkTable(analysis);
+  const firstComparison = columns.findIndex((column) => column.kind === 'comparison');
   const changed = rows.filter((row) =>
     row.comparisons.some(({ change }) => change === 'better' || change === 'worse'),
   );
-  return { columns, changed };
+  return {
+    columns,
+    rows: changed.map((row) =>
+      row.cells.map((cell, column) =>
+        columns[column].kind === 'comparison'
+          ? `${TONE_MARKERS[changeTone(row.comparisons[column - firstComparison])]}\`${cell}\``
+          : cell,
+      ),
+    ),
+  };
 }
 
-/** A row's cells for markdown: each comparison as code, behind a marker of which way it went. */
-function markdownCells(columns: BenchmarkTableColumn[], row: BenchmarkTableRow): string[] {
-  const firstComparison = columns.findIndex((column) => column.kind === 'comparison');
-  return row.cells.map((cell, column) => {
-    if (columns[column].kind !== 'comparison') {
-      return cell;
-    }
-    return `${TONE_MARKERS[changeTone(row.comparisons[column - firstComparison])]}\`${cell}\``;
-  });
-}
-
-function markdownTable(
-  headers: string[],
-  kinds: Array<BenchmarkTableColumn['kind']>,
-  rows: string[][],
-) {
+function markdownTable(columns: BenchmarkTableColumn[], rows: string[][]): string {
   return formatMarkdownTable(
-    headers.map((header, column) => ({
+    columns.map(({ header, kind }, column) => ({
       field: String(column),
       header,
-      align: kinds[column] === 'value' ? ('right' as const) : ('left' as const),
+      align: kind === 'value' ? ('right' as const) : ('left' as const),
     })),
     rows.map((cells) => Object.fromEntries(cells.map((cell, column) => [String(column), cell]))),
   );
@@ -72,49 +78,33 @@ function markdownTable(
  * columns line up across benchmarks; those where nothing changed are named below it.
  */
 function renderBaselineChanges(analyses: BenchmarkAnalysis[]): string[] {
+  const tables = analyses.map((analysis) => ({ analysis, ...changedRowsOf(analysis) }));
+  const changed = tables.filter((table) => table.rows.length > 0);
+  const unchanged = tables.filter((table) => table.rows.length === 0);
   const lines: string[] = [];
-  const unchanged: string[] = [];
-  let header: { headers: string[]; kinds: Array<BenchmarkTableColumn['kind']> } | undefined;
-  const rows: string[][] = [];
-  for (const analysis of analyses) {
-    const { name, durationMs } = analysis.benchmark;
-    const label =
-      durationMs === undefined ? `**${name}**` : `**${name}** (${formatDuration(durationMs)})`;
-    const { columns, changed } = changedRowsOf(analysis);
-    if (changed.length === 0) {
-      unchanged.push(label);
-      continue;
-    }
-    header ??= {
-      headers: ['Benchmark', ...columns.map((column) => column.header)],
-      kinds: ['label', ...columns.map((column) => column.kind)],
-    };
-    changed.forEach((row, index) => {
-      rows.push([index === 0 ? label : '', ...markdownCells(columns, row)]);
-    });
-  }
-  if (header) {
-    lines.push(markdownTable(header.headers, header.kinds, rows), '');
+  if (changed.length > 0) {
+    const columns: BenchmarkTableColumn[] = [
+      { header: 'Benchmark', kind: 'label' },
+      ...changed[0].columns,
+    ];
+    const rows = changed.flatMap(({ analysis, rows: cells }) =>
+      cells.map((row, index) => [index === 0 ? labelOf(analysis.benchmark) : '', ...row]),
+    );
+    lines.push(markdownTable(columns, rows), '');
   }
   if (unchanged.length > 0) {
-    lines.push(`No change detected: ${unchanged.join(', ')}`, '');
+    const names = unchanged.map(({ analysis }) => labelOf(analysis.benchmark));
+    lines.push(`No change detected: ${names.join(', ')}`, '');
   }
   return lines;
 }
 
 /** A `compare()` benchmark: a table of the metrics that changed, or one line when none did. */
 function renderComparison(analysis: BenchmarkAnalysis): string {
-  const heading = `**${analysis.benchmark.name}** · ${formatRounds(analysis.benchmark)}`;
-  const { columns, changed } = changedRowsOf(analysis);
-  if (changed.length === 0) {
-    return `${heading} · no change detected`;
-  }
-  const table = markdownTable(
-    columns.map((column) => column.header),
-    columns.map((column) => column.kind),
-    changed.map((row) => markdownCells(columns, row)),
-  );
-  return `${heading}\n\n${table}`;
+  const { columns, rows } = changedRowsOf(analysis);
+  return rows.length === 0
+    ? `${labelOf(analysis.benchmark)} · no change detected`
+    : `${labelOf(analysis.benchmark)}\n\n${markdownTable(columns, rows)}`;
 }
 
 /**

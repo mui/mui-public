@@ -103,20 +103,19 @@ function BenchmarkTable({ analysis }: { analysis: BenchmarkAnalysis }) {
         <TableBody>
           {rows.map((row) => (
             <TableRow key={row.metric}>
-              {row.cells.map((cell, column) =>
-                columns[column].kind === 'comparison' ? (
-                  <TableCell
-                    key={column}
-                    sx={comparisonSx(row.comparisons[column - firstComparison])}
-                  >
-                    {cell}
-                  </TableCell>
-                ) : (
-                  <TableCell key={column} align={alignOf(column)}>
-                    {cell}
-                  </TableCell>
-                ),
-              )}
+              {row.cells.map((cell, column) => (
+                <TableCell
+                  key={column}
+                  align={alignOf(column)}
+                  sx={
+                    columns[column].kind === 'comparison'
+                      ? comparisonSx(row.comparisons[column - firstComparison])
+                      : undefined
+                  }
+                >
+                  {cell}
+                </TableCell>
+              ))}
             </TableRow>
           ))}
         </TableBody>

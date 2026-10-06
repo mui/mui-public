@@ -237,11 +237,21 @@ function differencesOf(subject: number[], against: number[]): number[] {
   return Array.from({ length: rounds }, (_, round) => subject[round] - against[round]);
 }
 
+export interface CompareSamplesOptions {
+  /** The level of the intervals. Defaults to 95%. */
+  confidence?: number;
+  /**
+   * Whether a change can raise an alarm, so carry a severity. Defaults to true; the variants of a
+   * `compare()` differ on purpose, so no difference between them can.
+   */
+  canAlarm?: boolean;
+}
+
 export function compareSamples(
   subject: { name: string; values: number[] },
   against: { name: string; values: number[] },
   definition: RunMetricDefinition,
-  confidence = CONFIDENCE,
+  { confidence = CONFIDENCE, canAlarm = true }: CompareSamplesOptions = {},
 ): MetricComparison {
   const differences = differencesOf(subject.values, against.values);
   const rounds = differences.length;
@@ -269,7 +279,7 @@ export function compareSamples(
     relative,
     change,
   };
-  return { ...comparison, severity: severityOf(comparison, definition) };
+  return { ...comparison, severity: canAlarm ? severityOf(comparison, definition) : 'none' };
 }
 
 /** The pairs a benchmark's kind compares: the current build against the baseline, or every variant against the reference. */
@@ -350,11 +360,9 @@ export function compareBenchmark(
       return {
         metric,
         definition,
-        comparisons: pairs.map(({ subject, against }) => {
-          const comparison = compareSamples(subject, against, definition, confidence);
-          // Variants of a `compare()` differ on purpose: no difference between them is a regression.
-          return canAlarm ? comparison : { ...comparison, severity: 'none' as const };
-        }),
+        comparisons: pairs.map(({ subject, against }) =>
+          compareSamples(subject, against, definition, { confidence, canAlarm }),
+        ),
       };
     }),
   };

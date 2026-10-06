@@ -194,7 +194,6 @@ async function runBenchmark(
   otherBaselineBenchmarks: number,
 ): Promise<CaseResult> {
   console.log(chalk.cyan(`\nRunning "${entry.name}" (${entry.file})…`));
-  const startedAt = Date.now();
   const { sampleSize, timeout, autoSampleConditions } = sampling;
   const horizons = parseHorizons(autoSampleConditions);
   let opened: Page | undefined;
@@ -250,19 +249,12 @@ async function runBenchmark(
       );
     }
     return {
-      benchmark: {
-        ...benchmarkOf(),
-        sampling: { sampleSize, timedOut: !resolved },
-        durationMs: Date.now() - startedAt,
-      },
+      benchmark: { ...benchmarkOf(), sampling: { sampleSize, timedOut: !resolved } },
       metrics: definitions,
     };
   } catch (error) {
     console.error(chalk.red(`  ${errorMessage(error)}`));
-    return {
-      benchmark: { ...entry, error: errorMessage(error), durationMs: Date.now() - startedAt },
-      metrics: {},
-    };
+    return { benchmark: { ...entry, error: errorMessage(error) }, metrics: {} };
   } finally {
     await opened?.context().close();
   }
@@ -362,8 +354,10 @@ export async function runInterleaved(options: RunInterleavedOptions): Promise<In
         continue;
       }
       const others = plan.entry.kind === 'baseline' ? baselineBenchmarks - 1 : 0;
+      const startedAt = Date.now();
       // eslint-disable-next-line no-await-in-loop
-      results.push(await runBenchmark(browser, plan, others));
+      const { benchmark, metrics } = await runBenchmark(browser, plan, others);
+      results.push({ benchmark: { ...benchmark, durationMs: Date.now() - startedAt }, metrics });
     }
     return {
       benchmarks: results.map((result) => result.benchmark),
