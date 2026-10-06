@@ -56,7 +56,7 @@ describe('benchmarkPlugin', () => {
 
       const config = await callConfig(harnessDir, 'serve');
 
-      expect(config.build?.rollupOptions).toBeUndefined();
+      expect(config.build?.rolldownOptions).toBeUndefined();
     });
 
     it('points serving at the output directory too, so preview finds the built pages', async () => {
@@ -99,7 +99,7 @@ describe('benchmarkPlugin', () => {
 
       const config = await callConfig(harnessDir, 'build');
 
-      expect(config.build.rollupOptions.input).toEqual({
+      expect(config.build.rolldownOptions.input).toEqual({
         '__bench__/button-button': path.join(harnessDir, 'src', '__bench__', 'button-button.html'),
         '__bench__/grid-grid': path.join(harnessDir, 'src', '__bench__', 'grid-grid.html'),
       });

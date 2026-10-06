@@ -171,7 +171,11 @@ export function benchmarkPlugin(options: BenchmarkPluginOptions = {}): Plugin {
           // The output directory sits outside `root`, which is `src/`; allow vite to clean it anyway.
           emptyOutDir: true,
           chunkSizeWarningLimit: 9999,
-          rollupOptions: { input },
+          // Function names survive into CPU profiles and stack traces: a name's length costs a
+          // page nothing once it is parsed, and parsing happens on load, before a sample.
+          // Compression stays on, so the code is the production code otherwise.
+          sourcemap: true,
+          rolldownOptions: { input, output: { minify: { compress: true, mangle: false } } },
         },
       };
     },
