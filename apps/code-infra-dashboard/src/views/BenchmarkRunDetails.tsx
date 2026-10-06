@@ -20,7 +20,7 @@ import {
   analyzeRun,
   benchmarkTable,
   formatRounds,
-  RUN_REPORT_FOOTNOTE,
+  runReportFootnote,
 } from '@mui/internal-benchmark/runReport';
 import type {
   BenchmarkAnalysis,
@@ -193,7 +193,7 @@ export default function BenchmarkRunDetails() {
         {report && (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
             <Typography variant="body2" color="text.secondary">
-              {RUN_REPORT_FOOTNOTE}
+              {runReportFootnote(report)}
             </Typography>
             <Typography variant="body2" color="text.secondary">
               {report.environment.browser} on {report.environment.platform}/

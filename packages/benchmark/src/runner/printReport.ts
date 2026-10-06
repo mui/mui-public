@@ -8,7 +8,7 @@ import {
   findRegressions,
   formatComparison,
   formatRunSummary,
-  RUN_REPORT_FOOTNOTE,
+  runReportFootnote,
 } from '../runReport';
 import type { BenchmarkAnalysis, BenchmarkRunReport } from '../runReport';
 
@@ -48,5 +48,5 @@ export function printRunReport(report: BenchmarkRunReport): void {
     console.log(color(`⚠ ${benchmark} · ${metric} · ${formatComparison(comparison)}`));
   }
   console.log(formatRunSummary(analyses, regressions));
-  console.log(dim(RUN_REPORT_FOOTNOTE));
+  console.log(dim(runReportFootnote(report)));
 }

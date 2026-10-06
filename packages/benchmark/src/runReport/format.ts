@@ -1,5 +1,6 @@
+import { alarmedConfidence, CONFIDENCE, countAlarmedComparisons } from './analyzeRun';
 import type { BenchmarkAnalysis, Interval, MetricComparison, Regression } from './analyzeRun';
-import type { RunBenchmark, RunMetricDefinition } from './schema';
+import type { BenchmarkRunReport, RunBenchmark, RunMetricDefinition } from './schema';
 
 /**
  * How a run report's numbers read, for every renderer of one: the terminal table, the pull request
@@ -118,8 +119,23 @@ export function formatRunSummary(analyses: BenchmarkAnalysis[], regressions: Reg
     .join(' · ');
 }
 
-/** How to read the numbers, under every rendering of a run. */
-export const RUN_REPORT_FOOTNOTE =
-  'Each value is a median. Each Δ is a 95% confidence interval on the paired per-round ' +
-  'difference, relative to the variant it is measured against; "unsure" means it straddles ' +
-  'zero — the expected result for two equivalent builds.';
+/** How to read a run's numbers, under every rendering of it. */
+export function runReportFootnote(report: BenchmarkRunReport): string {
+  const familySize = countAlarmedComparisons(report.metrics, report.benchmarks);
+  const interval =
+    familySize > 1
+      ? 'Each Δ is a confidence interval on the paired per-round difference, relative to the ' +
+        `variant it is measured against: ${formatConfidence(alarmedConfidence(familySize))} for ` +
+        `the ${familySize} comparisons that can raise an alarm, which together raise a false one ` +
+        `at most 5% of the time, and ${formatConfidence(CONFIDENCE)} for the rest`
+      : `Each Δ is a ${formatConfidence(CONFIDENCE)} confidence interval on the paired per-round ` +
+        'difference, relative to the variant it is measured against';
+  return (
+    `Each value is a median. ${interval}; "unsure" means it straddles zero — the expected ` +
+    'result for two equivalent builds.'
+  );
+}
+
+function formatConfidence(fraction: number): string {
+  return `${new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(fraction * 100)}%`;
+}

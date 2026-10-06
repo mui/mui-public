@@ -9,6 +9,10 @@ import type { BenchmarkRunReport, RunBenchmark, RunMetricDefinition } from './sc
  * Variants are compared on paired differences: each round measured every variant once, so the
  * per-round difference cancels whatever the machine was doing during that round, and its
  * confidence interval is far tighter than one computed from two independent sets of samples.
+ *
+ * Intervals are 95%, except where a change can raise an alarm: there, every such comparison in the
+ * run shares the 5% chance of a false one (Bonferroni), so a run of unchanged code raises one at
+ * most 5% of the time however many it checks, rather than 5% per comparison.
  */
 
 export interface Interval {
@@ -32,7 +36,7 @@ export interface MetricComparison {
   subject: string;
   /** The variant it is measured against. */
   against: string;
-  /** `subject − against`, in the metric's unit: 95% confidence interval of the mean difference. */
+  /** `subject − against`, in the metric's unit: confidence interval of the mean difference. */
   absolute: Interval;
   /** The same, as a percentage of `against`'s mean. */
   relative: Interval;
@@ -53,33 +57,115 @@ export interface BenchmarkAnalysis {
   metrics: MetricAnalysis[];
 }
 
-// Two-sided 95% critical values of Student's t for 1–30 degrees of freedom.
-const T_95 = [
-  12.706, 4.303, 3.182, 2.776, 2.571, 2.447, 2.365, 2.306, 2.262, 2.228, 2.201, 2.179, 2.16, 2.145,
-  2.131, 2.12, 2.11, 2.101, 2.093, 2.086, 2.08, 2.074, 2.069, 2.064, 2.06, 2.056, 2.052, 2.048,
-  2.045, 2.042,
+/** The confidence level of an interval no alarm depends on. */
+export const CONFIDENCE = 0.95;
+
+const LANCZOS = [
+  0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313,
+  -176.61502916214059, 12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6,
+  1.5056327351493116e-7,
 ];
 
-/** The two-sided 95% critical value of Student's t, approximated past the table. */
-export function tCritical95(degreesOfFreedom: number): number {
-  if (degreesOfFreedom <= T_95.length) {
-    return T_95[Math.max(degreesOfFreedom, 1) - 1];
+/** ln Γ(x) for x > 0, by the Lanczos approximation. */
+function logGamma(x: number): number {
+  const shifted = x - 1;
+  let sum = LANCZOS[0];
+  for (let index = 1; index < LANCZOS.length; index += 1) {
+    sum += LANCZOS[index] / (shifted + index);
   }
-  // Cornish–Fisher expansion around the normal quantile; well within 0.1% past 30 degrees.
-  const z = 1.959964;
-  return z + (z ** 3 + z) / (4 * degreesOfFreedom);
+  const base = shifted + 7.5;
+  return 0.5 * Math.log(2 * Math.PI) + (shifted + 0.5) * Math.log(base) - base + Math.log(sum);
 }
 
-/** The 95% confidence interval of the mean. A single value is its own degenerate interval. */
-export function meanInterval(values: number[]): Interval {
+/** The continued fraction of the incomplete beta function, by Lentz's method. */
+function betaContinuedFraction(x: number, a: number, b: number): number {
+  const tiny = 1e-300;
+  const guard = (value: number) => (Math.abs(value) < tiny ? tiny : value);
+  let numerator = 1;
+  let denominator = 1 / guard(1 - ((a + b) * x) / (a + 1));
+  let result = denominator;
+  for (let step = 1; step <= 300; step += 1) {
+    const twice = 2 * step;
+    const even = (step * (b - step) * x) / ((a + twice - 1) * (a + twice));
+    const odd = (-(a + step) * (a + b + step) * x) / ((a + twice) * (a + twice + 1));
+    let factor = 1;
+    for (const coefficient of [even, odd]) {
+      denominator = 1 / guard(1 + coefficient * denominator);
+      numerator = guard(1 + coefficient / numerator);
+      factor = denominator * numerator;
+      result *= factor;
+    }
+    if (Math.abs(factor - 1) < 1e-15) {
+      break;
+    }
+  }
+  return result;
+}
+
+/** The regularized incomplete beta function Iₓ(a, b). */
+function incompleteBeta(x: number, a: number, b: number): number {
+  if (x <= 0) {
+    return 0;
+  }
+  if (x >= 1) {
+    return 1;
+  }
+  const front = Math.exp(
+    logGamma(a + b) - logGamma(a) - logGamma(b) + a * Math.log(x) + b * Math.log(1 - x),
+  );
+  return x < (a + 1) / (a + b + 2)
+    ? (front * betaContinuedFraction(x, a, b)) / a
+    : 1 - (front * betaContinuedFraction(1 - x, b, a)) / b;
+}
+
+const criticalValues = new Map<string, number>();
+
+/** The two-sided critical value of Student's t at a confidence level, 95% by default. */
+export function tCritical(degreesOfFreedom: number, confidence = CONFIDENCE): number {
+  const key = `${degreesOfFreedom}:${confidence}`;
+  const cached = criticalValues.get(key);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const df = Math.max(degreesOfFreedom, 1);
+  // The chance of |t| beyond `bound`, which only falls as `bound` grows, so bisect on it.
+  const tail = (bound: number) => incompleteBeta(df / (df + bound * bound), df / 2, 0.5);
+  const alpha = 1 - confidence;
+  let low = 0;
+  let high = 1;
+  while (tail(high) > alpha) {
+    high *= 2;
+  }
+  for (let step = 0; step < 100; step += 1) {
+    const middle = (low + high) / 2;
+    if (tail(middle) > alpha) {
+      low = middle;
+    } else {
+      high = middle;
+    }
+  }
+  criticalValues.set(key, high);
+  return high;
+}
+
+/** The confidence interval of the mean. A single value is its own degenerate interval. */
+export function meanInterval(values: number[], confidence = CONFIDENCE): Interval {
   const mean = calculateMean(values);
   if (values.length < 2) {
     return { low: mean, high: mean };
   }
   const variance =
     values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / (values.length - 1);
-  const halfWidth = tCritical95(values.length - 1) * Math.sqrt(variance / values.length);
+  const halfWidth = tCritical(values.length - 1, confidence) * Math.sqrt(variance / values.length);
   return { low: mean - halfWidth, high: mean + halfWidth };
+}
+
+/**
+ * The confidence level of each comparison that can raise an alarm, when `familySize` of them share
+ * the run's 5% chance of a false alarm.
+ */
+export function alarmedConfidence(familySize: number): number {
+  return 1 - (1 - CONFIDENCE) / Math.max(familySize, 1);
 }
 
 export function median(values: number[]): number {
@@ -139,17 +225,21 @@ function severityOf(
   return 'none';
 }
 
+/** The per-round differences `subject − against`, over the rounds both have. */
+function differencesOf(subject: number[], against: number[]): number[] {
+  const rounds = Math.min(subject.length, against.length);
+  return Array.from({ length: rounds }, (_, round) => subject[round] - against[round]);
+}
+
 export function compareSamples(
   subject: { name: string; values: number[] },
   against: { name: string; values: number[] },
   definition: RunMetricDefinition,
+  confidence = CONFIDENCE,
 ): MetricComparison {
-  const rounds = Math.min(subject.values.length, against.values.length);
-  const differences = Array.from(
-    { length: rounds },
-    (_, round) => subject.values[round] - against.values[round],
-  );
-  const absolute = meanInterval(differences);
+  const differences = differencesOf(subject.values, against.values);
+  const rounds = differences.length;
+  const absolute = meanInterval(differences, confidence);
   const reference = calculateMean(against.values.slice(0, rounds));
   const relative = {
     low: (absolute.low / reference) * 100,
@@ -177,13 +267,48 @@ function pairsOf(benchmark: RunBenchmark): Array<{ subject: string; against: str
 
 export type MetricComparisons = Omit<MetricAnalysis, 'variants'>;
 
+/** Whether a metric's change can raise an alarm: an alarmed metric of a `baseline` benchmark. */
+function canAlarm(benchmark: RunBenchmark, definition: RunMetricDefinition): boolean {
+  return benchmark.kind === 'baseline' && definition.alarm !== undefined;
+}
+
+/**
+ * How many comparisons share the run's 5% chance of a false alarm: those that can raise an alarm,
+ * leaving out any whose per-round differences never varied. Those can't be flagged by chance — a
+ * render count that is the same in every round — so they would only make the others stricter.
+ */
+export function countAlarmedComparisons(
+  metrics: Record<string, RunMetricDefinition>,
+  benchmarks: RunBenchmark[],
+): number {
+  let count = 0;
+  for (const benchmark of benchmarks) {
+    const { samples } = benchmark;
+    const [reference] = benchmark.variants;
+    const valuesOf = (variant: string, metric: string) => samples?.[variant]?.[metric] ?? [];
+    for (const metric of Object.keys(samples?.[reference] ?? {})) {
+      if (canAlarm(benchmark, definitionOf(metrics, metric))) {
+        for (const { subject, against } of pairsOf(benchmark)) {
+          const differences = differencesOf(valuesOf(subject, metric), valuesOf(against, metric));
+          if (differences.some((difference) => difference !== differences[0])) {
+            count += 1;
+          }
+        }
+      }
+    }
+  }
+  return count;
+}
+
 /**
  * Compares one benchmark's variants, its metrics described by `metrics` (a report's, or a run's so
- * far). The comparisons alone, which is all deciding whether to keep sampling needs.
+ * far). The comparisons alone, which is all deciding whether to keep sampling needs. A comparison
+ * that can raise an alarm is one of `familySize` sharing the run's 5% chance of a false one.
  */
 export function compareBenchmark(
   metrics: Record<string, RunMetricDefinition>,
   benchmark: RunBenchmark,
+  familySize = 1,
 ): { metrics: MetricComparisons[] } {
   const { samples } = benchmark;
   if (!samples) {
@@ -193,6 +318,9 @@ export function compareBenchmark(
   return {
     metrics: Object.keys(samples[reference] ?? {}).map((metric) => {
       const definition = definitionOf(metrics, metric);
+      const confidence = canAlarm(benchmark, definition)
+        ? alarmedConfidence(familySize)
+        : CONFIDENCE;
       const valuesOf = (variant: string) => samples[variant]?.[metric] ?? [];
       return {
         metric,
@@ -202,6 +330,7 @@ export function compareBenchmark(
             { name: subject, values: valuesOf(subject) },
             { name: against, values: valuesOf(against) },
             definition,
+            confidence,
           ),
         ),
       };
@@ -213,11 +342,12 @@ export function compareBenchmark(
 export function analyzeBenchmark(
   metrics: Record<string, RunMetricDefinition>,
   benchmark: RunBenchmark,
+  familySize = 1,
 ): BenchmarkAnalysis {
   const { samples } = benchmark;
   return {
     benchmark,
-    metrics: compareBenchmark(metrics, benchmark).metrics.map((comparison) => ({
+    metrics: compareBenchmark(metrics, benchmark, familySize).metrics.map((comparison) => ({
       ...comparison,
       variants: Object.fromEntries(
         benchmark.variants.map((variant) => [
@@ -230,7 +360,10 @@ export function analyzeBenchmark(
 }
 
 export function analyzeRun(report: BenchmarkRunReport): BenchmarkAnalysis[] {
-  return report.benchmarks.map((benchmark) => analyzeBenchmark(report.metrics, benchmark));
+  const familySize = countAlarmedComparisons(report.metrics, report.benchmarks);
+  return report.benchmarks.map((benchmark) =>
+    analyzeBenchmark(report.metrics, benchmark, familySize),
+  );
 }
 
 export interface Regression {

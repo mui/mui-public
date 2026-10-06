@@ -3,7 +3,7 @@
 import chalk from 'chalk';
 import type { Browser, BrowserContext, CDPSession, Page } from '@playwright/test';
 import { BENCHMARK_LAUNCH_ARGS, BENCHMARK_VIEWPORT } from '../launchArgs';
-import { compareBenchmark } from '../runReport';
+import { compareBenchmark, countAlarmedComparisons } from '../runReport';
 import type { RunBenchmark, RunMetricDefinition } from '../runReport';
 import { differencesResolved, parseHorizons } from '../sampling';
 import type { SamplingOptions } from '../sampling';
@@ -170,17 +170,25 @@ interface CaseResult {
 
 type BenchmarkEntry = Pick<RunBenchmark, 'name' | 'file' | 'kind' | 'variants'>;
 
+/** A benchmark to measure, or why it can't be. */
+type PlannedBenchmark =
+  | { entry: BenchmarkEntry; slots: PageSlot[]; sampling: Required<SamplingOptions> }
+  | { entry: BenchmarkEntry; error: string };
+
 /**
  * Measures one benchmark in a tab of its own, loading each slot's page before sampling it. Every
  * round samples every slot once, in a shuffled order. After `sampleSize` rounds it keeps adding
  * rounds while a difference is unresolved against the horizons, until the timeout. A failure is
  * reported as the benchmark's error.
+ *
+ * Its alarmed comparisons share the run's 5% chance of a false alarm with those of the other
+ * `baseline` benchmarks, which haven't been measured yet, or not by this call: each is taken to have
+ * one, the common case, and the report counts them exactly afterwards.
  */
 async function runBenchmark(
   browser: Browser,
-  entry: BenchmarkEntry,
-  slots: PageSlot[],
-  sampling: Required<SamplingOptions>,
+  { entry, slots, sampling }: Extract<PlannedBenchmark, { slots: PageSlot[] }>,
+  otherBaselineBenchmarks: number,
 ): Promise<CaseResult> {
   console.log(chalk.cyan(`\nRunning "${entry.name}" (${entry.file})…`));
   const { sampleSize, timeout, autoSampleConditions } = sampling;
@@ -215,7 +223,11 @@ async function runBenchmark(
     }
     const benchmarkOf = (): RunBenchmark => ({ ...entry, samples: samplesOf(slots, rounds) });
 
-    const isSettled = () => differencesResolved(compareBenchmark(metrics, benchmarkOf()), horizons);
+    const isSettled = () => {
+      const benchmark = benchmarkOf();
+      const familySize = countAlarmedComparisons(metrics, [benchmark]) + otherBaselineBenchmarks;
+      return differencesResolved(compareBenchmark(metrics, benchmark, familySize), horizons);
+    };
 
     const deadline = Date.now() + timeout * 60_000;
     let resolved = isSettled();
@@ -261,15 +273,16 @@ function benchPageUrl(origin: string, ref: ResolvedRef, benchFile: BenchFile): s
 }
 
 /**
- * Runs a benchmark file: each case on its own across the builds, paired by name with the working
- * tree as the reference, and each `compare()` across its cases on the working tree's build.
+ * Lists a benchmark file's benchmarks: each case on its own across the builds, paired by name with
+ * the working tree as the reference, and each `compare()` across its cases on the working tree's
+ * build.
  */
-async function runBenchFile(
+async function planBenchFile(
   browser: Browser,
   origin: string,
   benchFile: BenchFile,
   options: RunInterleavedOptions,
-): Promise<CaseResult[]> {
+): Promise<PlannedBenchmark[]> {
   const urls = options.benchRefs.map((ref) => benchPageUrl(origin, ref, benchFile));
   const variants = options.benchRefs.map((ref) => ref.variant);
   // The other builds only matter for cases measured across them; a file of `compare()`s alone
@@ -277,8 +290,7 @@ async function runBenchFile(
   const [reference] = await listBenchPages(browser, urls.slice(0, 1));
   const others = reference.cases.length > 0 ? await listBenchPages(browser, urls.slice(1)) : [];
 
-  const results: CaseResult[] = [];
-  for (const { name: caseName, sampling } of reference.cases) {
+  const planned: PlannedBenchmark[] = reference.cases.map(({ name: caseName, sampling }) => {
     const entry: BenchmarkEntry = {
       name: caseName,
       file: benchFile.file,
@@ -290,27 +302,18 @@ async function runBenchFile(
     );
     if (missing !== -1) {
       // A case added by the change under test has nothing to compare with.
-      results.push({
-        benchmark: {
-          ...entry,
-          error: `"${caseName}" does not exist in [${variants[missing + 1]}].`,
-        },
-        metrics: {},
-      });
-      continue;
+      return { entry, error: `"${caseName}" does not exist in [${variants[missing + 1]}].` };
     }
     const slots = urls.map((url, index) => ({ variant: variants[index], url, caseName }));
-    // eslint-disable-next-line no-await-in-loop
-    results.push(await runBenchmark(browser, entry, slots, sampling));
-  }
+    return { entry, slots, sampling };
+  });
 
   for (const { name, cases, sampling } of reference.comparisons) {
     const entry: BenchmarkEntry = { name, file: benchFile.file, kind: 'compare', variants: cases };
     const slots = cases.map((caseName) => ({ variant: caseName, url: urls[0], caseName }));
-    // eslint-disable-next-line no-await-in-loop
-    results.push(await runBenchmark(browser, entry, slots, sampling));
+    planned.push({ entry, slots, sampling });
   }
-  return results;
+  return planned;
 }
 
 export async function runInterleaved(options: RunInterleavedOptions): Promise<InterleavedResults> {
@@ -325,11 +328,27 @@ export async function runInterleaved(options: RunInterleavedOptions): Promise<In
   ]);
 
   try {
-    const results: CaseResult[] = [];
-    // Sequential on purpose: concurrent cases would contend for the same machine.
+    // Every file is listed before any is measured, so each benchmark knows how many others share
+    // the run's chance of a false alarm.
+    const planned: PlannedBenchmark[] = [];
     for (const benchFile of options.benchFiles) {
       // eslint-disable-next-line no-await-in-loop
-      results.push(...(await runBenchFile(browser, server.origin, benchFile, options)));
+      planned.push(...(await planBenchFile(browser, server.origin, benchFile, options)));
+    }
+    const baselineBenchmarks = planned.filter(
+      (plan) => 'slots' in plan && plan.entry.kind === 'baseline',
+    ).length;
+
+    const results: CaseResult[] = [];
+    // Sequential on purpose: concurrent cases would contend for the same machine.
+    for (const plan of planned) {
+      if ('error' in plan) {
+        results.push({ benchmark: { ...plan.entry, error: plan.error }, metrics: {} });
+        continue;
+      }
+      const others = plan.entry.kind === 'baseline' ? baselineBenchmarks - 1 : 0;
+      // eslint-disable-next-line no-await-in-loop
+      results.push(await runBenchmark(browser, plan, others));
     }
     return {
       benchmarks: results.map((result) => result.benchmark),

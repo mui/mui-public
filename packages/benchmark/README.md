@@ -390,6 +390,14 @@ per-round differences rather than on two independent sets of samples. Whatever t
 during a round — thermal throttling, a background process — then affects both sides of it and cancels
 out.
 
+Intervals are 95%, except where a change can raise an alarm — an alarmed metric of a benchmark
+measured against the baseline. Every such comparison in the run shares one 5% chance of a false alarm
+(Bonferroni): with 5 of them, each is a 99% interval, so a run of unchanged code raises a false alarm
+at most 5% of the time rather than in about one run in five. A comparison whose per-round differences
+never vary — a render count that is the same in every round — can't be flagged by chance, so it takes
+no share. Sampling resolves at the same level, counting one alarmed comparison for every other
+benchmark in the run; the report counts them exactly.
+
 Run it with at least 3 logical CPUs (vCPUs in CI); it warns with fewer. On 2, V8's background
 compilers are starved, so how fast the same code runs depends on how its compilation happened to go,
 which costs the results precision.

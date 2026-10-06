@@ -5,8 +5,9 @@ import {
   findRegressions,
   meanInterval,
   median,
-  tCritical95,
+  tCritical,
 } from './analyzeRun';
+import type { BenchmarkAnalysis } from './analyzeRun';
 import type { BenchmarkRunReport, RunBenchmark, RunMetricDefinition } from './schema';
 
 const SCALAR: RunMetricDefinition = { kind: 'scalar', alarm: {} };
@@ -33,14 +34,22 @@ function reportOf(benchmarks: RunBenchmark[], metrics: BenchmarkRunReport['metri
   return report;
 }
 
-describe('tCritical95', () => {
-  it('reads small samples from the table', () => {
-    expect(tCritical95(1)).toBe(12.706);
-    expect(tCritical95(29)).toBe(2.045);
+describe('tCritical', () => {
+  it('matches the published table at 95%', () => {
+    expect(tCritical(1)).toBeCloseTo(12.706, 3);
+    expect(tCritical(9)).toBeCloseTo(2.262, 3);
+    expect(tCritical(29)).toBeCloseTo(2.045, 3);
+  });
+
+  it('matches the published table at other levels', () => {
+    expect(tCritical(1, 0.99)).toBeCloseTo(63.657, 2);
+    expect(tCritical(9, 0.99)).toBeCloseTo(3.25, 3);
+    expect(tCritical(29, 0.999)).toBeCloseTo(3.659, 3);
   });
 
   it('approaches the normal quantile for large samples', () => {
-    expect(tCritical95(10_000)).toBeCloseTo(1.96, 2);
+    expect(tCritical(100_000)).toBeCloseTo(1.96, 2);
+    expect(tCritical(100_000, 0.99)).toBeCloseTo(2.576, 2);
   });
 });
 
@@ -203,6 +212,78 @@ describe('analyzeRun', () => {
     expect(analysis.metrics[0].definition.format).toEqual({
       style: 'unit',
       unit: 'millisecond',
+    });
+  });
+
+  describe('the run-wide chance of a false alarm', () => {
+    // Per-round differences of 1, -2, 3, 0, 2, -1, 4, 1: noisy, so the interval has a width.
+    const noisy = {
+      current: [101, 98, 103, 100, 102, 99, 104, 101],
+      baseline: [100, 100, 100, 100, 100, 100, 100, 100],
+    };
+
+    function benchmarkOf(name: string, samples: Record<string, Record<string, number[]>>) {
+      return {
+        name,
+        file: `${name}.bench.tsx`,
+        kind: 'baseline' as const,
+        variants: ['current', 'baseline'],
+        samples,
+      };
+    }
+
+    const widthOf = (analysis: BenchmarkAnalysis) => {
+      const [comparison] = analysis.metrics[0].comparisons;
+      return comparison.absolute.high - comparison.absolute.low;
+    };
+
+    const alone = benchmarkOf('a', {
+      current: { render: noisy.current },
+      baseline: { render: noisy.baseline },
+    });
+    const other = benchmarkOf('b', {
+      current: { render: noisy.current },
+      baseline: { render: noisy.baseline },
+    });
+
+    it('is shared by the alarmed comparisons of the run', () => {
+      const [single] = analyzeRun(reportOf([alone], { render: SCALAR }));
+      const [shared] = analyzeRun(reportOf([alone, other], { render: SCALAR }));
+
+      expect(widthOf(shared) / widthOf(single)).toBeCloseTo(tCritical(7, 0.975) / tCritical(7), 6);
+    });
+
+    it('leaves metrics without an alarm at 95%', () => {
+      const plain = { render: { kind: 'scalar' as const } };
+      const [single] = analyzeRun(reportOf([alone], plain));
+      const [shared] = analyzeRun(reportOf([alone, other], plain));
+
+      expect(widthOf(shared)).toBe(widthOf(single));
+    });
+
+    it('leaves out comparisons that never varied', () => {
+      const steady = benchmarkOf('c', {
+        current: { render: [3, 3, 3, 3, 3, 3, 3, 3] },
+        baseline: { render: [3, 3, 3, 3, 3, 3, 3, 3] },
+      });
+      const [single] = analyzeRun(reportOf([alone], { render: SCALAR }));
+      const [withSteady] = analyzeRun(reportOf([alone, steady], { render: SCALAR }));
+
+      expect(widthOf(withSteady)).toBe(widthOf(single));
+    });
+
+    it('can leave unsure what 95% would have flagged', () => {
+      const { base, shifted } = drifting(2);
+      const flagged = benchmarkOf('d', {
+        current: { render: shifted.map((value, round) => value + (round % 2 ? 2 : -2)) },
+        baseline: { render: base },
+      });
+      const [single] = analyzeRun(reportOf([flagged], { render: SCALAR }));
+      const crowd = Array.from({ length: 20 }, (_, index) => ({ ...other, name: `b${index}` }));
+      const [crowded] = analyzeRun(reportOf([flagged, ...crowd], { render: SCALAR }));
+
+      expect(single.metrics[0].comparisons[0].change).toBe('worse');
+      expect(crowded.metrics[0].comparisons[0].change).toBe('unsure');
     });
   });
 

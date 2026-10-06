@@ -6,7 +6,7 @@ import {
   formatRounds,
   formatComparison,
   formatRunSummary,
-  RUN_REPORT_FOOTNOTE,
+  runReportFootnote,
 } from '@mui/internal-benchmark/runReport';
 import type { BenchmarkAnalysis, BenchmarkRunReport } from '@mui/internal-benchmark/runReport';
 
@@ -76,7 +76,7 @@ export function buildBenchmarkRunMarkdownReport(
   if (measured.length > 0) {
     lines.push('<details>', '<summary>Full results</summary>', '');
     lines.push(measured.map(renderBenchmarkTable).join('\n\n'));
-    lines.push('', `_${RUN_REPORT_FOOTNOTE}_`, '', '</details>');
+    lines.push('', `_${runReportFootnote(report)}_`, '', '</details>');
   }
 
   if (options.detailsUrl) {
