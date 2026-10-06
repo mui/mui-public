@@ -438,11 +438,14 @@ history from it.
 
 - The report holds **raw samples**, round-aligned across variants, plus each metric's kind, format
   and alarm, how each benchmark's sampling went, the builds, and the environment.
-- `analyzeRun` from `@mui/internal-benchmark/runReport` draws every conclusion from it: a 95%
-  confidence interval on the paired difference per metric, a change (`better`, `worse`, `unsure`),
-  and a severity from the metric's alarm.
-- `reactBenchmark()`'s `render` and `render:count` alarm on any resolved change for the worse;
-  `bench:paint` is informational; every other metric brings its own alarm.
+- `analyzeRun` from `@mui/internal-benchmark/runReport` draws every conclusion from it: a confidence
+  interval on the paired difference per metric, a change (`better`, `worse`, `unsure`, or
+  `unchanged` when every round measured the same), and a severity from the metric's alarm.
+- `reactBenchmark()`'s `render` alarms on any resolved change for the worse; `render:count`, the
+  per-phase split and `bench:paint` are informational; every other metric brings its own alarm.
+- Tables list the baseline before the current build, so a row reads old to new. The pull request
+  comment keeps only the metrics that got better or worse, and sums up a benchmark where none did
+  as "no change detected"; the terminal and the dashboard show every metric.
 
 ### Choosing the baseline
 

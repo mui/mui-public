@@ -59,6 +59,15 @@ const broken: RunBenchmark = {
 };
 
 describe('buildBenchmarkRunMarkdownReport', () => {
+  it('shows a benchmark where nothing changed as one line', () => {
+    const markdown = buildBenchmarkRunMarkdownReport(reportOf([unchanged]), {
+      title: 'Performance',
+    });
+
+    expect(markdown).toContain('**Button mount** · 4 rounds · no change detected');
+    expect(markdown).not.toContain('| render |');
+  });
+
   it('states nothing but the summary when no benchmark regressed', () => {
     const markdown = buildBenchmarkRunMarkdownReport(reportOf([unchanged]), {
       title: 'Performance',
@@ -86,14 +95,13 @@ describe('buildBenchmarkRunMarkdownReport', () => {
       ❌ **Chart zoom**: Render failed
 
       <details>
-      <summary>Full results</summary>
+      <summary>Changes</summary>
 
       **Grid scroll** · 3 + 1 rounds · timed out
 
-      | Metric | current | baseline | Δ vs baseline |
+      | Metric | baseline | current | Δ vs baseline |
       |:----------|----------:|----------:|:----------|
-      | render | 23.5 ms | 21.5 ms | \`worse +9.3% – +9.3%\` |
-      | bench:paint | 30.5 ms | 30.5 ms | \`unsure +0.0% – +0.0%\` |
+      | render | 21.5 ms | 23.5 ms | \`worse +9.3% – +9.3%\` |
 
 
       **libs / mount** · 4 rounds
@@ -103,7 +111,7 @@ describe('buildBenchmarkRunMarkdownReport', () => {
       | render | 10 ms | 20.5 ms | \`worse +95.8% – +114.2%\` |
 
 
-      _Each value is a median. Each Δ is a 95% confidence interval on the paired per-round difference, relative to the variant it is measured against; "unsure" means it straddles zero — the expected result for two equivalent builds._
+      _Each value is a median. Each Δ is a 95% confidence interval on the paired per-round difference, relative to the variant it is measured against; "unsure" means it straddles zero — the expected result for two equivalent builds — and "unchanged" that every round measured the same._
 
       </details>"
     `);

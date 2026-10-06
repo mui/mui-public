@@ -37,9 +37,11 @@ export function formatPercent(interval: Interval): string {
   return `${signed(interval.low)} – ${signed(interval.high)}`;
 }
 
-/** A comparison as one phrase: `worse +2.7% – +6.8%`, `unsure -1.2% – +0.9%`. */
+/** A comparison as one phrase: `worse +2.7% – +6.8%`, `unsure -1.2% – +0.9%`, `unchanged`. */
 export function formatComparison(comparison: MetricComparison): string {
-  return `${comparison.change} ${formatPercent(comparison.relative)}`;
+  return comparison.change === 'unchanged'
+    ? comparison.change
+    : `${comparison.change} ${formatPercent(comparison.relative)}`;
 }
 
 /** What a comparison column is headed: `Δ vs baseline` for a build, `theirs vs ours` for a variant. */
@@ -71,20 +73,24 @@ export function benchmarkTable({ benchmark, metrics }: BenchmarkAnalysis): {
   columns: BenchmarkTableColumn[];
   rows: BenchmarkTableRow[];
 } {
+  // Builds read old to new, the baseline first, like a diff; compared cases keep the reference
+  // first, as the comparison columns measure against it.
+  const variants =
+    benchmark.kind === 'baseline' ? [...benchmark.variants].reverse() : benchmark.variants;
   const columns: BenchmarkTableColumn[] = [
     { header: 'Metric', kind: 'label' },
-    ...benchmark.variants.map((variant) => ({ header: variant, kind: 'value' as const })),
+    ...variants.map((variant) => ({ header: variant, kind: 'value' as const })),
     ...(metrics[0]?.comparisons ?? []).map((comparison) => ({
       header: formatComparisonLabel(benchmark, comparison),
       kind: 'comparison' as const,
     })),
   ];
-  const rows = metrics.map(({ metric, definition, variants, comparisons }) => ({
+  const rows = metrics.map(({ metric, definition, variants: medians, comparisons }) => ({
     metric,
     comparisons,
     cells: [
       metric,
-      ...benchmark.variants.map((variant) => formatValue(variants[variant].median, definition)),
+      ...variants.map((variant) => formatValue(medians[variant].median, definition)),
       ...comparisons.map(formatComparison),
     ],
   }));
@@ -141,7 +147,7 @@ export function runReportFootnote(analyses: BenchmarkAnalysis[]): string {
         'difference, relative to the variant it is measured against';
   return (
     `Each value is a median. ${interval}; "unsure" means it straddles zero — the expected ` +
-    'result for two equivalent builds.'
+    'result for two equivalent builds — and "unchanged" that every round measured the same.'
   );
 }
 

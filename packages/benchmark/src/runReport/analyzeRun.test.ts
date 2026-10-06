@@ -97,6 +97,16 @@ describe('compareSamples', () => {
     expect(comparison.severity).toBe('none');
   });
 
+  it('is unchanged when every round measured the same on both sides', () => {
+    const comparison = compareSamples(
+      { name: 'current', values: [3, 4, 3] },
+      { name: 'baseline', values: [3, 4, 3] },
+      { kind: 'discrete' },
+    );
+
+    expect(comparison.change).toBe('unchanged');
+  });
+
   it('is unsure when the interval straddles zero', () => {
     const comparison = compareSamples(
       { name: 'current', values: [10, 12, 9, 11] },

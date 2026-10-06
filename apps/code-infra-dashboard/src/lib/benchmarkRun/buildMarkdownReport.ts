@@ -17,9 +17,20 @@ interface BuildOptions {
   detailsUrl?: string;
 }
 
-/** One table per benchmark: every metric, the median of every variant, every comparison. */
+/**
+ * One table per benchmark, of the metrics that changed — better or worse — with the median of every
+ * variant and every comparison. A benchmark where nothing changed is one line; the full run has
+ * every metric.
+ */
 function renderBenchmarkTable(analysis: BenchmarkAnalysis): string {
-  const { columns, rows } = benchmarkTable(analysis);
+  const heading = `**${analysis.benchmark.name}** · ${formatRounds(analysis.benchmark)}`;
+  const { columns, rows: allRows } = benchmarkTable(analysis);
+  const rows = allRows.filter((row) =>
+    row.comparisons.some(({ change }) => change === 'better' || change === 'worse'),
+  );
+  if (rows.length === 0) {
+    return `${heading} · no change detected`;
+  }
   const table = formatMarkdownTable(
     columns.map(({ header, kind }, column) => ({
       field: String(column),
@@ -35,7 +46,7 @@ function renderBenchmarkTable(analysis: BenchmarkAnalysis): string {
       ),
     ),
   );
-  return `**${analysis.benchmark.name}** · ${formatRounds(analysis.benchmark)}\n\n${table}`;
+  return `${heading}\n\n${table}`;
 }
 
 /**
@@ -74,7 +85,7 @@ export function buildBenchmarkRunMarkdownReport(
   }
 
   if (measured.length > 0) {
-    lines.push('<details>', '<summary>Full results</summary>', '');
+    lines.push('<details>', '<summary>Changes</summary>', '');
     lines.push(measured.map(renderBenchmarkTable).join('\n\n'));
     lines.push('', `_${runReportFootnote(analyses)}_`, '', '</details>');
   }

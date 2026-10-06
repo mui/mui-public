@@ -25,8 +25,11 @@ export interface SampleSummary {
   median: number;
 }
 
-/** Which way a resolved change went, given the metric's direction; `unsure` if it did not resolve. */
-export type Change = 'better' | 'worse' | 'unsure';
+/**
+ * Which way a resolved change went, given the metric's direction; `unsure` if it did not resolve,
+ * and `unchanged` if every round measured the same on both sides — a render count, say.
+ */
+export type Change = 'better' | 'worse' | 'unsure' | 'unchanged';
 
 /** How much a change for the worse matters, per the metric's alarm. */
 export type Severity = 'error' | 'warning' | 'none';
@@ -249,7 +252,9 @@ export function compareSamples(
   };
 
   let change: Change = 'unsure';
-  if (absolute.low > 0 || absolute.high < 0) {
+  if (rounds > 0 && differences.every((difference) => difference === 0)) {
+    change = 'unchanged';
+  } else if (absolute.low > 0 || absolute.high < 0) {
     const increased = absolute.low > 0;
     const lowerIsBetter = definition.alarm?.direction !== 'higherIsBetter';
     change = increased === lowerIsBetter ? 'worse' : 'better';

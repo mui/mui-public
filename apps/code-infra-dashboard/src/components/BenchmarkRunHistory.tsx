@@ -29,6 +29,7 @@ const CHANGE_COLORS: Record<Change, string> = {
   worse: 'var(--mui-palette-error-main)',
   better: 'var(--mui-palette-success-main)',
   unsure: 'var(--mui-palette-grey-500)',
+  unchanged: 'var(--mui-palette-grey-500)',
 };
 
 /** Per benchmark, per metric: a commit's change against its parent. */
@@ -117,21 +118,23 @@ export default function BenchmarkRunHistory({ repo }: BenchmarkRunHistoryProps) 
         ? undefined
         : point.comparisons.get(benchmark)?.get(metric),
     );
-    return (['worse', 'better', 'unsure'] as const satisfies Change[]).map((change) => ({
-      type: 'bar' as const,
-      stack: 'change',
-      label: change,
-      color: CHANGE_COLORS[change],
-      data: selected.map((comparison) =>
-        comparison?.change === change
-          ? (comparison.relative.low + comparison.relative.high) / 2
-          : null,
-      ),
-      valueFormatter: (_value: number | null, { dataIndex }: { dataIndex: number }) => {
-        const comparison = selected[dataIndex];
-        return comparison?.change === change ? formatComparison(comparison) : null;
-      },
-    }));
+    return (['worse', 'better', 'unsure', 'unchanged'] as const satisfies Change[]).map(
+      (change) => ({
+        type: 'bar' as const,
+        stack: 'change',
+        label: change,
+        color: CHANGE_COLORS[change],
+        data: selected.map((comparison) =>
+          comparison?.change === change
+            ? (comparison.relative.low + comparison.relative.high) / 2
+            : null,
+        ),
+        valueFormatter: (_value: number | null, { dataIndex }: { dataIndex: number }) => {
+          const comparison = selected[dataIndex];
+          return comparison?.change === change ? formatComparison(comparison) : null;
+        },
+      }),
+    );
   }, [points, benchmark, metric]);
 
   const [selectedSha, setSelectedSha] = React.useState<string | null>(null);

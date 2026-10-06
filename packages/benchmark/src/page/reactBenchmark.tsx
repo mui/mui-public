@@ -9,10 +9,12 @@ import type { BenchmarkCase, BenchmarkContext } from './page';
 
 export interface ReactBenchmarkOptions extends CaseOptions, SamplingOptions {}
 
-// Render time and render count alarm on any resolved change for the worse; paint dominates each
-// case's duration and duplicates that signal, so it is informational, as is the per-phase split.
+// Render time alarms on any resolved change for the worse. The render count is informational: an
+// extra render matters only through the time it adds, which render time already measures. Paint
+// dominates each case's duration and duplicates that signal, so it is informational too, as is the
+// per-phase split.
 const renderMetric = new ScalarMetric({ name: 'render', format: MILLISECONDS, alarm: {} });
-const renderCountMetric = new DiscreteMetric({ name: 'render:count', alarm: {} });
+const renderCountMetric = new DiscreteMetric({ name: 'render:count' });
 const paintMetric = new ScalarMetric({ name: PAINT_METRIC_NAME, format: MILLISECONDS });
 const phaseMetrics = new Map<string, ScalarMetric>();
 
