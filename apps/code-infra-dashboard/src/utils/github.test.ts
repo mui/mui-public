@@ -61,7 +61,7 @@ describe('proxiedOctokit', () => {
   it('refreshes the session and retries once when the proxy rejects the token', async () => {
     let rejectedOnce = false;
     const requested = stubBrowser((url) => {
-      if (url === '/api/auth/session') {
+      if (url === '/api/auth/session?verify=1') {
         return jsonResponse({ available: true, signedIn: true, login: 'octocat' });
       }
       if (!rejectedOnce) {
@@ -76,7 +76,7 @@ describe('proxiedOctokit', () => {
     expect(data).toEqual({ login: 'octocat' });
     expect(requested).toEqual([
       `${TAB_ORIGIN}/api/github/user`,
-      '/api/auth/session',
+      '/api/auth/session?verify=1',
       `${TAB_ORIGIN}/api/github/user`,
     ]);
   });
@@ -85,7 +85,7 @@ describe('proxiedOctokit', () => {
   // reading the session have to learn about it to switch back to anonymous.
   it('publishes a signed-out session to the rest of the app without retrying', async () => {
     const requested = stubBrowser((url) =>
-      url === '/api/auth/session'
+      url === '/api/auth/session?verify=1'
         ? jsonResponse({ available: true, signedIn: false })
         : new Response('{}', { status: 401 }),
     );
@@ -97,14 +97,14 @@ describe('proxiedOctokit', () => {
       available: true,
       signedIn: false,
     });
-    expect(requested).toEqual([`${TAB_ORIGIN}/api/github/user`, '/api/auth/session']);
+    expect(requested).toEqual([`${TAB_ORIGIN}/api/github/user`, '/api/auth/session?verify=1']);
   });
 
   it('refreshes the session once for requests rejected together', async () => {
     let sessionReads = 0;
     let rejected = 0;
     stubBrowser((url) => {
-      if (url === '/api/auth/session') {
+      if (url === '/api/auth/session?verify=1') {
         sessionReads += 1;
         return jsonResponse({ available: true, signedIn: true, login: 'octocat' });
       }

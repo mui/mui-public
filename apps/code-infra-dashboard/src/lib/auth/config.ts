@@ -23,6 +23,16 @@ export const BASE_COOKIE_OPTIONS = {
 } as const;
 
 /**
+ * For routes that act on the session. SameSite=Lax keeps the cookie off
+ * cross-site background requests, but not off a cross-site top-level form POST,
+ * whose response can still delete it. Browsers too old to send the header pass.
+ */
+export function isCrossSiteRequest(headers: Headers): boolean {
+  const fetchSite = headers.get('sec-fetch-site');
+  return fetchSite !== null && fetchSite !== 'same-origin';
+}
+
+/**
  * Where GitHub sends the user back. Must be registered as a callback URL on the
  * GitHub App. Derived from DASHBOARD_ORIGIN rather than from the request's Host
  * header, which a client controls and which would make this an open redirect.

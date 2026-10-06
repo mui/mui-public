@@ -1,5 +1,5 @@
 import { Octokit } from '@octokit/rest';
-import { sessionQueryOptions } from '../hooks/useSession';
+import { verifiedSessionQueryOptions } from '../hooks/useSession';
 import { queryClient } from './queryClient';
 
 /**
@@ -14,8 +14,9 @@ const GITHUB_PROXY_PATH = '/api/github';
 
 /**
  * Re-reads the session through the app's query cache: the session endpoint
- * refreshes an expired token, and every component sees the outcome — including
- * that the visitor is now signed out, so they fall back to anonymous requests.
+ * refreshes an expired token or checks a live one against GitHub, and every
+ * component sees the outcome — including that the visitor is now signed out, so
+ * they fall back to anonymous requests.
  *
  * A session already re-read since `sentAt` is reused, so a page's worth of
  * requests rejected together refreshes it once.
@@ -23,7 +24,7 @@ const GITHUB_PROXY_PATH = '/api/github';
 async function isStillSignedIn(sentAt: number): Promise<boolean> {
   try {
     const session = await queryClient.query({
-      ...sessionQueryOptions,
+      ...verifiedSessionQueryOptions,
       staleTime: () => Date.now() - sentAt,
     });
     return session.signedIn;

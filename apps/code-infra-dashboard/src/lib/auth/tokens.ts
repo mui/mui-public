@@ -1,4 +1,5 @@
 import { refreshToken as exchangeRefreshToken } from '@octokit/oauth-methods';
+import { Octokit } from '@octokit/rest';
 import { getOAuthClient } from './config';
 import type { Session } from './session';
 
@@ -6,16 +7,18 @@ import type { Session } from './session';
 const REFRESH_SKEW_MS = 60 * 1000;
 
 /**
- * GitHub rotates the refresh token on every use and invalidates the previous one
- * immediately. A page issues many concurrent requests, so two of them refreshing
- * at once would leave the loser's rotation invalidating the winner's token and
- * log the user out at random. This dashboard runs as a single long-lived Node
- * process, so de-duplicating in memory is enough.
- *
- * Keyed by the refresh token itself: callers that arrive with the same token are
- * by definition the same rotation.
+ * GitHub rotates the refresh token on every use and invalidates the previous one,
+ * and the previous access token, immediately. Any request that still carries the
+ * old cookie -- concurrent with the rotation, or sent just before the new cookie
+ * reached the browser -- would replay a dead refresh token and sign the user out.
+ * So each rotation's outcome is shared with everyone presenting the same refresh
+ * token, while it runs and for a grace period after. This dashboard runs as a
+ * single long-lived Node process, so remembering them in memory is enough.
  */
-const inFlightRefreshes = new Map<string, Promise<Session | null>>();
+const rotations = new Map<string, Promise<Session | null>>();
+
+/** Long enough for every request sent with the old cookie to have arrived. */
+const ROTATION_GRACE_MS = 60 * 1000;
 
 /** GitHub Apps without token expiry never hand out `expiresAt`. */
 export function isTokenExpired(session: Session): boolean {
@@ -84,13 +87,34 @@ export async function getRefreshedSession(session: Session): Promise<Session | n
     return null;
   }
 
-  let pending = inFlightRefreshes.get(refreshToken);
+  let pending = rotations.get(refreshToken);
   if (!pending) {
-    pending = exchange(session, refreshToken).finally(() => {
-      inFlightRefreshes.delete(refreshToken);
-    });
-    inFlightRefreshes.set(refreshToken, pending);
+    pending = exchange(session, refreshToken);
+    rotations.set(refreshToken, pending);
+    // A failure is forgotten at once: an outage says nothing about the token, so
+    // the next attempt has to reach GitHub again rather than inherit the error.
+    pending.then(
+      () => setTimeout(() => rotations.delete(refreshToken), ROTATION_GRACE_MS),
+      () => rotations.delete(refreshToken),
+    );
   }
 
   return pending;
+}
+
+/**
+ * Asks GitHub whether it still accepts a token whose expiry hasn't passed, which
+ * stops being the case once the user revokes the app. Other failures propagate:
+ * an outage says nothing about the token.
+ */
+export async function isTokenRevoked(token: string): Promise<boolean> {
+  try {
+    await new Octokit({ auth: token }).rest.users.getAuthenticated();
+    return false;
+  } catch (error) {
+    if (error instanceof Error && 'status' in error && error.status === 401) {
+      return true;
+    }
+    throw error;
+  }
 }

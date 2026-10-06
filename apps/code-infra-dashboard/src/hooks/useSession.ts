@@ -28,6 +28,15 @@ export const sessionQueryOptions = queryOptions({
   queryFn: () => fetchJson<SessionResponse>('/api/auth/session'),
 });
 
+/**
+ * The same cache entry, read after GitHub rejected the token: also asks GitHub
+ * whether the current token still works.
+ */
+export const verifiedSessionQueryOptions = queryOptions({
+  ...sessionQueryOptions,
+  queryFn: () => fetchJson<SessionResponse>('/api/auth/session?verify=1'),
+});
+
 export function useSession(): UseSession {
   const { data, isPending } = useQuery({
     ...sessionQueryOptions,

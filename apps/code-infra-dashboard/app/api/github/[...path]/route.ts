@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { clearSession, readSession } from '@/lib/auth/session';
+import { isCrossSiteRequest } from '@/lib/auth/config';
+import { readSession } from '@/lib/auth/session';
 import { isTokenExpired } from '@/lib/auth/tokens';
 
 const GITHUB_API_ORIGIN = 'https://api.github.com';
@@ -50,16 +51,13 @@ function copyHeaders(source: Headers, names: string[]): Headers {
 
 /** Next answers HEAD with this handler too. */
 export async function GET(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
-  // SameSite=Lax already blocks cross-site XHR; this is belt and braces, since
-  // the cookie behind it carries a GitHub token.
-  const fetchSite = request.headers.get('sec-fetch-site');
-  if (fetchSite && fetchSite !== 'same-origin') {
+  if (isCrossSiteRequest(request.headers)) {
     return NextResponse.json({ error: 'Cross-origin requests are not allowed.' }, { status: 403 });
   }
 
-  // An expired token is refused rather than refreshed here: refreshing rotates
-  // the refresh token, and only /api/auth/session does that, once, before the
-  // browser retries. This route only ever clears the session, never writes it.
+  // An expired token is refused rather than refreshed here, and a token GitHub
+  // rejects isn't cleared here either: only /api/auth/session changes the
+  // session, from the current cookie, before the browser retries.
   const session = await readSession();
   if (!session || isTokenExpired(session)) {
     return NextResponse.json({ error: 'Not signed in to GitHub.' }, { status: 401 });
@@ -70,8 +68,15 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pat
     return NextResponse.json({ error: 'Invalid path.' }, { status: 400 });
   }
 
-  const upstreamUrl = new URL(`/${path.map(encodeURIComponent).join('/')}`, GITHUB_API_ORIGIN);
+  // Assigned through the pathname setter, which can't change the host: resolving
+  // the path against the origin instead would read an empty first segment as
+  // protocol-relative and send the token to whatever host followed.
+  const upstreamUrl = new URL(GITHUB_API_ORIGIN);
+  upstreamUrl.pathname = path.map(encodeURIComponent).join('/');
   upstreamUrl.search = request.nextUrl.searchParams.toString();
+  if (upstreamUrl.origin !== GITHUB_API_ORIGIN) {
+    return NextResponse.json({ error: 'Invalid path.' }, { status: 400 });
+  }
 
   const upstreamHeaders = copyHeaders(request.headers, FORWARDED_REQUEST_HEADERS);
   // Browsers refuse to let fetch set user-agent, so Octokit's never arrives.
@@ -87,13 +92,6 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pat
     cache: 'no-store',
     redirect: 'follow',
   });
-
-  // GitHub rejecting a token we haven't seen expire means it was revoked. Drop
-  // the session so the visitor falls back to anonymous instead of every request
-  // failing until they sign out by hand.
-  if (upstreamResponse.status === 401) {
-    await clearSession();
-  }
 
   const responseHeaders = copyHeaders(upstreamResponse.headers, FORWARDED_RESPONSE_HEADERS);
   // Let the browser hold a copy but revalidate every time, so it sends the etag

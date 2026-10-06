@@ -1,6 +1,6 @@
 import { vi, describe, it, expect, afterEach } from 'vitest';
 import { DASHBOARD_ORIGIN } from '@/constants';
-import { getOAuthClient, resolveReturnTo } from './config';
+import { getOAuthClient, isCrossSiteRequest, resolveReturnTo } from './config';
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -41,6 +41,21 @@ describe('getOAuthClient', () => {
     vi.stubEnv('IS_PULL_REQUEST', 'true');
 
     expect(getOAuthClient()).toBe(null);
+  });
+});
+
+describe('isCrossSiteRequest', () => {
+  it('lets requests from the dashboard itself through', () => {
+    expect(isCrossSiteRequest(new Headers({ 'sec-fetch-site': 'same-origin' }))).toBe(false);
+  });
+
+  // A sibling subdomain is "same-site" but still not the dashboard.
+  it.each(['cross-site', 'same-site', 'none'])('refuses sec-fetch-site: %s', (fetchSite) => {
+    expect(isCrossSiteRequest(new Headers({ 'sec-fetch-site': fetchSite }))).toBe(true);
+  });
+
+  it('lets browsers that predate the header through', () => {
+    expect(isCrossSiteRequest(new Headers())).toBe(false);
   });
 });
 

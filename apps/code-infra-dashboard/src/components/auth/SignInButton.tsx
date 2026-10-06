@@ -21,8 +21,10 @@ export default function SignInButton() {
   }
 
   // Preview deploys have an origin GitHub can't redirect back to, so sign-in is
-  // simply unavailable there rather than broken.
-  if (!session?.available) {
+  // simply unavailable there rather than broken. A session that couldn't be read
+  // at all, say during a GitHub outage, is unknown rather than unavailable, and
+  // falls through to an ordinary sign-in button.
+  if (session?.available === false) {
     return (
       <Tooltip title="GitHub sign-in is not configured for this deployment">
         <span>
@@ -34,7 +36,7 @@ export default function SignInButton() {
     );
   }
 
-  if (!session.signedIn) {
+  if (!session?.signedIn) {
     return (
       <Tooltip title="Raises the GitHub API rate limit and unlocks private repositories">
         <Button startIcon={<GitHubIcon />} onClick={signIn}>
