@@ -25,7 +25,7 @@ export interface UseSession {
  */
 export const sessionQueryOptions = queryOptions({
   queryKey: ['auth-session'],
-  queryFn: () => fetchJson<SessionResponse>('/api/auth/session'),
+  queryFn: () => fetchSession(false),
 });
 
 /**
@@ -34,8 +34,16 @@ export const sessionQueryOptions = queryOptions({
  */
 export const verifiedSessionQueryOptions = queryOptions({
   ...sessionQueryOptions,
-  queryFn: () => fetchJson<SessionResponse>('/api/auth/session?verify=1'),
+  queryFn: () => fetchSession(true),
 });
+
+function fetchSession(verify: boolean): Promise<SessionResponse> {
+  const url = new URL('/api/auth/session', window.location.origin);
+  if (verify) {
+    url.searchParams.set('verify', '1');
+  }
+  return fetchJson<SessionResponse>(url.href);
+}
 
 export function useSession(): UseSession {
   const { data, isPending } = useQuery({

@@ -20,6 +20,11 @@ const rotations = new Map<string, Promise<Session | null>>();
 /** Long enough for every request sent with the old cookie to have arrived. */
 const ROTATION_GRACE_MS = 60 * 1000;
 
+/** Octokit raises failed requests as errors carrying the HTTP status. */
+function hasHttpStatus(error: unknown, status: number): boolean {
+  return error instanceof Error && 'status' in error && error.status === status;
+}
+
 /** GitHub Apps without token expiry never hand out `expiresAt`. */
 export function isTokenExpired(session: Session): boolean {
   if (!session.expiresAt) {
@@ -61,7 +66,7 @@ async function exchange(session: Session, refreshToken: string): Promise<Session
     // error body, which the client raises as a 400; the user has to sign in
     // again. An outage or network error says nothing about the token, so it must
     // not end the session and throw away a refresh token that may still work.
-    if (error instanceof Error && 'status' in error && error.status === 400) {
+    if (hasHttpStatus(error, 400)) {
       console.error('GitHub sign-in: GitHub refused the refresh token.', error);
       return null;
     }
@@ -112,7 +117,7 @@ export async function isTokenRevoked(token: string): Promise<boolean> {
     await new Octokit({ auth: token }).rest.users.getAuthenticated();
     return false;
   } catch (error) {
-    if (error instanceof Error && 'status' in error && error.status === 401) {
+    if (hasHttpStatus(error, 401)) {
       return true;
     }
     throw error;

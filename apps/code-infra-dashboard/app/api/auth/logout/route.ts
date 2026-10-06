@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { isCrossSiteRequest } from '@/lib/auth/config';
+import { isCrossOriginRequest } from '@/lib/auth/config';
 import { clearSession } from '@/lib/auth/session';
 
 /**
@@ -10,7 +10,7 @@ import { clearSession } from '@/lib/auth/session';
  * the code-infra CLI and revoking would sign the user out of that too.
  */
 export async function POST(request: NextRequest) {
-  if (isCrossSiteRequest(request.headers)) {
+  if (isCrossOriginRequest(request.headers)) {
     return NextResponse.json({ error: 'Cross-origin requests are not allowed.' }, { status: 403 });
   }
 

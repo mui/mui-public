@@ -23,11 +23,12 @@ export const BASE_COOKIE_OPTIONS = {
 } as const;
 
 /**
- * For routes that act on the session. SameSite=Lax keeps the cookie off
+ * For routes that act on the session: anything not sent by the dashboard's own
+ * pages, sibling subdomains included. SameSite=Lax keeps the cookie off
  * cross-site background requests, but not off a cross-site top-level form POST,
  * whose response can still delete it. Browsers too old to send the header pass.
  */
-export function isCrossSiteRequest(headers: Headers): boolean {
+export function isCrossOriginRequest(headers: Headers): boolean {
   const fetchSite = headers.get('sec-fetch-site');
   return fetchSite !== null && fetchSite !== 'same-origin';
 }

@@ -20,34 +20,31 @@ export async function GET(request: NextRequest) {
   }
 
   const session = await readSession();
-  let current = session && (await getRefreshedSession(session));
+  const refreshed = session && (await getRefreshedSession(session));
 
-  // A token rotated just now is known to be good.
-  if (
-    current &&
-    current === session &&
+  // A token rotated just now is known to be good, so only an unchanged one is checked.
+  const revoked =
+    refreshed !== null &&
+    refreshed === session &&
     request.nextUrl.searchParams.has('verify') &&
-    (await isTokenRevoked(current.token))
-  ) {
-    current = null;
-  }
+    (await isTokenRevoked(refreshed.token));
 
-  if (!current) {
+  if (!refreshed || revoked) {
     if (session) {
       await clearSession();
     }
     return NextResponse.json({ available: true, signedIn: false } satisfies SessionResponse);
   }
 
-  if (current !== session) {
-    await writeSession(current);
+  if (refreshed !== session) {
+    await writeSession(refreshed);
   }
 
   return NextResponse.json({
     available: true,
     signedIn: true,
-    login: current.login,
-    name: current.name,
-    avatarUrl: current.avatarUrl,
+    login: refreshed.login,
+    name: refreshed.name,
+    avatarUrl: refreshed.avatarUrl,
   } satisfies SessionResponse);
 }

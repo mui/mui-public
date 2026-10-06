@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { isCrossSiteRequest } from '@/lib/auth/config';
+import { isCrossOriginRequest } from '@/lib/auth/config';
 import { readSession } from '@/lib/auth/session';
 import { isTokenExpired } from '@/lib/auth/tokens';
 
@@ -51,7 +51,7 @@ function copyHeaders(source: Headers, names: string[]): Headers {
 
 /** Next answers HEAD with this handler too. */
 export async function GET(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
-  if (isCrossSiteRequest(request.headers)) {
+  if (isCrossOriginRequest(request.headers)) {
     return NextResponse.json({ error: 'Cross-origin requests are not allowed.' }, { status: 403 });
   }
 
@@ -74,9 +74,6 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pat
   const upstreamUrl = new URL(GITHUB_API_ORIGIN);
   upstreamUrl.pathname = path.map(encodeURIComponent).join('/');
   upstreamUrl.search = request.nextUrl.searchParams.toString();
-  if (upstreamUrl.origin !== GITHUB_API_ORIGIN) {
-    return NextResponse.json({ error: 'Invalid path.' }, { status: 400 });
-  }
 
   const upstreamHeaders = copyHeaders(request.headers, FORWARDED_REQUEST_HEADERS);
   // Browsers refuse to let fetch set user-agent, so Octokit's never arrives.

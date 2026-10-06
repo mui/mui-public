@@ -26,11 +26,8 @@ function stubGitHub(respond: () => Response): { calls: number } {
 }
 
 function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    // GitHub always sends `date`; token expiries are computed from it.
-    headers: { 'content-type': 'application/json', date: new Date().toUTCString() },
-  });
+  // GitHub always sends `date`; token expiries are computed from it.
+  return Response.json(body, { status, headers: { date: new Date().toUTCString() } });
 }
 
 const rotatedTokens = {
