@@ -14,7 +14,6 @@ let globalArgv: { verbose?: boolean } = {};
 
 await yargs(hideBin(process.argv))
   .scriptName('benchmark')
-  .usage('$0 <command> [args]')
   .option('verbose', {
     alias: 'v',
     type: 'boolean',
@@ -38,7 +37,6 @@ await yargs(hideBin(process.argv))
     }
     process.exit(1);
   })
-  .demandCommand(1, 'You need at least one command before moving on')
   .strict()
   .help()
   .version(pkgJson.version)

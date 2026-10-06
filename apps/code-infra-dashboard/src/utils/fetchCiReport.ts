@@ -5,7 +5,7 @@ import { migrateBenchmarkReport } from '@/lib/benchmark/migrateBenchmarkReport';
 
 export interface CiReportTypes {
   /**
-   * Version 1 from the Vitest reporter, or version 2 from `benchmark run`: a repository uploads one or
+   * Version 1 from the Vitest reporter, or version 2 from the `benchmark` CLI: a repository uploads one or
    * the other while it moves over, so every reader narrows on `version`.
    */
   'benchmark.json': BenchmarkUpload | BenchmarkRunUpload;
@@ -14,7 +14,7 @@ export interface CiReportTypes {
 
 export type CiReportName = keyof CiReportTypes;
 
-/** Whether a `benchmark.json` is the version 2 report `benchmark run` uploads. */
+/** Whether a `benchmark.json` is the version 2 report the `benchmark` CLI uploads. */
 export function isBenchmarkRunUpload(
   upload: BenchmarkUpload | BenchmarkRunUpload,
 ): upload is BenchmarkRunUpload {

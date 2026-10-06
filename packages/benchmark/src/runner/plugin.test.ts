@@ -82,7 +82,7 @@ describe('benchmarkPlugin', () => {
     it('leaves an output directory the caller chose alone', async () => {
       // A plugin's returned config is merged *over* the inline config, so defaulting this
       // unconditionally would silently override `vite build --outDir` — which is how
-      // `benchmark run` directs each ref's build into its own directory.
+      // the `benchmark` CLI directs each ref's build into its own directory.
       const harnessDir = await makeHarness();
 
       const config = await callConfig(harnessDir, 'build', {

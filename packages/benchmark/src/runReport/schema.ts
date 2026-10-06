@@ -2,7 +2,7 @@ import { z } from 'zod/v4';
 import type { MetricDefinition } from '../types';
 
 /**
- * The report `benchmark run` produces, uploads and the dashboard reads: version 2 of the `benchmark`
+ * The report the `benchmark` CLI produces, uploads and the dashboard reads: version 2 of the `benchmark`
  * report, which the Vitest reporter uploads as version 1. A repository uploads one or the other, and
  * the dashboard reads each by its version.
  *

@@ -4,9 +4,9 @@ Two ways to measure, while repositories move from the first to the second.
 
 **Under Vitest** — a React component benchmarking tool built on Vitest and Playwright, using React's
 profiling build to capture render durations against your source. Everything up to
-[`benchmark run`](#benchmark-run) covers it. It uploads version 1 of the `benchmark` report.
+[the `benchmark` CLI](#the-benchmark-cli) covers it. It uploads version 1 of the `benchmark` report.
 
-**`benchmark run`** — `benchmark()` and `reactBenchmark()` files, the working tree against a baseline
+**The `benchmark` CLI** — `benchmark()` and `reactBenchmark()` files, the working tree against a baseline
 commit, both **built** and installed the way a consumer gets them, sampled alternately in one browser
 run and compared on paired differences. It uploads version 2 of the `benchmark` report. A repository
 uploads one version or the other; the dashboard reads each by its version.
@@ -304,9 +304,9 @@ BENCHMARK_BASELINE_PATH=/tmp/base-bench.json pnpm test:bench   # head run, inlin
 
 The feature is opt-in — without `BENCHMARK_BASELINE_PATH` (or the `baselinePath` config option), the dashboard falls back to fetching the base from S3 by merge-base SHA as before.
 
-## `benchmark run`
+## The `benchmark` CLI
 
-`benchmark run` measures a harness package's `*.bench.tsx` files across two builds of the workspace:
+The `benchmark` CLI measures a harness package's `*.bench.tsx` files across two builds of the workspace:
 the working tree and a baseline. Run it from the harness, whose vite config uses the plugin:
 
 ```js
@@ -318,7 +318,7 @@ export default defineConfig({ plugins: [benchmarkPlugin()] });
 ```
 
 ```bash
-benchmark run --baseline "$(code-infra baseline)"
+benchmark --baseline "$(code-infra baseline)"
 ```
 
 ### Defining cases
@@ -474,13 +474,13 @@ if one was killed outright. Two things follow from it. A tracked file names tarb
 the workspace for that time, because pnpm scopes an override by parent package name and a harness has
 none — so nothing else should build against the same checkout meanwhile.
 
-`benchmark run --help` lists the remaining options.
+`benchmark --help` lists the remaining options.
 
 ## API
 
 - `benchmark` — define a benchmark test case
-- `@mui/internal-benchmark/vitePlugin` — `benchmarkPlugin()`, the harness's vite plugin for `benchmark run`
-- `@mui/internal-benchmark/runReport` — the `benchmark run` report schema and `analyzeRun`
+- `@mui/internal-benchmark/vitePlugin` — `benchmarkPlugin()`, the harness's vite plugin for the `benchmark` CLI
+- `@mui/internal-benchmark/runReport` — the report schema of the `benchmark` CLI, and `analyzeRun`
 - `ElementTiming` — invisible marker component for paint timing (renders a `<span>` tracked by the Element Timing API)
 - `ScalarMetric` — record a continuous custom measurement (with a `console.time`-style timing helper)
 - `DiscreteMetric` — record a discrete custom count

@@ -6,7 +6,7 @@ import { hasSampling, resolveSampling } from '../sampling';
 import type { SamplingOptions } from '../sampling';
 import type { MetricDefinition } from '../types';
 
-// The page runtime `benchmark run` measures. `benchmark()` registers a case, and the runner calls
+// The page runtime the `benchmark` CLI measures. `benchmark()` registers a case, and the runner calls
 // `window.benchmarkPage.sample()` to run one iteration of it at a time. What a case measures is
 // whatever it records through a `Metric`; every recorded value leaves the page as a
 // `performance.measure` entry, so it also shows up in a DevTools trace.

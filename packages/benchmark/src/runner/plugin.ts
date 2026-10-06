@@ -108,7 +108,7 @@ export function benchmarkPlugin(options: BenchmarkPluginOptions = {}): Plugin {
       if (source === '@mui/internal-benchmark') {
         this.error(
           `${importer ?? 'A benchmark page'} imports "@mui/internal-benchmark", the Vitest ` +
-            'harness. Benchmark files for `benchmark run` import "@mui/internal-benchmark/page".',
+            'harness. Benchmark files for the `benchmark` CLI import "@mui/internal-benchmark/page".',
         );
       }
       if (source === 'vitest' || source.startsWith('vitest/')) {
@@ -149,7 +149,7 @@ export function benchmarkPlugin(options: BenchmarkPluginOptions = {}): Plugin {
         return { ...base, build: { outDir } };
       }
 
-      // A plain `vite build` into the output directory marks it ignored, as `benchmark run` does.
+      // A plain `vite build` into the output directory marks it ignored, as the `benchmark` CLI does.
       if (!userConfig.build?.outDir) {
         await prepareOutputDir(harnessDir);
       }
@@ -184,7 +184,7 @@ export function benchmarkPlugin(options: BenchmarkPluginOptions = {}): Plugin {
         fileName: 'index.html',
         source: renderIndex(
           benchFiles,
-          'These are production bundles — the same build `benchmark run` measures.',
+          'These are production bundles — the same build the `benchmark` CLI measures.',
         ),
       });
     },

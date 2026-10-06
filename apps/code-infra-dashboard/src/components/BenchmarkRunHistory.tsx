@@ -20,7 +20,7 @@ import { useCiReports } from '../hooks/useCiReports';
 import ErrorDisplay from './ErrorDisplay';
 
 /**
- * Master history of `benchmark run` reports. Every master commit is benchmarked against its parent
+ * Master history of the `benchmark` CLI reports. Every master commit is benchmarked against its parent
  * in the same run, so each bar is that commit's own paired change — which commit moved a number is
  * read off the chart directly, rather than inferred from a noisy trend.
  */

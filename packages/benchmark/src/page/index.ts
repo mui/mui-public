@@ -1,4 +1,4 @@
-// `@mui/internal-benchmark/page`: what a benchmark file for `benchmark run` imports.
+// `@mui/internal-benchmark/page`: what a benchmark file for the `benchmark` CLI imports.
 
 export * from '../publicApi';
 export { benchmark, compare, markPageReady } from './page';

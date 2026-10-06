@@ -8,10 +8,10 @@ import { SMOKE_SAMPLING } from '../_shared/sampling';
  *
  * The point of this benchmark is not the number it produces — this repository ships build tooling,
  * not a browser library, so there is nothing here whose render time is worth tracking. It exists to
- * give `benchmark run` something real to drive end to end.
+ * give the `benchmark` CLI something real to drive end to end.
  *
  * It does import a workspace package (`@mui/internal-test-utils`) and put its value on screen. That
- * is the part that matters: under `benchmark run` every ref — the working tree included — resolves
+ * is the part that matters: under the `benchmark` CLI every ref — the working tree included — resolves
  * it from a packed tarball, so both sides of a comparison resolve identically.
  */
 

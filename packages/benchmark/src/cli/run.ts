@@ -5,7 +5,7 @@ import type { RunBenchmarksOptions } from '../runner/runBenchmarks';
 type Args = Omit<RunBenchmarksOptions, 'harnessDir'>;
 
 const command: CommandModule<{}, Args> = {
-  command: 'run [filters...]',
+  command: '$0 [filters...]',
   describe:
     "Benchmark a harness's *.bench.tsx files, the working tree against a baseline build, and write a JSON report. Run from the harness package.",
   builder: (yargs) => {

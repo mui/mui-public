@@ -1,6 +1,6 @@
 # Benchmark smoke test
 
-A working harness for `benchmark run`, used to exercise that tooling end to end.
+A working harness for the `benchmark` CLI, used to exercise that tooling end to end.
 
 Its benchmarks are deterministic workloads, not numbers worth tracking: they give the pipeline something
 real to drive. For real benchmarks, see `base-ui-mosaic` and `base-ui-charts`.
@@ -54,7 +54,7 @@ update cannot move the numbers on its own.
 
 ### A note on the baseline
 
-`benchmark run` does not work out which commit to compare against — `code-infra baseline` does, for
+The `benchmark` CLI does not work out which commit to compare against — `code-infra baseline` does, for
 every job that compares a branch to its base, so bundle size and the benchmarks agree on the answer
 instead of each deriving it. Pass it in:
 
@@ -64,7 +64,7 @@ pnpm test:benchmark-run --baseline "$(pnpm code-infra baseline)"
 
 Without `--baseline` the previous commit is used.
 
-A baseline older than the introduction of `benchmark run` will fail to build its pages: this
+A baseline older than the introduction of the `benchmark` CLI will fail to build its pages: this
 harness's vite config imports a plugin that did not exist at that commit. `--baseline HEAD` compares
 the working tree against the current commit while that is still true.
 

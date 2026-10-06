@@ -1,12 +1,12 @@
 {
   "private": true,
-  "description": "Smoke-test harness for `benchmark run` from @mui/internal-benchmark",
+  "description": "Smoke-test harness for the `benchmark` CLI from @mui/internal-benchmark",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "typescript": "tsc -noEmit",
-    "benchmark:run": "node ./scripts/runBenchmark.mjs run"
+    "benchmark:run": "node ./scripts/runBenchmark.mjs"
   },
   "dependencies": {
     "@mui/internal-test-utils": "workspace:*",
