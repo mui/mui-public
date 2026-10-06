@@ -13,6 +13,7 @@ import chalk from 'chalk';
 import { mapAsync } from 'es-toolkit/array';
 import { execa, parseCommandString } from 'execa';
 import { resolveCommit } from './git';
+import { onInterrupt } from './interrupt';
 import { listPublishablePackages } from './pnpm';
 
 export interface PackedPackage {
@@ -158,6 +159,7 @@ export async function packRef(options: PackRefOptions): Promise<PackedPackage[]>
   await mkdir(outRoot, { recursive: true });
   const staging = await mkdtemp(path.join(outRoot, '.staging-'));
   const checkout = await mkdtemp(path.join(os.tmpdir(), 'pack-workspace-'));
+  const stopWatching = onInterrupt(() => removeCheckout(repoRoot, checkout));
   try {
     console.log(chalk.cyan(`\nChecking out "${ref}" (${sha.slice(0, 9)}) at ${checkout}`));
     await execa('git', ['worktree', 'add', '--detach', checkout, sha], {
@@ -183,6 +185,7 @@ export async function packRef(options: PackRefOptions): Promise<PackedPackage[]>
     await rename(staging, dir);
     return packages.map((pkg) => ({ ...pkg, tarball: path.join(dir, path.basename(pkg.tarball)) }));
   } finally {
+    stopWatching();
     // On success the staging folder has already become `dir`.
     await Promise.all([
       rm(staging, { recursive: true, force: true }),

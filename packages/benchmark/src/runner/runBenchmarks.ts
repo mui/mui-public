@@ -6,6 +6,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import chalk from 'chalk';
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import { packRef, packWorkingTree } from '../utils/packWorkspace';
+import { ensurePnpmOnPath } from '../utils/pnpm';
 import { getCiMetadata } from '../ciReport';
 import type { BenchmarkRunReport } from '../runReport';
 import { refLabel, resolveBaselineRef, WORKTREE_REF } from './refs';
@@ -72,6 +73,8 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
   const buildsDir = buildsDirOf(harnessDir);
   const packedDir = path.join(outputDir, 'packed');
 
+  await ensurePnpmOnPath(path.join(outputDir, 'bin'));
+
   // A run killed outright never reaches the restore below; undo what it left pinned first.
   await restoreWorkspace(repoRoot, outputDir);
 
@@ -114,7 +117,7 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
 
   try {
     // Pack both sides at once: each builds in its own checkout, and nothing is measured yet.
-    const packedByRef = await Promise.all(
+    const packing = await Promise.allSettled(
       refs.map(async (ref) => {
         if (ref.variant === 'current') {
           return packWorkingTree({ repoRoot, outRoot: path.join(packedDir, 'current'), buildCmd });
@@ -123,6 +126,14 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
         return packRef({ repoRoot, ref: ref.sha, outRoot: packedDir, buildCmd });
       }),
     );
+    // Settled both before failing: one side's failure must not cut the other's cleanup short, or a
+    // checkout outlives the run.
+    const packedByRef = packing.map((result) => {
+      if (result.status === 'rejected') {
+        throw result.reason;
+      }
+      return result.value;
+    });
 
     // Then build one set of pages per ref, each against its own packed build so both sides of a
     // comparison resolve the library identically. One at a time: a build pins the repository's own

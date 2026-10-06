@@ -2,7 +2,7 @@
 
 import * as path from 'node:path';
 import { createRequire } from 'node:module';
-import { constants, copyFile, readFile, rm, writeFile } from 'node:fs/promises';
+import { access, constants, copyFile, readFile, rm, writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import chalk from 'chalk';
 import { execa } from 'execa';
@@ -30,32 +30,50 @@ function packedPins(packages: PackedPackage[]): Record<string, string> {
   );
 }
 
-/** Where the repository's own manifest is kept while a run has it pinned. */
-function backupPathOf(outputDir: string): string {
-  return path.join(outputDir, 'pnpm-workspace.yaml.orig');
+const MANIFEST = 'pnpm-workspace.yaml';
+const LOCKFILE = 'pnpm-lock.yaml';
+
+/** Where one of the repository's own files is kept while a run has it pinned. */
+function backupPathOf(outputDir: string, file: string): string {
+  return path.join(outputDir, `${file}.orig`);
+}
+
+/**
+ * Sets one of the repository's files aside, unless an earlier ref of the run already did: that copy
+ * is the original. A file the repository doesn't have is left alone.
+ */
+async function setAside(repoRoot: string, outputDir: string, file: string): Promise<void> {
+  try {
+    await copyFile(
+      path.join(repoRoot, file),
+      backupPathOf(outputDir, file),
+      constants.COPYFILE_EXCL,
+    );
+  } catch (error) {
+    const { code } = error as NodeJS.ErrnoException;
+    if (code !== 'EEXIST' && code !== 'ENOENT') {
+      throw error;
+    }
+  }
 }
 
 /**
  * Points the repository's own install at this ref's packed build, through its overrides. The
- * manifest is rewritten from a copy set aside first, so a second ref pins over the original.
+ * manifest is rewritten from a copy set aside first, so a second ref pins over the original. The
+ * lockfile is set aside too, so the restore can put back exactly the resolution the repository
+ * had rather than resolve it again.
  */
 async function pinPackedPackages(
   repoRoot: string,
   outputDir: string,
   packages: PackedPackage[],
 ): Promise<void> {
-  const manifestPath = path.join(repoRoot, 'pnpm-workspace.yaml');
-  const backupPath = backupPathOf(outputDir);
-  // The first ref sets the repository's manifest aside; a later one finds that copy and keeps it.
-  try {
-    await copyFile(manifestPath, backupPath, constants.COPYFILE_EXCL);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
-      throw error;
-    }
-  }
+  // The lockfile first: the manifest's copy is what marks the repository pinned.
+  await setAside(repoRoot, outputDir, LOCKFILE);
+  await setAside(repoRoot, outputDir, MANIFEST);
 
-  const config = parse(await readFile(backupPath, 'utf8')) ?? {};
+  const manifestPath = path.join(repoRoot, MANIFEST);
+  const config = parse(await readFile(backupPathOf(outputDir, MANIFEST), 'utf8')) ?? {};
   await writeFile(
     manifestPath,
     stringify({ ...config, overrides: { ...config.overrides, ...packedPins(packages) } }),
@@ -73,12 +91,14 @@ async function installWorkspace(repoRoot: string): Promise<void> {
   });
 }
 
-/** Puts the repository's manifest back, and installs from it. */
+/**
+ * Puts the repository's manifest and lockfile back as they were, byte for byte, and installs from
+ * them: the lockfile already satisfies the manifest, so nothing is resolved again.
+ */
 export async function restoreWorkspace(repoRoot: string, outputDir: string): Promise<void> {
-  const backupPath = backupPathOf(outputDir);
-  let original: string;
+  const manifestBackup = backupPathOf(outputDir, MANIFEST);
   try {
-    original = await readFile(backupPath, 'utf8');
+    await access(manifestBackup);
   } catch (error) {
     // No copy set aside: nothing was pinned.
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -87,9 +107,23 @@ export async function restoreWorkspace(repoRoot: string, outputDir: string): Pro
     throw error;
   }
   console.log(chalk.cyan('\nRestoring the repository install…'));
-  await writeFile(path.join(repoRoot, 'pnpm-workspace.yaml'), original);
-  await rm(backupPath, { force: true });
+  for (const file of [LOCKFILE, MANIFEST]) {
+    const backup = backupPathOf(outputDir, file);
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      await copyFile(backup, path.join(repoRoot, file));
+    } catch (error) {
+      // A repository without a lockfile had none to set aside.
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw error;
+      }
+    }
+  }
   await installWorkspace(repoRoot);
+  // Removed only once the install is back, so an interrupted restore is retried by the next run.
+  await Promise.all(
+    [LOCKFILE, MANIFEST].map((file) => rm(backupPathOf(outputDir, file), { force: true })),
+  );
 }
 
 /**
