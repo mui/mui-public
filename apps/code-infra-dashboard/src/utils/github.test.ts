@@ -1,9 +1,10 @@
 import { vi, describe, it, expect, afterEach } from 'vitest';
-import { SESSION_QUERY_KEY } from '../hooks/useSession';
+import { sessionQueryOptions } from '../hooks/useSession';
 import { proxiedOctokit } from './github';
 import { queryClient } from './queryClient';
 
-const DASHBOARD_ORIGIN = 'https://dashboard.example.com';
+/** Where the stubbed browser tab is. */
+const TAB_ORIGIN = 'https://dashboard.example.com';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -28,7 +29,7 @@ function stubBrowser(respond: (url: string) => Response): string[] {
     return respond(url);
   };
   vi.stubGlobal('fetch', fakeFetch);
-  vi.stubGlobal('window', { location: new URL(DASHBOARD_ORIGIN) });
+  vi.stubGlobal('window', { location: new URL(TAB_ORIGIN) });
   return requested;
 }
 
@@ -52,8 +53,8 @@ describe('proxiedOctokit', () => {
 
     expect(issues).toEqual([{ id: 1 }, { id: 2 }]);
     expect(requested).toEqual([
-      `${DASHBOARD_ORIGIN}/api/github/repos/acme/widgets/issues?per_page=1`,
-      `${DASHBOARD_ORIGIN}/api/github/repos/acme/widgets/issues?per_page=1&page=2`,
+      `${TAB_ORIGIN}/api/github/repos/acme/widgets/issues?per_page=1`,
+      `${TAB_ORIGIN}/api/github/repos/acme/widgets/issues?per_page=1&page=2`,
     ]);
   });
 
@@ -74,16 +75,16 @@ describe('proxiedOctokit', () => {
 
     expect(data).toEqual({ login: 'octocat' });
     expect(requested).toEqual([
-      `${DASHBOARD_ORIGIN}/api/github/user`,
+      `${TAB_ORIGIN}/api/github/user`,
       '/api/auth/session',
-      `${DASHBOARD_ORIGIN}/api/github/user`,
+      `${TAB_ORIGIN}/api/github/user`,
     ]);
   });
 
   // A revoked token, or a session that couldn't be refreshed: the components
   // reading the session have to learn about it to switch back to anonymous.
-  it('publishes a signed-out session to the rest of the app', async () => {
-    stubBrowser((url) =>
+  it('publishes a signed-out session to the rest of the app without retrying', async () => {
+    const requested = stubBrowser((url) =>
       url === '/api/auth/session'
         ? jsonResponse({ available: true, signedIn: false })
         : new Response('{}', { status: 401 }),
@@ -92,9 +93,34 @@ describe('proxiedOctokit', () => {
     await expect(proxiedOctokit.rest.users.getAuthenticated()).rejects.toMatchObject({
       status: 401,
     });
-    expect(queryClient.getQueryData(SESSION_QUERY_KEY)).toEqual({
+    expect(queryClient.getQueryData(sessionQueryOptions.queryKey)).toEqual({
       available: true,
       signedIn: false,
     });
+    expect(requested).toEqual([`${TAB_ORIGIN}/api/github/user`, '/api/auth/session']);
+  });
+
+  it('refreshes the session once for requests rejected together', async () => {
+    let sessionReads = 0;
+    let rejected = 0;
+    stubBrowser((url) => {
+      if (url === '/api/auth/session') {
+        sessionReads += 1;
+        return jsonResponse({ available: true, signedIn: true, login: 'octocat' });
+      }
+      // The first two requests carry the expired token; their retries succeed.
+      if (rejected < 2) {
+        rejected += 1;
+        return new Response('{}', { status: 401 });
+      }
+      return jsonResponse({ login: 'octocat' });
+    });
+
+    await Promise.all([
+      proxiedOctokit.rest.users.getAuthenticated(),
+      proxiedOctokit.rest.users.getAuthenticated(),
+    ]);
+
+    expect(sessionReads).toBe(1);
   });
 });

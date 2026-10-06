@@ -23,7 +23,7 @@ function matchesState(received: string, expected: string): boolean {
 }
 
 async function exchangeCodeForSession(
-  client: { clientId: string; clientSecret: string },
+  client: NonNullable<ReturnType<typeof getOAuthClient>>,
   code: string,
 ): Promise<Session | null> {
   try {
@@ -77,18 +77,14 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // The cookie holds "<state>:<return path>". Split on the first colon only: the
-  // return path may contain colons itself.
-  const stateCookie = request.cookies.get(OAUTH_STATE_COOKIE)?.value ?? '';
-  const separatorIndex = stateCookie.indexOf(':');
-  const expectedState = separatorIndex === -1 ? '' : stateCookie.slice(0, separatorIndex);
-  const returnTo = separatorIndex === -1 ? null : stateCookie.slice(separatorIndex + 1);
+  const stored = new URLSearchParams(request.cookies.get(OAUTH_STATE_COOKIE)?.value);
 
-  const response = NextResponse.redirect(resolveReturnTo(returnTo));
+  const response = NextResponse.redirect(resolveReturnTo(stored.get('returnTo')));
   response.cookies.delete({ name: OAUTH_STATE_COOKIE, path: OAUTH_STATE_COOKIE_PATH });
 
   const code = request.nextUrl.searchParams.get('code');
   const state = request.nextUrl.searchParams.get('state');
+  const expectedState = stored.get('state');
   if (!code || !state || !expectedState || !matchesState(state, expectedState)) {
     return response;
   }

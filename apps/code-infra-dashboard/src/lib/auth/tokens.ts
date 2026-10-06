@@ -38,28 +38,32 @@ async function exchange(session: Session, refreshToken: string): Promise<Session
     return null;
   }
 
-  let authentication;
   try {
-    ({ authentication } = await exchangeRefreshToken({
+    const { authentication } = await exchangeRefreshToken({
       clientType: 'github-app',
       clientId: client.clientId,
       clientSecret: client.clientSecret,
       refreshToken,
-    }));
-  } catch (error) {
-    // GitHub refuses refresh tokens that were revoked or already rotated. Either
-    // way the session can't be saved, and the user has to sign in again.
-    console.error('GitHub sign-in: refreshing the user token failed.', error);
-    return null;
-  }
+    });
 
-  return {
-    ...session,
-    token: authentication.token,
-    expiresAt: authentication.expiresAt,
-    refreshToken: authentication.refreshToken,
-    refreshTokenExpiresAt: authentication.refreshTokenExpiresAt,
-  };
+    return {
+      ...session,
+      token: authentication.token,
+      expiresAt: authentication.expiresAt,
+      refreshToken: authentication.refreshToken,
+      refreshTokenExpiresAt: authentication.refreshTokenExpiresAt,
+    };
+  } catch (error) {
+    // GitHub refuses a revoked or already-rotated refresh token with an OAuth
+    // error body, which the client raises as a 400; the user has to sign in
+    // again. An outage or network error says nothing about the token, so it must
+    // not end the session and throw away a refresh token that may still work.
+    if (error instanceof Error && 'status' in error && error.status === 400) {
+      console.error('GitHub sign-in: GitHub refused the refresh token.', error);
+      return null;
+    }
+    throw error;
+  }
 }
 
 /**

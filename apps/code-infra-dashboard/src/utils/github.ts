@@ -1,5 +1,5 @@
 import { Octokit } from '@octokit/rest';
-import { SESSION_QUERY_KEY, fetchSession } from '../hooks/useSession';
+import { sessionQueryOptions } from '../hooks/useSession';
 import { queryClient } from './queryClient';
 
 /**
@@ -16,14 +16,21 @@ const GITHUB_PROXY_PATH = '/api/github';
  * Re-reads the session through the app's query cache: the session endpoint
  * refreshes an expired token, and every component sees the outcome — including
  * that the visitor is now signed out, so they fall back to anonymous requests.
- * Requests that find the token rejected at the same time share one fetch.
+ *
+ * A session already re-read since `sentAt` is reused, so a page's worth of
+ * requests rejected together refreshes it once.
  */
-async function refreshSession(): Promise<void> {
-  await queryClient.fetchQuery({
-    queryKey: SESSION_QUERY_KEY,
-    queryFn: fetchSession,
-    staleTime: 0,
-  });
+async function isStillSignedIn(sentAt: number): Promise<boolean> {
+  try {
+    const session = await queryClient.query({
+      ...sessionQueryOptions,
+      staleTime: () => Date.now() - sentAt,
+    });
+    return session.signedIn;
+  } catch {
+    // The session couldn't be read either, so there's nothing to retry with.
+    return false;
+  }
 }
 
 /**
@@ -32,7 +39,8 @@ async function refreshSession(): Promise<void> {
  * GitHub's `Link` header verbatim, and those would bypass a `baseUrl`.
  *
  * The proxy refuses an expired token instead of refreshing it, so a 401 gets one
- * retry after the session endpoint has rotated the token.
+ * retry after the session endpoint has rotated the token -- unless the session
+ * turns out to be over, when the retry would only be refused again.
  */
 async function fetchThroughProxy(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const url = new URL(String(input));
@@ -42,18 +50,13 @@ async function fetchThroughProxy(input: RequestInfo | URL, init?: RequestInit): 
     url.pathname = `${GITHUB_PROXY_PATH}${url.pathname}`;
   }
 
+  const sentAt = Date.now();
   const response = await fetch(url, init);
   if (response.status !== 401) {
     return response;
   }
 
-  try {
-    await refreshSession();
-  } catch {
-    // The session couldn't be read either; the original rejection stands.
-    return response;
-  }
-  return fetch(url, init);
+  return (await isStillSignedIn(sentAt)) ? fetch(url, init) : response;
 }
 
 /**

@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { queryOptions, useQuery } from '@tanstack/react-query';
 import { fetchJson } from '../utils/http';
 
 export interface SessionResponse {
@@ -18,17 +18,19 @@ export interface UseSession {
   isPending: boolean;
 }
 
-export const SESSION_QUERY_KEY = ['auth-session'];
-
-/** Also refreshes an expired GitHub token, server-side, as a side effect. */
-export function fetchSession(): Promise<SessionResponse> {
-  return fetchJson<SessionResponse>('/api/auth/session');
-}
+/**
+ * Shared with code outside React that needs to re-read the session into the same
+ * cache entry the components watch. Reading it also refreshes an expired GitHub
+ * token, server-side.
+ */
+export const sessionQueryOptions = queryOptions({
+  queryKey: ['auth-session'],
+  queryFn: () => fetchJson<SessionResponse>('/api/auth/session'),
+});
 
 export function useSession(): UseSession {
   const { data, isPending } = useQuery({
-    queryKey: SESSION_QUERY_KEY,
-    queryFn: fetchSession,
+    ...sessionQueryOptions,
     staleTime: 5 * 60 * 1000,
     retry: 1,
   });

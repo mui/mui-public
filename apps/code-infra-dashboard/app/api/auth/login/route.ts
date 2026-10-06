@@ -8,7 +8,6 @@ import {
   OAUTH_STATE_MAX_AGE_SECONDS,
   REDIRECT_URI,
   getOAuthClient,
-  resolveReturnTo,
 } from '@/lib/auth/config';
 
 export async function GET(request: NextRequest) {
@@ -21,8 +20,6 @@ export async function GET(request: NextRequest) {
   }
 
   const state = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64url');
-  const returnUrl = resolveReturnTo(request.nextUrl.searchParams.get('returnTo'));
-  const returnTo = `${returnUrl.pathname}${returnUrl.search}`;
 
   const authorizeUrl = new URL(GITHUB_AUTHORIZE_URL);
   authorizeUrl.searchParams.set('client_id', client.clientId);
@@ -31,9 +28,13 @@ export async function GET(request: NextRequest) {
 
   const response = NextResponse.redirect(authorizeUrl);
 
-  // The return path rides along with the state so it can't be tampered with
-  // independently of the CSRF check that validates it.
-  response.cookies.set(OAUTH_STATE_COOKIE, `${state}:${returnTo}`, {
+  // The return path is stored as given: the callback resolves it, and has to
+  // treat whatever arrives in this cookie as untrusted regardless.
+  const stored = new URLSearchParams({
+    state,
+    returnTo: request.nextUrl.searchParams.get('returnTo') ?? '',
+  });
+  response.cookies.set(OAUTH_STATE_COOKIE, stored.toString(), {
     ...BASE_COOKIE_OPTIONS,
     path: OAUTH_STATE_COOKIE_PATH,
     maxAge: OAUTH_STATE_MAX_AGE_SECONDS,
