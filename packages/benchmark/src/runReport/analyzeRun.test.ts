@@ -107,14 +107,14 @@ describe('compareSamples', () => {
     expect(comparison.change).toBe('unchanged');
   });
 
-  it('is unsure when the interval straddles zero', () => {
+  it('detects no change when the interval straddles zero', () => {
     const comparison = compareSamples(
       { name: 'current', values: [10, 12, 9, 11] },
       { name: 'baseline', values: [11, 10, 10, 12] },
       SCALAR,
     );
 
-    expect(comparison.change).toBe('unsure');
+    expect(comparison.change).toBe('undetected');
   });
 
   describe('severity', () => {
@@ -282,7 +282,7 @@ describe('analyzeRun', () => {
       expect(widthOf(withSteady)).toBe(widthOf(single));
     });
 
-    it('can leave unsure what 95% would have flagged', () => {
+    it('can leave undetected what 95% would have flagged', () => {
       const { base, shifted } = drifting(2);
       const flagged = benchmarkOf('d', {
         current: { render: shifted.map((value, round) => value + (round % 2 ? 2 : -2)) },
@@ -293,7 +293,7 @@ describe('analyzeRun', () => {
       const [crowded] = analyzeRun(reportOf([flagged, ...crowd], { render: SCALAR }));
 
       expect(single.metrics[0].comparisons[0].change).toBe('worse');
-      expect(crowded.metrics[0].comparisons[0].change).toBe('unsure');
+      expect(crowded.metrics[0].comparisons[0].change).toBe('undetected');
     });
   });
 

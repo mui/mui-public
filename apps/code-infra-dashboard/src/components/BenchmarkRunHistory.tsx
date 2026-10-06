@@ -8,7 +8,7 @@ import Paper from '@mui/material/Paper';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { BarChartPro } from '@mui/x-charts-pro/BarChartPro';
-import { analyzeRun, formatComparison } from '@mui/internal-benchmark/runReport';
+import { analyzeRun, formatChange, formatComparison } from '@mui/internal-benchmark/runReport';
 import type {
   BenchmarkRunReport,
   Change,
@@ -29,7 +29,7 @@ import ErrorDisplay from './ErrorDisplay';
 const CHANGE_COLORS: Record<Exclude<Change, 'unchanged'>, string> = {
   worse: 'var(--mui-palette-error-main)',
   better: 'var(--mui-palette-success-main)',
-  unsure: 'var(--mui-palette-grey-500)',
+  undetected: 'var(--mui-palette-grey-500)',
 };
 
 /** Per benchmark, per metric: a commit's change against its parent. */
@@ -118,10 +118,10 @@ export default function BenchmarkRunHistory({ repo }: BenchmarkRunHistoryProps) 
         ? undefined
         : point.comparisons.get(benchmark)?.get(metric),
     );
-    return (['worse', 'better', 'unsure'] as const satisfies Change[]).map((change) => ({
+    return (['worse', 'better', 'undetected'] as const satisfies Change[]).map((change) => ({
       type: 'bar' as const,
       stack: 'change',
-      label: change,
+      label: formatChange(change),
       color: CHANGE_COLORS[change],
       data: selected.map((comparison) =>
         comparison?.change === change

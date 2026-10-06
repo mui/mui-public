@@ -38,7 +38,7 @@ pnpm -F ./test/benchmark benchmark:run --baseline HEAD
 ```
 
 A filter is a case-insensitive substring of a benchmark file's path under `src/`, the way vitest
-matches test files. Because both sides run identical code, the expected result is `unsure` — that is
+matches test files. Because both sides run identical code, the expected result is `no change detected` — that is
 the "no change" outcome, not a failure.
 
 Everything a run writes goes under `.benchmark/`: the report in `results/`, the pages built per ref in

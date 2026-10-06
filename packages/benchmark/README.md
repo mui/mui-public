@@ -439,7 +439,7 @@ history from it.
 - The report holds **raw samples**, round-aligned across variants, plus each metric's kind, format
   and alarm, how each benchmark's sampling went, the builds, and the environment.
 - `analyzeRun` from `@mui/internal-benchmark/runReport` draws every conclusion from it: a confidence
-  interval on the paired difference per metric, a change (`better`, `worse`, `unsure`, or
+  interval on the paired difference per metric, a change (`better`, `worse`, `no change detected`, or
   `unchanged` when every round measured the same), and a severity from the metric's alarm.
 - `reactBenchmark()`'s `render` alarms on any resolved change for the worse; `render:count`, the
   per-phase split and `bench:paint` are informational; every other metric brings its own alarm.

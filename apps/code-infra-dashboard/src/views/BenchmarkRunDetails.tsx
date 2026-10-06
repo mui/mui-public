@@ -31,7 +31,7 @@ import Heading from '../components/Heading';
 import ReportHeader from '../components/ReportHeader';
 import ErrorDisplay from '../components/ErrorDisplay';
 
-/** A regression is coloured by severity; `better` is green; `unsure` is the expected result. */
+/** A regression is coloured by severity; `better` is green; no change detected is the expected result. */
 function comparisonColor(comparison: MetricComparison): string {
   if (comparison.severity === 'error') {
     return 'error';

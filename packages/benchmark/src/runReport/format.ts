@@ -1,5 +1,11 @@
 import { CONFIDENCE } from './analyzeRun';
-import type { BenchmarkAnalysis, Interval, MetricComparison, Regression } from './analyzeRun';
+import type {
+  BenchmarkAnalysis,
+  Change,
+  Interval,
+  MetricComparison,
+  Regression,
+} from './analyzeRun';
 import type { RunBenchmark, RunMetricDefinition } from './schema';
 
 /**
@@ -37,11 +43,27 @@ export function formatPercent(interval: Interval): string {
   return `${signed(interval.low)} – ${signed(interval.high)}`;
 }
 
-/** A comparison as one phrase: `worse +2.7% – +6.8%`, `unsure -1.2% – +0.9%`, `unchanged`. */
+const CHANGE_LABELS: Record<Change, string> = {
+  better: 'better',
+  worse: 'worse',
+  undetected: 'no change detected',
+  unchanged: 'unchanged',
+};
+
+/** How a change reads: `better`, `worse`, `no change detected`, `unchanged`. */
+export function formatChange(change: Change): string {
+  return CHANGE_LABELS[change];
+}
+
+/**
+ * A comparison as one phrase: `worse +2.7% – +6.8%`, `no change detected -1.2% – +0.9%`,
+ * `unchanged`.
+ */
 export function formatComparison(comparison: MetricComparison): string {
+  const label = formatChange(comparison.change);
   return comparison.change === 'unchanged'
-    ? 'unchanged'
-    : `${comparison.change} ${formatPercent(comparison.relative)}`;
+    ? label
+    : `${label} ${formatPercent(comparison.relative)}`;
 }
 
 /** What a comparison column is headed: `Δ vs baseline` for a build, `theirs vs ours` for a variant. */
@@ -146,7 +168,7 @@ export function runReportFootnote(analyses: BenchmarkAnalysis[]): string {
       : `Each Δ is a ${formatConfidence(CONFIDENCE)} confidence interval on the paired per-round ` +
         'difference, relative to the variant it is measured against';
   return (
-    `Each value is a median. ${interval}; "unsure" means it straddles zero — the expected ` +
+    `Each value is a median. ${interval}; "no change detected" means it straddles zero — the expected ` +
     'result for two equivalent builds — and "unchanged" that every round measured the same.'
   );
 }

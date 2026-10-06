@@ -111,7 +111,7 @@ describe('buildBenchmarkRunMarkdownReport', () => {
       | render | 10 ms | 20.5 ms | \`worse +95.8% – +114.2%\` |
 
 
-      _Each value is a median. Each Δ is a 95% confidence interval on the paired per-round difference, relative to the variant it is measured against; "unsure" means it straddles zero — the expected result for two equivalent builds — and "unchanged" that every round measured the same._
+      _Each value is a median. Each Δ is a 95% confidence interval on the paired per-round difference, relative to the variant it is measured against; "no change detected" means it straddles zero — the expected result for two equivalent builds — and "unchanged" that every round measured the same._
 
       </details>"
     `);

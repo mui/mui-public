@@ -26,10 +26,11 @@ export interface SampleSummary {
 }
 
 /**
- * Which way a resolved change went, given the metric's direction; `unsure` if it did not resolve,
- * and `unchanged` if every round measured the same on both sides — a render count, say.
+ * Which way a resolved change went, given the metric's direction; `undetected` if it did not
+ * resolve — no change detected — and `unchanged` if every round measured the same on both sides,
+ * a render count, say.
  */
-export type Change = 'better' | 'worse' | 'unsure' | 'unchanged';
+export type Change = 'better' | 'worse' | 'undetected' | 'unchanged';
 
 /** How much a change for the worse matters, per the metric's alarm. */
 export type Severity = 'error' | 'warning' | 'none';
@@ -251,7 +252,7 @@ export function compareSamples(
     high: (absolute.high / reference) * 100,
   };
 
-  let change: Change = 'unsure';
+  let change: Change = 'undetected';
   if (rounds > 0 && differences.every((difference) => difference === 0)) {
     change = 'unchanged';
   } else if (absolute.low > 0 || absolute.high < 0) {
