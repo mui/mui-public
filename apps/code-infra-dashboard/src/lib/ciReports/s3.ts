@@ -3,8 +3,13 @@ import { S3Client, PutObjectCommand, ListObjectsV2Command } from '@aws-sdk/clien
 const BUCKET = 'mui-org-ci';
 const REGION = 'eu-central-1';
 
+// One client for the process, so calls share its connections: an upload's report and timeline
+// pointer go out back to back.
+let client: S3Client | undefined;
+
 function getS3Client(): S3Client {
-  return new S3Client({ region: REGION });
+  client ??= new S3Client({ region: REGION });
+  return client;
 }
 
 /**

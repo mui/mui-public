@@ -1,11 +1,15 @@
 // A timeline is an ordered run of one report type's uploads, the history the dashboard draws. A
-// tracked branch's uploads form the timeline named after it; a CI job can name its own (a weekly
-// run against the last release, say) as long as it runs on a tracked branch. Pull requests and
+// tracked branch's uploads form the timeline named after it; a CI job on a tracked branch can name
+// its own (a weekly run against the last release, say), kept apart as `@<name>`. Pull requests and
 // forks never write one.
 //
 // Each upload in a timeline leaves an empty S3 object whose key holds the time and the commit, so
 // listing the timeline's prefix lists its uploads without reading any of them, and two uploads
 // landing at once can't lose each other the way appending to a shared index could.
+
+export const REPORT_TYPES = ['size-snapshot', 'benchmark'] as const;
+
+export type ReportType = (typeof REPORT_TYPES)[number];
 
 const TRACKED_BRANCH_REGEX = /^(master|main|next|v[^/]*\.[^/]*)$/;
 
@@ -23,63 +27,60 @@ export function isTrackedBranch(branch: string): boolean {
   return TRACKED_BRANCH_REGEX.test(branch);
 }
 
-/** Whether `name` can be asked for as a timeline: a tracked branch's or a name of its own. */
-export function isTimelineName(name: string): boolean {
-  return isTrackedBranch(name) || TIMELINE_NAME_REGEX.test(name);
+/** Whether `timeline` can be listed: a tracked branch's, or a named one as `@<name>`. */
+export function isTimeline(timeline: string): boolean {
+  return timeline.startsWith('@')
+    ? TIMELINE_NAME_REGEX.test(timeline.slice(1))
+    : isTrackedBranch(timeline);
 }
 
-export type TimelineResolution = { timeline: string | null } | { error: string };
-
 /**
- * Which timeline an upload belongs to. `requested` is the name the CI job asked for, if any;
- * `trusted` is whether the build ran in the organization's own repository rather than a fork.
+ * Which timeline an upload belongs to: the one its CI job named, as `@<name>`, or else its tracked
+ * branch's. `trackedBranch` is the branch when the build is the repository's own and the branch is
+ * tracked, else `null`: only such builds write a timeline.
  */
-export function resolveTimeline({
-  requested,
-  branch,
-  trusted,
-}: {
-  requested: string | undefined;
-  branch: string;
-  trusted: boolean;
-}): TimelineResolution {
-  const tracked = trusted && isTrackedBranch(branch);
+export function resolveTimeline(
+  requested: string | undefined,
+  trackedBranch: string | null,
+): { timeline: string | null } | { error: string } {
   if (requested === undefined) {
-    return { timeline: tracked ? branch : null };
+    return { timeline: trackedBranch };
   }
-  if (!tracked) {
+  if (trackedBranch === null) {
     return { error: 'A timeline can only be named from a tracked branch of the repository itself' };
   }
-  // A tracked branch's name would merge into that branch's timeline and share its report file.
-  if (isTrackedBranch(requested) || !TIMELINE_NAME_REGEX.test(requested)) {
+  if (!TIMELINE_NAME_REGEX.test(requested)) {
     return {
-      error: `Invalid timeline "${requested}": use lowercase letters, digits, "." and "-", and not a tracked branch's name`,
+      error: `Invalid timeline "${requested}": use lowercase letters, digits, "." and "-"`,
     };
   }
-  return { timeline: requested };
+  return { timeline: `@${requested}` };
 }
 
 /**
- * The file a commit's report is stored in. A tracked branch's timeline, or none, keeps the plain
- * name; a named timeline gets its own file, so a run against another baseline on the same commit
- * doesn't overwrite the commit's regular report.
+ * Where a commit's report is stored. A named timeline gets its own file, `<reportType>@<name>.json`,
+ * so a run against another baseline on the same commit doesn't overwrite the commit's regular report.
  */
-export function reportFileName(reportType: string, timeline: string | null): string {
-  return timeline === null || isTrackedBranch(timeline)
-    ? `${reportType}.json`
-    : `${reportType}@${timeline}.json`;
+export function reportKey(
+  repo: string,
+  sha: string,
+  reportType: ReportType,
+  timeline: string | null,
+): string {
+  const suffix = timeline?.startsWith('@') ? timeline : '';
+  return `artifacts/${repo}/${sha}/${reportType}${suffix}.json`;
 }
 
 /** The S3 prefix holding a timeline's pointers. */
-export function timelinePrefix(repo: string, timeline: string, reportType: string): string {
-  return `artifacts/${repo}/timeline/${encodeURIComponent(timeline)}/${reportType}/`;
+export function timelinePrefix(repo: string, timeline: string, reportType: ReportType): string {
+  return `artifacts/${repo}/timeline/${timeline}/${reportType}/`;
 }
 
 /** The empty object that records one upload in a timeline. */
 export function timelinePointerKey(
   repo: string,
   timeline: string,
-  reportType: string,
+  reportType: ReportType,
   time: number,
   sha: string,
 ): string {
@@ -101,7 +102,7 @@ export function parseTimelineKeys(prefix: string, keys: readonly string[]): Time
   const entries: TimelineEntry[] = [];
   const seen = new Set<string>();
   for (const key of keys) {
-    const match = key.startsWith(prefix) ? POINTER_NAME_REGEX.exec(key.slice(prefix.length)) : null;
+    const match = POINTER_NAME_REGEX.exec(key.slice(prefix.length));
     if (!match || seen.has(match[2])) {
       continue;
     }

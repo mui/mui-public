@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-  isTimelineName,
+  isTimeline,
   parseTimelineKeys,
-  reportFileName,
+  reportKey,
   resolveTimeline,
   timelinePointerKey,
   timelinePrefix,
@@ -12,65 +12,58 @@ const SHA_A = 'a'.repeat(40);
 const SHA_B = 'b'.repeat(40);
 
 describe('resolveTimeline', () => {
-  it.each(['master', 'main', 'next', 'v7.x'])(
-    "puts a trusted %s upload in the branch's timeline",
-    (branch) => {
-      expect(resolveTimeline({ requested: undefined, branch, trusted: true })).toEqual({
-        timeline: branch,
-      });
-    },
-  );
-
-  it('puts pull request branches and forks in no timeline', () => {
-    expect(resolveTimeline({ requested: undefined, branch: 'feature', trusted: true })).toEqual({
-      timeline: null,
-    });
-    expect(resolveTimeline({ requested: undefined, branch: 'master', trusted: false })).toEqual({
-      timeline: null,
-    });
+  it("puts an upload from a tracked branch in the branch's timeline", () => {
+    expect(resolveTimeline(undefined, 'master')).toEqual({ timeline: 'master' });
   });
 
-  it('takes a named timeline from a trusted tracked branch', () => {
-    expect(resolveTimeline({ requested: 'release', branch: 'master', trusted: true })).toEqual({
-      timeline: 'release',
-    });
+  it('puts an upload from anywhere else in no timeline', () => {
+    expect(resolveTimeline(undefined, null)).toEqual({ timeline: null });
   });
 
-  it('refuses a named timeline from a pull request branch or a fork', () => {
-    expect(resolveTimeline({ requested: 'release', branch: 'feature', trusted: true })).toEqual({
-      error: expect.stringContaining('tracked branch'),
-    });
-    expect(resolveTimeline({ requested: 'release', branch: 'master', trusted: false })).toEqual({
+  it('keeps a named timeline apart from branch timelines', () => {
+    expect(resolveTimeline('release', 'master')).toEqual({ timeline: '@release' });
+    expect(resolveTimeline('master', 'master')).toEqual({ timeline: '@master' });
+  });
+
+  it('refuses a named timeline from anywhere but a tracked branch', () => {
+    expect(resolveTimeline('release', null)).toEqual({
       error: expect.stringContaining('tracked branch'),
     });
   });
 
-  it.each(['master', 'v7.x', 'Release', 'a/b', '-release', ''])(
+  it.each(['Release', 'a/b', '-release', '@release', ''])(
     'refuses the timeline name %j',
     (requested) => {
-      expect(resolveTimeline({ requested, branch: 'master', trusted: true })).toEqual({
+      expect(resolveTimeline(requested, 'master')).toEqual({
         error: expect.stringContaining('Invalid timeline'),
       });
     },
   );
 });
 
-describe('reportFileName', () => {
-  it("keeps the plain name for a branch's timeline or none", () => {
-    expect(reportFileName('benchmark', null)).toBe('benchmark.json');
-    expect(reportFileName('benchmark', 'master')).toBe('benchmark.json');
+describe('reportKey', () => {
+  it("keeps the plain file for a branch's timeline or none", () => {
+    expect(reportKey('mui/material-ui', SHA_A, 'benchmark', null)).toBe(
+      `artifacts/mui/material-ui/${SHA_A}/benchmark.json`,
+    );
+    expect(reportKey('mui/material-ui', SHA_A, 'benchmark', 'master')).toBe(
+      `artifacts/mui/material-ui/${SHA_A}/benchmark.json`,
+    );
   });
 
   it('gives a named timeline its own file', () => {
-    expect(reportFileName('benchmark', 'release')).toBe('benchmark@release.json');
+    expect(reportKey('mui/material-ui', SHA_A, 'benchmark', '@release')).toBe(
+      `artifacts/mui/material-ui/${SHA_A}/benchmark@release.json`,
+    );
   });
 });
 
-describe('isTimelineName', () => {
-  it('accepts tracked branches and valid names, nothing else', () => {
-    expect(isTimelineName('master')).toBe(true);
-    expect(isTimelineName('release')).toBe(true);
-    expect(isTimelineName('feature/x')).toBe(false);
+describe('isTimeline', () => {
+  it('accepts tracked branches and named timelines, nothing else', () => {
+    expect(isTimeline('master')).toBe(true);
+    expect(isTimeline('@release')).toBe(true);
+    expect(isTimeline('release')).toBe(false);
+    expect(isTimeline('feature/x')).toBe(false);
   });
 });
 
@@ -96,11 +89,7 @@ describe('timeline pointers', () => {
     expect(parseTimelineKeys(prefix, keys)).toEqual([{ sha: SHA_A, time: 3_000 }]);
   });
 
-  it("skips keys that aren't this timeline's pointers", () => {
-    const keys = [
-      timelinePointerKey('mui/material-ui', 'release', 'benchmark', 1_000, SHA_A),
-      `${prefix}not-a-pointer`,
-    ];
-    expect(parseTimelineKeys(prefix, keys)).toEqual([]);
+  it("skips keys that aren't pointers", () => {
+    expect(parseTimelineKeys(prefix, [`${prefix}not-a-pointer`])).toEqual([]);
   });
 });
