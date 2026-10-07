@@ -97,9 +97,11 @@ describe('buildBenchmarkRunMarkdownReport', () => {
       <details>
       <summary>Changes</summary>
 
-      | Benchmark | Metric | baseline | current | Δ vs baseline |
-      |:----------|:----------|----------:|----------:|:----------|
-      | **Grid scroll** (3 + 1 rounds · timed out) | render | 21.5 ms | 23.5 ms | 🔴 \`worse +9.3% – +9.3%\` |
+      **Grid scroll** (3 + 1 rounds · timed out)
+
+      | Metric | baseline | current | Δ vs baseline |
+      |:----------|----------:|----------:|:----------|
+      | render | 21.5 ms | 23.5 ms | 🔴 \`worse +9.3% – +9.3%\` |
 
 
       **libs / mount** (4 rounds)

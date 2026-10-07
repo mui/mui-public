@@ -74,23 +74,17 @@ function markdownTable(columns: BenchmarkTableColumn[], rows: string[][]): strin
 }
 
 /**
- * The benchmarks measured against the baseline, as one table of the metrics that changed, so the
- * columns line up across benchmarks; those where nothing changed are named below it.
+ * The benchmarks measured against the baseline, each with a table of the metrics that changed;
+ * those where nothing changed are named together below them.
  */
 function renderBaselineChanges(analyses: BenchmarkAnalysis[]): string[] {
   const tables = analyses.map((analysis) => ({ analysis, ...changedRowsOf(analysis) }));
-  const changed = tables.filter((table) => table.rows.length > 0);
   const unchanged = tables.filter((table) => table.rows.length === 0);
   const lines: string[] = [];
-  if (changed.length > 0) {
-    const columns: BenchmarkTableColumn[] = [
-      { header: 'Benchmark', kind: 'label' },
-      ...changed[0].columns,
-    ];
-    const rows = changed.flatMap(({ analysis, rows: cells }) =>
-      cells.map((row, index) => [index === 0 ? labelOf(analysis.benchmark) : '', ...row]),
-    );
-    lines.push(markdownTable(columns, rows), '');
+  for (const { analysis, columns, rows } of tables) {
+    if (rows.length > 0) {
+      lines.push(labelOf(analysis.benchmark), '', markdownTable(columns, rows), '');
+    }
   }
   if (unchanged.length > 0) {
     const names = unchanged.map(({ analysis }) => labelOf(analysis.benchmark));
