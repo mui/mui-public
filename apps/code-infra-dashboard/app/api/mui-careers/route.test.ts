@@ -50,7 +50,7 @@ describe('GET /api/mui-careers', () => {
     });
   });
 
-  it('keeps href and data attributes while preserving markup and text', async () => {
+  it('preserves semantic attributes and removes styling and data attributes', async () => {
     const descriptionHtml = `<h2 STYLE="color: red">About the role</h2><p style='font-size: 12px' class="intro" data-role="intro">Build <strong style=color:red>tools</strong> &amp; improve operations.</p><a href="https://mui.com" title="a style=example" data-style="keep" style="color: blue">MUI</a><p>Use style="display: none" as text.</p><template><span style="color:red">Details</span></template>`;
     vi.stubGlobal(
       'fetch',
@@ -67,10 +67,28 @@ describe('GET /api/mui-careers', () => {
         {
           ...careerJob,
           description:
-            '<h2>About the role</h2><p data-role="intro">Build <strong>tools</strong> &amp; improve operations.</p><a href="https://mui.com" data-style="keep">MUI</a><p>Use style="display: none" as text.</p><template><span>Details</span></template>',
+            '<h2>About the role</h2><p>Build <strong>tools</strong> &amp; improve operations.</p><a href="https://mui.com" title="a style=example">MUI</a><p>Use style="display: none" as text.</p><template><span>Details</span></template>',
         },
       ],
     });
+  });
+
+  it('preserves images, accessible labels, table spans, and ordered list numbering', async () => {
+    const descriptionHtml =
+      '<section id="benefits" aria-labelledby="benefits-title" role="region" class="section" data-section="benefits"><h2 id="benefits-title">Benefits</h2><a href="#benefits" target="_blank" rel="noopener" data-link="internal">Read more</a><img src="https://mui.com/logo.png" alt="MUI logo" style="width:100px" data-image="logo"><table><tbody><tr><th scope="row" colspan="2" rowspan="2" class="cell">Remote</th></tr></tbody></table><ol start="3" reversed data-list="benefits"><li value="5">Time off</li></ol><time datetime="2026-10-07">October 7</time><p lang="en" dir="ltr" onclick="alert(1)">Join us</p></section>';
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(Response.json({ jobs: [{ ...job, descriptionHtml }] })),
+    );
+
+    const response = await GET();
+    const { data } = await response.json();
+
+    expect(data[0].description).toBe(
+      '<section id="benefits" aria-labelledby="benefits-title" role="region"><h2 id="benefits-title">Benefits</h2><a href="#benefits" target="_blank" rel="noopener">Read more</a><img src="https://mui.com/logo.png" alt="MUI logo"><table><tbody><tr><th scope="row" colspan="2" rowspan="2">Remote</th></tr></tbody></table><ol start="3" reversed=""><li value="5">Time off</li></ol><time datetime="2026-10-07">October 7</time><p lang="en" dir="ltr">Join us</p></section>',
+    );
   });
 
   it('excludes unlisted postings', async () => {

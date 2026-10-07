@@ -25,6 +25,27 @@ const jobBoardSchema = z.object({
   ),
 });
 
+// Retain attributes that carry content, navigation, or semantic meaning.
+const descriptionAttributes = new Set([
+  'href',
+  'target',
+  'rel',
+  'src',
+  'alt',
+  'title',
+  'colspan',
+  'rowspan',
+  'scope',
+  'start',
+  'reversed',
+  'value',
+  'datetime',
+  'lang',
+  'dir',
+  'role',
+  'id',
+]);
+
 function stripHtmlAttributes(html: string): string {
   const fragment = parseFragment(html);
 
@@ -32,7 +53,8 @@ function stripHtmlAttributes(html: string): string {
     if ('attrs' in node) {
       node.attrs = node.attrs.filter(
         (attribute) =>
-          (attribute.name === 'href' || attribute.name.startsWith('data-')) && !attribute.namespace,
+          (descriptionAttributes.has(attribute.name) || attribute.name.startsWith('aria-')) &&
+          !attribute.namespace,
       );
     }
     if ('childNodes' in node) {
