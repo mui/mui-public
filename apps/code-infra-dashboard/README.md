@@ -28,7 +28,8 @@ Only postings with `isListed: true` are returned. Each job contains only these l
 | `summary`        | Short plain-text summary, or an empty string when unavailable. |
 | `applicationUrl` | Application link.                                              |
 
-Only `href` and `data-*` attributes are retained in the HTML description. Other attributes, including inline styles, are removed; markup and text are preserved.
+HTML descriptions retain an explicit attribute allowlist: `href`, `target`, `rel`, `src`, `alt`, `title`, `colspan`, `rowspan`, `scope`, `start`, `reversed`, `value`, `datetime`, `lang`, `dir`, `role`, `id`, and `aria-*`.
+These preserve links, images, table and list semantics, anchors, and accessibility. Other attributes, including `style`, `class`, and all `data-*` attributes, are removed; markup and text are preserved.
 The public Ashby API does not expose the short summary, so `summary` currently returns `""`.
 Upstream metadata and the duplicate plain-text description are omitted.
 
