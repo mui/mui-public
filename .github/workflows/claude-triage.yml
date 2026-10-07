@@ -1,5 +1,7 @@
-# Call from issue_comment: created. The entire trimmed comment must be @claude triage or @claude fix.
-# Only human collaborators with write, maintain, or admin access are authorized; PR comments are ignored.
+# Callers select triggers and pass issue-number, mode, and optionally comment-id.
+# Human senders need write, maintain, or admin access; bots may request triage through issue labels.
+# Labeling automation must use an App token or PAT; GITHUB_TOKEN label events do not start workflows.
+# PRs are ignored.
 # triage posts a diagnosis; fix also attempts an actionable fix and creates or updates a draft PR.
 # Callers configure ANTHROPIC_FEDERATION_RULE_ID, ANTHROPIC_ORGANIZATION_ID,
 # ANTHROPIC_SERVICE_ACCOUNT_ID, and ANTHROPIC_WORKSPACE_ID as repository variables.
@@ -11,6 +13,18 @@ name: Issue triage
 on:
   workflow_call:
     inputs:
+      issue-number:
+        description: Issue number in the caller repository.
+        type: number
+        required: true
+      mode:
+        description: Operation to perform, triage or fix.
+        type: string
+        required: true
+      comment-id:
+        description: Optional issue comment to acknowledge and use as the discussion cutoff; zero includes all comments available when captured.
+        type: number
+        default: 0
       debug:
         description: Log full Claude output, including tool results, in Actions logs.
         type: boolean
@@ -55,7 +69,6 @@ env:
 jobs:
   # Authorize the requester and snapshot issue context.
   authorize:
-    if: github.event_name == 'issue_comment' && github.event.action == 'created' && !github.event.issue.pull_request
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -68,30 +81,38 @@ jobs:
     steps:
       - name: Authorize the request and capture context
         id: request
+        env:
+          ISSUE_NUMBER: ${{ inputs.issue-number }}
+          REQUEST_MODE: ${{ inputs.mode }}
+          COMMENT_ID: ${{ inputs.comment-id }}
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const fs = require('node:fs');
-            const { comment, issue } = context.payload;
-            const command = comment && /^@claude (triage|fix)$/i.exec(comment.body.trim());
-            const mode = command?.[1].toLowerCase();
-            const actor = comment?.user.login;
-            const actorType = comment?.user.type;
-            if (!['triage', 'fix'].includes(mode) || actorType !== 'User') return;
-            const { data: access } = await github.rest.repos.getCollaboratorPermissionLevel({
-              ...context.repo, username: actor,
+            const issueNumber = Number(process.env.ISSUE_NUMBER);
+            const mode = process.env.REQUEST_MODE;
+            const commentId = Number(process.env.COMMENT_ID);
+            if (!Number.isSafeInteger(issueNumber) || issueNumber <= 0 ||
+                !Number.isSafeInteger(commentId) || commentId < 0 ||
+                !['triage', 'fix'].includes(mode)) {
+              throw new Error('Expected a positive issue-number, mode triage or fix, and a non-negative comment-id.');
+            }
+            const actor = context.payload.sender;
+            // GitHub enforces label-write access for the bot that produced this event.
+            const botLabelRequest = actor?.type === 'Bot' && context.eventName === 'issues' &&
+              context.payload.action === 'labeled' && context.payload.issue?.number === issueNumber &&
+              mode === 'triage' && commentId === 0;
+            if (!botLabelRequest) {
+              if (actor?.type !== 'User') return;
+              const { data: access } = await github.rest.repos.getCollaboratorPermissionLevel({
+                ...context.repo, username: actor.login,
+              });
+              if (!['admin', 'maintain', 'write'].includes(access.permission)) return;
+            }
+            const { data: issue } = await github.rest.issues.get({
+              ...context.repo, issue_number: issueNumber,
             });
-            if (!['admin', 'maintain', 'write'].includes(access.permission)) return;
-            // Start acknowledgement before collecting context; reaction failures are non-fatal.
-            const reaction = (async () => {
-              try {
-                await github.rest.reactions.createForIssueComment({
-                  ...context.repo, comment_id: comment.id, content: 'eyes',
-                });
-              } catch (error) {
-                core.warning(`Could not acknowledge the comment: ${error.message}`);
-              }
-            })();
+            if (issue.pull_request) return;
             const { data: repository } = await github.rest.repos.get(context.repo);
             const { data: branch } = await github.rest.repos.getBranch({
               ...context.repo, branch: repository.default_branch,
@@ -99,6 +120,20 @@ jobs:
             const comments = await github.paginate(github.rest.issues.listComments, {
               ...context.repo, issue_number: issue.number, per_page: 100,
             });
+            if (commentId && !comments.some((entry) => entry.id === commentId)) {
+              throw new Error('The comment-id does not belong to the requested issue.');
+            }
+            // Only comment-triggered requests have an acknowledgement target.
+            const reaction = (async () => {
+              if (!commentId) return;
+              try {
+                await github.rest.reactions.createForIssueComment({
+                  ...context.repo, comment_id: commentId, content: 'eyes',
+                });
+              } catch (error) {
+                core.warning(`Could not acknowledge the comment: ${error.message}`);
+              }
+            })();
             fs.mkdirSync(`${process.env.RUNNER_TEMP}/request`);
             const labels = issue.labels.map((label) => typeof label === 'string' ? label : label.name);
             fs.writeFileSync(`${process.env.RUNNER_TEMP}/request/issue.md`, [
@@ -118,7 +153,7 @@ jobs:
               '',
             ].join('\n'));
             fs.writeFileSync(`${process.env.RUNNER_TEMP}/request/comments.json`, JSON.stringify(
-              comments.filter((entry) => entry.id <= comment.id)
+              comments.filter((entry) => !commentId || entry.id <= commentId)
                 .map((entry) => ({ author: entry.user?.login ?? null, body: entry.body })),
               null, 2,
             ));
@@ -142,7 +177,7 @@ jobs:
   triage:
     needs: authorize
     if: needs.authorize.outputs.mode != ''
-    # Unauthorized comments never enter this queue or replace authorized pending work.
+    # Unauthorized requests never enter this queue or replace authorized pending work.
     concurrency:
       group: claude-triage-${{ github.repository }}-${{ needs.authorize.outputs.issue }}-triage
       cancel-in-progress: false
