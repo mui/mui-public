@@ -73,6 +73,13 @@ export const benchmarkRunReportSchema = z.object({
   /** How long the whole run took, packing and building both refs included. */
   durationMs: z.number().optional(),
   head: z.object({ sha: z.string(), branch: z.string().optional() }),
+  /**
+   * What the run was narrowed to: the file filters and the name pattern it was given. Absent when it
+   * ran every benchmark.
+   */
+  selection: z
+    .object({ filters: z.array(z.string()), testNamePattern: z.string().optional() })
+    .optional(),
   environment: z.object({
     browser: z.string(),
     platform: z.string(),
@@ -99,6 +106,13 @@ export const benchmarkRunUploadSchema = z.object({
   reportType: z.literal('benchmark'),
   prNumber: z.number().int().positive().optional(),
   branch: z.string(),
+  /** When the commit was made, in milliseconds: orders it in its timeline. */
+  commitTimestamp: z.number().optional(),
+  /**
+   * The timeline the upload goes into, in place of its branch's: a run against another baseline,
+   * such as the last release. The dashboard stores it as `benchmark@<timeline>.json`.
+   */
+  timeline: z.string().optional(),
   report: benchmarkRunReportSchema,
 });
 

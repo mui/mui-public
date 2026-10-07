@@ -48,6 +48,12 @@ const runCommand: CommandModule<{}, Args> = {
         describe:
           'Upload the report and refresh the PR comment. Defaults to BENCHMARK_UPLOAD=true, so CI can switch it on by environment. Requires CIRCLE_OIDC_TOKEN_V2',
       })
+      .option('timeline', {
+        type: 'string',
+        default: process.env.BENCHMARK_TIMELINE,
+        describe:
+          "With --upload, the dashboard timeline to upload into in place of the branch's, for a run against another baseline such as the last release. Defaults to BENCHMARK_TIMELINE",
+      })
       .option('out', {
         type: 'string',
         describe: 'Write the JSON report here. Default: .benchmark/results/report.json',
@@ -101,6 +107,7 @@ const runCommand: CommandModule<{}, Args> = {
       buildCmd: argv.buildCmd,
       out: argv.out,
       upload: argv.upload,
+      timeline: argv.timeline,
       testNamePattern: argv.testNamePattern,
       reporter: argv.reporter,
       profile: argv.profile,

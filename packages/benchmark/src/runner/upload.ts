@@ -14,7 +14,10 @@ import type { BenchmarkRunReport } from '../runReport';
  * refresh the comment does not fail the run: the numbers are already measured, written and
  * uploaded, and losing them to a comment API hiccup would waste the whole run.
  */
-export async function publishRunReport(report: BenchmarkRunReport): Promise<void> {
+export async function publishRunReport(
+  report: BenchmarkRunReport,
+  timeline: string | undefined,
+): Promise<void> {
   const metadata = await getCiMetadata();
   if (!metadata.repo) {
     console.warn(
@@ -27,6 +30,7 @@ export async function publishRunReport(report: BenchmarkRunReport): Promise<void
     version: 2,
     reportType: 'benchmark',
     ...metadata,
+    timeline,
     report,
   });
   const responseText = await postToDashboard(

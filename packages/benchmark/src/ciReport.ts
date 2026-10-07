@@ -15,14 +15,21 @@ interface CiInfo {
 interface GitInfo {
   commitSha: string;
   branch: string;
+  /** When the commit was made, in milliseconds. */
+  commitTimestamp: number;
 }
 
 async function getGitInfo(): Promise<GitInfo> {
-  const [commit, branch] = await Promise.all([
+  const [commit, branch, commitTime] = await Promise.all([
     execa('git', ['rev-parse', 'HEAD']),
     execa('git', ['branch', '--show-current']),
+    execa('git', ['log', '-1', '--format=%ct', 'HEAD']),
   ]);
-  return { commitSha: commit.stdout, branch: branch.stdout };
+  return {
+    commitSha: commit.stdout,
+    branch: branch.stdout,
+    commitTimestamp: Number(commitTime.stdout) * 1000,
+  };
 }
 
 /**
@@ -117,5 +124,6 @@ export async function getCiMetadata() {
       (ciInfo.isPr ? ciInfo.prBranch : ciInfo.branch) ||
       '',
     commitSha: gitInfo.commitSha,
+    commitTimestamp: gitInfo.commitTimestamp,
   };
 }

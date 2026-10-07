@@ -44,6 +44,11 @@ export interface RunBenchmarksOptions {
   out?: string;
   /** Upload the report and refresh the pull request comment. */
   upload?: boolean;
+  /**
+   * The dashboard timeline to upload into, in place of the branch's: for a run against another
+   * baseline, such as the last release. Needs `upload`.
+   */
+  timeline?: string;
   /** Defaults, for the whole run, for the sampling options a benchmark doesn't set itself. */
   sampling?: SamplingOptions;
   /** Only run benchmarks whose name matches this regular expression, like Vitest's `-t`. */
@@ -82,11 +87,15 @@ export async function runBenchmarks(
     buildCmd = 'pnpm release:build',
     out,
     upload = false,
+    timeline,
     sampling,
     testNamePattern,
     reporter = 'default',
     profile = false,
   } = options;
+  if (timeline !== undefined && !upload) {
+    throw new Error('A timeline only applies to an upload: pass --upload with --timeline.');
+  }
   // Compiled before anything is built, so a bad pattern fails at once.
   const namePattern = testNamePattern === undefined ? undefined : new RegExp(testNamePattern);
 
@@ -213,6 +222,9 @@ export async function runBenchmarks(
       generatedAt: new Date().toISOString(),
       durationMs: Date.now() - startedAt,
       head: { sha: commitSha, branch },
+      ...(filters.length > 0 || testNamePattern !== undefined
+        ? { selection: { filters, testNamePattern } }
+        : {}),
       environment: {
         browser: `Chromium ${results.browserVersion}`,
         platform: process.platform,
@@ -239,7 +251,7 @@ export async function runBenchmarks(
     console.log(chalk.green(`\nWrote JSON report to ${outPath}`));
 
     if (upload) {
-      await publishRunReport(report);
+      await publishRunReport(report, timeline);
     }
 
     // Written and uploaded first, so the errors are readable and the comment says what happened —

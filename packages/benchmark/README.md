@@ -466,6 +466,15 @@ The run writes `.benchmark/results/report.json`, prints it as tables, and with `
 the dashboard, which renders the pull request comment's Performance section and the repository's
 history from it.
 
+Uploads from a tracked branch (`master`, `next`, `v7.x`, …) join that branch's timeline, the history
+the dashboard draws. A run against another baseline names its own with `--timeline` (or
+`BENCHMARK_TIMELINE`), so it neither overwrites the commit's regular report nor lands in the branch's
+history, for example a weekly run against the last release:
+
+```bash
+benchmark --baseline "v$(npm view @mui/material version)" --upload --timeline release
+```
+
 - The report holds **raw samples**, round-aligned across variants, plus each metric's kind, format
   and alarm, how each benchmark's sampling went, the builds, and the environment.
 - `analyzeRun` from `@mui/internal-benchmark/runReport` draws every conclusion from it: a confidence
