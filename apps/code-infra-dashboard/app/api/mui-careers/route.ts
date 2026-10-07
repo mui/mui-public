@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { parseFragment, serialize } from 'parse5';
+import type { DefaultTreeAdapterTypes } from 'parse5';
 import { z } from 'zod/v4';
 
 interface CareerJob {
@@ -6,6 +8,7 @@ interface CareerJob {
   title: string;
   category: string;
   description: string;
+  summary: string;
   applicationUrl: string;
 }
 
@@ -21,6 +24,27 @@ const jobBoardSchema = z.object({
     }),
   ),
 });
+
+function stripHtmlAttributes(html: string): string {
+  const fragment = parseFragment(html);
+
+  function visit(node: DefaultTreeAdapterTypes.Node) {
+    if ('attrs' in node) {
+      node.attrs = node.attrs.filter(
+        (attribute) => attribute.name.startsWith('data-') && !attribute.namespace,
+      );
+    }
+    if ('childNodes' in node) {
+      node.childNodes.forEach(visit);
+    }
+    if ('content' in node) {
+      visit(node.content);
+    }
+  }
+
+  visit(fragment);
+  return serialize(fragment);
+}
 
 export async function GET() {
   try {
@@ -41,11 +65,15 @@ export async function GET() {
         id: job.id,
         title: job.title,
         category: job.department || 'Other',
-        description: job.descriptionHtml,
+        description: stripHtmlAttributes(job.descriptionHtml),
+        summary: '',
         applicationUrl: job.applyUrl,
       }));
 
-    return NextResponse.json({ data: careerJobs }, { headers: { 'Cache-Control': 'no-store' } });
+    return NextResponse.json(
+      { data: careerJobs },
+      { headers: { 'Cache-Control': 'public, max-age=600' } },
+    );
   } catch {
     return NextResponse.json(
       { error: 'Failed to fetch published jobs from Ashby' },
