@@ -48,9 +48,10 @@ function comparisonSx(comparison: MetricComparison): SxProps<Theme> {
   });
 }
 
-// Fixed widths per kind of column, so the columns of every benchmark's table line up.
+// Fixed widths per kind of column, so the columns of every benchmark's table line up. The label
+// column takes what the page has left, down to its minimum, past which the table scrolls sideways.
 const COLUMN_WIDTHS: Record<BenchmarkTableColumn['kind'], number> = {
-  label: 220,
+  label: 160,
   value: 120,
   comparison: 280,
 };
@@ -60,10 +61,10 @@ function BenchmarkTable({ analysis }: { analysis: BenchmarkAnalysis }) {
   const { columns, rows } = benchmarkTable(analysis);
   const firstComparison = columns.findIndex((column) => column.kind === 'comparison');
   const alignOf = (column: number) => (columns[column].kind === 'value' ? 'right' : undefined);
-  const tableWidth = columns.reduce((sum, column) => sum + COLUMN_WIDTHS[column.kind], 0);
+  const minWidth = columns.reduce((sum, column) => sum + COLUMN_WIDTHS[column.kind], 0);
 
   return (
-    <TableContainer sx={{ mb: 4, overflowX: 'auto' }}>
+    <Box sx={{ mb: 4 }}>
       <Typography variant="subtitle1" component="h3">
         {benchmark.name}{' '}
         <Typography component="span" variant="body2" color="text.secondary">
@@ -85,42 +86,48 @@ function BenchmarkTable({ analysis }: { analysis: BenchmarkAnalysis }) {
           </Tooltip>
         </Typography>
       </Typography>
-      <Table size="small" sx={{ tableLayout: 'fixed', width: tableWidth }}>
-        <colgroup>
-          {columns.map((column, index) => (
-            <col key={index} style={{ width: COLUMN_WIDTHS[column.kind] }} />
-          ))}
-        </colgroup>
-        <TableHead>
-          <TableRow>
-            {columns.map(({ header }, column) => (
-              <TableCell key={column} align={alignOf(column)}>
-                {header}
-              </TableCell>
+      {/* Only the table scrolls sideways on a narrow screen; the heading above it stays put. */}
+      <TableContainer sx={{ overflowX: 'auto' }}>
+        <Table size="small" sx={{ tableLayout: 'fixed', width: '100%', minWidth }}>
+          <colgroup>
+            {columns.map((column, index) => (
+              <col
+                key={index}
+                style={column.kind === 'label' ? undefined : { width: COLUMN_WIDTHS[column.kind] }}
+              />
             ))}
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.map((row) => (
-            <TableRow key={row.metric}>
-              {row.cells.map((cell, column) => (
-                <TableCell
-                  key={column}
-                  align={alignOf(column)}
-                  sx={
-                    columns[column].kind === 'comparison'
-                      ? comparisonSx(row.comparisons[column - firstComparison])
-                      : undefined
-                  }
-                >
-                  {cell}
+          </colgroup>
+          <TableHead>
+            <TableRow>
+              {columns.map(({ header }, column) => (
+                <TableCell key={column} align={alignOf(column)}>
+                  {header}
                 </TableCell>
               ))}
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
+          </TableHead>
+          <TableBody>
+            {rows.map((row) => (
+              <TableRow key={row.metric}>
+                {row.cells.map((cell, column) => (
+                  <TableCell
+                    key={column}
+                    align={alignOf(column)}
+                    sx={
+                      columns[column].kind === 'comparison'
+                        ? comparisonSx(row.comparisons[column - firstComparison])
+                        : undefined
+                    }
+                  >
+                    {cell}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </Box>
   );
 }
 
