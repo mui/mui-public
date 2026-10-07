@@ -711,6 +711,9 @@ importers:
       babel-plugin-transform-remove-imports:
         specifier: ^1.8.1
         version: 1.8.1(@babel/core@8.0.6)
+      browserslist:
+        specifier: ^4.29.3
+        version: 4.29.3
       chalk:
         specifier: ^6.0.1
         version: 6.0.1

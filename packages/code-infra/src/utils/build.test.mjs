@@ -3,7 +3,12 @@ import * as path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
 import { makeTempDir } from './testUtils.mjs';
-import { createPackageBin, createPackageExports, createPackageImports } from './build.mjs';
+import {
+  createPackageBin,
+  createPackageExports,
+  createPackageImports,
+  validateEnginesNode,
+} from './build.mjs';
 
 /**
  * @param {string} filePath
@@ -1259,5 +1264,54 @@ describe('createPackageImports', () => {
         },
       },
     });
+  });
+});
+
+describe('validateEnginesNode', () => {
+  /**
+   * @param {string} browserslistrc
+   */
+  async function createPackageDir(browserslistrc) {
+    const cwd = await makeTempDir();
+    await createFile(path.join(cwd, '.browserslistrc'), browserslistrc);
+    return cwd;
+  }
+
+  it('accepts engines.node at or above the node browserslist target', async () => {
+    const cwd = await createPackageDir('[node]\nnode 20.0\n');
+    expect(() =>
+      validateEnginesNode({ name: 'my-package', engines: { node: '>=20.0.0' } }, cwd),
+    ).not.toThrow();
+    expect(() =>
+      validateEnginesNode({ name: 'my-package', engines: { node: '>=22.12.0' } }, cwd),
+    ).not.toThrow();
+  });
+
+  it('rejects engines.node below the node browserslist target', async () => {
+    const cwd = await createPackageDir('[node]\nnode 22.0\n');
+    expect(() =>
+      validateEnginesNode({ name: 'my-package', engines: { node: '>=18.0.0' } }, cwd),
+    ).toThrowErrorMatchingInlineSnapshot(
+      `[Error: "engines.node" in "my-package" package.json allows Node.js 18.0.0, but the "node" browserslist environment compiles for Node.js 22.0.0 and up. Raise "engines.node" to at least 22.0.0, or lower the "node" browserslist target.]`,
+    );
+  });
+
+  it('uses the oldest node version when the target lists several', async () => {
+    const cwd = await createPackageDir('[node]\nnode 20.0\nnode 22.0\n');
+    expect(() =>
+      validateEnginesNode({ name: 'my-package', engines: { node: '^20.0.0 || >=22.0.0' } }, cwd),
+    ).not.toThrow();
+  });
+
+  it('skips packages without engines.node', async () => {
+    const cwd = await createPackageDir('[node]\nnode 22.0\n');
+    expect(() => validateEnginesNode({ name: 'my-package' }, cwd)).not.toThrow();
+  });
+
+  it('skips configs without a node target', async () => {
+    const cwd = await createPackageDir('[stable]\nchrome 120\n');
+    expect(() =>
+      validateEnginesNode({ name: 'my-package', engines: { node: '>=18.0.0' } }, cwd),
+    ).not.toThrow();
   });
 });
