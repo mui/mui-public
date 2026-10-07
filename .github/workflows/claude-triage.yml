@@ -74,6 +74,7 @@ jobs:
       contents: read
       issues: write
     outputs:
+      allowed-bot: ${{ steps.request.outputs.allowed-bot }}
       mode: ${{ steps.request.outputs.mode }}
       issue: ${{ steps.request.outputs.issue }}
       base: ${{ steps.request.outputs.base }}
@@ -157,6 +158,7 @@ jobs:
                 .map((entry) => ({ author: entry.user?.login ?? null, body: entry.body })),
               null, 2,
             ));
+            core.setOutput('allowed-bot', botLabelRequest ? actor.login : '');
             core.setOutput('mode', mode);
             core.setOutput('issue', issue.number);
             core.setOutput('base', branch.commit.sha);
@@ -232,6 +234,7 @@ jobs:
         uses: anthropics/claude-code-action@86d88e619d8e6caf07b5c3944dd14f441c533718 # v1.0.243
         with:
           github_token: ${{ github.token }} # Use this job's read-only token instead of minting an App token.
+          allowed_bots: ${{ needs.authorize.outputs.allowed-bot }} # Forward only the bot approved by authorization.
           show_full_output: ${{ inputs.debug }}
           anthropic_federation_rule_id: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID }}
           anthropic_organization_id: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
