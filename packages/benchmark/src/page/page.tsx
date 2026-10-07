@@ -2,7 +2,7 @@ import { collectGarbage } from '../gc';
 import { createInput } from '../input';
 import type { BenchmarkInput } from '../input';
 import { seriesName, setMetricRecorder } from '../metricCore';
-import { hasSampling, resolveSampling } from '../sampling';
+import { hasSampling, pickSampling, resolveSampling } from '../sampling';
 import type { SamplingOptions } from '../sampling';
 import type { MetricDefinition } from '../types';
 
@@ -54,7 +54,7 @@ export function benchmark(
 const comparisons: Array<{
   name: string;
   cases: string[];
-  sampling: Required<SamplingOptions>;
+  sampling: SamplingOptions;
 }> = [];
 
 /**
@@ -75,7 +75,8 @@ export function compare(
   if (compared.length < 2) {
     throw new Error(`Comparison "${name}" needs at least two cases.`);
   }
-  const resolved = resolveSampling(sampling);
+  // Resolved here only to reject invalid options where they were written.
+  resolveSampling(sampling);
   for (const benchCase of compared) {
     const own = cases.get(benchCase.name)?.sampling;
     if (own && hasSampling(own)) {
@@ -92,7 +93,7 @@ export function compare(
   comparisons.push({
     name,
     cases: compared.map((benchCase) => benchCase.name),
-    sampling: resolved,
+    sampling: pickSampling(sampling),
   });
 }
 
@@ -120,9 +121,9 @@ setMetricRecorder((metric, value, options) => {
 
 export interface BenchPage {
   /** The cases measured across the builds: every case no `compare()` took. */
-  cases: Array<{ name: string; sampling: Required<SamplingOptions> }>;
+  cases: Array<{ name: string; sampling: SamplingOptions }>;
   /** The file's `compare()` calls, with their cases' names in order. */
-  comparisons: Array<{ name: string; cases: string[]; sampling: Required<SamplingOptions> }>;
+  comparisons: Array<{ name: string; cases: string[]; sampling: SamplingOptions }>;
   /** Every metric recorded so far, by name. */
   metricDefinitions: () => Record<string, MetricDefinition>;
   /** Runs one iteration of a case, and returns what it recorded, by series. */
@@ -183,7 +184,7 @@ export function markPageReady(): void {
   window.benchmarkPage = {
     cases: [...cases]
       .filter(([name]) => !comparisons.some((comparison) => comparison.cases.includes(name)))
-      .map(([name, { sampling }]) => ({ name, sampling: resolveSampling(sampling) })),
+      .map(([name, { sampling }]) => ({ name, sampling: pickSampling(sampling) })),
     comparisons,
     metricDefinitions: () => Object.fromEntries(metricDefinitions),
     sample,

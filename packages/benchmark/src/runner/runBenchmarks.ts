@@ -44,7 +44,7 @@ export interface RunBenchmarksOptions {
   out?: string;
   /** Upload the report and refresh the pull request comment. */
   upload?: boolean;
-  /** Sampling options that override every benchmark's own, for the whole run. */
+  /** Defaults, for the whole run, for the sampling options a benchmark doesn't set itself. */
   sampling?: SamplingOptions;
   /** Only run benchmarks whose name matches this regular expression, like Vitest's `-t`. */
   testNamePattern?: string;
@@ -188,8 +188,7 @@ export async function runBenchmarks(
     if (profile) {
       const traced = await traceBenchmarks({
         ...runOptions,
-        // A fixed number of rounds: nothing is being resolved.
-        sampling: { sampleSize: sampling?.sampleSize ?? PROFILE_ROUNDS, timeout: 0 },
+        rounds: sampling?.sampleSize ?? PROFILE_ROUNDS,
         tracesDir: path.join(outputDir, 'traces'),
       });
       if (reporter === 'json') {

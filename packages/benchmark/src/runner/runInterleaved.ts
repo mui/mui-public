@@ -5,7 +5,7 @@ import type { Browser, CDPSession, Page } from '@playwright/test';
 import { BENCHMARK_LAUNCH_ARGS, BENCHMARK_VIEWPORT } from '../launchArgs';
 import { compareBenchmark, countAlarmedComparisons } from '../runReport';
 import type { RunBenchmark, RunMetricDefinition } from '../runReport';
-import { differencesResolved, parseHorizons, resolveSampling } from '../sampling';
+import { differencesResolved, parseHorizons, pickSampling, resolveSampling } from '../sampling';
 import type { SamplingOptions } from '../sampling';
 import type { BenchFile } from './benchFiles';
 import type { ResolvedRef } from './refs';
@@ -31,7 +31,7 @@ export interface RunInterleavedOptions {
   benchRefs: ResolvedRef[];
   browserBinary: string;
   launchArgs: string[];
-  /** Sampling options that override every benchmark's own. */
+  /** Defaults for the sampling options a benchmark doesn't set itself. */
   sampling?: SamplingOptions;
   /** Only run benchmarks whose name matches this, like Vitest's `-t`. */
   testNamePattern?: RegExp;
@@ -314,26 +314,26 @@ async function planBenchFile(
       return { entry, error: `"${caseName}" does not exist in [${variants[missing + 1]}].` };
     }
     const slots = urls.map((url, index) => ({ variant: variants[index], url, caseName }));
-    return { entry, slots, sampling: withOverrides(sampling, options.sampling) };
+    return { entry, slots, sampling: samplingOf(sampling, options.sampling) };
   });
 
   for (const { name, cases, sampling } of reference.comparisons) {
     const entry: BenchmarkEntry = { name, file: benchFile.file, kind: 'compare', variants: cases };
     const slots = cases.map((caseName) => ({ variant: caseName, url: urls[0], caseName }));
-    planned.push({ entry, slots, sampling: withOverrides(sampling, options.sampling) });
+    planned.push({ entry, slots, sampling: samplingOf(sampling, options.sampling) });
   }
   return planned;
 }
 
-/** A benchmark's own sampling, with the run's overrides on top: only the options the run set. */
-function withOverrides(
-  own: Required<SamplingOptions>,
-  overrides: SamplingOptions = {},
+/**
+ * A benchmark's sampling, as in Vitest: what it sets itself, then what the run gives as defaults,
+ * then the built-in defaults.
+ */
+function samplingOf(
+  own: SamplingOptions,
+  runDefaults: SamplingOptions = {},
 ): Required<SamplingOptions> {
-  const set = Object.fromEntries(
-    Object.entries(overrides).filter(([, value]) => value !== undefined),
-  );
-  return resolveSampling({ ...own, ...set });
+  return resolveSampling({ ...pickSampling(runDefaults), ...pickSampling(own) });
 }
 
 /** What a run drives: the browser, and every benchmark it was asked for, in order. */

@@ -419,8 +419,9 @@ metric when none does.
 
 They are set per benchmark: the last argument of `benchmark()` and `compare()`, and among
 `reactBenchmark()`'s options. A compared case is sampled as its `compare()` asks, so setting its own
-is an error. `--sample-size`, `--timeout` and `--auto-sample-conditions` override them for every
-benchmark of a run, to iterate quickly without editing benchmark files.
+is an error. `--sample-size`, `--timeout` and `--auto-sample-conditions` set them for the benchmarks
+that don't set their own, as Vitest's `--testTimeout` does for tests: what a benchmark file says
+always wins.
 
 ```tsx
 reactBenchmark('mount', () => <Grid rows={1000} />, { timeout: 1, autoSampleConditions: ['10%'] });

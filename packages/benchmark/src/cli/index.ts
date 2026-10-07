@@ -72,16 +72,18 @@ const runCommand: CommandModule<{}, Args> = {
       .option('sample-size', {
         type: 'number',
         describe:
-          "Rounds before deciding whether to continue, overriding every benchmark's own; with --profile, the rounds to record (default 5)",
+          "Rounds before deciding whether to continue, for benchmarks that don't set their own (default 50); with --profile, the rounds to record (default 5)",
       })
       .option('timeout', {
         type: 'number',
-        describe: "Minutes to keep sampling while unresolved, overriding every benchmark's own",
+        describe:
+          "Minutes to keep sampling while unresolved, for benchmarks that don't set their own (default 3)",
       })
       .option('auto-sample-conditions', {
         type: 'string',
         array: true,
-        describe: "Horizons to resolve, such as 5% or 10%, overriding every benchmark's own",
+        describe:
+          "Horizons to resolve, such as 5% or 10%, for benchmarks that don't set their own (default 5%)",
       }),
   handler: async (argv) => {
     if (argv.reporter === 'json') {

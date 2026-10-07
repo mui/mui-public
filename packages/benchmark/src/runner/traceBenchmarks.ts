@@ -30,8 +30,8 @@ export interface BenchmarkTraces extends Pick<RunBenchmark, 'name' | 'file' | 'k
 
 async function traceBenchmark(
   browser: Browser,
-  { entry, slots, sampling }: MeasuredBenchmark,
-  tracesDir: string,
+  { entry, slots }: MeasuredBenchmark,
+  { tracesDir, rounds }: { tracesDir: string; rounds: number },
 ): Promise<BenchmarkTraces> {
   console.log(chalk.cyan(`\nTracing "${entry.name}" (${entry.file})…`));
   const outDir = path.join(tracesDir, entry.name.replace(/[^\w.-]+/g, '-'));
@@ -41,7 +41,7 @@ async function traceBenchmark(
   const page = await openBenchTab(browser);
   try {
     await mkdir(outDir, { recursive: true });
-    for (let round = 1; round <= sampling.sampleSize; round += 1) {
+    for (let round = 1; round <= rounds; round += 1) {
       for (const index of shuffledIndices(slots.length)) {
         const { variant, url, caseName } = slots[index];
         const file = path.join(outDir, `${variant}-${round}.json`);
@@ -73,7 +73,11 @@ async function traceBenchmark(
 
 /** Traces every benchmark the run was asked for, one after another, into `tracesDir`. */
 export async function traceBenchmarks(
-  options: RunInterleavedOptions & { tracesDir: string },
+  options: RunInterleavedOptions & {
+    tracesDir: string;
+    /** Rounds to record: every variant once per round, whatever a benchmark samples for. */
+    rounds: number;
+  },
 ): Promise<BenchmarkTraces[]> {
   await rm(options.tracesDir, { recursive: true, force: true });
   return withPlannedRun(options, async ({ browser, planned }) => {
@@ -86,7 +90,7 @@ export async function traceBenchmarks(
         continue;
       }
       // eslint-disable-next-line no-await-in-loop
-      results.push(await traceBenchmark(browser, plan, options.tracesDir));
+      results.push(await traceBenchmark(browser, plan, options));
     }
     return results;
   });

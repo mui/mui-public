@@ -69,10 +69,16 @@ export function resolveSampling(options: SamplingOptions): Required<SamplingOpti
 
 /** Whether any sampling option is set. */
 export function hasSampling(options: SamplingOptions): boolean {
-  return (
-    options.sampleSize !== undefined ||
-    options.timeout !== undefined ||
-    options.autoSampleConditions !== undefined
+  return Object.keys(pickSampling(options)).length > 0;
+}
+
+/** The sampling options `options` sets, leaving out any other key and any left undefined. */
+export function pickSampling(options: SamplingOptions): SamplingOptions {
+  const { sampleSize, timeout, autoSampleConditions } = options;
+  return Object.fromEntries(
+    Object.entries({ sampleSize, timeout, autoSampleConditions }).filter(
+      ([, value]) => value !== undefined,
+    ),
   );
 }
 
