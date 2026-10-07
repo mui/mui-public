@@ -332,6 +332,9 @@ importers:
       pako:
         specifier: ^3.0.2
         version: 3.0.2
+      parse5:
+        specifier: ^8.0.1
+        version: 8.0.1
       qrcode:
         specifier: ^1.5.4
         version: 1.5.4
