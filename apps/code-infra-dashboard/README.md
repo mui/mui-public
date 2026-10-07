@@ -12,3 +12,23 @@ Bugfixes and feature suggestions are greatly appreciated. Though this project is
 pnpm install
 pnpm -F @apps/code-infra-dashboard dev
 ```
+
+## Careers API
+
+`GET /api/mui-careers` returns `{ data: [...] }` from the [MUI Ashby job board](https://jobs.ashbyhq.com/MUI).
+It uses Ashby's [public Job Postings API](https://developers.ashbyhq.com/docs/public-job-posting-api), so no API key is required.
+Only postings with `isListed: true` are returned. Each job contains only these local careers fields:
+
+| Field            | Content                                                |
+| :--------------- | :----------------------------------------------------- |
+| `id`             | Stable job ID for matching roles across syncs.         |
+| `title`          | Role title.                                            |
+| `category`       | Department for grouping roles, or `Other` when absent. |
+| `description`    | Full HTML description for generating the role page.    |
+| `applicationUrl` | Application link.                                      |
+
+Upstream metadata and the duplicate plain-text description are omitted.
+
+This endpoint is intended for the docs repository's careers sync, alongside `/api/mui-about` for team members.
+Requests fetch fresh data with a 10-second timeout. Upstream failures or malformed responses return HTTP 502 with `{ error: "Failed to fetch published jobs from Ashby" }`, rather than an empty jobs list.
+A successful `{ data: [] }` response means there are no listed postings.
