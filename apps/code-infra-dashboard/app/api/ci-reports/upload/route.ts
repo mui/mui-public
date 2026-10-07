@@ -6,25 +6,20 @@ import { verifyOidcToken } from '@/lib/ciReports/oidcAuth';
 import type { OidcVerificationResult } from '@/lib/ciReports/oidcAuth';
 import { findAssociatedPr } from '@/lib/ciReports/findAssociatedPr';
 import { repoSchema, reportTypeSchema } from '@/lib/ciReports/schemas';
-import {
-  isTrackedBranch,
-  reportKey,
-  resolveTimeline,
-  timelinePointerKey,
-} from '@/lib/ciReports/timeline';
+import { isTrackedBranch, planUpload, uploadTimeSchema } from '@/lib/ciReports/timeline';
 
 const uploadSchema = z.object({
   version: z.number(),
-  timestamp: z.number(),
+  timestamp: uploadTimeSchema,
   commitSha: z.string().regex(/^[0-9a-f]{40}$/, 'Must be a 40-character hex string'),
   repo: repoSchema,
   reportType: reportTypeSchema,
   prNumber: z.number().int().positive().optional(),
   branch: z.string(),
-  /** A timeline of the job's own, in place of the branch's; see `resolveTimeline`. */
+  /** A timeline of the job's own, in place of the branch's; see `planUpload`. */
   timeline: z.string().optional(),
-  /** When the commit was made, in milliseconds, to order it in its timeline. */
-  commitTimestamp: z.number().optional(),
+  /** When the commit was made, to order it in its timeline. */
+  commitTimestamp: uploadTimeSchema.optional(),
   report: z.any(),
   base: z.any().optional(),
 });
@@ -45,12 +40,14 @@ interface UploadTarget {
 async function uploadTargetOf(
   oidcResult: OidcVerificationResult,
   { repo, commitSha, branch }: { repo: string; commitSha: string; branch: string },
-): Promise<UploadTarget | NextResponse> {
+): Promise<{ target: UploadTarget } | { error: string; status: number }> {
   if (oidcResult.isTrusted) {
     return {
-      repo: oidcResult.sourceRepo,
-      branch,
-      trackedBranch: isTrackedBranch(branch) ? branch : null,
+      target: {
+        repo: oidcResult.sourceRepo,
+        branch,
+        trackedBranch: isTrackedBranch(branch) ? branch : null,
+      },
     };
   }
 
@@ -61,44 +58,37 @@ async function uploadTargetOf(
     pr = await findAssociatedPr(oidcResult, { targetRepo: repo });
   } catch (error) {
     console.error('PR lookup failed:', error);
-    return NextResponse.json(
-      {
-        error: `Could not find associated PR: ${error instanceof Error ? error.message : String(error)}`,
-      },
-      { status: 403 },
-    );
+    return {
+      error: `Could not find associated PR: ${error instanceof Error ? error.message : String(error)}`,
+      status: 403,
+    };
   }
 
   if (!pr) {
-    return NextResponse.json(
-      { error: 'Could not find an associated PR for this fork build' },
-      { status: 403 },
-    );
+    return { error: 'Could not find an associated PR for this fork build', status: 403 };
   }
 
   if (pr.state !== 'open') {
-    return NextResponse.json({ error: `PR #${pr.number} is not open` }, { status: 403 });
+    return { error: `PR #${pr.number} is not open`, status: 403 };
   }
 
   if (pr.head.sha !== commitSha) {
-    return NextResponse.json(
-      {
-        error: `Commit ${commitSha} does not match PR #${pr.number} head (${pr.head.sha})`,
-      },
-      { status: 403 },
-    );
+    return {
+      error: `Commit ${commitSha} does not match PR #${pr.number} head (${pr.head.sha})`,
+      status: 403,
+    };
   }
 
   const targetRepo = pr.base.repo.full_name;
 
   if (!targetRepo.startsWith('mui/')) {
-    return NextResponse.json(
-      { error: `PR #${pr.number} targets ${targetRepo}, which is not in the mui org` },
-      { status: 403 },
-    );
+    return {
+      error: `PR #${pr.number} targets ${targetRepo}, which is not in the mui org`,
+      status: 403,
+    };
   }
 
-  return { repo: targetRepo, branch: pr.head.ref, trackedBranch: null };
+  return { target: { repo: targetRepo, branch: pr.head.ref, trackedBranch: null } };
 }
 
 // This endpoint is authenticated via CI OIDC tokens. The client sends
@@ -135,16 +125,23 @@ export async function POST(request: NextRequest) {
 
   const { commitSha, repo, reportType, branch, report, timestamp, commitTimestamp } = parsed.data;
 
-  const target = await uploadTargetOf(oidcResult, { repo, commitSha, branch });
-  if (target instanceof NextResponse) {
-    return target;
+  const resolved = await uploadTargetOf(oidcResult, { repo, commitSha, branch });
+  if ('error' in resolved) {
+    return NextResponse.json({ error: resolved.error }, { status: resolved.status });
   }
+  const { target } = resolved;
 
-  const resolution = resolveTimeline(parsed.data.timeline, target.trackedBranch);
-  if ('error' in resolution) {
-    return NextResponse.json({ error: resolution.error }, { status: 400 });
+  const plan = planUpload({
+    repo: target.repo,
+    sha: commitSha,
+    reportType,
+    trackedBranch: target.trackedBranch,
+    requested: parsed.data.timeline,
+    time: commitTimestamp ?? timestamp,
+  });
+  if ('error' in plan) {
+    return NextResponse.json({ error: plan.error }, { status: 400 });
   }
-  const { timeline } = resolution;
 
   // For benchmark uploads, store the full wrapper (version, timestamp, commitSha,
   // repo, branch, prNumber, reportType, report, base). Other report types keep
@@ -152,24 +149,15 @@ export async function POST(request: NextRequest) {
   const storedBody =
     reportType === 'benchmark' ? JSON.stringify(parsed.data) : JSON.stringify(report);
 
-  const key = reportKey(target.repo, commitSha, reportType, timeline);
   await uploadReport({
-    key,
+    key: plan.reportKey,
     body: storedBody,
-    isBaseBranch: target.trackedBranch !== null,
+    isBaseBranch: plan.isBaseBranch,
     branch: target.branch,
   });
   // Written after the report, so a timeline never lists a commit whose report isn't there.
-  if (timeline !== null) {
-    await writeMarker(
-      timelinePointerKey(
-        target.repo,
-        timeline,
-        reportType,
-        commitTimestamp ?? timestamp,
-        commitSha,
-      ),
-    );
+  if (plan.pointerKey !== null) {
+    await writeMarker(plan.pointerKey);
   }
-  return NextResponse.json({ key, timeline });
+  return NextResponse.json({ key: plan.reportKey, timeline: plan.timeline });
 }

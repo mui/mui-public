@@ -1,3 +1,6 @@
+import { z } from 'zod/v4';
+import type { ReportType } from './schemas';
+
 // A timeline is an ordered run of one report type's uploads, the history the dashboard draws. A
 // tracked branch's uploads form the timeline named after it; a CI job on a tracked branch can name
 // its own (a weekly run against the last release, say), kept apart as `@<name>`. Pull requests and
@@ -6,10 +9,6 @@
 // Each upload in a timeline leaves an empty S3 object whose key holds the time and the commit, so
 // listing the timeline's prefix lists its uploads without reading any of them, and two uploads
 // landing at once can't lose each other the way appending to a shared index could.
-
-export const REPORT_TYPES = ['size-snapshot', 'benchmark'] as const;
-
-export type ReportType = (typeof REPORT_TYPES)[number];
 
 const TRACKED_BRANCH_REGEX = /^(master|main|next|v[^/]*\.[^/]*)$/;
 
@@ -23,6 +22,12 @@ const TIME_DIGITS = String(TIME_CEILING).length;
 
 const POINTER_NAME_REGEX = new RegExp(`^(\\d{${TIME_DIGITS}})-([0-9a-f]{40})$`);
 
+/**
+ * A time an upload is ordered by, in milliseconds since the epoch. Bounded below at 2001 so a time in
+ * seconds, as git prints it, fails instead of sorting the commit to 1970.
+ */
+export const uploadTimeSchema = z.number().int().min(1_000_000_000_000).max(TIME_CEILING);
+
 export function isTrackedBranch(branch: string): boolean {
   return TRACKED_BRANCH_REGEX.test(branch);
 }
@@ -35,31 +40,9 @@ export function isTimeline(timeline: string): boolean {
 }
 
 /**
- * Which timeline an upload belongs to: the one its CI job named, as `@<name>`, or else its tracked
- * branch's. `trackedBranch` is the branch when the build is the repository's own and the branch is
- * tracked, else `null`: only such builds write a timeline.
- */
-export function resolveTimeline(
-  requested: string | undefined,
-  trackedBranch: string | null,
-): { timeline: string | null } | { error: string } {
-  if (requested === undefined) {
-    return { timeline: trackedBranch };
-  }
-  if (trackedBranch === null) {
-    return { error: 'A timeline can only be named from a tracked branch of the repository itself' };
-  }
-  if (!TIMELINE_NAME_REGEX.test(requested)) {
-    return {
-      error: `Invalid timeline "${requested}": use lowercase letters, digits, "." and "-"`,
-    };
-  }
-  return { timeline: `@${requested}` };
-}
-
-/**
- * Where a commit's report is stored. A named timeline gets its own file, `<reportType>@<name>.json`,
- * so a run against another baseline on the same commit doesn't overwrite the commit's regular report.
+ * Where a commit's report is stored. A named timeline (`@<name>`) gets its own file,
+ * `<reportType>@<name>.json`, so a run against another baseline on the same commit doesn't
+ * overwrite the commit's regular report.
  */
 export function reportKey(
   repo: string,
@@ -84,8 +67,55 @@ export function timelinePointerKey(
   time: number,
   sha: string,
 ): string {
-  const remaining = String(TIME_CEILING - Math.round(time)).padStart(TIME_DIGITS, '0');
+  const remaining = String(TIME_CEILING - time).padStart(TIME_DIGITS, '0');
   return `${timelinePrefix(repo, timeline, reportType)}${remaining}-${sha}`;
+}
+
+export interface UploadPlan {
+  /** Where the report is stored. */
+  reportKey: string;
+  /** The timeline the upload joins, or `null` when it joins none. */
+  timeline: string | null;
+  /** The empty object recording the upload in its timeline, written after the report. */
+  pointerKey: string | null;
+  /** Whether the report is a tracked branch's, which is what keeps it in the bucket for good. */
+  isBaseBranch: boolean;
+}
+
+/**
+ * What an upload writes. A name the CI job gives (`requested`) picks the report's own file wherever
+ * it runs; only a build that is the repository's own on a tracked branch (`trackedBranch`, else
+ * `null`) joins a timeline: the named one, or else the branch's.
+ */
+export function planUpload({
+  repo,
+  sha,
+  reportType,
+  trackedBranch,
+  requested,
+  time,
+}: {
+  repo: string;
+  sha: string;
+  reportType: ReportType;
+  trackedBranch: string | null;
+  requested: string | undefined;
+  time: number;
+}): UploadPlan | { error: string } {
+  if (requested !== undefined && !TIMELINE_NAME_REGEX.test(requested)) {
+    return {
+      error: `Invalid timeline "${requested}": use lowercase letters, digits, "." and "-"`,
+    };
+  }
+  const named = requested === undefined ? null : `@${requested}`;
+  const timeline = trackedBranch === null ? null : (named ?? trackedBranch);
+  return {
+    reportKey: reportKey(repo, sha, reportType, named),
+    timeline,
+    pointerKey:
+      timeline === null ? null : timelinePointerKey(repo, timeline, reportType, time, sha),
+    isBaseBranch: trackedBranch !== null,
+  };
 }
 
 export interface TimelineEntry {
@@ -95,8 +125,8 @@ export interface TimelineEntry {
 }
 
 /**
- * Reads the uploads out of a listing of a timeline's prefix, newest first, keeping one per commit:
- * a commit uploaded again shows up once, at its newest pointer.
+ * Reads the uploads out of a listing of a timeline's prefix, newest first, keeping one per commit
+ * within the listing: a commit uploaded again shows up once, at its newest pointer.
  */
 export function parseTimelineKeys(prefix: string, keys: readonly string[]): TimelineEntry[] {
   const entries: TimelineEntry[] = [];
