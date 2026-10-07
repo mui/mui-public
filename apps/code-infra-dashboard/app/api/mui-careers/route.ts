@@ -31,7 +31,8 @@ function stripHtmlAttributes(html: string): string {
   function visit(node: DefaultTreeAdapterTypes.Node) {
     if ('attrs' in node) {
       node.attrs = node.attrs.filter(
-        (attribute) => attribute.name.startsWith('data-') && !attribute.namespace,
+        (attribute) =>
+          (attribute.name === 'href' || attribute.name.startsWith('data-')) && !attribute.namespace,
       );
     }
     if ('childNodes' in node) {

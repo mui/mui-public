@@ -50,7 +50,7 @@ describe('GET /api/mui-careers', () => {
     });
   });
 
-  it('keeps only data attributes while preserving markup and text', async () => {
+  it('keeps href and data attributes while preserving markup and text', async () => {
     const descriptionHtml = `<h2 STYLE="color: red">About the role</h2><p style='font-size: 12px' class="intro" data-role="intro">Build <strong style=color:red>tools</strong> &amp; improve operations.</p><a href="https://mui.com" title="a style=example" data-style="keep" style="color: blue">MUI</a><p>Use style="display: none" as text.</p><template><span style="color:red">Details</span></template>`;
     vi.stubGlobal(
       'fetch',
@@ -67,7 +67,7 @@ describe('GET /api/mui-careers', () => {
         {
           ...careerJob,
           description:
-            '<h2>About the role</h2><p data-role="intro">Build <strong>tools</strong> &amp; improve operations.</p><a data-style="keep">MUI</a><p>Use style="display: none" as text.</p><template><span>Details</span></template>',
+            '<h2>About the role</h2><p data-role="intro">Build <strong>tools</strong> &amp; improve operations.</p><a href="https://mui.com" data-style="keep">MUI</a><p>Use style="display: none" as text.</p><template><span>Details</span></template>',
         },
       ],
     });
