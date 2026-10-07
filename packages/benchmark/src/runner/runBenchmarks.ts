@@ -14,6 +14,7 @@ import { refLabel, resolveBaselineRef, WORKTREE_REF } from './refs';
 import type { ResolvedRef } from './refs';
 import { discoverBenchFiles } from './benchFiles';
 import { runInterleaved } from './runInterleaved';
+import { traceBenchmarks } from './traceBenchmarks';
 import { buildRefPages, restoreWorkspace } from './buildPages';
 import { resolveBrowserBinary } from './browser';
 import { printRunReport } from './printReport';
@@ -52,16 +53,27 @@ export interface RunBenchmarksOptions {
    * stdout — medians, intervals and verdicts — for a program to read.
    */
   reporter?: 'default' | 'json';
+  /**
+   * Record the benchmarks instead of measuring them: a performance trace around every sample, to
+   * open in DevTools' Performance panel. Writes no report.
+   */
+  profile?: boolean;
 }
+
+/** Rounds a profile records unless a sample size is given. */
+const PROFILE_ROUNDS = 5;
 
 /**
  * Benchmarks a harness's `*.bench.tsx` files across two builds of the workspace — the working tree
- * and a baseline — and writes, prints and optionally uploads the run report.
+ * and a baseline — and writes, prints and optionally uploads the run report. With `profile`, it
+ * traces them instead, and returns no report.
  *
  * Both builds are packed from their own commit and installed into the harness the same way, so
  * neither resolves the library through a workspace link.
  */
-export async function runBenchmarks(options: RunBenchmarksOptions): Promise<BenchmarkRunReport> {
+export async function runBenchmarks(
+  options: RunBenchmarksOptions,
+): Promise<BenchmarkRunReport | undefined> {
   const startedAt = Date.now();
   const {
     harnessDir,
@@ -73,6 +85,7 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
     sampling,
     testNamePattern,
     reporter = 'default',
+    profile = false,
   } = options;
   // Compiled before anything is built, so a bad pattern fails at once.
   const namePattern = testNamePattern === undefined ? undefined : new RegExp(testNamePattern);
@@ -163,15 +176,37 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
       });
     }
 
-    const results = await runInterleaved({
+    const runOptions = {
       buildsDir,
       benchFiles,
       benchRefs: refs,
       browserBinary,
       launchArgs,
-      sampling,
       testNamePattern: namePattern,
-    });
+    };
+
+    if (profile) {
+      const traced = await traceBenchmarks({
+        ...runOptions,
+        // A fixed number of rounds: nothing is being resolved.
+        sampling: { sampleSize: sampling?.sampleSize ?? PROFILE_ROUNDS, timeout: 0 },
+        tracesDir: path.join(outputDir, 'traces'),
+      });
+      if (reporter === 'json') {
+        process.stdout.write(`${JSON.stringify({ benchmarks: traced }, null, 2)}\n`);
+      } else {
+        for (const { name, traces, error } of traced) {
+          console.log(error ? chalk.red(`✖ ${name}: ${error}`) : `\n${name}`);
+          for (const [variant, files] of Object.entries(traces)) {
+            console.log(`  ${variant}: ${files.length} traces in ${path.dirname(files[0] ?? '')}`);
+          }
+        }
+        console.log(chalk.dim('\nOpen a trace in DevTools: Performance panel, "Load profile…".'));
+      }
+      return undefined;
+    }
+
+    const results = await runInterleaved({ ...runOptions, sampling });
 
     const { commitSha, branch } = await getCiMetadata();
     const report: BenchmarkRunReport = {

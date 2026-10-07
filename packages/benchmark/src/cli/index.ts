@@ -63,9 +63,16 @@ const runCommand: CommandModule<{}, Args> = {
         describe:
           'How to print the results: tables, or the analysis as JSON on stdout (medians, intervals, verdicts), with everything else on stderr',
       })
+      .option('profile', {
+        type: 'boolean',
+        default: false,
+        describe:
+          'Record instead of measuring: a performance trace around every sample, saved to open in DevTools. Writes no report',
+      })
       .option('sample-size', {
         type: 'number',
-        describe: "Rounds before deciding whether to continue, overriding every benchmark's own",
+        describe:
+          "Rounds before deciding whether to continue, overriding every benchmark's own; with --profile, the rounds to record (default 5)",
       })
       .option('timeout', {
         type: 'number',
@@ -94,6 +101,7 @@ const runCommand: CommandModule<{}, Args> = {
       upload: argv.upload,
       testNamePattern: argv.testNamePattern,
       reporter: argv.reporter,
+      profile: argv.profile,
       sampling: {
         sampleSize: argv.sampleSize,
         timeout: argv.timeout,

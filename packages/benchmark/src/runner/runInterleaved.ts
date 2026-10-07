@@ -51,12 +51,12 @@ type CdpMethod = Parameters<CDPSession['send']>[0];
 /** One measured round: every variant's values by metric name, in slot order. */
 type Round = Array<Record<string, number>>;
 
-function errorMessage(error: unknown): string {
+export function errorMessage(error: unknown): string {
   return error instanceof Error ? (error.stack ?? error.message) : String(error);
 }
 
 /** A random permutation of `0..length-1`, so no variant always runs first in its round. */
-function shuffledIndices(length: number): number[] {
+export function shuffledIndices(length: number): number[] {
   const indices = Array.from({ length }, (_, index) => index);
   for (let index = indices.length - 1; index > 0; index -= 1) {
     const swap = Math.floor(Math.random() * (index + 1));
@@ -84,7 +84,7 @@ type PageListing = Pick<BenchPage, 'cases' | 'comparisons'>;
  * Opens a tab, in a browser context of its own, bridged to a CDP session for trusted input. Closing
  * its context closes it.
  */
-async function openBenchTab(browser: Browser): Promise<Page> {
+export async function openBenchTab(browser: Browser): Promise<Page> {
   const context = await browser.newContext({ viewport: BENCHMARK_VIEWPORT });
   try {
     const page = await context.newPage();
@@ -107,7 +107,7 @@ async function openBenchTab(browser: Browser): Promise<Page> {
 }
 
 /** Loads a benchmark page into the tab, and waits until it has registered its cases. */
-async function loadBenchPage(
+export async function loadBenchPage(
   page: Page,
   url: string,
 ): Promise<PageListing & { visibility: DocumentVisibilityState }> {
@@ -149,7 +149,7 @@ async function listBenchPages(browser: Browser, urls: string[]): Promise<PageLis
 }
 
 /** Runs one iteration of a case, and returns what it recorded, by series. */
-function sampleBenchCase(page: Page, name: string): Promise<Record<string, number>> {
+export function sampleBenchCase(page: Page, name: string): Promise<Record<string, number>> {
   return page.evaluate((caseName) => window.benchmarkPage!.sample(caseName), name);
 }
 
@@ -157,7 +157,7 @@ function sampleBenchCase(page: Page, name: string): Promise<Record<string, numbe
  * A variant of a benchmark: the page it is sampled in and the case it runs there. One build of a
  * benchmark file running a case, or the working tree's build running one case of a `compare()`.
  */
-interface PageSlot {
+export interface PageSlot {
   /** How the slot is named in the report: `current`, `baseline`, or the compared case's name. */
   variant: string;
   url: string;
@@ -170,17 +170,17 @@ interface CaseResult {
   metrics: Record<string, RunMetricDefinition>;
 }
 
-type BenchmarkEntry = Pick<RunBenchmark, 'name' | 'file' | 'kind' | 'variants'>;
+export type BenchmarkEntry = Pick<RunBenchmark, 'name' | 'file' | 'kind' | 'variants'>;
 
 /** A benchmark to measure: its variants' slots, sampled as its options ask. */
-interface MeasuredBenchmark {
+export interface MeasuredBenchmark {
   entry: BenchmarkEntry;
   slots: PageSlot[];
   sampling: Required<SamplingOptions>;
 }
 
 /** A benchmark to measure, or why it can't be. */
-type PlannedBenchmark = MeasuredBenchmark | { entry: BenchmarkEntry; error: string };
+export type PlannedBenchmark = MeasuredBenchmark | { entry: BenchmarkEntry; error: string };
 
 /**
  * Measures one benchmark in a tab of its own, loading each slot's page before sampling it. Every
@@ -336,7 +336,22 @@ function withOverrides(
   return resolveSampling({ ...own, ...set });
 }
 
-export async function runInterleaved(options: RunInterleavedOptions): Promise<InterleavedResults> {
+/** What a run drives: the browser, and every benchmark it was asked for, in order. */
+export interface PlannedRun {
+  browser: Browser;
+  planned: PlannedBenchmark[];
+  /** How many of them measure across the builds. */
+  baselineBenchmarks: number;
+}
+
+/**
+ * Serves the builds, launches the browser and lists every benchmark the run was asked for, then
+ * hands them to `drive`, which measures or profiles them.
+ */
+export async function withPlannedRun<T>(
+  options: RunInterleavedOptions,
+  drive: (run: PlannedRun) => Promise<T>,
+): Promise<T> {
   const { chromium } = await import('@playwright/test');
   const [server, browser] = await Promise.all([
     serveDirectory(options.buildsDir),
@@ -366,7 +381,15 @@ export async function runInterleaved(options: RunInterleavedOptions): Promise<In
     const baselineBenchmarks = planned.filter(
       (plan) => 'slots' in plan && plan.entry.kind === 'baseline',
     ).length;
+    return await drive({ browser, planned, baselineBenchmarks });
+  } finally {
+    await browser.close();
+    await server.close();
+  }
+}
 
+export function runInterleaved(options: RunInterleavedOptions): Promise<InterleavedResults> {
+  return withPlannedRun(options, async ({ browser, planned, baselineBenchmarks }) => {
     const results: CaseResult[] = [];
     // Sequential on purpose: concurrent cases would contend for the same machine.
     for (const plan of planned) {
@@ -385,8 +408,5 @@ export async function runInterleaved(options: RunInterleavedOptions): Promise<In
       metrics: Object.assign({}, ...results.map((result) => result.metrics)),
       browserVersion: browser.version(),
     };
-  } finally {
-    await browser.close();
-    await server.close();
-  }
+  });
 }
