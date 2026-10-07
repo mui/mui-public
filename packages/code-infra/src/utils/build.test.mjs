@@ -1314,4 +1314,30 @@ describe('validateEnginesNode', () => {
       validateEnginesNode({ name: 'my-package', engines: { node: '>=18.0.0' } }, cwd),
     ).not.toThrow();
   });
+
+  describe('with the browserslist config at the workspace root', () => {
+    /**
+     * @param {string} browserslistrc
+     */
+    async function createWorkspacePackageDir(browserslistrc) {
+      const root = await createPackageDir(browserslistrc);
+      const cwd = path.join(root, 'packages/my-package');
+      await fs.mkdir(cwd, { recursive: true });
+      return cwd;
+    }
+
+    it('rejects engines.node below the node browserslist target', async () => {
+      const cwd = await createWorkspacePackageDir('[node]\nnode 22.0\n');
+      expect(() =>
+        validateEnginesNode({ name: 'my-package', engines: { node: '>=18.0.0' } }, cwd),
+      ).toThrow('Raise "engines.node" to at least 22.0.0');
+    });
+
+    it('accepts engines.node at or above the node browserslist target', async () => {
+      const cwd = await createWorkspacePackageDir('[node]\nnode 22.0\n');
+      expect(() =>
+        validateEnginesNode({ name: 'my-package', engines: { node: '>=22.0.0' } }, cwd),
+      ).not.toThrow();
+    });
+  });
 });
