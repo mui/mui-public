@@ -9,7 +9,7 @@ export type {
   MetricConfig,
   MetricDefinition,
 } from './types';
-export type { BenchmarkInput } from './input';
+export type { BenchmarkCdp, BenchmarkInput } from './input';
 export type { BenchmarkInteraction } from './caseRuntime';
 export { ElementTiming } from './ElementTiming';
 export { Metric, type MetricRecordOptions } from './metricCore';

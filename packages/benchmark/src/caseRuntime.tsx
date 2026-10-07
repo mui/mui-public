@@ -3,7 +3,6 @@ import * as React from 'react';
 import * as ReactDOMClient from 'react-dom/profiling';
 import * as ReactDOM from 'react-dom';
 import type { RenderEvent, InteractionContext, BenchmarkCaseRuntime } from './types';
-import type { BenchmarkInput } from './input';
 import { ElementTiming } from './ElementTiming';
 import { createReactRecordingControls } from './reactRecording';
 import type { ReactRecordingControls } from './reactRecording';
@@ -261,7 +260,7 @@ export async function measureIteration(
   renderFn: () => React.ReactElement,
   interaction: BenchmarkInteraction | undefined,
   options: CaseOptions | undefined,
-  input: BenchmarkInput,
+  driver: Pick<InteractionContext, 'input' | 'cdp'>,
 ): Promise<MeasuredIteration> {
   // Per-iteration switch for the harness's React render/paint recording. Starts paused when
   // `reactRecordingPaused` is set; the interaction callback drives it from there.
@@ -285,7 +284,7 @@ export async function measureIteration(
       waitForElementTiming: timing.waitForElementTiming,
       pauseReactRecording: recording.pauseReactRecording,
       resumeReactRecording: recording.resumeReactRecording,
-      input,
+      ...driver,
     },
     onUncaughtError: (error) => {
       renderFailure = { error };

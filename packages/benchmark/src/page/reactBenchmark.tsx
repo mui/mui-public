@@ -40,8 +40,8 @@ export function reactBenchmark(
 ): BenchmarkCase {
   const { interaction, options } = splitCaseArgs(interactionOrOptions, maybeOptions);
 
-  const run = async ({ input }: BenchmarkContext) => {
-    const result = await measureIteration(renderFn, interaction, options, input);
+  const run = async ({ input, cdp }: BenchmarkContext) => {
+    const result = await measureIteration(renderFn, interaction, options, { input, cdp });
 
     // Render time is reported as totals rather than per render: an interaction's render count
     // follows whatever the browser coalesced, so per-render values would not line up across

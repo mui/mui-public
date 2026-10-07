@@ -89,6 +89,33 @@ iteration to the next. Wait for the mount to be painted — `await waitForElemen
 before starting a gesture on something the case just rendered; until then, the browser may not route
 the gesture to it.
 
+For anything else the browser can do, the context has `cdp`, the Chrome DevTools Protocol on the
+session that drives the page: throttle the CPU, or read the engine's own counters as a custom metric.
+
+```tsx
+const layouts = new DiscreteMetric({ name: 'layout:count' });
+
+benchmark(
+  'Grid scroll',
+  () => <Grid />,
+  async ({ input, cdp }) => {
+    await cdp.send('Performance.enable');
+    const count = async () => {
+      const { metrics } = (await cdp.send('Performance.getMetrics')) as {
+        metrics: Array<{ name: string; value: number }>;
+      };
+      return metrics.find((metric) => metric.name === 'LayoutCount')!.value;
+    };
+    const before = await count();
+    await input.scroll({ x: 400, y: 300, deltaY: 2000 });
+    layouts.record((await count()) - before);
+  },
+);
+```
+
+A setting a case changes this way, such as CPU throttling, stays on the tab for later samples and for
+the other cases sampled in it, those of a `compare()` too: a case that changes one sets it every time.
+
 ### Scoping which renders are measured
 
 By default a benchmark records every React render and paint, from the mount through the whole interaction. To measure only part of an interaction — or to exclude the mount — pause and resume recording from the interaction callback:

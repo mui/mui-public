@@ -1,6 +1,6 @@
 import { collectGarbage } from '../gc';
 import { createInput } from '../input';
-import type { BenchmarkInput } from '../input';
+import type { BenchmarkCdp, BenchmarkInput, CdpSend } from '../input';
 import { seriesName, setMetricRecorder } from '../metricCore';
 import { hasSampling, pickSampling, resolveSampling } from '../sampling';
 import type { SamplingOptions } from '../sampling';
@@ -15,6 +15,8 @@ import type { MetricDefinition } from '../types';
 export interface BenchmarkContext {
   /** Trusted input — scroll, pinch, tap — dispatched by the browser rather than from script. */
   input: BenchmarkInput;
+  /** The DevTools Protocol, for what the case sets up or reads from the browser itself. */
+  cdp: BenchmarkCdp;
 }
 
 /**
@@ -139,12 +141,14 @@ declare global {
   }
 }
 
-const input = createInput((method, params) => {
+const send: CdpSend = (method, params) => {
   if (!window.benchmarkCdp) {
     throw new Error('No CDP bridge: the runner must expose `benchmarkCdp` on this page.');
   }
   return window.benchmarkCdp(method, params);
-});
+};
+const input = createInput(send);
+const cdp: BenchmarkCdp = { send };
 
 async function sample(name: string): Promise<Record<string, number>> {
   const run = cases.get(name)?.run;
@@ -158,7 +162,7 @@ async function sample(name: string): Promise<Record<string, number>> {
   const values = new Map<string, number>();
   sampleValues = values;
   try {
-    await run({ input });
+    await run({ input, cdp });
   } finally {
     sampleValues = null;
   }

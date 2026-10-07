@@ -1,4 +1,4 @@
-import type { BenchmarkInput } from './input';
+import type { BenchmarkCdp, BenchmarkInput } from './input';
 
 export interface RenderEvent {
   id: string;
@@ -42,6 +42,8 @@ export interface InteractionContext {
    * that should behave like a real mouse or trackpad rather than synthetic DOM events.
    */
   input: BenchmarkInput;
+  /** The DevTools Protocol, for what the interaction sets up or reads from the browser itself. */
+  cdp: BenchmarkCdp;
 }
 
 // One benchmark case's lifecycle. The measurement loop creates one per iteration and drives it
