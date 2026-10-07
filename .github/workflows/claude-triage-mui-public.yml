@@ -1,14 +1,39 @@
 name: Issue triage
 
 on:
-  issue_comment:
-    types: [created]
+  issues:
+    types: [labeled]
 
 permissions: {}
 
 jobs:
+  request:
+    if: >-
+      !github.event.issue.pull_request &&
+      ((github.event_name == 'issue_comment' && github.event.action == 'created') ||
+       (github.event_name == 'issues' && github.event.action == 'labeled' && github.event.label.name == 'ai: needs-triage'))
+    runs-on: ubuntu-latest
+    permissions: {}
+    outputs:
+      mode: ${{ steps.command.outputs.mode }}
+    steps:
+      - name: Recognize the triage request
+        id: command
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const { comment, label } = context.payload;
+            const requested = context.eventName === 'issues'
+              ? label?.name === 'ai: needs-triage'
+              : comment?.body.trim().toLowerCase() === '@claude triage';
+            if (requested) {
+              core.setOutput('mode', 'triage');
+            }
+
   # Call the reusable workflow with this repository's configuration.
   triage:
+    needs: request
+    if: needs.request.outputs.mode != ''
     # Maximum grant; Claude jobs narrow to read-only GitHub access and id-token: write.
     permissions:
       contents: write # Publisher pushes the validated fix branch.
@@ -17,8 +42,11 @@ jobs:
       id-token: write # Claude jobs authenticate to Anthropic through OIDC federation.
     uses: ./.github/workflows/claude-triage.yml
     with:
+      issue-number: ${{ github.event.issue.number }}
+      mode: ${{ needs.request.outputs.mode }}
+      comment-id: ${{ github.event.comment.id || 0 }}
       # Repository-specific configuration passed to the reusable workflow.
-      debug: false # Set to true to log full Claude output, including tool results.
+      debug: true # Set to true temporarily to log full Claude output, including tool results.
       node-version: 22.23.3
       setup-command: |
         pnpm install --frozen-lockfile
