@@ -3,6 +3,7 @@ import eslintJs from '@eslint/js';
 import { defineConfig } from 'eslint/config';
 import prettier from 'eslint-config-prettier/flat';
 import compatPlugin from 'eslint-plugin-compat';
+import nPlugin from 'eslint-plugin-n';
 import importPlugin from 'eslint-plugin-import';
 import jsxA11yPlugin from 'eslint-plugin-jsx-a11y';
 import reactPlugin from 'eslint-plugin-react';
@@ -59,6 +60,9 @@ export function createBaseConfig({
       },
       plugins: {
         mui: muiPlugin,
+        // Registered once for all files, so consumers can enable `n/*` rules without registering
+        // a second, possibly different, instance of the plugin.
+        n: nPlugin,
       },
       settings: {
         react: {

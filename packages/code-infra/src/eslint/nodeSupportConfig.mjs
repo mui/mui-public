@@ -32,11 +32,13 @@ function findPackageDirsWithEnginesNode(baseDirectory) {
 }
 
 /**
- * Reports built-ins and syntax in package sources that the Node.js versions allowed by the
- * package's "engines.node" don't support. The build only transpiles syntax for the "node"
- * browserslist target and doesn't polyfill built-ins, so they reach consumers as written.
- * Only packages that declare "engines.node" are checked.
- * @param {string} baseDirectory - The repository root.
+ * Reports syntax, ECMAScript built-ins and Node.js APIs in package sources that the Node.js
+ * versions allowed by the package's "engines.node" don't support. The ESM bundle is compiled for
+ * the "stable" browserslist environment rather than for "engines.node", and nothing polyfills
+ * built-ins, so all of them reach Node.js consumers as written.
+ * Only packages that declare "engines.node", meaning they're intended to run in Node.js, are
+ * checked.
+ * @param {string} baseDirectory - The repository root. File patterns are resolved against it.
  * @returns {import('eslint').Linter.Config[]}
  */
 export function createNodeSupportConfig(baseDirectory) {
@@ -47,12 +49,19 @@ export function createNodeSupportConfig(baseDirectory) {
   return defineConfig([
     {
       name: 'Node.js support of package sources',
+      basePath: baseDirectory,
       files: packageDirs.map((packageDir) => `${packageDir}/src/**/*${EXTENSION_TS}`),
-      ignores: [`**/*${EXTENSION_TEST_FILE}`],
+      ignores: [`**/*${EXTENSION_TEST_FILE}`, `**/*.spec${EXTENSION_TS}`],
       plugins: { n: nPlugin },
       rules: {
         'n/no-unsupported-features/es-builtins': 'error',
         'n/no-unsupported-features/es-syntax': 'error',
+        'n/no-unsupported-features/node-builtins': [
+          'error',
+          // Browser APIs that Node.js also exposes, behind an experimental flag. In packages that
+          // combine Node.js tooling with browser code, these refer to the browser API.
+          { ignores: ['localStorage', 'sessionStorage', 'Storage', 'navigator', 'Navigator'] },
+        ],
       },
     },
   ]);

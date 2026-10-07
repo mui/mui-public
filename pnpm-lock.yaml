@@ -245,9 +245,6 @@ importers:
       baseline-browser-mapping:
         specifier: 2.11.27
         version: 2.11.27
-      eslint-plugin-n:
-        specifier: 18.4.0
-        version: 18.4.0(@typescript/typescript6@6.0.2)(eslint@10.11.0(jiti@2.7.0)(supports-color@10.2.2))
       pkg-pr-new:
         specifier: 0.0.88
         version: 0.0.88
