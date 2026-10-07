@@ -1,9 +1,15 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { z } from 'zod/v4';
-import { uploadReport } from '@/lib/ciReports/s3';
+import { uploadReport, writeMarker } from '@/lib/ciReports/s3';
 import { verifyOidcToken } from '@/lib/ciReports/oidcAuth';
 import { findAssociatedPr } from '@/lib/ciReports/findAssociatedPr';
+import {
+  isTrackedBranch,
+  reportFileName,
+  resolveTimeline,
+  timelinePointerKey,
+} from '@/lib/ciReports/timeline';
 
 const VALID_REPORT_TYPES = new Set(['size-snapshot', 'benchmark']);
 
@@ -15,11 +21,13 @@ const uploadSchema = z.object({
   reportType: z.string(),
   prNumber: z.number().int().positive().optional(),
   branch: z.string(),
+  /** A timeline of the job's own, in place of the branch's; see `resolveTimeline`. */
+  timeline: z.string().optional(),
+  /** When the commit was made, in milliseconds, to order it in its timeline. */
+  commitTimestamp: z.number().optional(),
   report: z.any(),
   base: z.any().optional(),
 });
-
-const BASE_BRANCH_REGEX = /^(master|main|next|v[^/]*\.[^/]*)$/;
 
 // This endpoint is authenticated via CI OIDC tokens. The client sends
 // a Bearer token in the Authorization header, which is verified against
@@ -53,7 +61,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { commitSha, repo, reportType, branch, report } = parsed.data;
+  const { commitSha, repo, reportType, branch, report, timestamp, commitTimestamp } = parsed.data;
 
   // For benchmark uploads, store the full wrapper (version, timestamp, commitSha,
   // repo, branch, prNumber, reportType, report, base). Other report types keep
@@ -70,17 +78,39 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const resolution = resolveTimeline({
+    requested: parsed.data.timeline,
+    branch,
+    trusted: oidcResult.isTrusted,
+  });
+  if ('error' in resolution) {
+    return NextResponse.json({ error: resolution.error }, { status: 400 });
+  }
+  const { timeline } = resolution;
+
   if (oidcResult.isTrusted) {
     // Same-org builds are fully trusted — use sourceRepo from OIDC for the S3 key.
-    const key = `artifacts/${oidcResult.sourceRepo}/${commitSha}/${reportType}.json`;
-    const isBaseBranch = BASE_BRANCH_REGEX.test(branch);
+    const targetRepo = oidcResult.sourceRepo;
+    const key = `artifacts/${targetRepo}/${commitSha}/${reportFileName(reportType, timeline)}`;
     await uploadReport({
       key,
       body: storedBody,
-      isBaseBranch,
+      isBaseBranch: isTrackedBranch(branch),
       branch,
     });
-    return NextResponse.json({ key });
+    // Written after the report, so a timeline never lists a commit whose report isn't there.
+    if (timeline !== null) {
+      await writeMarker(
+        timelinePointerKey(
+          targetRepo,
+          timeline,
+          reportType,
+          commitTimestamp ?? timestamp,
+          commitSha,
+        ),
+      );
+    }
+    return NextResponse.json({ key, timeline });
   }
 
   // Fork builds: verify the PR exists and the commit matches
