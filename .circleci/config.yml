@@ -155,6 +155,34 @@ jobs:
           key: benchmark-run-cache-v1-{{ checksum ".benchmark-baseline-sha" }}
           paths:
             - test/benchmark/.benchmark/packed
+  # The commit against itself: any regression it reports is a false alarm, so over many nights the
+  # job's failure rate is the benchmarks' false-alarm rate, about 5% when the statistics are honest.
+  benchmark_aa:
+    <<: *default-job
+    executor:
+      name: code-infra/mui-node-browser
+      playwright-img-version: 'v1.62.1-noble'
+    resource_class: medium+
+    steps:
+      - checkout
+      - code-infra/install-deps
+      - run:
+          name: Build packages
+          command: pnpm release:build
+      - run:
+          name: Benchmark the commit against itself
+          no_output_timeout: 30m
+          command: pnpm --silent -F ./test/benchmark benchmark:run --baseline HEAD --reporter json > aa.json
+      - store_artifacts:
+          path: aa.json
+      - run:
+          name: Fail on a false alarm
+          command: |
+            node -e "
+              const { regressions } = JSON.parse(require('fs').readFileSync('aa.json', 'utf8'));
+              for (const { benchmark, metric } of regressions) console.error('False alarm: ' + benchmark + ' · ' + metric);
+              process.exit(regressions.length > 0 ? 1 : 0);
+            "
 
   test_browser:
     <<: *default-job
@@ -200,4 +228,11 @@ workflows:
       - test_benchmark_run:
           <<: *default-context
       - test_browser:
+          <<: *default-context
+  # Started nightly on master by a scheduled pipeline that sets `workflow` to `benchmark-aa`.
+  benchmark-aa:
+    when:
+      equal: [benchmark-aa, << pipeline.parameters.workflow >>]
+    jobs:
+      - benchmark_aa:
           <<: *default-context
