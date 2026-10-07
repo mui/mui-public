@@ -149,7 +149,9 @@ export async function buildRefPages(options: {
   // it to `src/`, the same as for a plain `vite build`.
   await vite.build({
     root: harnessDir,
-    logLevel: 'info',
+    // Warnings and errors only: the run says what it builds, and the bundler's own progress lines go
+    // to stdout, which stays free for what a caller asks for, such as a JSON report.
+    logLevel: 'warn',
     build: { outDir },
   });
 }

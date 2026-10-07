@@ -16,7 +16,9 @@ export interface SamplingOptions {
   /**
    * Relative differences to resolve before `timeout`. A difference is resolved against a horizon
    * once its confidence interval lies entirely on one side of it. `'10%'` stands for both `'-10%'`
-   * and `'+10%'`. Defaults to `['0%']`: sample until each change is known to be better or worse.
+   * and `'+10%'`. Defaults to `['5%']`: sample until each change is known to be larger or smaller
+   * than 5%. A `0%` horizon tests whether there is any change at all: identical builds never resolve
+   * against it, and checking again after every round makes a false finding likelier.
    *
    * Judged on the metrics that alarm — the ones a change can be flagged on — or on every metric when
    * none does.
@@ -27,7 +29,7 @@ export interface SamplingOptions {
 export const DEFAULT_SAMPLING: Required<SamplingOptions> = {
   sampleSize: 50,
   timeout: 3,
-  autoSampleConditions: ['0%'],
+  autoSampleConditions: ['5%'],
 };
 
 /** Parses `autoSampleConditions` into signed horizons, in percent. */

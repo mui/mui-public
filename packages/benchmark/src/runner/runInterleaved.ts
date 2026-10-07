@@ -5,7 +5,7 @@ import type { Browser, CDPSession, Page } from '@playwright/test';
 import { BENCHMARK_LAUNCH_ARGS, BENCHMARK_VIEWPORT } from '../launchArgs';
 import { compareBenchmark, countAlarmedComparisons } from '../runReport';
 import type { RunBenchmark, RunMetricDefinition } from '../runReport';
-import { differencesResolved, parseHorizons } from '../sampling';
+import { differencesResolved, parseHorizons, resolveSampling } from '../sampling';
 import type { SamplingOptions } from '../sampling';
 import type { BenchFile } from './benchFiles';
 import type { ResolvedRef } from './refs';
@@ -31,6 +31,10 @@ export interface RunInterleavedOptions {
   benchRefs: ResolvedRef[];
   browserBinary: string;
   launchArgs: string[];
+  /** Sampling options that override every benchmark's own. */
+  sampling?: SamplingOptions;
+  /** Only run benchmarks whose name matches this, like Vitest's `-t`. */
+  testNamePattern?: RegExp;
 }
 
 export interface InterleavedResults {
@@ -310,15 +314,26 @@ async function planBenchFile(
       return { entry, error: `"${caseName}" does not exist in [${variants[missing + 1]}].` };
     }
     const slots = urls.map((url, index) => ({ variant: variants[index], url, caseName }));
-    return { entry, slots, sampling };
+    return { entry, slots, sampling: withOverrides(sampling, options.sampling) };
   });
 
   for (const { name, cases, sampling } of reference.comparisons) {
     const entry: BenchmarkEntry = { name, file: benchFile.file, kind: 'compare', variants: cases };
     const slots = cases.map((caseName) => ({ variant: caseName, url: urls[0], caseName }));
-    planned.push({ entry, slots, sampling });
+    planned.push({ entry, slots, sampling: withOverrides(sampling, options.sampling) });
   }
   return planned;
+}
+
+/** A benchmark's own sampling, with the run's overrides on top: only the options the run set. */
+function withOverrides(
+  own: Required<SamplingOptions>,
+  overrides: SamplingOptions = {},
+): Required<SamplingOptions> {
+  const set = Object.fromEntries(
+    Object.entries(overrides).filter(([, value]) => value !== undefined),
+  );
+  return resolveSampling({ ...own, ...set });
 }
 
 export async function runInterleaved(options: RunInterleavedOptions): Promise<InterleavedResults> {
@@ -335,13 +350,19 @@ export async function runInterleaved(options: RunInterleavedOptions): Promise<In
   try {
     // Every file is listed before any is measured, so each benchmark knows how many others share
     // the run's chance of a false alarm. Nothing is measured yet, so the files list at once.
+    const { testNamePattern } = options;
     const planned = (
       await Promise.all(
         options.benchFiles.map((benchFile) =>
           planBenchFile(browser, server.origin, benchFile, options),
         ),
       )
-    ).flat();
+    )
+      .flat()
+      .filter((plan) => !testNamePattern || testNamePattern.test(plan.entry.name));
+    if (planned.length === 0) {
+      throw new Error(`No benchmark name matches ${testNamePattern}.`);
+    }
     const baselineBenchmarks = planned.filter(
       (plan) => 'slots' in plan && plan.entry.kind === 'baseline',
     ).length;

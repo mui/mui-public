@@ -115,13 +115,17 @@ async function removeAbandonedCheckouts(repoRoot: string, outRoot: string): Prom
   );
 }
 
+// A command's own output is progress, so it goes to stderr: stdout stays free for what a caller
+// asks for, such as a JSON report.
+const PROGRESS_STDIO = { stdin: 'inherit', stdout: process.stderr, stderr: 'inherit' } as const;
+
 /** Runs `buildCmd` in `cwd`, with the nx daemon off so nothing keeps writing after it returns. */
 async function build(cwd: string, buildCmd: string): Promise<void> {
   const [file, ...args] = parseCommandString(buildCmd);
   await execa(file, args, {
     cwd,
     env: { NX_DAEMON: 'false' },
-    stdio: 'inherit',
+    ...PROGRESS_STDIO,
     verbose: 'short',
   });
 }
@@ -226,7 +230,7 @@ export async function packRef(options: PackRefOptions): Promise<PackedPackage[]>
     if (installCmd) {
       console.log(chalk.cyan(`\nInstalling dependencies for ${sha.slice(0, 9)}…`));
       const [installFile, ...installArgs] = parseCommandString(installCmd);
-      await execa(installFile, installArgs, { cwd: checkout, stdio: 'inherit', verbose: 'short' });
+      await execa(installFile, installArgs, { cwd: checkout, ...PROGRESS_STDIO, verbose: 'short' });
     }
     console.log(chalk.cyan(`\nBuilding packages for ${sha.slice(0, 9)}…`));
     await build(checkout, buildCmd);

@@ -11,8 +11,15 @@ import { hideBin } from 'yargs/helpers';
 import pkgJson from '@mui/internal-benchmark/package.json' with { type: 'json' };
 import type { RunBenchmarksOptions } from '../runner/runBenchmarks';
 
-/** Everything `runBenchmarks` takes except the directory, which is where the command was run. */
-type Args = Omit<RunBenchmarksOptions, 'harnessDir'>;
+/**
+ * Everything `runBenchmarks` takes except the directory, which is where the command was run, with
+ * its sampling overrides as flags of their own.
+ */
+type Args = Omit<RunBenchmarksOptions, 'harnessDir' | 'sampling'> & {
+  sampleSize?: number;
+  timeout?: number;
+  autoSampleConditions?: string[];
+};
 
 const runCommand: CommandModule<{}, Args> = {
   command: '$0 [filters...]',
@@ -44,8 +51,39 @@ const runCommand: CommandModule<{}, Args> = {
       .option('out', {
         type: 'string',
         describe: 'Write the JSON report here. Default: .benchmark/results/report.json',
+      })
+      .option('testNamePattern', {
+        alias: 't',
+        type: 'string',
+        describe: 'Only run benchmarks whose name matches this regular expression',
+      })
+      .option('reporter', {
+        choices: ['default', 'json'] as const,
+        default: 'default' as const,
+        describe:
+          'How to print the results: tables, or the analysis as JSON on stdout (medians, intervals, verdicts), with everything else on stderr',
+      })
+      .option('sample-size', {
+        type: 'number',
+        describe: "Rounds before deciding whether to continue, overriding every benchmark's own",
+      })
+      .option('timeout', {
+        type: 'number',
+        describe: "Minutes to keep sampling while unresolved, overriding every benchmark's own",
+      })
+      .option('auto-sample-conditions', {
+        type: 'string',
+        array: true,
+        describe: "Horizons to resolve, such as 5% or 10%, overriding every benchmark's own",
       }),
   handler: async (argv) => {
+    if (argv.reporter === 'json') {
+      // Stdout carries the JSON alone; what a run prints along the way is progress.
+      /* eslint-disable no-console */
+      console.log = console.error;
+      console.info = console.error;
+      /* eslint-enable no-console */
+    }
     const { runBenchmarks } = await import('../runner/runBenchmarks');
     await runBenchmarks({
       harnessDir: process.cwd(),
@@ -54,9 +92,22 @@ const runCommand: CommandModule<{}, Args> = {
       buildCmd: argv.buildCmd,
       out: argv.out,
       upload: argv.upload,
+      testNamePattern: argv.testNamePattern,
+      reporter: argv.reporter,
+      sampling: {
+        sampleSize: argv.sampleSize,
+        timeout: argv.timeout,
+        autoSampleConditions: argv.autoSampleConditions,
+      },
     });
   },
 };
+
+// chalk honours FORCE_COLOR and --no-color, not the NO_COLOR convention (https://no-color.org):
+// set to anything but an empty string, it turns colour off.
+if (process.env.NO_COLOR) {
+  chalk.level = 0;
+}
 
 let globalArgv: { verbose?: boolean } = {};
 

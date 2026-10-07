@@ -411,24 +411,26 @@ minutes. A difference is resolved against a horizon once its confidence interval
 one side of it; `'10%'` stands for both `'-10%'` and `'+10%'`. The metrics that alarm decide, or every
 metric when none does.
 
-| Option                 | Default  | Meaning                                                               |
-| :--------------------- | :------- | :-------------------------------------------------------------------- |
-| `sampleSize`           | `50`     | Rounds measured before deciding whether to continue                   |
-| `timeout`              | `3`      | Minutes to keep sampling while a difference is unresolved             |
-| `autoSampleConditions` | `['0%']` | Horizons to resolve: by default, until each change is better or worse |
+| Option                 | Default  | Meaning                                                                         |
+| :--------------------- | :------- | :------------------------------------------------------------------------------ |
+| `sampleSize`           | `50`     | Rounds measured before deciding whether to continue                             |
+| `timeout`              | `3`      | Minutes to keep sampling while a difference is unresolved                       |
+| `autoSampleConditions` | `['5%']` | Horizons to resolve: by default, until each change is larger or smaller than 5% |
 
 They are set per benchmark: the last argument of `benchmark()` and `compare()`, and among
 `reactBenchmark()`'s options. A compared case is sampled as its `compare()` asks, so setting its own
-is an error.
+is an error. `--sample-size`, `--timeout` and `--auto-sample-conditions` override them for every
+benchmark of a run, to iterate quickly without editing benchmark files.
 
 ```tsx
-reactBenchmark('mount', () => <Grid rows={1000} />, { timeout: 1, autoSampleConditions: ['5%'] });
+reactBenchmark('mount', () => <Grid rows={1000} />, { timeout: 1, autoSampleConditions: ['10%'] });
 
 compare('scatter', [ours, other], { sampleSize: 100 });
 ```
 
-Two builds that perform the same never resolve against `0%`, so an unchanged benchmark samples until
-its timeout; a horizon such as `'5%'` settles once a difference is known to be smaller than that.
+A `'0%'` horizon asks whether there is any change at all. Two builds that perform the same never
+resolve against it, so an unchanged benchmark samples until its timeout, and checking again after
+every round makes a false finding likelier the longer it goes.
 
 ### The report
 
@@ -476,6 +478,20 @@ if one was killed outright. Two things follow from it. A tracked file names tarb
 `.benchmark/` until the run ends, so do not commit while one is in flight. And the pins are global to
 the workspace for that time, because pnpm scopes an override by parent package name and a harness has
 none — so nothing else should build against the same checkout meanwhile.
+
+### Choosing what runs, and how it prints
+
+Named as in Vitest: positional arguments keep the benchmark files whose path contains one of them,
+and `-t` / `--testNamePattern` the benchmarks whose name matches a regular expression.
+
+```bash
+benchmark grid -t "scroll$" --sample-size 20 --timeout 0
+```
+
+`--reporter json` prints the run's analysis to stdout as JSON — per benchmark and metric, each
+variant's median and each comparison's interval, verdict and severity, plus the regressions and how
+long it all took — with everything else a run prints sent to stderr. `summarizeRun` from
+`@mui/internal-benchmark/runReport` produces the same from a report. `NO_COLOR` turns colour off.
 
 `benchmark --help` lists the remaining options.
 

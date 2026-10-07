@@ -7,7 +7,9 @@ import chalk from 'chalk';
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import { packRef, packWorkingTree } from '../utils/packWorkspace';
 import { getCiMetadata } from '../ciReport';
+import { summarizeRun } from '../runReport';
 import type { BenchmarkRunReport } from '../runReport';
+import type { SamplingOptions } from '../sampling';
 import { refLabel, resolveBaselineRef, WORKTREE_REF } from './refs';
 import type { ResolvedRef } from './refs';
 import { discoverBenchFiles } from './benchFiles';
@@ -41,6 +43,15 @@ export interface RunBenchmarksOptions {
   out?: string;
   /** Upload the report and refresh the pull request comment. */
   upload?: boolean;
+  /** Sampling options that override every benchmark's own, for the whole run. */
+  sampling?: SamplingOptions;
+  /** Only run benchmarks whose name matches this regular expression, like Vitest's `-t`. */
+  testNamePattern?: string;
+  /**
+   * How the results are printed: `default`, tables for reading, or `json`, the analysis as JSON on
+   * stdout — medians, intervals and verdicts — for a program to read.
+   */
+  reporter?: 'default' | 'json';
 }
 
 /**
@@ -59,7 +70,12 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
     buildCmd = 'pnpm release:build',
     out,
     upload = false,
+    sampling,
+    testNamePattern,
+    reporter = 'default',
   } = options;
+  // Compiled before anything is built, so a bad pattern fails at once.
+  const namePattern = testNamePattern === undefined ? undefined : new RegExp(testNamePattern);
 
   const repoRoot = await findWorkspaceDir(harnessDir);
   if (!repoRoot) {
@@ -153,6 +169,8 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
       benchRefs: refs,
       browserBinary,
       launchArgs,
+      sampling,
+      testNamePattern: namePattern,
     });
 
     const { commitSha, branch } = await getCiMetadata();
@@ -177,8 +195,13 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
     const outPath = out ? path.resolve(out) : resultsPathOf(harnessDir);
     await mkdir(path.dirname(outPath), { recursive: true });
     await writeFile(outPath, `${JSON.stringify(report, null, 2)}\n`);
-    console.log('');
-    printRunReport(report);
+    if (reporter === 'json') {
+      // The only thing on stdout: everything else a run prints goes to stderr in this mode.
+      process.stdout.write(`${JSON.stringify(summarizeRun(report), null, 2)}\n`);
+    } else {
+      console.log('');
+      printRunReport(report);
+    }
     console.log(chalk.green(`\nWrote JSON report to ${outPath}`));
 
     if (upload) {
