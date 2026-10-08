@@ -1,4 +1,6 @@
 import { Octokit } from '@octokit/rest';
+import { mapAsync } from 'es-toolkit/array';
+import { retry } from 'es-toolkit/function';
 
 import { persistentAuthStrategy } from '../utils/github.mjs';
 
@@ -71,49 +73,75 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
     results.push(...response.data.commits);
   }
 
-  const promises = results.map(async (commit) => {
-    const matches = [...commit.commit.message.matchAll(/#(\d+)/g)];
-    // The PR number is always the last match.
-    // Sometimes the PR titles include an issue number like this:
-    // [tag] PR title (#00001) (#00002)
-    const prMatch = matches.at(-1);
-    if (!prMatch) {
-      return null;
-    }
+  const commits = await mapAsync(
+    results,
+    async (commit) => {
+      const matches = [...commit.commit.message.matchAll(/#(\d+)/g)];
+      // The PR number is always the last match.
+      // Sometimes the PR titles include an issue number like this:
+      // [tag] PR title (#00001) (#00002)
+      const prMatch = matches.at(-1);
+      if (!prMatch) {
+        return null;
+      }
 
-    const prNumber = parseInt(prMatch[1], 10);
+      const prNumber = parseInt(prMatch[1], 10);
 
-    const pr = await octokit.pulls.get({
-      owner: org,
-      repo,
-      pull_number: prNumber,
-      headers: {
-        Accept: 'application/vnd.github.text+json',
-      },
-    });
+      const pr = await retry(
+        () =>
+          octokit.pulls.get({
+            owner: org,
+            repo,
+            pull_number: prNumber,
+            headers: {
+              Accept: 'application/vnd.github.text+json',
+            },
+          }),
+        {
+          retries: 3,
+          delay: (attempt) => 1000 * 2 ** attempt,
+          shouldRetry: (error) => isServerError(error),
+        },
+      );
 
-    const labels = pr.data.labels.map((label) => label.name);
+      const labels = pr.data.labels.map((label) => label.name);
 
-    return /** @type {FetchedCommitDetails} */ ({
-      sha: commit.sha,
-      message: commit.commit.message,
-      labels,
-      prNumber,
-      html_url: pr.data.html_url,
-      mergedAt: pr.data.merged_at,
-      createdAt: pr.data.created_at,
-      author: pr.data.user?.login
-        ? {
-            login: pr.data.user.login,
-            association: getAuthorAssociation(pr.data.author_association),
-          }
-        : null,
-      prTitle: pr.data.title,
-      prBody: pr.data.body,
-    });
-  });
+      return /** @type {FetchedCommitDetails} */ ({
+        sha: commit.sha,
+        message: commit.commit.message,
+        labels,
+        prNumber,
+        html_url: pr.data.html_url,
+        mergedAt: pr.data.merged_at,
+        createdAt: pr.data.created_at,
+        author: pr.data.user?.login
+          ? {
+              login: pr.data.user.login,
+              association: getAuthorAssociation(pr.data.author_association),
+            }
+          : null,
+        prTitle: pr.data.title,
+        prBody: pr.data.body,
+      });
+    },
+    { concurrency: 10 },
+  );
 
-  return (await Promise.all(promises)).filter((entry) => entry !== null);
+  return commits.filter((entry) => entry !== null);
+}
+
+/**
+ * @param {unknown} error
+ * @returns {boolean}
+ */
+function isServerError(error) {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'status' in error &&
+    typeof error.status === 'number' &&
+    error.status >= 500
+  );
 }
 
 /**
