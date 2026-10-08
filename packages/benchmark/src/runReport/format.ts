@@ -1,4 +1,4 @@
-import { CONFIDENCE, tCritical } from './analyzeRun';
+import { ALARMED_CONFIDENCE, CONFIDENCE, tCritical } from './analyzeRun';
 import type {
   BenchmarkAnalysis,
   Change,
@@ -43,14 +43,15 @@ export function formatPercent(interval: Interval): string {
   return `${signed(interval.low)} – ${signed(interval.high)}`;
 }
 
+/** The colour a renderer draws the eye with; a `Severity` is one too. */
+export type Tone = 'error' | 'warning' | 'success' | 'none';
+
 /**
  * The colour a comparison draws the eye with: `error` for a regression that fails the check,
  * `warning` for any other change for the worse, `success` for one for the better, and `none` when
  * nothing moved.
  */
-export type ChangeTone = 'error' | 'warning' | 'success' | 'none';
-
-export function changeTone({ change, severity }: MetricComparison): ChangeTone {
+export function changeTone({ change, severity }: MetricComparison): Tone {
   if (severity === 'error') {
     return 'error';
   }
@@ -60,51 +61,33 @@ export function changeTone({ change, severity }: MetricComparison): ChangeTone {
   return change === 'better' ? 'success' : 'none';
 }
 
-export interface ComparisonPrecision {
-  /** The interval's half-width: `±1.4%`, or `±0.5` for a discrete metric, whose bands are counts. */
-  label: string;
-  /**
-   * Whether a regression the alarm cares about could have hidden in the interval: `warning` past the
-   * `warn` band, `error` past the `error` band, `none` within them or without bands to judge by.
-   */
-  tone: Exclude<ChangeTone, 'success'>;
-  /** The per-round noise behind it, and the rounds it would take to resolve the `warn` band. */
-  detail: string;
+// Rounds past which the t-distribution is the normal one, for estimating how many a run needs.
+const MANY_ROUNDS = 1000;
+
+/** A comparison's precision as it reads: `±1.4%`, or `±0.5` for a discrete metric. */
+export function formatPrecision(comparison: MetricComparison, definition: RunMetricDefinition) {
+  return definition.kind === 'discrete'
+    ? `±${comparison.precision.toFixed(1)}`
+    : `±${(comparison.precision * 100).toFixed(1)}%`;
 }
 
 /**
- * How precisely a run pinned a comparison down: the smallest change it could still have missed,
- * judged against the metric's alarm bands.
+ * What lies behind a precision: the per-round noise, and how many rounds would resolve the alarm's
+ * `warn` band — `±2.0% per round · about 7 rounds resolve ±2%`.
  */
-export function comparisonPrecision(
+export function formatPrecisionDetail(
   comparison: MetricComparison,
   definition: RunMetricDefinition,
-): ComparisonPrecision {
-  const scalar = definition.kind === 'scalar';
-  const interval = scalar ? comparison.relative : comparison.absolute;
-  const halfWidth = (interval.high - interval.low) / 2;
-  // Scalar bands are fractions; the relative interval is in percent.
-  const width = scalar ? halfWidth / 100 : halfWidth;
-  const { warn, error } = definition.alarm ?? {};
-  let tone: ComparisonPrecision['tone'] = 'none';
-  if (error !== undefined && width > error) {
-    tone = 'error';
-  } else if (warn !== undefined && width > warn) {
-    tone = 'warning';
+): string {
+  const noise = `±${comparison.noise.toFixed(1)}% per round`;
+  const warn = comparison.alarm?.warn;
+  if (definition.kind === 'discrete' || !warn) {
+    return noise;
   }
-
-  let detail = `±${comparison.noise.toFixed(1)}% per round`;
-  if (scalar && warn !== undefined && warn > 0) {
-    // Rounds for a half-width of `warn`: (z × noise / warn)², z for a run long enough to need them.
-    const z = tCritical(1000, comparison.confidence);
-    const rounds = Math.ceil(((z * comparison.noise) / (warn * 100)) ** 2);
-    detail += ` · about ${rounds} rounds resolve ±${warn * 100}%`;
-  }
-  return {
-    label: `±${scalar ? `${halfWidth.toFixed(1)}%` : halfWidth.toFixed(1)}`,
-    tone,
-    detail,
-  };
+  // Rounds for a half-width of `warn`: (z × noise / warn)².
+  const z = tCritical(MANY_ROUNDS, comparison.confidence);
+  const rounds = Math.ceil(((z * comparison.noise) / (warn * 100)) ** 2);
+  return `${noise} · about ${rounds} rounds resolve ±${warn * 100}%`;
 }
 
 /** How a change reads: `better`, `worse`, `no change detected`, `unchanged`. */
@@ -133,12 +116,16 @@ export function formatComparisonLabel(
 
 export interface BenchmarkTableColumn {
   header: string;
-  /** `value` columns hold numbers, `comparison` columns a formatted comparison. */
-  kind: 'label' | 'value' | 'comparison';
+  /**
+   * `value` columns hold numbers, `comparison` columns a formatted comparison, `precision` columns
+   * how precisely that comparison was pinned down.
+   */
+  kind: 'label' | 'value' | 'comparison' | 'precision';
 }
 
 export interface BenchmarkTableRow {
   metric: string;
+  definition: RunMetricDefinition;
   cells: string[];
   /** The comparisons behind the row's `comparison` cells, in column order. */
   comparisons: MetricComparison[];
@@ -146,9 +133,12 @@ export interface BenchmarkTableRow {
 
 /**
  * A benchmark's results as one table, for every renderer of it: per metric, each variant's median
- * and each comparison.
+ * and each comparison, and with `precision`, how precisely each comparison was pinned down.
  */
-export function benchmarkTable({ benchmark, metrics }: BenchmarkAnalysis): {
+export function benchmarkTable(
+  { benchmark, metrics }: BenchmarkAnalysis,
+  { precision = false }: { precision?: boolean } = {},
+): {
   columns: BenchmarkTableColumn[];
   rows: BenchmarkTableRow[];
 } {
@@ -156,21 +146,31 @@ export function benchmarkTable({ benchmark, metrics }: BenchmarkAnalysis): {
   // first, as the comparison columns measure against it.
   const columnOrder =
     benchmark.kind === 'baseline' ? [...benchmark.variants].reverse() : benchmark.variants;
+  const comparisonHeaders = (metrics[0]?.comparisons ?? []).map((comparison) =>
+    formatComparisonLabel(benchmark, comparison),
+  );
   const columns: BenchmarkTableColumn[] = [
     { header: 'Metric', kind: 'label' },
     ...columnOrder.map((variant) => ({ header: variant, kind: 'value' as const })),
-    ...(metrics[0]?.comparisons ?? []).map((comparison) => ({
-      header: formatComparisonLabel(benchmark, comparison),
-      kind: 'comparison' as const,
-    })),
+    ...comparisonHeaders.map((header) => ({ header, kind: 'comparison' as const })),
+    ...(precision
+      ? comparisonHeaders.map((header) => ({
+          header: comparisonHeaders.length === 1 ? 'Precision' : `${header} ±`,
+          kind: 'precision' as const,
+        }))
+      : []),
   ];
   const rows = metrics.map(({ metric, definition, variants, comparisons }) => ({
     metric,
+    definition,
     comparisons,
     cells: [
       metric,
       ...columnOrder.map((variant) => formatValue(variants[variant].median, definition)),
       ...comparisons.map(formatComparison),
+      ...(precision
+        ? comparisons.map((comparison) => formatPrecision(comparison, definition))
+        : []),
     ],
   }));
   return { columns, rows };
@@ -239,16 +239,12 @@ export function formatRunSummary(
 
 /** How to read a run's numbers, under every rendering of it. */
 export function runReportFootnote(analyses: BenchmarkAnalysis[]): string {
-  const alarmed = Math.max(
-    CONFIDENCE,
-    ...analyses.flatMap(({ metrics }) =>
-      metrics.flatMap(({ comparisons }) => comparisons.map((comparison) => comparison.confidence)),
-    ),
+  const alarmed = analyses.some(({ metrics }) =>
+    metrics.some(({ comparisons }) => comparisons.some((comparison) => comparison.alarm !== null)),
   );
-  const levels =
-    alarmed > CONFIDENCE
-      ? `${formatConfidence(alarmed)} for alarmed metrics, ${formatConfidence(CONFIDENCE)} otherwise`
-      : formatConfidence(CONFIDENCE);
+  const levels = alarmed
+    ? `${formatConfidence(ALARMED_CONFIDENCE)} for alarmed metrics, ${formatConfidence(CONFIDENCE)} otherwise`
+    : formatConfidence(CONFIDENCE);
   return `Medians; Δ is the confidence interval of the paired per-round difference (${levels}).`;
 }
 

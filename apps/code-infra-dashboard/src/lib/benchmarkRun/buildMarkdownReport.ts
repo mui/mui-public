@@ -2,17 +2,13 @@ import { formatMarkdownTable } from '@/utils/formatters';
 import {
   analyzeRun,
   benchmarkTable,
-  changeTone,
+  findImprovements,
   findRegressions,
   formatComparison,
   formatDuration,
   runReportFootnote,
 } from '@mui/internal-benchmark/runReport';
-import type {
-  BenchmarkAnalysis,
-  BenchmarkRunReport,
-  ChangeTone,
-} from '@mui/internal-benchmark/runReport';
+import type { BenchmarkAnalysis, BenchmarkRunReport } from '@mui/internal-benchmark/runReport';
 
 interface BuildOptions {
   /** The comment section's heading. */
@@ -21,41 +17,13 @@ interface BuildOptions {
   detailsUrl?: string;
 }
 
-const TONE_MARKERS: Record<ChangeTone, string> = {
-  error: '🔴 ',
-  warning: '🟠 ',
-  success: '🟢 ',
-  none: '',
-};
-
-/** The changes for the better on metrics that alarm, each as a short phrase. */
-function improvementsOf(analyses: BenchmarkAnalysis[]): string[] {
-  return analyses.flatMap(({ benchmark, metrics }) =>
-    benchmark.kind !== 'baseline'
-      ? []
-      : metrics.flatMap(({ metric, definition, comparisons }) =>
-          definition.alarm === undefined
-            ? []
-            : comparisons
-                .filter((comparison) => comparison.change === 'better')
-                .map(
-                  (comparison) =>
-                    `**${benchmark.name}** ${metric} \`${formatComparison(comparison)}\``,
-                ),
-        ),
-  );
-}
-
 /** A benchmark's table, keeping only the rows that regressed, each behind its severity's marker. */
-function regressionTable(analysis: BenchmarkAnalysis): string | null {
+function regressionTable(analysis: BenchmarkAnalysis): string {
   const { columns, rows } = benchmarkTable(analysis);
   const firstComparison = columns.findIndex((column) => column.kind === 'comparison');
   const regressed = rows.filter((row) =>
     row.comparisons.some((comparison) => comparison.severity !== 'none'),
   );
-  if (regressed.length === 0) {
-    return null;
-  }
   return formatMarkdownTable(
     columns.map(({ header, kind }, column) => ({
       field: String(column),
@@ -67,7 +35,7 @@ function regressionTable(analysis: BenchmarkAnalysis): string | null {
         row.cells.map((cell, column) => [
           String(column),
           columns[column].kind === 'comparison'
-            ? `${TONE_MARKERS[changeTone(row.comparisons[column - firstComparison])]}\`${cell}\``
+            ? `${row.comparisons[column - firstComparison].severity === 'error' ? '🔴' : '🟠'} \`${cell}\``
             : cell,
         ]),
       ),
@@ -96,7 +64,10 @@ export function buildBenchmarkRunMarkdownReport(
     regressions.length > 0
       ? `${regressions.length} regression${regressions.length === 1 ? '' : 's'} in ${benchmarks}`
       : `No regressions in ${benchmarks}`,
-    ...improvementsOf(analyses),
+    ...findImprovements(analyses).map(
+      ({ benchmark, metric, comparison }) =>
+        `**${benchmark}** ${metric} \`${formatComparison(comparison)}\``,
+    ),
     report.durationMs === undefined ? null : `ran ${formatDuration(report.durationMs)}`,
     options.detailsUrl ? `[details](${options.detailsUrl})` : null,
   ].filter(Boolean);
@@ -108,10 +79,10 @@ export function buildBenchmarkRunMarkdownReport(
     lines.push('', `❌ **${benchmark.name}**: ${benchmark.error}`);
   }
 
-  const tables = analyses.flatMap((analysis) => {
-    const table = regressionTable(analysis);
-    return table ? [`**${analysis.benchmark.name}**\n\n${table}`] : [];
-  });
+  const regressed = new Set(regressions.map((regression) => regression.benchmark));
+  const tables = analyses
+    .filter((analysis) => regressed.has(analysis.benchmark.name))
+    .map((analysis) => `**${analysis.benchmark.name}**\n\n${regressionTable(analysis)}`);
   if (tables.length > 0) {
     lines.push('', tables.join('\n\n'), '', `_${runReportFootnote(analyses)}_`);
   }

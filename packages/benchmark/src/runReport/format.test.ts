@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { analyzeRun } from './analyzeRun';
 import {
   benchmarkTable,
-  comparisonPrecision,
   formatDuration,
+  formatPrecisionDetail,
   formatRounds,
   formatRunSummary,
   runReportFootnote,
@@ -122,14 +122,18 @@ describe('runReportFootnote', () => {
   });
 });
 
-describe('comparisonPrecision', () => {
+describe('precision', () => {
   // Per-round differences of 1, -2, 3, 0, 2, -1, 4, 1 on a baseline of 100: a standard deviation
   // of 2, so 2% noise per round, and a 99% half-width of about 2.5% over 8 rounds.
-  function precisionWith(alarm: { warn?: number; error?: number }) {
+  function analysisWith(
+    alarm: { warn?: number; error?: number },
+    kind: 'baseline' | 'compare' = 'baseline',
+  ) {
     const report: BenchmarkRunReport = {
       ...reportOf([
         {
           ...benchmarkOf('a'),
+          kind,
           samples: {
             current: { render: [101, 98, 103, 100, 102, 99, 104, 101] },
             baseline: { render: [100, 100, 100, 100, 100, 100, 100, 100] },
@@ -138,28 +142,35 @@ describe('comparisonPrecision', () => {
       ]),
       metrics: { render: { kind: 'scalar', alarm } },
     };
-    const [{ metrics }] = analyzeRun(report);
-    return comparisonPrecision(metrics[0].comparisons[0], metrics[0].definition);
+    const [analysis] = analyzeRun(report);
+    return { analysis, comparison: analysis.metrics[0].comparisons[0] };
   }
 
-  it('states the half-width, uncoloured while it is within the warn band', () => {
-    expect(precisionWith({ warn: 0.05, error: 0.1 })).toMatchObject({
-      label: '±2.5%',
-      tone: 'none',
-    });
+  it('adds a column of half-widths to the table when asked', () => {
+    const { analysis } = analysisWith({ warn: 0.05 });
+    const { columns, rows } = benchmarkTable(analysis, { precision: true });
+
+    expect(columns.at(-1)).toEqual({ header: 'Precision', kind: 'precision' });
+    expect(rows[0].cells.at(-1)).toBe('±2.5%');
+    expect(benchmarkTable(analysis).columns.map((column) => column.kind)).not.toContain(
+      'precision',
+    );
   });
 
-  it('warns past the warn band, and errs past the error band', () => {
-    expect(precisionWith({ warn: 0.02, error: 0.1 }).tone).toBe('warning');
-    expect(precisionWith({ warn: 0.01, error: 0.02 }).tone).toBe('error');
+  it('is fine within the warn band, a warning past it, and an error past the error band', () => {
+    expect(analysisWith({ warn: 0.05, error: 0.1 }).comparison.precisionSeverity).toBe('none');
+    expect(analysisWith({ warn: 0.02, error: 0.1 }).comparison.precisionSeverity).toBe('warning');
+    expect(analysisWith({ warn: 0.01, error: 0.02 }).comparison.precisionSeverity).toBe('error');
   });
 
-  it('leaves a metric without bands uncoloured', () => {
-    expect(precisionWith({}).tone).toBe('none');
+  it('is never judged without bands, or where no change can raise an alarm', () => {
+    expect(analysisWith({}).comparison.precisionSeverity).toBe('none');
+    expect(analysisWith({ warn: 0.01 }, 'compare').comparison.precisionSeverity).toBe('none');
   });
 
   it('gives the per-round noise, and the rounds it takes to resolve the warn band', () => {
-    expect(precisionWith({ warn: 0.02 }).detail).toBe(
+    const { analysis, comparison } = analysisWith({ warn: 0.02 });
+    expect(formatPrecisionDetail(comparison, analysis.metrics[0].definition)).toBe(
       '±2.0% per round · about 7 rounds resolve ±2%',
     );
   });

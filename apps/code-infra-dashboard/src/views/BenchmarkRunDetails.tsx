@@ -22,8 +22,8 @@ import {
   analyzeRun,
   benchmarkTable,
   changeTone,
-  comparisonPrecision,
   formatDuration,
+  formatPrecisionDetail,
   formatRounds,
   runReportFootnote,
 } from '@mui/internal-benchmark/runReport';
@@ -31,14 +31,15 @@ import type {
   BenchmarkAnalysis,
   BenchmarkRunReport,
   BenchmarkTableColumn,
-  ChangeTone,
+  BenchmarkTableRow,
+  Tone,
 } from '@mui/internal-benchmark/runReport';
 import Heading from '../components/Heading';
 import ReportHeader from '../components/ReportHeader';
 import ErrorDisplay from '../components/ErrorDisplay';
 
 /** A cell's colours: a tinted background where something needs a look, so the eye finds it. */
-function toneSx(tone: ChangeTone): SxProps<Theme> {
+function toneSx(tone: Tone): SxProps<Theme> {
   if (tone === 'none') {
     return { color: 'text.secondary' };
   }
@@ -54,21 +55,29 @@ const COLUMN_WIDTHS: Record<BenchmarkTableColumn['kind'], number> = {
   label: 160,
   value: 120,
   comparison: 280,
+  precision: 110,
 };
 
-const PRECISION_WIDTH = 110;
+/** A table cell's colour: a comparison by its change, a precision by whether a regression could hide. */
+function cellSx(
+  row: BenchmarkTableRow,
+  columns: BenchmarkTableColumn[],
+  column: number,
+): SxProps<Theme> | undefined {
+  const { kind } = columns[column];
+  if (kind !== 'comparison' && kind !== 'precision') {
+    return undefined;
+  }
+  const comparison = row.comparisons[column - columns.findIndex((other) => other.kind === kind)];
+  return toneSx(kind === 'comparison' ? changeTone(comparison) : comparison.precisionSeverity);
+}
 
 function BenchmarkTable({ analysis }: { analysis: BenchmarkAnalysis }) {
   const { benchmark } = analysis;
-  const { columns, rows } = benchmarkTable(analysis);
-  const firstComparison = columns.findIndex((column) => column.kind === 'comparison');
+  const { columns, rows } = benchmarkTable(analysis, { precision: true });
+  const firstPrecision = columns.findIndex((column) => column.kind === 'precision');
   const alignOf = (column: number) => (columns[column].kind === 'value' ? 'right' : undefined);
-  const comparisonHeaders = columns
-    .filter((column) => column.kind === 'comparison')
-    .map((column) => column.header);
-  const minWidth =
-    columns.reduce((sum, column) => sum + COLUMN_WIDTHS[column.kind], 0) +
-    comparisonHeaders.length * PRECISION_WIDTH;
+  const minWidth = columns.reduce((sum, column) => sum + COLUMN_WIDTHS[column.kind], 0);
 
   return (
     <Box sx={{ mb: 4 }}>
@@ -103,55 +112,41 @@ function BenchmarkTable({ analysis }: { analysis: BenchmarkAnalysis }) {
                 style={column.kind === 'label' ? undefined : { width: COLUMN_WIDTHS[column.kind] }}
               />
             ))}
-            {comparisonHeaders.map((header) => (
-              <col key={`precision ${header}`} style={{ width: PRECISION_WIDTH }} />
-            ))}
           </colgroup>
           <TableHead>
             <TableRow>
-              {columns.map(({ header }, column) => (
+              {columns.map(({ header, kind }, column) => (
                 <TableCell key={column} align={alignOf(column)}>
-                  {header}
-                </TableCell>
-              ))}
-              {comparisonHeaders.map((header) => (
-                <TableCell key={`precision ${header}`}>
-                  <Tooltip title="The smallest change this run could still have missed: the interval's half-width. Coloured when a regression past the alarm's warn or error band could hide in it.">
-                    <span>{comparisonHeaders.length === 1 ? 'Precision' : `${header} ±`}</span>
-                  </Tooltip>
+                  {kind === 'precision' ? (
+                    <Tooltip title="The smallest change this run could still have missed: the interval's half-width. Coloured when a regression past the alarm's warn or error band could hide in it.">
+                      <span>{header}</span>
+                    </Tooltip>
+                  ) : (
+                    header
+                  )}
                 </TableCell>
               ))}
             </TableRow>
           </TableHead>
           <TableBody>
-            {rows.map((row, rowIndex) => (
+            {rows.map((row) => (
               <TableRow key={row.metric}>
                 {row.cells.map((cell, column) => (
-                  <TableCell
-                    key={column}
-                    align={alignOf(column)}
-                    sx={
-                      columns[column].kind === 'comparison'
-                        ? toneSx(changeTone(row.comparisons[column - firstComparison]))
-                        : undefined
-                    }
-                  >
-                    {cell}
+                  <TableCell key={column} align={alignOf(column)} sx={cellSx(row, columns, column)}>
+                    {columns[column].kind === 'precision' ? (
+                      <Tooltip
+                        title={formatPrecisionDetail(
+                          row.comparisons[column - firstPrecision],
+                          row.definition,
+                        )}
+                      >
+                        <span>{cell}</span>
+                      </Tooltip>
+                    ) : (
+                      cell
+                    )}
                   </TableCell>
                 ))}
-                {row.comparisons.map((comparison, index) => {
-                  const precision = comparisonPrecision(
-                    comparison,
-                    analysis.metrics[rowIndex].definition,
-                  );
-                  return (
-                    <TableCell key={`precision ${index}`} sx={toneSx(precision.tone)}>
-                      <Tooltip title={precision.detail}>
-                        <span>{precision.label}</span>
-                      </Tooltip>
-                    </TableCell>
-                  );
-                })}
               </TableRow>
             ))}
           </TableBody>
