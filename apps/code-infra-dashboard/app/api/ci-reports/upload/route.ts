@@ -42,11 +42,16 @@ async function uploadTargetOf(
   { repo, commitSha, branch }: { repo: string; commitSha: string; branch: string },
 ): Promise<{ target: UploadTarget } | { error: string; status: number }> {
   if (oidcResult.isTrusted) {
+    // The branch comes from the verified OIDC ref, not the body, so a build can't claim a tracked
+    // branch it doesn't run on.
+    const verified = oidcResult.ref.startsWith('refs/heads/')
+      ? oidcResult.ref.slice('refs/heads/'.length)
+      : null;
     return {
       target: {
         repo: oidcResult.sourceRepo,
-        branch,
-        trackedBranch: isTrackedBranch(branch) ? branch : null,
+        branch: verified ?? branch,
+        trackedBranch: verified !== null && isTrackedBranch(verified) ? verified : null,
       },
     };
   }
@@ -125,6 +130,10 @@ export async function POST(request: NextRequest) {
 
   const { commitSha, repo, reportType, branch, report, timestamp, commitTimestamp } = parsed.data;
 
+  if (!oidcResult.isTrusted && parsed.data.timeline !== undefined) {
+    return NextResponse.json({ error: 'A fork build cannot name a timeline' }, { status: 400 });
+  }
+
   const resolved = await uploadTargetOf(oidcResult, { repo, commitSha, branch });
   if ('error' in resolved) {
     return NextResponse.json({ error: resolved.error }, { status: resolved.status });
@@ -157,7 +166,11 @@ export async function POST(request: NextRequest) {
   });
   // Written after the report, so a timeline never lists a commit whose report isn't there.
   if (plan.pointerKey !== null) {
-    await writeMarker(plan.pointerKey);
+    await writeMarker({
+      key: plan.pointerKey,
+      isBaseBranch: plan.isBaseBranch,
+      branch: target.branch,
+    });
   }
   return NextResponse.json({ key: plan.reportKey, timeline: plan.timeline });
 }

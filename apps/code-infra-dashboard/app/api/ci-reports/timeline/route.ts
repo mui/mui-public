@@ -16,7 +16,10 @@ const querySchema = z.object({
   repo: z.string().refine((repo) => repositories.has(repo), 'Unknown repository'),
   timeline: z.string().refine(isTimeline, 'Not a timeline: a tracked branch or @<name>'),
   reportType: reportTypeSchema,
-  /** Pointers to list, which a commit uploaded more than once counts more than once in. */
+  /**
+   * Pointers to list, which a commit uploaded more than once counts more than once in. A caller that
+   * joins pages keeps the first entry per `sha`.
+   */
   limit: z.coerce.number().int().min(1).max(1000).default(100),
   cursor: z.string().optional(),
 });

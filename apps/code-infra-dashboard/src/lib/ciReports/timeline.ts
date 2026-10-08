@@ -44,7 +44,7 @@ export function isTimeline(timeline: string): boolean {
  * `<reportType>@<name>.json`, so a run against another baseline on the same commit doesn't
  * overwrite the commit's regular report.
  */
-export function reportKey(
+function reportKey(
   repo: string,
   sha: string,
   reportType: ReportType,
@@ -60,7 +60,7 @@ export function timelinePrefix(repo: string, timeline: string, reportType: Repor
 }
 
 /** The empty object that records one upload in a timeline. */
-export function timelinePointerKey(
+function timelinePointerKey(
   repo: string,
   timeline: string,
   reportType: ReportType,
@@ -126,7 +126,9 @@ export interface TimelineEntry {
 
 /**
  * Reads the uploads out of a listing of a timeline's prefix, newest first, keeping one per commit
- * within the listing: a commit uploaded again shows up once, at its newest pointer.
+ * within the listing: a commit uploaded again shows up once, at its newest pointer. Only within it:
+ * an older pointer of the same commit can come back on a later page, so a caller that joins pages
+ * keeps the first entry per `sha`.
  */
 export function parseTimelineKeys(prefix: string, keys: readonly string[]): TimelineEntry[] {
   const entries: TimelineEntry[] = [];

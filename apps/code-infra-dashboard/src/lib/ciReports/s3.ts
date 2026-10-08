@@ -20,17 +20,27 @@ function sanitizeTagValue(str: string): string {
   return safe.length > 256 ? safe.substring(0, 256) : safe;
 }
 
-interface UploadReportOptions {
-  key: string;
-  body: string;
+interface ObjectTags {
   isBaseBranch: boolean;
   branch: string;
+}
+
+/** The tags every CI object carries, which the bucket's retention can key on. */
+function taggingOf({ isBaseBranch, branch }: ObjectTags): string {
+  return new URLSearchParams({
+    isBaseBranch: isBaseBranch ? 'yes' : 'no',
+    branch: sanitizeTagValue(branch),
+  }).toString();
 }
 
 /**
  * Uploads a report to S3 with object tags.
  */
-export async function uploadReport({ key, body, isBaseBranch, branch }: UploadReportOptions) {
+export async function uploadReport({
+  key,
+  body,
+  ...tags
+}: ObjectTags & { key: string; body: string }) {
   const client = getS3Client();
 
   await client.send(
@@ -39,21 +49,20 @@ export async function uploadReport({ key, body, isBaseBranch, branch }: UploadRe
       Key: key,
       Body: body,
       ContentType: 'application/json',
-      Tagging: new URLSearchParams({
-        isBaseBranch: isBaseBranch ? 'yes' : 'no',
-        branch: sanitizeTagValue(branch),
-      }).toString(),
+      Tagging: taggingOf(tags),
     }),
   );
 }
 
 /**
- * Writes an empty object: its key is all it records.
+ * Writes an empty object, tagged like the report it stands for: its key is all it records.
  */
-export async function writeMarker(key: string) {
+export async function writeMarker({ key, ...tags }: ObjectTags & { key: string }) {
   const client = getS3Client();
 
-  await client.send(new PutObjectCommand({ Bucket: BUCKET, Key: key, Body: '' }));
+  await client.send(
+    new PutObjectCommand({ Bucket: BUCKET, Key: key, Body: '', Tagging: taggingOf(tags) }),
+  );
 }
 
 /**

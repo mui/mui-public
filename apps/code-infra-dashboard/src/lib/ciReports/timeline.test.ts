@@ -3,7 +3,6 @@ import {
   isTimeline,
   parseTimelineKeys,
   planUpload,
-  timelinePointerKey,
   timelinePrefix,
   uploadTimeSchema,
 } from './timeline';
@@ -12,6 +11,8 @@ const REPO = 'mui/material-ui';
 const SHA_A = 'a'.repeat(40);
 const SHA_B = 'b'.repeat(40);
 const TIME = 1_759_000_000_000;
+// 9_999_999_999_999 - TIME: pointers count down, so S3 lists the newest first.
+const TIME_LEFT = '8240999999999';
 
 function plan(trackedBranch: string | null, requested?: string) {
   return planUpload({
@@ -29,7 +30,7 @@ describe('planUpload', () => {
     expect(plan('master')).toEqual({
       reportKey: `artifacts/${REPO}/${SHA_A}/benchmark.json`,
       timeline: 'master',
-      pointerKey: timelinePointerKey(REPO, 'master', 'benchmark', TIME, SHA_A),
+      pointerKey: `artifacts/${REPO}/timeline/master/benchmark/${TIME_LEFT}-${SHA_A}`,
       isBaseBranch: true,
     });
   });
@@ -47,7 +48,7 @@ describe('planUpload', () => {
     expect(plan('master', 'release')).toEqual({
       reportKey: `artifacts/${REPO}/${SHA_A}/benchmark@release.json`,
       timeline: '@release',
-      pointerKey: timelinePointerKey(REPO, '@release', 'benchmark', TIME, SHA_A),
+      pointerKey: `artifacts/${REPO}/timeline/@release/benchmark/${TIME_LEFT}-${SHA_A}`,
       isBaseBranch: true,
     });
   });
@@ -93,12 +94,26 @@ describe('isTimeline', () => {
 
 describe('timeline pointers', () => {
   const prefix = timelinePrefix(REPO, 'master', 'benchmark');
+  const pointerAt = (time: number, sha: string) =>
+    planUpload({
+      repo: REPO,
+      sha,
+      reportType: 'benchmark',
+      trackedBranch: 'master',
+      requested: undefined,
+      time,
+    });
+
+  function keyOf(time: number, sha: string): string {
+    const planned = pointerAt(time, sha);
+    if ('error' in planned || planned.pointerKey === null) {
+      throw new Error('Expected a pointer');
+    }
+    return planned.pointerKey;
+  }
 
   it('lists pointers newest first, as S3 sorts their keys', () => {
-    const keys = [
-      timelinePointerKey(REPO, 'master', 'benchmark', TIME, SHA_A),
-      timelinePointerKey(REPO, 'master', 'benchmark', TIME + 1_000, SHA_B),
-    ].sort();
+    const keys = [keyOf(TIME, SHA_A), keyOf(TIME + 1_000, SHA_B)].sort();
     expect(parseTimelineKeys(prefix, keys)).toEqual([
       { sha: SHA_B, time: TIME + 1_000 },
       { sha: SHA_A, time: TIME },
@@ -106,10 +121,7 @@ describe('timeline pointers', () => {
   });
 
   it('keeps one entry per commit, at its newest upload', () => {
-    const keys = [
-      timelinePointerKey(REPO, 'master', 'benchmark', TIME, SHA_A),
-      timelinePointerKey(REPO, 'master', 'benchmark', TIME + 2_000, SHA_A),
-    ].sort();
+    const keys = [keyOf(TIME, SHA_A), keyOf(TIME + 2_000, SHA_A)].sort();
     expect(parseTimelineKeys(prefix, keys)).toEqual([{ sha: SHA_A, time: TIME + 2_000 }]);
   });
 
