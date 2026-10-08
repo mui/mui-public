@@ -104,9 +104,10 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
 
   /**
    * @param {Commits[number]} commit
+   * @param {AbortSignal} signal
    * @returns {Promise<FetchedCommitDetails | null>}
    */
-  const fetchCommitDetails = async (commit) => {
+  const fetchCommitDetails = async (commit, signal) => {
     const matches = [...commit.commit.message.matchAll(/#(\d+)/g)];
     // The PR number is always the last match.
     // Sometimes the PR titles include an issue number like this:
@@ -125,6 +126,7 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
       headers: {
         Accept: 'application/vnd.github.text+json',
       },
+      request: { signal },
     });
 
     const labels = pr.data.labels.map((label) => label.name);
@@ -149,7 +151,7 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
   };
 
   // `mapAsync` rejects on the first error but still runs every queued callback.
-  // Aborted once it settles, so callbacks that start afterwards skip their request.
+  // Aborted once it settles, which cancels requests in flight and skips the ones not started yet.
   const controller = new AbortController();
 
   let fetched = 0;
@@ -160,7 +162,7 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
         if (controller.signal.aborted) {
           return null;
         }
-        const details = await fetchCommitDetails(commit);
+        const details = await fetchCommitDetails(commit, controller.signal);
         if (!controller.signal.aborted) {
           fetched += 1;
           onProgress?.({ phase: 'Fetching pull requests', count: fetched, total: results.length });
