@@ -149,19 +149,19 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
   };
 
   // `mapAsync` rejects on the first error but still runs every queued callback.
-  // Set once it settles, so callbacks that start afterwards skip their request.
-  let settled = false;
+  // Aborted once it settles, so callbacks that start afterwards skip their request.
+  const controller = new AbortController();
 
   let fetched = 0;
   try {
     const commits = await mapAsync(
       results,
       async (commit) => {
-        if (settled) {
+        if (controller.signal.aborted) {
           return null;
         }
         const details = await fetchCommitDetails(commit);
-        if (!settled) {
+        if (!controller.signal.aborted) {
           fetched += 1;
           onProgress?.({ phase: 'Fetching pull requests', count: fetched, total: results.length });
         }
@@ -171,7 +171,7 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
     );
     return commits.filter((entry) => entry !== null);
   } finally {
-    settled = true;
+    controller.abort();
   }
 }
 
