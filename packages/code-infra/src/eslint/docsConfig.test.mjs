@@ -48,6 +48,7 @@ it('rejects deprecated APIs in typed and JavaScript docs, without enabling the r
     expect(results.flatMap((result) => result.messages.filter((message) => message.fatal))).toEqual(
       [],
     );
+    /** @param {import('eslint').ESLint.LintResult} result */
     const deprecations = (result) =>
       result.messages.filter((message) => message.ruleId === '@typescript-eslint/no-deprecated');
     const docs = results.filter((result) => path.dirname(result.filePath).endsWith('/docs'));
@@ -58,7 +59,9 @@ it('rejects deprecated APIs in typed and JavaScript docs, without enabling the r
       ]),
     );
     expect(
-      deprecations(results.find((result) => path.basename(result.filePath) === 'source.ts')),
+      results
+        .filter((result) => path.basename(result.filePath) === 'source.ts')
+        .flatMap(deprecations),
     ).toEqual([]);
     expect(results).toHaveLength(5);
   } finally {
