@@ -1,8 +1,24 @@
+import { retry } from '@octokit/plugin-retry';
+import { throttling } from '@octokit/plugin-throttling';
 import { Octokit } from '@octokit/rest';
 import { mapAsync } from 'es-toolkit/array';
-import { retry } from 'es-toolkit/function';
 
 import { persistentAuthStrategy } from '../utils/github.mjs';
+
+const ThrottledOctokit = Octokit.plugin(throttling, retry);
+
+/**
+ * Waits out short rate limits. Longer ones fail with the original error.
+ *
+ * @param {number} retryAfter - Seconds until the request may be retried
+ * @param {unknown} options
+ * @param {unknown} octokit
+ * @param {number} retryCount
+ * @returns {boolean}
+ */
+function shouldRetryRateLimit(retryAfter, options, octokit, retryCount) {
+  return retryAfter <= 60 && retryCount < 3;
+}
 
 /**
  * @typedef {import('@octokit/rest').Octokit} OctokitType
@@ -32,7 +48,13 @@ export async function fetchCommitsBetweenRefs(opts) {
   const octokit =
     'octokit' in opts && opts.octokit
       ? opts.octokit
-      : new Octokit({ authStrategy: persistentAuthStrategy });
+      : new ThrottledOctokit({
+          authStrategy: persistentAuthStrategy,
+          throttle: {
+            onRateLimit: shouldRetryRateLimit,
+            onSecondaryRateLimit: shouldRetryRateLimit,
+          },
+        });
 
   return fetchCommitsRest({
     octokit,
@@ -80,9 +102,8 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
     });
   }
 
-  // Aborted once the batch settles, so a failure stops the remaining requests.
-  const controller = new AbortController();
-  const { signal } = controller;
+  // Set once the batch settles, so a failure skips the requests that haven't started.
+  let settled = false;
 
   /**
    * @param {Commits[number]} commit
@@ -100,24 +121,14 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
 
     const prNumber = parseInt(prMatch[1], 10);
 
-    const pr = await retry(
-      () =>
-        octokit.pulls.get({
-          owner: org,
-          repo,
-          pull_number: prNumber,
-          headers: {
-            Accept: 'application/vnd.github.text+json',
-          },
-          request: { signal },
-        }),
-      {
-        retries: 3,
-        delay: (attempt) => 1000 * 2 ** attempt,
-        shouldRetry: isServerError,
-        signal,
+    const pr = await octokit.pulls.get({
+      owner: org,
+      repo,
+      pull_number: prNumber,
+      headers: {
+        Accept: 'application/vnd.github.text+json',
       },
-    );
+    });
 
     const labels = pr.data.labels.map((label) => label.name);
 
@@ -144,28 +155,22 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
   const commits = await mapAsync(
     results,
     async (commit) => {
-      if (signal.aborted) {
+      if (settled) {
         return null;
       }
       const details = await fetchCommitDetails(commit);
-      if (!signal.aborted) {
+      if (!settled) {
         fetched += 1;
         onProgress?.({ phase: 'Fetching pull requests', count: fetched, total: results.length });
       }
       return details;
     },
     { concurrency: 10 },
-  ).finally(() => controller.abort());
+  ).finally(() => {
+    settled = true;
+  });
 
   return commits.filter((entry) => entry !== null);
-}
-
-/**
- * @param {unknown} error
- * @returns {boolean}
- */
-function isServerError(error) {
-  return /** @type {any} */ (error)?.status >= 500;
 }
 
 /**
