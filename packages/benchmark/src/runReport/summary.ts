@@ -10,7 +10,7 @@ export interface RunSummary {
   /** How long the whole run took, when the report says. */
   durationMs?: number;
   /** The changes for the worse that fail the check, as the comment lists them. */
-  regressions: Array<{ benchmark: string; metric: string; severity: Severity; relative: Interval }>;
+  regressions: Array<{ benchmark: string; metric: string; relative: Interval }>;
   benchmarks: BenchmarkSummary[];
 }
 
@@ -49,7 +49,6 @@ export function summarizeRun(report: BenchmarkRunReport): RunSummary {
     regressions: findRegressions(analyses).map(({ benchmark, metric, comparison }) => ({
       benchmark,
       metric,
-      severity: comparison.severity,
       relative: comparison.relative,
     })),
     benchmarks: analyses.map(({ benchmark, metrics }) => {

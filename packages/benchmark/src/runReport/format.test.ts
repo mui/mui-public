@@ -4,6 +4,7 @@ import {
   benchmarkTable,
   formatDuration,
   formatPrecisionDetail,
+  precisionTone,
   formatRounds,
   formatRunSummary,
   runReportFootnote,
@@ -147,7 +148,7 @@ describe('precision', () => {
     const { analysis } = analysisWith({ error: 0.05 });
     const { columns, rows } = benchmarkTable(analysis, { precision: true });
 
-    expect(columns.at(-1)).toEqual({ header: 'Precision', kind: 'precision' });
+    expect(columns.at(-1)).toEqual({ header: 'Precision', kind: 'precision', comparison: 0 });
     expect(rows[0].cells.at(-1)).toBe('±2.5%');
     expect(benchmarkTable(analysis).columns.map((column) => column.kind)).not.toContain(
       'precision',
@@ -155,13 +156,13 @@ describe('precision', () => {
   });
 
   it('is an error once it is wider than the error band', () => {
-    expect(analysisWith({ error: 0.05 }).comparison.precisionSeverity).toBe('none');
-    expect(analysisWith({ error: 0.02 }).comparison.precisionSeverity).toBe('error');
+    expect(precisionTone(analysisWith({ error: 0.05 }).comparison)).toBe('none');
+    expect(precisionTone(analysisWith({ error: 0.02 }).comparison)).toBe('error');
   });
 
   it('is never judged without bands, or where no change can raise an alarm', () => {
-    expect(analysisWith({}).comparison.precisionSeverity).toBe('none');
-    expect(analysisWith({ error: 0.01 }, 'compare').comparison.precisionSeverity).toBe('none');
+    expect(precisionTone(analysisWith({}).comparison)).toBe('none');
+    expect(precisionTone(analysisWith({ error: 0.01 }, 'compare').comparison)).toBe('none');
   });
 
   it('gives the per-round noise, and the rounds it takes to resolve the error band', () => {

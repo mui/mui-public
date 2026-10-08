@@ -3,8 +3,8 @@ import type {
   BenchmarkAnalysis,
   Change,
   Interval,
+  AlarmedChange,
   MetricComparison,
-  Regression,
 } from './analyzeRun';
 import type { RunBenchmark, RunMetricDefinition } from './schema';
 
@@ -64,6 +64,14 @@ export function changeTone({ change, severity }: MetricComparison): Tone {
 // Rounds past which the t-distribution is the normal one, for estimating how many a run needs.
 const MANY_ROUNDS = 1000;
 
+/**
+ * The colour a comparison's precision draws the eye with: `error` when a regression the alarm would
+ * raise — one past its `error` band — could hide in the interval, `none` otherwise.
+ */
+export function precisionTone({ alarm, precision }: MetricComparison): Tone {
+  return alarm?.error !== undefined && precision >= alarm.error ? 'error' : 'none';
+}
+
 /** A comparison's precision as it reads: `±1.4%`, or `±0.5` for a discrete metric. */
 export function formatPrecision(comparison: MetricComparison, definition: RunMetricDefinition) {
   return definition.kind === 'discrete'
@@ -87,7 +95,7 @@ export function formatPrecisionDetail(
   // Rounds for a half-width of the band: (z × noise / band)².
   const z = tCritical(MANY_ROUNDS, comparison.confidence);
   const rounds = Math.ceil(((z * comparison.noise) / (band * 100)) ** 2);
-  return `${noise} · about ${rounds} rounds resolve ±${band * 100}%`;
+  return `${noise} · about ${rounds} rounds resolve ±${formatterFor(DEFAULT_SCALAR_FORMAT).format(band * 100)}%`;
 }
 
 /** How a change reads: `better`, `worse`, `no change detected`, `unchanged`. */
@@ -121,6 +129,8 @@ export interface BenchmarkTableColumn {
    * how precisely that comparison was pinned down.
    */
   kind: 'label' | 'value' | 'comparison' | 'precision';
+  /** For a `comparison` or `precision` column: which of a row's `comparisons` it shows. */
+  comparison?: number;
 }
 
 export interface BenchmarkTableRow {
@@ -152,11 +162,16 @@ export function benchmarkTable(
   const columns: BenchmarkTableColumn[] = [
     { header: 'Metric', kind: 'label' },
     ...columnOrder.map((variant) => ({ header: variant, kind: 'value' as const })),
-    ...comparisonHeaders.map((header) => ({ header, kind: 'comparison' as const })),
+    ...comparisonHeaders.map((header, comparison) => ({
+      header,
+      kind: 'comparison' as const,
+      comparison,
+    })),
     ...(precision
-      ? comparisonHeaders.map((header) => ({
+      ? comparisonHeaders.map((header, comparison) => ({
           header: comparisonHeaders.length === 1 ? 'Precision' : `${header} ±`,
           kind: 'precision' as const,
+          comparison,
         }))
       : []),
   ];
@@ -219,7 +234,7 @@ export function formatRounds(benchmark: RunBenchmark): string | null {
  */
 export function formatRunSummary(
   analyses: BenchmarkAnalysis[],
-  regressions: Regression[],
+  regressions: AlarmedChange[],
   durationMs?: number,
 ): string {
   const measured = analyses.filter((analysis) => !analysis.benchmark.error).length;

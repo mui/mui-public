@@ -21,11 +21,14 @@ interface BuildOptions {
  * A benchmark's table, keeping only the rows that regressed. A `baseline` benchmark compares one
  * pair, so each kept row's comparison is the regression.
  */
-function regressionTable(analysis: BenchmarkAnalysis): string {
+function regressionTable(analysis: BenchmarkAnalysis): string | null {
   const { columns, rows } = benchmarkTable(analysis);
   const regressed = rows.filter((row) =>
-    row.comparisons.some((comparison) => comparison.severity !== 'none'),
+    row.comparisons.some((comparison) => comparison.severity === 'error'),
   );
+  if (regressed.length === 0) {
+    return null;
+  }
   return formatMarkdownTable(
     columns.map(({ header, kind }, column) => ({
       field: String(column),
@@ -79,10 +82,10 @@ export function buildBenchmarkRunMarkdownReport(
     lines.push('', `❌ **${benchmark.name}**: ${benchmark.error}`);
   }
 
-  const regressed = new Set(regressions.map((regression) => regression.benchmark));
-  const tables = analyses
-    .filter((analysis) => regressed.has(analysis.benchmark.name))
-    .map((analysis) => `**${analysis.benchmark.name}**\n\n${regressionTable(analysis)}`);
+  const tables = analyses.flatMap((analysis) => {
+    const table = regressionTable(analysis);
+    return table ? [`**${analysis.benchmark.name}**\n\n${table}`] : [];
+  });
   if (tables.length > 0) {
     lines.push('', tables.join('\n\n'), '', `_${runReportFootnote(analyses)}_`);
   }

@@ -1,4 +1,5 @@
-import { calculateMean, quantile } from '../stats';
+import { calculateMean, calculateSampleStdDev, quantile } from '../stats';
+import type { MetricAlarm } from '../types';
 import { baseMetricName } from '../metricCore';
 import type { BenchmarkRunReport, RunBenchmark, RunMetricDefinition } from './schema';
 
@@ -32,12 +33,8 @@ export interface SampleSummary {
  */
 export type Change = 'better' | 'worse' | 'undetected' | 'unchanged';
 
-/** How much a change for the worse matters, per the metric's alarm. */
 /** Whether a change raises its alarm. A metric's `warn` band applies to version 1 reports only. */
 export type Severity = 'error' | 'none';
-
-/** A metric's alarm: its direction and bands. */
-export type MetricAlarm = NonNullable<RunMetricDefinition['alarm']>;
 
 export interface MetricComparison {
   /** The variant the difference is about. */
@@ -66,11 +63,6 @@ export interface MetricComparison {
    * units — a fraction for a scalar metric, a count for a discrete one.
    */
   precision: number;
-  /**
-   * Whether a change of `precision` reaches the alarm's `error` band: whether a regression the alarm
-   * would raise could hide in the interval. `none` without an `error` band.
-   */
-  precisionSeverity: Severity;
   change: Change;
   severity: Severity;
 }
@@ -182,26 +174,19 @@ export function tCritical(degreesOfFreedom: number, confidence = CONFIDENCE): nu
   return high;
 }
 
-/** The sample standard deviation; 0 for fewer than 2 values. */
-function sampleStandardDeviation(values: number[], mean: number): number {
-  if (values.length < 2) {
-    return 0;
+/** The confidence interval of a mean from `count` values with standard deviation `stdDev`. */
+function intervalAround(mean: number, stdDev: number, count: number, confidence: number): Interval {
+  if (count < 2) {
+    return { low: mean, high: mean };
   }
-  return Math.sqrt(
-    values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / (values.length - 1),
-  );
+  const halfWidth = (tCritical(count - 1, confidence) * stdDev) / Math.sqrt(count);
+  return { low: mean - halfWidth, high: mean + halfWidth };
 }
 
 /** The confidence interval of the mean. A single value is its own degenerate interval. */
 export function meanInterval(values: number[], confidence = CONFIDENCE): Interval {
   const mean = calculateMean(values);
-  if (values.length < 2) {
-    return { low: mean, high: mean };
-  }
-  const halfWidth =
-    (tCritical(values.length - 1, confidence) * sampleStandardDeviation(values, mean)) /
-    Math.sqrt(values.length);
-  return { low: mean - halfWidth, high: mean + halfWidth };
+  return intervalAround(mean, calculateSampleStdDev(values, mean), values.length, confidence);
 }
 
 export function median(values: number[]): number {
@@ -238,24 +223,20 @@ function inAlarmUnits(
     : { low: comparison.relative.low / 100, high: comparison.relative.high / 100 };
 }
 
-/** Whether a change of `amount`, in the alarm's units, reaches its `error` band. */
-function reachesErrorBand(amount: number, { error }: MetricAlarm): Severity {
-  return error !== undefined && amount >= error ? 'error' : 'none';
-}
-
 /**
  * A change for the worse's severity: judged by how far it went at the least — the interval bound
- * nearest zero — against the `error` band, and an error outright when the alarm has none.
+ * nearest zero — against the `error` band. Without bands, every confirmed change for the worse
+ * alarms; with only `warn`, none does, as `warn` judges nothing here.
  */
 function severityOf(change: Change, interval: Interval, alarm: MetricAlarm): Severity {
   if (change !== 'worse') {
     return 'none';
   }
   if (alarm.error === undefined) {
-    return 'error';
+    return alarm.warn === undefined ? 'error' : 'none';
   }
   const worseningAtLeast = alarm.direction === 'higherIsBetter' ? -interval.high : interval.low;
-  return reachesErrorBand(worseningAtLeast, alarm);
+  return worseningAtLeast >= alarm.error ? 'error' : 'none';
 }
 
 /** The per-round differences `subject − against`, over the rounds both have. */
@@ -282,14 +263,15 @@ export function compareSamples(
   const confidence = alarm ? ALARMED_CONFIDENCE : CONFIDENCE;
   const differences = differencesOf(subject.values, against.values);
   const rounds = differences.length;
-  const absolute = meanInterval(differences, confidence);
+  const mean = calculateMean(differences);
+  const stdDev = calculateSampleStdDev(differences, mean);
+  const absolute = intervalAround(mean, stdDev, rounds, confidence);
   const reference = calculateMean(against.values.slice(0, rounds));
   const relative = {
     low: (absolute.low / reference) * 100,
     high: (absolute.high / reference) * 100,
   };
-  const noise =
-    (sampleStandardDeviation(differences, calculateMean(differences)) / reference) * 100;
+  const noise = (stdDev / reference) * 100;
   const banded = inAlarmUnits({ absolute, relative }, definition);
   const precision = (banded.high - banded.low) / 2;
 
@@ -311,7 +293,6 @@ export function compareSamples(
     relative,
     noise,
     precision,
-    precisionSeverity: alarm ? reachesErrorBand(precision, alarm) : 'none',
     change,
     severity: alarm ? severityOf(change, banded, alarm) : 'none',
   };
@@ -350,7 +331,7 @@ function pairedMetricsOf(
     return {
       metric,
       definition,
-      canAlarm: benchmark.kind === 'baseline' && definition.alarm !== undefined,
+      canAlarm: benchmark.kind === 'baseline',
       pairs: pairsOf(benchmark).map(({ subject, against }) => ({
         subject: sideOf(subject),
         against: sideOf(against),
@@ -411,8 +392,6 @@ export interface AlarmedChange {
   comparison: MetricComparison;
 }
 
-export type Regression = AlarmedChange;
-
 function alarmedChangesOf(analyses: BenchmarkAnalysis[]): AlarmedChange[] {
   return analyses.flatMap(({ benchmark, metrics }) =>
     metrics.flatMap(({ metric, comparisons }) =>
@@ -427,7 +406,7 @@ function alarmedChangesOf(analyses: BenchmarkAnalysis[]): AlarmedChange[] {
  * The changes that say something is wrong with the code under test: an alarmed metric's change
  * for the worse, past its `error` band.
  */
-export function findRegressions(analyses: BenchmarkAnalysis[]): Regression[] {
+export function findRegressions(analyses: BenchmarkAnalysis[]): AlarmedChange[] {
   return alarmedChangesOf(analyses).filter(({ comparison }) => comparison.severity !== 'none');
 }
 

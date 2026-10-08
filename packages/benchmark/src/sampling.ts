@@ -20,8 +20,8 @@ export interface SamplingOptions {
    * than 5%. A `0%` horizon tests whether there is any change at all: identical builds never resolve
    * against it, and checking again after every round makes a false finding likelier.
    *
-   * Judged on the metrics that alarm — the ones a change can be flagged on — or on every metric when
-   * none does.
+   * Judged on the metrics that carry an alarm, the ones a benchmark cares about most, whether or
+   * not its kind lets them raise one; on every metric when none carries one.
    */
   autoSampleConditions?: string[];
 }
@@ -89,7 +89,7 @@ export function isResolved(interval: { low: number; high: number }, horizons: nu
 
 /**
  * Whether sampling a benchmark can stop: every comparison it reports has resolved against the
- * horizons, on the metrics that alarm, or on every metric when none does.
+ * horizons, on the metrics that carry an alarm, or on every metric when none does.
  */
 export function differencesResolved(
   analysis: { metrics: MetricComparisons[] },

@@ -224,16 +224,16 @@ You can also `record()` or `time()` from inside a `benchmark()` render function 
 - `format` — an [`Intl.NumberFormatOptions`](https://developer.mozilla.org/en-US/docs/Web/API/Intl/NumberFormat/NumberFormat) object used to display the value.
 - `alarm` — opts the metric into regression flagging. Omit it and the metric is informational (its diff is shown but never flagged). Holds:
   - `direction` — `'lowerIsBetter'` (default) or `'higherIsBetter'`.
-  - `warn` — softer band; a regression past it is flagged as a warning.
-  - `error` — harder band; a regression past it is flagged as an error. With only `warn` set there is no error band (warning-only).
+  - `warn` — softer band, for version 1 reports; a regression past it is flagged as a warning.
+  - `error` — harder band; a regression past it is flagged as an error. With only `warn` set there is no error band.
   - Bands are relative fractions for scalar metrics (`0.1` = 10%) and absolute count deltas for discrete metrics (`1`, `2`). Either band is optional.
 
 How a regression is judged depends on which report the repository uploads:
 
 - **Version 1** (this Vitest reporter) compares the two runs' means. A scalar metric's change must pass a band; with neither band set, `error` is the dashboard's ±20% noise band. A discrete metric flags any change in its mean.
-- **Version 2** ([the `benchmark` CLI](#the-benchmark-cli)) first needs the metric's confidence interval to lie wholly on the worse side; the `error` band then applies to the end of that interval nearest zero, so a change alarms only once it is confidently that large. Without an `error` band, every confirmed change for the worse alarms. `warn` judges nothing: the dashboard colours every confirmed change for the worse, and the PR comment shows only alarms.
+- **Version 2** ([the `benchmark` CLI](#the-benchmark-cli)) first needs the metric's confidence interval to lie wholly on the worse side; the `error` band then applies to the end of that interval nearest zero, so a change alarms only once it is confidently that large. With neither band, every confirmed change for the worse alarms; with only `warn`, none does. `warn` judges nothing: the dashboard colours every confirmed change for the worse, and the PR comment shows only alarms.
 
-Alarms are evaluated against the baseline when the PR comment is generated, not during the local `vitest run` — a regression never fails the test suite locally. In the PR comment, `error`-band regressions surface as failures and `warn`-band regressions as warnings.
+Alarms are evaluated against the baseline when the PR comment is generated, not during the local `vitest run` — a regression never fails the test suite locally. In a version 1 PR comment, `error`-band regressions surface as failures and `warn`-band regressions as warnings.
 
 #### Sub-series
 
@@ -487,8 +487,9 @@ benchmark --baseline "v$(npm view @mui/material version)" --upload --timeline re
 - `reactBenchmark()`'s `render` and `bench:paint` alarm once confidently 5% worse; `render:count`
   and the per-phase split are informational; every other metric brings its own alarm.
 - Tables list the baseline before the current build, so a row reads old to new. The pull request
-  comment keeps only the metrics that got better or worse, and sums up a benchmark where none did
-  as "no change detected"; the terminal and the dashboard show every metric.
+  comment is one line unless something alarmed — the count, improvements on alarmed metrics and a
+  link — and then tables only the rows that alarmed; the terminal and the dashboard show every
+  metric.
 
 ### Choosing the baseline
 

@@ -39,7 +39,7 @@ describe('summarizeRun', () => {
 
     expect(summary.durationMs).toBe(845_000);
     expect(summary.regressions).toEqual([
-      expect.objectContaining({ benchmark: 'Grid scroll', metric: 'render', severity: 'error' }),
+      expect.objectContaining({ benchmark: 'Grid scroll', metric: 'render' }),
     ]);
     const [grid, chart] = summary.benchmarks;
     expect(grid).toMatchObject({

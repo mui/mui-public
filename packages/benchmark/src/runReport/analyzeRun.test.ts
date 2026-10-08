@@ -141,7 +141,8 @@ describe('compareSamples', () => {
       expect(compareWith({ error: 0.09 })).toBe('error');
       expect(compareWith({ error: 0.2 })).toBe('none');
       expect(compareWith({ warn: 0.05, error: 0.2 })).toBe('none');
-      expect(compareWith({ warn: 0.2 })).toBe('error');
+      expect(compareWith({ warn: 0.2 })).toBe('none');
+      expect(compareWith({})).toBe('error');
     });
 
     it('compares a discrete metric in absolute counts', () => {

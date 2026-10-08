@@ -24,6 +24,7 @@ import {
   changeTone,
   formatDuration,
   formatPrecisionDetail,
+  precisionTone,
   formatRounds,
   runReportFootnote,
 } from '@mui/internal-benchmark/runReport';
@@ -59,23 +60,17 @@ const COLUMN_WIDTHS: Record<BenchmarkTableColumn['kind'], number> = {
 };
 
 /** A table cell's colour: a comparison by its change, a precision by whether a regression could hide. */
-function cellSx(
-  row: BenchmarkTableRow,
-  columns: BenchmarkTableColumn[],
-  column: number,
-): SxProps<Theme> | undefined {
-  const { kind } = columns[column];
-  if (kind !== 'comparison' && kind !== 'precision') {
+function cellSx(row: BenchmarkTableRow, column: BenchmarkTableColumn): SxProps<Theme> | undefined {
+  if (column.comparison === undefined) {
     return undefined;
   }
-  const comparison = row.comparisons[column - columns.findIndex((other) => other.kind === kind)];
-  return toneSx(kind === 'comparison' ? changeTone(comparison) : comparison.precisionSeverity);
+  const comparison = row.comparisons[column.comparison];
+  return toneSx(column.kind === 'comparison' ? changeTone(comparison) : precisionTone(comparison));
 }
 
 function BenchmarkTable({ analysis }: { analysis: BenchmarkAnalysis }) {
   const { benchmark } = analysis;
   const { columns, rows } = benchmarkTable(analysis, { precision: true });
-  const firstPrecision = columns.findIndex((column) => column.kind === 'precision');
   const alignOf = (column: number) => (columns[column].kind === 'value' ? 'right' : undefined);
   const minWidth = columns.reduce((sum, column) => sum + COLUMN_WIDTHS[column.kind], 0);
 
@@ -131,22 +126,26 @@ function BenchmarkTable({ analysis }: { analysis: BenchmarkAnalysis }) {
           <TableBody>
             {rows.map((row) => (
               <TableRow key={row.metric}>
-                {row.cells.map((cell, column) => (
-                  <TableCell key={column} align={alignOf(column)} sx={cellSx(row, columns, column)}>
-                    {columns[column].kind === 'precision' ? (
-                      <Tooltip
-                        title={formatPrecisionDetail(
-                          row.comparisons[column - firstPrecision],
-                          row.definition,
-                        )}
-                      >
-                        <span>{cell}</span>
-                      </Tooltip>
-                    ) : (
-                      cell
-                    )}
-                  </TableCell>
-                ))}
+                {row.cells.map((cell, column) => {
+                  const { kind, comparison } = columns[column];
+                  return (
+                    <TableCell
+                      key={column}
+                      align={alignOf(column)}
+                      sx={cellSx(row, columns[column])}
+                    >
+                      {kind === 'precision' && comparison !== undefined ? (
+                        <Tooltip
+                          title={formatPrecisionDetail(row.comparisons[comparison], row.definition)}
+                        >
+                          <span>{cell}</span>
+                        </Tooltip>
+                      ) : (
+                        cell
+                      )}
+                    </TableCell>
+                  );
+                })}
               </TableRow>
             ))}
           </TableBody>

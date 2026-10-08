@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 
-import { dim, printTable, red, yellow } from '../format';
+import { dim, printTable, red } from '../format';
 import {
   analyzeRun,
   benchmarkTable,
@@ -44,8 +44,7 @@ export function printRunReport(report: BenchmarkRunReport): void {
   const regressions = findRegressions(analyses);
   console.log('');
   for (const { benchmark, metric, comparison } of regressions) {
-    const color = comparison.severity === 'error' ? red : yellow;
-    console.log(color(`⚠ ${benchmark} · ${metric} · ${formatComparison(comparison)}`));
+    console.log(red(`⚠ ${benchmark} · ${metric} · ${formatComparison(comparison)}`));
   }
   console.log(formatRunSummary(analyses, regressions, report.durationMs));
   console.log(dim(runReportFootnote(analyses)));
