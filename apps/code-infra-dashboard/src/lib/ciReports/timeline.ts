@@ -1,14 +1,14 @@
 import { z } from 'zod/v4';
 import type { ReportType } from './schemas';
 
-// A timeline is an ordered run of one report type's uploads, the history the dashboard draws. A
-// tracked branch's uploads form the timeline named after it; a CI job on a tracked branch can name
-// its own (a weekly run against the last release, say), kept apart as `@<name>`. Pull requests and
-// forks never write one.
+// A timeline is the list of uploads of one report type, in time order: the history the dashboard
+// draws. Each tracked branch (master, next, v7.x, …) has its own. A CI job on a tracked branch can
+// also write to a named timeline, such as a weekly run against the last release; named timelines
+// start with `@` so they never mix with a branch's. Pull requests and forks never write to one.
 //
-// Each upload in a timeline leaves an empty S3 object whose key holds the time and the commit, so
-// listing the timeline's prefix lists its uploads without reading any of them, and two uploads
-// landing at once can't lose each other the way appending to a shared index could.
+// Each upload adds an empty S3 object whose key holds the time and the commit. Listing the
+// timeline's folder then lists its uploads without opening any file, and two uploads at the same
+// moment can't overwrite each other, as they could when adding to one shared index file.
 
 const TRACKED_BRANCH_REGEX = /^(master|main|next|v[^/]*\.[^/]*)$/;
 
