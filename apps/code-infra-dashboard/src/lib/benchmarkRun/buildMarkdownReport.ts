@@ -17,6 +17,17 @@ interface BuildOptions {
   detailsUrl?: string;
 }
 
+/** The improvements on alarmed metrics, one phrase per benchmark: `**Grid** render \`…\`, bench:paint \`…\``. */
+function improvementsByBenchmark(analyses: BenchmarkAnalysis[]): string[] {
+  const byBenchmark = new Map<string, string[]>();
+  for (const { benchmark, metric, comparison } of findImprovements(analyses)) {
+    const phrases = byBenchmark.get(benchmark) ?? [];
+    phrases.push(`${metric} \`${formatComparison(comparison)}\``);
+    byBenchmark.set(benchmark, phrases);
+  }
+  return [...byBenchmark].map(([benchmark, phrases]) => `**${benchmark}** ${phrases.join(', ')}`);
+}
+
 /**
  * A benchmark's table, keeping only the rows that regressed. A `baseline` benchmark compares one
  * pair, so each kept row's comparison is the regression.
@@ -67,10 +78,7 @@ export function buildBenchmarkRunMarkdownReport(
     regressions.length > 0
       ? `${regressions.length} regression${regressions.length === 1 ? '' : 's'} in ${benchmarks}`
       : `No regressions in ${benchmarks}`,
-    ...findImprovements(analyses).map(
-      ({ benchmark, metric, comparison }) =>
-        `**${benchmark}** ${metric} \`${formatComparison(comparison)}\``,
-    ),
+    ...improvementsByBenchmark(analyses),
     report.durationMs === undefined ? null : `ran ${formatDuration(report.durationMs)}`,
     options.detailsUrl ? `[details](${options.detailsUrl})` : null,
   ].filter(Boolean);

@@ -468,7 +468,8 @@ compare('scatter', [ours, other], { sampleSize: 100 });
 
 `render` and `bench:paint` alarm once a change is confidently 5% worse. A `reactBenchmark()` can set
 its own band for both with `alarm`: a lower one for a benchmark that matters more, a higher one for
-one that matters less, or `false` for one that never alarms. `{}` keeps the band it would have had.
+one that matters less, or `false` for one that never alarms. `{}` keeps the band it would have had,
+and `{ error: 0 }` alarms on any confirmed change for the worse, however small.
 Sampling follows the band, so a tighter band also samples longer.
 
 ```tsx

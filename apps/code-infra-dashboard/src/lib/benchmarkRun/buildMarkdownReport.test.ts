@@ -84,6 +84,17 @@ describe('buildBenchmarkRunMarkdownReport', () => {
     expect(markdown).not.toContain('bench:paint');
   });
 
+  it('names a benchmark once, however many of its alarmed metrics improved', () => {
+    const report = reportOf([faster]);
+    const markdown = buildBenchmarkRunMarkdownReport(
+      { ...report, metrics: { ...report.metrics, 'bench:paint': { kind: 'scalar', alarm: {} } } },
+      { title: 'Performance' },
+    );
+
+    expect(markdown.match(/Tooltip mount/g)).toHaveLength(1);
+    expect(markdown).toMatch(/\*\*Tooltip mount\*\* render `better[^`]*`, bench:paint `better/);
+  });
+
   it('tables only the rows that regressed, and marks the heading', () => {
     expect(
       buildBenchmarkRunMarkdownReport(reportOf([slower, libraries, broken]), {

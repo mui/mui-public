@@ -156,7 +156,8 @@ jobs:
           paths:
             - test/benchmark/.benchmark/packed
   # The commit against itself: any regression it reports is a false alarm, so over many nights the
-  # job's failure rate is the benchmarks' false-alarm rate, about 5% when the statistics are honest.
+  # job's failure rate is the benchmarks' false-alarm rate. An alarm needs a change confidently past
+  # its error band, so expect close to 0%; a rate that climbs means noise or bias in a benchmark.
   benchmark_aa:
     <<: *default-job
     executor:
