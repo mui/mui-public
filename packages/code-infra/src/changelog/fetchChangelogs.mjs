@@ -34,25 +34,14 @@ export async function fetchCommitsBetweenRefs(opts) {
       ? opts.octokit
       : new Octokit({ authStrategy: persistentAuthStrategy });
 
-  try {
-    return await fetchCommitsRest({
-      octokit,
-      repo: opts.repo,
-      lastRelease: opts.lastRelease,
-      release: opts.release,
-      org: opts.org ?? 'mui',
-      onProgress: opts.onProgress,
-    });
-  } catch (error) {
-    const retryAt = getRateLimitRetryTime(error);
-    if (retryAt) {
-      const minutes = Math.ceil((retryAt.getTime() - Date.now()) / 60_000);
-      throw new Error(
-        `GitHub API rate limit exceeded. Try again after ${retryAt.toLocaleTimeString()} (in about ${minutes} minute${minutes === 1 ? '' : 's'}).`,
-      );
-    }
-    throw error;
-  }
+  return fetchCommitsRest({
+    octokit,
+    repo: opts.repo,
+    lastRelease: opts.lastRelease,
+    release: opts.release,
+    org: opts.org ?? 'mui',
+    onProgress: opts.onProgress,
+  });
 }
 
 /**
@@ -169,33 +158,6 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
   ).finally(() => controller.abort());
 
   return commits.filter((entry) => entry !== null);
-}
-
-/**
- * Returns when a rate-limited request may be retried, or `null` for other errors.
- * https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api#exceeding-the-rate-limit
- *
- * @param {unknown} error
- * @returns {Date | null}
- */
-function getRateLimitRetryTime(error) {
-  const { status, response, message } = /** @type {any} */ (error) ?? {};
-  if (status !== 403 && status !== 429) {
-    return null;
-  }
-  const headers = response?.headers ?? {};
-  const now = Date.now();
-  let retryTime;
-  if (headers['retry-after']) {
-    retryTime = now + Number(headers['retry-after']) * 1000;
-  } else if (headers['x-ratelimit-remaining'] === '0' && headers['x-ratelimit-reset']) {
-    retryTime = Number(headers['x-ratelimit-reset']) * 1000;
-  } else if (/rate limit/i.test(message ?? '')) {
-    retryTime = now;
-  } else {
-    return null;
-  }
-  return new Date(Math.max(retryTime, now + 60_000));
 }
 
 /**
