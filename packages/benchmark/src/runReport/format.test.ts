@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { analyzeRun } from './analyzeRun';
 import {
   benchmarkTable,
+  comparisonPrecision,
   formatDuration,
   formatRounds,
   formatRunSummary,
@@ -117,6 +118,49 @@ describe('runReportFootnote', () => {
   it('states the alarmed level beside the other', () => {
     expect(runReportFootnote(analyzeRun(reportOf([benchmarkOf('a')])))).toContain(
       '(99% for alarmed metrics, 95% otherwise)',
+    );
+  });
+});
+
+describe('comparisonPrecision', () => {
+  // Per-round differences of 1, -2, 3, 0, 2, -1, 4, 1 on a baseline of 100: a standard deviation
+  // of 2, so 2% noise per round, and a 99% half-width of about 2.5% over 8 rounds.
+  function precisionWith(alarm: { warn?: number; error?: number }) {
+    const report: BenchmarkRunReport = {
+      ...reportOf([
+        {
+          ...benchmarkOf('a'),
+          samples: {
+            current: { render: [101, 98, 103, 100, 102, 99, 104, 101] },
+            baseline: { render: [100, 100, 100, 100, 100, 100, 100, 100] },
+          },
+        },
+      ]),
+      metrics: { render: { kind: 'scalar', alarm } },
+    };
+    const [{ metrics }] = analyzeRun(report);
+    return comparisonPrecision(metrics[0].comparisons[0], metrics[0].definition);
+  }
+
+  it('states the half-width, uncoloured while it is within the warn band', () => {
+    expect(precisionWith({ warn: 0.05, error: 0.1 })).toMatchObject({
+      label: '±2.5%',
+      tone: 'none',
+    });
+  });
+
+  it('warns past the warn band, and errs past the error band', () => {
+    expect(precisionWith({ warn: 0.02, error: 0.1 }).tone).toBe('warning');
+    expect(precisionWith({ warn: 0.01, error: 0.02 }).tone).toBe('error');
+  });
+
+  it('leaves a metric without bands uncoloured', () => {
+    expect(precisionWith({}).tone).toBe('none');
+  });
+
+  it('gives the per-round noise, and the rounds it takes to resolve the warn band', () => {
+    expect(precisionWith({ warn: 0.02 }).detail).toBe(
+      '±2.0% per round · about 7 rounds resolve ±2%',
     );
   });
 });

@@ -22,6 +22,7 @@ import {
   analyzeRun,
   benchmarkTable,
   changeTone,
+  comparisonPrecision,
   formatDuration,
   formatRounds,
   runReportFootnote,
@@ -30,15 +31,14 @@ import type {
   BenchmarkAnalysis,
   BenchmarkRunReport,
   BenchmarkTableColumn,
-  MetricComparison,
+  ChangeTone,
 } from '@mui/internal-benchmark/runReport';
 import Heading from '../components/Heading';
 import ReportHeader from '../components/ReportHeader';
 import ErrorDisplay from '../components/ErrorDisplay';
 
-/** A comparison cell's colours: a tinted background where something moved, so the eye finds it. */
-function comparisonSx(comparison: MetricComparison): SxProps<Theme> {
-  const tone = changeTone(comparison);
+/** A cell's colours: a tinted background where something needs a look, so the eye finds it. */
+function toneSx(tone: ChangeTone): SxProps<Theme> {
   if (tone === 'none') {
     return { color: 'text.secondary' };
   }
@@ -56,12 +56,19 @@ const COLUMN_WIDTHS: Record<BenchmarkTableColumn['kind'], number> = {
   comparison: 280,
 };
 
+const PRECISION_WIDTH = 110;
+
 function BenchmarkTable({ analysis }: { analysis: BenchmarkAnalysis }) {
   const { benchmark } = analysis;
   const { columns, rows } = benchmarkTable(analysis);
   const firstComparison = columns.findIndex((column) => column.kind === 'comparison');
   const alignOf = (column: number) => (columns[column].kind === 'value' ? 'right' : undefined);
-  const minWidth = columns.reduce((sum, column) => sum + COLUMN_WIDTHS[column.kind], 0);
+  const comparisonHeaders = columns
+    .filter((column) => column.kind === 'comparison')
+    .map((column) => column.header);
+  const minWidth =
+    columns.reduce((sum, column) => sum + COLUMN_WIDTHS[column.kind], 0) +
+    comparisonHeaders.length * PRECISION_WIDTH;
 
   return (
     <Box sx={{ mb: 4 }}>
@@ -96,6 +103,9 @@ function BenchmarkTable({ analysis }: { analysis: BenchmarkAnalysis }) {
                 style={column.kind === 'label' ? undefined : { width: COLUMN_WIDTHS[column.kind] }}
               />
             ))}
+            {comparisonHeaders.map((header) => (
+              <col key={`precision ${header}`} style={{ width: PRECISION_WIDTH }} />
+            ))}
           </colgroup>
           <TableHead>
             <TableRow>
@@ -104,10 +114,17 @@ function BenchmarkTable({ analysis }: { analysis: BenchmarkAnalysis }) {
                   {header}
                 </TableCell>
               ))}
+              {comparisonHeaders.map((header) => (
+                <TableCell key={`precision ${header}`}>
+                  <Tooltip title="The smallest change this run could still have missed: the interval's half-width. Coloured when a regression past the alarm's warn or error band could hide in it.">
+                    <span>{comparisonHeaders.length === 1 ? 'Precision' : `${header} ±`}</span>
+                  </Tooltip>
+                </TableCell>
+              ))}
             </TableRow>
           </TableHead>
           <TableBody>
-            {rows.map((row) => (
+            {rows.map((row, rowIndex) => (
               <TableRow key={row.metric}>
                 {row.cells.map((cell, column) => (
                   <TableCell
@@ -115,13 +132,26 @@ function BenchmarkTable({ analysis }: { analysis: BenchmarkAnalysis }) {
                     align={alignOf(column)}
                     sx={
                       columns[column].kind === 'comparison'
-                        ? comparisonSx(row.comparisons[column - firstComparison])
+                        ? toneSx(changeTone(row.comparisons[column - firstComparison]))
                         : undefined
                     }
                   >
                     {cell}
                   </TableCell>
                 ))}
+                {row.comparisons.map((comparison, index) => {
+                  const precision = comparisonPrecision(
+                    comparison,
+                    analysis.metrics[rowIndex].definition,
+                  );
+                  return (
+                    <TableCell key={`precision ${index}`} sx={toneSx(precision.tone)}>
+                      <Tooltip title={precision.detail}>
+                        <span>{precision.label}</span>
+                      </Tooltip>
+                    </TableCell>
+                  );
+                })}
               </TableRow>
             ))}
           </TableBody>

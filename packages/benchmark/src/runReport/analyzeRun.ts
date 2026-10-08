@@ -46,6 +46,12 @@ export interface MetricComparison {
   absolute: Interval;
   /** The same, as a percentage of `against`'s mean. */
   relative: Interval;
+  /**
+   * How much the difference varies from round to round: the standard deviation of the per-round
+   * differences, as a percentage of `against`'s mean. A property of the benchmark rather than of how
+   * long it sampled; 0 with fewer than 2 rounds.
+   */
+  noise: number;
   change: Change;
   severity: Severity;
 }
@@ -256,6 +262,12 @@ export function compareSamples(
     low: (absolute.low / reference) * 100,
     high: (absolute.high / reference) * 100,
   };
+  // The interval's half-width is t × SD / √rounds, so the standard deviation follows from it.
+  const noise =
+    rounds < 2
+      ? 0
+      : ((relative.high - relative.low) / 2 / tCritical(rounds - 1, confidence)) *
+        Math.sqrt(rounds);
 
   let change: Change = 'undetected';
   if (rounds > 0 && differences.every((difference) => difference === 0)) {
@@ -272,6 +284,7 @@ export function compareSamples(
     confidence,
     absolute,
     relative,
+    noise,
     change,
   };
   return { ...comparison, severity: canAlarm ? severityOf(comparison, definition) : 'none' };

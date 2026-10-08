@@ -1,4 +1,4 @@
-import { CONFIDENCE } from './analyzeRun';
+import { CONFIDENCE, tCritical } from './analyzeRun';
 import type {
   BenchmarkAnalysis,
   Change,
@@ -58,6 +58,53 @@ export function changeTone({ change, severity }: MetricComparison): ChangeTone {
     return 'warning';
   }
   return change === 'better' ? 'success' : 'none';
+}
+
+export interface ComparisonPrecision {
+  /** The interval's half-width: `±1.4%`, or `±0.5` for a discrete metric, whose bands are counts. */
+  label: string;
+  /**
+   * Whether a regression the alarm cares about could have hidden in the interval: `warning` past the
+   * `warn` band, `error` past the `error` band, `none` within them or without bands to judge by.
+   */
+  tone: Exclude<ChangeTone, 'success'>;
+  /** The per-round noise behind it, and the rounds it would take to resolve the `warn` band. */
+  detail: string;
+}
+
+/**
+ * How precisely a run pinned a comparison down: the smallest change it could still have missed,
+ * judged against the metric's alarm bands.
+ */
+export function comparisonPrecision(
+  comparison: MetricComparison,
+  definition: RunMetricDefinition,
+): ComparisonPrecision {
+  const scalar = definition.kind === 'scalar';
+  const interval = scalar ? comparison.relative : comparison.absolute;
+  const halfWidth = (interval.high - interval.low) / 2;
+  // Scalar bands are fractions; the relative interval is in percent.
+  const width = scalar ? halfWidth / 100 : halfWidth;
+  const { warn, error } = definition.alarm ?? {};
+  let tone: ComparisonPrecision['tone'] = 'none';
+  if (error !== undefined && width > error) {
+    tone = 'error';
+  } else if (warn !== undefined && width > warn) {
+    tone = 'warning';
+  }
+
+  let detail = `±${comparison.noise.toFixed(1)}% per round`;
+  if (scalar && warn !== undefined && warn > 0) {
+    // Rounds for a half-width of `warn`: (z × noise / warn)², z for a run long enough to need them.
+    const z = tCritical(1000, comparison.confidence);
+    const rounds = Math.ceil(((z * comparison.noise) / (warn * 100)) ** 2);
+    detail += ` · about ${rounds} rounds resolve ±${warn * 100}%`;
+  }
+  return {
+    label: `±${scalar ? `${halfWidth.toFixed(1)}%` : halfWidth.toFixed(1)}`,
+    tone,
+    detail,
+  };
 }
 
 /** How a change reads: `better`, `worse`, `no change detected`, `unchanged`. */
