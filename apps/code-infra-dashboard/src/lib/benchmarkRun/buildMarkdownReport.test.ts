@@ -58,29 +58,33 @@ const broken: RunBenchmark = {
   error: 'Render failed',
 };
 
+const faster: RunBenchmark = {
+  name: 'Tooltip mount',
+  file: 'tooltip.bench.tsx',
+  kind: 'baseline',
+  variants: ['current', 'baseline'],
+  samples: {
+    current: { render: [5, 6, 5, 6], 'bench:paint': [20, 22, 21, 23] },
+    baseline: { render: [10, 11, 10, 11], 'bench:paint': [30, 31, 30, 31] },
+  },
+};
+
 describe('buildBenchmarkRunMarkdownReport', () => {
-  it('shows a benchmark where nothing changed as one line', () => {
-    const markdown = buildBenchmarkRunMarkdownReport(reportOf([unchanged]), {
-      title: 'Performance',
-    });
-
-    expect(markdown).toContain('No change detected: **Button mount**');
-    expect(markdown).not.toContain('| render |');
+  it('is a single line when nothing needs attention', () => {
+    expect(
+      buildBenchmarkRunMarkdownReport(reportOf([unchanged, libraries]), { title: 'Performance' }),
+    ).toBe('## Performance\n\nNo regressions in 2 benchmarks');
   });
 
-  it('states nothing but the summary when no benchmark regressed', () => {
-    const markdown = buildBenchmarkRunMarkdownReport(reportOf([unchanged]), {
-      title: 'Performance',
-    });
+  it('names improvements on alarmed metrics in that line, and leaves informational ones out', () => {
+    const markdown = buildBenchmarkRunMarkdownReport(reportOf([faster]), { title: 'Performance' });
 
-    expect(markdown.split('\n').slice(0, 3)).toEqual([
-      '## Performance',
-      '',
-      '1 benchmark measured · no regressions',
-    ]);
+    expect(markdown.split('\n')).toHaveLength(3);
+    expect(markdown).toContain('**Tooltip mount** render `better');
+    expect(markdown).not.toContain('bench:paint');
   });
 
-  it('lists regressions above the collapsed results, and marks the heading', () => {
+  it('tables only the rows that regressed, and marks the heading', () => {
     expect(
       buildBenchmarkRunMarkdownReport(reportOf([slower, libraries, broken]), {
         title: 'Performance',
@@ -88,32 +92,18 @@ describe('buildBenchmarkRunMarkdownReport', () => {
     ).toMatchInlineSnapshot(`
       "## Performance ⚠️
 
-      🔴 **Grid scroll** · render · \`worse +9.3% – +9.3%\`
-
-      2 benchmarks measured · 1 with regressions · 1 timed out · 1 failed
+      1 regression in 2 benchmarks
 
       ❌ **Chart zoom**: Render failed
 
-      <details>
-      <summary>Changes</summary>
-
-      **Grid scroll** (3 + 1 rounds · timed out)
+      **Grid scroll**
 
       | Metric | baseline | current | Δ vs baseline |
       |:----------|----------:|----------:|:----------|
       | render | 21.5 ms | 23.5 ms | 🔴 \`worse +9.3% – +9.3%\` |
 
 
-      **libs / mount** (4 rounds)
-
-      | Metric | ours | theirs | theirs vs ours |
-      |:----------|----------:|----------:|:----------|
-      | render | 10 ms | 20.5 ms | 🟠 \`worse +95.8% – +114.2%\` |
-
-
-      _Medians; Δ is the confidence interval of the paired per-round difference (95%)._
-
-      </details>"
+      _Medians; Δ is the confidence interval of the paired per-round difference (95%)._"
     `);
   });
 
@@ -122,8 +112,8 @@ describe('buildBenchmarkRunMarkdownReport', () => {
       title: 'Performance',
     });
 
-    expect(markdown).toContain('no regressions');
-    expect(markdown).not.toContain('🔴');
+    expect(markdown).toContain('No regressions');
+    expect(markdown).not.toContain('libs / mount');
   });
 
   it('links the full run when given where it is', () => {
@@ -132,6 +122,6 @@ describe('buildBenchmarkRunMarkdownReport', () => {
       detailsUrl: 'https://example.com/run',
     });
 
-    expect(markdown).toContain('[See the full run](https://example.com/run)');
+    expect(markdown).toContain('[details](https://example.com/run)');
   });
 });

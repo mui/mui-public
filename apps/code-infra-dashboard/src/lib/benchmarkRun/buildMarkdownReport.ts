@@ -4,17 +4,14 @@ import {
   benchmarkTable,
   changeTone,
   findRegressions,
-  formatRounds,
   formatComparison,
-  formatRunSummary,
+  formatDuration,
   runReportFootnote,
 } from '@mui/internal-benchmark/runReport';
 import type {
   BenchmarkAnalysis,
   BenchmarkRunReport,
-  BenchmarkTableColumn,
   ChangeTone,
-  RunBenchmark,
 } from '@mui/internal-benchmark/runReport';
 
 interface BuildOptions {
@@ -31,82 +28,59 @@ const TONE_MARKERS: Record<ChangeTone, string> = {
   none: '',
 };
 
-/** A benchmark's name, with how many rounds it ran and how long it took. */
-function labelOf(benchmark: RunBenchmark): string {
-  const rounds = formatRounds(benchmark);
-  return rounds ? `**${benchmark.name}** (${rounds})` : `**${benchmark.name}**`;
+/** The changes for the better on metrics that alarm, each as a short phrase. */
+function improvementsOf(analyses: BenchmarkAnalysis[]): string[] {
+  return analyses.flatMap(({ benchmark, metrics }) =>
+    benchmark.kind !== 'baseline'
+      ? []
+      : metrics.flatMap(({ metric, definition, comparisons }) =>
+          definition.alarm === undefined
+            ? []
+            : comparisons
+                .filter((comparison) => comparison.change === 'better')
+                .map(
+                  (comparison) =>
+                    `**${benchmark.name}** ${metric} \`${formatComparison(comparison)}\``,
+                ),
+        ),
+  );
 }
 
-/**
- * A benchmark's table, keeping the rows that changed — better or worse — as markdown cells: each
- * comparison as code, behind a marker of which way it went.
- */
-function changedRowsOf(analysis: BenchmarkAnalysis): {
-  columns: BenchmarkTableColumn[];
-  rows: string[][];
-} {
+/** A benchmark's table, keeping only the rows that regressed, each behind its severity's marker. */
+function regressionTable(analysis: BenchmarkAnalysis): string | null {
   const { columns, rows } = benchmarkTable(analysis);
   const firstComparison = columns.findIndex((column) => column.kind === 'comparison');
-  const changed = rows.filter((row) =>
-    row.comparisons.some(({ change }) => change === 'better' || change === 'worse'),
+  const regressed = rows.filter((row) =>
+    row.comparisons.some((comparison) => comparison.severity !== 'none'),
   );
-  return {
-    columns,
-    rows: changed.map((row) =>
-      row.cells.map((cell, column) =>
-        columns[column].kind === 'comparison'
-          ? `${TONE_MARKERS[changeTone(row.comparisons[column - firstComparison])]}\`${cell}\``
-          : cell,
-      ),
-    ),
-  };
-}
-
-function markdownTable(columns: BenchmarkTableColumn[], rows: string[][]): string {
+  if (regressed.length === 0) {
+    return null;
+  }
   return formatMarkdownTable(
     columns.map(({ header, kind }, column) => ({
       field: String(column),
       header,
       align: kind === 'value' ? ('right' as const) : ('left' as const),
     })),
-    rows.map((cells) => Object.fromEntries(cells.map((cell, column) => [String(column), cell]))),
+    regressed.map((row) =>
+      Object.fromEntries(
+        row.cells.map((cell, column) => [
+          String(column),
+          columns[column].kind === 'comparison'
+            ? `${TONE_MARKERS[changeTone(row.comparisons[column - firstComparison])]}\`${cell}\``
+            : cell,
+        ]),
+      ),
+    ),
   );
-}
-
-/**
- * The benchmarks measured against the baseline, each with a table of the metrics that changed;
- * those where nothing changed are named together below them.
- */
-function renderBaselineChanges(analyses: BenchmarkAnalysis[]): string[] {
-  const tables = analyses.map((analysis) => ({ analysis, ...changedRowsOf(analysis) }));
-  const unchanged = tables.filter((table) => table.rows.length === 0);
-  const lines: string[] = [];
-  for (const { analysis, columns, rows } of tables) {
-    if (rows.length > 0) {
-      lines.push(labelOf(analysis.benchmark), '', markdownTable(columns, rows), '');
-    }
-  }
-  if (unchanged.length > 0) {
-    const names = unchanged.map(({ analysis }) => labelOf(analysis.benchmark));
-    lines.push(`No change detected: ${names.join(', ')}`, '');
-  }
-  return lines;
-}
-
-/** A `compare()` benchmark: a table of the metrics that changed, or one line when none did. */
-function renderComparison(analysis: BenchmarkAnalysis): string {
-  const { columns, rows } = changedRowsOf(analysis);
-  return rows.length === 0
-    ? `${labelOf(analysis.benchmark)} · no change detected`
-    : `${labelOf(analysis.benchmark)}\n\n${markdownTable(columns, rows)}`;
 }
 
 /**
  * Renders a version 2 benchmark report as its pull request comment section.
  *
- * Regressions are stated above the collapsed block, and mark the heading, because a reader has to
- * see them without expanding anything — GitHub renders `<details>` closed, so anything inside it is
- * invisible until someone chooses to look.
+ * The comment is there to draw attention when something needs it, so a run without regressions or
+ * failures is a single line. Only regressions get a table, and only of the rows that regressed;
+ * informational metrics and comparisons between libraries stay on the dashboard.
  */
 export function buildBenchmarkRunMarkdownReport(
   report: BenchmarkRunReport,
@@ -114,44 +88,32 @@ export function buildBenchmarkRunMarkdownReport(
 ): string {
   const analyses = analyzeRun(report);
   const regressions = findRegressions(analyses);
-  const measured = analyses.filter((analysis) => !analysis.benchmark.error);
   const failed = analyses.filter((analysis) => analysis.benchmark.error);
+  const measured = analyses.length - failed.length;
+  const benchmarks = `${measured} benchmark${measured === 1 ? '' : 's'}`;
 
-  const lines = [`## ${options.title}${regressions.length > 0 ? ' ⚠️' : ''}`, ''];
+  const summary = [
+    regressions.length > 0
+      ? `${regressions.length} regression${regressions.length === 1 ? '' : 's'} in ${benchmarks}`
+      : `No regressions in ${benchmarks}`,
+    ...improvementsOf(analyses),
+    report.durationMs === undefined ? null : `ran ${formatDuration(report.durationMs)}`,
+    options.detailsUrl ? `[details](${options.detailsUrl})` : null,
+  ].filter(Boolean);
 
-  for (const { benchmark, metric, comparison } of regressions) {
-    const marker = comparison.severity === 'error' ? '🔴' : '🟡';
-    lines.push(`${marker} **${benchmark}** · ${metric} · \`${formatComparison(comparison)}\``);
-  }
-  if (regressions.length > 0) {
-    lines.push('');
-  }
-
-  lines.push(formatRunSummary(analyses, regressions, report.durationMs), '');
+  const attention = regressions.length > 0 || failed.length > 0;
+  const lines = [`## ${options.title}${attention ? ' ⚠️' : ''}`, '', summary.join(' · ')];
 
   for (const { benchmark } of failed) {
-    lines.push(`❌ **${benchmark.name}**: ${benchmark.error}`);
-  }
-  if (failed.length > 0) {
-    lines.push('');
+    lines.push('', `❌ **${benchmark.name}**: ${benchmark.error}`);
   }
 
-  if (measured.length > 0) {
-    lines.push('<details>', '<summary>Changes</summary>', '');
-    lines.push(
-      ...renderBaselineChanges(
-        measured.filter((analysis) => analysis.benchmark.kind === 'baseline'),
-      ),
-    );
-    const comparisons = measured.filter((analysis) => analysis.benchmark.kind === 'compare');
-    if (comparisons.length > 0) {
-      lines.push(comparisons.map(renderComparison).join('\n\n'), '');
-    }
-    lines.push(`_${runReportFootnote(analyses)}_`, '', '</details>');
-  }
-
-  if (options.detailsUrl) {
-    lines.push('', `[See the full run](${options.detailsUrl})`);
+  const tables = analyses.flatMap((analysis) => {
+    const table = regressionTable(analysis);
+    return table ? [`**${analysis.benchmark.name}**\n\n${table}`] : [];
+  });
+  if (tables.length > 0) {
+    lines.push('', tables.join('\n\n'), '', `_${runReportFootnote(analyses)}_`);
   }
 
   return lines.join('\n');
