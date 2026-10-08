@@ -15,14 +15,13 @@ import type { MetricDefinition } from '../types';
  */
 
 /**
- * The same shape a metric's `alarm` config has. `error` is the smallest change that raises the alarm
- * — a relative fraction (`0.1` = 10%) for a scalar metric, an absolute count for a discrete one;
- * without it, any resolved change for the worse does. `warn` is carried for version 1 reports and
- * judges nothing here.
+ * A metric's alarm, as version 2 judges it. `error` is the smallest change that raises the alarm — a
+ * relative fraction (`0.1` = 10%) for a scalar metric, an absolute count for a discrete one; without
+ * it, any confirmed change for the worse does. A metric config's `warn` is for version 1 reports and
+ * isn't carried here.
  */
 const alarmSchema = z.object({
   direction: z.enum(['lowerIsBetter', 'higherIsBetter']).optional(),
-  warn: z.number().min(0).optional(),
   error: z.number().min(0).optional(),
 });
 
@@ -57,6 +56,12 @@ const benchmarkSchema = z.object({
   variants: z.array(z.string()),
   /** Per variant, per metric: one value per round, round-aligned across variants and metrics. */
   samples: z.record(z.string(), z.record(z.string(), z.array(z.number()))).optional(),
+  /**
+   * This benchmark's own alarms, by metric name, in place of the metric's: its fields override the
+   * metric's alarm, and `null` means the metric never alarms here. A `name#id` sub-series follows
+   * its base metric's entry.
+   */
+  alarms: z.record(z.string(), alarmSchema.nullable()).optional(),
   /**
    * How sampling went: rounds past `sampleSize` were added while a difference was unresolved, and
    * `timedOut` says it was still unresolved when the timeout stopped it.
@@ -120,4 +125,5 @@ export const benchmarkRunUploadSchema = z.object({
 export type BenchmarkRunReport = z.infer<typeof benchmarkRunReportSchema>;
 export type BenchmarkRunUpload = z.infer<typeof benchmarkRunUploadSchema>;
 export type RunMetricDefinition = z.infer<typeof metricDefinitionSchema>;
+export type RunMetricAlarm = z.infer<typeof alarmSchema>;
 export type RunBenchmark = z.infer<typeof benchmarkSchema>;

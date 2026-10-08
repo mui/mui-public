@@ -18,7 +18,6 @@ import type { RunBenchmarksOptions } from '../runner/runBenchmarks';
 type Args = Omit<RunBenchmarksOptions, 'harnessDir' | 'sampling'> & {
   sampleSize?: number;
   timeout?: number;
-  autoSampleConditions?: string[];
 };
 
 const runCommand: CommandModule<{}, Args> = {
@@ -83,13 +82,7 @@ const runCommand: CommandModule<{}, Args> = {
       .option('timeout', {
         type: 'number',
         describe:
-          "Minutes to keep sampling while unresolved, for benchmarks that don't set their own (default 3)",
-      })
-      .option('auto-sample-conditions', {
-        type: 'string',
-        array: true,
-        describe:
-          "Horizons to resolve, such as 5% or 10%, for benchmarks that don't set their own (default 5%)",
+          "Minutes to keep sampling while an alarmed difference is unsettled against its band, for benchmarks that don't set their own (default 3)",
       }),
   handler: async (argv) => {
     if (argv.reporter === 'json') {
@@ -114,7 +107,6 @@ const runCommand: CommandModule<{}, Args> = {
       sampling: {
         sampleSize: argv.sampleSize,
         timeout: argv.timeout,
-        autoSampleConditions: argv.autoSampleConditions,
       },
     });
   },

@@ -4,16 +4,24 @@ import type { BenchmarkInteraction, CaseOptions } from '../caseRuntime';
 import { DiscreteMetric } from '../DiscreteMetric';
 import { ScalarMetric } from '../ScalarMetric';
 import type { SamplingOptions } from '../sampling';
+import type { RunMetricAlarm } from '../runReport/schema';
 import { benchmark } from './page';
 import type { BenchmarkCase, BenchmarkContext } from './page';
 
-export interface ReactBenchmarkOptions extends CaseOptions, SamplingOptions {}
+export interface ReactBenchmarkOptions extends CaseOptions, SamplingOptions {
+  /**
+   * This benchmark's own alarm for `render` and `bench:paint`, in place of the default 5% `error`
+   * band: a lower band for a benchmark that matters more, a higher one for one that matters less,
+   * or `false` for a benchmark that never alarms.
+   */
+  alarm?: RunMetricAlarm | false;
+}
 
 // Render time and paint both alarm: render is React running the components, while paint adds what
 // follows — the commit, injected styles, style recalculation and layout — so a styling or DOM
-// regression can show in paint alone. Both alarm once a change for the worse is confidently 5%, the
-// size sampling is built to settle; smaller confirmed changes show on the dashboard and are left to
-// the timelines. The render count is informational: an extra render matters only through the time it
+// regression can show in paint alone. Both alarm once a change for the worse is confidently 5%,
+// unless the benchmark sets its own `alarm`; smaller confirmed changes show on the dashboard and are
+// left to the timelines. The render count is informational: an extra render matters only through the time it
 // adds, which render time already measures. So is the per-phase split.
 const TIME_ALARM = { error: 0.05 };
 const renderMetric = new ScalarMetric({ name: 'render', format: MILLISECONDS, alarm: TIME_ALARM });
@@ -72,5 +80,9 @@ export function reactBenchmark(
       paintMetric.record(end - start, id === undefined ? undefined : { id });
     }
   };
-  return benchmark(name, run, options);
+  const alarm = options?.alarm;
+  return benchmark(name, run, {
+    ...options,
+    alarms: alarm === undefined ? undefined : { render: alarm, [PAINT_METRIC_NAME]: alarm },
+  });
 }

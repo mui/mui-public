@@ -74,15 +74,14 @@ export interface MetricAlarm {
   direction?: MetricDirection;
   /**
    * Softer band, for version 1 reports only: a regression past `warn` (but within `error`) is
-   * flagged as a warning. Version 2 colours every confirmed change for the worse on the dashboard.
+   * flagged as a warning. Version 2 reports don't carry it.
    * Scalar metrics: a relative fraction (`0.1` = 10%). Discrete metrics: an absolute count delta.
    */
   warn?: number;
   /**
-   * Harder band: a regression past `error` is flagged as an error (the alarm). With only `warn`
-   * set there is no error band: version 1 reports warn, version 2 reports never alarm. With
-   * neither, version 1 reports use the dashboard's ±20% noise band and version 2 reports flag every
-   * confirmed change for the worse.
+   * Harder band: a regression past `error` is flagged as an error (the alarm). Without it, version 1
+   * reports use the dashboard's ±20% noise band (or warn only, with `warn` set) and version 2 reports
+   * flag every confirmed change for the worse.
    * Scalar metrics: a relative fraction (`0.25` = 25%). Discrete metrics: an absolute count delta.
    */
   error?: number;

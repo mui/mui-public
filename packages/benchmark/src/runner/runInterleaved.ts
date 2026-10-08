@@ -5,7 +5,7 @@ import type { Browser, CDPSession, Page } from '@playwright/test';
 import { BENCHMARK_LAUNCH_ARGS, BENCHMARK_VIEWPORT } from '../launchArgs';
 import { compareBenchmark } from '../runReport';
 import type { RunBenchmark, RunMetricDefinition } from '../runReport';
-import { differencesResolved, parseHorizons, pickSampling, resolveSampling } from '../sampling';
+import { differencesResolved, pickSampling, resolveSampling } from '../sampling';
 import type { SamplingOptions } from '../sampling';
 import type { BenchFile } from './benchFiles';
 import type { ResolvedRef } from './refs';
@@ -170,7 +170,7 @@ interface CaseResult {
   metrics: Record<string, RunMetricDefinition>;
 }
 
-export type BenchmarkEntry = Pick<RunBenchmark, 'name' | 'file' | 'kind' | 'variants'>;
+export type BenchmarkEntry = Pick<RunBenchmark, 'name' | 'file' | 'kind' | 'variants' | 'alarms'>;
 
 /** A benchmark to measure: its variants' slots, sampled as its options ask. */
 export interface MeasuredBenchmark {
@@ -185,7 +185,7 @@ export type PlannedBenchmark = MeasuredBenchmark | { entry: BenchmarkEntry; erro
 /**
  * Measures one benchmark in a tab of its own, loading each slot's page before sampling it. Every
  * round samples every slot once, in a shuffled order. After `sampleSize` rounds it keeps adding
- * rounds while a difference is unresolved against the horizons, until the timeout. A failure is
+ * rounds while a difference that can alarm is unsettled against its band, until the timeout. A failure is
  * reported as the benchmark's error.
  */
 async function runBenchmark(
@@ -193,8 +193,7 @@ async function runBenchmark(
   { entry, slots, sampling }: MeasuredBenchmark,
 ): Promise<CaseResult> {
   console.log(chalk.cyan(`\nRunning "${entry.name}" (${entry.file})…`));
-  const { sampleSize, timeout, autoSampleConditions } = sampling;
-  const horizons = parseHorizons(autoSampleConditions);
+  const { sampleSize, timeout } = sampling;
   let opened: Page | undefined;
   try {
     const page = await openBenchTab(browser);
@@ -226,8 +225,7 @@ async function runBenchmark(
     const definitions = metrics ?? {};
     const benchmarkOf = (): RunBenchmark => ({ ...entry, samples: samplesOf(slots, rounds) });
 
-    const isSettled = () =>
-      differencesResolved(compareBenchmark(definitions, benchmarkOf()), horizons);
+    const isSettled = () => differencesResolved(compareBenchmark(definitions, benchmarkOf()));
 
     const deadline = Date.now() + timeout * 60_000;
     let resolved = isSettled();
@@ -290,23 +288,26 @@ async function planBenchFile(
   const [reference] = await listBenchPages(browser, urls.slice(0, 1));
   const others = reference.cases.length > 0 ? await listBenchPages(browser, urls.slice(1)) : [];
 
-  const planned: PlannedBenchmark[] = reference.cases.map(({ name: caseName, sampling }) => {
-    const entry: BenchmarkEntry = {
-      name: caseName,
-      file: benchFile.file,
-      kind: 'baseline',
-      variants,
-    };
-    const missing = others.findIndex(
-      (listing) => !listing.cases.some((benchCase) => benchCase.name === caseName),
-    );
-    if (missing !== -1) {
-      // A case added by the change under test has nothing to compare with.
-      return { entry, error: `"${caseName}" does not exist in [${variants[missing + 1]}].` };
-    }
-    const slots = urls.map((url, index) => ({ variant: variants[index], url, caseName }));
-    return { entry, slots, sampling: samplingOf(sampling, options.sampling) };
-  });
+  const planned: PlannedBenchmark[] = reference.cases.map(
+    ({ name: caseName, sampling, alarms }) => {
+      const entry: BenchmarkEntry = {
+        name: caseName,
+        file: benchFile.file,
+        kind: 'baseline',
+        variants,
+        ...(alarms ? { alarms } : {}),
+      };
+      const missing = others.findIndex(
+        (listing) => !listing.cases.some((benchCase) => benchCase.name === caseName),
+      );
+      if (missing !== -1) {
+        // A case added by the change under test has nothing to compare with.
+        return { entry, error: `"${caseName}" does not exist in [${variants[missing + 1]}].` };
+      }
+      const slots = urls.map((url, index) => ({ variant: variants[index], url, caseName }));
+      return { entry, slots, sampling: samplingOf(sampling, options.sampling) };
+    },
+  );
 
   for (const { name, cases, sampling } of reference.comparisons) {
     const entry: BenchmarkEntry = { name, file: benchFile.file, kind: 'compare', variants: cases };

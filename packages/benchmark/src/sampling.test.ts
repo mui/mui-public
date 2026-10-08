@@ -1,33 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { analyzeBenchmark } from './runReport/analyzeRun';
 import type { RunBenchmark, RunMetricDefinition } from './runReport';
-import {
-  DEFAULT_SAMPLING,
-  differencesResolved,
-  isResolved,
-  parseHorizons,
-  resolveSampling,
-} from './sampling';
-
-describe('parseHorizons', () => {
-  it('expands an unsigned percentage to both signs', () => {
-    expect(parseHorizons(['10%'])).toEqual([-10, 10]);
-  });
-
-  it('keeps a signed percentage to its own side', () => {
-    expect(parseHorizons(['+5%', '-2.5%'])).toEqual([5, -2.5]);
-  });
-
-  it('reads zero as a single horizon', () => {
-    expect(parseHorizons(['0%'])).toEqual([0]);
-  });
-
-  it('rejects anything but a percentage', () => {
-    expect(() => parseHorizons(['5ms'])).toThrow(/Invalid auto-sample condition "5ms"/);
-    expect(() => parseHorizons(['%'])).toThrow(/Invalid auto-sample condition "%"/);
-    expect(() => parseHorizons(['ten%'])).toThrow(/Invalid auto-sample condition "ten%"/);
-  });
-});
+import { DEFAULT_SAMPLING, differencesResolved, isResolved, resolveSampling } from './sampling';
 
 describe('isResolved', () => {
   it('is resolved when the interval lies on one side of every horizon', () => {
@@ -48,16 +22,14 @@ describe('isResolved', () => {
 
 describe('resolveSampling', () => {
   it('fills in a default for every option left out or undefined', () => {
-    expect(resolveSampling({ timeout: 1, autoSampleConditions: undefined })).toEqual({
+    expect(resolveSampling({ timeout: 1, sampleSize: undefined })).toEqual({
       ...DEFAULT_SAMPLING,
       timeout: 1,
     });
   });
 
   it('accepts the documented ranges', () => {
-    expect(() =>
-      resolveSampling({ sampleSize: 2, timeout: 0, autoSampleConditions: ['1%'] }),
-    ).not.toThrow();
+    expect(() => resolveSampling({ sampleSize: 2, timeout: 0 })).not.toThrow();
   });
 
   it('rejects a sample size that cannot form an interval', () => {
@@ -67,12 +39,6 @@ describe('resolveSampling', () => {
 
   it('rejects a negative timeout', () => {
     expect(() => resolveSampling({ timeout: -1 })).toThrow(/Invalid timeout -1/);
-  });
-
-  it('rejects an invalid condition', () => {
-    expect(() => resolveSampling({ autoSampleConditions: ['5ms'] })).toThrow(
-      /Invalid auto-sample condition "5ms"/,
-    );
   });
 });
 
@@ -103,20 +69,20 @@ describe('differencesResolved', () => {
     paint: { kind: 'scalar' },
   };
 
-  it('stops once every alarmed difference is clear of the horizon', () => {
+  it('stops once an alarmed difference without a band is known to be a change', () => {
     const analysis = analyzeBenchmark(
       alarmedRender,
       benchmarkOf({ current: clearlySlower, baseline: noisy }),
     );
-    expect(differencesResolved(analysis, [0])).toBe(true);
+    expect(differencesResolved(analysis)).toBe(true);
   });
 
-  it('keeps sampling while an alarmed difference straddles the horizon', () => {
+  it('keeps sampling while an alarmed difference without a band could still be none', () => {
     const analysis = analyzeBenchmark(
       alarmedRender,
       benchmarkOf({ current: sameish, baseline: noisy }),
     );
-    expect(differencesResolved(analysis, [0])).toBe(false);
+    expect(differencesResolved(analysis)).toBe(false);
   });
 
   it('ignores metrics that do not alarm when some do', () => {
@@ -127,7 +93,7 @@ describe('differencesResolved', () => {
         { current: sameish, baseline: noisy },
       ),
     );
-    expect(differencesResolved(analysis, [0])).toBe(true);
+    expect(differencesResolved(analysis)).toBe(true);
   });
 
   it('stops at once when nothing can alarm', () => {
@@ -135,7 +101,7 @@ describe('differencesResolved', () => {
       { render: { kind: 'scalar' }, paint: { kind: 'scalar' } },
       benchmarkOf({ current: sameish, baseline: noisy }),
     );
-    expect(differencesResolved(analysis, [0])).toBe(true);
+    expect(differencesResolved(analysis)).toBe(true);
   });
 
   it('stops at once for a compare(), whose differences never alarm', () => {
@@ -143,14 +109,23 @@ describe('differencesResolved', () => {
       ...benchmarkOf({ current: sameish, baseline: noisy }),
       kind: 'compare',
     });
-    expect(differencesResolved(analysis, [0])).toBe(true);
+    expect(differencesResolved(analysis)).toBe(true);
   });
 
-  it('resolves a small difference against a wider horizon', () => {
-    const analysis = analyzeBenchmark(
-      alarmedRender,
-      benchmarkOf({ current: sameish, baseline: noisy }),
-    );
-    expect(differencesResolved(analysis, [-50, 50])).toBe(true);
+  it("settles against the alarm's error band", () => {
+    const banded = (error: number) => ({ render: { kind: 'scalar' as const, alarm: { error } } });
+    // About +100%: clearly within a 200% band, still straddling a 100% one.
+    const slower = benchmarkOf({ current: clearlySlower, baseline: noisy });
+    expect(differencesResolved(analyzeBenchmark(banded(2), slower))).toBe(true);
+    expect(differencesResolved(analyzeBenchmark(banded(1), slower))).toBe(false);
+  });
+
+  it("follows the benchmark's own alarm over the metric's", () => {
+    const unsure = benchmarkOf({ current: sameish, baseline: noisy });
+    const withAlarms = (alarms: RunBenchmark['alarms']) =>
+      differencesResolved(analyzeBenchmark(alarmedRender, { ...unsure, alarms }));
+    expect(withAlarms(undefined)).toBe(false);
+    expect(withAlarms({ render: { error: 0.5 } })).toBe(true);
+    expect(withAlarms({ render: null })).toBe(true);
   });
 });

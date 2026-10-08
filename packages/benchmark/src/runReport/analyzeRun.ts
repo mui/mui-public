@@ -1,7 +1,11 @@
 import { calculateMean, calculateSampleStdDev, quantile } from '../stats';
-import type { MetricAlarm } from '../types';
 import { baseMetricName } from '../metricCore';
-import type { BenchmarkRunReport, RunBenchmark, RunMetricDefinition } from './schema';
+import type {
+  BenchmarkRunReport,
+  RunBenchmark,
+  RunMetricAlarm,
+  RunMetricDefinition,
+} from './schema';
 
 /**
  * The one analysis of a run report, shared by the runner's table, the pull request comment and the
@@ -33,7 +37,7 @@ export interface SampleSummary {
  */
 export type Change = 'better' | 'worse' | 'undetected' | 'unchanged';
 
-/** Whether a change raises its alarm. A metric's `warn` band applies to version 1 reports only. */
+/** Whether a change raises its alarm. */
 export type Severity = 'error' | 'none';
 
 export interface MetricComparison {
@@ -45,7 +49,7 @@ export interface MetricComparison {
    * The alarm a change answers to: the metric's, on a `baseline` benchmark; `null` where no change
    * can raise one — a metric without an alarm, or a `compare()`, whose variants differ on purpose.
    */
-  alarm: MetricAlarm | null;
+  alarm: RunMetricAlarm | null;
   /** `subject − against`, in the metric's unit: confidence interval of the mean difference. */
   absolute: Interval;
   /** The same, as a percentage of `against`'s mean. */
@@ -206,6 +210,22 @@ function definitionOf(
 }
 
 /**
+ * The benchmark's own alarm for a metric, if it sets one: an alarm to merge over the metric's, or
+ * `null` when the metric never alarms in this benchmark. A sub-series follows its base metric.
+ */
+function alarmOverrideOf(
+  benchmark: RunBenchmark,
+  metric: string,
+): RunMetricAlarm | null | undefined {
+  const { alarms } = benchmark;
+  if (!alarms) {
+    return undefined;
+  }
+  const key = metric in alarms ? metric : baseMetricName(metric);
+  return key in alarms ? alarms[key] : undefined;
+}
+
+/**
  * An interval in the unit the alarm bands use: a fraction for a scalar metric, which bands
  * relatively, and a count for a discrete one.
  */
@@ -220,15 +240,15 @@ function inAlarmUnits(
 
 /**
  * A change for the worse's severity: judged by how far it went at the least — the interval bound
- * nearest zero — against the `error` band. Without bands, every confirmed change for the worse
- * alarms; with only `warn`, none does, as `warn` judges nothing here.
+ * nearest zero — against the `error` band. Without a band, every confirmed change for the worse
+ * alarms.
  */
-function severityOf(change: Change, interval: Interval, alarm: MetricAlarm): Severity {
+function severityOf(change: Change, interval: Interval, alarm: RunMetricAlarm): Severity {
   if (change !== 'worse') {
     return 'none';
   }
   if (alarm.error === undefined) {
-    return alarm.warn === undefined ? 'error' : 'none';
+    return 'error';
   }
   const worseningAtLeast = alarm.direction === 'higherIsBetter' ? -interval.high : interval.low;
   return worseningAtLeast >= alarm.error ? 'error' : 'none';
@@ -319,12 +339,14 @@ function pairedMetricsOf(
   const { samples } = benchmark;
   const [reference] = benchmark.variants;
   return Object.keys(samples?.[reference] ?? {}).map((metric) => {
-    const definition = definitionOf(metrics, metric);
+    const override = alarmOverrideOf(benchmark, metric);
+    const shared = definitionOf(metrics, metric);
+    const definition = override ? { ...shared, alarm: { ...shared.alarm, ...override } } : shared;
     const sideOf = (name: string) => ({ name, values: samples?.[name]?.[metric] ?? [] });
     return {
       metric,
       definition,
-      canAlarm: benchmark.kind === 'baseline',
+      canAlarm: benchmark.kind === 'baseline' && override !== null,
       pairs: pairsOf(benchmark).map(({ subject, against }) => ({
         subject: sideOf(subject),
         against: sideOf(against),

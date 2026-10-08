@@ -139,8 +139,6 @@ describe('compareSamples', () => {
       // The change is +10 on a mean of 105, about +9.5%.
       expect(compareWith({ error: 0.09 })).toBe('error');
       expect(compareWith({ error: 0.2 })).toBe('none');
-      expect(compareWith({ warn: 0.05, error: 0.2 })).toBe('none');
-      expect(compareWith({ warn: 0.2 })).toBe('none');
       expect(compareWith({})).toBe('error');
     });
 
@@ -286,6 +284,48 @@ describe('analyzeRun', () => {
     );
 
     expect(analysis.metrics).toEqual([]);
+  });
+});
+
+describe("a benchmark's own alarms", () => {
+  // Every round +10 on a mean of 105: about +9.5%, with no doubt about it.
+  const { base, shifted } = drifting(10);
+  function analyze(alarms: RunBenchmark['alarms'], metric = 'render') {
+    const [analysis] = analyzeRun(
+      reportOf(
+        [
+          {
+            name: 'grid',
+            file: 'grid.bench.tsx',
+            kind: 'baseline',
+            variants: ['current', 'baseline'],
+            samples: { current: { [metric]: shifted }, baseline: { [metric]: base } },
+            alarms,
+          },
+        ],
+        { render: { kind: 'scalar', alarm: { error: 0.2 } } },
+      ),
+    );
+    return analysis.metrics[0].comparisons[0];
+  }
+
+  it("uses the metric's alarm when the benchmark sets none", () => {
+    expect(analyze(undefined).severity).toBe('none');
+  });
+
+  it("overrides the metric's band", () => {
+    expect(analyze({ render: { error: 0.05 } })).toMatchObject({
+      alarm: { error: 0.05 },
+      severity: 'error',
+    });
+  });
+
+  it('turns the alarm off with null', () => {
+    expect(analyze({ render: null })).toMatchObject({ alarm: null, severity: 'none' });
+  });
+
+  it("applies a base metric's entry to its sub-series", () => {
+    expect(analyze({ render: { error: 0.05 } }, 'render#rows').severity).toBe('error');
   });
 });
 

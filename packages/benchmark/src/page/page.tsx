@@ -5,6 +5,7 @@ import { seriesName, setMetricRecorder } from '../metricCore';
 import { hasSampling, pickSampling, resolveSampling } from '../sampling';
 import type { SamplingOptions } from '../sampling';
 import type { MetricDefinition } from '../types';
+import type { RunMetricAlarm } from '../runReport/schema';
 
 // The page runtime the `benchmark` CLI measures. `benchmark()` registers a case, and the runner calls
 // `window.benchmarkPage.sample()` to run one iteration of it at a time. What a case measures is
@@ -30,25 +31,36 @@ export interface BenchmarkCase {
   readonly name: string;
 }
 
-/** Every case the file registered, by name, with its sampling options as given. */
-const cases = new Map<string, { run: BenchmarkRun; sampling: SamplingOptions }>();
+export interface BenchmarkCaseOptions extends SamplingOptions {
+  /**
+   * This benchmark's own alarms, by metric name, in place of the metric's: its fields override the
+   * metric's alarm — a lower `error` band for a benchmark that matters more, a higher one for one
+   * that matters less — and `false` means the metric never alarms here. A `name#id` sub-series
+   * follows its base metric.
+   */
+  alarms?: Record<string, RunMetricAlarm | false>;
+}
+
+/** Every case the file registered, by name, with its options as given. */
+const cases = new Map<string, { run: BenchmarkRun; options: BenchmarkCaseOptions }>();
 
 /**
  * Registers a benchmark case. The runner calls `run` once per sample, each time in a freshly loaded
- * page, for as many rounds as `sampling` asks. A case on its own is measured across the builds; one passed to
- * `compare()` is measured against the other cases there instead, sampled as the `compare()` asks.
+ * page, for as many rounds as `options` asks. A case on its own is measured across the builds; one
+ * passed to `compare()` is measured against the other cases there instead, sampled as the
+ * `compare()` asks, and never alarms.
  */
 export function benchmark(
   name: string,
   run: BenchmarkRun,
-  sampling: SamplingOptions = {},
+  options: BenchmarkCaseOptions = {},
 ): BenchmarkCase {
   if (cases.has(name)) {
     throw new Error(`Two benchmarks share the name "${name}". Benchmark names must be unique.`);
   }
   // Resolved here only to reject invalid options where they were written.
-  resolveSampling(sampling);
-  cases.set(name, { run, sampling });
+  resolveSampling(options);
+  cases.set(name, { run, options });
   return { name };
 }
 
@@ -80,7 +92,7 @@ export function compare(
   // Resolved here only to reject invalid options where they were written.
   resolveSampling(sampling);
   for (const benchCase of compared) {
-    const own = cases.get(benchCase.name)?.sampling;
+    const own = cases.get(benchCase.name)?.options;
     if (own && hasSampling(own)) {
       throw new Error(
         `"${benchCase.name}" sets its own sampling, but a compared case is sampled as its ` +
@@ -122,8 +134,15 @@ setMetricRecorder((metric, value, options) => {
 });
 
 export interface BenchPage {
-  /** The cases measured across the builds: every case no `compare()` took. */
-  cases: Array<{ name: string; sampling: SamplingOptions }>;
+  /**
+   * The cases measured across the builds: every case no `compare()` took. `alarms` is the case's own,
+   * with `null` for a metric that never alarms there.
+   */
+  cases: Array<{
+    name: string;
+    sampling: SamplingOptions;
+    alarms?: Record<string, RunMetricAlarm | null>;
+  }>;
   /** The file's `compare()` calls, with their cases' names in order. */
   comparisons: Array<{ name: string; cases: string[]; sampling: SamplingOptions }>;
   /** Every metric recorded so far, by name. */
@@ -188,7 +207,17 @@ export function markPageReady(): void {
   window.benchmarkPage = {
     cases: [...cases]
       .filter(([name]) => !comparisons.some((comparison) => comparison.cases.includes(name)))
-      .map(([name, { sampling }]) => ({ name, sampling: pickSampling(sampling) })),
+      .map(([name, { options }]) => ({
+        name,
+        sampling: pickSampling(options),
+        ...(options.alarms
+          ? {
+              alarms: Object.fromEntries(
+                Object.entries(options.alarms).map(([metric, alarm]) => [metric, alarm || null]),
+              ),
+            }
+          : {}),
+      })),
     comparisons,
     metricDefinitions: () => Object.fromEntries(metricDefinitions),
     sample,

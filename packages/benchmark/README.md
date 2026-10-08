@@ -224,14 +224,14 @@ You can also `record()` or `time()` from inside a `benchmark()` render function 
 - `format` — an [`Intl.NumberFormatOptions`](https://developer.mozilla.org/en-US/docs/Web/API/Intl/NumberFormat/NumberFormat) object used to display the value.
 - `alarm` — opts the metric into regression flagging. Omit it and the metric is informational (its diff is shown but never flagged). Holds:
   - `direction` — `'lowerIsBetter'` (default) or `'higherIsBetter'`.
-  - `warn` — softer band, for version 1 reports; a regression past it is flagged as a warning.
-  - `error` — harder band; a regression past it is flagged as an error. With only `warn` set there is no error band.
+  - `warn` — softer band, for version 1 reports only; a regression past it is flagged as a warning.
+  - `error` — harder band; a regression past it is flagged as an error.
   - Bands are relative fractions for scalar metrics (`0.1` = 10%) and absolute count deltas for discrete metrics (`1`, `2`). Either band is optional.
 
 How a regression is judged depends on which report the repository uploads:
 
 - **Version 1** (this Vitest reporter) compares the two runs' means. A scalar metric's change must pass a band; with neither band set, `error` is the dashboard's ±20% noise band. A discrete metric flags any change in its mean.
-- **Version 2** ([the `benchmark` CLI](#the-benchmark-cli)) first needs the metric's confidence interval to lie wholly on the worse side; the `error` band then applies to the end of that interval nearest zero, so a change alarms only once it is confidently that large. With neither band, every confirmed change for the worse alarms; with only `warn`, none does. `warn` judges nothing: the dashboard colours every confirmed change for the worse, and the PR comment shows only alarms.
+- **Version 2** ([the `benchmark` CLI](#the-benchmark-cli)) first needs the metric's confidence interval to lie wholly on the worse side; the `error` band then applies to the end of that interval nearest zero, so a change alarms only once it is confidently that large. Without an `error` band, every confirmed change for the worse alarms. Version 2 has no `warn`: the dashboard colours every confirmed change for the worse, and the PR comment shows only alarms. A benchmark can override a metric's alarm for itself; see [Choosing what alarms](#choosing-what-alarms).
 
 Alarms are evaluated against the baseline when the PR comment is generated, not during the local `vitest run` — a regression never fails the test suite locally. In a version 1 PR comment, `error`-band regressions surface as failures and `warn`-band regressions as warnings.
 
@@ -440,33 +440,44 @@ which costs the results precision.
 ### Sampling
 
 How many rounds a benchmark is measured for adapts to its results, the way tachometer's
-auto-sampling does and under tachometer's names. After `sampleSize` rounds, rounds keep being added
-while any difference is unresolved against an `autoSampleConditions` horizon, for up to `timeout`
-minutes. A difference is resolved against a horizon once its confidence interval lies entirely on
-one side of it; `'10%'` stands for both `'-10%'` and `'+10%'`. The metrics that alarm decide, or every
-metric when none does.
+auto-sampling does. After `sampleSize` rounds, rounds keep being added while a difference that can
+raise an alarm is unsettled, for up to `timeout` minutes. A difference is settled once its interval
+lies entirely past its alarm's `error` band or entirely within it: known to alarm, or known not to.
+An alarm without a band settles against zero, so an unchanged benchmark measured with one samples
+until its timeout. Differences that can't alarm, in a `compare()` or a metric without an alarm, never
+keep a run going.
 
-| Option                 | Default  | Meaning                                                                         |
-| :--------------------- | :------- | :------------------------------------------------------------------------------ |
-| `sampleSize`           | `50`     | Rounds measured before deciding whether to continue                             |
-| `timeout`              | `3`      | Minutes to keep sampling while a difference is unresolved                       |
-| `autoSampleConditions` | `['5%']` | Horizons to resolve: by default, until each change is larger or smaller than 5% |
+| Option       | Default | Meaning                                                                 |
+| :----------- | :------ | :---------------------------------------------------------------------- |
+| `sampleSize` | `50`    | Rounds measured before deciding whether to continue                     |
+| `timeout`    | `3`     | Minutes to keep sampling while an alarmed difference is still unsettled |
 
 They are set per benchmark: the last argument of `benchmark()` and `compare()`, and among
 `reactBenchmark()`'s options. A compared case is sampled as its `compare()` asks, so setting its own
-is an error. `--sample-size`, `--timeout` and `--auto-sample-conditions` set them for the benchmarks
-that don't set their own, as Vitest's `--testTimeout` does for tests: what a benchmark file says
-always wins.
+is an error. `--sample-size` and `--timeout` set them for the benchmarks that don't set their own, as
+Vitest's `--testTimeout` does for tests: what a benchmark file says always wins.
 
 ```tsx
-reactBenchmark('mount', () => <Grid rows={1000} />, { timeout: 1, autoSampleConditions: ['10%'] });
+reactBenchmark('mount', () => <Grid rows={1000} />, { timeout: 1 });
 
 compare('scatter', [ours, other], { sampleSize: 100 });
 ```
 
-A `'0%'` horizon asks whether there is any change at all. Two builds that perform the same never
-resolve against it, so an unchanged benchmark samples until its timeout, and checking again after
-every round makes a false finding likelier the longer it goes.
+### Choosing what alarms
+
+`render` and `bench:paint` alarm once a change is confidently 5% worse. A `reactBenchmark()` can set
+its own band for both with `alarm`: a lower one for a benchmark that matters more, a higher one for
+one that matters less, or `false` for one that never alarms. Sampling follows the band, so a tighter
+band also samples longer.
+
+```tsx
+reactBenchmark('Data grid scroll', () => <Grid />, scroll, { alarm: { error: 0.03 } });
+reactBenchmark('Docs demo mount', () => <Demo />, { alarm: { error: 0.15 } });
+reactBenchmark('Experimental', () => <Lab />, { alarm: false });
+```
+
+`benchmark()` takes the same per metric, as `alarms`: `{ alarms: { 'json:parse': { error: 0.1 } } }`.
+A benchmark's alarm is merged over the metric's, and a `name#id` sub-series follows its base metric.
 
 ### The report
 
@@ -488,8 +499,9 @@ benchmark --baseline "v$(npm view @mui/material version)" --upload --timeline re
 - `analyzeRun` from `@mui/internal-benchmark/runReport` draws every conclusion from it: a confidence
   interval on the paired difference per metric, a change (`better`, `worse`, `no change detected`, or
   `unchanged` when every round measured the same), and a severity from the metric's alarm.
-- `reactBenchmark()`'s `render` and `bench:paint` alarm once confidently 5% worse; `render:count`
-  and the per-phase split are informational; every other metric brings its own alarm.
+- `reactBenchmark()`'s `render` and `bench:paint` alarm once confidently 5% worse, unless the
+  benchmark sets its own `alarm`; `render:count` and the per-phase split are informational; every
+  other metric brings its own alarm.
 - Tables list the baseline before the current build, so a row reads old to new. The pull request
   comment is one line unless something alarmed — the count, improvements on alarmed metrics and a
   link — and then tables only the rows that alarmed; the terminal and the dashboard show every
