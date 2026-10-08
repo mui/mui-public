@@ -186,8 +186,8 @@ This produces a `bench:paint#my-component` sub-series alongside the automatic `b
 
 Record your own measurements — a timing, a count, anything measured inside or outside React — from a plain `it()` loop or from inside a `benchmark()`. There are two primitives:
 
-- `ScalarMetric` — a continuous value (timings, sizes). Aggregated as mean ± standard deviation with IQR outlier removal, and compared against a baseline with a relative noise band.
-- `DiscreteMetric` — a count of events. Compared as an exact integer (any change is significant) and formatted as a whole number.
+- `ScalarMetric` — a continuous value (timings, sizes).
+- `DiscreteMetric` — a count of events, formatted as a whole number.
 
 Both record values with `record(value)`. `ScalarMetric` additionally offers `time()`/`timeEnd()` — a `console.time`-style shortcut that records the elapsed milliseconds for you.
 
@@ -225,8 +225,13 @@ You can also `record()` or `time()` from inside a `benchmark()` render function 
 - `alarm` — opts the metric into regression flagging. Omit it and the metric is informational (its diff is shown but never flagged). Holds:
   - `direction` — `'lowerIsBetter'` (default) or `'higherIsBetter'`.
   - `warn` — softer band; a regression past it is flagged as a warning.
-  - `error` — harder band; a regression past it is flagged as an error. Defaults to the dashboard's global noise band only when both `warn` and `error` are omitted; with only `warn` set there is no error band (warning-only).
+  - `error` — harder band; a regression past it is flagged as an error. With only `warn` set there is no error band (warning-only).
   - Bands are relative fractions for scalar metrics (`0.1` = 10%) and absolute count deltas for discrete metrics (`1`, `2`). Either band is optional.
+
+How a regression is judged depends on which report the repository uploads:
+
+- **Version 1** (this Vitest reporter) compares the two runs' means. A scalar metric's change must pass a band; with neither band set, `error` is the dashboard's ±20% noise band. A discrete metric flags any change in its mean.
+- **Version 2** ([the `benchmark` CLI](#the-benchmark-cli)) first needs the metric's confidence interval to lie wholly on the worse side; the bands then apply to the end of that interval nearest zero, so a change counts only once it is confidently that large. With neither band set, every confirmed change for the worse is an error.
 
 Alarms are evaluated against the baseline when the PR comment is generated, not during the local `vitest run` — a regression never fails the test suite locally. In the PR comment, `error`-band regressions surface as failures and `warn`-band regressions as warnings.
 
@@ -480,8 +485,9 @@ benchmark --baseline "v$(npm view @mui/material version)" --upload --timeline re
 - `analyzeRun` from `@mui/internal-benchmark/runReport` draws every conclusion from it: a confidence
   interval on the paired difference per metric, a change (`better`, `worse`, `no change detected`, or
   `unchanged` when every round measured the same), and a severity from the metric's alarm.
-- `reactBenchmark()`'s `render` alarms on any resolved change for the worse; `render:count`, the
-  per-phase split and `bench:paint` are informational; every other metric brings its own alarm.
+- `reactBenchmark()`'s `render` and `bench:paint` warn once confidently 2% worse and fail at 5%;
+  `render:count` and the per-phase split are informational; every other metric brings its own
+  alarm.
 - Tables list the baseline before the current build, so a row reads old to new. The pull request
   comment keeps only the metrics that got better or worse, and sums up a benchmark where none did
   as "no change detected"; the terminal and the dashboard show every metric.

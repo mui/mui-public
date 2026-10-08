@@ -61,8 +61,8 @@ export interface BenchmarkCaseRuntime {
 
 /**
  * Whether a custom metric measures a continuous value or a discrete count.
- * - `scalar` — continuous measurements (timings, sizes); compared with a relative noise band.
- * - `discrete` — counts/events; compared as exact integers.
+ * - `scalar` — continuous measurements (timings, sizes); alarm bands are relative fractions.
+ * - `discrete` — counts/events; alarm bands are absolute count deltas.
  */
 export type MetricKind = 'scalar' | 'discrete';
 
@@ -78,9 +78,9 @@ export interface MetricAlarm {
    */
   warn?: number;
   /**
-   * Harder band: a regression past `error` is flagged as an error (the alarm). When **both**
-   * `warn` and `error` are omitted, `error` defaults to the dashboard's global noise band; with
-   * only `warn` set there is no error band (warning-only).
+   * Harder band: a regression past `error` is flagged as an error (the alarm). With only `warn`
+   * set there is no error band (warning-only). With neither, version 1 reports use the dashboard's
+   * ±20% noise band and version 2 reports flag every confirmed change for the worse.
    * Scalar metrics: a relative fraction (`0.25` = 25%). Discrete metrics: an absolute count delta.
    */
   error?: number;
