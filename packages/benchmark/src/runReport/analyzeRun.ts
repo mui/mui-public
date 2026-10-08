@@ -10,9 +10,9 @@ import type { BenchmarkRunReport, RunBenchmark, RunMetricDefinition } from './sc
  * per-round difference cancels whatever the machine was doing during that round, and its
  * confidence interval is far tighter than one computed from two independent sets of samples.
  *
- * Intervals are 95%, except where a change can raise an alarm: there, every such comparison in the
- * run shares the 5% chance of a false one (Bonferroni), so a run of unchanged code raises one at
- * most 5% of the time however many it checks, rather than 5% per comparison.
+ * Intervals are 95%, except where a change can raise an alarm: there they are 99%, a fixed level so
+ * a run's cost doesn't grow with how many benchmarks it holds. What keeps a run of unchanged code
+ * from alarming is mostly the alarm's bands, which the interval's near end has to reach.
  */
 
 export interface Interval {
@@ -65,6 +65,9 @@ export interface BenchmarkAnalysis {
 
 /** The confidence level of an interval no alarm depends on. */
 export const CONFIDENCE = 0.95;
+
+/** The confidence level of a comparison that can raise an alarm. */
+export const ALARMED_CONFIDENCE = 0.99;
 
 const LANCZOS = [
   0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313,
@@ -164,14 +167,6 @@ export function meanInterval(values: number[], confidence = CONFIDENCE): Interva
     values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / (values.length - 1);
   const halfWidth = tCritical(values.length - 1, confidence) * Math.sqrt(variance / values.length);
   return { low: mean - halfWidth, high: mean + halfWidth };
-}
-
-/**
- * The confidence level of each comparison that can raise an alarm, when `familySize` of them share
- * the run's 5% chance of a false alarm.
- */
-export function alarmedConfidence(familySize: number): number {
-  return 1 - (1 - CONFIDENCE) / Math.max(familySize, 1);
 }
 
 export function median(values: number[]): number {
@@ -325,38 +320,16 @@ function pairedMetricsOf(
 }
 
 /**
- * How many comparisons share the run's 5% chance of a false alarm: those that can raise an alarm —
- * alarmed metrics of `baseline` benchmarks — leaving out any whose per-round differences never
- * varied. Those can't be flagged by chance — a render count that is the same in every round — so
- * they would only make the others stricter.
- */
-export function countAlarmedComparisons(
-  metrics: Record<string, RunMetricDefinition>,
-  benchmarks: RunBenchmark[],
-): number {
-  return benchmarks
-    .flatMap((benchmark) => pairedMetricsOf(metrics, benchmark))
-    .filter((paired) => paired.canAlarm)
-    .flatMap((paired) => paired.pairs)
-    .filter(({ subject, against }) => {
-      const differences = differencesOf(subject.values, against.values);
-      return differences.some((difference) => difference !== differences[0]);
-    }).length;
-}
-
-/**
  * Compares one benchmark's variants, its metrics described by `metrics` (a report's, or a run's so
- * far). The comparisons alone, which is all deciding whether to keep sampling needs. A comparison
- * that can raise an alarm is one of `familySize` sharing the run's 5% chance of a false one.
+ * far). The comparisons alone, which is all deciding whether to keep sampling needs.
  */
 export function compareBenchmark(
   metrics: Record<string, RunMetricDefinition>,
   benchmark: RunBenchmark,
-  familySize = 1,
 ): { metrics: MetricComparisons[] } {
   return {
     metrics: pairedMetricsOf(metrics, benchmark).map(({ metric, definition, canAlarm, pairs }) => {
-      const confidence = canAlarm ? alarmedConfidence(familySize) : CONFIDENCE;
+      const confidence = canAlarm ? ALARMED_CONFIDENCE : CONFIDENCE;
       return {
         metric,
         definition,
@@ -372,12 +345,11 @@ export function compareBenchmark(
 export function analyzeBenchmark(
   metrics: Record<string, RunMetricDefinition>,
   benchmark: RunBenchmark,
-  familySize = 1,
 ): BenchmarkAnalysis {
   const { samples } = benchmark;
   return {
     benchmark,
-    metrics: compareBenchmark(metrics, benchmark, familySize).metrics.map((comparison) => ({
+    metrics: compareBenchmark(metrics, benchmark).metrics.map((comparison) => ({
       ...comparison,
       variants: Object.fromEntries(
         benchmark.variants.map((variant) => [
@@ -390,10 +362,7 @@ export function analyzeBenchmark(
 }
 
 export function analyzeRun(report: BenchmarkRunReport): BenchmarkAnalysis[] {
-  const familySize = countAlarmedComparisons(report.metrics, report.benchmarks);
-  return report.benchmarks.map((benchmark) =>
-    analyzeBenchmark(report.metrics, benchmark, familySize),
-  );
+  return report.benchmarks.map((benchmark) => analyzeBenchmark(report.metrics, benchmark));
 }
 
 export interface Regression {

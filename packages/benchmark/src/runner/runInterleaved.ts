@@ -3,7 +3,7 @@
 import chalk from 'chalk';
 import type { Browser, CDPSession, Page } from '@playwright/test';
 import { BENCHMARK_LAUNCH_ARGS, BENCHMARK_VIEWPORT } from '../launchArgs';
-import { compareBenchmark, countAlarmedComparisons } from '../runReport';
+import { compareBenchmark } from '../runReport';
 import type { RunBenchmark, RunMetricDefinition } from '../runReport';
 import { differencesResolved, parseHorizons, pickSampling, resolveSampling } from '../sampling';
 import type { SamplingOptions } from '../sampling';
@@ -187,15 +187,10 @@ export type PlannedBenchmark = MeasuredBenchmark | { entry: BenchmarkEntry; erro
  * round samples every slot once, in a shuffled order. After `sampleSize` rounds it keeps adding
  * rounds while a difference is unresolved against the horizons, until the timeout. A failure is
  * reported as the benchmark's error.
- *
- * Its alarmed comparisons share the run's 5% chance of a false alarm with those of the other
- * `baseline` benchmarks, which haven't been measured yet, or not by this call: each is taken to have
- * one, the common case, and the report counts them exactly afterwards.
  */
 async function runBenchmark(
   browser: Browser,
   { entry, slots, sampling }: MeasuredBenchmark,
-  otherBaselineBenchmarks: number,
 ): Promise<CaseResult> {
   console.log(chalk.cyan(`\nRunning "${entry.name}" (${entry.file})…`));
   const { sampleSize, timeout, autoSampleConditions } = sampling;
@@ -231,12 +226,8 @@ async function runBenchmark(
     const definitions = metrics ?? {};
     const benchmarkOf = (): RunBenchmark => ({ ...entry, samples: samplesOf(slots, rounds) });
 
-    const isSettled = () => {
-      const benchmark = benchmarkOf();
-      const familySize =
-        countAlarmedComparisons(definitions, [benchmark]) + otherBaselineBenchmarks;
-      return differencesResolved(compareBenchmark(definitions, benchmark, familySize), horizons);
-    };
+    const isSettled = () =>
+      differencesResolved(compareBenchmark(definitions, benchmarkOf()), horizons);
 
     const deadline = Date.now() + timeout * 60_000;
     let resolved = isSettled();
@@ -340,8 +331,6 @@ function samplingOf(
 export interface PlannedRun {
   browser: Browser;
   planned: PlannedBenchmark[];
-  /** How many of them measure across the builds. */
-  baselineBenchmarks: number;
 }
 
 /**
@@ -363,8 +352,8 @@ export async function withPlannedRun<T>(
   ]);
 
   try {
-    // Every file is listed before any is measured, so each benchmark knows how many others share
-    // the run's chance of a false alarm. Nothing is measured yet, so the files list at once.
+    // Every file is listed before any is measured, so a name pattern that matches nothing fails
+    // before the run spends anything. Nothing is measured yet, so the files list at once.
     const { testNamePattern } = options;
     const planned = (
       await Promise.all(
@@ -378,10 +367,7 @@ export async function withPlannedRun<T>(
     if (planned.length === 0) {
       throw new Error(`No benchmark name matches ${testNamePattern}.`);
     }
-    const baselineBenchmarks = planned.filter(
-      (plan) => 'slots' in plan && plan.entry.kind === 'baseline',
-    ).length;
-    return await drive({ browser, planned, baselineBenchmarks });
+    return await drive({ browser, planned });
   } finally {
     await browser.close();
     await server.close();
@@ -389,7 +375,7 @@ export async function withPlannedRun<T>(
 }
 
 export function runInterleaved(options: RunInterleavedOptions): Promise<InterleavedResults> {
-  return withPlannedRun(options, async ({ browser, planned, baselineBenchmarks }) => {
+  return withPlannedRun(options, async ({ browser, planned }) => {
     const results: CaseResult[] = [];
     // Sequential on purpose: concurrent cases would contend for the same machine.
     for (const plan of planned) {
@@ -397,10 +383,9 @@ export function runInterleaved(options: RunInterleavedOptions): Promise<Interlea
         results.push({ benchmark: { ...plan.entry, error: plan.error }, metrics: {} });
         continue;
       }
-      const others = plan.entry.kind === 'baseline' ? baselineBenchmarks - 1 : 0;
       const startedAt = Date.now();
       // eslint-disable-next-line no-await-in-loop
-      const { benchmark, metrics } = await runBenchmark(browser, plan, others);
+      const { benchmark, metrics } = await runBenchmark(browser, plan);
       results.push({ benchmark: { ...benchmark, durationMs: Date.now() - startedAt }, metrics });
     }
     return {

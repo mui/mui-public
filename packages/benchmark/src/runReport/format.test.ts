@@ -104,18 +104,19 @@ describe('formatRunSummary', () => {
 });
 
 describe('runReportFootnote', () => {
-  it('states one level when at most one comparison can raise an alarm', () => {
-    expect(runReportFootnote(analyzeRun(reportOf([benchmarkOf('a')])))).toBe(
+  it('states one level when nothing can raise an alarm', () => {
+    const report = {
+      ...reportOf([benchmarkOf('a')]),
+      metrics: { render: { kind: 'scalar' as const } },
+    };
+    expect(runReportFootnote(analyzeRun(report))).toBe(
       'Medians; Δ is the confidence interval of the paired per-round difference (95%).',
     );
   });
 
-  it('states the level the alarmed comparisons share', () => {
-    const footnote = runReportFootnote(
-      analyzeRun(
-        reportOf([benchmarkOf('a'), benchmarkOf('b'), benchmarkOf('c'), benchmarkOf('d')]),
-      ),
+  it('states the alarmed level beside the other', () => {
+    expect(runReportFootnote(analyzeRun(reportOf([benchmarkOf('a')])))).toContain(
+      '(99% for alarmed metrics, 95% otherwise)',
     );
-    expect(footnote).toContain('(98.75% for alarmed metrics, 95% otherwise)');
   });
 });

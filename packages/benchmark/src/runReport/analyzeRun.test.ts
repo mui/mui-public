@@ -225,7 +225,7 @@ describe('analyzeRun', () => {
     });
   });
 
-  describe('the run-wide chance of a false alarm', () => {
+  describe('the confidence level', () => {
     // Per-round differences of 1, -2, 3, 0, 2, -1, 4, 1: noisy, so the interval has a width.
     const noisy = {
       current: [101, 98, 103, 100, 102, 99, 104, 101],
@@ -256,44 +256,18 @@ describe('analyzeRun', () => {
       baseline: { render: noisy.baseline },
     });
 
-    it('is shared by the alarmed comparisons of the run', () => {
+    it('is 99% for a metric that can raise an alarm, and 95% otherwise', () => {
+      const [alarmed] = analyzeRun(reportOf([alone], { render: SCALAR }));
+      const [plain] = analyzeRun(reportOf([alone], { render: { kind: 'scalar' } }));
+
+      expect(widthOf(alarmed) / widthOf(plain)).toBeCloseTo(tCritical(7, 0.99) / tCritical(7), 6);
+    });
+
+    it("doesn't tighten with the number of benchmarks in the run", () => {
       const [single] = analyzeRun(reportOf([alone], { render: SCALAR }));
-      const [shared] = analyzeRun(reportOf([alone, other], { render: SCALAR }));
+      const [crowded] = analyzeRun(reportOf([alone, other], { render: SCALAR }));
 
-      expect(widthOf(shared) / widthOf(single)).toBeCloseTo(tCritical(7, 0.975) / tCritical(7), 6);
-    });
-
-    it('leaves metrics without an alarm at 95%', () => {
-      const plain = { render: { kind: 'scalar' as const } };
-      const [single] = analyzeRun(reportOf([alone], plain));
-      const [shared] = analyzeRun(reportOf([alone, other], plain));
-
-      expect(widthOf(shared)).toBe(widthOf(single));
-    });
-
-    it('leaves out comparisons that never varied', () => {
-      const steady = benchmarkOf('c', {
-        current: { render: [3, 3, 3, 3, 3, 3, 3, 3] },
-        baseline: { render: [3, 3, 3, 3, 3, 3, 3, 3] },
-      });
-      const [single] = analyzeRun(reportOf([alone], { render: SCALAR }));
-      const [withSteady] = analyzeRun(reportOf([alone, steady], { render: SCALAR }));
-
-      expect(widthOf(withSteady)).toBe(widthOf(single));
-    });
-
-    it('can miss a change that 95% would have flagged', () => {
-      const { base, shifted } = drifting(2);
-      const flagged = benchmarkOf('d', {
-        current: { render: shifted.map((value, round) => value + (round % 2 ? 2 : -2)) },
-        baseline: { render: base },
-      });
-      const [single] = analyzeRun(reportOf([flagged], { render: SCALAR }));
-      const crowd = Array.from({ length: 20 }, (_, index) => ({ ...other, name: `b${index}` }));
-      const [crowded] = analyzeRun(reportOf([flagged, ...crowd], { render: SCALAR }));
-
-      expect(single.metrics[0].comparisons[0].change).toBe('worse');
-      expect(crowded.metrics[0].comparisons[0].change).toBe('undetected');
+      expect(widthOf(crowded)).toBe(widthOf(single));
     });
   });
 

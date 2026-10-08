@@ -423,12 +423,11 @@ during a round — thermal throttling, a background process — then affects bot
 out.
 
 Intervals are 95%, except where a change can raise an alarm — an alarmed metric of a benchmark
-measured against the baseline. Every such comparison in the run shares one 5% chance of a false alarm
-(Bonferroni): with 5 of them, each is a 99% interval, so a run of unchanged code raises a false alarm
-at most 5% of the time rather than in about one run in five. A comparison whose per-round differences
-never vary — a render count that is the same in every round — can't be flagged by chance, so it takes
-no share. Sampling resolves at the same level, counting one alarmed comparison for every other
-benchmark in the run; the report counts them exactly.
+measured against the baseline — where they are 99%. The level is fixed rather than tightened for
+every comparison a run holds, so adding benchmarks doesn't make each one sample longer. What keeps a
+run of unchanged code from alarming is mostly the alarm's bands: the interval's near end has to
+reach them, so noise has to fake a change bigger than the band, not just one beyond zero. The nightly
+A/A job tracks how often a run of unchanged code alarms anyway.
 
 Run it with at least 3 logical CPUs (vCPUs in CI); it warns with fewer. On 2, V8's background
 compilers are starved, so how fast the same code runs depends on how its compilation happened to go,
