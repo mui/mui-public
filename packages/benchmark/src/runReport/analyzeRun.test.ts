@@ -1,12 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  analyzeRun,
-  compareSamples,
-  findRegressions,
-  meanInterval,
-  median,
-  tCritical,
-} from './analyzeRun';
+import { analyzeRun, compareSamples, findRegressions, median, tCritical } from './analyzeRun';
 import type { BenchmarkAnalysis } from './analyzeRun';
 import type { BenchmarkRunReport, RunBenchmark, RunMetricDefinition } from './schema';
 
@@ -49,18 +42,6 @@ describe('tCritical', () => {
   it('approaches the normal quantile for large samples', () => {
     expect(tCritical(100_000)).toBeCloseTo(2.576, 2);
     expect(tCritical(100_000, 0.95)).toBeCloseTo(1.96, 2);
-  });
-});
-
-describe('meanInterval', () => {
-  it('centers on the mean', () => {
-    const interval = meanInterval([1, 2, 3, 4, 5]);
-    expect((interval.low + interval.high) / 2).toBeCloseTo(3);
-    expect(interval.low).toBeLessThan(3);
-  });
-
-  it('is a point for a single value', () => {
-    expect(meanInterval([7])).toEqual({ low: 7, high: 7 });
   });
 });
 
@@ -155,7 +136,7 @@ describe('compareSamples', () => {
 
 describe('analyzeRun', () => {
   it('compares the current build against the baseline', () => {
-    const { base, shifted } = drifting(2);
+    const { base, shifted } = drifting(10);
     const [analysis] = analyzeRun(
       reportOf(
         [
@@ -255,13 +236,6 @@ describe('analyzeRun', () => {
       baseline: { render: noisy.baseline },
     });
 
-    it('is 99% for a metric that can raise an alarm, and 95% otherwise', () => {
-      const [alarmed] = analyzeRun(reportOf([alone], { render: SCALAR }));
-      const [plain] = analyzeRun(reportOf([alone], { render: { kind: 'scalar' } }));
-
-      expect(widthOf(alarmed) / widthOf(plain)).toBeCloseTo(tCritical(7, 0.99) / tCritical(7), 6);
-    });
-
     it("doesn't tighten with the number of benchmarks in the run", () => {
       const [single] = analyzeRun(reportOf([alone], { render: SCALAR }));
       const [crowded] = analyzeRun(reportOf([alone, other], { render: SCALAR }));
@@ -320,8 +294,8 @@ describe("a benchmark's own alarms", () => {
     });
   });
 
-  it('turns the alarm off with null', () => {
-    expect(analyze({ render: null })).toMatchObject({ alarm: null, severity: 'none' });
+  it('turns the alarm off with false', () => {
+    expect(analyze({ render: false })).toMatchObject({ alarm: null, severity: 'none' });
   });
 
   it("applies a base metric's entry to its sub-series", () => {
@@ -329,9 +303,34 @@ describe("a benchmark's own alarms", () => {
   });
 });
 
+describe('the default band', () => {
+  it('lets a scalar alarm without a band through under 5%, and alarms past it', () => {
+    const severityAt = (shift: number) => {
+      const { base, shifted } = drifting(shift);
+      return compareSamples(
+        { name: 'current', values: shifted },
+        { name: 'baseline', values: base },
+        { kind: 'scalar', alarm: {} },
+      ).severity;
+    };
+    // +3 and +10 on a mean of 105: about +2.9% and +9.5%, with no doubt about either.
+    expect(severityAt(3)).toBe('none');
+    expect(severityAt(10)).toBe('error');
+  });
+
+  it('alarms on any confirmed change in a discrete count without a band', () => {
+    const comparison = compareSamples(
+      { name: 'current', values: [6, 6, 6] },
+      { name: 'baseline', values: [5, 5, 5] },
+      { kind: 'discrete', alarm: {} },
+    );
+    expect(comparison.severity).toBe('error');
+  });
+});
+
 describe('findRegressions', () => {
   it('reports alarmed changes for the worse, on baseline benchmarks only', () => {
-    const { base, shifted } = drifting(2);
+    const { base, shifted } = drifting(10);
     const samples = { render: shifted };
     const analyses = analyzeRun(
       reportOf(

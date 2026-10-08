@@ -10,8 +10,9 @@ export interface SamplingOptions {
   sampleSize?: number;
   /**
    * Minutes to keep sampling after `sampleSize` rounds while a difference that can raise an alarm is
-   * unsettled: its interval still straddles the alarm's `error` band, or zero for an alarm without
-   * one. `0` measures exactly `sampleSize` rounds. Defaults to 3.
+   * unsettled: its interval still straddles the alarm's `error` band (5% for a scalar metric that sets
+   * none), or zero for a discrete one without a band. `0` measures exactly `sampleSize` rounds.
+   * Defaults to 3.
    */
   timeout?: number;
 }
@@ -36,11 +37,6 @@ export function resolveSampling(options: SamplingOptions): Required<SamplingOpti
   return { sampleSize, timeout };
 }
 
-/** Whether any sampling option is set. */
-export function hasSampling(options: SamplingOptions): boolean {
-  return Object.keys(pickSampling(options)).length > 0;
-}
-
 /** The sampling options `options` sets, leaving out any other key and any left undefined. */
 export function pickSampling(options: SamplingOptions): SamplingOptions {
   const { sampleSize, timeout } = options;
@@ -49,27 +45,12 @@ export function pickSampling(options: SamplingOptions): SamplingOptions {
   );
 }
 
-/** Whether an interval lies entirely on one side of every horizon. */
-export function isResolved(interval: { low: number; high: number }, horizons: number[]): boolean {
-  return horizons.every((horizon) => !(interval.low < horizon && horizon < interval.high));
-}
-
 /**
- * Whether sampling a benchmark can stop: every difference that can raise an alarm is known to be past
- * its `error` band or within it, either way — or, for an alarm without a band, known to be a change
- * or not. The others are only read, so they never keep a run going.
+ * Whether sampling a benchmark can stop: every difference that can raise an alarm is settled. The
+ * others are only read, so they never keep a run going.
  */
-export function differencesResolved(analysis: { metrics: MetricComparisons[] }): boolean {
-  return analysis.metrics.every(({ definition, comparisons }) =>
-    comparisons.every(({ alarm, relative, absolute }) => {
-      if (alarm === null) {
-        return true;
-      }
-      // Bands are fractions on a scalar metric, whose relative interval is in percent, and counts on
-      // a discrete one.
-      const discrete = definition.kind === 'discrete';
-      const band = (alarm.error ?? 0) * (discrete ? 1 : 100);
-      return isResolved(discrete ? absolute : relative, band === 0 ? [0] : [-band, band]);
-    }),
+export function differencesSettled(analysis: { metrics: MetricComparisons[] }): boolean {
+  return analysis.metrics.every((metric) =>
+    metric.comparisons.every((comparison) => comparison.settled),
   );
 }

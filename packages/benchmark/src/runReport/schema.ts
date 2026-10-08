@@ -17,7 +17,7 @@ import type { MetricDefinition } from '../types';
 /**
  * A metric's alarm, as version 2 judges it. `error` is the smallest change that raises the alarm — a
  * relative fraction (`0.1` = 10%) for a scalar metric, an absolute count for a discrete one; without
- * it, any confirmed change for the worse does. A metric config's `warn` is for version 1 reports and
+ * it, 5% for a scalar metric and any confirmed change for a discrete one. A metric config's `warn` is for version 1 reports and
  * isn't carried here.
  */
 const alarmSchema = z.object({
@@ -58,10 +58,10 @@ const benchmarkSchema = z.object({
   samples: z.record(z.string(), z.record(z.string(), z.array(z.number()))).optional(),
   /**
    * This benchmark's own alarms, by metric name, in place of the metric's: its fields override the
-   * metric's alarm, and `null` means the metric never alarms here. A `name#id` sub-series follows
+   * metric's alarm, and `false` means the metric never alarms here. A `name#id` sub-series follows
    * its base metric's entry.
    */
-  alarms: z.record(z.string(), alarmSchema.nullable()).optional(),
+  alarms: z.record(z.string(), z.union([alarmSchema, z.literal(false)])).optional(),
   /**
    * How sampling went: rounds past `sampleSize` were added while a difference was unresolved, and
    * `timedOut` says it was still unresolved when the timeout stopped it.

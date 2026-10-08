@@ -47,5 +47,5 @@ export function printRunReport(report: BenchmarkRunReport): void {
     console.log(red(`⚠ ${benchmark} · ${metric} · ${formatComparison(comparison)}`));
   }
   console.log(formatRunSummary(analyses, regressions, report.durationMs));
-  console.log(dim(runReportFootnote(analyses)));
+  console.log(dim(runReportFootnote()));
 }

@@ -5,6 +5,7 @@ import { DiscreteMetric } from '../DiscreteMetric';
 import { ScalarMetric } from '../ScalarMetric';
 import type { SamplingOptions } from '../sampling';
 import type { RunMetricAlarm } from '../runReport/schema';
+import { DEFAULT_ERROR_BAND } from '../runReport/analyzeRun';
 import { benchmark } from './page';
 import type { BenchmarkCase, BenchmarkContext } from './page';
 
@@ -23,7 +24,7 @@ export interface ReactBenchmarkOptions extends CaseOptions, SamplingOptions {
 // unless the benchmark sets its own `alarm`; smaller confirmed changes show on the dashboard and are
 // left to the timelines. The render count is informational: an extra render matters only through the time it
 // adds, which render time already measures. So is the per-phase split.
-const TIME_ALARM = { error: 0.05 };
+const TIME_ALARM = { error: DEFAULT_ERROR_BAND };
 const renderMetric = new ScalarMetric({ name: 'render', format: MILLISECONDS, alarm: TIME_ALARM });
 const renderCountMetric = new DiscreteMetric({ name: 'render:count' });
 const paintMetric = new ScalarMetric({
@@ -83,6 +84,7 @@ export function reactBenchmark(
   const alarm = options?.alarm;
   return benchmark(name, run, {
     ...options,
-    alarms: alarm === undefined ? undefined : { render: alarm, [PAINT_METRIC_NAME]: alarm },
+    alarms:
+      alarm === undefined ? undefined : { [renderMetric.name]: alarm, [paintMetric.name]: alarm },
   });
 }

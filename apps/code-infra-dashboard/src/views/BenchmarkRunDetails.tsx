@@ -241,7 +241,7 @@ export default function BenchmarkRunDetails() {
         {report && (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
             <Typography variant="body2" color="text.secondary">
-              {runReportFootnote(analyses)}
+              {runReportFootnote()}
             </Typography>
             <Typography variant="body2" color="text.secondary">
               {report.durationMs !== undefined && `Ran ${formatDuration(report.durationMs)} · `}

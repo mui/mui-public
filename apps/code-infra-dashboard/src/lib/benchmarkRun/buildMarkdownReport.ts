@@ -87,7 +87,7 @@ export function buildBenchmarkRunMarkdownReport(
     return table ? [`**${analysis.benchmark.name}**\n\n${table}`] : [];
   });
   if (tables.length > 0) {
-    lines.push('', tables.join('\n\n'), '', `_${runReportFootnote(analyses)}_`);
+    lines.push('', tables.join('\n\n'), '', `_${runReportFootnote()}_`);
   }
 
   return lines.join('\n');

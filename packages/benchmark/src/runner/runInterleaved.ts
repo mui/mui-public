@@ -5,7 +5,7 @@ import type { Browser, CDPSession, Page } from '@playwright/test';
 import { BENCHMARK_LAUNCH_ARGS, BENCHMARK_VIEWPORT } from '../launchArgs';
 import { compareBenchmark } from '../runReport';
 import type { RunBenchmark, RunMetricDefinition } from '../runReport';
-import { differencesResolved, pickSampling, resolveSampling } from '../sampling';
+import { differencesSettled, pickSampling, resolveSampling } from '../sampling';
 import type { SamplingOptions } from '../sampling';
 import type { BenchFile } from './benchFiles';
 import type { ResolvedRef } from './refs';
@@ -225,24 +225,24 @@ async function runBenchmark(
     const definitions = metrics ?? {};
     const benchmarkOf = (): RunBenchmark => ({ ...entry, samples: samplesOf(slots, rounds) });
 
-    const isSettled = () => differencesResolved(compareBenchmark(definitions, benchmarkOf()));
+    const isSettled = () => differencesSettled(compareBenchmark(definitions, benchmarkOf()));
 
     const deadline = Date.now() + timeout * 60_000;
-    let resolved = isSettled();
-    while (!resolved && Date.now() < deadline) {
+    let settled = isSettled();
+    while (!settled && Date.now() < deadline) {
       // eslint-disable-next-line no-await-in-loop
       rounds.push(await runRound());
-      resolved = isSettled();
+      settled = isSettled();
     }
-    if (rounds.length > sampleSize || !resolved) {
+    if (rounds.length > sampleSize || !settled) {
       console.log(
         chalk.dim(
-          `  ${rounds.length} rounds, ${resolved ? 'resolved' : `unresolved after ${timeout} min`}`,
+          `  ${rounds.length} rounds, ${settled ? 'settled' : `unsettled after ${timeout} min`}`,
         ),
       );
     }
     return {
-      benchmark: { ...benchmarkOf(), sampling: { sampleSize, timedOut: !resolved } },
+      benchmark: { ...benchmarkOf(), sampling: { sampleSize, timedOut: !settled } },
       metrics: definitions,
     };
   } catch (error) {
@@ -325,7 +325,7 @@ function samplingOf(
   own: SamplingOptions,
   runDefaults: SamplingOptions = {},
 ): Required<SamplingOptions> {
-  return resolveSampling({ ...pickSampling(runDefaults), ...pickSampling(own) });
+  return resolveSampling({ ...pickSampling(runDefaults), ...own });
 }
 
 /** What a run drives: the browser, and every benchmark it was asked for, in order. */

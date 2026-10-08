@@ -231,7 +231,7 @@ You can also `record()` or `time()` from inside a `benchmark()` render function 
 How a regression is judged depends on which report the repository uploads:
 
 - **Version 1** (this Vitest reporter) compares the two runs' means. A scalar metric's change must pass a band; with neither band set, `error` is the dashboard's ±20% noise band. A discrete metric flags any change in its mean.
-- **Version 2** ([the `benchmark` CLI](#the-benchmark-cli)) first needs the metric's confidence interval to lie wholly on the worse side; the `error` band then applies to the end of that interval nearest zero, so a change alarms only once it is confidently that large. Without an `error` band, every confirmed change for the worse alarms. Version 2 has no `warn`: the dashboard colours every confirmed change for the worse, and the PR comment shows only alarms. A benchmark can override a metric's alarm for itself; see [Choosing what alarms](#choosing-what-alarms).
+- **Version 2** ([the `benchmark` CLI](#the-benchmark-cli)) first needs the metric's confidence interval to lie wholly on the worse side; the `error` band then applies to the end of that interval nearest zero, so a change alarms only once it is confidently that large. Without an `error` band, a scalar metric uses 5% and a discrete one alarms on any confirmed change in its count. Version 2 has no `warn`: the dashboard colours every confirmed change for the worse, and the PR comment shows only alarms. A benchmark can override a metric's alarm for itself; see [Choosing what alarms](#choosing-what-alarms).
 
 Alarms are evaluated against the baseline when the PR comment is generated, not during the local `vitest run` — a regression never fails the test suite locally. In a version 1 PR comment, `error`-band regressions surface as failures and `warn`-band regressions as warnings.
 
@@ -442,9 +442,10 @@ which costs the results precision.
 How many rounds a benchmark is measured for adapts to its results, the way tachometer's
 auto-sampling does. After `sampleSize` rounds, rounds keep being added while a difference that can
 raise an alarm is unsettled, for up to `timeout` minutes. A difference is settled once its interval
-lies entirely past its alarm's `error` band or entirely within it: known to alarm, or known not to.
-An alarm without a band settles against zero, so an unchanged benchmark measured with one samples
-until its timeout. Differences that can't alarm, in a `compare()` or a metric without an alarm, never
+lies entirely past its alarm's `error` band on the worse side, or entirely short of it: known to
+alarm, or known not to. Improvements never keep a run going.
+A scalar metric's alarm without a band uses 5%; a discrete one's settles against zero, which an
+unchanged count does at once. Differences that can't alarm, in a `compare()` or a metric without an alarm, never
 keep a run going.
 
 | Option       | Default | Meaning                                                                 |
@@ -467,8 +468,8 @@ compare('scatter', [ours, other], { sampleSize: 100 });
 
 `render` and `bench:paint` alarm once a change is confidently 5% worse. A `reactBenchmark()` can set
 its own band for both with `alarm`: a lower one for a benchmark that matters more, a higher one for
-one that matters less, or `false` for one that never alarms. Sampling follows the band, so a tighter
-band also samples longer.
+one that matters less, or `false` for one that never alarms. `{}` keeps the band it would have had.
+Sampling follows the band, so a tighter band also samples longer.
 
 ```tsx
 reactBenchmark('Data grid scroll', () => <Grid />, scroll, { alarm: { error: 0.03 } });

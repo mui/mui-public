@@ -107,7 +107,7 @@ describe('formatRunSummary', () => {
 
 describe('runReportFootnote', () => {
   it('states the level every interval uses', () => {
-    expect(runReportFootnote(analyzeRun(reportOf([benchmarkOf('a')])))).toBe(
+    expect(runReportFootnote()).toBe(
       'Medians; Δ is the confidence interval of the paired per-round difference (99%).',
     );
   });

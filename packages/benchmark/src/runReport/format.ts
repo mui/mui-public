@@ -93,7 +93,7 @@ export function formatPrecisionDetail(
     return noise;
   }
   // Rounds for a half-width of the band: (z × noise / band)².
-  const z = tCritical(MANY_ROUNDS, CONFIDENCE);
+  const z = tCritical(MANY_ROUNDS);
   const rounds = Math.ceil(((z * comparison.noise) / (band * 100)) ** 2);
   return `${noise} · about ${rounds} rounds resolve ±${formatterFor(DEFAULT_SCALAR_FORMAT).format(band * 100)}%`;
 }
@@ -253,7 +253,7 @@ export function formatRunSummary(
 }
 
 /** How to read a run's numbers, under every rendering of it. */
-export function runReportFootnote(analyses: BenchmarkAnalysis[]): string {
+export function runReportFootnote(): string {
   return `Medians; Δ is the confidence interval of the paired per-round difference (${formatConfidence(CONFIDENCE)}).`;
 }
 

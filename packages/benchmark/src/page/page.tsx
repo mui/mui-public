@@ -2,7 +2,7 @@ import { collectGarbage } from '../gc';
 import { createInput } from '../input';
 import type { BenchmarkCdp, BenchmarkInput, CdpSend } from '../input';
 import { seriesName, setMetricRecorder } from '../metricCore';
-import { hasSampling, pickSampling, resolveSampling } from '../sampling';
+import { pickSampling, resolveSampling } from '../sampling';
 import type { SamplingOptions } from '../sampling';
 import type { MetricDefinition } from '../types';
 import type { RunMetricAlarm } from '../runReport/schema';
@@ -41,8 +41,11 @@ export interface BenchmarkCaseOptions extends SamplingOptions {
   alarms?: Record<string, RunMetricAlarm | false>;
 }
 
-/** Every case the file registered, by name, with its options as given. */
-const cases = new Map<string, { run: BenchmarkRun; options: BenchmarkCaseOptions }>();
+/** Every case the file registered, by name, with the sampling and alarms it set. */
+const cases = new Map<
+  string,
+  { run: BenchmarkRun; sampling: SamplingOptions; alarms?: BenchmarkCaseOptions['alarms'] }
+>();
 
 /**
  * Registers a benchmark case. The runner calls `run` once per sample, each time in a freshly loaded
@@ -60,7 +63,7 @@ export function benchmark(
   }
   // Resolved here only to reject invalid options where they were written.
   resolveSampling(options);
-  cases.set(name, { run, options });
+  cases.set(name, { run, sampling: pickSampling(options), alarms: options.alarms });
   return { name };
 }
 
@@ -92,11 +95,17 @@ export function compare(
   // Resolved here only to reject invalid options where they were written.
   resolveSampling(sampling);
   for (const benchCase of compared) {
-    const own = cases.get(benchCase.name)?.options;
-    if (own && hasSampling(own)) {
+    const own = cases.get(benchCase.name);
+    if (own && Object.keys(own.sampling).length > 0) {
       throw new Error(
         `"${benchCase.name}" sets its own sampling, but a compared case is sampled as its ` +
           `compare() asks: pass the options to compare("${name}", …) instead.`,
+      );
+    }
+    if (own?.alarms) {
+      throw new Error(
+        `"${benchCase.name}" sets its own alarms, but a compared case never alarms: its ` +
+          `variants differ on purpose.`,
       );
     }
     const owner = comparisons.find((comparison) => comparison.cases.includes(benchCase.name));
@@ -134,14 +143,11 @@ setMetricRecorder((metric, value, options) => {
 });
 
 export interface BenchPage {
-  /**
-   * The cases measured across the builds: every case no `compare()` took. `alarms` is the case's own,
-   * with `null` for a metric that never alarms there.
-   */
+  /** The cases measured across the builds: every case no `compare()` took. */
   cases: Array<{
     name: string;
     sampling: SamplingOptions;
-    alarms?: Record<string, RunMetricAlarm | null>;
+    alarms?: BenchmarkCaseOptions['alarms'];
   }>;
   /** The file's `compare()` calls, with their cases' names in order. */
   comparisons: Array<{ name: string; cases: string[]; sampling: SamplingOptions }>;
@@ -207,17 +213,7 @@ export function markPageReady(): void {
   window.benchmarkPage = {
     cases: [...cases]
       .filter(([name]) => !comparisons.some((comparison) => comparison.cases.includes(name)))
-      .map(([name, { options }]) => ({
-        name,
-        sampling: pickSampling(options),
-        ...(options.alarms
-          ? {
-              alarms: Object.fromEntries(
-                Object.entries(options.alarms).map(([metric, alarm]) => [metric, alarm || null]),
-              ),
-            }
-          : {}),
-      })),
+      .map(([name, { sampling, alarms }]) => ({ name, sampling, ...(alarms ? { alarms } : {}) })),
     comparisons,
     metricDefinitions: () => Object.fromEntries(metricDefinitions),
     sample,
