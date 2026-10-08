@@ -62,7 +62,6 @@
     "@vitest/browser-playwright": "5.0.3",
     "@vitest/coverage-v8": "5.0.3",
     "baseline-browser-mapping": "2.11.27",
-    "eslint-plugin-n": "18.4.0",
     "pkg-pr-new": "0.0.88",
     "playwright": "1.63.0",
     "stylelint": "17.16.0",
