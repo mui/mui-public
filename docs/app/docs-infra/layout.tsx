@@ -8,7 +8,7 @@ import { CodeComponentsProvider } from '@/code-components';
 import styles from '../layout.module.css';
 import { sitemap } from '../sitemap';
 import { Search } from '../search';
-import Notice from '../notice.mdx';
+import Notice from '../_partials/notice.mdx';
 
 export const metadata: Metadata = {
   title: 'MUI Docs Infra Documentation',
