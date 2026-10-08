@@ -102,9 +102,6 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
     });
   }
 
-  // Set once the batch settles, so a failure skips the requests that haven't started.
-  let settled = false;
-
   /**
    * @param {Commits[number]} commit
    * @returns {Promise<FetchedCommitDetails | null>}
@@ -151,26 +148,31 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
     });
   };
 
-  let fetched = 0;
-  const commits = await mapAsync(
-    results,
-    async (commit) => {
-      if (settled) {
-        return null;
-      }
-      const details = await fetchCommitDetails(commit);
-      if (!settled) {
-        fetched += 1;
-        onProgress?.({ phase: 'Fetching pull requests', count: fetched, total: results.length });
-      }
-      return details;
-    },
-    { concurrency: 10 },
-  ).finally(() => {
-    settled = true;
-  });
+  // `mapAsync` rejects on the first error but still runs every queued callback.
+  // Set once it settles, so callbacks that start afterwards skip their request.
+  let settled = false;
 
-  return commits.filter((entry) => entry !== null);
+  let fetched = 0;
+  try {
+    const commits = await mapAsync(
+      results,
+      async (commit) => {
+        if (settled) {
+          return null;
+        }
+        const details = await fetchCommitDetails(commit);
+        if (!settled) {
+          fetched += 1;
+          onProgress?.({ phase: 'Fetching pull requests', count: fetched, total: results.length });
+        }
+        return details;
+      },
+      { concurrency: 10 },
+    );
+    return commits.filter((entry) => entry !== null);
+  } finally {
+    settled = true;
+  }
 }
 
 /**
