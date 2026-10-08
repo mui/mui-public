@@ -77,6 +77,38 @@ function createOptionsWithVariants(
 }
 
 describe('generateTypesMarkdown', () => {
+  it('uses export names for aliased functions and classes', async () => {
+    const types: TypesMeta[] = [
+      {
+        type: 'function',
+        name: 'encode',
+        data: { name: 'encode', parameters: [], returnValue: 'string' },
+      },
+      {
+        type: 'function',
+        name: 'encodeText',
+        data: { name: 'encode', parameters: [], returnValue: 'string' },
+      },
+      {
+        type: 'class',
+        name: 'Encoder',
+        data: { name: 'Encoder', constructorParameters: [], properties: {}, methods: {} },
+      },
+      {
+        type: 'class',
+        name: 'TextEncoder',
+        data: { name: 'Encoder', constructorParameters: [], properties: {}, methods: {} },
+      },
+    ];
+    const result = await generateTypesMarkdown(createOptions('Aliases', types));
+    expect(result.split('\n').filter((line) => line.startsWith('### '))).toEqual([
+      '### encode',
+      '### Encoder',
+      '### encodeText',
+      '### TextEncoder',
+    ]);
+  });
+
   describe('component type generation', () => {
     it('should generate markdown for a basic component without description', async () => {
       const componentMeta: ComponentTypeMeta = {
