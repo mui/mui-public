@@ -39,19 +39,17 @@ interface UploadTarget {
  */
 async function uploadTargetOf(
   oidcResult: OidcVerificationResult,
-  { repo, commitSha, branch }: { repo: string; commitSha: string; branch: string },
+  { repo, commitSha }: { repo: string; commitSha: string },
 ): Promise<{ target: UploadTarget } | { error: string; status: number }> {
   if (oidcResult.isTrusted) {
-    // The branch comes from the verified OIDC ref, not the body, so a build can't claim a tracked
-    // branch it doesn't run on.
-    const verified = oidcResult.ref.startsWith('refs/heads/')
-      ? oidcResult.ref.slice('refs/heads/'.length)
-      : null;
+    // The branch is the verified one, never the body's, so a build can't claim a tracked branch it
+    // doesn't run on.
+    const { branch } = oidcResult;
     return {
       target: {
         repo: oidcResult.sourceRepo,
-        branch: verified ?? branch,
-        trackedBranch: verified !== null && isTrackedBranch(verified) ? verified : null,
+        branch: branch ?? oidcResult.ref,
+        trackedBranch: branch !== null && isTrackedBranch(branch) ? branch : null,
       },
     };
   }
@@ -128,13 +126,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { commitSha, repo, reportType, branch, report, timestamp, commitTimestamp } = parsed.data;
+  const { commitSha, repo, reportType, report, timestamp, commitTimestamp, timeline } = parsed.data;
 
-  if (!oidcResult.isTrusted && parsed.data.timeline !== undefined) {
+  if (!oidcResult.isTrusted && timeline !== undefined) {
     return NextResponse.json({ error: 'A fork build cannot name a timeline' }, { status: 400 });
   }
 
-  const resolved = await uploadTargetOf(oidcResult, { repo, commitSha, branch });
+  const resolved = await uploadTargetOf(oidcResult, { repo, commitSha });
   if ('error' in resolved) {
     return NextResponse.json({ error: resolved.error }, { status: resolved.status });
   }
@@ -145,7 +143,7 @@ export async function POST(request: NextRequest) {
     sha: commitSha,
     reportType,
     trackedBranch: target.trackedBranch,
-    requested: parsed.data.timeline,
+    requested: timeline,
     time: commitTimestamp ?? timestamp,
   });
   if ('error' in plan) {
@@ -158,19 +156,11 @@ export async function POST(request: NextRequest) {
   const storedBody =
     reportType === 'benchmark' ? JSON.stringify(parsed.data) : JSON.stringify(report);
 
-  await uploadReport({
-    key: plan.reportKey,
-    body: storedBody,
-    isBaseBranch: plan.isBaseBranch,
-    branch: target.branch,
-  });
+  const tags = { isBaseBranch: plan.isBaseBranch, branch: target.branch };
+  await uploadReport({ key: plan.reportKey, body: storedBody, ...tags });
   // Written after the report, so a timeline never lists a commit whose report isn't there.
   if (plan.pointerKey !== null) {
-    await writeMarker({
-      key: plan.pointerKey,
-      isBaseBranch: plan.isBaseBranch,
-      branch: target.branch,
-    });
+    await writeMarker({ key: plan.pointerKey, ...tags });
   }
   return NextResponse.json({ key: plan.reportKey, timeline: plan.timeline });
 }

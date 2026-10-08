@@ -14,15 +14,12 @@ const TIME = 1_759_000_000_000;
 // 9_999_999_999_999 - TIME: pointers count down, so S3 lists the newest first.
 const TIME_LEFT = '8240999999999';
 
-function plan(trackedBranch: string | null, requested?: string) {
-  return planUpload({
-    repo: REPO,
-    sha: SHA_A,
-    reportType: 'benchmark',
-    trackedBranch,
-    requested,
-    time: TIME,
-  });
+function plan(
+  trackedBranch: string | null,
+  requested?: string,
+  { sha = SHA_A, time = TIME }: { sha?: string; time?: number } = {},
+) {
+  return planUpload({ repo: REPO, sha, reportType: 'benchmark', trackedBranch, requested, time });
 }
 
 describe('planUpload', () => {
@@ -94,18 +91,8 @@ describe('isTimeline', () => {
 
 describe('timeline pointers', () => {
   const prefix = timelinePrefix(REPO, 'master', 'benchmark');
-  const pointerAt = (time: number, sha: string) =>
-    planUpload({
-      repo: REPO,
-      sha,
-      reportType: 'benchmark',
-      trackedBranch: 'master',
-      requested: undefined,
-      time,
-    });
-
   function keyOf(time: number, sha: string): string {
-    const planned = pointerAt(time, sha);
+    const planned = plan('master', undefined, { sha, time });
     if ('error' in planned || planned.pointerKey === null) {
       throw new Error('Expected a pointer');
     }
