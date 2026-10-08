@@ -3,11 +3,9 @@ import { defineConfig } from 'eslint/config';
 import { EXTENSION_TS } from './extensions.mjs';
 
 /**
- * @param {Object} [options]
- * @param {string} [options.baseDirectory] - The directory containing the ESLint configuration.
  * @returns {import('eslint').Linter.Config[]}
  */
-export function createDocsConfig({ baseDirectory = process.cwd() } = {}) {
+export function createDocsConfig() {
   /**
    * @type {any}
    */
@@ -44,7 +42,7 @@ export function createDocsConfig({ baseDirectory = process.cwd() } = {}) {
       languageOptions: {
         parserOptions: {
           projectService: true,
-          tsconfigRootDir: baseDirectory,
+          tsconfigRootDir: process.cwd(),
         },
       },
       rules: {
