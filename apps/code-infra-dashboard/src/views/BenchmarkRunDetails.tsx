@@ -118,7 +118,7 @@ function BenchmarkTable({ analysis }: { analysis: BenchmarkAnalysis }) {
               {columns.map(({ header, kind }, column) => (
                 <TableCell key={column} align={alignOf(column)}>
                   {kind === 'precision' ? (
-                    <Tooltip title="The smallest change this run could still have missed: the interval's half-width. Coloured when a regression past the alarm's warn or error band could hide in it.">
+                    <Tooltip title="The smallest change this run could still have missed: the interval's half-width. Red when a regression the alarm would raise could hide in it.">
                       <span>{header}</span>
                     </Tooltip>
                   ) : (

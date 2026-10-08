@@ -129,7 +129,7 @@ describe('compareSamples', () => {
       expect(comparison.severity).toBe('none');
     });
 
-    it('grades a change against the warn and error thresholds', () => {
+    it('raises a change only past the error band', () => {
       const compareWith = (alarm: RunMetricDefinition['alarm']) =>
         compareSamples(
           { name: 'current', values: shifted },
@@ -138,9 +138,10 @@ describe('compareSamples', () => {
         ).severity;
 
       // The change is +10 on a mean of 105, about +9.5%.
-      expect(compareWith({ warn: 0.05, error: 0.2 })).toBe('warning');
-      expect(compareWith({ warn: 0.05, error: 0.09 })).toBe('error');
-      expect(compareWith({ warn: 0.2 })).toBe('none');
+      expect(compareWith({ error: 0.09 })).toBe('error');
+      expect(compareWith({ error: 0.2 })).toBe('none');
+      expect(compareWith({ warn: 0.05, error: 0.2 })).toBe('none');
+      expect(compareWith({ warn: 0.2 })).toBe('error');
     });
 
     it('compares a discrete metric in absolute counts', () => {

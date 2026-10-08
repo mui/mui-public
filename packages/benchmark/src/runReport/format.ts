@@ -73,21 +73,21 @@ export function formatPrecision(comparison: MetricComparison, definition: RunMet
 
 /**
  * What lies behind a precision: the per-round noise, and how many rounds would resolve the alarm's
- * `warn` band — `±2.0% per round · about 7 rounds resolve ±2%`.
+ * `error` band — `±2.0% per round · about 2 rounds resolve ±5%`.
  */
 export function formatPrecisionDetail(
   comparison: MetricComparison,
   definition: RunMetricDefinition,
 ): string {
   const noise = `±${comparison.noise.toFixed(1)}% per round`;
-  const warn = comparison.alarm?.warn;
-  if (definition.kind === 'discrete' || !warn) {
+  const band = comparison.alarm?.error;
+  if (definition.kind === 'discrete' || !band) {
     return noise;
   }
-  // Rounds for a half-width of `warn`: (z × noise / warn)².
+  // Rounds for a half-width of the band: (z × noise / band)².
   const z = tCritical(MANY_ROUNDS, comparison.confidence);
-  const rounds = Math.ceil(((z * comparison.noise) / (warn * 100)) ** 2);
-  return `${noise} · about ${rounds} rounds resolve ±${warn * 100}%`;
+  const rounds = Math.ceil(((z * comparison.noise) / (band * 100)) ** 2);
+  return `${noise} · about ${rounds} rounds resolve ±${band * 100}%`;
 }
 
 /** How a change reads: `better`, `worse`, `no change detected`, `unchanged`. */

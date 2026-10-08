@@ -125,10 +125,7 @@ describe('runReportFootnote', () => {
 describe('precision', () => {
   // Per-round differences of 1, -2, 3, 0, 2, -1, 4, 1 on a baseline of 100: a standard deviation
   // of 2, so 2% noise per round, and a 99% half-width of about 2.5% over 8 rounds.
-  function analysisWith(
-    alarm: { warn?: number; error?: number },
-    kind: 'baseline' | 'compare' = 'baseline',
-  ) {
+  function analysisWith(alarm: { error?: number }, kind: 'baseline' | 'compare' = 'baseline') {
     const report: BenchmarkRunReport = {
       ...reportOf([
         {
@@ -147,7 +144,7 @@ describe('precision', () => {
   }
 
   it('adds a column of half-widths to the table when asked', () => {
-    const { analysis } = analysisWith({ warn: 0.05 });
+    const { analysis } = analysisWith({ error: 0.05 });
     const { columns, rows } = benchmarkTable(analysis, { precision: true });
 
     expect(columns.at(-1)).toEqual({ header: 'Precision', kind: 'precision' });
@@ -157,19 +154,18 @@ describe('precision', () => {
     );
   });
 
-  it('is fine within the warn band, a warning past it, and an error past the error band', () => {
-    expect(analysisWith({ warn: 0.05, error: 0.1 }).comparison.precisionSeverity).toBe('none');
-    expect(analysisWith({ warn: 0.02, error: 0.1 }).comparison.precisionSeverity).toBe('warning');
-    expect(analysisWith({ warn: 0.01, error: 0.02 }).comparison.precisionSeverity).toBe('error');
+  it('is an error once it is wider than the error band', () => {
+    expect(analysisWith({ error: 0.05 }).comparison.precisionSeverity).toBe('none');
+    expect(analysisWith({ error: 0.02 }).comparison.precisionSeverity).toBe('error');
   });
 
   it('is never judged without bands, or where no change can raise an alarm', () => {
     expect(analysisWith({}).comparison.precisionSeverity).toBe('none');
-    expect(analysisWith({ warn: 0.01 }, 'compare').comparison.precisionSeverity).toBe('none');
+    expect(analysisWith({ error: 0.01 }, 'compare').comparison.precisionSeverity).toBe('none');
   });
 
-  it('gives the per-round noise, and the rounds it takes to resolve the warn band', () => {
-    const { analysis, comparison } = analysisWith({ warn: 0.02 });
+  it('gives the per-round noise, and the rounds it takes to resolve the error band', () => {
+    const { analysis, comparison } = analysisWith({ error: 0.02 });
     expect(formatPrecisionDetail(comparison, analysis.metrics[0].definition)).toBe(
       '±2.0% per round · about 7 rounds resolve ±2%',
     );

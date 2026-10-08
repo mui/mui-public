@@ -11,11 +11,11 @@ export interface ReactBenchmarkOptions extends CaseOptions, SamplingOptions {}
 
 // Render time and paint both alarm: render is React running the components, while paint adds what
 // follows — the commit, injected styles, style recalculation and layout — so a styling or DOM
-// regression can show in paint alone. Both warn once a change for the worse is confidently 2% and
-// fail at 5%, the size sampling is built to settle; smaller confirmed changes are left to the
-// timelines. The render count is informational: an extra render matters only through the time it
+// regression can show in paint alone. Both alarm once a change for the worse is confidently 5%, the
+// size sampling is built to settle; smaller confirmed changes show on the dashboard and are left to
+// the timelines. The render count is informational: an extra render matters only through the time it
 // adds, which render time already measures. So is the per-phase split.
-const TIME_ALARM = { warn: 0.02, error: 0.05 };
+const TIME_ALARM = { error: 0.05 };
 const renderMetric = new ScalarMetric({ name: 'render', format: MILLISECONDS, alarm: TIME_ALARM });
 const renderCountMetric = new DiscreteMetric({ name: 'render:count' });
 const paintMetric = new ScalarMetric({

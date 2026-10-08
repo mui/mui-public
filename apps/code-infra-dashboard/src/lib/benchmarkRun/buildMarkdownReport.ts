@@ -17,10 +17,12 @@ interface BuildOptions {
   detailsUrl?: string;
 }
 
-/** A benchmark's table, keeping only the rows that regressed, each behind its severity's marker. */
+/**
+ * A benchmark's table, keeping only the rows that regressed. A `baseline` benchmark compares one
+ * pair, so each kept row's comparison is the regression.
+ */
 function regressionTable(analysis: BenchmarkAnalysis): string {
   const { columns, rows } = benchmarkTable(analysis);
-  const firstComparison = columns.findIndex((column) => column.kind === 'comparison');
   const regressed = rows.filter((row) =>
     row.comparisons.some((comparison) => comparison.severity !== 'none'),
   );
@@ -34,9 +36,7 @@ function regressionTable(analysis: BenchmarkAnalysis): string {
       Object.fromEntries(
         row.cells.map((cell, column) => [
           String(column),
-          columns[column].kind === 'comparison'
-            ? `${row.comparisons[column - firstComparison].severity === 'error' ? '🔴' : '🟠'} \`${cell}\``
-            : cell,
+          columns[column].kind === 'comparison' ? `🔴 \`${cell}\`` : cell,
         ]),
       ),
     ),

@@ -33,7 +33,8 @@ export interface SampleSummary {
 export type Change = 'better' | 'worse' | 'undetected' | 'unchanged';
 
 /** How much a change for the worse matters, per the metric's alarm. */
-export type Severity = 'error' | 'warning' | 'none';
+/** Whether a change raises its alarm. A metric's `warn` band applies to version 1 reports only. */
+export type Severity = 'error' | 'none';
 
 /** A metric's alarm: its direction and bands. */
 export type MetricAlarm = NonNullable<RunMetricDefinition['alarm']>;
@@ -66,8 +67,8 @@ export interface MetricComparison {
    */
   precision: number;
   /**
-   * Which of the alarm's bands a change of `precision` reaches: whether a regression the alarm
-   * cares about could hide in the interval. `none` without bands.
+   * Whether a change of `precision` reaches the alarm's `error` band: whether a regression the alarm
+   * would raise could hide in the interval. `none` without an `error` band.
    */
   precisionSeverity: Severity;
   change: Change;
@@ -237,30 +238,24 @@ function inAlarmUnits(
     : { low: comparison.relative.low / 100, high: comparison.relative.high / 100 };
 }
 
-/** The band a change of `amount`, in the alarm's units, reaches. */
-function bandReached(amount: number, { warn, error }: MetricAlarm): Severity {
-  if (error !== undefined && amount >= error) {
-    return 'error';
-  }
-  if (warn !== undefined && amount >= warn) {
-    return 'warning';
-  }
-  return 'none';
+/** Whether a change of `amount`, in the alarm's units, reaches its `error` band. */
+function reachesErrorBand(amount: number, { error }: MetricAlarm): Severity {
+  return error !== undefined && amount >= error ? 'error' : 'none';
 }
 
 /**
  * A change for the worse's severity: judged by how far it went at the least — the interval bound
- * nearest zero — against the bands, and an error outright when the alarm has none.
+ * nearest zero — against the `error` band, and an error outright when the alarm has none.
  */
 function severityOf(change: Change, interval: Interval, alarm: MetricAlarm): Severity {
   if (change !== 'worse') {
     return 'none';
   }
-  if (alarm.error === undefined && alarm.warn === undefined) {
+  if (alarm.error === undefined) {
     return 'error';
   }
   const worseningAtLeast = alarm.direction === 'higherIsBetter' ? -interval.high : interval.low;
-  return bandReached(worseningAtLeast, alarm);
+  return reachesErrorBand(worseningAtLeast, alarm);
 }
 
 /** The per-round differences `subject − against`, over the rounds both have. */
@@ -316,7 +311,7 @@ export function compareSamples(
     relative,
     noise,
     precision,
-    precisionSeverity: alarm ? bandReached(precision, alarm) : 'none',
+    precisionSeverity: alarm ? reachesErrorBand(precision, alarm) : 'none',
     change,
     severity: alarm ? severityOf(change, banded, alarm) : 'none',
   };
@@ -430,7 +425,7 @@ function alarmedChangesOf(analyses: BenchmarkAnalysis[]): AlarmedChange[] {
 
 /**
  * The changes that say something is wrong with the code under test: an alarmed metric's change
- * for the worse, past its bands.
+ * for the worse, past its `error` band.
  */
 export function findRegressions(analyses: BenchmarkAnalysis[]): Regression[] {
   return alarmedChangesOf(analyses).filter(({ comparison }) => comparison.severity !== 'none');

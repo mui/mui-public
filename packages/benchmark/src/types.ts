@@ -73,7 +73,8 @@ export interface MetricAlarm {
   /** Defaults to `lowerIsBetter`. */
   direction?: MetricDirection;
   /**
-   * Softer band: a regression past `warn` (but within `error`) is flagged as a warning.
+   * Softer band, for version 1 reports only: a regression past `warn` (but within `error`) is
+   * flagged as a warning. Version 2 colours every confirmed change for the worse on the dashboard.
    * Scalar metrics: a relative fraction (`0.1` = 10%). Discrete metrics: an absolute count delta.
    */
   warn?: number;

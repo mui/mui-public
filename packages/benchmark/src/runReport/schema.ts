@@ -15,9 +15,10 @@ import type { MetricDefinition } from '../types';
  */
 
 /**
- * The same shape a metric's `alarm` config has. `warn` and `error` are the smallest changes that
- * count at each level — a relative fraction (`0.1` = 10%) for a scalar metric, an absolute count
- * for a discrete one. With both omitted, any resolved change for the worse is an error.
+ * The same shape a metric's `alarm` config has. `error` is the smallest change that raises the alarm
+ * — a relative fraction (`0.1` = 10%) for a scalar metric, an absolute count for a discrete one;
+ * without it, any resolved change for the worse does. `warn` is carried for version 1 reports and
+ * judges nothing here.
  */
 const alarmSchema = z.object({
   direction: z.enum(['lowerIsBetter', 'higherIsBetter']).optional(),
