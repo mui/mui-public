@@ -422,12 +422,16 @@ per-round differences rather than on two independent sets of samples. Whatever t
 during a round — thermal throttling, a background process — then affects both sides of it and cancels
 out.
 
-Intervals are 95%, except where a change can raise an alarm — an alarmed metric of a benchmark
-measured against the baseline — where they are 99%. The level is fixed rather than tightened for
-every comparison a run holds, so adding benchmarks doesn't make each one sample longer. What keeps a
-run of unchanged code from alarming is mostly the alarm's bands: the interval's near end has to
-reach them, so noise has to fake a change bigger than the band, not just one beyond zero. The nightly
-A/A job tracks how often a run of unchanged code alarms anyway.
+Every interval is 99%. The level is fixed rather than tightened for every comparison a run holds,
+so adding benchmarks doesn't make each one sample longer. What keeps a run of unchanged code from
+alarming is mostly the alarm's bands: the interval's near end has to reach them, so noise has to fake
+a change bigger than the band, not just one beyond zero. The nightly A/A job tracks how often a run
+of unchanged code alarms anyway.
+
+Only differences that can raise an alarm — an alarmed metric of a benchmark measured against the
+baseline — keep a run sampling past `sampleSize`. The rest are there to read: a `compare()`, or a
+benchmark without alarmed metrics, stops at `sampleSize`, and the run page shows how precise its
+numbers got.
 
 Run it with at least 3 logical CPUs (vCPUs in CI); it warns with fewer. On 2, V8's background
 compilers are starved, so how fast the same code runs depends on how its compilation happened to go,

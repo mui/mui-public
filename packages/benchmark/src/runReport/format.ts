@@ -1,4 +1,4 @@
-import { ALARMED_CONFIDENCE, CONFIDENCE, tCritical } from './analyzeRun';
+import { CONFIDENCE, tCritical } from './analyzeRun';
 import type {
   BenchmarkAnalysis,
   Change,
@@ -93,7 +93,7 @@ export function formatPrecisionDetail(
     return noise;
   }
   // Rounds for a half-width of the band: (z × noise / band)².
-  const z = tCritical(MANY_ROUNDS, comparison.confidence);
+  const z = tCritical(MANY_ROUNDS, CONFIDENCE);
   const rounds = Math.ceil(((z * comparison.noise) / (band * 100)) ** 2);
   return `${noise} · about ${rounds} rounds resolve ±${formatterFor(DEFAULT_SCALAR_FORMAT).format(band * 100)}%`;
 }
@@ -254,13 +254,7 @@ export function formatRunSummary(
 
 /** How to read a run's numbers, under every rendering of it. */
 export function runReportFootnote(analyses: BenchmarkAnalysis[]): string {
-  const alarmed = analyses.some(({ metrics }) =>
-    metrics.some(({ comparisons }) => comparisons.some((comparison) => comparison.alarm !== null)),
-  );
-  const levels = alarmed
-    ? `${formatConfidence(ALARMED_CONFIDENCE)} for alarmed metrics, ${formatConfidence(CONFIDENCE)} otherwise`
-    : formatConfidence(CONFIDENCE);
-  return `Medians; Δ is the confidence interval of the paired per-round difference (${levels}).`;
+  return `Medians; Δ is the confidence interval of the paired per-round difference (${formatConfidence(CONFIDENCE)}).`;
 }
 
 function formatConfidence(fraction: number): string {

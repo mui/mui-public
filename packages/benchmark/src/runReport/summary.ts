@@ -32,8 +32,6 @@ export interface BenchmarkSummary {
       against: string;
       change: Change;
       severity: Severity;
-      /** The level of both intervals, `0.95` or stricter where a change can raise an alarm. */
-      confidence: number;
       /** `subject − against`, in the metric's unit. */
       absolute: Interval;
       /** The same, as a percentage of `against`. */
@@ -67,12 +65,11 @@ export function summarizeRun(report: BenchmarkRunReport): RunSummary {
             Object.entries(variants).map(([variant, summary]) => [variant, summary.median]),
           ),
           comparisons: comparisons.map(
-            ({ subject, against, change, severity, confidence, absolute, relative }) => ({
+            ({ subject, against, change, severity, absolute, relative }) => ({
               subject,
               against,
               change,
               severity,
-              confidence,
               absolute,
               relative,
             }),

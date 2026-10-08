@@ -103,7 +103,7 @@ describe('buildBenchmarkRunMarkdownReport', () => {
       | render | 21.5 ms | 23.5 ms | 🔴 \`worse +9.3% – +9.3%\` |
 
 
-      _Medians; Δ is the confidence interval of the paired per-round difference (99% for alarmed metrics, 95% otherwise)._"
+      _Medians; Δ is the confidence interval of the paired per-round difference (99%)._"
     `);
   });
 

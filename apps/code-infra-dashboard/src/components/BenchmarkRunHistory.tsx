@@ -153,7 +153,7 @@ export default function BenchmarkRunHistory({ repo }: BenchmarkRunHistoryProps) 
       ) : (
         <React.Fragment>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Each master commit against its parent, measured in the same run: the midpoint of the 95%
+            Each master commit against its parent, measured in the same run: the midpoint of the 99%
             confidence interval on the paired change. Click a bar to open that run.
           </Typography>
 

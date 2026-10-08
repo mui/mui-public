@@ -11,9 +11,9 @@ import type { BenchmarkRunReport, RunBenchmark, RunMetricDefinition } from './sc
  * per-round difference cancels whatever the machine was doing during that round, and its
  * confidence interval is far tighter than one computed from two independent sets of samples.
  *
- * Intervals are 95%, except where a change can raise an alarm: there they are 99%, a fixed level so
- * a run's cost doesn't grow with how many benchmarks it holds. What keeps a run of unchanged code
- * from alarming is mostly the alarm's bands, which the interval's near end has to reach.
+ * Every interval is 99%, a fixed level, so a run's cost doesn't grow with how many benchmarks it
+ * holds. What keeps a run of unchanged code from alarming is mostly the alarm's bands, which the
+ * interval's near end has to reach.
  */
 
 export interface Interval {
@@ -46,8 +46,6 @@ export interface MetricComparison {
    * can raise one — a metric without an alarm, or a `compare()`, whose variants differ on purpose.
    */
   alarm: MetricAlarm | null;
-  /** The level of the intervals: 99% where a change can raise an alarm, 95% otherwise. */
-  confidence: number;
   /** `subject − against`, in the metric's unit: confidence interval of the mean difference. */
   absolute: Interval;
   /** The same, as a percentage of `against`'s mean. */
@@ -80,11 +78,8 @@ export interface BenchmarkAnalysis {
   metrics: MetricAnalysis[];
 }
 
-/** The confidence level of an interval no alarm depends on. */
-export const CONFIDENCE = 0.95;
-
-/** The confidence level of a comparison that can raise an alarm. */
-export const ALARMED_CONFIDENCE = 0.99;
+/** The confidence level of every interval. */
+export const CONFIDENCE = 0.99;
 
 const LANCZOS = [
   0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313,
@@ -146,7 +141,7 @@ function incompleteBeta(x: number, a: number, b: number): number {
 
 const criticalValues = new Map<string, number>();
 
-/** The two-sided critical value of Student's t at a confidence level, 95% by default. */
+/** The two-sided critical value of Student's t at a confidence level, 99% by default. */
 export function tCritical(degreesOfFreedom: number, confidence = CONFIDENCE): number {
   const key = `${degreesOfFreedom}:${confidence}`;
   const cached = criticalValues.get(key);
@@ -260,12 +255,11 @@ export function compareSamples(
   { canAlarm = true }: CompareSamplesOptions = {},
 ): MetricComparison {
   const alarm = (canAlarm && definition.alarm) || null;
-  const confidence = alarm ? ALARMED_CONFIDENCE : CONFIDENCE;
   const differences = differencesOf(subject.values, against.values);
   const rounds = differences.length;
   const mean = calculateMean(differences);
   const stdDev = calculateSampleStdDev(differences, mean);
-  const absolute = intervalAround(mean, stdDev, rounds, confidence);
+  const absolute = intervalAround(mean, stdDev, rounds, CONFIDENCE);
   const reference = calculateMean(against.values.slice(0, rounds));
   const relative = {
     low: (absolute.low / reference) * 100,
@@ -288,7 +282,6 @@ export function compareSamples(
     subject: subject.name,
     against: against.name,
     alarm,
-    confidence,
     absolute,
     relative,
     noise,

@@ -130,15 +130,20 @@ describe('differencesResolved', () => {
     expect(differencesResolved(analysis, [0])).toBe(true);
   });
 
-  it('judges every metric when none alarms', () => {
+  it('stops at once when nothing can alarm', () => {
     const analysis = analyzeBenchmark(
       { render: { kind: 'scalar' }, paint: { kind: 'scalar' } },
-      benchmarkOf(
-        { current: clearlySlower, baseline: noisy },
-        { current: sameish, baseline: noisy },
-      ),
+      benchmarkOf({ current: sameish, baseline: noisy }),
     );
-    expect(differencesResolved(analysis, [0])).toBe(false);
+    expect(differencesResolved(analysis, [0])).toBe(true);
+  });
+
+  it('stops at once for a compare(), whose differences never alarm', () => {
+    const analysis = analyzeBenchmark(alarmedRender, {
+      ...benchmarkOf({ current: sameish, baseline: noisy }),
+      kind: 'compare',
+    });
+    expect(differencesResolved(analysis, [0])).toBe(true);
   });
 
   it('resolves a small difference against a wider horizon', () => {

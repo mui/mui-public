@@ -9,8 +9,8 @@ export interface SamplingOptions {
   /** Rounds measured before deciding whether to continue. Defaults to 50. */
   sampleSize?: number;
   /**
-   * Minutes to keep sampling after `sampleSize` rounds while a difference is unresolved. `0`
-   * measures exactly `sampleSize` rounds. Defaults to 3.
+   * Minutes to keep sampling after `sampleSize` rounds while a difference that can raise an alarm is
+   * unresolved. `0` measures exactly `sampleSize` rounds. Defaults to 3.
    */
   timeout?: number;
   /**
@@ -20,8 +20,8 @@ export interface SamplingOptions {
    * than 5%. A `0%` horizon tests whether there is any change at all: identical builds never resolve
    * against it, and checking again after every round makes a false finding likelier.
    *
-   * Judged on the metrics that carry an alarm, the ones a benchmark cares about most, whether or
-   * not its kind lets them raise one; on every metric when none carries one.
+   * Judged only on differences that can raise an alarm: an alarmed metric of a `baseline` benchmark.
+   * A benchmark with none, a `compare()` among them, stops at `sampleSize`.
    */
   autoSampleConditions?: string[];
 }
@@ -88,16 +88,16 @@ export function isResolved(interval: { low: number; high: number }, horizons: nu
 }
 
 /**
- * Whether sampling a benchmark can stop: every comparison it reports has resolved against the
- * horizons, on the metrics that carry an alarm, or on every metric when none does.
+ * Whether sampling a benchmark can stop: every difference that can raise an alarm has resolved
+ * against the horizons. The others are only read, so they never keep a run going.
  */
 export function differencesResolved(
   analysis: { metrics: MetricComparisons[] },
   horizons: number[],
 ): boolean {
-  const alarmed = analysis.metrics.filter((metric) => metric.definition.alarm !== undefined);
-  const judged = alarmed.length > 0 ? alarmed : analysis.metrics;
-  return judged.every((metric) =>
-    metric.comparisons.every((comparison) => isResolved(comparison.relative, horizons)),
+  return analysis.metrics.every((metric) =>
+    metric.comparisons.every(
+      (comparison) => comparison.alarm === null || isResolved(comparison.relative, horizons),
+    ),
   );
 }

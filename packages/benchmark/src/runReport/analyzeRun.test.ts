@@ -35,21 +35,20 @@ function reportOf(benchmarks: RunBenchmark[], metrics: BenchmarkRunReport['metri
 }
 
 describe('tCritical', () => {
-  it('matches the published table at 95%', () => {
-    expect(tCritical(1)).toBeCloseTo(12.706, 3);
-    expect(tCritical(9)).toBeCloseTo(2.262, 3);
-    expect(tCritical(29)).toBeCloseTo(2.045, 3);
+  it('matches the published table at 99%, the default', () => {
+    expect(tCritical(1)).toBeCloseTo(63.657, 2);
+    expect(tCritical(9)).toBeCloseTo(3.25, 3);
   });
 
   it('matches the published table at other levels', () => {
-    expect(tCritical(1, 0.99)).toBeCloseTo(63.657, 2);
-    expect(tCritical(9, 0.99)).toBeCloseTo(3.25, 3);
+    expect(tCritical(1, 0.95)).toBeCloseTo(12.706, 3);
+    expect(tCritical(29, 0.95)).toBeCloseTo(2.045, 3);
     expect(tCritical(29, 0.999)).toBeCloseTo(3.659, 3);
   });
 
   it('approaches the normal quantile for large samples', () => {
-    expect(tCritical(100_000)).toBeCloseTo(1.96, 2);
-    expect(tCritical(100_000, 0.99)).toBeCloseTo(2.576, 2);
+    expect(tCritical(100_000)).toBeCloseTo(2.576, 2);
+    expect(tCritical(100_000, 0.95)).toBeCloseTo(1.96, 2);
   });
 });
 
