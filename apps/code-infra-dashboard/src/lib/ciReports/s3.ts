@@ -22,15 +22,20 @@ function sanitizeTagValue(str: string): string {
 
 interface ObjectTags {
   isBaseBranch: boolean;
-  branch: string;
+  /** The branch a same-org build ran on; `null` for a fork or a ref that isn't a branch. */
+  branch: string | null;
 }
 
-/** The tags every CI object carries, which the bucket's retention can key on. */
+/**
+ * The tags every CI object carries, which the bucket's retention can key on. `branch` is left out
+ * when the build has none.
+ */
 function taggingOf({ isBaseBranch, branch }: ObjectTags): string {
-  return new URLSearchParams({
-    isBaseBranch: isBaseBranch ? 'yes' : 'no',
-    branch: sanitizeTagValue(branch),
-  }).toString();
+  const tags = new URLSearchParams({ isBaseBranch: isBaseBranch ? 'yes' : 'no' });
+  if (branch !== null) {
+    tags.set('branch', sanitizeTagValue(branch));
+  }
+  return tags.toString();
 }
 
 /**

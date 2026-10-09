@@ -84,8 +84,8 @@ export interface UploadPlan {
 
 /**
  * What an upload writes. A name the CI job gives (`requested`) picks the report's own file wherever
- * it runs; only a build that is the repository's own on a tracked branch (`trackedBranch`, else
- * `null`) joins a timeline: the named one, or else the branch's.
+ * it runs; only a build on a tracked branch joins a timeline: the named one, or else the branch's.
+ * `branch` is the build's verified branch, `null` for a fork or a ref that isn't a branch.
  *
  * A pointer is keyed by the commit's time (`commitTime`), so uploading a commit again writes the
  * same pointer and never moves the commit in its timeline. An upload without it joins no timeline,
@@ -95,14 +95,14 @@ export function planUpload({
   repo,
   sha,
   reportType,
-  trackedBranch,
+  branch,
   requested,
   commitTime,
 }: {
   repo: string;
   sha: string;
   reportType: ReportType;
-  trackedBranch: string | null;
+  branch: string | null;
   requested: string | undefined;
   commitTime: number | undefined;
 }): UploadPlan | { error: string } {
@@ -115,6 +115,7 @@ export function planUpload({
     return { error: `Timeline "${requested}" needs the commit's time: send commitTimestamp` };
   }
   const named = requested === undefined ? null : `@${requested}`;
+  const trackedBranch = branch !== null && isTrackedBranch(branch) ? branch : null;
   const plan: UploadPlan = {
     reportKey: reportKey(repo, sha, reportType, named),
     timeline: null,

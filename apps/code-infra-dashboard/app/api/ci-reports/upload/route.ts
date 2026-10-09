@@ -29,10 +29,8 @@ const uploadSchema = z.object({
 interface UploadTarget {
   /** The repository the report is stored under. */
   repo: string;
-  /** The branch the report is tagged with. */
-  branch: string;
-  /** The branch when it is tracked and the build is the repository's own, else `null`. */
-  trackedBranch: string | null;
+  /** The branch a same-org build runs on, else `null`: a fork, or a ref that isn't a branch. */
+  branch: string | null;
   /** The open pull request the build is for, else `null`. */
   prNumber: number | null;
 }
@@ -62,13 +60,11 @@ async function uploadTargetOf(
     // The branch is the verified one, never the body's, so a build can't claim a tracked branch it
     // doesn't run on.
     const { branch } = oidcResult;
-    const trackedBranch = branch !== null && isTrackedBranch(branch) ? branch : null;
     return {
       target: {
         repo: oidcResult.sourceRepo,
-        branch: branch ?? oidcResult.ref,
-        trackedBranch,
-        prNumber: trackedBranch === null ? await prNumberOf(oidcResult) : null,
+        branch,
+        prNumber: branch !== null && isTrackedBranch(branch) ? null : await prNumberOf(oidcResult),
       },
     };
   }
@@ -110,9 +106,7 @@ async function uploadTargetOf(
     };
   }
 
-  return {
-    target: { repo: targetRepo, branch: pr.head.ref, trackedBranch: null, prNumber: pr.number },
-  };
+  return { target: { repo: targetRepo, branch: null, prNumber: pr.number } };
 }
 
 // This endpoint is authenticated via CI OIDC tokens. The client sends
@@ -163,7 +157,7 @@ export async function POST(request: NextRequest) {
     repo: target.repo,
     sha: commitSha,
     reportType,
-    trackedBranch: target.trackedBranch,
+    branch: target.branch,
     requested: timeline,
     commitTime: commitTimestamp,
   });
@@ -179,7 +173,7 @@ export async function POST(request: NextRequest) {
     reportType === 'benchmark'
       ? JSON.stringify({
           ...parsed.data,
-          branch: target.branch,
+          branch: target.branch ?? undefined,
           prNumber: target.prNumber ?? undefined,
         })
       : JSON.stringify(report);

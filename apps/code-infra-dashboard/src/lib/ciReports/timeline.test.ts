@@ -15,7 +15,7 @@ const TIME = 1_759_000_000_000;
 const TIME_LEFT = '8240999999999';
 
 function plan(
-  trackedBranch: string | null,
+  branch: string | null,
   requested?: string,
   overrides: { sha?: string; commitTime?: number | undefined } = {},
 ) {
@@ -23,7 +23,7 @@ function plan(
     repo: REPO,
     sha: SHA_A,
     reportType: 'benchmark',
-    trackedBranch,
+    branch,
     requested,
     commitTime: TIME,
     ...overrides,
@@ -40,7 +40,16 @@ describe('planUpload', () => {
     });
   });
 
-  it('puts an upload from a pull request or a fork in no timeline', () => {
+  it("puts a pull request's upload in no timeline", () => {
+    expect(plan('feature/x')).toEqual({
+      reportKey: `artifacts/${REPO}/${SHA_A}/benchmark.json`,
+      timeline: null,
+      pointerKey: null,
+      isBaseBranch: false,
+    });
+  });
+
+  it('puts an upload without a branch, from a fork or a tag, in no timeline', () => {
     expect(plan(null)).toEqual({
       reportKey: `artifacts/${REPO}/${SHA_A}/benchmark.json`,
       timeline: null,
