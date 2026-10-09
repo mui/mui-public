@@ -509,12 +509,14 @@ jobs:
             const resultPath = `${process.env.RUNNER_TEMP}/triage/result.json`;
             let result;
             try {
+              // JSON Schema and jq measure strings in Unicode code points, not UTF-16 units.
+              const length = (text) => Array.from(text).length;
               if (fs.statSync(resultPath).size <= 512000) {
                 const value = JSON.parse(fs.readFileSync(resultPath, 'utf8'));
                 if (value && typeof value.actionable === 'boolean' &&
                     ['bug', 'regression', 'enhancement', 'new-feature', 'expected-behavior', 'question', 'duplicate', 'needs-information', 'out-of-scope', 'unknown'].includes(value.category) &&
-                    typeof value.comment === 'string' && value.comment.length > 0 && value.comment.length <= 40000 &&
-                    typeof value.handoff === 'string' && value.handoff.length <= 40000) {
+                    typeof value.comment === 'string' && length(value.comment) > 0 && length(value.comment) <= 40000 &&
+                    typeof value.handoff === 'string' && length(value.handoff) <= 40000) {
                   // Preserve the diagnosis even when the fix investigation is missing.
                   result = { ...value, actionable: value.actionable && value.handoff.trim().length > 0 };
                 }
