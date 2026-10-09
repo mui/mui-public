@@ -105,16 +105,32 @@ jobs:
               context.payload.action === 'labeled' && context.payload.issue?.number === issueNumber &&
               mode === 'triage' && commentId === 0;
             if (!botLabelRequest) {
-              if (actor?.type !== 'User') return;
-              const { data: access } = await github.rest.repos.getCollaboratorPermissionLevel({
-                ...context.repo, username: actor.login,
-              });
-              if (!['admin', 'maintain', 'write'].includes(access.permission)) return;
+              if (actor?.type !== 'User') {
+                core.notice('Triage request denied: only human collaborators or bots labeling this issue for triage are allowed.');
+                return;
+              }
+              let access;
+              try {
+                ({ data: access } = await github.rest.repos.getCollaboratorPermissionLevel({
+                  ...context.repo, username: actor.login,
+                }));
+              } catch (error) {
+                if (error.status !== 404) throw error;
+                core.warning(`Triage request denied: collaborator access could not be found for ${actor.login}.`);
+                return;
+              }
+              if (!['admin', 'maintain', 'write'].includes(access.permission)) {
+                core.notice(`Triage request denied: ${actor.login} does not have write access.`);
+                return;
+              }
             }
             const { data: issue } = await github.rest.issues.get({
               ...context.repo, issue_number: issueNumber,
             });
-            if (issue.pull_request) return;
+            if (issue.pull_request) {
+              core.notice('Triage request ignored: the target is a pull request, not an issue.');
+              return;
+            }
             const { data: repository } = await github.rest.repos.get(context.repo);
             const { data: branch } = await github.rest.repos.getBranch({
               ...context.repo, branch: repository.default_branch,
@@ -519,7 +535,11 @@ jobs:
                 : '\n\nTriage found no actionable automated fix. No fix attempt will run.\n';
             }
             body += `\n---\nAgent-generated diagnosis; conclusions have not been independently verified. [Workflow run](${process.env.RUN_URL}).\n`;
-            body += fs.readFileSync(`${process.env.RUNNER_TEMP}/triage-footer.md`, 'utf8');
+            try {
+              body += fs.readFileSync(`${process.env.RUNNER_TEMP}/triage-footer.md`, 'utf8');
+            } catch {
+              body += `_Triage usage unavailable. [run](${process.env.RUN_URL})_\n`;
+            }
             await core.summary.addRaw(body).write();
             const issue_number = Number(process.env.ISSUE_NUMBER);
             const comments = await github.paginate(github.rest.issues.listComments, {
