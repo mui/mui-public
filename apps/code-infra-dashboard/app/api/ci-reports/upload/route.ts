@@ -152,9 +152,12 @@ export async function POST(request: NextRequest) {
 
   // For benchmark uploads, store the full wrapper (version, timestamp, commitSha,
   // repo, branch, prNumber, reportType, report, base). Other report types keep
-  // their historic "just the inner report" storage.
+  // their historic "just the inner report" storage. The wrapper records the branch the object is
+  // tagged with, not the one the client sent.
   const storedBody =
-    reportType === 'benchmark' ? JSON.stringify(parsed.data) : JSON.stringify(report);
+    reportType === 'benchmark'
+      ? JSON.stringify({ ...parsed.data, branch: target.branch })
+      : JSON.stringify(report);
 
   const tags = { isBaseBranch: plan.isBaseBranch, branch: target.branch };
   await uploadReport({ key: plan.reportKey, body: storedBody, ...tags });
