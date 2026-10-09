@@ -1,7 +1,7 @@
 import { createRemarkConfig } from '@mui/internal-code-infra/remark';
 
 export default createRemarkConfig({
-  // MDX cannot parse HTML comments. These markers are also read by the docs generators.
+  // Preserve existing link-reference metadata markers read by the docs generators.
   allowDefinitionComments: true,
   overrides: [
     {

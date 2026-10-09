@@ -99,7 +99,8 @@ function withOverrides(name, plugin, baseSettings, overrideEntries) {
 
 /**
  * Allows link-reference comments while retaining diagnostics for real links and definitions.
- * MDX cannot parse HTML comments, so docs generators use `[//]: # 'comment'` instead.
+ * Existing docs generators use these markers in both Markdown and MDX and parse them as metadata.
+ * Authored MDX can use JSX comments without this compatibility option.
  *
  * @param {import('unified').Plugin<any[], any, any>} plugin
  */
