@@ -6,15 +6,21 @@ import { execa } from 'execa';
  */
 
 /**
- * The full SHA of a commit, and its time in milliseconds, which orders it in the dashboard's
- * timeline.
+ * @typedef {object} Commit
+ * @property {string} sha - The full commit SHA
+ * @property {number} timestamp - The commit's time in milliseconds, which orders it in the
+ *   dashboard's timeline
+ */
+
+/**
+ * Looks up a commit's SHA and time.
  * @param {string} ref - The commit, by SHA or any other revision
- * @returns {Promise<{ sha: string, commitTimestamp: number }>}
+ * @returns {Promise<Commit>}
  */
 async function getCommit(ref) {
   const { stdout } = await execa('git', ['log', '-1', '--format=%H %ct', ref]);
   const [sha, time] = stdout.trim().split(' ');
-  return { sha, commitTimestamp: Number(time) * 1000 };
+  return { sha, timestamp: Number(time) * 1000 };
 }
 
 /**
@@ -22,17 +28,16 @@ async function getCommit(ref) {
  * @param {string} apiUrl - Base URL of the CI report API
  * @param {Buffer} fileContent - The file content to upload
  * @param {NormalizedUploadConfig} uploadConfig - The normalized upload configuration
- * @param {string} sha - The commit SHA
- * @param {number} commitTimestamp - The commit's time in milliseconds
+ * @param {Commit} commit - The commit the snapshot is of
  * @returns {Promise<{key:string}>}
  */
-async function uploadViaApi(apiUrl, fileContent, uploadConfig, sha, commitTimestamp) {
+async function uploadViaApi(apiUrl, fileContent, uploadConfig, commit) {
   /** @type {import('./ciReport.js').SizeSnapshotUpload} */
   const requestBody = {
     version: 1,
     timestamp: Date.now(),
-    commitTimestamp,
-    commitSha: sha,
+    commitTimestamp: commit.timestamp,
+    commitSha: commit.sha,
     repo: uploadConfig.repo,
     reportType: 'size-snapshot',
     branch: uploadConfig.branch,
@@ -76,10 +81,10 @@ async function uploadViaApi(apiUrl, fileContent, uploadConfig, sha, commitTimest
  */
 export async function uploadSnapshot(snapshotPath, uploadConfig, commitSha) {
   // Run git operations and file reading in parallel
-  const [{ sha, commitTimestamp }, fileContent] = await Promise.all([
+  const [commit, fileContent] = await Promise.all([
     getCommit(commitSha || 'HEAD'),
     fs.promises.readFile(snapshotPath),
   ]);
 
-  return uploadViaApi(uploadConfig.apiUrl, fileContent, uploadConfig, sha, commitTimestamp);
+  return uploadViaApi(uploadConfig.apiUrl, fileContent, uploadConfig, commit);
 }
