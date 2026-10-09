@@ -99,6 +99,8 @@ Applies to the whole repository.
 
 ### GitHub Actions
 
+- Pass uploaded artifact IDs through job outputs to downstream downloads. Reconstructing artifact names with the consumer's `github.run_attempt` breaks partial reruns when the producer succeeded in an earlier attempt.
+
 - The reusable Claude triage workflow accepts explicit issue/mode/comment inputs. Keep event-specific command or label parsing in callers; authorize the event sender in the reusable workflow. Bot senders may request triage for the issue they labeled; other requests require a human collaborator with write access. Labeling automation needs an App token or PAT because GITHUB_TOKEN label events do not trigger workflows.
 - Bot-triggered Claude jobs must also configure the Claude action's `allowed_bots` input; workflow-level authorization does not bypass the action's independent human-actor check.
 

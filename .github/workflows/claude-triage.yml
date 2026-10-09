@@ -79,6 +79,7 @@ jobs:
       issue: ${{ steps.request.outputs.issue }}
       base: ${{ steps.request.outputs.base }}
       branch: ${{ steps.request.outputs.branch }}
+      artifact-id: ${{ steps.snapshot.outputs.artifact-id }}
     steps:
       - name: Authorize the request and capture context
         id: request
@@ -165,6 +166,7 @@ jobs:
             core.setOutput('branch', repository.default_branch);
             await reaction;
       - name: Upload the issue snapshot
+        id: snapshot
         if: steps.request.outputs.mode != ''
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -188,6 +190,7 @@ jobs:
       MAX_TURNS: ${{ inputs.triage-max-turns }}
     outputs:
       completed: ${{ steps.capture.outputs.completed }}
+      artifact-id: ${{ steps.artifact.outputs.artifact-id }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -202,7 +205,7 @@ jobs:
           persist-credentials: false
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: triage-request-${{ github.run_id }}-${{ github.run_attempt }}
+          artifact-ids: ${{ needs.authorize.outputs.artifact-id }}
           path: ${{ runner.temp }}/request
       - &prepare-turn-budget
         name: Prepare the workflow-owned turn reminder
@@ -408,6 +411,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/triage"
           printf '%s\n' "$result" > "$RUNNER_TEMP/triage/result.json"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        id: artifact
         if: always()
         with:
           name: triage-report-${{ github.run_id }}-${{ github.run_attempt }}
@@ -429,9 +433,10 @@ jobs:
       url: ${{ steps.comment.outputs.url }}
     steps:
       - continue-on-error: true
+        if: needs.triage.outputs.artifact-id != ''
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: triage-report-${{ github.run_id }}-${{ github.run_attempt }}
+          artifact-ids: ${{ needs.triage.outputs.artifact-id }}
           path: ${{ runner.temp }}/triage
       - &prepare-footers
         name: Prepare run footers outside Claude
@@ -596,6 +601,7 @@ jobs:
       MAX_TURNS: ${{ inputs.fix-max-turns }}
     outputs:
       completed: ${{ steps.capture.outputs.completed }}
+      artifact-id: ${{ steps.artifact.outputs.artifact-id }}
       actionable: ${{ steps.eligible.outputs.actionable }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -611,11 +617,11 @@ jobs:
           persist-credentials: false
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: triage-report-${{ github.run_id }}-${{ github.run_attempt }}
+          artifact-ids: ${{ needs.triage.outputs.artifact-id }}
           path: ${{ runner.temp }}/triage
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: triage-request-${{ github.run_id }}-${{ github.run_attempt }}
+          artifact-ids: ${{ needs.authorize.outputs.artifact-id }}
           path: ${{ runner.temp }}/request
       - name: Check whether a fix is warranted
         id: eligible
@@ -714,6 +720,7 @@ jobs:
             git -c core.hooksPath=/dev/null diff --cached --binary --no-ext-diff --no-textconv > "$RUNNER_TEMP/fix/fix.patch"
           fi
       - name: Upload the untrusted proposal
+        id: artifact
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -745,11 +752,11 @@ jobs:
       issues: write
     steps:
       - name: Download the untrusted proposal
-        if: always() && needs.fix.result != 'skipped'
+        if: always() && needs.fix.result != 'skipped' && needs.fix.outputs.artifact-id != ''
         continue-on-error: true
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: triage-fix-${{ github.run_id }}-${{ github.run_attempt }}
+          artifact-ids: ${{ needs.fix.outputs.artifact-id }}
           path: ${{ runner.temp }}/fix
       - *prepare-footers
       - name: Check out the authorized base
