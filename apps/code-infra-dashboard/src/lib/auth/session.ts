@@ -1,5 +1,4 @@
-import { createHash } from 'node:crypto';
-import { EncryptJWT, jwtDecrypt } from 'jose';
+import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
 import { z } from 'zod/v4';
 import { BASE_COOKIE_OPTIONS, SESSION_COOKIE, SESSION_MAX_AGE_SECONDS } from './config';
@@ -21,55 +20,38 @@ const sessionSchema = z.object({
 
 export type Session = z.infer<typeof sessionSchema>;
 
-function getKey(): Uint8Array {
-  const secret = process.env.SESSION_SECRET;
-  if (!secret) {
+async function openSessionCookie() {
+  const password = process.env.SESSION_SECRET;
+  if (!password) {
     throw new Error('SESSION_SECRET is not configured.');
   }
 
-  // Hashed rather than decoded so that any sufficiently random string works as
-  // the secret, including a Render `generateValue` one, which has no length or
-  // alphabet guarantees. A256GCM needs exactly 32 bytes.
-  return new Uint8Array(createHash('sha256').update(secret).digest());
+  return getIronSession<{ github: Session }>(await cookies(), {
+    cookieName: SESSION_COOKIE,
+    password,
+    ttl: SESSION_MAX_AGE_SECONDS,
+    cookieOptions: { ...BASE_COOKIE_OPTIONS, path: '/' },
+  });
 }
 
 export async function writeSession(session: Session): Promise<void> {
-  const jwt = await new EncryptJWT({ ...session })
-    .setProtectedHeader({ alg: 'dir', enc: 'A256GCM' })
-    .setIssuedAt()
-    .setExpirationTime(`${SESSION_MAX_AGE_SECONDS}s`)
-    .encrypt(getKey());
-
-  const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE, jwt, {
-    ...BASE_COOKIE_OPTIONS,
-    path: '/',
-    maxAge: SESSION_MAX_AGE_SECONDS,
-  });
+  const cookie = await openSessionCookie();
+  cookie.github = session;
+  await cookie.save();
 }
 
 /**
  * Returns null for anyone who is not signed in, including when the cookie is
- * expired, tampered with, or encrypted under a rotated SESSION_SECRET. All of
- * those mean the same thing to a caller: treat this request as anonymous.
+ * expired, tampered with, or sealed under a rotated SESSION_SECRET: iron-session
+ * opens all of those as an empty session.
  */
 export async function readSession(): Promise<Session | null> {
-  const cookieStore = await cookies();
-  const raw = cookieStore.get(SESSION_COOKIE)?.value;
-
-  if (!raw) {
-    return null;
-  }
-
-  try {
-    const { payload } = await jwtDecrypt(raw, getKey());
-    return sessionSchema.parse(payload);
-  } catch {
-    return null;
-  }
+  const cookie = await openSessionCookie();
+  const parsed = sessionSchema.safeParse(cookie.github);
+  return parsed.success ? parsed.data : null;
 }
 
 export async function clearSession(): Promise<void> {
-  const cookieStore = await cookies();
-  cookieStore.delete({ name: SESSION_COOKIE, path: '/' });
+  const cookie = await openSessionCookie();
+  cookie.destroy();
 }
