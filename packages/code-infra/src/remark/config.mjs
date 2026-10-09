@@ -98,6 +98,37 @@ function withOverrides(name, plugin, baseSettings, overrideEntries) {
 }
 
 /**
+ * Allows link-reference comments while retaining diagnostics for real links and definitions.
+ * Existing docs generators use these markers in both Markdown and MDX and parse them as metadata.
+ * Authored MDX can use JSX comments without this compatibility option.
+ *
+ * @param {import('unified').Plugin<any[], any, any>} plugin
+ */
+function withDefinitionComments(plugin) {
+  /** @param {any[]} settings */
+  return function wrapper(...settings) {
+    const processor = unified().use(plugin, ...settings);
+    /** @type {import('unified').Transformer} */
+    return async function transformer(tree, file) {
+      const previousMessages = file.messages.length;
+      await processor.run(tree, file);
+      file.messages = file.messages.filter((message, index) => {
+        const node = message.ancestors?.at(-1);
+        return !(
+          index >= previousMessages &&
+          node?.type === 'definition' &&
+          'identifier' in node &&
+          node.identifier === '//' &&
+          'title' in node &&
+          typeof node.title === 'string' &&
+          node.title.length > 0
+        );
+      });
+    };
+  };
+}
+
+/**
  * Returns a remark preset wiring the MUI-authored remark-lint plugins together
  * with a curated set of community plugins. Drop this into `.remarkrc.mjs`:
  *
@@ -120,9 +151,11 @@ function withOverrides(name, plugin, baseSettings, overrideEntries) {
  * ```
  *
  * @param {Object} [options]
+ * @param {boolean} [options.allowDefinitionComments=false] Allow titled `[//]` link-reference comments.
  * @param {Array<{ files: string | string[], rules: Record<string, false | unknown[]> }>} [options.overrides]
+ * @returns {import('unified').Preset}
  */
-export function createRemarkConfig({ overrides = [] } = {}) {
+export function createRemarkConfig({ overrides = [], allowDefinitionComments = false } = {}) {
   for (const override of overrides) {
     const unknown = Object.keys(override.rules).filter((ruleName) => !(ruleName in RULES));
     if (unknown.length > 0) {
@@ -130,10 +163,14 @@ export function createRemarkConfig({ overrides = [] } = {}) {
     }
   }
 
+  /** @type {import('unified').PluggableList} */
   const entries = Object.entries(RULES).map(([name, entry]) => {
-    const [plugin, baseSettings] = /** @type {[import('unified').Plugin<any[], any, any>, any]} */ (
-      entry
-    );
+    const [rulePlugin, baseSettings] =
+      /** @type {[import('unified').Plugin<any[], any, any>, any]} */ (entry);
+    const plugin =
+      allowDefinitionComments && (name === 'no-empty-url' || name === 'no-unused-definitions')
+        ? withDefinitionComments(rulePlugin)
+        : rulePlugin;
     const overrideEntries = overrides
       .filter((override) => name in override.rules)
       .map((override) => ({ files: override.files, settings: override.rules[name] }));
