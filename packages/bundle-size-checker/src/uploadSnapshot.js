@@ -30,14 +30,15 @@ async function getCommitTimestamp(sha) {
  * @param {Buffer} fileContent - The file content to upload
  * @param {NormalizedUploadConfig} uploadConfig - The normalized upload configuration
  * @param {string} sha - The commit SHA
+ * @param {number} commitTimestamp - The commit's time in milliseconds
  * @returns {Promise<{key:string}>}
  */
-async function uploadViaApi(apiUrl, fileContent, uploadConfig, sha) {
+async function uploadViaApi(apiUrl, fileContent, uploadConfig, sha, commitTimestamp) {
   /** @type {import('./ciReport.js').SizeSnapshotUpload} */
   const requestBody = {
     version: 1,
     timestamp: Date.now(),
-    commitTimestamp: await getCommitTimestamp(sha),
+    commitTimestamp,
     commitSha: sha,
     repo: uploadConfig.repo,
     reportType: 'size-snapshot',
@@ -82,10 +83,13 @@ async function uploadViaApi(apiUrl, fileContent, uploadConfig, sha) {
  */
 export async function uploadSnapshot(snapshotPath, uploadConfig, commitSha) {
   // Run git operations and file reading in parallel
-  const [sha, fileContent] = await Promise.all([
-    commitSha || getCurrentCommitSHA(),
+  const [[sha, commitTimestamp], fileContent] = await Promise.all([
+    (async () => {
+      const resolvedSha = commitSha || (await getCurrentCommitSHA());
+      return /** @type {const} */ ([resolvedSha, await getCommitTimestamp(resolvedSha)]);
+    })(),
     fs.promises.readFile(snapshotPath),
   ]);
 
-  return uploadViaApi(uploadConfig.apiUrl, fileContent, uploadConfig, sha);
+  return uploadViaApi(uploadConfig.apiUrl, fileContent, uploadConfig, sha, commitTimestamp);
 }
