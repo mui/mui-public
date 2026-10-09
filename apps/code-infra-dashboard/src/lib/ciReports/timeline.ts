@@ -86,6 +86,10 @@ export interface UploadPlan {
  * What an upload writes. A name the CI job gives (`requested`) picks the report's own file wherever
  * it runs; only a build that is the repository's own on a tracked branch (`trackedBranch`, else
  * `null`) joins a timeline: the named one, or else the branch's.
+ *
+ * A pointer is keyed by the commit's time (`commitTime`), so uploading a commit again writes the
+ * same pointer and never moves the commit in its timeline. An upload without it joins no timeline,
+ * and naming a timeline without it is an error.
  */
 export function planUpload({
   repo,
@@ -93,34 +97,40 @@ export function planUpload({
   reportType,
   trackedBranch,
   requested,
-  time,
+  commitTime,
 }: {
   repo: string;
   sha: string;
   reportType: ReportType;
   trackedBranch: string | null;
   requested: string | undefined;
-  time: number;
+  commitTime: number | undefined;
 }): UploadPlan | { error: string } {
   if (requested !== undefined && !TIMELINE_NAME_REGEX.test(requested)) {
     return {
       error: `Invalid timeline "${requested}": use lowercase letters, digits, "." and "-"`,
     };
   }
+  if (requested !== undefined && commitTime === undefined) {
+    return { error: `Timeline "${requested}" needs the commit's time: send commitTimestamp` };
+  }
   const named = requested === undefined ? null : `@${requested}`;
-  const timeline = trackedBranch === null ? null : (named ?? trackedBranch);
+  const timeline =
+    trackedBranch === null || commitTime === undefined ? null : (named ?? trackedBranch);
   return {
     reportKey: reportKey(repo, sha, reportType, named),
     timeline,
     pointerKey:
-      timeline === null ? null : timelinePointerKey(repo, timeline, reportType, time, sha),
+      timeline === null || commitTime === undefined
+        ? null
+        : timelinePointerKey(repo, timeline, reportType, commitTime, sha),
     isBaseBranch: trackedBranch !== null,
   };
 }
 
 export interface TimelineEntry {
   sha: string;
-  /** Milliseconds since the epoch: the commit's time when the upload sent it, else the upload's. */
+  /** The commit's time, in milliseconds since the epoch. */
   time: number;
 }
 

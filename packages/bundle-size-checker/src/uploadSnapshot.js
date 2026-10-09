@@ -15,6 +15,16 @@ async function getCurrentCommitSHA() {
 }
 
 /**
+ * The commit's time in milliseconds, which orders it in the dashboard's timeline.
+ * @param {string} sha - The commit SHA
+ * @returns {Promise<number>}
+ */
+async function getCommitTimestamp(sha) {
+  const { stdout } = await execa('git', ['show', '-s', '--format=%ct', sha]);
+  return Number(stdout.trim()) * 1000;
+}
+
+/**
  * Uploads the snapshot via the dashboard API (server-side proxied to S3).
  * @param {string} apiUrl - Base URL of the CI report API
  * @param {Buffer} fileContent - The file content to upload
@@ -27,6 +37,7 @@ async function uploadViaApi(apiUrl, fileContent, uploadConfig, sha) {
   const requestBody = {
     version: 1,
     timestamp: Date.now(),
+    commitTimestamp: await getCommitTimestamp(sha),
     commitSha: sha,
     repo: uploadConfig.repo,
     reportType: 'size-snapshot',

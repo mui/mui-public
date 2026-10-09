@@ -10,7 +10,7 @@ import { isTrackedBranch, planUpload, uploadTimeSchema } from '@/lib/ciReports/t
 
 const uploadSchema = z.object({
   version: z.number(),
-  timestamp: uploadTimeSchema,
+  timestamp: z.number(),
   commitSha: z.string().regex(/^[0-9a-f]{40}$/, 'Must be a 40-character hex string'),
   repo: repoSchema,
   reportType: reportTypeSchema,
@@ -18,7 +18,7 @@ const uploadSchema = z.object({
   branch: z.string(),
   /** A timeline of the job's own, in place of the branch's; see `planUpload`. */
   timeline: z.string().optional(),
-  /** When the commit was made, to order it in its timeline. */
+  /** When the commit was made, which orders it in its timeline: without it, it joins none. */
   commitTimestamp: uploadTimeSchema.optional(),
   report: z.any(),
   base: z.any().optional(),
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { commitSha, repo, reportType, report, timestamp, commitTimestamp, timeline } = parsed.data;
+  const { commitSha, repo, reportType, report, commitTimestamp, timeline } = parsed.data;
 
   if (!oidcResult.isTrusted && timeline !== undefined) {
     return NextResponse.json({ error: 'A fork build cannot name a timeline' }, { status: 400 });
@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
     reportType,
     trackedBranch: target.trackedBranch,
     requested: timeline,
-    time: commitTimestamp ?? timestamp,
+    commitTime: commitTimestamp,
   });
   if ('error' in plan) {
     return NextResponse.json({ error: plan.error }, { status: 400 });

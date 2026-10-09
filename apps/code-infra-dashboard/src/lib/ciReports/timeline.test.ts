@@ -17,9 +17,17 @@ const TIME_LEFT = '8240999999999';
 function plan(
   trackedBranch: string | null,
   requested?: string,
-  { sha = SHA_A, time = TIME }: { sha?: string; time?: number } = {},
+  overrides: { sha?: string; commitTime?: number | undefined } = {},
 ) {
-  return planUpload({ repo: REPO, sha, reportType: 'benchmark', trackedBranch, requested, time });
+  return planUpload({
+    repo: REPO,
+    sha: SHA_A,
+    reportType: 'benchmark',
+    trackedBranch,
+    requested,
+    commitTime: TIME,
+    ...overrides,
+  });
 }
 
 describe('planUpload', () => {
@@ -59,6 +67,25 @@ describe('planUpload', () => {
     });
   });
 
+  it("keeps a tracked branch's upload without the commit's time out of the timeline", () => {
+    expect(plan('master', undefined, { commitTime: undefined })).toEqual({
+      reportKey: `artifacts/${REPO}/${SHA_A}/benchmark.json`,
+      timeline: null,
+      pointerKey: null,
+      isBaseBranch: true,
+    });
+  });
+
+  it("refuses a named timeline without the commit's time", () => {
+    expect(plan('master', 'release', { commitTime: undefined })).toEqual({
+      error: expect.stringContaining('commitTimestamp'),
+    });
+  });
+
+  it('writes the same pointer when a commit is uploaded again', () => {
+    expect(plan('master')).toEqual(plan('master'));
+  });
+
   it('keeps a named timeline apart from a branch of the same name', () => {
     expect(plan('master', 'master')).toMatchObject({ timeline: '@master' });
   });
@@ -92,7 +119,7 @@ describe('isTimeline', () => {
 describe('timeline pointers', () => {
   const prefix = timelinePrefix(REPO, 'master', 'benchmark');
   function keyOf(time: number, sha: string): string {
-    const planned = plan('master', undefined, { sha, time });
+    const planned = plan('master', undefined, { sha, commitTime: time });
     if ('error' in planned || planned.pointerKey === null) {
       throw new Error('Expected a pointer');
     }

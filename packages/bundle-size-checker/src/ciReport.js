@@ -11,6 +11,8 @@ export function ciReportUploadSchema(type, version, reportSchema) {
   return z.object({
     version: z.literal(version),
     timestamp: z.number(),
+    /** When the commit was made, in milliseconds: what orders it in the dashboard's timeline. */
+    commitTimestamp: z.number().optional(),
     commitSha: z.string().regex(/^[0-9a-f]{40}$/, 'Must be a 40-character hex string'),
     repo: z.string().includes('/', 'Must be in owner/repo format'),
     reportType: z.literal(type),
