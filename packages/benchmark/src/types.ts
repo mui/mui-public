@@ -1,3 +1,5 @@
+import type { BenchmarkCdp, BenchmarkInput } from './input';
+
 export interface RenderEvent {
   id: string;
   /**
@@ -35,6 +37,13 @@ export interface InteractionContext {
    * already active.
    */
   resumeReactRecording: () => void;
+  /**
+   * Trusted input gestures (scroll, pinch, tap) dispatched by the browser itself, for interactions
+   * that should behave like a real mouse or trackpad rather than synthetic DOM events.
+   */
+  input: BenchmarkInput;
+  /** The DevTools Protocol, for what the interaction sets up or reads from the browser itself. */
+  cdp: BenchmarkCdp;
 }
 
 // One benchmark case's lifecycle. The measurement loop creates one per iteration and drives it
@@ -52,8 +61,8 @@ export interface BenchmarkCaseRuntime {
 
 /**
  * Whether a custom metric measures a continuous value or a discrete count.
- * - `scalar` — continuous measurements (timings, sizes); compared with a relative noise band.
- * - `discrete` — counts/events; compared as exact integers.
+ * - `scalar` — continuous measurements (timings, sizes); alarm bands are relative fractions.
+ * - `discrete` — counts/events; alarm bands are absolute count deltas.
  */
 export type MetricKind = 'scalar' | 'discrete';
 
@@ -64,14 +73,15 @@ export interface MetricAlarm {
   /** Defaults to `lowerIsBetter`. */
   direction?: MetricDirection;
   /**
-   * Softer band: a regression past `warn` (but within `error`) is flagged as a warning.
+   * Softer band, for version 1 reports only: a regression past `warn` (but within `error`) is
+   * flagged as a warning. Version 2 reports don't carry it.
    * Scalar metrics: a relative fraction (`0.1` = 10%). Discrete metrics: an absolute count delta.
    */
   warn?: number;
   /**
-   * Harder band: a regression past `error` is flagged as an error (the alarm). When **both**
-   * `warn` and `error` are omitted, `error` defaults to the dashboard's global noise band; with
-   * only `warn` set there is no error band (warning-only).
+   * Harder band: a regression past `error` is flagged as an error (the alarm). Without it, version 1
+   * reports use the dashboard's ±20% noise band (or warn only, with `warn` set); version 2 reports
+   * use 5% for a scalar metric and flag any confirmed change for the worse in a discrete one.
    * Scalar metrics: a relative fraction (`0.25` = 25%). Discrete metrics: an absolute count delta.
    */
   error?: number;

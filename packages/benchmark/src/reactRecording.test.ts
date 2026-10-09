@@ -28,8 +28,20 @@ describe('createReactRecordingControls', () => {
   it('attributes times before all toggles to the initial state and after to the current', () => {
     const controls = createReactRecordingControls(false);
     controls.resumeReactRecording();
-    expect(controls.activeAt(-Infinity)).toBe(false);
-    expect(controls.activeAt(Infinity)).toBe(true);
+    expect(controls.activeSince(-Infinity)).toBe(null);
+    expect(controls.activeSince(Infinity)).not.toBe(null);
+  });
+
+  it('says when the window around a time began', () => {
+    const fromStart = createReactRecordingControls(true);
+    expect(fromStart.activeSince(performance.now())).toBe(-Infinity);
+
+    const resumed = createReactRecordingControls(false);
+    const beforeResume = performance.now();
+    resumed.resumeReactRecording();
+    const since = resumed.activeSince(Infinity);
+    expect(since).toBeGreaterThanOrEqual(beforeResume);
+    expect(since).toBeLessThanOrEqual(performance.now());
   });
 });
 

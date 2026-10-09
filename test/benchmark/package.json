@@ -1,0 +1,23 @@
+{
+  "private": true,
+  "description": "Smoke-test harness for the `benchmark` CLI from @mui/internal-benchmark",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typescript": "tsc -noEmit",
+    "benchmark:run": "node ./scripts/runBenchmark.mjs"
+  },
+  "dependencies": {
+    "@mui/internal-test-utils": "workspace:*",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@mui/internal-benchmark": "workspace:*",
+    "@playwright/test": "1.62.1",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.7",
+    "vite": "^8.2.2"
+  }
+}

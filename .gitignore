@@ -60,3 +60,10 @@ next-env.d.ts
 # Claude Code worktrees
 .claude/worktrees/
 .claude/cache/
+
+# Everything the benchmark harness writes: built pages per ref, packed workspace tarballs, the
+# isolated installs, the run reports, and the pages generated per benchmark file. Both directories
+# ignore themselves from the inside too, but are listed here because ESLint is fed from the root
+# .gitignore and never reads nested ones.
+/test/benchmark/.benchmark/
+/test/benchmark/src/__bench__/

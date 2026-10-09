@@ -1,6 +1,7 @@
 import react from '@vitejs/plugin-react';
 import { playwright } from '@vitest/browser-playwright';
 import type { ViteUserConfig } from 'vitest/config';
+import { BENCHMARK_LAUNCH_ARGS, BENCHMARK_VIEWPORT } from './launchArgs';
 
 export interface CreateBenchmarkVitestConfigOptions {
   /**
@@ -36,7 +37,6 @@ export interface CreateBenchmarkVitestConfigOptions {
 
 // Default viewport for all benchmark runs (measurement and profiling alike) — a desktop size is
 // more representative for component benchmarks than Vitest's phone-sized 414x896 browser default.
-const DEFAULT_VIEWPORT = { width: 1920, height: 1080 };
 
 // Explicit viewport from the `viewport` option or the `BENCHMARK_VIEWPORT` env var
 // (`<width>x<height>`); undefined when neither is set, so the caller can apply the default.
@@ -54,21 +54,6 @@ function resolveViewport(option?: {
   }
   return undefined;
 }
-
-// Chromium/V8 launch args shared by measurement and profiling, kept intentionally minimal.
-// `--expose-gc` is required: the harness forces GC between iterations for clean, comparable
-// timings. The backgrounding flags stop Chrome from throttling the (headless or occluded)
-// benchmark tab, which would otherwise add large variance. Heavier "determinism" flags
-// (`--no-opt`, `--predictable`, `--hash-seed`/`--random-seed`, `--disable-gpu`,
-// `--enable-benchmarking`) were measured to slow renders ~40% and distort paint timing without
-// reducing variance, so they are omitted — add them per project via `launchArgs` if a specific
-// workload needs them.
-const LAUNCH_ARGS = [
-  '--js-flags=--expose-gc',
-  '--disable-background-timer-throttling',
-  '--disable-backgrounding-occluded-windows',
-  '--disable-renderer-backgrounding',
-];
 
 export function createBenchmarkVitestConfig(
   options?: CreateBenchmarkVitestConfigOptions,
@@ -88,13 +73,13 @@ export function createBenchmarkVitestConfig(
 
   const { outputPath, baselinePath, launchArgs = [] } = options ?? {};
   const profile = options?.profile ?? process.env.BENCHMARK_PROFILE === 'true';
-  const viewport = resolveViewport(options?.viewport) ?? DEFAULT_VIEWPORT;
+  const viewport = resolveViewport(options?.viewport) ?? BENCHMARK_VIEWPORT;
 
   // Profiling adds DevTools on top of the shared args, plus a window sized to match the viewport —
   // Vitest's `viewport` only sizes the iframe, so otherwise it's cropped/scrolled in the headed
   // window instead of filling it. (Measurement is headless, so it has no window to size.)
   const profileArgs = [
-    ...LAUNCH_ARGS,
+    ...BENCHMARK_LAUNCH_ARGS,
     '--auto-open-devtools-for-tabs',
     `--window-size=${viewport.width},${viewport.height}`,
   ];
@@ -116,7 +101,7 @@ export function createBenchmarkVitestConfig(
         // Profiling renders into a clean page: hide Vitest's browser runner UI
         // so the orchestrator chrome doesn't clutter what you're profiling.
         ui: profile ? false : undefined,
-        // Same viewport for both modes (DEFAULT_VIEWPORT unless overridden).
+        // Same viewport for both modes (BENCHMARK_VIEWPORT unless overridden).
         viewport,
         screenshotFailures: false,
         instances: [
@@ -129,7 +114,7 @@ export function createBenchmarkVitestConfig(
         ],
         provider: playwright({
           launchOptions: {
-            args: [...(profile ? profileArgs : LAUNCH_ARGS), ...launchArgs],
+            args: [...(profile ? profileArgs : BENCHMARK_LAUNCH_ARGS), ...launchArgs],
           },
         }),
       },

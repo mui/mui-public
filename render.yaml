@@ -14,6 +14,8 @@ services:
       corepack enable
       pnpm --version
       pnpm install --frozen-lockfile
+      # The dashboard imports workspace packages at runtime, and they resolve through their build output.
+      pnpm --filter "code-infra-dashboard^..." build
       pnpm build
     startCommand: pnpm start
     plan: starter

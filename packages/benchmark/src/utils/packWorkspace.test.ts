@@ -171,6 +171,41 @@ describe('packRef', () => {
     expect(worktrees.stdout.trim().split('\n')).toHaveLength(1);
   });
 
+  it(
+    "removes a checkout an interrupted run left behind, but not a live run's",
+    { timeout: 120_000 },
+    async () => {
+      const { repoRoot, buildCmd } = await makeFixtureRepo();
+      const outRoot = path.join(await makeTempDir(), 'cache');
+      await mkdir(outRoot, { recursive: true });
+
+      // Two checkouts as runs leave them while packing: one by a process that has ended since,
+      // one by a process that still runs — this one.
+      const ended = execa('node', ['-e', '']);
+      const endedPid = ended.pid!;
+      await ended;
+      const records = await Promise.all(
+        [endedPid, process.pid].map(async (pid, index) => {
+          const checkout = path.join(await makeTempDir(), `pack-workspace-${index}`);
+          await execa('git', ['worktree', 'add', '--detach', checkout, 'HEAD'], { cwd: repoRoot });
+          const record = path.join(outRoot, `.checkout-pack-workspace-${index}.json`);
+          await writeFile(record, JSON.stringify({ pid, checkout }));
+          return { checkout, record };
+        }),
+      );
+
+      await packRef({ repoRoot, ref: 'HEAD', outRoot, installCmd: '', buildCmd });
+
+      const [abandoned, live] = records;
+      await expect(stat(abandoned.checkout)).rejects.toThrow();
+      await expect(stat(abandoned.record)).rejects.toThrow();
+      await expect(stat(live.checkout)).resolves.toBeTruthy();
+      const worktrees = await execa('git', ['worktree', 'list'], { cwd: repoRoot });
+      expect(worktrees.stdout).not.toContain(abandoned.checkout);
+      expect(worktrees.stdout).toContain(live.checkout);
+    },
+  );
+
   it('reports a ref it cannot resolve', async () => {
     const { repoRoot, buildCmd } = await makeFixtureRepo();
     const outRoot = path.join(await makeTempDir(), 'cache');

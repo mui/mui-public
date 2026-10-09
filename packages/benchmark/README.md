@@ -1,6 +1,15 @@
 # Benchmark
 
-A React component render benchmarking tool built on Vitest and Playwright. Runs benchmarks in a real browser using React's profiling build to capture accurate render durations.
+Two ways to measure, while repositories move from the first to the second.
+
+**Under Vitest** — a React component benchmarking tool built on Vitest and Playwright, using React's
+profiling build to capture render durations against your source. Everything up to
+[the `benchmark` CLI](#the-benchmark-cli) covers it. It uploads version 1 of the `benchmark` report.
+
+**The `benchmark` CLI** — `benchmark()` and `reactBenchmark()` files, the working tree against a baseline
+commit, both **built** and installed the way a consumer gets them, sampled alternately in one browser
+run and compared on paired differences. It uploads version 2 of the `benchmark` report. A repository
+uploads one version or the other; the dashboard reads each by its version.
 
 ## Features
 
@@ -60,6 +69,52 @@ benchmark(
   },
 );
 ```
+
+For input that should behave like a real mouse or trackpad, the interaction context has `input`:
+trusted gestures the browser generates itself at frame cadence, one command per gesture.
+
+```tsx
+benchmark(
+  'Chart zoom',
+  () => <Chart />,
+  async ({ input }) => {
+    await input.scroll({ x: 400, y: 300, deltaY: 600 });
+    await input.pinch({ x: 400, y: 300, scaleFactor: 2 });
+  },
+);
+```
+
+A gesture's event count follows what the browser coalesced, so its render count can vary from one
+iteration to the next. Wait for the mount to be painted — `await waitForElementTiming('default')` —
+before starting a gesture on something the case just rendered; until then, the browser may not route
+the gesture to it.
+
+For anything else the browser can do, the context has `cdp`, the Chrome DevTools Protocol on the
+session that drives the page: throttle the CPU, or read the engine's own counters as a custom metric.
+
+```tsx
+const layouts = new DiscreteMetric({ name: 'layout:count' });
+
+benchmark(
+  'Grid scroll',
+  () => <Grid />,
+  async ({ input, cdp }) => {
+    await cdp.send('Performance.enable');
+    const count = async () => {
+      const { metrics } = (await cdp.send('Performance.getMetrics')) as {
+        metrics: Array<{ name: string; value: number }>;
+      };
+      return metrics.find((metric) => metric.name === 'LayoutCount')!.value;
+    };
+    const before = await count();
+    await input.scroll({ x: 400, y: 300, deltaY: 2000 });
+    layouts.record((await count()) - before);
+  },
+);
+```
+
+A setting a case changes this way, such as CPU throttling, stays on the tab for later samples and for
+the other cases sampled in it, those of a `compare()` too: a case that changes one sets it every time.
 
 ### Scoping which renders are measured
 
@@ -131,8 +186,8 @@ This produces a `bench:paint#my-component` sub-series alongside the automatic `b
 
 Record your own measurements — a timing, a count, anything measured inside or outside React — from a plain `it()` loop or from inside a `benchmark()`. There are two primitives:
 
-- `ScalarMetric` — a continuous value (timings, sizes). Aggregated as mean ± standard deviation with IQR outlier removal, and compared against a baseline with a relative noise band.
-- `DiscreteMetric` — a count of events. Compared as an exact integer (any change is significant) and formatted as a whole number.
+- `ScalarMetric` — a continuous value (timings, sizes).
+- `DiscreteMetric` — a count of events, formatted as a whole number.
 
 Both record values with `record(value)`. `ScalarMetric` additionally offers `time()`/`timeEnd()` — a `console.time`-style shortcut that records the elapsed milliseconds for you.
 
@@ -169,11 +224,16 @@ You can also `record()` or `time()` from inside a `benchmark()` render function 
 - `format` — an [`Intl.NumberFormatOptions`](https://developer.mozilla.org/en-US/docs/Web/API/Intl/NumberFormat/NumberFormat) object used to display the value.
 - `alarm` — opts the metric into regression flagging. Omit it and the metric is informational (its diff is shown but never flagged). Holds:
   - `direction` — `'lowerIsBetter'` (default) or `'higherIsBetter'`.
-  - `warn` — softer band; a regression past it is flagged as a warning.
-  - `error` — harder band; a regression past it is flagged as an error. Defaults to the dashboard's global noise band only when both `warn` and `error` are omitted; with only `warn` set there is no error band (warning-only).
+  - `warn` — softer band, for version 1 reports only; a regression past it is flagged as a warning.
+  - `error` — harder band; a regression past it is flagged as an error.
   - Bands are relative fractions for scalar metrics (`0.1` = 10%) and absolute count deltas for discrete metrics (`1`, `2`). Either band is optional.
 
-Alarms are evaluated against the baseline when the PR comment is generated, not during the local `vitest run` — a regression never fails the test suite locally. In the PR comment, `error`-band regressions surface as failures and `warn`-band regressions as warnings.
+How a regression is judged depends on which report the repository uploads:
+
+- **Version 1** (this Vitest reporter) compares the two runs' means. A scalar metric's change must pass a band; with neither band set, `error` is the dashboard's ±20% noise band. A discrete metric flags any change in its mean.
+- **Version 2** ([the `benchmark` CLI](#the-benchmark-cli)) first needs the metric's confidence interval to lie wholly on the worse side; the `error` band then applies to the end of that interval nearest zero, so a change alarms only once it is confidently that large. Without an `error` band, a scalar metric uses 5% and a discrete one alarms on any confirmed change in its count. Version 2 has no `warn`: the dashboard colours every confirmed change for the worse, and the PR comment shows only alarms. A benchmark can override a metric's alarm for itself; see [Choosing what alarms](#choosing-what-alarms).
+
+Alarms are evaluated against the baseline when the PR comment is generated, not during the local `vitest run` — a regression never fails the test suite locally. In a version 1 PR comment, `error`-band regressions surface as failures and `warn`-band regressions as warnings.
 
 #### Sub-series
 
@@ -276,9 +336,235 @@ BENCHMARK_BASELINE_PATH=/tmp/base-bench.json pnpm test:bench   # head run, inlin
 
 The feature is opt-in — without `BENCHMARK_BASELINE_PATH` (or the `baselinePath` config option), the dashboard falls back to fetching the base from S3 by merge-base SHA as before.
 
+## The `benchmark` CLI
+
+The `benchmark` CLI measures a harness package's `*.bench.tsx` files across two builds of the workspace:
+the working tree and a baseline. Run it from the harness, whose vite config uses the plugin:
+
+```js
+// vite.config.mjs
+import { defineConfig } from 'vite';
+import { benchmarkPlugin } from '@mui/internal-benchmark/vitePlugin';
+
+export default defineConfig({ plugins: [benchmarkPlugin()] });
+```
+
+```bash
+benchmark --baseline "$(code-infra baseline)"
+```
+
+### Defining cases
+
+Benchmark files import `@mui/internal-benchmark/page`. `benchmark()` registers a case: the runner
+calls its function once per sample, and the case records what it measures through a `ScalarMetric`
+or `DiscreteMetric`. Nothing is measured implicitly, and a sample that records nothing fails.
+
+```tsx
+import { benchmark, ScalarMetric } from '@mui/internal-benchmark/page';
+
+const parseTime = new ScalarMetric({ name: 'json:parse', alarm: {} });
+
+benchmark('parse', () => {
+  parseTime.time();
+  JSON.parse(payload);
+  parseTime.timeEnd();
+});
+```
+
+`reactBenchmark()` wraps it for React: every sample mounts the element, runs the interaction, waits
+for the paint and unmounts, and records `render` (total render duration), `render:count` and
+`bench:paint`, plus a `render:<phase>` split when there is more than one phase. It takes the same
+arguments as the Vitest `benchmark()` — so moving a file over is a rename and a new import.
+
+```tsx
+import { reactBenchmark } from '@mui/internal-benchmark/page';
+
+reactBenchmark('mount', () => <Grid rows={1000} />);
+reactBenchmark(
+  'scroll',
+  () => <Grid rows={1000} />,
+  async ({ input }) => {
+    await input.scroll({ x: 100, y: 100, deltaY: 2000 });
+  },
+);
+```
+
+`compare()` measures cases against each other — one library's implementation against another's —
+on the working tree's build, instead of each against its baseline. The first case is the reference.
+
+```tsx
+compare('scatter', [
+  reactBenchmark('ours', () => <OurScatter points={points} />),
+  benchmark('other', async () => {
+    const { renderScatter } = await import('other-charts');
+    // …
+  }),
+]);
+```
+
+Every sample loads the whole benchmark file in a fresh page, so a static import reaches every case.
+Import what only one case needs inside that case, before the part it times: it then loads in that
+case's samples only.
+
+### How it measures
+
+The plugin generates a page per benchmark file under `src/__bench__/`. A benchmark file that imports
+`vitest`, or the Vitest entry `@mui/internal-benchmark`, fails the build. The runner drives Chromium
+through Playwright and runs each benchmark in one tab, which loads the page of the variant to be
+measured — the current or the baseline build, or a case of a `compare()` — before every sample.
+Every sample is the first iteration of a freshly loaded page, with garbage collected right before
+it, and every variant runs in the same renderer process. Whatever a page or a process holds on to —
+the JIT tier its code settled into, the heap it grew — then never favours one variant for the whole
+benchmark, which the paired rounds below could not tell from a real difference.
+
+Every variant is sampled once per round, in a shuffled order, and a difference is judged on the
+per-round differences rather than on two independent sets of samples. Whatever the machine was doing
+during a round — thermal throttling, a background process — then affects both sides of it and cancels
+out.
+
+Every interval is 99%. The level is fixed rather than tightened for every comparison a run holds,
+so adding benchmarks doesn't make each one sample longer. What keeps a run of unchanged code from
+alarming is mostly the alarm's bands: the interval's near end has to reach them, so noise has to fake
+a change bigger than the band, not just one beyond zero. The nightly A/A job tracks how often a run
+of unchanged code alarms anyway.
+
+Only differences that can raise an alarm — an alarmed metric of a benchmark measured against the
+baseline — keep a run sampling past `sampleSize`. The rest are there to read: a `compare()`, or a
+benchmark without alarmed metrics, stops at `sampleSize`, and the run page shows how precise its
+numbers got.
+
+Run it with at least 3 logical CPUs (vCPUs in CI); it warns with fewer. On 2, V8's background
+compilers are starved, so how fast the same code runs depends on how its compilation happened to go,
+which costs the results precision.
+
+### Sampling
+
+How many rounds a benchmark is measured for adapts to its results, the way tachometer's
+auto-sampling does. After `sampleSize` rounds, rounds keep being added while a difference that can
+raise an alarm is unsettled, for up to `timeout` minutes. A difference is settled once its interval
+lies entirely past its alarm's `error` band on the worse side, or entirely short of it: known to
+alarm, or known not to. Improvements never keep a run going.
+A scalar metric's alarm without a band uses 5%; a discrete one's settles against zero, which an
+unchanged count does at once. Differences that can't alarm, in a `compare()` or a metric without an alarm, never
+keep a run going.
+
+| Option       | Default | Meaning                                                                 |
+| :----------- | :------ | :---------------------------------------------------------------------- |
+| `sampleSize` | `50`    | Rounds measured before deciding whether to continue                     |
+| `timeout`    | `3`     | Minutes to keep sampling while an alarmed difference is still unsettled |
+
+They are set per benchmark: the last argument of `benchmark()` and `compare()`, and among
+`reactBenchmark()`'s options. A compared case is sampled as its `compare()` asks, so setting its own
+is an error. `--sample-size` and `--timeout` set them for the benchmarks that don't set their own, as
+Vitest's `--testTimeout` does for tests: what a benchmark file says always wins.
+
+```tsx
+reactBenchmark('mount', () => <Grid rows={1000} />, { timeout: 1 });
+
+compare('scatter', [ours, other], { sampleSize: 100 });
+```
+
+### Choosing what alarms
+
+`render` and `bench:paint` alarm once a change is confidently 5% worse. A `reactBenchmark()` can set
+its own band for both with `alarm`: a lower one for a benchmark that matters more, a higher one for
+one that matters less, or `false` for one that never alarms. `{}` keeps the band it would have had,
+and `{ error: 0 }` alarms on any confirmed change for the worse, however small.
+Sampling follows the band, so a tighter band also samples longer.
+
+```tsx
+reactBenchmark('Data grid scroll', () => <Grid />, scroll, { alarm: { error: 0.03 } });
+reactBenchmark('Docs demo mount', () => <Demo />, { alarm: { error: 0.15 } });
+reactBenchmark('Experimental', () => <Lab />, { alarm: false });
+```
+
+`benchmark()` takes the same per metric, as `alarms`: `{ alarms: { 'json:parse': { error: 0.1 } } }`.
+A benchmark's alarm is merged over the metric's, and a `name#id` sub-series follows its base metric.
+
+### The report
+
+The run writes `.benchmark/results/report.json`, prints it as tables, and with `--upload` sends it to
+the dashboard, which renders the pull request comment's Performance section and the repository's
+history from it.
+
+Uploads from a tracked branch (`master`, `next`, `v7.x`, …) join that branch's timeline, the history
+the dashboard draws. A run against another baseline names its own with `--timeline` (or
+`BENCHMARK_TIMELINE`), so it neither overwrites the commit's regular report nor lands in the branch's
+history, for example a weekly run against the last release:
+
+```bash
+benchmark --baseline "v$(npm view @mui/material version)" --upload --timeline release
+```
+
+- The report holds **raw samples**, round-aligned across variants, plus each metric's kind, format
+  and alarm, how each benchmark's sampling went, the builds, and the environment.
+- `analyzeRun` from `@mui/internal-benchmark/runReport` draws every conclusion from it: a confidence
+  interval on the paired difference per metric, a change (`better`, `worse`, `no change detected`, or
+  `unchanged` when every round measured the same), and a severity from the metric's alarm.
+- `reactBenchmark()`'s `render` and `bench:paint` alarm once confidently 5% worse, unless the
+  benchmark sets its own `alarm`; `render:count` and the per-phase split are informational; every
+  other metric brings its own alarm.
+- Tables list the baseline before the current build, so a row reads old to new. The pull request
+  comment is one line unless something alarmed — the count, improvements on alarmed metrics and a
+  link — and then tables only the rows that alarmed; the terminal and the dashboard show every
+  metric.
+
+### Choosing the baseline
+
+`--baseline` names the build the working tree is compared against: a revision — a SHA, a tag, a
+branch, `HEAD~1` — on its own or behind `git:`. It is resolved to an immutable SHA before anything is
+cached, and defaults to `HEAD~1`, the parent commit.
+
+Which commit a branch should actually be compared against is `code-infra baseline`'s question: on a
+feature branch the fork point, on the base branch the previous commit. On master, then, every commit
+is measured against its parent, and the history the dashboard draws is each commit's own paired
+change — which commit moved a number reads off the chart rather than out of a noisy trend.
+
+### Building and installing each side
+
+Both sides are built the same way: packed to tarballs, in parallel, and installed the way a consumer
+gets them, so neither resolves the library through a workspace link. The benchmark files themselves
+stay on the current branch and only the built library changes between refs — so a commit whose public
+API differs from today's benchmarks will fail that ref's build, with the error surfaced.
+
+Packed builds are cached by commit SHA under `.benchmark/packed/`, so repeating a comparison against
+the same commit skips the rebuild; the working tree is never cached. In CI, cache that directory
+keyed on the baseline SHA, and check out with full history so a fork point can be resolved.
+
+A run pins the packed build in the repository's own `pnpm-workspace.yaml`, installs it there, and
+resolution is then ordinary. The repository is put
+back, and reinstalled, when the run ends — including when it fails, and at the start of the next run
+if one was killed outright. Two things follow from it. A tracked file names tarballs under
+`.benchmark/` until the run ends, so do not commit while one is in flight. And the pins are global to
+the workspace for that time, because pnpm scopes an override by parent package name and a harness has
+none — so nothing else should build against the same checkout meanwhile.
+
+### Choosing what runs, and how it prints
+
+Named as in Vitest: positional arguments keep the benchmark files whose path contains one of them,
+and `-t` / `--testNamePattern` the benchmarks whose name matches a regular expression.
+
+```bash
+benchmark grid -t "scroll$" --sample-size 20 --timeout 0
+```
+
+`--reporter json` prints the run's analysis to stdout as JSON — per benchmark and metric, each
+variant's median and each comparison's interval, verdict and severity, plus the regressions and how
+long it all took — with everything else a run prints sent to stderr. `summarizeRun` from
+`@mui/internal-benchmark/runReport` produces the same from a report. `NO_COLOR` turns colour off.
+
+`--profile` records instead of measuring: each sample runs as it would be measured, with a
+performance trace around it, saved under `.benchmark/traces/` to open in DevTools' Performance
+panel — 5 rounds unless `--sample-size` says otherwise. It writes no report: tracing slows the code
+it records.
+
+`benchmark --help` lists the remaining options.
+
 ## API
 
 - `benchmark` — define a benchmark test case
+- `@mui/internal-benchmark/vitePlugin` — `benchmarkPlugin()`, the harness's vite plugin for the `benchmark` CLI
+- `@mui/internal-benchmark/runReport` — the report schema of the `benchmark` CLI, and `analyzeRun`
 - `ElementTiming` — invisible marker component for paint timing (renders a `<span>` tracked by the Element Timing API)
 - `ScalarMetric` — record a continuous custom measurement (with a `console.time`-style timing helper)
 - `DiscreteMetric` — record a discrete custom count

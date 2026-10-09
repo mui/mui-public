@@ -67,6 +67,11 @@ jobs:
           name: '`pnpm update-netlify-ignore` changes committed?'
           command: pnpm code-infra netlify-ignore @apps/code-infra-dashboard --check
       - run:
+          # A package that publishes from `build/` is linked there, not at its source, so a consumer
+          # of one sees no types at all until it is built.
+          name: Build packages
+          command: pnpm release:build
+      - run:
           name: Tests TypeScript
           command: pnpm typescript
   test_unit:
@@ -74,6 +79,11 @@ jobs:
     steps:
       - checkout
       - code-infra/install-deps
+      - run:
+          # A package that publishes from `build/` is linked there, not at its source, so an import
+          # from one fails to resolve until it is built.
+          name: Build packages
+          command: pnpm release:build
       - run:
           name: 'Run tests'
           command: pnpm test
@@ -100,9 +110,80 @@ jobs:
           command: pnpm release:build
       - run:
           name: Run benchmarks
-          environment:
-            BENCHMARK_UPLOAD: 'true'
+          # TEMPORARY: `test_benchmark_run` uploads this commit's `benchmark.json` as version 2
+          # instead, so the pull request comment shows the new report. Restore
+          # `BENCHMARK_UPLOAD: 'true'` here before merging.
           command: pnpm -F ./test/performance benchmark
+
+  test_benchmark_run:
+    <<: *default-job
+    executor:
+      name: code-infra/mui-node-browser
+      playwright-img-version: 'v1.62.1-noble'
+    # 2 vCPUs starve V8's background compilers, which makes the same code's speed vary from sample to
+    # sample; see the benchmark package's README.
+    resource_class: medium+
+    steps:
+      - checkout
+      - code-infra/install-deps
+      - run:
+          name: Build packages
+          command: pnpm release:build
+      - run:
+          name: Resolve the baseline commit
+          command: |
+            set -e
+            BASE_SHA=$(pnpm code-infra baseline --base-branch master)
+            echo "Baseline commit: $BASE_SHA"
+            echo "$BASE_SHA" > .benchmark-baseline-sha
+      - restore_cache:
+          name: Restore the packed-baseline cache
+          keys:
+            - benchmark-run-cache-v1-{{ checksum ".benchmark-baseline-sha" }}
+      - run:
+          name: Run the benchmark smoke test
+          no_output_timeout: 30m
+          environment:
+            # TEMPORARY: uploads in place of `test_benchmark`, since both write the commit's one
+            # `benchmark.json`, and to this pull request's dashboard preview, since production does
+            # not read version 2 reports yet. Remove both lines before merging.
+            BENCHMARK_UPLOAD: 'true'
+            CI_REPORT_API_URL: https://code-infra-dashboard-pr-1898.onrender.com
+          command: pnpm test:benchmark-run --baseline "$(cat .benchmark-baseline-sha)"
+      - save_cache:
+          name: Save the packed-baseline cache
+          key: benchmark-run-cache-v1-{{ checksum ".benchmark-baseline-sha" }}
+          paths:
+            - test/benchmark/.benchmark/packed
+  # The commit against itself: any regression it reports is a false alarm, so over many nights the
+  # job's failure rate is the benchmarks' false-alarm rate. An alarm needs a change confidently past
+  # its error band, so expect close to 0%; a rate that climbs means noise or bias in a benchmark.
+  benchmark_aa:
+    <<: *default-job
+    executor:
+      name: code-infra/mui-node-browser
+      playwright-img-version: 'v1.62.1-noble'
+    resource_class: medium+
+    steps:
+      - checkout
+      - code-infra/install-deps
+      - run:
+          name: Build packages
+          command: pnpm release:build
+      - run:
+          name: Benchmark the commit against itself
+          no_output_timeout: 30m
+          command: pnpm --silent -F ./test/benchmark benchmark:run --baseline HEAD --reporter json > aa.json
+      - store_artifacts:
+          path: aa.json
+      - run:
+          name: Fail on a false alarm
+          command: |
+            node -e "
+              const { regressions } = JSON.parse(require('fs').readFileSync('aa.json', 'utf8'));
+              for (const { benchmark, metric } of regressions) console.error('False alarm: ' + benchmark + ' · ' + metric);
+              process.exit(regressions.length > 0 ? 1 : 0);
+            "
 
   test_browser:
     <<: *default-job
@@ -145,5 +226,14 @@ workflows:
           <<: *default-context
       - test_benchmark:
           <<: *default-context
+      - test_benchmark_run:
+          <<: *default-context
       - test_browser:
+          <<: *default-context
+  # Started nightly on master by a scheduled pipeline that sets `workflow` to `benchmark-aa`.
+  benchmark-aa:
+    when:
+      equal: [benchmark-aa, << pipeline.parameters.workflow >>]
+    jobs:
+      - benchmark_aa:
           <<: *default-context
