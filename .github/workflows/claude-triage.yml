@@ -423,6 +423,9 @@ jobs:
 
   # Post the reporter-facing comment and apply triage/category labels.
   report-triage:
+    concurrency:
+      group: claude-triage-${{ github.repository }}-${{ needs.authorize.outputs.issue }}-report
+      cancel-in-progress: false
     needs: [authorize, triage]
     if: ${{ always() && needs.authorize.result == 'success' && needs.authorize.outputs.mode != '' }}
     runs-on: ubuntu-latest
@@ -504,7 +507,8 @@ jobs:
               // Missing or malformed artifacts must not prevent a failure report.
             }
             const completed = process.env.TRIAGE_STATUS === 'success' && process.env.TRIAGE_COMPLETED === 'true';
-            let body = '### Triage findings\n\n';
+            const marker = '<!-- mui-claude-triage -->';
+            let body = `${marker}\n### Triage findings\n\n`;
             if (!completed) {
               body += '> Triage did not complete successfully. Any findings below are incomplete; no fix will start.\n\n';
             }
@@ -517,14 +521,20 @@ jobs:
             body += `\n---\nAgent-generated diagnosis; conclusions have not been independently verified. [Workflow run](${process.env.RUN_URL}).\n`;
             body += fs.readFileSync(`${process.env.RUNNER_TEMP}/triage-footer.md`, 'utf8');
             await core.summary.addRaw(body).write();
-            const { data: comment } = await github.rest.issues.createComment({
-              ...context.repo, issue_number: Number(process.env.ISSUE_NUMBER), body,
+            const issue_number = Number(process.env.ISSUE_NUMBER);
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              ...context.repo, issue_number, per_page: 100,
             });
+            const previous = comments.find((entry) => entry.user?.type === 'Bot' &&
+              entry.user.login === 'github-actions[bot]' && entry.body?.startsWith(marker));
+            const { data: comment } = previous
+              ? await github.rest.issues.updateComment({ ...context.repo, comment_id: previous.id, body })
+              : await github.rest.issues.createComment({ ...context.repo, issue_number, body });
             core.setOutput('url', comment.html_url);
             if (completed && result) core.setOutput('category', result.category);
 
       - name: Label the successfully triaged issue
-        if: ${{ !cancelled() && steps.comment.outcome == 'success' && needs.triage.result == 'success' && needs.triage.outputs.completed == 'true' }}
+        if: ${{ !cancelled() && steps.comment.outcome == 'success' && steps.comment.outputs.category != '' }}
         continue-on-error: true
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
@@ -551,6 +561,22 @@ jobs:
                 core.warning(`Could not apply ${name} to #${number}: ${error.message}`);
               }
             }));
+
+      - name: Clear the completed triage request
+        if: ${{ !cancelled() && steps.comment.outputs.category != '' }}
+        continue-on-error: true
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          ISSUE_NUMBER: ${{ needs.authorize.outputs.issue }}
+        with:
+          script: |
+            try {
+              await github.rest.issues.removeLabel({
+                ...context.repo, issue_number: Number(process.env.ISSUE_NUMBER), name: 'ai: needs-triage',
+              });
+            } catch (error) {
+              if (error.status !== 404) throw error;
+            }
 
       - name: Apply an existing category label
         if: ${{ !cancelled() && steps.comment.outcome == 'success' && steps.comment.outputs.category != '' }}
