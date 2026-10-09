@@ -83,11 +83,10 @@ async function uploadViaApi(apiUrl, fileContent, uploadConfig, sha, commitTimest
  */
 export async function uploadSnapshot(snapshotPath, uploadConfig, commitSha) {
   // Run git operations and file reading in parallel
-  const [[sha, commitTimestamp], fileContent] = await Promise.all([
-    (async () => {
-      const resolvedSha = commitSha || (await getCurrentCommitSHA());
-      return /** @type {const} */ ([resolvedSha, await getCommitTimestamp(resolvedSha)]);
-    })(),
+  const shaPromise = Promise.resolve(commitSha || getCurrentCommitSHA());
+  const [sha, commitTimestamp, fileContent] = await Promise.all([
+    shaPromise,
+    shaPromise.then((resolvedSha) => getCommitTimestamp(resolvedSha)),
     fs.promises.readFile(snapshotPath),
   ]);
 

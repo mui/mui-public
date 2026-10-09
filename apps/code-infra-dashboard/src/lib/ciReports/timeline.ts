@@ -115,16 +115,20 @@ export function planUpload({
     return { error: `Timeline "${requested}" needs the commit's time: send commitTimestamp` };
   }
   const named = requested === undefined ? null : `@${requested}`;
-  const timeline =
-    trackedBranch === null || commitTime === undefined ? null : (named ?? trackedBranch);
-  return {
+  const plan: UploadPlan = {
     reportKey: reportKey(repo, sha, reportType, named),
-    timeline,
-    pointerKey:
-      timeline === null || commitTime === undefined
-        ? null
-        : timelinePointerKey(repo, timeline, reportType, commitTime, sha),
+    timeline: null,
+    pointerKey: null,
     isBaseBranch: trackedBranch !== null,
+  };
+  if (trackedBranch === null || commitTime === undefined) {
+    return plan;
+  }
+  const timeline = named ?? trackedBranch;
+  return {
+    ...plan,
+    timeline,
+    pointerKey: timelinePointerKey(repo, timeline, reportType, commitTime, sha),
   };
 }
 
@@ -135,21 +139,16 @@ export interface TimelineEntry {
 }
 
 /**
- * Reads the uploads out of a listing of a timeline's prefix, newest first, keeping one per commit
- * within the listing: a commit uploaded again shows up once, at its newest pointer. Only within it:
- * an older pointer of the same commit can come back on a later page, so a caller that joins pages
- * keeps the first entry per `sha`.
+ * Reads the uploads out of a listing of a timeline's prefix, newest commit first. A commit has one
+ * pointer however often it is uploaded, since the key holds only its time and its SHA.
  */
 export function parseTimelineKeys(prefix: string, keys: readonly string[]): TimelineEntry[] {
   const entries: TimelineEntry[] = [];
-  const seen = new Set<string>();
   for (const key of keys) {
     const match = POINTER_NAME_REGEX.exec(key.slice(prefix.length));
-    if (!match || seen.has(match[2])) {
-      continue;
+    if (match) {
+      entries.push({ sha: match[2], time: TIME_CEILING - Number(match[1]) });
     }
-    seen.add(match[2]);
-    entries.push({ sha: match[2], time: TIME_CEILING - Number(match[1]) });
   }
   return entries;
 }

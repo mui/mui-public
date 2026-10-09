@@ -134,11 +134,6 @@ describe('timeline pointers', () => {
     ]);
   });
 
-  it('keeps one entry per commit, at its newest upload', () => {
-    const keys = [keyOf(TIME, SHA_A), keyOf(TIME + 2_000, SHA_A)].sort();
-    expect(parseTimelineKeys(prefix, keys)).toEqual([{ sha: SHA_A, time: TIME + 2_000 }]);
-  });
-
   it("skips keys that aren't pointers", () => {
     expect(parseTimelineKeys(prefix, [`${prefix}not-a-pointer`])).toEqual([]);
   });
