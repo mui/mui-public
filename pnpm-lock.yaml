@@ -618,6 +618,9 @@ importers:
       '@babel/core':
         specifier: ^8.0.6
         version: 8.0.6
+      '@babel/helper-compilation-targets':
+        specifier: ^8.0.6
+        version: 8.0.6
       '@babel/plugin-syntax-jsx':
         specifier: ^8.0.1
         version: 8.0.1(@babel/core@8.0.6)

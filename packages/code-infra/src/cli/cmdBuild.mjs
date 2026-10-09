@@ -12,6 +12,7 @@ import {
   createPackageExports,
   createPackageImports,
   getOutExtension,
+  validateEnginesNode,
   validatePkgJson,
 } from '../utils/build.mjs';
 import { readPnpmConfig } from '../utils/pnpm.mjs';
@@ -266,6 +267,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     const pkgJsonPath = path.join(cwd, 'package.json');
     const packageJson = JSON.parse(await fs.readFile(pkgJsonPath, { encoding: 'utf8' }));
     validatePkgJson(packageJson, { skipMainCheck: args.skipMainCheck, enableReactCompiler });
+    validateEnginesNode(packageJson, cwd);
 
     const buildDirBase = /** @type {string} */ (packageJson.publishConfig?.directory);
     const buildDir = path.join(cwd, buildDirBase);

@@ -62,6 +62,7 @@
     "@argos-ci/core": "6.8.6",
     "@babel/cli": "^8.0.6",
     "@babel/core": "^8.0.6",
+    "@babel/helper-compilation-targets": "^8.0.6",
     "@babel/plugin-syntax-jsx": "^8.0.1",
     "@babel/plugin-syntax-typescript": "^8.0.3",
     "@babel/plugin-transform-react-pure-annotations": "^8.0.1",
