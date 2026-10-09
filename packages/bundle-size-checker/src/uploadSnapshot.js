@@ -6,22 +6,15 @@ import { execa } from 'execa';
  */
 
 /**
- * Gets the current Git commit SHA
- * @returns {Promise<string>} The current commit SHA
+ * The full SHA of a commit, and its time in milliseconds, which orders it in the dashboard's
+ * timeline.
+ * @param {string} ref - The commit, by SHA or any other revision
+ * @returns {Promise<{ sha: string, commitTimestamp: number }>}
  */
-async function getCurrentCommitSHA() {
-  const { stdout } = await execa('git', ['rev-parse', 'HEAD']);
-  return stdout.trim();
-}
-
-/**
- * The commit's time in milliseconds, which orders it in the dashboard's timeline.
- * @param {string} sha - The commit SHA
- * @returns {Promise<number>}
- */
-async function getCommitTimestamp(sha) {
-  const { stdout } = await execa('git', ['show', '-s', '--format=%ct', sha]);
-  return Number(stdout.trim()) * 1000;
+async function getCommit(ref) {
+  const { stdout } = await execa('git', ['log', '-1', '--format=%H %ct', ref]);
+  const [sha, time] = stdout.trim().split(' ');
+  return { sha, commitTimestamp: Number(time) * 1000 };
 }
 
 /**
@@ -83,10 +76,8 @@ async function uploadViaApi(apiUrl, fileContent, uploadConfig, sha, commitTimest
  */
 export async function uploadSnapshot(snapshotPath, uploadConfig, commitSha) {
   // Run git operations and file reading in parallel
-  const shaPromise = Promise.resolve(commitSha || getCurrentCommitSHA());
-  const [sha, commitTimestamp, fileContent] = await Promise.all([
-    shaPromise,
-    shaPromise.then((resolvedSha) => getCommitTimestamp(resolvedSha)),
+  const [{ sha, commitTimestamp }, fileContent] = await Promise.all([
+    getCommit(commitSha || 'HEAD'),
     fs.promises.readFile(snapshotPath),
   ]);
 
