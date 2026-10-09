@@ -14,8 +14,10 @@ const uploadSchema = z.object({
   commitSha: z.string().regex(/^[0-9a-f]{40}$/, 'Must be a 40-character hex string'),
   repo: repoSchema,
   reportType: reportTypeSchema,
+  /** Ignored: the pull request is looked up from the verified build. Sent by older clients. */
   prNumber: z.number().int().positive().optional(),
-  branch: z.string(),
+  /** Ignored: the branch comes from the verified build. Sent by older clients. */
+  branch: z.string().optional(),
   /** A timeline of the job's own, in place of the branch's; see `planUpload`. */
   timeline: z.string().optional(),
   /** When the commit was made, which orders it in its timeline: without it, it joins none. */
@@ -31,6 +33,21 @@ interface UploadTarget {
   branch: string;
   /** The branch when it is tracked and the build is the repository's own, else `null`. */
   trackedBranch: string | null;
+  /** The open pull request the build is for, else `null`. */
+  prNumber: number | null;
+}
+
+/**
+ * The open pull request a same-org build on an untracked branch is for. A failed lookup only costs
+ * the report its pull request link, so it doesn't fail the upload.
+ */
+async function prNumberOf(oidcResult: OidcVerificationResult): Promise<number | null> {
+  try {
+    return (await findAssociatedPr(oidcResult))?.number ?? null;
+  } catch (error) {
+    console.error('PR lookup failed:', error);
+    return null;
+  }
 }
 
 /**
@@ -45,11 +62,13 @@ async function uploadTargetOf(
     // The branch is the verified one, never the body's, so a build can't claim a tracked branch it
     // doesn't run on.
     const { branch } = oidcResult;
+    const trackedBranch = branch !== null && isTrackedBranch(branch) ? branch : null;
     return {
       target: {
         repo: oidcResult.sourceRepo,
         branch: branch ?? oidcResult.ref,
-        trackedBranch: branch !== null && isTrackedBranch(branch) ? branch : null,
+        trackedBranch,
+        prNumber: trackedBranch === null ? await prNumberOf(oidcResult) : null,
       },
     };
   }
@@ -91,7 +110,9 @@ async function uploadTargetOf(
     };
   }
 
-  return { target: { repo: targetRepo, branch: pr.head.ref, trackedBranch: null } };
+  return {
+    target: { repo: targetRepo, branch: pr.head.ref, trackedBranch: null, prNumber: pr.number },
+  };
 }
 
 // This endpoint is authenticated via CI OIDC tokens. The client sends
@@ -152,11 +173,15 @@ export async function POST(request: NextRequest) {
 
   // For benchmark uploads, store the full wrapper (version, timestamp, commitSha,
   // repo, branch, prNumber, reportType, report, base). Other report types keep
-  // their historic "just the inner report" storage. The wrapper records the branch the object is
-  // tagged with, not the one the client sent.
+  // their historic "just the inner report" storage. The wrapper records the verified branch and
+  // pull request, not the ones the client sent.
   const storedBody =
     reportType === 'benchmark'
-      ? JSON.stringify({ ...parsed.data, branch: target.branch })
+      ? JSON.stringify({
+          ...parsed.data,
+          branch: target.branch,
+          prNumber: target.prNumber ?? undefined,
+        })
       : JSON.stringify(report);
 
   const tags = { isBaseBranch: plan.isBaseBranch, branch: target.branch };
