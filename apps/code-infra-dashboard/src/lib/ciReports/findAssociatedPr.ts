@@ -38,7 +38,10 @@ export async function findAssociatedPr(
 
   if (oidcResult.isTrusted) {
     // Non-fork: look up PR by branch name
-    const branch = oidcResult.ref.replace(/^refs\/heads\//, '');
+    const { branch } = oidcResult;
+    if (branch === null) {
+      return null;
+    }
 
     const { data: prs } = await octokit.pulls.list({
       owner,

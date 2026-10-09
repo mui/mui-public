@@ -55,7 +55,8 @@ export interface BenchmarkBaseUpload {
   repo: string;
   reportType: 'benchmark';
   prNumber?: number;
-  branch: string;
+  /** The branch a same-org build ran on; absent for a fork or a ref that isn't a branch. */
+  branch?: string;
   report: BenchmarkReport;
   metricDefinitions?: Record<string, MetricDefinition>;
 }
