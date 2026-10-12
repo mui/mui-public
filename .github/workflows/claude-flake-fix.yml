@@ -75,11 +75,6 @@ on:
         default: claude-opus-5-5
   workflow_call:
     inputs:
-      report-only:
-        # Deprecated alias for dry-run, kept so callers that still pass it don't fail. Remove once
-        # material-ui, base-ui and mui-x pass dry-run instead.
-        type: boolean
-        default: false
       dry-run:
         # Write nothing to GitHub (no PR, no issue update, no notifications); the PR and issue
         # comment a real run would post go to the run summary instead, for debugging.
@@ -125,7 +120,7 @@ permissions: {}
 env:
   # Empty on a schedule run (no inputs); the fallback is the default.
   MODEL: ${{ inputs.model || 'claude-opus-5-5' }}
-  DRY_RUN: ${{ inputs.dry-run || inputs.report-only }}
+  DRY_RUN: ${{ inputs.dry-run }}
 
 jobs:
   resolve-ref:
