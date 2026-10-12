@@ -6,6 +6,8 @@ import * as path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { Worker } from 'node:worker_threads';
 import { build as vite } from 'vite';
+import ts from 'typescript';
+import { parseFromProgram } from 'typescript-api-extractor';
 import { describe, expect, it } from 'vitest';
 import { makeTempDir } from '../utils/testUtils.mjs';
 
@@ -48,6 +50,7 @@ async function createLibrary(packageType) {
         types: ['node'],
       },
       include: ['src'],
+      exclude: ['src/no-declarations.ts'],
     }),
   );
   await fs.mkdir(path.join(cwd, 'src'));
@@ -64,6 +67,14 @@ async function createLibrary(packageType) {
       "import { parentPort } from 'node:worker_threads'; parentPort?.postMessage('WORKER_MODULE_SENTINEL');\n",
     'bin.ts': "#!/usr/bin/env -S tsx\nimport { hello1 } from '#counter'; console.log(hello1());\n",
     'native.cjs': 'module.exports = { value: 42, version: process.env.MUI_VERSION };\n',
+    'documented.ts':
+      '/** PUBLIC_FUNCTION_DOCUMENTATION */\nexport function greet(options: GreetOptions) { return options.name; }\n/** PUBLIC_TYPE_DOCUMENTATION */\nexport interface GreetOptions { name: string; }\n',
+    'docs.ts':
+      "export { greet as welcome } from './documented'; export type { GreetOptions } from './documented';\n",
+    'no-declarations.ts': 'export const javascriptOnly = 1;\n',
+    'ambient.d.ts':
+      'declare module "library-ambient" { export interface Ambient { value: number } }\n',
+    'standalone.d.ts': 'export interface Standalone { value: number }\n',
     'native.d.cts': 'declare const value: { value: number; version: string }; export = value;\n',
     'esm.mts': 'export const esmValue = 3;\n',
     'common.cts': 'const value = { value: 4 }; export = value;\n',
@@ -146,23 +157,55 @@ describe('build-new library consumption', () => {
     `,
     );
     await execa(process.execPath, [cli, 'build-new', '--skipTypes'], { cwd });
+    const publishedFiles = await fs.readdir(path.join(cwd, 'build'), { recursive: true });
+    expect(publishedFiles.some((file) => /\.d\.[cm]?ts(?:\.map)?$/.test(file))).toBe(false);
     const prologues = await readDirectives(path.join(cwd, 'build'), ['.js', '.cjs']);
     for (const { directive, values } of prologues) {
       expect(values.filter((value) => value === directive)).toHaveLength(1);
     }
   });
-  it.each(['module', 'commonjs'])(
-    'preserves library semantics for package type %s',
-    async (packageType) => {
+  it.each([
+    { packageType: 'module', tsgo: false },
+    { packageType: 'commonjs', tsgo: false },
+    { packageType: 'module', tsgo: true },
+    { packageType: 'commonjs', tsgo: true },
+  ])(
+    'preserves library semantics for package type $packageType with tsgo=$tsgo',
+    async ({ packageType, tsgo }) => {
       const cwd = await createLibrary(packageType);
-      await execa(process.execPath, [cli, 'build-new', '--bundle', 'esm', 'cjs', '--sourceMap'], {
-        cwd,
-      });
+      await execa(
+        process.execPath,
+        [cli, 'build-new', '--bundle', 'esm', 'cjs', '--sourceMap', ...(tsgo ? ['--tsgo'] : [])],
+        {
+          cwd,
+        },
+      );
       const outputDir = path.join(cwd, 'build');
       const pkg = JSON.parse(await fs.readFile(path.join(outputDir, 'package.json'), 'utf8'));
       const esmExtension = packageType === 'module' ? '.js' : '.mjs';
       const cjsExtension = packageType === 'module' ? '.cjs' : '.js';
       const entry = path.join(outputDir, `index${esmExtension}`);
+      const declarationExtension = packageType === 'module' ? '.d.ts' : '.d.mts';
+      const docsEntry = path.join(outputDir, `docs${declarationExtension}`);
+      const program = ts.createProgram([docsEntry], {
+        rootDir: outputDir,
+        module: ts.ModuleKind.NodeNext,
+        moduleResolution: ts.ModuleResolutionKind.NodeNext,
+        types: ['node'],
+      });
+      const documentation = parseFromProgram(docsEntry, program);
+      expect(
+        documentation.exports.find((node) => node.name === 'welcome')?.documentation?.description,
+      ).toBe('PUBLIC_FUNCTION_DOCUMENTATION');
+      expect(
+        documentation.exports.find((node) => node.name === 'GreetOptions')?.documentation
+          ?.description,
+      ).toBe('PUBLIC_TYPE_DOCUMENTATION');
+      expect(
+        JSON.parse(
+          await fs.readFile(path.join(outputDir, `counter${declarationExtension}.map`), 'utf8'),
+        ).sources.length,
+      ).toBeGreaterThan(0);
       const esm = await import(pathToFileURL(entry).href);
       expect(esm.api.counter).toBe(0);
       esm.api.bump();
@@ -196,6 +239,10 @@ describe('build-new library consumption', () => {
               file.parentPath.includes('__snapshots__')),
         ),
       ).toBe(false);
+      expect(files.some((file) => file.name.startsWith('no-declarations.d.'))).toBe(false);
+      expect(
+        await fs.readFile(path.join(outputDir, `no-declarations${esmExtension}`), 'utf8'),
+      ).toContain('javascriptOnly');
       expect(pkg.publishConfig).toEqual({ access: 'public' });
       expect(pkg.exports['./private']).toBeNull();
       expect(pkg.exports['./conditional']['react-server'].import.default).toBe(
@@ -247,11 +294,11 @@ describe('build-new library consumption', () => {
       expect(code).not.toContain('__exportAll');
       await fs.writeFile(
         path.join(cwd, 'types-consumer.mts'),
-        `import { api, esmValue, common } from './build/index${esmExtension}'; const extra: number = esmValue + common.value; void extra; const count: number = api.counter; api.bump(); void count;`,
+        `/// <reference path="./build/ambient.d.ts" />\nimport type { Ambient } from 'library-ambient'; const ambient: Ambient = { value: 1 }; void ambient; import type { Standalone } from './build/standalone${esmExtension}'; const standalone: Standalone = { value: 1 }; void standalone; import { api, esmValue, common, native } from './build/index${esmExtension}'; const nativeValue: number = native.value; void nativeValue; const extra: number = esmValue + common.value; void extra; const count: number = api.counter; api.bump(); void count;`,
       );
       await fs.writeFile(
         path.join(cwd, 'types-consumer.cts'),
-        `import { api, esmValue, common } from './build/index${cjsExtension}'; const extra: number = esmValue + common.value; void extra; const count: number = api.counter; api.bump(); void count;`,
+        `import type { Standalone } from './build/standalone${cjsExtension}'; const standalone: Standalone = { value: 1 }; void standalone; import { api, esmValue, common, native } from './build/index${cjsExtension}'; const nativeValue: number = native.value; void nativeValue; const extra: number = esmValue + common.value; void extra; const count: number = api.counter; api.bump(); void count;`,
       );
       await execa(
         path.join(repoRoot, 'node_modules/.bin/tsc6'),

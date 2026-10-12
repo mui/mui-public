@@ -140,7 +140,7 @@ export async function moveAndTransformDeclarations({ inputDir, buildDir, bundles
     force: false,
   });
 
-  const dtsFiles = await globby('**/*.d.{ts,mts,cts}', { absolute: true, cwd: buildDir });
+  const dtsFiles = await globby('**/*.d.ts', { absolute: true, cwd: buildDir });
   if (dtsFiles.length === 0) {
     console.log(`No d.ts files found in ${buildDir}. Skipping transformation.`);
     return;
@@ -159,7 +159,7 @@ export async function moveAndTransformDeclarations({ inputDir, buildDir, bundles
           isType: true,
           packageType,
         });
-        const outFileRelative = relativePath.replace(/\.d\.[cm]?ts$/, newFileExtension);
+        const outFileRelative = relativePath.replace(/\.d\.ts$/, newFileExtension);
         const outFilePath = path.join(buildDir, outFileRelative);
         // Ensure both paths are normalized before comparison (fixes Windows posix vs win32 separators)
         return path.resolve(outFilePath) === path.resolve(nativeDtsFile);
@@ -174,7 +174,7 @@ export async function moveAndTransformDeclarations({ inputDir, buildDir, bundles
             isType: true,
             packageType,
           });
-          const outFileRelative = relativePath.replace(/\.d\.[cm]?ts$/, newFileExtension);
+          const outFileRelative = relativePath.replace(/\.d\.ts$/, newFileExtension);
           const outFilePath = path.join(buildDir, outFileRelative);
 
           /** @type {import('@babel/core').PluginItem[]} */
@@ -183,44 +183,6 @@ export async function moveAndTransformDeclarations({ inputDir, buildDir, bundles
             [pluginResolveImports, { outExtension: importExtension }],
             [pluginRemoveImports, { test: /\.css$/ }],
           ];
-          /** @type {import('@babel/core').PluginObject} */
-          const declarationFormat = {
-            visitor: {
-              Program(programPath) {
-                programPath.traverse({
-                  StringLiteral(sourcePath) {
-                    const parent = sourcePath.parent;
-                    if (
-                      !babel.types.isImportDeclaration(parent) &&
-                      !babel.types.isExportNamedDeclaration(parent) &&
-                      !babel.types.isExportAllDeclaration(parent) &&
-                      !babel.types.isTSImportType(parent) &&
-                      !babel.types.isTSExternalModuleReference(parent)
-                    ) {
-                      return;
-                    }
-                    const value = sourcePath.node.value;
-                    if (!value.startsWith('.')) {
-                      return;
-                    }
-                    if (/\.d\.[cm]?ts$/.test(value)) {
-                      sourcePath.node.value = value.replace(/\.d\.[cm]?ts$/, newFileExtension);
-                    } else if (/\.[cm]?[jt]sx?$/.test(value)) {
-                      sourcePath.node.value = value.replace(/\.[cm]?[jt]sx?$/, importExtension);
-                    }
-                  },
-                });
-              },
-              TSExportAssignment(nodePath) {
-                if (bundle === 'esm') {
-                  nodePath.replaceWith(
-                    babel.types.exportDefaultDeclaration(nodePath.node.expression),
-                  );
-                }
-              },
-            },
-          };
-          babelPlugins.unshift(() => declarationFormat);
           const result = await babel.transformAsync(content, {
             configFile: false,
             plugins: babelPlugins,

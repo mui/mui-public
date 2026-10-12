@@ -14,7 +14,6 @@ import {
 import { getVersionEnvVariables } from '../utils/babel.mjs';
 import { copyFiles } from '../utils/copyFiles.mjs';
 import { readPnpmConfig } from '../utils/pnpm.mjs';
-import { createTypes } from '../utils/typescript.mjs';
 
 /**
  * Builds a library as independent modules so application bundlers can prune its exports.
@@ -28,9 +27,10 @@ export async function build(args, pkgJson) {
     throw new Error('Could not find workspace root');
   }
   const sourceDir = path.join(cwd, 'src');
+  const sourceIgnores = args.ignore.map((pattern) => pattern.replace(/^(\.\/)?src\//, ''));
   const ignores = [
     ...BASE_IGNORES,
-    ...args.ignore.map((pattern) => pattern.replace(/^(\.\/)?src\//, '')),
+    ...sourceIgnores,
     '**/*.{test,spec}.*',
     '**/__fixtures__/**',
     '**/__snapshots__/**',
@@ -78,6 +78,10 @@ export async function build(args, pkgJson) {
       const options = {
         sourceDir,
         ignores,
+        declarationIgnores: [
+          ...ignores.filter((pattern) => pattern !== '**/*.d.ts'),
+          ...sourceIgnores,
+        ],
         outDir,
         configFile,
         binSources: Object.values(
@@ -93,6 +97,9 @@ export async function build(args, pkgJson) {
         bundle,
         outExtension: getOutExtension(bundle, { packageType }),
         sourceMap: args.sourceMap,
+        skipTypes: args.skipTypes,
+        tsgo: args.tsgo,
+        typeOutExtension: getOutExtension(bundle, { packageType, isType: true }),
         verbose: args.verbose,
       };
       await execa(
@@ -123,7 +130,7 @@ export async function build(args, pkgJson) {
   // Assets keep source-relative paths. Custom copy globs are applied below as well.
   const assets = await globby('**/*', {
     cwd: sourceDir,
-    ignore: [...ignores, '**/*.{js,jsx,mjs,ts,tsx,mts,cts}'],
+    ignore: [...ignores, '**/*.{js,jsx,mjs,ts,tsx,mts,cts}', '**/*.d.{ts,mts,cts}'],
   });
   await Promise.all(
     assets.map(async (file) => {
@@ -141,29 +148,6 @@ export async function build(args, pkgJson) {
       await fs.copyFile(path.join(sourceDir, file), target);
     }),
   );
-  if (!args.skipTypes) {
-    await createTypes({
-      bundles,
-      srcDir: sourceDir,
-      cwd,
-      buildDir: outDir,
-      skipTsc: false,
-      useTsgo: args.tsgo,
-      packageType,
-      verbose: args.verbose,
-    });
-  }
-  const testDeclarations = await globby(
-    [
-      '**/*.{test,spec}.d.{ts,mts,cts}',
-      ...ignores.map((pattern) => pattern.replace(/\.[cm]?[jt]sx?$/, '.d.{ts,mts,cts}')),
-    ],
-    {
-      cwd: outDir,
-      absolute: true,
-    },
-  );
-  await Promise.all(testDeclarations.map((file) => fs.rm(file)));
   /** @type {Parameters<typeof createPackageExports>[1]} */
   const options = { bundles, outputDir: outDir, cwd, addTypes: !args.skipTypes, packageType };
   const [{ exports: packageExports, main, types }, imports, bin] = await Promise.all([

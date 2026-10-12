@@ -1,13 +1,39 @@
 import { parseAsync, transformAsync } from '@babel/core';
 import { globby } from 'globby';
+import * as fs from 'node:fs/promises';
+import { parse } from 'yuku-parser';
+import { createFilesMatcher, parseTsconfig } from 'get-tsconfig';
 import MagicString from 'magic-string';
 import * as path from 'node:path';
+import { createRequire } from 'node:module';
+import { pathToFileURL } from 'node:url';
 import { build } from 'tsdown';
+import { declarationReexports } from './declarationReexports.mjs';
 
 // Babel configurations read build settings from process.env. Isolate formats in
 // separate processes so parallel ESM and CommonJS builds cannot share that state.
-/** @type {{ sourceDir: string; ignores: string[]; outDir: string; configFile: string | null; binSources: string[]; banner: string; outExtension: string; bundle: 'esm' | 'cjs'; sourceMap: boolean; verbose: boolean }} */
+/** @type {{ sourceDir: string; ignores: string[]; declarationIgnores: string[]; outDir: string; configFile: string | null; binSources: string[]; banner: string; outExtension: string; bundle: 'esm' | 'cjs'; sourceMap: boolean; skipTypes: boolean; tsgo: boolean; typeOutExtension: string; verbose: boolean }} */
 const options = JSON.parse(process.argv[2]);
+// Support the repository's TypeScript 7 alias. For standard installations,
+// let rolldown-plugin-dts discover typescript or @typescript/native-preview.
+const require = createRequire(path.join(process.cwd(), 'package.json'));
+let nativeCompiler;
+if (options.tsgo && !options.skipTypes) {
+  let nativePackage;
+  try {
+    nativePackage = require.resolve('@typescript/native/package.json');
+  } catch (error) {
+    if (!(error instanceof Error) || !('code' in error) || error.code !== 'MODULE_NOT_FOUND') {
+      throw error;
+    }
+  }
+  if (nativePackage) {
+    const { default: getExePath } = await import(
+      pathToFileURL(path.join(path.dirname(nativePackage), 'lib/getExePath.js')).href
+    );
+    nativeCompiler = getExePath();
+  }
+}
 const files = await globby('**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}', {
   cwd: options.sourceDir,
   ignore: [...options.ignores, '**/*.d.{ts,mts,cts}'],
@@ -54,7 +80,7 @@ await build({
   treeshake: false,
   cjsDefault: false,
   sourcemap: options.sourceMap,
-  outExtensions: () => ({ js: options.outExtension }),
+  outExtensions: () => ({ js: options.outExtension, dts: options.typeOutExtension }),
   logLevel: options.verbose ? 'info' : 'error',
   inputOptions: {
     // Keep dependency imports external; local edges are resolved and rewritten below.
@@ -174,3 +200,85 @@ await build({
     },
   ],
 });
+
+if (!options.skipTypes) {
+  const tsconfig = path.join(process.cwd(), 'tsconfig.build.json');
+  const matches = createFilesMatcher({ path: tsconfig, config: parseTsconfig(tsconfig) });
+  const declarations = await globby('**/*.d.{ts,mts,cts}', {
+    cwd: options.sourceDir,
+    ignore: options.declarationIgnores,
+    absolute: true,
+  });
+  const declarationEntries = Object.fromEntries(
+    Object.entries(entries).filter(([, file]) => matches(file)),
+  );
+  await Promise.all(
+    declarations.map(async (file) => {
+      if (!matches(file)) {
+        return;
+      }
+      const { program } = parse(await fs.readFile(file, 'utf8'), {
+        lang: 'dts',
+        sourceType: 'module',
+      });
+      if (
+        !program.body.some(
+          (node) => node.type.startsWith('Import') || node.type.startsWith('Export'),
+        )
+      ) {
+        // An ambient script must stay a script. Declaration bundling adds
+        // `export {}`, which would turn its module declarations into augmentations.
+        const target = path.join(options.outDir, path.relative(options.sourceDir, file));
+        await fs.mkdir(path.dirname(target), { recursive: true });
+        await fs.copyFile(file, target);
+        return;
+      }
+      const stem = path
+        .relative(options.sourceDir, file)
+        .replace(/\.d\.[cm]?ts$/, '')
+        .split(path.sep)
+        .join('/');
+      // A declaration alongside JavaScript is loaded by rolldown-plugin-dts.
+      // Standalone declarations (including ambient modules) need their own entry.
+      if (!declarationEntries[stem]) {
+        declarationEntries[`${stem}.d`] = file;
+      }
+    }),
+  );
+  await build({
+    config: false,
+    entry: declarationEntries,
+    outDir: options.outDir,
+    clean: false,
+    tsconfig,
+    // Declaration bundling is always ESM, including declarations for CJS output.
+    // Keep it separate from Babel's JavaScript transforms and module resolver.
+    format: 'esm',
+    unbundle: true,
+    root: options.sourceDir,
+    dts: {
+      emitDtsOnly: true,
+      generator: options.tsgo ? 'tsgo' : 'tsc',
+      tsgo: options.tsgo ? { path: nativeCompiler } : undefined,
+      emitJs: true,
+      sourcemap: options.sourceMap,
+    },
+    treeshake: true,
+    cjsDefault: false,
+    outExtensions: () => ({ js: options.outExtension, dts: options.typeOutExtension }),
+    logLevel: options.verbose ? 'info' : 'error',
+    inputOptions: {
+      external: (id, importer) => Boolean(importer) && !id.startsWith('.') && !path.isAbsolute(id),
+    },
+    plugins: [
+      declarationReexports(),
+      {
+        name: 'mui-cjs-declaration-stubs',
+        transform(code, id) {
+          // The declaration plugin's ESM stub is invalid inside a .cjs input.
+          return id.endsWith('.cjs') && code === 'export {}' ? '' : null;
+        },
+      },
+    ],
+  });
+}

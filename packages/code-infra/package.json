@@ -112,6 +112,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-testing-library": "^7.16.2",
     "execa": "^10.1.0",
+    "get-tsconfig": "^4.14.3",
     "git-url-parse": "^16.1.0",
     "globals": "^17.13.0",
     "globby": "^16.2.4",
@@ -149,7 +150,8 @@
     "unified-lint-rule": "^3.0.1",
     "unist-util-visit": "^5.1.0",
     "yaml": "^2.9.1",
-    "yargs": "^18.2.0"
+    "yargs": "^18.2.0",
+    "yuku-parser": "^0.18.1"
   },
   "peerDependencies": {
     "@next/eslint-plugin-next": "*",
@@ -183,6 +185,7 @@
     "remark-mdx": "3.1.1",
     "serve": "14.2.6",
     "typescript": "npm:@typescript/typescript6@6.0.2",
+    "typescript-api-extractor": "1.0.0-beta.7",
     "typescript-eslint": "8.71.1",
     "vite": "7.3.1"
   },
