@@ -31,8 +31,9 @@ export async function build(args, pkgJson) {
   const ignores = [
     ...BASE_IGNORES,
     ...args.ignore.map((pattern) => pattern.replace(/^(\.\/)?src\//, '')),
-    '**/*.{test,spec}.{js,jsx,mjs,cjs,ts,tsx,mts,cts}',
+    '**/*.{test,spec}.*',
     '**/__fixtures__/**',
+    '**/__snapshots__/**',
     '**/__tests__/**',
   ];
   const outDir = path.resolve(cwd, /** @type {string} */ (pkgJson.publishConfig?.directory));

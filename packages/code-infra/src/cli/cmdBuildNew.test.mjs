@@ -1,3 +1,4 @@
+import { parseSync } from '@babel/core';
 import { execa } from 'execa';
 import * as fs from 'node:fs/promises';
 import { createRequire } from 'node:module';
@@ -68,14 +69,40 @@ async function createLibrary(packageType) {
     'common.cts': 'const value = { value: 4 }; export = value;\n',
     'style.css': '.fixture { color: red; }\n',
     'unused.test.cjs': "throw new Error('test files must not ship');\n",
+    '__snapshots__/highlightTypes.test.ts.snap': 'SNAPSHOT_MUST_NOT_SHIP',
+    '__snapshots__/reference.snap': 'SNAPSHOT_MUST_NOT_SHIP',
+    'highlightTypes.test.ts.snap': 'SNAPSHOT_MUST_NOT_SHIP',
+    'unused.spec.txt': 'TEST_ASSET_MUST_NOT_SHIP',
     'unused.test.ts': "throw new Error('test files must not ship');\n",
   };
   await Promise.all(
-    Object.entries(sources).map(([file, contents]) =>
-      fs.writeFile(path.join(cwd, 'src', file), contents),
-    ),
+    Object.entries(sources).map(async ([file, contents]) => {
+      const sourcePath = path.join(cwd, 'src', file);
+      await fs.mkdir(path.dirname(sourcePath), { recursive: true });
+      await fs.writeFile(sourcePath, contents);
+    }),
   );
   return cwd;
+}
+
+/**
+ * Reads client/server directive prologues from emitted modules.
+ * @param {string} outputDir
+ * @param {string[]} extensions
+ */
+async function readDirectives(outputDir, extensions) {
+  return Promise.all(
+    extensions.flatMap((extension) =>
+      [
+        ['client', 'use client'],
+        ['server', 'use server'],
+      ].map(async ([file, directive]) => {
+        const code = await fs.readFile(path.join(outputDir, `${file}${extension}`), 'utf8');
+        const ast = parseSync(code, { configFile: false, babelrc: false });
+        return { directive, values: ast?.program.directives.map((node) => node.value.value) ?? [] };
+      }),
+    ),
+  );
 }
 
 describe('build-new library consumption', () => {
@@ -102,6 +129,27 @@ describe('build-new library consumption', () => {
     await expect(
       execa(process.execPath, [cli, 'build-new', '--skipTypes'], { cwd }),
     ).rejects.toThrow(expected);
+  });
+  it('restores directives removed by a repository Babel transform', async () => {
+    const cwd = await createLibrary('module');
+    const pkgPath = path.join(cwd, 'package.json');
+    const pkg = JSON.parse(await fs.readFile(pkgPath, 'utf8'));
+    pkg.dependencies = { '@babel/runtime': '^8.0.7' };
+    await fs.writeFile(pkgPath, JSON.stringify(pkg));
+    await fs.writeFile(
+      path.join(cwd, 'babel.config.mjs'),
+      `
+      export default {
+        parserOpts: { plugins: ['typescript'] },
+        plugins: [() => ({ visitor: { Program(programPath) { programPath.node.directives = []; } } })],
+      };
+    `,
+    );
+    await execa(process.execPath, [cli, 'build-new', '--skipTypes'], { cwd });
+    const prologues = await readDirectives(path.join(cwd, 'build'), ['.js', '.cjs']);
+    for (const { directive, values } of prologues) {
+      expect(values.filter((value) => value === directive)).toHaveLength(1);
+    }
   });
   it.each(['module', 'commonjs'])(
     'preserves library semantics for package type %s',
@@ -130,17 +178,24 @@ describe('build-new library consumption', () => {
       expect(cjs.native.version).toBe('1.2.3');
       expect(cjs.esmValue).toBe(3);
       expect(cjs.common.value).toBe(4);
-      expect(await fs.readFile(path.join(outputDir, `client${esmExtension}`), 'utf8')).toMatch(
-        /^"use client";/,
-      );
-      expect(await fs.readFile(path.join(outputDir, `server${esmExtension}`), 'utf8')).toMatch(
-        /^"use server";/,
-      );
+      const prologues = await readDirectives(outputDir, [esmExtension, cjsExtension]);
+      for (const { directive, values } of prologues) {
+        expect(values.filter((value) => value === directive)).toHaveLength(1);
+      }
       expect(await fs.readFile(path.join(outputDir, `worker${esmExtension}`), 'utf8')).toContain(
         'WORKER_MODULE_SENTINEL',
       );
       expect(await fs.readFile(path.join(outputDir, 'style.css'), 'utf8')).toContain('color: red');
-      expect((await fs.readdir(outputDir)).some((file) => file.includes('.test.'))).toBe(false);
+      const files = await fs.readdir(outputDir, { recursive: true, withFileTypes: true });
+      expect(
+        files.some(
+          (file) =>
+            file.isFile() &&
+            (file.name.includes('.test.') ||
+              file.name.includes('.spec.') ||
+              file.parentPath.includes('__snapshots__')),
+        ),
+      ).toBe(false);
       expect(pkg.publishConfig).toEqual({ access: 'public' });
       expect(pkg.exports['./private']).toBeNull();
       expect(pkg.exports['./conditional']['react-server'].import.default).toBe(

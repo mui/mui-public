@@ -146,11 +146,17 @@ await build({
           ? { code: result.code ?? '', map: result.map ? JSON.stringify(result.map) : undefined }
           : null;
       },
-      renderChunk(code, chunk) {
+      async renderChunk(code, chunk) {
         const prologue = directives.get(chunk.facadeModuleId ?? '') ?? [];
         const retained = prologue.filter((directive) => directive !== 'use strict');
         const isBin = options.binSources.includes(chunk.facadeModuleId ?? '');
         if (!retained.length && !isBin) {
+          return null;
+        }
+        const ast = await parseAsync(code, { configFile: false, babelrc: false });
+        const emitted = new Set(ast?.program.directives.map((directive) => directive.value.value));
+        const missing = [...new Set(retained)].filter((directive) => !emitted.has(directive));
+        if (!missing.length && !isBin) {
           return null;
         }
         const output = new MagicString(code);
@@ -158,7 +164,7 @@ await build({
         if (isBin && shebangEnd) {
           output.overwrite(0, shebangEnd, '#!/usr/bin/env node\n');
         }
-        const prefix = `${retained.map((directive) => `${JSON.stringify(directive)};`).join('\n')}${retained.length ? '\n' : ''}`;
+        const prefix = `${missing.map((directive) => `${JSON.stringify(directive)};`).join('\n')}${missing.length ? '\n' : ''}`;
         output.appendLeft(shebangEnd, prefix);
         if (isBin && !shebangEnd) {
           output.prepend('#!/usr/bin/env node\n');

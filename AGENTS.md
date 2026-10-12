@@ -54,6 +54,7 @@ Always reference these instructions first and fallback to search or bash command
 ## Testing
 
 - `build-new` compiles every source module while externalizing local imports. Verify tree shaking through a downstream application build of the emitted library; a direct-source application build does not cover the Rolldown namespace-export regression.
+- `build-new` restores only directives absent from the emitted prologue; Rolldown can retain them itself. Asset copying must exclude `__snapshots__` and test/spec artifacts as well as executable test sources.
 
 - `remark-typography` preserves phrasing context across inline elements. Rendered Markdown expectations may contain non-breaking spaces (U+00A0) even when the source Markdown uses ordinary spaces; keep assertions exact.
 
