@@ -372,8 +372,9 @@ jobs:
           mkdir -p "$out"
           cp "$RUNNER_TEMP/flake-data/summary.txt" "$out/summary.txt" 2>/dev/null || true
           # Pull the agent's dollar cost out of its execution log — shown on the run summary and,
-          # via cost.txt, in the tracking issue report. grep finds the number wherever it sits in the JSON, so
-          # the log's exact framing doesn't matter; the last match is the run total. Best-effort.
+          # via cost.txt, in the tracking issue report. grep finds the number wherever it sits in the
+          # JSON, so the log's exact framing doesn't matter; the last match is the run total.
+          # Best-effort.
           cost=$(grep -oE '"total_cost_usd":[[:space:]]*[0-9.]+' "$EXECUTION_FILE" 2>/dev/null |
             tail -1 | grep -oE '[0-9.]+' || true)
           if [ -n "$cost" ]; then
@@ -460,12 +461,15 @@ jobs:
           unset GIT_INDEX_FILE
           echo "commit=$commit" >> "$GITHUB_OUTPUT"
 
+          # A tilde fence, since a diff's context lines (" ```") can close a backtick one; capped so
+          # a large patch can't push the summary past GitHub's 1 MiB per-step limit.
+          git -C repo show --format= "$commit" > "$RUNNER_TEMP/fix.diff"
           {
             printf '## Proposed fix\n\n### %s\n\n' "$(head -n1 "$input/pr-title.txt")"
             cat "$input/pr-body.md"
-            printf '\n\n```diff\n'
-            git -C repo show --format= "$commit"
-            printf '```\n'
+            printf '\n\n<details><summary>Diff</summary>\n\n~~~~~~~~diff\n'
+            head -c 500000 "$RUNNER_TEMP/fix.diff"
+            printf '\n~~~~~~~~\n\n</details>\n'
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Open the fix PR
@@ -624,15 +628,23 @@ jobs:
               issue_number: issueNumber,
               body: comment,
             });
-            const comments = await github.paginate(github.rest.issues.listComments, {
-              ...context.repo,
-              issue_number: issueNumber,
-              per_page: 100,
-            });
-            for (const previous of comments) {
-              const text = previous.body || '';
-              const isReport = text.includes(marker) || text.includes(legacyMarker);
-              if (isReport && previous.id !== posted.data.id) {
-                await github.rest.issues.deleteComment({ ...context.repo, comment_id: previous.id });
+            // Only our own comments that open with a marker: a person's quote-reply to a report can
+            // carry the marker too, and must survive. Cleanup is cosmetic, so it only warns.
+            try {
+              const comments = await github.paginate(github.rest.issues.listComments, {
+                ...context.repo,
+                issue_number: issueNumber,
+                per_page: 100,
+              });
+              for (const previous of comments) {
+                const text = previous.body || '';
+                const isReport =
+                  previous.user?.login === posted.data.user.login &&
+                  (text.startsWith(marker) || text.startsWith(legacyMarker));
+                if (isReport && previous.id !== posted.data.id) {
+                  await github.rest.issues.deleteComment({ ...context.repo, comment_id: previous.id });
+                }
               }
+            } catch (error) {
+              core.warning(`Couldn't remove the previous report comments: ${error.message}`);
             }
