@@ -332,6 +332,12 @@ jobs:
             and say so; it looks like an upstream regression (our code is fine, a pre-release
             dependency broke it) → do NOT paper over it with a code change, which only hides the
             upstream bug — abandon (report/pin/wait territory) rather than present a guess as a fix.
+            When you can't tell a deliberate tightening from a regression, judge the change on its
+            own merits instead: if it leaves our code better on the stable toolchain too — e.g. an
+            explicit type where stable silently degrades the emitted type to `any` — it is no
+            workaround, so make it, and put the open upstream question (with a minimal repro, if you
+            suspect a regression) in the PR body. Abandon only when the change would exist purely to
+            satisfy the new toolchain.
             Open a PR only if you are confident you understand the root cause and your change fixes
             it. The moment you lose that confidence — the cause stays unclear, the code doesn't
             match the error, the fix is a guess — STOP and write no patch. Abandoning is always a
