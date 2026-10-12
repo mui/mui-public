@@ -339,15 +339,11 @@ jobs:
                the timeline to find what made it start failing: a change in our code, a dependency
                bump, or a moving toolchain channel (`@next`, nightly, canary). You may reproduce it
                — install deps, run the failing test, build a minimal repro — but keep that brief.
-            3. Decide whether a code change is the right response. The test is whether the change
-               is worth making for its own sake, regardless of what surfaced it: does it make our
-               code more correct, or would it only silence one tool? A failure that a new toolchain
-               surfaced still deserves a fix when it exposes a real weakness that stable merely
-               tolerates (e.g. stable silently emits `any` where nightly asks for an explicit type).
-               It does not when our code is fine and the change would only work around a dependency
-               bug — then stop; that is for the report, not a patch. You need not know whether
-               upstream changed on purpose, only whether the change stands on its own; if you suspect
-               an upstream bug anyway, say so in the PR body with your repro.
+            3. Decide what kind of failure it is:
+               - A bug in our code → fix it. That includes code an older toolchain merely tolerated
+                 (e.g. stable silently emits `any` where nightly asks for an explicit type).
+               - A legitimate change in external code → adapt our code to it.
+               - A bug in external code → stop; it belongs in the report, not a patch.
             4. Check your confidence. Go ahead only if you understand the cause and your change
                addresses it. If the cause stays unclear or the fix is a guess, stop. Hold an
                UNCONFIRMED target (a single failure) to a higher bar: fix it only when the cause is
