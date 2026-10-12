@@ -14,7 +14,7 @@ import { markFn, measureFn, validatePkgJson } from '../utils/build.mjs';
  */
 
 /**
- * @typedef {Partial<import('../../package.json')>} PackageJson
+ * @typedef {import('./packageJson').PackageJson} PackageJson
  */
 
 /**

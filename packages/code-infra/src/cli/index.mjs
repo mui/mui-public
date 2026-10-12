@@ -22,57 +22,57 @@ import cmdVale from './cmdVale.mjs';
 import cmdValidateBuiltTypes from './cmdValidateBuiltTypes.mjs';
 
 export async function run() {
-const version = process.env.MUI_VERSION || createRequire(import.meta.url)('../../package.json').version;
+  const version =
+    process.env.MUI_VERSION || createRequire(import.meta.url)('../../package.json').version;
 
-/** @type {{ verbose?: boolean }} */
-let globalArgv = {};
+  /** @type {{ verbose?: boolean }} */
+  let globalArgv = {};
 
-await yargs(hideBin(process.argv))
-  .scriptName('code-infra')
-  .usage('$0 <command> [args]')
-  .option('verbose', {
-    alias: 'v',
-    type: 'boolean',
-    default: false,
-    describe: 'Increase output verbosity',
-    global: true,
-  })
-  .middleware((argv) => {
-    globalArgv = argv;
-  }, true)
-  .command(cmdArgosPush)
-  .command(cmdBaseline)
-  .command(cmdBuild)
-  .command(cmdBuildNew)
-  .command(cmdCopyFiles)
-  .command(cmdExtractErrorCodes)
-  .command(cmdGenerateChangelog)
-  .command(cmdGithubAuth)
-  .command(cmdListWorkspaces)
-  .command(cmdNetlifyIgnore)
-  .command(cmdPublish)
-  .command(cmdPublishCanary)
-  .command(cmdPublishNewPackage)
-  .command(cmdRenameScope)
-  .command(cmdSetVersionOverrides)
-  .command(cmdVale)
-  .command(cmdValidateBuiltTypes)
-  .fail((msg, err, yargsInstance) => {
-    if (msg) {
-      yargsInstance.showHelp();
-      console.error(`\n${msg}`);
-    } else if (err) {
-      console.error(err.message);
-      if (globalArgv.verbose) {
-        console.error(chalk.dim(err.stack));
+  await yargs(hideBin(process.argv))
+    .scriptName('code-infra')
+    .usage('$0 <command> [args]')
+    .option('verbose', {
+      alias: 'v',
+      type: 'boolean',
+      default: false,
+      describe: 'Increase output verbosity',
+      global: true,
+    })
+    .middleware((argv) => {
+      globalArgv = argv;
+    }, true)
+    .command(cmdArgosPush)
+    .command(cmdBaseline)
+    .command(cmdBuild)
+    .command(cmdBuildNew)
+    .command(cmdCopyFiles)
+    .command(cmdExtractErrorCodes)
+    .command(cmdGenerateChangelog)
+    .command(cmdGithubAuth)
+    .command(cmdListWorkspaces)
+    .command(cmdNetlifyIgnore)
+    .command(cmdPublish)
+    .command(cmdPublishCanary)
+    .command(cmdPublishNewPackage)
+    .command(cmdRenameScope)
+    .command(cmdSetVersionOverrides)
+    .command(cmdVale)
+    .command(cmdValidateBuiltTypes)
+    .fail((msg, err, yargsInstance) => {
+      if (msg) {
+        yargsInstance.showHelp();
+        console.error(`\n${msg}`);
+      } else if (err) {
+        console.error(err.message);
+        if (globalArgv.verbose) {
+          console.error(chalk.dim(err.stack));
+        }
       }
-    }
-    process.exit(1);
-  })
-  .demandCommand(1, 'You need at least one command before moving on')
-  .strict()
-  .help()
-  .version(version)
-  .parseAsync();
-
+      process.exit(1);
+    })
+    .demandCommand(1, 'You need at least one command before moving on')
+    .strict()
+    .help()
+    .version(version)
+    .parseAsync();
 }

@@ -146,7 +146,10 @@ export async function build(args, pkgJson) {
     // @ts-expect-error The plugins field exists and is an array
     (baseOptions.plugins ?? []).push(
       pluginBabel({
-        configFile: babelConfigMjs || babelConfigJs,
+        configFile: path.join(
+          workspaceDir,
+          babelConfigMjs ? 'babel.config.mjs' : 'babel.config.js',
+        ),
         babelHelpers: 'runtime',
         extensions: ['.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs', '.mts', '.cts'],
         parserOpts: {

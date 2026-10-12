@@ -84,7 +84,11 @@ export function getBaseConfig({
     ],
   ];
   if (isTsdownBundler) {
-    const inlineEnvIndex = plugins.findIndex((plugin) => Array.isArray(plugin) && plugin[2] === 'babel-plugin-transform-inline-environment-variables');
+    const inlineEnvIndex = plugins.findIndex(
+      (plugin) =>
+        Array.isArray(plugin) &&
+        plugin[2] === 'babel-plugin-transform-inline-environment-variables',
+    );
     plugins.splice(inlineEnvIndex, 1);
   }
 
