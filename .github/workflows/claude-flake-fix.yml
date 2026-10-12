@@ -461,14 +461,23 @@ jobs:
           unset GIT_INDEX_FILE
           echo "commit=$commit" >> "$GITHUB_OUTPUT"
 
+          # The PR text exactly as it will be opened, so the summary previews the real thing.
+          # @-mention the code-infra team in the body instead of requesting them as a reviewer:
+          # a team review request needs an org-read scope the workflow token does not have.
+          head -n1 "$input/pr-title.txt" > "$RUNNER_TEMP/pr-title.txt"
+          {
+            cat "$input/pr-body.md"
+            printf '\n\ncc @%s\n' "$INFRA_TEAM"
+            printf '\n---\n_Opened by a sandboxed agent. Unverified beyond any local check noted above; CI on this PR is the real test._\n'
+          } > "$RUNNER_TEMP/pr-body.md"
+
           # A tilde fence, since a diff's context lines (" ```") can close a backtick one; capped so
           # a large patch can't push the summary past GitHub's 1 MiB per-step limit.
-          git -C repo show --format= "$commit" > "$RUNNER_TEMP/fix.diff"
           {
-            printf '## Proposed fix\n\n### %s\n\n' "$(head -n1 "$input/pr-title.txt")"
-            cat "$input/pr-body.md"
-            printf '\n\n<details><summary>Diff</summary>\n\n~~~~~~~~diff\n'
-            head -c 500000 "$RUNNER_TEMP/fix.diff"
+            printf '## Proposed fix\n\n### %s\n\n' "$(cat "$RUNNER_TEMP/pr-title.txt")"
+            cat "$RUNNER_TEMP/pr-body.md"
+            printf '\n<details><summary>Diff</summary>\n\n~~~~~~~~diff\n'
+            head -c 500000 "$input/fix.patch"
             printf '\n~~~~~~~~\n\n</details>\n'
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -481,7 +490,6 @@ jobs:
           COMMIT: ${{ steps.build.outputs.commit }}
         run: |
           set -euo pipefail
-          input="$PWD/publish-input"
           branch="ci-flake-fix/$(date -u +%Y%m%d-%H%M%S)"
           # The token appears only here, on the push, and is never stored in the checkout.
           git -C repo push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
@@ -490,15 +498,8 @@ jobs:
           # -R is required: gh runs from the workspace root, not the checkout, so it can't infer
           # the repo from the working directory.
           gh label create ci-flake-fix --force -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || true
-          # @-mention the code-infra team in the body instead of requesting them as a reviewer:
-          # a team review request needs an org-read scope the workflow token does not have.
-          {
-            cat "$input/pr-body.md"
-            printf '\n\ncc @%s\n' "$INFRA_TEAM"
-            printf '\n---\n_Opened by a sandboxed agent. Unverified beyond any local check noted above; CI on this PR is the real test._\n'
-          } > "$RUNNER_TEMP/pr-body.md"
           url=$(gh pr create --draft --label ci-flake-fix -R "$GITHUB_REPOSITORY" --head "$branch" --base "$DEFAULT_BRANCH" \
-            --title "$(head -n1 "$input/pr-title.txt")" --body-file "$RUNNER_TEMP/pr-body.md")
+            --title "$(cat "$RUNNER_TEMP/pr-title.txt")" --body-file "$RUNNER_TEMP/pr-body.md")
           echo "url=$url" >> "$GITHUB_OUTPUT"
 
           # Label the PR, best-effort — a repo missing either label still keeps its PR.
@@ -525,7 +526,7 @@ jobs:
             const prUrl = process.env.PR_URL || '';
             const dryRun = process.env.DRY_RUN === 'true';
             // A dry run reports the PR it would have opened, so its preview matches a real run.
-            const fixProposed = Boolean(prUrl) || (dryRun && Boolean(process.env.FIX_COMMIT));
+            const fixProposed = Boolean(dryRun ? process.env.FIX_COMMIT : prUrl);
 
             // One long-lived issue people subscribe to. Its body is a fixed intro; each run's report
             // is posted as a fresh comment (an edit would not notify subscribers) and the previous
@@ -563,22 +564,20 @@ jobs:
             } catch (error) {
               core.warning(`verdict.json unreadable, skipping the cc: ${error.message}`);
             }
-            if (verdicts.length > 0) {
-              const structural = new Set(
-                verdicts.filter((entry) => entry.class === 'STRUCTURAL').map((entry) => entry.fingerprint),
-              );
-              const resolved = new Set(
-                fixProposed
-                  ? read('resolves.txt')
-                      .split('\n')
-                      .map((line) => line.trim())
-                      .filter(Boolean)
-                  : [],
-              );
-              const unresolved = [...structural].filter((fingerprint) => !resolved.has(fingerprint));
-              if (unresolved.length > 0) {
-                comment += `\n${unresolved.length} CI regression(s) still failing with no automated fix this run. cc @${process.env.INFRA_TEAM}\n`;
-              }
+            const structural = new Set(
+              verdicts.filter((entry) => entry.class === 'STRUCTURAL').map((entry) => entry.fingerprint),
+            );
+            const resolved = new Set(
+              fixProposed
+                ? read('resolves.txt')
+                    .split('\n')
+                    .map((line) => line.trim())
+                    .filter(Boolean)
+                : [],
+            );
+            const unresolved = [...structural].filter((fingerprint) => !resolved.has(fingerprint));
+            if (unresolved.length > 0) {
+              comment += `\n${unresolved.length} CI regression(s) still failing with no automated fix this run. cc @${process.env.INFRA_TEAM}\n`;
             }
             comment += `\n---\n_Posted by [this workflow run](${process.env.RUN_URL})._\n`;
 
@@ -620,9 +619,7 @@ jobs:
             }
 
             // Post the new report before deleting the old ones, so a failure in between never leaves
-            // the issue without a report. The legacy alert marker is from before reports were
-            // comments; drop it once every caller has run this version.
-            const legacyMarker = '<!-- flake-fix-alert -->';
+            // the issue without a report.
             const posted = await github.rest.issues.createComment({
               ...context.repo,
               issue_number: issueNumber,
@@ -638,9 +635,7 @@ jobs:
               });
               for (const previous of comments) {
                 const text = previous.body || '';
-                const isReport =
-                  previous.user?.login === posted.data.user.login &&
-                  (text.startsWith(marker) || text.startsWith(legacyMarker));
+                const isReport = previous.user?.login === posted.data.user.login && text.startsWith(marker);
                 if (isReport && previous.id !== posted.data.id) {
                   await github.rest.issues.deleteComment({ ...context.repo, comment_id: previous.id });
                 }
