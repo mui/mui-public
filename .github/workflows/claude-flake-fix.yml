@@ -352,8 +352,12 @@ jobs:
                addresses it. If the cause stays unclear or the fix is a guess, stop. Hold an
                UNCONFIRMED target (a single failure) to a higher bar: fix it only when the cause is
                unmistakable.
-            5. Make the smallest change that fixes it. No refactors, dependency bumps, or edits to
-               .github/workflows/. Verifying is optional — CI re-runs on the PR.
+            5. Make the right change: the one that removes the root cause, written the way a
+               maintainer would write it, not the narrowest edit that turns CI green. Stay on that one
+               problem — no unrelated cleanups, dependency bumps, or edits to .github/workflows/.
+               Verifying is optional — CI re-runs on the PR.
+            6. Polish it. Run the `simplify` skill on your change and keep what it improves, as long
+               as the change stays on that one problem.
 
             If and only if you edited files, produce the fix as a patch and write the PR text:
             - Stage exactly the files that are your fix with `git add <files>` — not pnpm-lock.yaml
