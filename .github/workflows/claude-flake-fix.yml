@@ -49,6 +49,10 @@ on:
         description: Classify and report, but never open a PR.
         type: boolean
         default: false
+      dry-run:
+        description: Write nothing to GitHub; show the PR and issue comment it would post in the run summary.
+        type: boolean
+        default: false
       window:
         description: How far back to look (a CircleCI Insights window).
         type: choice
@@ -76,6 +80,11 @@ on:
   workflow_call:
     inputs:
       report-only:
+        type: boolean
+        default: false
+      dry-run:
+        # Write nothing to GitHub (no PR, no issue update, no notifications); the PR and issue
+        # comment a real run would post go to the run summary instead, for debugging.
         type: boolean
         default: false
       window:
@@ -319,34 +328,32 @@ jobs:
 
             </details>
 
-            Step 2 — propose one fix (skip entirely on a report-only run). The subagent has already
-            written the report, so it is safe whatever happens here.
-            Take the fix target the subagent named. If it named none — nothing fixable — change
-            NOTHING and write no patch. Otherwise read ONLY that one log (jobs/NNNN.txt) for the
-            exact error and root-cause it against the checkout.
-            Establish WHY it started failing, not just what the error is. From the timeline: did our
-            code change at the first failure, or did something external move — a dependency bump, or a
-            moving toolchain channel like `@next`/nightly/canary? Let that trigger decide the response:
-            our code is genuinely wrong → fix it and note what surfaced it; an external toolchain
-            tightened on purpose → adapting the code is right, but confirm the code really is at fault
-            and say so; it looks like an upstream regression (our code is fine, a pre-release
-            dependency broke it) → do NOT paper over it with a code change, which only hides the
-            upstream bug — abandon (report/pin/wait territory) rather than present a guess as a fix.
-            When you can't tell a deliberate tightening from a regression, judge the change on its
-            own merits instead: if it leaves our code better on the stable toolchain too — e.g. an
-            explicit type where stable silently degrades the emitted type to `any` — it is no
-            workaround, so make it, and put the open upstream question (with a minimal repro, if you
-            suspect a regression) in the PR body. Abandon only when the change would exist purely to
-            satisfy the new toolchain.
-            Open a PR only if you are confident you understand the root cause and your change fixes
-            it. The moment you lose that confidence — the cause stays unclear, the code doesn't
-            match the error, the fix is a guess — STOP and write no patch. Abandoning is always a
-            good outcome; a wrong fix is not. Hold an UNCONFIRMED target (a single failure, maybe
-            just a one-off) to a higher bar: fix it only if the cause is unmistakable.
-            When confident, make the SMALLEST change that plausibly fixes it. You have a full
-            toolchain and network: you MAY install deps and run the failing test to check the fix,
-            but this is optional and time-bounded — CI re-runs on the PR anyway. Do not refactor,
-            bump dependencies, or edit .github/workflows/.
+            Step 2 — propose one fix (skip entirely on a report-only run). The report is already
+            written, so whatever happens here is safe. The goal is a pull request a maintainer would
+            merge; no PR is a fine outcome, a wrong one is not.
+
+            1. Pick the target. Use the fix target the subagent named. If it named none, stop:
+               change nothing and write no patch.
+            2. Find the root cause. Read only that target's log (jobs/NNNN.txt) for the exact error,
+               then trace it into the checkout until you can say which code is at fault and why. Use
+               the timeline to find what made it start failing: a change in our code, a dependency
+               bump, or a moving toolchain channel (`@next`, nightly, canary). You may reproduce it
+               — install deps, run the failing test, build a minimal repro — but keep that brief.
+            3. Decide whether a code change is the right response. The test is whether the change
+               is worth making for its own sake, regardless of what surfaced it: does it make our
+               code more correct, or would it only silence one tool? A failure that a new toolchain
+               surfaced still deserves a fix when it exposes a real weakness that stable merely
+               tolerates (e.g. stable silently emits `any` where nightly asks for an explicit type).
+               It does not when our code is fine and the change would only work around a dependency
+               bug — then stop; that is for the report, not a patch. You need not know whether
+               upstream changed on purpose, only whether the change stands on its own; if you suspect
+               an upstream bug anyway, say so in the PR body with your repro.
+            4. Check your confidence. Go ahead only if you understand the cause and your change
+               addresses it. If the cause stays unclear or the fix is a guess, stop. Hold an
+               UNCONFIRMED target (a single failure) to a higher bar: fix it only when the cause is
+               unmistakable.
+            5. Make the smallest change that fixes it. No refactors, dependency bumps, or edits to
+               .github/workflows/. Verifying is optional — CI re-runs on the PR.
 
             If and only if you edited files, produce the fix as a patch and write the PR text:
             - Stage exactly the files that are your fix with `git add <files>` — not pnpm-lock.yaml
@@ -434,6 +441,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           DEFAULT_BRANCH: ${{ inputs.branch || github.event.repository.default_branch }}
+          DRY_RUN: ${{ inputs.dry-run }}
         run: |
           set -euo pipefail
           input="$PWD/publish-input"
@@ -467,6 +475,17 @@ jobs:
             git -C repo commit-tree "$tree" -p "$base" -F "$input/pr-title.txt")
           unset GIT_INDEX_FILE
 
+          if [ "$DRY_RUN" = "true" ]; then
+            {
+              printf '## Dry run: would open a draft PR\n\n### %s\n\n' "$(head -n1 "$input/pr-title.txt")"
+              cat "$input/pr-body.md"
+              printf '\n\n```diff\n'
+              git -C repo show --format= "$commit"
+              printf '```\n'
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
           branch="ci-flake-fix/$(date -u +%Y%m%d-%H%M%S)"
           # The token appears only here, on the push, and is never stored in the checkout.
           git -C repo push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
@@ -495,6 +514,7 @@ jobs:
         env:
           PR_URL: ${{ steps.pr.outputs.url }}
           REPORT_ONLY: ${{ inputs.report-only }}
+          DRY_RUN: ${{ inputs.dry-run }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         with:
           script: |
@@ -510,9 +530,9 @@ jobs:
             const prUrl = process.env.PR_URL || '';
             const reportOnly = process.env.REPORT_ONLY === 'true';
 
-            // One long-lived issue whose BODY is rewritten each run — a Renovate-style dashboard of
-            // the current state, not a comment stream. The workflow owns the intro and footer; the
-            // agent's report goes in between.
+            // One long-lived issue people subscribe to. Its body is a fixed intro; each run's report
+            // is posted as a fresh comment (an edit would not notify subscribers) and the previous
+            // report comment is deleted, so the issue only ever holds the latest one.
             let report = read('report.md') || read('summary.txt') || 'No CircleCI data this week.';
             if (!report.endsWith('\n')) {
               report += '\n';
@@ -527,19 +547,55 @@ jobs:
               // or a failed PR creation — without claiming which one it was.
               fix = '**Fix:** no fix PR was opened this run.';
             }
+            const marker = '<!-- flake-fix-report -->';
+            let comment = `${marker}\n${report}\n${fix}\n`;
             const insights = read('insights.txt').trim();
-            const cost = read('cost.txt').trim();
-            let body =
-              'A running summary of recent CI failures — which are flaky, which are real, which are outside problems.\n\n' +
-              report +
-              `\n${fix}\n`;
             if (insights) {
-              body += `\n[CircleCI insights for this branch](${insights})\n`;
+              comment += `\n[CircleCI insights for this branch](${insights})\n`;
             }
+            const cost = read('cost.txt').trim();
             if (cost) {
-              body += `\nAgent cost this run: $${cost}\n`;
+              comment += `\nAgent cost this run: $${cost}\n`;
             }
-            body += `\n---\n_Kept up to date by [this workflow](${process.env.RUN_URL}) — do not edit; changes are overwritten on the next run._\n`;
+
+            // cc the infra team when a real (STRUCTURAL) regression is left unaddressed. Verdicts are
+            // per job, so one root cause spans several; resolves.txt (written only when a fix PR
+            // opened) names the fingerprints that PR handles, so a structural fingerprint absent from
+            // it is a real problem nobody is fixing. Skipped on report-only runs.
+            const verdict = read('verdict.json');
+            if (verdict && !reportOnly) {
+              const structural = new Set(
+                (JSON.parse(verdict).verdicts || [])
+                  .filter((entry) => entry.class === 'STRUCTURAL')
+                  .map((entry) => entry.fingerprint),
+              );
+              const resolved = new Set(
+                prUrl
+                  ? read('resolves.txt')
+                      .split('\n')
+                      .map((line) => line.trim())
+                      .filter(Boolean)
+                  : [],
+              );
+              const unresolved = [...structural].filter((fingerprint) => !resolved.has(fingerprint));
+              if (unresolved.length > 0) {
+                comment += `\n${unresolved.length} CI regression(s) still failing with no automated fix this run. cc @${process.env.INFRA_TEAM}\n`;
+              }
+            }
+            comment += `\n---\n_Posted by [this workflow run](${process.env.RUN_URL})._\n`;
+
+            if (process.env.DRY_RUN === 'true') {
+              await core.summary
+                .addHeading('Dry run: would post this tracking issue comment', 2)
+                .addRaw(`\n${comment}\n`)
+                .write();
+              return;
+            }
+
+            const body =
+              'A running summary of recent CI failures — which are flaky, which are real, which are outside problems.\n\n' +
+              '**Subscribe to this issue to get CI flakiness updates.** Each run posts its report as a new comment and removes the previous one, so the latest comment is always current.\n\n' +
+              '---\n_Maintained by the CI flake fix workflow — do not edit; this body is overwritten on every run._\n';
 
             try {
               await github.rest.issues.createLabel({ ...context.repo, name: 'ci-flake-watch', color: 'ededed' });
@@ -566,51 +622,23 @@ jobs:
               issueNumber = res.data.number;
             }
 
-            // Alert the infra team when a real (STRUCTURAL) regression is left unaddressed. Verdicts
-            // are per job, so one root cause spans several; resolves.txt (written only when a fix PR
-            // opened) names the fingerprints that PR handles, so a structural fingerprint absent from
-            // it is a real problem nobody is fixing. The alert is a fresh comment — editing one would
-            // not notify — that replaces any prior alert, so a resolved or quiet week leaves none.
-            // Best-effort, and skipped on report-only runs.
-            if (reportOnly) {
-              return;
-            }
-            const marker = '<!-- flake-fix-alert -->';
-            try {
-              const comments = await github.paginate(github.rest.issues.listComments, {
-                ...context.repo,
-                issue_number: issueNumber,
-                per_page: 100,
-              });
-              for (const comment of comments) {
-                if ((comment.body || '').includes(marker)) {
-                  await github.rest.issues.deleteComment({ ...context.repo, comment_id: comment.id });
-                }
+            // Post the new report before deleting the old ones, so a failure in between never leaves
+            // the issue without a report. Comments with the legacy alert marker predate reports
+            // being posted as comments; they go too.
+            const posted = await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: issueNumber,
+              body: comment,
+            });
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              ...context.repo,
+              issue_number: issueNumber,
+              per_page: 100,
+            });
+            for (const previous of comments) {
+              const text = previous.body || '';
+              const isReport = text.includes(marker) || text.includes('<!-- flake-fix-alert -->');
+              if (isReport && previous.id !== posted.data.id) {
+                await github.rest.issues.deleteComment({ ...context.repo, comment_id: previous.id });
               }
-              const verdict = read('verdict.json');
-              if (verdict) {
-                const structural = new Set(
-                  (JSON.parse(verdict).verdicts || [])
-                    .filter((entry) => entry.class === 'STRUCTURAL')
-                    .map((entry) => entry.fingerprint),
-                );
-                const resolved = new Set(
-                  prUrl
-                    ? read('resolves.txt')
-                        .split('\n')
-                        .map((line) => line.trim())
-                        .filter(Boolean)
-                    : [],
-                );
-                const unresolved = [...structural].filter((fingerprint) => !resolved.has(fingerprint));
-                if (unresolved.length > 0) {
-                  await github.rest.issues.createComment({
-                    ...context.repo,
-                    issue_number: issueNumber,
-                    body: `${marker}\n${unresolved.length} CI regression(s) still failing with no automated fix this run — see the dashboard above. cc @${process.env.INFRA_TEAM}`,
-                  });
-                }
-              }
-            } catch (error) {
-              core.warning(`flake-fix alert skipped: ${error.message}`);
             }
