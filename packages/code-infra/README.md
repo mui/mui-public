@@ -10,6 +10,16 @@ This is stored in the `docs` top-level directory.
 
 [Read in Browser](https://mui-internal.netlify.app/code-infra)
 
+## Building libraries with tsdown
+
+Run `code-infra build-new --bundle esm cjs` from a package with source files under `src` and `publishConfig.directory` pointing to its output directory. Use `--tsgo` for native TypeScript declaration emission, `--skipTypes` to omit declarations, `--sourceMap` for JavaScript source maps, and `--ignore` or `--copy` for additional source exclusions and copied files.
+
+The build compiles each source file independently and preserves imports between emitted files. Application bundlers can then remove unused namespace members when consuming the published library. Conditional exports, imports, assets, and bin entries are generated from the source manifest. Internal modules and workers are emitted without adding public package exports.
+
+ESM and CommonJS builds run in separate processes because repository Babel configs read format-specific environment settings. Declarations use the existing TypeScript emitter so their module boundaries and extensions match the JavaScript formats. Client/server directive prologues remain attached to their source modules. Native `.mts` and `.cts` declarations are normalized for both output formats, including CommonJS export assignments. Bins and imported assets must live under `src`; paths outside that source tree fail before a manifest can publish missing files.
+
+The downstream-consumer regression test builds the library through the CLI and then bundles its emitted ESM entry with Vite. A direct-source application build does not exercise the [Rolldown namespace export issue](https://github.com/rolldown/rolldown/issues/7874).
+
 ## Publishing packages
 
 1. Go to the publish action -

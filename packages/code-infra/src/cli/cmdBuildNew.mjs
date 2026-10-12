@@ -10,6 +10,8 @@ import { markFn, measureFn, validatePkgJson } from '../utils/build.mjs';
  * @property {boolean} skipTypes
  * @property {boolean} sourceMap
  * @property {string[]} [copy]
+ * @property {string[]} ignore
+ * @property {boolean} tsgo
  * @property {boolean} enableReactCompiler
  */
 
@@ -56,6 +58,17 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         description:
           'Files/Directories to be copied to the output directory. Can be a glob pattern.',
         default: [],
+      })
+      .option('ignore', {
+        type: 'string',
+        array: true,
+        default: [],
+        description: 'Source globs to omit from the build.',
+      })
+      .option('tsgo', {
+        type: 'boolean',
+        default: false,
+        description: 'Use the native TypeScript compiler for declarations.',
       })
       .option('enableReactCompiler', {
         type: 'boolean',

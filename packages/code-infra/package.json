@@ -87,7 +87,6 @@
     "@pnpm/config.version-policy": "^1100.2.7",
     "@pnpm/find-workspace-dir": "^1000.1.5",
     "@pnpm/parse-wanted-dependency": "^1001.0.0",
-    "@rollup/plugin-babel": "^6.1.0",
     "@typescript-eslint/types": "^8.71.1",
     "@typescript-eslint/utils": "^8.71.1",
     "@vitest/eslint-plugin": "^1.6.27",
@@ -117,6 +116,7 @@
     "globals": "^17.13.0",
     "globby": "^16.2.4",
     "html-validate": "^11.16.2",
+    "magic-string": "^0.30.21",
     "minimatch": "^10.2.6",
     "node-html-parser": "^9.0.4",
     "open": "^11.0.4",
@@ -143,7 +143,7 @@
     "resolve-pkg-maps": "^1.0.0",
     "semver": "^7.8.5",
     "stylelint-config-standard": "^40.0.0",
-    "tsdown": "^0.18.4",
+    "tsdown": "0.23.0",
     "typescript-eslint": "^8.71.1",
     "unified": "^11.0.5",
     "unified-lint-rule": "^3.0.1",
@@ -183,7 +183,8 @@
     "remark-mdx": "3.1.1",
     "serve": "14.2.6",
     "typescript": "npm:@typescript/typescript6@6.0.2",
-    "typescript-eslint": "8.71.1"
+    "typescript-eslint": "8.71.1",
+    "vite": "7.3.1"
   },
   "files": [
     "bin",

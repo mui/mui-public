@@ -55,7 +55,7 @@ export function getBaseConfig({
     modules: isTsdownBundler ? 'auto' : bundle === 'esm' ? false : 'commonjs',
     // @TODO
     // eslint-disable-next-line no-nested-ternary
-    browserslistEnv: isTsdownBundler ? 'node' : bundle === 'esm' ? 'stable' : 'node',
+    browserslistEnv: isTsdownBundler ? process.env.BABEL_ENV : bundle === 'esm' ? 'stable' : 'node',
   };
   /**
    * @type {import('@babel/core').PluginItem[]}
@@ -259,7 +259,7 @@ export default function getBabelConfig(api) {
     runtimeVersion: babelRuntimeVersion,
     optimizeClsx,
     removePropTypes,
-    noResolveImports: isTsdownBundler ? false : noResolveImports,
+    noResolveImports: isTsdownBundler ? true : noResolveImports,
     reactCompilerReactVersion,
     reactCompilerMode: /** @type {ReactCompilationMode} */ (reactCompilerMode),
     isTsdownBundler,
