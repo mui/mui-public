@@ -326,8 +326,8 @@ jobs:
 
             </details>
 
-            Step 2 — propose one fix. The subagent has already written the report, so it is safe
-            whatever happens here.
+            Step 2 — propose one fix (skip entirely on a report-only run). The subagent has already
+            written the report, so it is safe whatever happens here.
             Take the fix target the subagent named. If it named none — nothing fixable — change
             NOTHING and write no patch. Otherwise read ONLY that one log (jobs/NNNN.txt) for the
             exact error and root-cause it against the checkout.
