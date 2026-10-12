@@ -646,7 +646,7 @@ importers:
         specifier: ^10.0.1
         version: 10.0.1(eslint@10.12.0(jiti@2.7.0)(supports-color@10.2.2))
       '@eslint/json':
-        specifier: ^2.1.0
+        specifier: ^2.1.1
         version: 2.1.1
       '@inquirer/confirm':
         specifier: ^6.3.3
