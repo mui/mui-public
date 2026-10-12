@@ -319,9 +319,9 @@ jobs:
 
             </details>
 
-            Step 2 — propose one fix (skip entirely on a report-only run). The report is already
-            written, so whatever happens here is safe. The goal is a pull request a maintainer would
-            merge; no PR is a fine outcome, a wrong one is not.
+            Step 2 — propose one fix. The report is already written, so whatever happens here is
+            safe. The goal is a pull request a maintainer would merge; no PR is a fine outcome, a
+            wrong one is not.
 
             1. Pick the target. Use the fix target the subagent named. If it named none, stop:
                change nothing and write no patch.
