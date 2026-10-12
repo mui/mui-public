@@ -45,6 +45,7 @@ yarn-error.log*
 
 lerna-debug.log
 dist/
+adhoc/
 
 build/
 

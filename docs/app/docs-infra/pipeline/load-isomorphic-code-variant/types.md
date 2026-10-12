@@ -395,16 +395,6 @@ type PathContext = PathContextWithUrl | PathContextWithoutUrl;
 
 ## External Types
 
-### ParseSource
-
-```typescript
-type ParseSource = (
-  source: string,
-  fileName: string,
-  language?: string | undefined,
-) => { data?: unknown | undefined };
-```
-
 ### SourceEnhancer
 
 ```typescript
@@ -413,4 +403,14 @@ type SourceEnhancer = (
   comments: {} | undefined,
   fileName: string,
 ) => { data?: unknown | undefined } | Promise;
+```
+
+### ParseSource
+
+```typescript
+type ParseSource = (
+  source: string,
+  fileName: string,
+  language?: string | undefined,
+) => { data?: unknown | undefined };
 ```

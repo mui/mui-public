@@ -509,6 +509,9 @@ declare namespace PackageJson {
 		*/
     scripts?: Scripts;
 
+    /** Scripts to include in the published package. */
+    packageScripts?: Scripts;
+
     /**
 		Is used to set configuration parameters used in package scripts that persist across upgrades.
 		*/

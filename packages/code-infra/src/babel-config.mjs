@@ -30,6 +30,7 @@ const TS_WITHOUT_JSX = /\.[cm]?ts$/;
  * @param {string} [param0.reactCompilerReactVersion]
  * @param {ReactCompilationMode} [param0.reactCompilerMode]
  * @param {{ allowedCallees?: Record<string, string[]> }} [param0.displayName] - Options for the display name plugin.
+ * @param {boolean} [param0.isTsdownBundler=false]
  * @returns {import('@babel/core').InputOptions} The base Babel configuration.
  */
 export function getBaseConfig({
@@ -43,15 +44,18 @@ export function getBaseConfig({
   reactCompilerReactVersion,
   reactCompilerMode,
   displayName,
+  isTsdownBundler = false,
 }) {
   /**
    * @type {import('@babel/preset-env').Options}
    */
   const presetEnvOptions = {
     debug,
-    modules: bundle === 'esm' ? false : 'commonjs',
+    // eslint-disable-next-line no-nested-ternary
+    modules: isTsdownBundler ? 'auto' : bundle === 'esm' ? false : 'commonjs',
     // @TODO
-    browserslistEnv: bundle === 'esm' ? 'stable' : 'node',
+    // eslint-disable-next-line no-nested-ternary
+    browserslistEnv: isTsdownBundler ? process.env.BABEL_ENV : bundle === 'esm' ? 'stable' : 'node',
   };
   /**
    * @type {import('@babel/core').PluginItem[]}
@@ -79,8 +83,16 @@ export function getBaseConfig({
       'babel-plugin-transform-inline-environment-variables',
     ],
   ];
+  if (isTsdownBundler) {
+    const inlineEnvIndex = plugins.findIndex(
+      (plugin) =>
+        Array.isArray(plugin) &&
+        plugin[2] === 'babel-plugin-transform-inline-environment-variables',
+    );
+    plugins.splice(inlineEnvIndex, 1);
+  }
 
-  if (bundle !== 'esm') {
+  if (!isTsdownBundler && bundle !== 'esm') {
     plugins.push([pluginTransformImportMeta, {}, 'babel-plugin-transform-import-meta']);
   }
 
@@ -177,6 +189,7 @@ export function getBaseConfig({
  * @prop {'esm' | 'cjs'} [Options.bundle]
  * @prop {boolean} [Options.noResolveImports]
  * @prop {undefined} [options.env]
+ * @prop {string} [options.bundler]
  */
 
 /**
@@ -188,6 +201,44 @@ export default function getBabelConfig(api) {
   let bundle;
   /** @type {boolean} */
   let noResolveImports;
+  let isTsdownBundler = false;
+  let babelRuntimeVersion = process.env.MUI_BABEL_RUNTIME_VERSION || '^7.25.0';
+  let optimizeClsx = process.env.MUI_OPTIMIZE_CLSX === 'true';
+  let removePropTypes = process.env.MUI_REMOVE_PROP_TYPES === 'true';
+  let reactCompilerReactVersion = process.env.MUI_REACT_COMPILER_REACT_VERSION;
+  let reactCompilerMode = process.env.MUI_REACT_COMPILER_MODE;
+
+  if (typeof api === 'object') {
+    if ('caller' in api && api.caller) {
+      api.caller((caller) => {
+        if (!caller) {
+          return false;
+        }
+        if (caller?.name === 'tsdown-bundler') {
+          isTsdownBundler = true;
+        }
+        const typedCaller = /** @type {Record<string, any>} */ (caller);
+        if (typedCaller.optimizeClsx) {
+          optimizeClsx = true;
+        }
+        if (typedCaller.removePropTypes) {
+          removePropTypes = true;
+        }
+        if (typedCaller.reactCompilerReactVersion) {
+          reactCompilerReactVersion = typedCaller.reactCompilerReactVersion;
+        }
+        if (typedCaller.reactCompilerMode) {
+          reactCompilerMode = typedCaller.reactCompilerMode;
+        }
+        if (typedCaller.babelRuntimeVersion) {
+          babelRuntimeVersion = typedCaller.babelRuntimeVersion;
+        }
+        return true;
+      });
+    } else if ('bundler' in api) {
+      isTsdownBundler = api.bundler === 'tsdown-bundler';
+    }
+  }
 
   if (api.env) {
     // legacy
@@ -205,11 +256,12 @@ export default function getBabelConfig(api) {
     outExtension: process.env.MUI_OUT_FILE_EXTENSION || null,
     // Lower bound of @babel/runtime a consumer must ship; `code-infra build` reads the real
     // version off the package's dependencies instead. Runtime 7 and 8 both satisfy this.
-    runtimeVersion: process.env.MUI_BABEL_RUNTIME_VERSION || '^7.25.0',
-    optimizeClsx: process.env.MUI_OPTIMIZE_CLSX === 'true',
-    removePropTypes: process.env.MUI_REMOVE_PROP_TYPES === 'true',
-    noResolveImports,
-    reactCompilerReactVersion: process.env.MUI_REACT_COMPILER_REACT_VERSION,
-    reactCompilerMode: /** @type {ReactCompilationMode} */ (process.env.MUI_REACT_COMPILER_MODE),
+    runtimeVersion: babelRuntimeVersion,
+    optimizeClsx,
+    removePropTypes,
+    noResolveImports: isTsdownBundler ? true : noResolveImports,
+    reactCompilerReactVersion,
+    reactCompilerMode: /** @type {ReactCompilationMode} */ (reactCompilerMode),
+    isTsdownBundler,
   });
 }

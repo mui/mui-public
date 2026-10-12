@@ -67,6 +67,9 @@ type ComponentTypeMeta = {
 
 ### DescriptionReplacement
 
+A pattern/replacement pair for transforming description text.
+The pattern is compiled into a RegExp internally.
+
 ```typescript
 type DescriptionReplacement = {
   /** Regex pattern string to match in descriptions */
@@ -79,6 +82,8 @@ type DescriptionReplacement = {
 ```
 
 ### FormatInlineTypeOptions
+
+Options for formatting inline types as HAST.
 
 ```typescript
 type FormatInlineTypeOptions = {
@@ -106,6 +111,8 @@ type FormatInlineTypeOptions = {
 
 ### FormattedEnumMember
 
+Formatted enum member metadata.
+
 ```typescript
 type FormattedEnumMember = {
   /** Description of the enum member as parsed markdown HAST */
@@ -121,6 +128,11 @@ type FormattedEnumMember = {
 ```
 
 ### FormattedParameter
+
+Formatted parameter metadata for functions and hooks.
+
+Type highlighting is deferred to the loadServerTypes stage via
+highlightTypesMeta() after highlightTypes().
 
 ```typescript
 type FormattedParameter = {
@@ -151,6 +163,11 @@ type FormattedParameter = {
 ```
 
 ### FormattedProperty
+
+Formatted property metadata with plain text types and parsed markdown descriptions.
+
+Type highlighting (type → HAST, shortType, detailedType) is deferred to
+the loadServerTypes stage via highlightTypesMeta() after highlightTypes().
 
 ```typescript
 type FormattedProperty = {
@@ -362,6 +379,8 @@ type RawTypeMeta = {
 ```
 
 ### ReExportInfo
+
+Information about a re-exported type.
 
 ```typescript
 type ReExportInfo = {

@@ -325,6 +325,48 @@ type BaseContentLoadingProps = {
 };
 ```
 
+### BaseContentProps
+
+Base props passed to Content components for rendering code examples.
+These props provide the necessary data for displaying code, previews, and metadata.
+
+```typescript
+type BaseContentProps = {
+  /** Display name for the code example, used for identification and titles */
+  name?: string;
+  /** URL-friendly identifier for deep linking and navigation */
+  slug?: string;
+  /** Source URL where the code content originates from */
+  url?: string;
+  /** Static code content with variants and metadata */
+  code?: Code;
+  /** React components for live preview alongside code */
+  components?: Components;
+  /** What type of variants are available (e.g., a type `packageManager` when variants `npm` and `yarn` are available) */
+  variantType?: string;
+  /**
+   * Render-time "collapse to empty": collapse the code block to an empty window so
+   * the whole block is hidden until the reader expands it. Runtime-only — it
+   * never changes the precomputed HAST, only how it's rendered.
+   */
+  collapseToEmpty?: boolean;
+  /**
+   * Whether the (collapsible) code block starts expanded. Runtime-only. Lives
+   * on `contentProps` rather than `useCode` opts so the loading fallback can
+   * see it too.
+   */
+  initialExpanded?: boolean;
+  /**
+   * Start an editable block read-only (a truthy value), leaving it to the
+   * `editable` / `setEditable` toggle `useCode` returns to turn editing on.
+   * Runtime-only; lives on `contentProps` — the demo factory resolves a demo's
+   * `initialDisabled` (instance prop → `meta` → `createDemoFactory` default) into it.
+   * Distinct from the hard `disabled` opt, which forbids editing outright.
+   */
+  initialDisabled?: boolean;
+};
+```
+
 ### Code
 
 ```typescript
@@ -834,6 +876,19 @@ type CodeLoadingProps = {
    * @default 'gzip'
    */
   deferParsing?: 'none' | 'json' | 'gzip';
+};
+```
+
+### CodeMeta
+
+```typescript
+type CodeMeta = {
+  /** Name of the file (e.g., 'Button.tsx') */
+  fileName?: string;
+  /** Language for syntax highlighting (e.g., 'tsx', 'css'). When provided, fileName is not required. */
+  language?: string;
+  /** Flattened path for the file */
+  path?: string;
 };
 ```
 
@@ -1358,4 +1413,4 @@ type VariantSource = string | HastRoot | { hastJson: string } | { hastCompressed
 ## Export Groups
 
 - `CodeHighlighter`: `useCodeFallback`, `UseCodeFallbackResult`, `mergeComments`, `CodeHighlighter`
-- `CodeHighlighterTypes`: `Components`, `EditableSourceProjection`, `Transforms`, `ExternalImportItem`, `Externals`, `HastRoot`, `VariantSource`, `VariantExtraFiles`, `VariantCode`, `Code`, `CollapseMap`, `ControlledVariantExtraFiles`, `ControlledVariantCode`, `ControlledCode`, `ContentProps`, `Fallbacks`, `ContentLoadingFile`, `ContentLoadingVariant`, `BaseContentLoadingProps`, `ContentLoadingProps`, `LoadCodeMeta`, `LoadVariantMeta`, `LoadSource`, `TransformSource`, `ParseSource`, `SourceTransformer`, `SourceTransformers`, `SourceComments`, `SourceEnhancer`, `SourceEnhancers`, `LoadFileOptions`, `LoadVariantOptions`, `LoadFallbackCodeOptions`, `CodeIdentityProps`, `CodeContentProps`, `CodeLoadingProps`, `CodeFunctionProps`, `CodeRenderingProps`, `CodeClientRenderingProps`, `CodeHighlighterBaseProps`, `CodeHighlighterClientProps`, `CodeHighlighterProps`
+- `CodeHighlighterTypes`: `Components`, `CodeMeta`, `EditableSourceProjection`, `Transforms`, `ExternalImportItem`, `Externals`, `HastRoot`, `VariantSource`, `VariantExtraFiles`, `VariantCode`, `Code`, `CollapseMap`, `ControlledVariantExtraFiles`, `ControlledVariantCode`, `ControlledCode`, `BaseContentProps`, `ContentProps`, `Fallbacks`, `ContentLoadingFile`, `ContentLoadingVariant`, `BaseContentLoadingProps`, `ContentLoadingProps`, `LoadCodeMeta`, `LoadVariantMeta`, `LoadSource`, `TransformSource`, `ParseSource`, `SourceTransformer`, `SourceTransformers`, `SourceComments`, `SourceEnhancer`, `SourceEnhancers`, `LoadFileOptions`, `LoadVariantOptions`, `LoadFallbackCodeOptions`, `CodeIdentityProps`, `CodeContentProps`, `CodeLoadingProps`, `CodeFunctionProps`, `CodeRenderingProps`, `CodeClientRenderingProps`, `CodeHighlighterBaseProps`, `CodeHighlighterClientProps`, `CodeHighlighterProps`

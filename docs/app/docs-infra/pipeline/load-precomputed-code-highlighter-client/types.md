@@ -6,6 +6,16 @@
 
 ### default
 
+Webpack loader that processes demo client files and precomputes externals.
+
+Finds createDemoClient calls and injects all required externals as imports
+at the top of the file, then passes them to the function as precompute.externals.
+
+The pattern expected is: create*Client(import.meta.url, { options: true })
+The result will be: create*Client(import.meta.url, { options: true, precompute: { externals } })
+
+Automatically skips processing if skipPrecompute: true is set.
+
 **Parameters:**
 
 | Parameter | Type     | Default | Description |
