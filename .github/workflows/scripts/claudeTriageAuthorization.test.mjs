@@ -18,6 +18,8 @@ function authorize(overrides = {}) {
     eventName: 'issue_comment',
     action: 'created',
     actorType: 'User',
+    issueAuthor: 'reporter',
+    association: 'NONE',
     label: 'ai: needs-triage',
     configuredLabel: 'ai: needs-triage',
     commentId: 11,
@@ -46,13 +48,13 @@ function authorize(overrides = {}) {
       const context = {
         repo: { owner: 'example', repo: 'components' }, eventName: scenario.eventName,
         payload: { sender: user, action: scenario.action, issue: { number: 7 },
-          comment: { id: scenario.triggerCommentId, user } },
+          comment: { id: scenario.triggerCommentId, user, author_association: scenario.association } },
       };
       const github = new Octokit({ request: { fetch: async (url) => {
         const path = new URL(url).pathname;
         let data;
         if (path.endsWith('/issues/7')) data = {
-          number: 7, title: 'Example issue', state: 'open',
+          number: 7, title: 'Example issue', state: 'open', user: { login: scenario.issueAuthor },
           labels: scenario.label ? [{ name: scenario.label }] : [],
           ...(scenario.pullRequest ? { pull_request: {} } : {}),
         };
@@ -92,12 +94,16 @@ function authorize(overrides = {}) {
 }
 
 describe('Claude triage authorization', () => {
-  it('accepts a human reply on a currently labeled issue and forwards only that user', () => {
+  it('accepts the issue author on a currently labeled issue and forwards only that user', () => {
     const output = authorize();
     expect(output).toMatchObject({ mode: 'triage', 'allowed-user': 'reporter', 'allowed-bot': '' });
   });
 
   it.each([
+    ['unrelated commenter', { issueAuthor: 'other' }],
+    ['contributor without access', { issueAuthor: 'other', association: 'CONTRIBUTOR' }],
+    ['maintainer with label removed', { label: '', permission: 'admin' }],
+    ['maintainer edited comment', { action: 'edited', permission: 'write' }],
     ['not opted in', { configuredLabel: '' }],
     ['label removed', { label: '' }],
     ['different label', { label: 'other' }],
@@ -110,6 +116,16 @@ describe('Claude triage authorization', () => {
   ])('rejects a read-only user with %s', (_name, overrides) => {
     expect(authorize(overrides)).toEqual({});
   });
+
+  it.each(['OWNER', 'MEMBER', 'COLLABORATOR'])(
+    'accepts GitHub association %s on a labeled issue',
+    (association) => {
+      expect(authorize({ issueAuthor: 'other', association })).toMatchObject({
+        mode: 'triage',
+        'allowed-user': 'reporter',
+      });
+    },
+  );
 
   it('preserves maintainer authorization without the label opt-in', () => {
     expect(authorize({ configuredLabel: '', permission: 'write' })).toMatchObject({
