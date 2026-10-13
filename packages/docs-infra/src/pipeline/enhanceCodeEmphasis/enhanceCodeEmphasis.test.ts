@@ -78,6 +78,19 @@ describe('enhanceCodeEmphasis', () => {
     parseSource = await createParseSource();
   });
 
+  it('renders JSDoc focus directives like plain comments without exposing metadata', async () => {
+    const plain = `const node = <div>
+  {/* @focus-start */}
+  <span>Hello</span>
+  {/* @focus-end */}
+</div>;`;
+    const jsdoc = plain.replaceAll('{/* @focus', '{/** @focus');
+    const expected = await testEmphasis(plain, parseSource);
+    const actual = await testEmphasis(jsdoc, parseSource);
+    expect(actual).toBe(expected);
+    expect(actual).not.toContain('@focus');
+  });
+
   describe('EMPHASIS_COMMENT_PREFIX', () => {
     it('should export the correct prefix', () => {
       expect(EMPHASIS_COMMENT_PREFIX).toBe('@highlight');

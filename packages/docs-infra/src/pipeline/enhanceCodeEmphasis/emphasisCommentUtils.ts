@@ -1,3 +1,5 @@
+import { normalizeCommentContent } from '../loaderUtils/normalizeCommentContent';
+
 /**
  * The prefix used to identify emphasis comments in source code.
  * Comments starting with this prefix will be processed for emphasis.
@@ -133,7 +135,7 @@ export function getUnquotedCommentTokens(comment: string): string[] {
  * Returns whether a parsed comment contains a real focus directive.
  */
 export function hasFocusDirective(comment: string): boolean {
-  const tokens = getUnquotedCommentTokens(comment);
+  const tokens = getUnquotedCommentTokens(normalizeCommentContent(comment));
   const firstToken = tokens[0];
 
   if (
