@@ -3,7 +3,7 @@
 import chalk from 'chalk';
 import type { Browser, CDPSession, Page } from '@playwright/test';
 import { BENCHMARK_LAUNCH_ARGS, BENCHMARK_VIEWPORT } from '../launchArgs';
-import { compareBenchmark } from '../runReport';
+import { compareBenchmark, formatDuration, formatRounds } from '../runReport';
 import type { RunBenchmark, RunMetricDefinition } from '../runReport';
 import { differencesSettled, pickSampling, resolveSampling } from '../sampling';
 import type { SamplingOptions } from '../sampling';
@@ -295,6 +295,7 @@ async function runFileRound(page: Page, active: Progress[]): Promise<void> {
 async function runBenchFile(browser: Browser, plans: MeasuredBenchmark[]): Promise<CaseResult[]> {
   const count = `${plans.length} benchmark${plans.length === 1 ? '' : 's'}`;
   console.log(chalk.cyan(`\nRunning ${plans[0].entry.file} (${count})…`));
+  const startedAt = Date.now();
   const progresses: Progress[] = plans.map((plan) => ({
     plan,
     rounds: [],
@@ -320,16 +321,21 @@ async function runBenchFile(browser: Browser, plans: MeasuredBenchmark[]): Promi
     await opened?.context().close();
   }
 
-  return progresses.map((progress) => {
+  const results = progresses.map((progress) => {
     const { plan, rounds, settled, error, durationMs } = progress;
     if (error !== undefined) {
       return { benchmark: { ...plan.entry, error, durationMs }, metrics: {} };
     }
     const { sampleSize, timeout } = plan.sampling;
     if (rounds.length > sampleSize || !settled) {
+      // The rounds past the sample size are the adaptive ones: `30 + 15 rounds`.
+      const roundsLabel = formatRounds(
+        { ...benchmarkOf(progress), sampling: { sampleSize, timedOut: !settled } },
+        { timedOut: false },
+      );
       console.log(
         chalk.dim(
-          `  ${plan.entry.name}: ${rounds.length} rounds, ${settled ? 'settled' : `unsettled after ${timeout} min`}`,
+          `  ${plan.entry.name}: ${roundsLabel}, ${settled ? 'settled' : `unsettled after ${timeout} min`}`,
         ),
       );
     }
@@ -342,6 +348,8 @@ async function runBenchFile(browser: Browser, plans: MeasuredBenchmark[]): Promi
       metrics: progress.metrics ?? {},
     };
   });
+  console.log(chalk.dim(`  ${plans[0].entry.file} ran ${formatDuration(Date.now() - startedAt)}`));
+  return results;
 }
 
 /** The round-aligned samples of a benchmark, per variant and metric. */
