@@ -2,7 +2,7 @@
 # Human senders need write, maintain, or admin access; bots may request triage through issue labels.
 # Labeling automation must use an App token or PAT; GITHUB_TOKEN label events do not start workflows.
 # PRs are ignored.
-# triage posts a diagnosis; fix also attempts an actionable fix and creates or updates a draft PR.
+# Both modes currently post a triage diagnosis; automated fixes and draft PR publishing are disabled.
 # Callers configure ANTHROPIC_FEDERATION_RULE_ID, ANTHROPIC_ORGANIZATION_ID,
 # ANTHROPIC_SERVICE_ACCOUNT_ID, and ANTHROPIC_WORKSPACE_ID as repository variables.
 # The fix runner shares Claude authentication with untrusted code. Use GitHub-hosted ubuntu-latest;
@@ -18,7 +18,7 @@ on:
         type: number
         required: true
       mode:
-        description: Operation to perform, triage or fix.
+        description: Operation to perform, triage or fix (fix currently runs triage only).
         type: string
         required: true
       comment-id:
@@ -285,14 +285,23 @@ jobs:
                is supported, propose closing, set category=duplicate and actionable=false, and stop.
                If access fails or requests are rate-limited, report the search as incomplete, never
                claim no duplicates exist, and continue with the available evidence.
-            2. For defect reports, check whether versions, expected versus actual behavior, and
+            2. Assess the substance of the request rather than relying on its title, labels, or
+               issue template. Check whether a documented API or existing feature already achieves
+               the reporter's goal. Read the issue's comments before concluding that there is no
+               evidence of a defect. When that approach meets the goal and no defect is evidenced,
+               treat the report as a usage question, explain the supported approach with evidence,
+               and set category=question and actionable=false. Do not require a bug reproduction or ask
+               whether they want a new feature just because the report uses a different API name.
+               If the reporter describes a failure of the supported approach, assess that failure
+               as a potential defect instead of dismissing it as a question.
+               For defect reports, check whether versions, expected versus actual behavior, and
                a usable reproduction are provided. Before concluding that information is missing,
                read the issue's comments in ${{ runner.temp }}/request/comments.json: later replies may supply versions,
                clarify expectations, or replace an outdated or unusable reproduction. Reassess the
                report using those updates; do not ask for information already provided. If essential
                details are still missing, ask only the specific unanswered questions, set
                category=needs-information and actionable=false, and stop.
-            3. Assess the supplied reproduction. Preserve the reporter's runnable link and useful
+            3. Assess the reproduction when supplied. Preserve the reporter's runnable link and useful
                steps instead of replacing them with a less usable prose reconstruction. State that
                reproduction is unverified in this read-only stage; never claim to have opened,
                executed, reduced, or snapshotted it. Identify any unclear steps that need refinement.
@@ -315,8 +324,9 @@ jobs:
                  or export format, rather than an extension of an existing option.
                - expected-behavior: the observed behavior matches an evidenced contract or design;
                  for example, documentation explicitly excludes the reported input combination.
-               - question: a request for usage guidance without evidence of a defect; for example,
-                 how to configure an existing API.
+               - question: a request for usage guidance without evidence of a defect, even when
+                 framed as a bug or feature request; for example, how to configure an existing API
+                 that already achieves the reporter's goal.
                - duplicate: the same underlying problem or request as a cited existing issue,
                  supported by matching behavior and context, not merely similar title words.
                - needs-information: essential evidence is still missing after reading the discussion;
@@ -330,9 +340,14 @@ jobs:
             If closed or labeled not planned, report that state with its recorded reason and
             return actionable=false without reopening the investigation.
             Return comment as concise reporter-facing Markdown: public component/API, reproduction
-            availability, next actions or specific questions, and any workaround. Keep fix strategy,
-            internal paths/symbols, root-cause hypotheses, regression tests, and validation plans out
-            of comment, including hidden HTML blocks. Do not claim maintainer review.
+            availability when relevant, and any workaround. Start directly with the finding; no general
+            title or pleasantries. End with a separate "### Next steps" section containing concrete actions
+            for the reporter and/or maintainer, or only the specific unanswered questions needed
+            to proceed. Include this section even when an earlier step tells you to stop; if no
+            further action is needed, say so there. Put supporting context above this section.
+            Keep fix strategy, internal paths/symbols, root-cause hypotheses, regression tests,
+            and validation plans out of comment, including hidden HTML blocks. Do not claim
+            maintainer review.
             Return handoff separately for the fix job: checkout SHA, confidence, probable cause,
             supporting evidence, relevant paths, regression test and validation plan, and anything
             unverified. This field is not posted in the issue comment; it is still a workflow artifact,
@@ -354,7 +369,7 @@ jobs:
             --mcp-config '{"mcpServers":{}}'
             --setting-sources ${{ inputs.triage-skill != '' && 'user,project' || 'user' }}
             --add-dir ${{ runner.temp }}/request
-            --json-schema '{"type":"object","additionalProperties":false,"required":["actionable","category","comment","handoff"],"properties":{"actionable":{"type":"boolean","description":"True only when the evidence supports a focused automated fix and concrete validation plan."},"category":{"type":"string","enum":["bug","regression","enhancement","new-feature","expected-behavior","question","duplicate","needs-information","out-of-scope","unknown"]},"comment":{"type":"string","minLength":1,"maxLength":40000,"description":"Reporter-facing Markdown with reproduction availability, next actions or questions, and any workaround. No fix strategy, internal diagnosis, usage footer, or claim of verification."},"handoff":{"type":"string","maxLength":40000,"description":"Fix-job investigation: checkout SHA, confidence, probable cause, evidence, paths, regression test and validation plan. Not posted to the issue. Empty if no useful fix investigation."}}}'
+            --json-schema '{"type":"object","additionalProperties":false,"required":["actionable","category","comment","handoff"],"properties":{"actionable":{"type":"boolean","description":"True only when the evidence supports a focused automated fix and concrete validation plan."},"category":{"type":"string","enum":["bug","regression","enhancement","new-feature","expected-behavior","question","duplicate","needs-information","out-of-scope","unknown"]},"comment":{"type":"string","minLength":1,"maxLength":40000,"description":"Reporter-facing Markdown starting directly with findings, relevant reproduction availability and any workaround, ending with a Next steps section of actions or questions."},"handoff":{"type":"string","maxLength":40000,"description":"Fix-job investigation: checkout SHA, confidence, probable cause, evidence, paths, regression test and validation plan. Not posted to the issue. Empty if no useful fix investigation."}}}'
       - &capture-run
         name: Capture Claude run metadata
         id: capture
@@ -499,15 +514,13 @@ jobs:
               // Missing or malformed artifacts must not prevent a failure report.
             }
             const completed = process.env.TRIAGE_STATUS === 'success' && process.env.TRIAGE_COMPLETED === 'true';
-            let body = '### Triage findings\n\n';
+            let body = '';
             if (!completed) {
               body += '> Triage did not complete successfully. Any findings below are incomplete; no fix will start.\n\n';
             }
             body += `${result?.comment ?? 'No usable triage report was produced. See the workflow run for details.'}\n`;
             if (process.env.MODE === 'fix' && completed && result) {
-              body += result.actionable
-                ? '\n\nA fix attempt is scheduled in parallel with this report.\n'
-                : '\n\nTriage found no actionable automated fix. No fix attempt will run.\n';
+              body += '\n\nAutomated fixes are temporarily disabled. No fix attempt will run.\n';
             }
             body += `\n---\nAgent-generated diagnosis; conclusions have not been independently verified. [Workflow run](${process.env.RUN_URL}).\n`;
             body += fs.readFileSync(`${process.env.RUNNER_TEMP}/triage-footer.md`, 'utf8');
@@ -587,7 +600,8 @@ jobs:
   # Prepare the runner, develop the fix, and export a patch.
   fix:
     needs: [authorize, triage]
-    if: needs.authorize.outputs.mode == 'fix' && needs.triage.outputs.completed == 'true'
+    # Temporarily disabled while triage is evaluated. The publisher skips when this job skips.
+    if: ${{ false }}
     concurrency:
       group: claude-triage-${{ github.repository }}-${{ needs.authorize.outputs.issue }}-fix
       cancel-in-progress: false
