@@ -123,7 +123,6 @@
     "@wooorm/starry-night": "^3.11.0",
     "autoprefixer": "^10.6.1",
     "chalk": "^6.0.1",
-    "clipboard-copy": "^4.0.1",
     "es-toolkit": "^1.52.0",
     "fflate": "^0.8.3",
     "hast-util-to-jsx-runtime": "^2.3.6",
