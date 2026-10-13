@@ -328,7 +328,7 @@ async function runBenchFile(browser: Browser, plans: PlannedBenchmark[]): Promis
     }
     const { sampleSize, timeout } = plan.sampling;
     if (rounds.length > sampleSize || !settled) {
-      const outcome = settled ? 'settled' : `unsettled after ${timeout} min`;
+      const outcome = settled ? 'settled' : `timed out after ${timeout} min`;
       console.log(
         chalk.dim(
           `  ${plan.entry.name}: ${formatRoundCount(rounds.length, sampleSize)}, ${outcome}`,
