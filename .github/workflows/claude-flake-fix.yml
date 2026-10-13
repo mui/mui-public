@@ -319,28 +319,30 @@ jobs:
 
             </details>
 
-            Step 2 — propose one fix (skip entirely on a report-only run). The subagent has already
-            written the report, so it is safe whatever happens here.
-            Take the fix target the subagent named. If it named none — nothing fixable — change
-            NOTHING and write no patch. Otherwise read ONLY that one log (jobs/NNNN.txt) for the
-            exact error and root-cause it against the checkout.
-            Establish WHY it started failing, not just what the error is. From the timeline: did our
-            code change at the first failure, or did something external move — a dependency bump, or a
-            moving toolchain channel like `@next`/nightly/canary? Let that trigger decide the response:
-            our code is genuinely wrong → fix it and note what surfaced it; an external toolchain
-            tightened on purpose → adapting the code is right, but confirm the code really is at fault
-            and say so; it looks like an upstream regression (our code is fine, a pre-release
-            dependency broke it) → do NOT paper over it with a code change, which only hides the
-            upstream bug — abandon (report/pin/wait territory) rather than present a guess as a fix.
-            Open a PR only if you are confident you understand the root cause and your change fixes
-            it. The moment you lose that confidence — the cause stays unclear, the code doesn't
-            match the error, the fix is a guess — STOP and write no patch. Abandoning is always a
-            good outcome; a wrong fix is not. Hold an UNCONFIRMED target (a single failure, maybe
-            just a one-off) to a higher bar: fix it only if the cause is unmistakable.
-            When confident, make the SMALLEST change that plausibly fixes it. You have a full
-            toolchain and network: you MAY install deps and run the failing test to check the fix,
-            but this is optional and time-bounded — CI re-runs on the PR anyway. Do not refactor,
-            bump dependencies, or edit .github/workflows/.
+            Step 2 — propose one fix. The report is already written, so whatever happens here is
+            safe. The goal is a pull request a maintainer would merge; no PR is a fine outcome, a
+            wrong one is not.
+
+            1. Pick the target. Use the fix target the subagent named. If it named none, stop:
+               change nothing and write no patch.
+            2. Find the root cause. Read only that target's log (jobs/NNNN.txt) for the exact error,
+               then trace it into the checkout until you can say which code is at fault and why. Use
+               the timeline to find what made it start failing: a change in our code, a dependency
+               bump, or a moving toolchain channel (`@next`, nightly, canary). You may reproduce it
+               — install deps, run the failing test, build a minimal repro — but keep that brief;
+               CI re-runs on the PR anyway.
+            3. Decide what kind of failure it is:
+               - A bug in our code → fix it. That includes code an older toolchain merely tolerated
+                 (e.g. stable silently emits `any` where nightly asks for an explicit type).
+               - A legitimate change in external code → adapt our code to it.
+               - A bug in external code → stop; it belongs in the report, not a patch.
+            4. Check your confidence. Go ahead only if you understand the cause and your change
+               addresses it. If the cause stays unclear or the fix is a guess, stop. Hold an
+               UNCONFIRMED target (a single failure) to a higher bar: fix it only when the cause is
+               unmistakable.
+            5. Make the right change: the one that removes the root cause, written the way a
+               maintainer would write it, not the narrowest edit that turns CI green. Stay on that one
+               problem — no unrelated cleanups, dependency bumps, or edits to .github/workflows/.
 
             If and only if you edited files, produce the fix as a patch and write the PR text:
             - Stage exactly the files that are your fix with `git add <files>` — not pnpm-lock.yaml
