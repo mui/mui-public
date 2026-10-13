@@ -425,25 +425,26 @@ export interface AlarmedChange {
   comparison: MetricComparison;
 }
 
-function alarmedChangesOf(analyses: BenchmarkAnalysis[]): AlarmedChange[] {
+/**
+ * Whether a change says something is wrong with the code under test: an alarmed metric's change
+ * for the worse, past its `error` band.
+ */
+export function isRegression(comparison: MetricComparison): boolean {
+  return comparison.alarm !== null && comparison.severity !== 'none';
+}
+
+/** Whether a change is one for the better on an alarmed metric: what the code under test sped up. */
+export function isImprovement(comparison: MetricComparison): boolean {
+  return comparison.alarm !== null && comparison.change === 'better';
+}
+
+/** Every regression in a run, with the benchmark and metric it belongs to. */
+export function findRegressions(analyses: BenchmarkAnalysis[]): AlarmedChange[] {
   return analyses.flatMap(({ benchmark, metrics }) =>
     metrics.flatMap(({ metric, comparisons }) =>
       comparisons
-        .filter((comparison) => comparison.alarm !== null)
+        .filter(isRegression)
         .map((comparison) => ({ benchmark: benchmark.name, metric, comparison })),
     ),
   );
-}
-
-/**
- * The changes that say something is wrong with the code under test: an alarmed metric's change
- * for the worse, past its `error` band.
- */
-export function findRegressions(analyses: BenchmarkAnalysis[]): AlarmedChange[] {
-  return alarmedChangesOf(analyses).filter(({ comparison }) => comparison.severity !== 'none');
-}
-
-/** The changes for the better on alarmed metrics: what the code under test sped up. */
-export function findImprovements(analyses: BenchmarkAnalysis[]): AlarmedChange[] {
-  return alarmedChangesOf(analyses).filter(({ comparison }) => comparison.change === 'better');
 }
