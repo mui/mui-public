@@ -1,5 +1,5 @@
 # Callers select triggers and pass issue-number, mode, and optionally comment-id.
-# Human senders need write access unless a caller opts into author/member replies on labeled issues.
+# Human senders need write access unless an allowed label permits author/member replies.
 # Bots may request triage through issue labels.
 # Labeling automation must use an App token or PAT; GITHUB_TOKEN label events do not start workflows.
 # PRs are ignored.
@@ -29,7 +29,7 @@ on:
       triage-comment-labels:
         description: JSON array of labels allowing replies from the issue author, repository collaborators, or organization members to request triage.
         type: string
-        default: '[]'
+        default: '["ai: needs-triage", "ai: triaged"]'
       debug:
         description: Log full Claude output, including tool results, in Actions logs.
         type: boolean
@@ -116,7 +116,7 @@ jobs:
             if (issue.pull_request) return;
             const labeledCommentRequest = commentLabels.length > 0 && context.eventName === 'issue_comment';
 
-            // Validate opted-in replies before granting any permission exception.
+            // Validate labeled replies before granting any permission exception.
             if (labeledCommentRequest) {
               const userType = 'User';
               const { comment } = context.payload;
