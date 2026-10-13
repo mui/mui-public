@@ -261,3 +261,30 @@ export async function endToEndGhAuthGetToken({ log = false } = {}) {
 export async function clearGitHubAuth() {
   await credentials.deleteKey(GITHUB_APP_CREDENTIAL_KEY);
 }
+
+/**
+ * Returns when a rate-limited request may be retried, or `null` for other errors.
+ * https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api#exceeding-the-rate-limit
+ *
+ * @param {unknown} error
+ * @returns {Date | null}
+ */
+export function getRateLimitRetryTime(error) {
+  const { status, response, message } = /** @type {any} */ (error) ?? {};
+  if (status !== 403 && status !== 429) {
+    return null;
+  }
+  const headers = response?.headers ?? {};
+  const now = Date.now();
+  let retryTime;
+  if (headers['retry-after']) {
+    retryTime = now + Number(headers['retry-after']) * 1000;
+  } else if (headers['x-ratelimit-remaining'] === '0' && headers['x-ratelimit-reset']) {
+    retryTime = Number(headers['x-ratelimit-reset']) * 1000;
+  } else if (/rate limit/i.test(message ?? '')) {
+    retryTime = now;
+  } else {
+    return null;
+  }
+  return new Date(Math.max(retryTime, now + 60_000));
+}

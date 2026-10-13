@@ -1,6 +1,24 @@
+import { retry } from '@octokit/plugin-retry';
+import { throttling } from '@octokit/plugin-throttling';
 import { Octokit } from '@octokit/rest';
+import { mapAsync } from 'es-toolkit/array';
 
 import { persistentAuthStrategy } from '../utils/github.mjs';
+
+const ThrottledOctokit = Octokit.plugin(throttling, retry);
+
+/**
+ * Waits out short rate limits. Longer ones fail with the original error.
+ *
+ * @param {number} retryAfter - Seconds until the request may be retried
+ * @param {unknown} options
+ * @param {unknown} octokit
+ * @param {number} retryCount
+ * @returns {boolean}
+ */
+function shouldRetryRateLimit(retryAfter, options, octokit, retryCount) {
+  return retryAfter <= 60 && retryCount < 3;
+}
 
 /**
  * @typedef {import('@octokit/rest').Octokit} OctokitType
@@ -16,6 +34,7 @@ import { persistentAuthStrategy } from '../utils/github.mjs';
  * @property {string} lastRelease
  * @property {string} release
  * @property {string} [org='mui'] - GitHub organization name, defaults to 'mui'
+ * @property {(progress: { phase: string; count: number; total: number }) => void} [onProgress] - Called as commits are listed and their pull request details are fetched
  */
 
 /**
@@ -29,7 +48,13 @@ export async function fetchCommitsBetweenRefs(opts) {
   const octokit =
     'octokit' in opts && opts.octokit
       ? opts.octokit
-      : new Octokit({ authStrategy: persistentAuthStrategy });
+      : new ThrottledOctokit({
+          authStrategy: persistentAuthStrategy,
+          throttle: {
+            onRateLimit: shouldRetryRateLimit,
+            onSecondaryRateLimit: shouldRetryRateLimit,
+          },
+        });
 
   return fetchCommitsRest({
     octokit,
@@ -37,6 +62,7 @@ export async function fetchCommitsBetweenRefs(opts) {
     lastRelease: opts.lastRelease,
     release: opts.release,
     org: opts.org ?? 'mui',
+    onProgress: opts.onProgress,
   });
 }
 
@@ -49,7 +75,7 @@ export async function fetchCommitsBetweenRefs(opts) {
  *
  * @returns {Promise<FetchedCommitDetails[]>}
  */
-async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mui' }) {
+async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mui', onProgress }) {
   /**
    * @typedef {Awaited<ReturnType<Octokit['repos']['compareCommits']>>['data']['commits']} Commits
    */
@@ -69,9 +95,19 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
   );
   for await (const response of timeline) {
     results.push(...response.data.commits);
+    onProgress?.({
+      phase: 'Listing commits',
+      count: results.length,
+      total: response.data.total_commits,
+    });
   }
 
-  const promises = results.map(async (commit) => {
+  /**
+   * @param {Commits[number]} commit
+   * @param {AbortSignal} signal
+   * @returns {Promise<FetchedCommitDetails | null>}
+   */
+  const fetchCommitDetails = async (commit, signal) => {
     const matches = [...commit.commit.message.matchAll(/#(\d+)/g)];
     // The PR number is always the last match.
     // Sometimes the PR titles include an issue number like this:
@@ -90,6 +126,7 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
       headers: {
         Accept: 'application/vnd.github.text+json',
       },
+      request: { signal },
     });
 
     const labels = pr.data.labels.map((label) => label.name);
@@ -111,9 +148,33 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
       prTitle: pr.data.title,
       prBody: pr.data.body,
     });
-  });
+  };
 
-  return (await Promise.all(promises)).filter((entry) => entry !== null);
+  // `mapAsync` rejects on the first error but still runs every queued callback.
+  // Aborted once it settles, which cancels requests in flight and skips the ones not started yet.
+  const controller = new AbortController();
+
+  let fetched = 0;
+  try {
+    const commits = await mapAsync(
+      results,
+      async (commit) => {
+        if (controller.signal.aborted) {
+          return null;
+        }
+        const details = await fetchCommitDetails(commit, controller.signal);
+        if (!controller.signal.aborted) {
+          fetched += 1;
+          onProgress?.({ phase: 'Fetching pull requests', count: fetched, total: results.length });
+        }
+        return details;
+      },
+      { concurrency: 10 },
+    );
+    return commits.filter((entry) => entry !== null);
+  } finally {
+    controller.abort();
+  }
 }
 
 /**
