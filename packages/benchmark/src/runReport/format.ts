@@ -210,9 +210,13 @@ export function formatDuration(durationMs: number): string {
 /**
  * How many rounds a benchmark ran, how long it took, and whether sampling resolved: `50 rounds`,
  * `50 + 23 rounds · 1m 12s` past the sample size, `50 + 312 rounds · 3m 04s · timed out`. `null`
- * for a benchmark that measured nothing.
+ * for a benchmark that measured nothing. Without `timedOut`, the timeout is left for the caller to
+ * show on its own.
  */
-export function formatRounds(benchmark: RunBenchmark): string | null {
+export function formatRounds(
+  benchmark: RunBenchmark,
+  { timedOut = true }: { timedOut?: boolean } = {},
+): string | null {
   const [reference] = benchmark.variants;
   const rounds = Object.values(benchmark.samples?.[reference] ?? {})[0]?.length;
   if (rounds === undefined) {
@@ -222,7 +226,7 @@ export function formatRounds(benchmark: RunBenchmark): string | null {
   return [
     rounds > sampleSize ? `${sampleSize} + ${rounds - sampleSize} rounds` : `${rounds} rounds`,
     benchmark.durationMs === undefined ? null : formatDuration(benchmark.durationMs),
-    benchmark.sampling?.timedOut ? 'timed out' : null,
+    timedOut && benchmark.sampling?.timedOut ? 'timed out' : null,
   ]
     .filter(Boolean)
     .join(' · ');

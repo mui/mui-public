@@ -87,13 +87,17 @@ function BenchmarkTable({ analysis }: { analysis: BenchmarkAnalysis }) {
                 : 'Rounds past the sample size were added while a difference was unresolved'
             }
           >
-            <Typography
-              component="span"
-              variant="body2"
-              color={benchmark.sampling?.timedOut ? 'warning.main' : 'text.secondary'}
-            >
-              {formatRounds(benchmark)}
-            </Typography>
+            <span>
+              {formatRounds(benchmark, { timedOut: false })}
+              {benchmark.sampling?.timedOut ? (
+                <React.Fragment>
+                  {' · '}
+                  <Box component="span" sx={{ color: 'warning.main' }}>
+                    timed out
+                  </Box>
+                </React.Fragment>
+              ) : null}
+            </span>
           </Tooltip>
         </Typography>
       </Typography>

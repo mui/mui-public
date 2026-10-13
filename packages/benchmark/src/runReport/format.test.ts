@@ -95,6 +95,12 @@ describe('formatRounds', () => {
   it('says how long a benchmark took next to its rounds', () => {
     expect(formatRounds({ ...benchmarkOf('a'), durationMs: 72_000 })).toBe('4 rounds · 1m 12s');
   });
+
+  it('says when sampling timed out, unless the caller shows that itself', () => {
+    const benchmark = { ...benchmarkOf('a'), sampling: { sampleSize: 4, timedOut: true } };
+    expect(formatRounds(benchmark)).toBe('4 rounds · timed out');
+    expect(formatRounds(benchmark, { timedOut: false })).toBe('4 rounds');
+  });
 });
 
 describe('formatRunSummary', () => {
