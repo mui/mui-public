@@ -36,6 +36,8 @@ export interface RunInterleavedOptions {
   sampling?: SamplingOptions;
   /** Only run benchmarks whose name matches this, like Vitest's `-t`. */
   testNamePattern?: RegExp;
+  /** Stops the run: the browser closes, and the run rejects with the signal's reason. */
+  signal?: AbortSignal;
 }
 
 export interface InterleavedResults {
@@ -193,8 +195,8 @@ interface Progress {
   rounds: Round[];
   /** Read from its reference page after its first sample there. */
   metrics?: Record<string, RunMetricDefinition>;
-  /** When it has to stop sampling past its sample size; set once it reaches it. */
-  deadline?: number;
+  /** When its time is up: past it, only rounds short of its sample size still run. */
+  deadline: number;
   settled: boolean;
   error?: string;
   /** Its samples, plus its share of the page loads they ran in. */
@@ -213,7 +215,7 @@ function isSampling(progress: Progress): boolean {
   if (progress.rounds.length < progress.plan.sampling.sampleSize) {
     return true;
   }
-  return !progress.settled && Date.now() < (progress.deadline ?? 0);
+  return !progress.settled && Date.now() < progress.deadline;
 }
 
 /**
@@ -221,7 +223,7 @@ function isSampling(progress: Progress): boolean {
  * order, and samples them there. A benchmark gets the round only if every one of its variants was
  * sampled in it; one whose sample fails stops, with its error, and the page reloads before the next.
  */
-async function runFileRound(page: Page, active: Progress[]): Promise<void> {
+async function runFileRound(page: Page, active: Progress[], signal?: AbortSignal): Promise<void> {
   const entries = active.map((progress) => ({ progress, round: [] as Round }));
   const urls = [...new Set(active.flatMap(({ plan }) => plan.slots.map((slot) => slot.url)))];
   // Unset after a failed sample, so what the failed case left behind doesn't reach the next one.
@@ -243,6 +245,7 @@ async function runFileRound(page: Page, active: Progress[]): Promise<void> {
       if (progress.error !== undefined) {
         continue;
       }
+      signal?.throwIfAborted();
       try {
         if (loadedUrl !== url) {
           const loadStartedAt = Date.now();
@@ -266,6 +269,8 @@ async function runFileRound(page: Page, active: Progress[]): Promise<void> {
         }
         progress.durationMs += Date.now() - startedAt;
       } catch (error) {
+        // A stopped run closes the browser under the sample; that is no failure of the benchmark.
+        signal?.throwIfAborted();
         console.error(chalk.red(`  ${progress.plan.entry.name}: ${errorMessage(error)}`));
         progress.error = errorMessage(error);
         loadedUrl = undefined;
@@ -277,9 +282,8 @@ async function runFileRound(page: Page, active: Progress[]): Promise<void> {
       continue;
     }
     progress.rounds.push(round);
-    const { sampleSize, timeout } = progress.plan.sampling;
+    const { sampleSize } = progress.plan.sampling;
     if (progress.rounds.length >= sampleSize) {
-      progress.deadline ??= Date.now() + timeout * 60_000;
       progress.settled = differencesSettled(
         compareBenchmark(progress.metrics ?? {}, benchmarkOf(progress)),
       );
@@ -289,17 +293,31 @@ async function runFileRound(page: Page, active: Progress[]): Promise<void> {
 
 /**
  * Measures a file's benchmarks in one tab, a round at a time, until none is still sampling, and
- * returns their results in the plans' order. Each keeps its own rounds: after `sampleSize` of them
- * it goes on while a difference that can alarm is unsettled against its band, until its timeout. A
+ * returns their results in the plans' order. Each keeps its own rounds: it measures `sampleSize` of
+ * them, then goes on while a difference that can alarm is unsettled against its band, until
+ * `timeout` minutes after its sampling began. A
  * failure is reported as the benchmark's error, as is a plan that couldn't be measured at all.
  */
-async function runBenchFile(browser: Browser, plans: PlannedBenchmark[]): Promise<CaseResult[]> {
+async function runBenchFile(
+  browser: Browser,
+  plans: PlannedBenchmark[],
+  signal?: AbortSignal,
+): Promise<CaseResult[]> {
   const count = `${plans.length} benchmark${plans.length === 1 ? '' : 's'}`;
   console.log(chalk.cyan(`\nRunning ${plans[0].entry.file} (${count})…`));
   const startedAt = Date.now();
   // A plan that couldn't be measured keeps its error; the others get a progress to sample into.
   const tracked = plans.map((plan): Progress | Extract<PlannedBenchmark, { error: string }> =>
-    'error' in plan ? plan : { plan, rounds: [], settled: false, durationMs: 0 },
+    'error' in plan
+      ? plan
+      : {
+          plan,
+          rounds: [],
+          settled: false,
+          // The time limit covers all of its sampling, the rounds of its sample size included.
+          deadline: startedAt + plan.sampling.timeout * 60_000,
+          durationMs: 0,
+        },
   );
   const progresses = tracked.filter((item): item is Progress => 'rounds' in item);
   let opened: Page | undefined;
@@ -309,10 +327,11 @@ async function runBenchFile(browser: Browser, plans: PlannedBenchmark[]): Promis
     opened = page;
     while (page && active.length > 0) {
       // eslint-disable-next-line no-await-in-loop
-      await runFileRound(page, active);
+      await runFileRound(page, active, signal);
       active = progresses.filter(isSampling);
     }
   } catch (error) {
+    signal?.throwIfAborted();
     console.error(chalk.red(`  ${errorMessage(error)}`));
     for (const progress of progresses) {
       progress.error ??= errorMessage(error);
@@ -452,7 +471,11 @@ export async function withPlannedRun<T>(
     }),
   ]);
 
+  // Closing the browser ends whatever a page is doing at once, rather than when its sample would.
+  const closeOnAbort = () => browser.close();
+  options.signal?.addEventListener('abort', closeOnAbort, { once: true });
   try {
+    options.signal?.throwIfAborted();
     // Every file is listed before any is measured, so a name pattern that matches nothing fails
     // before the run spends anything. Nothing is measured yet, so the files list at once.
     const { testNamePattern } = options;
@@ -469,7 +492,11 @@ export async function withPlannedRun<T>(
       throw new Error(`No benchmark name matches ${testNamePattern}.`);
     }
     return await drive({ browser, planned });
+  } catch (error) {
+    options.signal?.throwIfAborted();
+    throw error;
   } finally {
+    options.signal?.removeEventListener('abort', closeOnAbort);
     await browser.close();
     await server.close();
   }
@@ -482,7 +509,7 @@ export function runInterleaved(options: RunInterleavedOptions): Promise<Interlea
     // concurrent files would contend for the same machine.
     for (const plans of Map.groupBy(planned, (plan) => plan.entry.file).values()) {
       // eslint-disable-next-line no-await-in-loop
-      results.push(...(await runBenchFile(browser, plans)));
+      results.push(...(await runBenchFile(browser, plans, options.signal)));
     }
     return {
       benchmarks: results.map((result) => result.benchmark),

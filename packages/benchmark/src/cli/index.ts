@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import * as os from 'node:os';
 import chalk from 'chalk';
 import yargs from 'yargs';
 import type { CommandModule } from 'yargs';
@@ -82,7 +83,7 @@ const runCommand: CommandModule<{}, Args> = {
       .option('timeout', {
         type: 'number',
         describe:
-          "Minutes to keep sampling while an alarmed difference is unsettled against its band, for benchmarks that don't set their own (default 3)",
+          "Minutes a benchmark may sample for, its sample size included, while an alarmed difference is unsettled against its band, for benchmarks that don't set their own (default 3)",
       }),
   handler: async (argv) => {
     if (argv.reporter === 'json') {
@@ -93,22 +94,46 @@ const runCommand: CommandModule<{}, Args> = {
       /* eslint-enable no-console */
     }
     const { runBenchmarks } = await import('../runner/runBenchmarks');
-    await runBenchmarks({
-      harnessDir: process.cwd(),
-      filters: argv.filters ?? [],
-      baseline: argv.baseline,
-      buildCmd: argv.buildCmd,
-      out: argv.out,
-      upload: argv.upload,
-      timeline: argv.timeline,
-      testNamePattern: argv.testNamePattern,
-      reporter: argv.reporter,
-      profile: argv.profile,
-      sampling: {
-        sampleSize: argv.sampleSize,
-        timeout: argv.timeout,
-      },
-    });
+    // A canceled CI job or a Ctrl+C stops the run: the browser closes and the workspace is put back,
+    // and the run exits as the signal would have made it, without a stack trace per benchmark. A
+    // second signal exits at once.
+    const stop = new AbortController();
+    const onSignal = (signal: NodeJS.Signals) => {
+      process.exitCode = 128 + os.constants.signals[signal];
+      if (stop.signal.aborted) {
+        process.exit();
+      }
+      console.error(chalk.yellow(`\n${signal}: stopping, and putting the repository back…`));
+      stop.abort(new Error(`Stopped by ${signal}.`));
+    };
+    process.on('SIGINT', onSignal);
+    process.on('SIGTERM', onSignal);
+    try {
+      await runBenchmarks({
+        harnessDir: process.cwd(),
+        filters: argv.filters ?? [],
+        baseline: argv.baseline,
+        buildCmd: argv.buildCmd,
+        out: argv.out,
+        upload: argv.upload,
+        timeline: argv.timeline,
+        testNamePattern: argv.testNamePattern,
+        reporter: argv.reporter,
+        profile: argv.profile,
+        sampling: {
+          sampleSize: argv.sampleSize,
+          timeout: argv.timeout,
+        },
+        signal: stop.signal,
+      });
+    } catch (error) {
+      if (!stop.signal.aborted) {
+        throw error;
+      }
+    } finally {
+      process.off('SIGINT', onSignal);
+      process.off('SIGTERM', onSignal);
+    }
   },
 };
 

@@ -59,6 +59,11 @@ export interface RunBenchmarksOptions {
    */
   reporter?: 'default' | 'json';
   /**
+   * Stops the run: it rejects with the signal's reason once the workspace is put back, without a
+   * report.
+   */
+  signal?: AbortSignal;
+  /**
    * Record the benchmarks instead of measuring them: a performance trace around every sample, to
    * open in DevTools' Performance panel. Writes no report.
    */
@@ -92,6 +97,7 @@ export async function runBenchmarks(
     testNamePattern,
     reporter = 'default',
     profile = false,
+    signal,
   } = options;
   if (timeline !== undefined && !upload) {
     throw new Error('A timeline only applies to an upload: pass --upload with --timeline.');
@@ -170,6 +176,7 @@ export async function runBenchmarks(
       return result.value;
     });
 
+    signal?.throwIfAborted();
     // Then build one set of pages per ref, each against its own packed build so both sides of a
     // comparison resolve the library identically. One at a time: a build pins the repository's own
     // workspace file.
@@ -185,7 +192,9 @@ export async function runBenchmarks(
       });
     }
 
+    signal?.throwIfAborted();
     const runOptions = {
+      signal,
       buildsDir,
       benchFiles,
       benchRefs: refs,

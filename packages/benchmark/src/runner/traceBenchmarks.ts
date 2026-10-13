@@ -32,7 +32,7 @@ export interface BenchmarkTraces extends Pick<RunBenchmark, 'name' | 'file' | 'k
 async function traceBenchmark(
   browser: Browser,
   { entry, slots }: MeasuredBenchmark,
-  { tracesDir, rounds }: { tracesDir: string; rounds: number },
+  { tracesDir, rounds, signal }: { tracesDir: string; rounds: number; signal?: AbortSignal },
 ): Promise<BenchmarkTraces> {
   console.log(chalk.cyan(`\nTracing "${entry.name}" (${entry.file})…`));
   const outDir = path.join(tracesDir, entry.name.replace(/[^\w.-]+/g, '-'));
@@ -58,6 +58,7 @@ async function traceBenchmark(
     }
     return { name: entry.name, file: entry.file, kind: entry.kind, traces };
   } catch (error) {
+    signal?.throwIfAborted();
     console.error(chalk.red(`  ${errorMessage(error)}`));
     return {
       name: entry.name,

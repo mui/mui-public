@@ -3,16 +3,16 @@ import type { MetricComparisons } from './runReport/analyzeRun';
 /**
  * How many rounds a benchmark is sampled for, under tachometer's names. After `sampleSize` rounds,
  * sampling continues while a difference that can raise an alarm is still unsettled against its
- * alarm's `error` band, for up to `timeout` minutes.
+ * alarm's `error` band, until `timeout` minutes after sampling began.
  */
 export interface SamplingOptions {
   /** Rounds measured before deciding whether to continue. Defaults to 50. */
   sampleSize?: number;
   /**
-   * Minutes to keep sampling after `sampleSize` rounds while a difference that can raise an alarm is
-   * unsettled: its interval still straddles the alarm's `error` band (5% for a scalar metric that sets
-   * none), or zero for a discrete one without a band. `0` measures exactly `sampleSize` rounds.
-   * Defaults to 3.
+   * Minutes a benchmark may sample for, its first `sampleSize` rounds included, which always run.
+   * Past them it keeps sampling while a difference that can raise an alarm is unsettled: its interval
+   * still straddles the alarm's `error` band (5% for a scalar metric that sets none), or zero for a
+   * discrete one without a band. `0` measures exactly `sampleSize` rounds. Defaults to 3.
    */
   timeout?: number;
 }
