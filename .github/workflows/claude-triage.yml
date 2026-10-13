@@ -26,10 +26,10 @@ on:
         description: Optional issue comment to acknowledge and use as the discussion cutoff; zero includes all comments available when captured.
         type: number
         default: 0
-      triage-comment-label:
-        description: Optional required label for replies from the issue author, repository collaborators, or organization members to request triage.
+      triage-comment-labels:
+        description: JSON array of labels allowing replies from the issue author, repository collaborators, or organization members to request triage.
         type: string
-        default: ''
+        default: '[]'
       debug:
         description: Log full Claude output, including tool results, in Actions logs.
         type: boolean
@@ -92,7 +92,7 @@ jobs:
           ISSUE_NUMBER: ${{ inputs.issue-number }}
           REQUEST_MODE: ${{ inputs.mode }}
           COMMENT_ID: ${{ inputs.comment-id }}
-          TRIAGE_COMMENT_LABEL: ${{ inputs.triage-comment-label }}
+          TRIAGE_COMMENT_LABELS: ${{ inputs.triage-comment-labels }}
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
@@ -104,6 +104,10 @@ jobs:
                 !Number.isSafeInteger(commentId) || commentId < 0 ||
                 !['triage', 'fix'].includes(mode)) {
               throw new Error('Expected a positive issue-number, mode triage or fix, and a non-negative comment-id.');
+            }
+            const commentLabels = JSON.parse(process.env.TRIAGE_COMMENT_LABELS);
+            if (!Array.isArray(commentLabels) || commentLabels.some((label) => typeof label !== 'string' || !label)) {
+              throw new Error('triage-comment-labels must be a JSON array of non-empty label names.');
             }
             const actor = context.payload.sender;
             const { data: issue } = await github.rest.issues.get({
@@ -117,10 +121,10 @@ jobs:
               commentId > 0 && context.payload.comment?.id === commentId &&
               context.payload.comment?.user?.type === 'User' &&
               context.payload.comment.user.login === actor.login &&
-              Boolean(process.env.TRIAGE_COMMENT_LABEL) &&
-              issue.labels.some((label) => (typeof label === 'string' ? label : label.name) === process.env.TRIAGE_COMMENT_LABEL);
-            // Even maintainers cannot retrigger opted-in comment triage after the label is removed.
-            if (process.env.TRIAGE_COMMENT_LABEL && context.eventName === 'issue_comment' && !labeledCommentRequest) return;
+              commentLabels.length > 0 &&
+              issue.labels.some((label) => commentLabels.includes(typeof label === 'string' ? label : label.name));
+            // Even maintainers cannot retrigger opted-in comment triage without an allowed label.
+            if (commentLabels.length > 0 && context.eventName === 'issue_comment' && !labeledCommentRequest) return;
             // GitHub supplies author_association; comment text cannot confer repository/org access.
             const authorizedCommentRequest = labeledCommentRequest &&
               (issue.user?.login === actor.login ||
