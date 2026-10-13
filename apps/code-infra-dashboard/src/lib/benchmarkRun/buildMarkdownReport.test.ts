@@ -69,6 +69,17 @@ const faster: RunBenchmark = {
   },
 };
 
+const mixed: RunBenchmark = {
+  name: 'Toolbar mount',
+  file: 'toolbar.bench.tsx',
+  kind: 'baseline',
+  variants: ['current', 'baseline'],
+  samples: {
+    current: { render: [5, 6, 5, 6], 'bench:paint': [30, 31, 30, 31] },
+    baseline: { render: [10, 11, 10, 11], 'bench:paint': [20, 21, 20, 21] },
+  },
+};
+
 describe('buildBenchmarkRunMarkdownReport', () => {
   it('is a single line when nothing needs attention', () => {
     expect(
@@ -76,23 +87,45 @@ describe('buildBenchmarkRunMarkdownReport', () => {
     ).toBe('## Performance\n\nNo regressions in 2 benchmarks');
   });
 
-  it('names improvements on alarmed metrics in that line, and leaves informational ones out', () => {
-    const markdown = buildBenchmarkRunMarkdownReport(reportOf([faster]), { title: 'Performance' });
+  it('tables the rows that improved on alarmed metrics, and leaves informational ones out', () => {
+    expect(buildBenchmarkRunMarkdownReport(reportOf([faster]), { title: 'Performance' }))
+      .toMatchInlineSnapshot(`
+        "## Performance
 
-    expect(markdown.split('\n')).toHaveLength(3);
-    expect(markdown).toContain('**Tooltip mount** render `better');
-    expect(markdown).not.toContain('bench:paint');
+        No regressions in 1 benchmark
+
+        **Tooltip mount**
+
+        | Metric | baseline | current | Δ vs baseline |
+        |:----------|----------:|----------:|:----------|
+        | render | 10.5 ms | 5.5 ms | 🟢 \`better -47.6% – -47.6%\` |
+
+
+        _Medians; Δ is the confidence interval of the paired per-round difference (99%)._"
+      `);
   });
 
-  it('names a benchmark once, however many of its alarmed metrics improved', () => {
-    const report = reportOf([faster]);
+  it('puts the regressed and improved rows of a benchmark in one table', () => {
+    const report = reportOf([mixed]);
     const markdown = buildBenchmarkRunMarkdownReport(
-      { ...report, metrics: { ...report.metrics, 'bench:paint': { kind: 'scalar', alarm: {} } } },
+      {
+        ...report,
+        metrics: { ...report.metrics, 'bench:paint': { kind: 'scalar', format: MS, alarm: {} } },
+      },
       { title: 'Performance' },
     );
 
-    expect(markdown.match(/Tooltip mount/g)).toHaveLength(1);
-    expect(markdown).toMatch(/\*\*Tooltip mount\*\* render `better[^`]*`, bench:paint `better/);
+    expect(markdown.match(/Toolbar mount/g)).toHaveLength(1);
+    expect(markdown).toContain('| render | 10.5 ms | 5.5 ms | 🟢 `better');
+    expect(markdown).toContain('| bench:paint | 20.5 ms | 30.5 ms | 🔴 `worse');
+  });
+
+  it('lists the benchmarks with a regression before the ones that only improved', () => {
+    const markdown = buildBenchmarkRunMarkdownReport(reportOf([faster, slower]), {
+      title: 'Performance',
+    });
+
+    expect(markdown.indexOf('**Grid scroll**')).toBeLessThan(markdown.indexOf('**Tooltip mount**'));
   });
 
   it('tables only the rows that regressed, and marks the heading', () => {
