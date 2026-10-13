@@ -9,6 +9,8 @@ import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import { build } from 'tsdown';
 import { declarationReexports } from './declarationReexports.mjs';
+import { libraryImports } from './libraryImports.mjs';
+import { moduleRequest, orderModuleRequests } from './moduleRequestOrder.mjs';
 
 // Babel configurations read build settings from process.env. Isolate formats in
 // separate processes so parallel ESM and CommonJS builds cannot share that state.
@@ -59,6 +61,117 @@ const entries = Object.fromEntries(
 );
 /** @type {Map<string, string[]>} */
 const directives = new Map();
+const caller = {
+  name: 'tsdown-bundler',
+  supportsStaticESM: true,
+  supportsDynamicImport: true,
+  supportsExportNamespaceFrom: true,
+};
+/** @type {Map<string, { code: string; map: import('@babel/core').FileResult['map']; ast: import('@babel/core').types.File; directives: string[] }>} */
+const transformed = new Map();
+await Promise.all(
+  files.map(async (id) => {
+    const code = await fs.readFile(id, 'utf8');
+    /** @type {NonNullable<import('@babel/core').InputOptions['parserOpts']>} */
+    const parserOpts = { plugins: /\.[cm]?ts$/.test(id) ? ['typescript'] : ['typescript', 'jsx'] };
+    const original = await parseAsync(code, {
+      filename: id,
+      configFile: false,
+      babelrc: false,
+      parserOpts,
+    });
+    if (!original) {
+      throw new Error(`Cannot parse library source "${id}".`);
+    }
+    const prologue = original.program.directives.map((directive) => directive.value.value);
+    directives.set(id, prologue);
+    const result = options.configFile
+      ? await transformAsync(code, {
+          filename: id,
+          configFile: options.configFile,
+          caller,
+          sourceMaps: options.sourceMap,
+          ast: true,
+        })
+      : null;
+    const hasEsmExports = original.program.body.some(
+      (node) =>
+        (node.type === 'ExportNamedDeclaration' && node.exportKind !== 'type') ||
+        node.type === 'ExportDefaultDeclaration' ||
+        node.type === 'ExportAllDeclaration',
+    );
+    const nativeCommonJs = /\.c[jt]s$/.test(id) && !hasEsmExports;
+    if (
+      original.program.sourceType === 'module' &&
+      result?.ast?.program.sourceType === 'script' &&
+      !nativeCommonJs
+    ) {
+      throw new Error(
+        `Babel converted ES module "${id}" to CommonJS. tsdown requires ES module syntax; use preset-env modules: false or auto with the tsdown caller, including in per-file overrides.`,
+      );
+    }
+    const output = result?.code ?? code;
+    const ast = await parseAsync(output, {
+      filename: id,
+      configFile: false,
+      babelrc: false,
+      parserOpts,
+    });
+    if (!ast) {
+      throw new Error(`Cannot parse Babel output for "${id}".`);
+    }
+    transformed.set(id, { code: output, map: result?.map ?? null, ast, directives: prologue });
+  }),
+);
+const optimizeImports = libraryImports(transformed);
+await Promise.all(
+  [...transformed].map(async ([id, module]) => {
+    const result = await transformAsync(module.code, {
+      filename: id,
+      configFile: false,
+      babelrc: false,
+      parserOpts: { plugins: /\.[cm]?ts$/.test(id) ? ['typescript'] : ['typescript', 'jsx'] },
+      plugins: [optimizeImports],
+      sourceMaps: options.sourceMap,
+      inputSourceMap: module.map
+        ? {
+            ...module.map,
+            sources: module.map.sources.map((source) => source ?? id),
+            names: [...module.map.names],
+            sourcesContent: module.map.sourcesContent?.every((content) => content !== null)
+              ? module.map.sourcesContent.map((content) => content ?? '')
+              : undefined,
+            file: module.map.file ?? id,
+          }
+        : undefined,
+    });
+    if (result?.code !== null && result?.code !== undefined) {
+      module.code = result.code;
+      module.map = result.map;
+    }
+  }),
+);
+/** @type {Map<string, string[]>} */
+const requestOrder = new Map();
+await Promise.all(
+  [...transformed].map(async ([id, module]) => {
+    const ast = await parseAsync(module.code, {
+      filename: id,
+      configFile: false,
+      babelrc: false,
+      parserOpts: { plugins: /\.[cm]?ts$/.test(id) ? ['typescript'] : ['typescript', 'jsx'] },
+    });
+    requestOrder.set(
+      id,
+      ast?.program.body.flatMap((node) => {
+        const source = moduleRequest(node);
+        return source === undefined ? [] : [source];
+      }) ?? [],
+    );
+  }),
+);
+/** @type {Map<string, Map<string, string>>} */
+const resolvedRequests = new Map();
 await build({
   config: false,
   entry: entries,
@@ -120,7 +233,7 @@ await build({
           .slice(0, -path.extname(resolvedSource).length)
           .split(path.sep)
           .join('/');
-        if (!sources.has(stem)) {
+        if (sources.get(stem) !== resolvedSource) {
           if (/\.[cm]?[jt]sx?$/.test(resolvedSource)) {
             throw new Error(
               `Library import "${id}" references excluded source "${resolvedSource}".`,
@@ -143,49 +256,46 @@ await build({
         if (!relative.startsWith('.')) {
           relative = `./${relative}`;
         }
+        let requests = resolvedRequests.get(importer);
+        if (!requests) {
+          requests = new Map();
+          resolvedRequests.set(importer, requests);
+        }
+        requests.set(id, relative);
         return { id: relative, external: true };
       },
-      async transform(code, id) {
-        const ast = await parseAsync(code, {
-          filename: id,
-          configFile: false,
-          babelrc: false,
-          parserOpts: { plugins: /\.[cm]?ts$/.test(id) ? ['typescript'] : ['typescript', 'jsx'] },
-        });
-        if (ast?.type === 'File') {
-          directives.set(
-            id,
-            ast.program.directives.map((directive) => directive.value.value),
-          );
-        }
-        if (!options.configFile) {
-          return null;
-        }
-        const result = await transformAsync(code, {
-          filename: id,
-          configFile: options.configFile,
-          caller: { name: 'tsdown-bundler', supportsStaticESM: true },
-          sourceMaps: options.sourceMap,
-          ast: true,
-        });
+      transform(_code, id) {
+        // Only original source modules pass through Babel. Rolldown's generated
+        // runtime and virtual modules must retain the bundler's own syntax.
+        const result = transformed.get(id);
         return result
-          ? { code: result.code ?? '', map: result.map ? JSON.stringify(result.map) : undefined }
+          ? { code: result.code, map: result.map ? JSON.stringify(result.map) : undefined }
           : null;
       },
       async renderChunk(code, chunk) {
-        const prologue = directives.get(chunk.facadeModuleId ?? '') ?? [];
-        const retained = prologue.filter((directive) => directive !== 'use strict');
-        const isBin = options.binSources.includes(chunk.facadeModuleId ?? '');
-        if (!retained.length && !isBin) {
+        const source = chunk.facadeModuleId ?? '';
+        if (!transformed.has(source)) {
           return null;
         }
+        const prologue = directives.get(source) ?? [];
+        const retained = prologue.filter((directive) => directive !== 'use strict');
+        const isBin = options.binSources.includes(source);
         const ast = await parseAsync(code, { configFile: false, babelrc: false });
-        const emitted = new Set(ast?.program.directives.map((directive) => directive.value.value));
-        const missing = [...new Set(retained)].filter((directive) => !emitted.has(directive));
-        if (!missing.length && !isBin) {
-          return null;
+        if (!ast) {
+          throw new Error(`Cannot parse emitted module "${source}".`);
         }
         const output = new MagicString(code);
+        const reordered = orderModuleRequests(
+          ast.program,
+          output,
+          requestOrder.get(source) ?? [],
+          resolvedRequests.get(source) ?? new Map(),
+        );
+        const emitted = new Set(ast.program.directives.map((directive) => directive.value.value));
+        const missing = [...new Set(retained)].filter((directive) => !emitted.has(directive));
+        if (!missing.length && !isBin && !reordered) {
+          return null;
+        }
         const shebangEnd = code.startsWith('#!') ? code.indexOf('\n') + 1 : 0;
         if (isBin && shebangEnd) {
           output.overwrite(0, shebangEnd, '#!/usr/bin/env node\n');

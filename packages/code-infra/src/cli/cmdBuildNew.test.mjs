@@ -117,6 +117,200 @@ async function readDirectives(outputDir, extensions) {
 }
 
 describe('build-new library consumption', () => {
+  it.each(['preset', 'override', 'native-override'])(
+    'rejects Babel module conversion through a %s',
+    async (kind) => {
+      const cwd = await createLibrary('module');
+      await fs.writeFile(path.join(cwd, 'src/nativeNamed.cts'), 'export const value = 1;');
+      const pkgPath = path.join(cwd, 'package.json');
+      const pkg = JSON.parse(await fs.readFile(pkgPath, 'utf8'));
+      pkg.dependencies = { '@babel/runtime': '^8.0.7' };
+      await fs.writeFile(pkgPath, JSON.stringify(pkg));
+      const preset = pathToFileURL(
+        createRequire(path.join(repoRoot, 'packages/code-infra/package.json')).resolve(
+          '@babel/preset-env',
+        ),
+      ).href;
+      await fs.writeFile(
+        path.join(cwd, 'babel.config.mjs'),
+        `
+      import presetEnv from ${JSON.stringify(preset)};
+      export default {
+        parserOpts: { plugins: ['typescript'] },
+        presets: [[presetEnv, { modules: ${JSON.stringify(kind === 'preset' ? 'commonjs' : 'auto')}, targets: { node: 'current' } }]],
+        overrides: ${kind !== 'preset' ? `[{ test: /${kind === 'native-override' ? 'nativeNamed\\.cts' : 'counter\\.ts'}$/, presets: [[presetEnv, { modules: 'commonjs' }]] }]` : '[]'},
+      };
+    `,
+      );
+      await expect(
+        execa(process.execPath, [cli, 'build-new', '--skipTypes'], { cwd }),
+      ).rejects.toThrow(/Babel converted ES module/);
+    },
+  );
+
+  it('honors per-file Babel overrides without transforming generated runtime modules', async () => {
+    const cwd = await createLibrary('module');
+    const pkgPath = path.join(cwd, 'package.json');
+    const pkg = JSON.parse(await fs.readFile(pkgPath, 'utf8'));
+    pkg.dependencies = { '@babel/runtime': '^8.0.7' };
+    await fs.writeFile(pkgPath, JSON.stringify(pkg));
+    await fs.writeFile(
+      path.join(cwd, 'babel.config.mjs'),
+      `
+      export default {
+        parserOpts: { plugins: ['typescript'] },
+        plugins: [() => ({ visitor: { Program(_program, state) {
+          if (!state.filename.includes('/src/')) throw new Error('Generated runtime passed through Babel');
+        } } })],
+        overrides: [{ test: /counter\\.ts$/, plugins: [({ types }) => ({ visitor: { StringLiteral(node) {
+          if (node.node.value === 'used-member') node.replaceWith(types.stringLiteral('OVERRIDE_MEMBER'));
+        } } })] }],
+      };
+    `,
+    );
+    await execa(process.execPath, [cli, 'build-new', '--skipTypes', '--sourceMap'], { cwd });
+    const esm = await import(pathToFileURL(path.join(cwd, 'build/index.js')).href);
+    const cjs = createRequire(import.meta.url)(path.join(cwd, 'build/index.cjs'));
+    expect(esm.api.hello1()).toBe('OVERRIDE_MEMBER');
+    expect(cjs.api.hello1()).toBe('OVERRIDE_MEMBER');
+    const map = JSON.parse(await fs.readFile(path.join(cwd, 'build/counter.js.map'), 'utf8'));
+    expect(map.sourcesContent.join('\n')).toContain('used-member');
+  });
+
+  it('preserves JSON assets that share a source module basename', async () => {
+    const cwd = await createLibrary('module');
+    await fs.writeFile(path.join(cwd, 'src/config.ts'), 'export const unrelated = 1;');
+    await fs.writeFile(path.join(cwd, 'src/config.json'), '{"value":42}');
+    await fs.writeFile(
+      path.join(cwd, 'src/asset.ts'),
+      "import config from './config.json' with { type: 'json' }; export const value = config.value;",
+    );
+    await execa(process.execPath, [cli, 'build-new', '--bundle', 'esm', '--skipTypes'], { cwd });
+    const emitted = await import(pathToFileURL(path.join(cwd, 'build/asset.js')).href);
+    expect(emitted.value).toBe(42);
+    expect(JSON.parse(await fs.readFile(path.join(cwd, 'build/config.json'), 'utf8'))).toEqual({
+      value: 42,
+    });
+  });
+
+  it('flattens pure barrels and inlines metadata without crossing directives or losing effects', async () => {
+    const cwd = await createLibrary('module');
+    const sources = {
+      'orderLog.ts': 'export const events = [];',
+      'orderFirst.ts':
+        "import { events } from './orderLog'; events.push('first'); export const value = 1;",
+      'orderSecond.ts':
+        "import { events } from './orderLog'; events.push('second'); export const value = 2;",
+      'orderConsumer.ts':
+        "import * as first from './orderFirst'; import * as second from './orderSecond'; import { events } from './orderLog'; export const sum = first.value + second.value; export { events };",
+      'localRequire.ts':
+        "import { value as first } from './orderFirst'; const require = (name) => ({ value: name === 'config' ? 42 : 0 }); const computed = require('config'); export const answer = first + computed.value;",
+      'metadata.ts':
+        "export const open = 'data-open'; export const width = '--popup-width'; export const plain = 'plain';",
+      'unselectedEffect.ts': "console.log('UNSELECTED_BARREL_EFFECT'); export const hidden = 1;",
+      'cycleFunctionA.ts':
+        "import './cycleFunctionB'; import { open } from './metadata'; export function beforeInit() { return open; }",
+      'cycleFunctionB.ts':
+        "import { beforeInit } from './cycleFunctionA'; export const result = beforeInit();",
+      'barrel.ts':
+        "export { open as renamed, width, plain } from './metadata'; export { counter, bump } from './counter'; export * as api from './counter'; export { hidden } from './unselectedEffect';",
+      'clientBarrel.ts': "'use client'; export { open } from './metadata';",
+      'effectMetadata.ts':
+        "export const effects = []; effects.push('initialized'); export const open = 'data-effect';",
+      'extra.ts':
+        "import { renamed, width, counter, bump, api } from './barrel'; import { open as boundary } from './clientBarrel'; import * as effects from './effectMetadata'; export const attributes = { [renamed]: '', [width]: '10px' }; export function read() { return [counter, boundary, effects.open, api.counter, effects.effects.length]; } export { bump }; export function shadow(renamed) { return renamed; }",
+      'dynamic.ts':
+        "import * as metadata from './metadata'; export function dynamic(key) { return metadata[key]; } export const computed = metadata['open'];",
+      'cycleA.ts': "export * from './cycleB';",
+      'cycleB.ts': "export * from './cycleA';",
+      'cycleConsumer.ts':
+        "import * as cycle from './cycleA'; export function keys() { return Object.keys(cycle); }",
+      'defaultOnly.ts': 'export default function answer() { return 42; }',
+      'otherMetadata.ts': "export const open = 'data-other';",
+      'ambiguous.ts': "export * from './metadata'; export * from './otherMetadata';",
+      'ambiguousConsumer.ts':
+        "import * as ambiguous from './ambiguous'; export const open = ambiguous.open;",
+    };
+    await Promise.all(
+      Object.entries(sources).map(([file, code]) =>
+        fs.writeFile(path.join(cwd, 'src', file), code),
+      ),
+    );
+    await execa(process.execPath, [cli, 'build-new', '--skipTypes', '--sourceMap'], { cwd });
+    const code = await fs.readFile(path.join(cwd, 'build/extra.js'), 'utf8');
+    expect(code).toContain('"data-open"');
+    expect(code).toContain('"--popup-width"');
+    expect(code).toMatch(/from "\.\/counter\.js"/);
+    expect(code).toMatch(/from "\.\/clientBarrel\.js"/);
+    expect(code).toMatch(/from "\.\/effectMetadata\.js"/);
+    const esm = await import(pathToFileURL(path.join(cwd, 'build/extra.js')).href);
+    expect(esm.attributes).toEqual({ 'data-open': '', '--popup-width': '10px' });
+    expect(esm.read()).toEqual([0, 'data-open', 'data-effect', 0, 1]);
+    esm.bump();
+    expect(esm.read()).toEqual([1, 'data-open', 'data-effect', 1, 1]);
+    expect(esm.shadow('shadowed')).toBe('shadowed');
+    const cjs = createRequire(import.meta.url)(path.join(cwd, 'build/extra.cjs'));
+    expect(cjs.attributes).toEqual(esm.attributes);
+    expect(cjs.read()).toEqual([0, 'data-open', 'data-effect', 0, 1]);
+    const defaults = createRequire(import.meta.url)(path.join(cwd, 'build/defaultOnly.cjs'));
+    expect(Reflect.get(defaults, '__esModule')).toBe(true);
+    expect(defaults.default()).toBe(42);
+    const esmOrder = await import(pathToFileURL(path.join(cwd, 'build/orderConsumer.js')).href);
+    const cjsOrder = createRequire(import.meta.url)(path.join(cwd, 'build/orderConsumer.cjs'));
+    expect(esmOrder.sum).toBe(3);
+    expect(esmOrder.events).toEqual(['first', 'second']);
+    expect(cjsOrder.events).toEqual(['first', 'second']);
+    const localRequire = await import(pathToFileURL(path.join(cwd, 'build/localRequire.js')).href);
+    expect(localRequire.answer).toBe(43);
+    expect(createRequire(import.meta.url)(path.join(cwd, 'build/localRequire.cjs')).answer).toBe(
+      43,
+    );
+    const dynamic = await import(pathToFileURL(path.join(cwd, 'build/dynamic.js')).href);
+    expect(dynamic.dynamic('plain')).toBe('plain');
+    expect(dynamic.computed).toBe('data-open');
+    const cycle = await import(pathToFileURL(path.join(cwd, 'build/cycleConsumer.js')).href);
+    expect(cycle.keys()).toEqual([]);
+    const ambiguous = await execa(
+      process.execPath,
+      [
+        '--input-type=module',
+        '-e',
+        `import { open } from ${JSON.stringify(pathToFileURL(path.join(cwd, 'build/ambiguousConsumer.js')).href)}; console.log(String(open));`,
+      ],
+      { cwd },
+    );
+    expect(ambiguous.stdout).toBe('undefined');
+    const effects = await execa(
+      process.execPath,
+      [
+        '--input-type=module',
+        '-e',
+        `import ${JSON.stringify(pathToFileURL(path.join(cwd, 'build/extra.js')).href)};`,
+      ],
+      { cwd },
+    );
+    expect(effects.stdout).toContain('UNSELECTED_BARREL_EFFECT');
+    await expect(
+      execa(
+        process.execPath,
+        [
+          '--input-type=module',
+          '-e',
+          `import ${JSON.stringify(pathToFileURL(path.join(cwd, 'build/cycleFunctionA.js')).href)};`,
+        ],
+        { cwd },
+      ),
+    ).rejects.toThrow(/before initialization/);
+    const client = parseSync(await fs.readFile(path.join(cwd, 'build/clientBarrel.js'), 'utf8'), {
+      configFile: false,
+      babelrc: false,
+    });
+    expect(
+      client?.program.directives.filter((node) => node.value.value === 'use client'),
+    ).toHaveLength(1);
+    const map = JSON.parse(await fs.readFile(path.join(cwd, 'build/extra.js.map'), 'utf8'));
+    expect(map.sourcesContent.join('\n')).toContain('import { renamed, width');
+  });
   it.each(['bin', 'asset', 'collision'])('rejects an invalid %s emission plan', async (kind) => {
     const cwd = await createLibrary('module');
     if (kind === 'bin') {
@@ -292,6 +486,38 @@ describe('build-new library consumption', () => {
       expect(code).toContain('SIDE_EFFECT_SENTINEL');
       expect(code).not.toContain('UNUSED_NAMESPACE_SENTINEL');
       expect(code).not.toContain('__exportAll');
+      await fs.writeFile(
+        path.join(cwd, 'cjs-consumer.cjs'),
+        `const { api } = require('./build/index${cjsExtension}'); console.log(api.hello1());`,
+      );
+      const cjsApp = await vite({
+        configFile: false,
+        root: cwd,
+        logLevel: 'silent',
+        build: {
+          outDir: 'cjs-consumer-output',
+          minify: false,
+          commonjsOptions: { include: [/cjs-consumer/, /\/build\//] },
+          lib: { entry: path.join(cwd, 'cjs-consumer.cjs'), formats: ['es'] },
+        },
+      });
+      if (!Array.isArray(cjsApp) && 'on' in cjsApp) {
+        throw new Error('Unexpected watch build');
+      }
+      const cjsOutputs = Array.isArray(cjsApp)
+        ? cjsApp.flatMap((result) => result.output)
+        : cjsApp.output;
+      const cjsEntry = cjsOutputs.find((chunk) => chunk.type === 'chunk' && chunk.isEntry);
+      if (!cjsEntry) {
+        throw new Error('Missing CJS consumer entry');
+      }
+      const executed = await execa(
+        process.execPath,
+        [path.join(cwd, 'cjs-consumer-output', cjsEntry.fileName)],
+        { cwd },
+      );
+      expect(executed.stdout).toContain('used-member');
+      expect(executed.stdout).toContain('SIDE_EFFECT_SENTINEL');
       await fs.writeFile(
         path.join(cwd, 'types-consumer.mts'),
         `/// <reference path="./build/ambient.d.ts" />\nimport type { Ambient } from 'library-ambient'; const ambient: Ambient = { value: 1 }; void ambient; import type { Standalone } from './build/standalone${esmExtension}'; const standalone: Standalone = { value: 1 }; void standalone; import { api, esmValue, common, native } from './build/index${esmExtension}'; const nativeValue: number = native.value; void nativeValue; const extra: number = esmValue + common.value; void extra; const count: number = api.counter; api.bump(); void count;`,
