@@ -16,10 +16,11 @@ import {
 import type { MeasuredBenchmark, RunInterleavedOptions } from './runInterleaved';
 
 /**
- * Records benchmarks instead of measuring them, to show where their time goes: every sample runs as
- * it would be measured — the first iteration of a freshly loaded page, in one tab, the variants
- * alternating — with a performance trace recorded around it, to open in DevTools' Performance
- * panel. Tracing slows the code it records, so nothing here is a measurement.
+ * Records benchmarks instead of measuring them, to show where their time goes: every sample runs in a
+ * freshly loaded page of its own, in one tab, the variants alternating, with a performance trace
+ * recorded around it to open in DevTools' Performance panel. A measured run shares a page between a
+ * file's benchmarks; a trace leaves the others out, to show one benchmark alone. Tracing slows the
+ * code it records, so nothing here is a measurement.
  */
 
 export interface BenchmarkTraces extends Pick<RunBenchmark, 'name' | 'file' | 'kind'> {

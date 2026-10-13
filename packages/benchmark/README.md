@@ -402,20 +402,23 @@ compare('scatter', [
 ]);
 ```
 
-Every sample loads the whole benchmark file in a fresh page, so a static import reaches every case.
-Import what only one case needs inside that case, before the part it times: it then loads in that
-case's samples only.
+Every page load runs the whole benchmark file, so a static import reaches every case. Import what
+only one case needs inside that case, before the part it times: it then loads where that case runs
+only.
 
 ### How it measures
 
 The plugin generates a page per benchmark file under `src/__bench__/`. A benchmark file that imports
 `vitest`, or the Vitest entry `@mui/internal-benchmark`, fails the build. The runner drives Chromium
-through Playwright and runs each benchmark in one tab, which loads the page of the variant to be
-measured — the current or the baseline build, or a case of a `compare()` — before every sample.
-Every sample is the first iteration of a freshly loaded page, with garbage collected right before
-it, and every variant runs in the same renderer process. Whatever a page or a process holds on to —
-the JIT tier its code settled into, the heap it grew — then never favours one variant for the whole
-benchmark, which the paired rounds below could not tell from a real difference.
+through Playwright and runs a file's benchmarks in one tab. Every round, it loads each build's page
+once and samples every benchmark of the file that is still sampling there, with garbage collected
+right before each sample; the cases of a `compare()` share the working tree's page. Benchmarks run in
+the order the file declares them. A page is loaded afresh every round, and every variant runs in the same renderer process.
+Whatever a page or a process holds on to — the JIT tier its code settled into, the heap it grew —
+then never favours one variant for the whole benchmark, which the paired rounds below could not tell
+from a real difference. A file's benchmarks do share a page within a round, so code one of them
+warmed can speed up the next: a file is a unit of related benchmarks, and an unrelated one belongs in
+a file of its own.
 
 Every variant is sampled once per round, in a shuffled order, and a difference is judged on the
 per-round differences rather than on two independent sets of samples. Whatever the machine was doing
@@ -553,8 +556,8 @@ variant's median and each comparison's interval, verdict and severity, plus the 
 long it all took — with everything else a run prints sent to stderr. `summarizeRun` from
 `@mui/internal-benchmark/runReport` produces the same from a report. `NO_COLOR` turns colour off.
 
-`--profile` records instead of measuring: each sample runs as it would be measured, with a
-performance trace around it, saved under `.benchmark/traces/` to open in DevTools' Performance
+`--profile` records instead of measuring: each sample runs in a freshly loaded page of its own, with
+a performance trace around it, saved under `.benchmark/traces/` to open in DevTools' Performance
 panel — 5 rounds unless `--sample-size` says otherwise. It writes no report: tracing slows the code
 it records.
 
