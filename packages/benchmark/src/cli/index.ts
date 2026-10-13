@@ -130,9 +130,6 @@ const runCommand: CommandModule<{}, Args> = {
       if (!stop.signal.aborted) {
         throw error;
       }
-    } finally {
-      process.off('SIGINT', onSignal);
-      process.off('SIGTERM', onSignal);
     }
   },
 };

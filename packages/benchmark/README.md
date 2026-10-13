@@ -445,9 +445,9 @@ which costs the results precision.
 How many rounds a benchmark is measured for adapts to its results, the way tachometer's
 auto-sampling does. After `sampleSize` rounds, rounds keep being added while a difference that can
 raise an alarm is unsettled, until `timeout` minutes after the benchmark began sampling. The
-`sampleSize` rounds count toward that time but always run, even past it. A difference is settled once its interval
-lies entirely past its alarm's `error` band on the worse side, or entirely short of it: known to
-alarm, or known not to. Improvements never keep a run going.
+`sampleSize` rounds count toward that time but always run, even past it. A difference is settled
+once its interval lies entirely past its alarm's `error` band on the worse side, or entirely short
+of it: known to alarm, or known not to. Improvements never keep a run going.
 A scalar metric's alarm without a band uses 5%; a discrete one's settles against zero, which an
 unchanged count does at once. Differences that can't alarm, in a `compare()` or a metric without an alarm, never
 keep a run going.

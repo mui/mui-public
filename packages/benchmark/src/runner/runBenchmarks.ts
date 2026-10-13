@@ -59,8 +59,7 @@ export interface RunBenchmarksOptions {
    */
   reporter?: 'default' | 'json';
   /**
-   * Stops the run: it rejects with the signal's reason once the workspace is put back, without a
-   * report.
+   * Stops the run: it rejects once the workspace is put back, without a report.
    */
   signal?: AbortSignal;
   /**
@@ -176,11 +175,11 @@ export async function runBenchmarks(
       return result.value;
     });
 
-    signal?.throwIfAborted();
     // Then build one set of pages per ref, each against its own packed build so both sides of a
     // comparison resolve the library identically. One at a time: a build pins the repository's own
     // workspace file.
     for (const [index, ref] of refs.entries()) {
+      signal?.throwIfAborted();
       // eslint-disable-next-line no-await-in-loop
       await buildRefPages({
         harnessDir,
@@ -192,7 +191,6 @@ export async function runBenchmarks(
       });
     }
 
-    signal?.throwIfAborted();
     const runOptions = {
       signal,
       buildsDir,

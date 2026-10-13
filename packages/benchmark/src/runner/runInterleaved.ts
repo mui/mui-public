@@ -1,5 +1,6 @@
 /* eslint-disable no-console */
 
+import { addAbortListener } from 'node:events';
 import chalk from 'chalk';
 import type { Browser, CDPSession, Page } from '@playwright/test';
 import { BENCHMARK_LAUNCH_ARGS, BENCHMARK_VIEWPORT } from '../launchArgs';
@@ -36,7 +37,7 @@ export interface RunInterleavedOptions {
   sampling?: SamplingOptions;
   /** Only run benchmarks whose name matches this, like Vitest's `-t`. */
   testNamePattern?: RegExp;
-  /** Stops the run: the browser closes, and the run rejects with the signal's reason. */
+  /** Stops the run: the browser closes, and the run rejects. */
   signal?: AbortSignal;
 }
 
@@ -245,7 +246,6 @@ async function runFileRound(page: Page, active: Progress[], signal?: AbortSignal
       if (progress.error !== undefined) {
         continue;
       }
-      signal?.throwIfAborted();
       try {
         if (loadedUrl !== url) {
           const loadStartedAt = Date.now();
@@ -282,8 +282,7 @@ async function runFileRound(page: Page, active: Progress[], signal?: AbortSignal
       continue;
     }
     progress.rounds.push(round);
-    const { sampleSize } = progress.plan.sampling;
-    if (progress.rounds.length >= sampleSize) {
+    if (progress.rounds.length >= progress.plan.sampling.sampleSize) {
       progress.settled = differencesSettled(
         compareBenchmark(progress.metrics ?? {}, benchmarkOf(progress)),
       );
@@ -295,8 +294,8 @@ async function runFileRound(page: Page, active: Progress[], signal?: AbortSignal
  * Measures a file's benchmarks in one tab, a round at a time, until none is still sampling, and
  * returns their results in the plans' order. Each keeps its own rounds: it measures `sampleSize` of
  * them, then goes on while a difference that can alarm is unsettled against its band, until
- * `timeout` minutes after its sampling began. A
- * failure is reported as the benchmark's error, as is a plan that couldn't be measured at all.
+ * `timeout` minutes after its sampling began. A failure is reported as the benchmark's error, as is
+ * a plan that couldn't be measured at all.
  */
 async function runBenchFile(
   browser: Browser,
@@ -472,8 +471,8 @@ export async function withPlannedRun<T>(
   ]);
 
   // Closing the browser ends whatever a page is doing at once, rather than when its sample would.
-  const closeOnAbort = () => browser.close();
-  options.signal?.addEventListener('abort', closeOnAbort, { once: true });
+  const closeOnAbort =
+    options.signal && addAbortListener(options.signal, () => void browser.close());
   try {
     options.signal?.throwIfAborted();
     // Every file is listed before any is measured, so a name pattern that matches nothing fails
@@ -492,11 +491,8 @@ export async function withPlannedRun<T>(
       throw new Error(`No benchmark name matches ${testNamePattern}.`);
     }
     return await drive({ browser, planned });
-  } catch (error) {
-    options.signal?.throwIfAborted();
-    throw error;
   } finally {
-    options.signal?.removeEventListener('abort', closeOnAbort);
+    closeOnAbort?.[Symbol.dispose]();
     await browser.close();
     await server.close();
   }
