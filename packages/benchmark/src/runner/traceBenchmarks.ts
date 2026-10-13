@@ -10,7 +10,7 @@ import {
   loadBenchPage,
   openBenchTab,
   sampleBenchCase,
-  shuffledIndices,
+  shuffled,
   withPlannedRun,
 } from './runInterleaved';
 import type { MeasuredBenchmark, RunInterleavedOptions } from './runInterleaved';
@@ -43,8 +43,7 @@ async function traceBenchmark(
   try {
     await mkdir(outDir, { recursive: true });
     for (let round = 1; round <= rounds; round += 1) {
-      for (const index of shuffledIndices(slots.length)) {
-        const { variant, url, caseName } = slots[index];
+      for (const { variant, url, caseName } of shuffled(slots)) {
         const file = path.join(outDir, `${variant}-${round}.json`);
         // eslint-disable-next-line no-await-in-loop
         await loadBenchPage(page, url);

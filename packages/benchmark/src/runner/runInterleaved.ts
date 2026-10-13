@@ -3,7 +3,7 @@
 import chalk from 'chalk';
 import type { Browser, CDPSession, Page } from '@playwright/test';
 import { BENCHMARK_LAUNCH_ARGS, BENCHMARK_VIEWPORT } from '../launchArgs';
-import { compareBenchmark, formatDuration, formatRounds } from '../runReport';
+import { compareBenchmark, formatDuration, formatRoundCount } from '../runReport';
 import type { RunBenchmark, RunMetricDefinition } from '../runReport';
 import { differencesSettled, pickSampling, resolveSampling } from '../sampling';
 import type { SamplingOptions } from '../sampling';
@@ -57,7 +57,7 @@ export function errorMessage(error: unknown): string {
 }
 
 /** A random permutation of `0..length-1`, so no variant always runs first in its round. */
-export function shuffledIndices(length: number): number[] {
+function shuffledIndices(length: number): number[] {
   const indices = Array.from({ length }, (_, index) => index);
   for (let index = indices.length - 1; index > 0; index -= 1) {
     const swap = Math.floor(Math.random() * (index + 1));
@@ -66,7 +66,7 @@ export function shuffledIndices(length: number): number[] {
   return indices;
 }
 
-function shuffled<T>(items: T[]): T[] {
+export function shuffled<T>(items: T[]): T[] {
   return shuffledIndices(items.length).map((index) => items[index]);
 }
 
@@ -222,40 +222,41 @@ function isSampling(progress: Progress): boolean {
  * sampled in it; one whose sample fails stops, with its error, and the page reloads before the next.
  */
 async function runFileRound(page: Page, active: Progress[]): Promise<void> {
-  const partial = new Map(active.map((progress) => [progress, [] as Round]));
+  const entries = active.map((progress) => ({ progress, round: [] as Round }));
   const urls = [...new Set(active.flatMap(({ plan }) => plan.slots.map((slot) => slot.url)))];
+  // Unset after a failed sample, so what the failed case left behind doesn't reach the next one.
+  let loadedUrl: string | undefined;
   for (const url of shuffled(urls)) {
     // A benchmark's variants on this page run back to back, in a shuffled order, so none of them
     // always runs on the code the others warmed.
-    const benchmarks = active.filter(({ plan }) => plan.slots.some((slot) => slot.url === url));
-    const samples = benchmarks.flatMap((progress) =>
+    const onPage = entries.filter(({ progress }) =>
+      progress.plan.slots.some((slot) => slot.url === url),
+    );
+    const samples = onPage.flatMap(({ progress, round }) =>
       shuffled(
         progress.plan.slots.flatMap((slot, index) =>
-          slot.url === url ? [{ progress, slot, index }] : [],
+          slot.url === url ? [{ progress, round, slot, index }] : [],
         ),
       ),
     );
-    const loadStartedAt = Date.now();
-    // eslint-disable-next-line no-await-in-loop
-    await loadBenchPage(page, url);
-    const loadShare = (Date.now() - loadStartedAt) / benchmarks.length;
-    for (const progress of benchmarks) {
-      progress.durationMs += loadShare;
-    }
-    let reload = false;
-    for (const { progress, slot, index } of samples) {
+    for (const { progress, round, slot, index } of samples) {
       if (progress.error !== undefined) {
         continue;
       }
-      const startedAt = Date.now();
       try {
-        if (reload) {
+        if (loadedUrl !== url) {
+          const loadStartedAt = Date.now();
           // eslint-disable-next-line no-await-in-loop
           await loadBenchPage(page, url);
-          reload = false;
+          loadedUrl = url;
+          const loadShare = (Date.now() - loadStartedAt) / onPage.length;
+          for (const entry of onPage) {
+            entry.progress.durationMs += loadShare;
+          }
         }
+        const startedAt = Date.now();
         // eslint-disable-next-line no-await-in-loop
-        partial.get(progress)![index] = await sampleBenchCase(page, slot.caseName);
+        round[index] = await sampleBenchCase(page, slot.caseName);
         if (index === 0 && !progress.metrics) {
           // Read from the reference page: a metric whose config the change under test altered is
           // described the way the change describes it. Its first sample recorded every metric the
@@ -263,20 +264,19 @@ async function runFileRound(page: Page, active: Progress[]): Promise<void> {
           // eslint-disable-next-line no-await-in-loop
           progress.metrics = await page.evaluate(() => window.benchmarkPage!.metricDefinitions());
         }
+        progress.durationMs += Date.now() - startedAt;
       } catch (error) {
         console.error(chalk.red(`  ${progress.plan.entry.name}: ${errorMessage(error)}`));
         progress.error = errorMessage(error);
-        // What the failed case left behind on the page must not reach the next one.
-        reload = true;
+        loadedUrl = undefined;
       }
-      progress.durationMs += Date.now() - startedAt;
     }
   }
-  for (const progress of active) {
+  for (const { progress, round } of entries) {
     if (progress.error !== undefined) {
       continue;
     }
-    progress.rounds.push(partial.get(progress)!);
+    progress.rounds.push(round);
     const { sampleSize, timeout } = progress.plan.sampling;
     if (progress.rounds.length >= sampleSize) {
       progress.deadline ??= Date.now() + timeout * 60_000;
@@ -288,26 +288,26 @@ async function runFileRound(page: Page, active: Progress[]): Promise<void> {
 }
 
 /**
- * Measures a file's benchmarks in one tab, a round at a time, until none is still sampling. Each
- * keeps its own rounds: after `sampleSize` of them it goes on while a difference that can alarm is
- * unsettled against its band, until its timeout. A failure is reported as the benchmark's error.
+ * Measures a file's benchmarks in one tab, a round at a time, until none is still sampling, and
+ * returns their results in the plans' order. Each keeps its own rounds: after `sampleSize` of them
+ * it goes on while a difference that can alarm is unsettled against its band, until its timeout. A
+ * failure is reported as the benchmark's error, as is a plan that couldn't be measured at all.
  */
-async function runBenchFile(browser: Browser, plans: MeasuredBenchmark[]): Promise<CaseResult[]> {
+async function runBenchFile(browser: Browser, plans: PlannedBenchmark[]): Promise<CaseResult[]> {
   const count = `${plans.length} benchmark${plans.length === 1 ? '' : 's'}`;
   console.log(chalk.cyan(`\nRunning ${plans[0].entry.file} (${count})…`));
   const startedAt = Date.now();
-  const progresses: Progress[] = plans.map((plan) => ({
-    plan,
-    rounds: [],
-    settled: false,
-    durationMs: 0,
-  }));
+  // A plan that couldn't be measured keeps its error; the others get a progress to sample into.
+  const tracked = plans.map((plan): Progress | Extract<PlannedBenchmark, { error: string }> =>
+    'error' in plan ? plan : { plan, rounds: [], settled: false, durationMs: 0 },
+  );
+  const progresses = tracked.filter((item): item is Progress => 'rounds' in item);
   let opened: Page | undefined;
   try {
-    const page = await openBenchTab(browser);
-    opened = page;
     let active = progresses.filter(isSampling);
-    while (active.length > 0) {
+    const page = active.length > 0 ? await openBenchTab(browser) : undefined;
+    opened = page;
+    while (page && active.length > 0) {
       // eslint-disable-next-line no-await-in-loop
       await runFileRound(page, active);
       active = progresses.filter(isSampling);
@@ -321,21 +321,17 @@ async function runBenchFile(browser: Browser, plans: MeasuredBenchmark[]): Promi
     await opened?.context().close();
   }
 
-  const results = progresses.map((progress) => {
+  const resultOf = (progress: Progress): CaseResult => {
     const { plan, rounds, settled, error, durationMs } = progress;
     if (error !== undefined) {
       return { benchmark: { ...plan.entry, error, durationMs }, metrics: {} };
     }
     const { sampleSize, timeout } = plan.sampling;
     if (rounds.length > sampleSize || !settled) {
-      // The rounds past the sample size are the adaptive ones: `30 + 15 rounds`.
-      const roundsLabel = formatRounds(
-        { ...benchmarkOf(progress), sampling: { sampleSize, timedOut: !settled } },
-        { timedOut: false },
-      );
+      const outcome = settled ? 'settled' : `unsettled after ${timeout} min`;
       console.log(
         chalk.dim(
-          `  ${plan.entry.name}: ${roundsLabel}, ${settled ? 'settled' : `unsettled after ${timeout} min`}`,
+          `  ${plan.entry.name}: ${formatRoundCount(rounds.length, sampleSize)}, ${outcome}`,
         ),
       );
     }
@@ -347,7 +343,12 @@ async function runBenchFile(browser: Browser, plans: MeasuredBenchmark[]): Promi
       },
       metrics: progress.metrics ?? {},
     };
-  });
+  };
+  const results = tracked.map((item) =>
+    'rounds' in item
+      ? resultOf(item)
+      : { benchmark: { ...item.entry, error: item.error }, metrics: {} },
+  );
   console.log(chalk.dim(`  ${plans[0].entry.file} ran ${formatDuration(Date.now() - startedAt)}`));
   return results;
 }
@@ -476,27 +477,16 @@ export async function withPlannedRun<T>(
 
 export function runInterleaved(options: RunInterleavedOptions): Promise<InterleavedResults> {
   return withPlannedRun(options, async ({ browser, planned }) => {
-    const results = new Map<PlannedBenchmark, CaseResult>();
-    const measuredByFile = new Map<string, MeasuredBenchmark[]>();
-    for (const plan of planned) {
-      if ('error' in plan) {
-        results.set(plan, { benchmark: { ...plan.entry, error: plan.error }, metrics: {} });
-      } else {
-        const plans = measuredByFile.get(plan.entry.file) ?? [];
-        plans.push(plan);
-        measuredByFile.set(plan.entry.file, plans);
-      }
-    }
-    // Sequential on purpose: concurrent files would contend for the same machine.
-    for (const plans of measuredByFile.values()) {
+    const results: CaseResult[] = [];
+    // A file's plans are listed together, so grouping keeps the run's order. Sequential on purpose:
+    // concurrent files would contend for the same machine.
+    for (const plans of Map.groupBy(planned, (plan) => plan.entry.file).values()) {
       // eslint-disable-next-line no-await-in-loop
-      const fileResults = await runBenchFile(browser, plans);
-      plans.forEach((plan, index) => results.set(plan, fileResults[index]));
+      results.push(...(await runBenchFile(browser, plans)));
     }
-    const ordered = planned.map((plan) => results.get(plan)!);
     return {
-      benchmarks: ordered.map((result) => result.benchmark),
-      metrics: Object.assign({}, ...ordered.map((result) => result.metrics)),
+      benchmarks: results.map((result) => result.benchmark),
+      metrics: Object.assign({}, ...results.map((result) => result.metrics)),
       browserVersion: browser.version(),
     };
   });

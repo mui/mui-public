@@ -207,6 +207,11 @@ export function formatDuration(durationMs: number): string {
     : `${Math.floor(minutes / 60)}h ${twoDigits(minutes % 60)}m`;
 }
 
+/** Rounds, with those past the sample size apart: `50 rounds`, `50 + 23 rounds`. */
+export function formatRoundCount(rounds: number, sampleSize: number): string {
+  return rounds > sampleSize ? `${sampleSize} + ${rounds - sampleSize} rounds` : `${rounds} rounds`;
+}
+
 /**
  * How many rounds a benchmark ran, how long it took, and whether sampling resolved: `50 rounds`,
  * `50 + 23 rounds · 1m 12s` past the sample size, `50 + 312 rounds · 3m 04s · timed out`. `null`
@@ -222,9 +227,8 @@ export function formatRounds(
   if (rounds === undefined) {
     return null;
   }
-  const sampleSize = benchmark.sampling?.sampleSize ?? rounds;
   return [
-    rounds > sampleSize ? `${sampleSize} + ${rounds - sampleSize} rounds` : `${rounds} rounds`,
+    formatRoundCount(rounds, benchmark.sampling?.sampleSize ?? rounds),
     benchmark.durationMs === undefined ? null : formatDuration(benchmark.durationMs),
     timedOut && benchmark.sampling?.timedOut ? 'timed out' : null,
   ]
