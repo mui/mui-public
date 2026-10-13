@@ -114,17 +114,36 @@ jobs:
               ...context.repo, issue_number: issueNumber,
             });
             if (issue.pull_request) return;
-            // Opt-in human replies must target the triggering comment and a currently labeled issue.
-            const labeledCommentRequest = actor?.type === 'User' &&
-              context.eventName === 'issue_comment' && context.payload.action === 'created' &&
-              context.payload.issue?.number === issueNumber && mode === 'triage' &&
-              commentId > 0 && context.payload.comment?.id === commentId &&
-              context.payload.comment?.user?.type === 'User' &&
-              context.payload.comment.user.login === actor.login &&
-              commentLabels.length > 0 &&
-              issue.labels.some((label) => commentLabels.includes(typeof label === 'string' ? label : label.name));
-            // Even maintainers cannot retrigger opted-in comment triage without an allowed label.
-            if (commentLabels.length > 0 && context.eventName === 'issue_comment' && !labeledCommentRequest) return;
+            const labeledCommentRequest = commentLabels.length > 0 && context.eventName === 'issue_comment';
+
+            // Validate opted-in replies before granting any permission exception.
+            if (labeledCommentRequest) {
+              const userType = 'User';
+              const { comment } = context.payload;
+
+              if (actor?.type !== userType) {
+                return;
+              }
+              if (context.payload.action !== 'created' || mode !== 'triage') {
+                return;
+              }
+              if (context.payload.issue?.number !== issueNumber) {
+                return;
+              }
+              if (commentId === 0 || comment?.id !== commentId) {
+                return;
+              }
+              if (comment?.user?.type !== userType || comment.user.login !== actor.login) {
+                return;
+              }
+
+              const hasAllowedLabel = issue.labels.some((label) =>
+                commentLabels.includes(typeof label === 'string' ? label : label.name));
+              if (!hasAllowedLabel) {
+                return;
+              }
+            }
+
             // GitHub supplies author_association; comment text cannot confer repository/org access.
             const authorizedCommentRequest = labeledCommentRequest &&
               (issue.user?.login === actor.login ||
