@@ -1,5 +1,6 @@
 # Callers select triggers and pass issue-number, mode, and optionally comment-id.
-# Human senders need write, maintain, or admin access; bots may request triage through issue labels.
+# Human senders need write access unless a caller opts into human replies on labeled issues.
+# Bots may request triage through issue labels.
 # Labeling automation must use an App token or PAT; GITHUB_TOKEN label events do not start workflows.
 # PRs are ignored.
 # Both modes currently post a triage diagnosis; automated fixes and draft PR publishing are disabled.
@@ -25,6 +26,10 @@ on:
         description: Optional issue comment to acknowledge and use as the discussion cutoff; zero includes all comments available when captured.
         type: number
         default: 0
+      triage-comment-label:
+        description: Optional label allowing human replies on labeled issues to request triage without write access.
+        type: string
+        default: ''
       debug:
         description: Log full Claude output, including tool results, in Actions logs.
         type: boolean
@@ -75,6 +80,7 @@ jobs:
       issues: write
     outputs:
       allowed-bot: ${{ steps.request.outputs.allowed-bot }}
+      allowed-user: ${{ steps.request.outputs.allowed-user }}
       mode: ${{ steps.request.outputs.mode }}
       issue: ${{ steps.request.outputs.issue }}
       base: ${{ steps.request.outputs.base }}
@@ -86,6 +92,7 @@ jobs:
           ISSUE_NUMBER: ${{ inputs.issue-number }}
           REQUEST_MODE: ${{ inputs.mode }}
           COMMENT_ID: ${{ inputs.comment-id }}
+          TRIAGE_COMMENT_LABEL: ${{ inputs.triage-comment-label }}
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
@@ -99,21 +106,30 @@ jobs:
               throw new Error('Expected a positive issue-number, mode triage or fix, and a non-negative comment-id.');
             }
             const actor = context.payload.sender;
+            const { data: issue } = await github.rest.issues.get({
+              ...context.repo, issue_number: issueNumber,
+            });
+            if (issue.pull_request) return;
+            // Opt-in human replies must target the triggering comment and a currently labeled issue.
+            const labeledCommentRequest = actor?.type === 'User' &&
+              context.eventName === 'issue_comment' && context.payload.action === 'created' &&
+              context.payload.issue?.number === issueNumber && mode === 'triage' &&
+              commentId > 0 && context.payload.comment?.id === commentId &&
+              context.payload.comment?.user?.type === 'User' &&
+              context.payload.comment.user.login === actor.login &&
+              Boolean(process.env.TRIAGE_COMMENT_LABEL) &&
+              issue.labels.some((label) => (typeof label === 'string' ? label : label.name) === process.env.TRIAGE_COMMENT_LABEL);
             // GitHub enforces label-write access for the bot that produced this event.
             const botLabelRequest = actor?.type === 'Bot' && context.eventName === 'issues' &&
               context.payload.action === 'labeled' && context.payload.issue?.number === issueNumber &&
               mode === 'triage' && commentId === 0;
-            if (!botLabelRequest) {
+            if (!botLabelRequest && !labeledCommentRequest) {
               if (actor?.type !== 'User') return;
               const { data: access } = await github.rest.repos.getCollaboratorPermissionLevel({
                 ...context.repo, username: actor.login,
               });
               if (!['admin', 'maintain', 'write'].includes(access.permission)) return;
             }
-            const { data: issue } = await github.rest.issues.get({
-              ...context.repo, issue_number: issueNumber,
-            });
-            if (issue.pull_request) return;
             const { data: repository } = await github.rest.repos.get(context.repo);
             const { data: branch } = await github.rest.repos.getBranch({
               ...context.repo, branch: repository.default_branch,
@@ -159,6 +175,7 @@ jobs:
               null, 2,
             ));
             core.setOutput('allowed-bot', botLabelRequest ? actor.login : '');
+            core.setOutput('allowed-user', labeledCommentRequest ? actor.login : '');
             core.setOutput('mode', mode);
             core.setOutput('issue', issue.number);
             core.setOutput('base', branch.commit.sha);
@@ -235,6 +252,7 @@ jobs:
         with:
           github_token: ${{ github.token }} # Use this job's read-only token instead of minting an App token.
           allowed_bots: ${{ needs.authorize.outputs.allowed-bot }} # Forward only the bot approved by authorization.
+          allowed_non_write_users: ${{ needs.authorize.outputs.allowed-user }} # Forward only the human reply approved by authorization.
           show_full_output: ${{ inputs.debug }}
           anthropic_federation_rule_id: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID }}
           anthropic_organization_id: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
