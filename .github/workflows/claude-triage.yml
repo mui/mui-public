@@ -1,5 +1,5 @@
 # Callers select triggers and pass issue-number, mode, and optionally comment-id.
-# Human senders need write access unless a caller opts into human replies on labeled issues.
+# Human senders need write access unless a caller opts into author/member replies on labeled issues.
 # Bots may request triage through issue labels.
 # Labeling automation must use an App token or PAT; GITHUB_TOKEN label events do not start workflows.
 # PRs are ignored.
@@ -27,7 +27,7 @@ on:
         type: number
         default: 0
       triage-comment-label:
-        description: Optional label allowing human replies on labeled issues to request triage without write access.
+        description: Optional required label for replies from the issue author, repository collaborators, or organization members to request triage.
         type: string
         default: ''
       debug:
@@ -119,11 +119,17 @@ jobs:
               context.payload.comment.user.login === actor.login &&
               Boolean(process.env.TRIAGE_COMMENT_LABEL) &&
               issue.labels.some((label) => (typeof label === 'string' ? label : label.name) === process.env.TRIAGE_COMMENT_LABEL);
+            // Even maintainers cannot retrigger opted-in comment triage after the label is removed.
+            if (process.env.TRIAGE_COMMENT_LABEL && context.eventName === 'issue_comment' && !labeledCommentRequest) return;
+            // GitHub supplies author_association; comment text cannot confer repository/org access.
+            const authorizedCommentRequest = labeledCommentRequest &&
+              (issue.user?.login === actor.login ||
+               ['OWNER', 'MEMBER', 'COLLABORATOR'].includes(context.payload.comment.author_association));
             // GitHub enforces label-write access for the bot that produced this event.
             const botLabelRequest = actor?.type === 'Bot' && context.eventName === 'issues' &&
               context.payload.action === 'labeled' && context.payload.issue?.number === issueNumber &&
               mode === 'triage' && commentId === 0;
-            if (!botLabelRequest && !labeledCommentRequest) {
+            if (!botLabelRequest && !authorizedCommentRequest) {
               if (actor?.type !== 'User') return;
               const { data: access } = await github.rest.repos.getCollaboratorPermissionLevel({
                 ...context.repo, username: actor.login,
@@ -175,7 +181,7 @@ jobs:
               null, 2,
             ));
             core.setOutput('allowed-bot', botLabelRequest ? actor.login : '');
-            core.setOutput('allowed-user', labeledCommentRequest ? actor.login : '');
+            core.setOutput('allowed-user', authorizedCommentRequest ? actor.login : '');
             core.setOutput('mode', mode);
             core.setOutput('issue', issue.number);
             core.setOutput('base', branch.commit.sha);
