@@ -175,7 +175,18 @@ export function benchmarkPlugin(options: BenchmarkPluginOptions = {}): Plugin {
           // page nothing once it is parsed, and parsing happens on load, before a sample.
           // Compression stays on, so the code is the production code otherwise.
           sourcemap: true,
-          rolldownOptions: { input, output: { minify: { compress: true, mangle: false } } },
+          rolldownOptions: {
+            input,
+            output: { minify: { compress: true, mangle: false } },
+            // Component libraries mark their modules 'use client' for React Server Components. A
+            // page bundles them into shared chunks, where a per-module directive can't hold, and on
+            // a client-only page it means nothing: one warning per module would bury the build log.
+            onLog(level, log, handler) {
+              if (log.code !== 'MODULE_LEVEL_DIRECTIVE') {
+                handler(level, log);
+              }
+            },
+          },
         },
       };
     },
