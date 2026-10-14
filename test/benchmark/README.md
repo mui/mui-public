@@ -27,14 +27,14 @@ build.
 
 ```bash
 pnpm release:build            # the harness resolves workspace packages through their build output
-pnpm test:benchmark-run       # from the repo root
+pnpm test:benchmark           # from the repo root
 ```
 
 Or from here, with the usual filters and flags:
 
 ```bash
-pnpm -F ./test/benchmark benchmark:run workload
-pnpm -F ./test/benchmark benchmark:run --baseline HEAD
+pnpm -F ./test/benchmark benchmark workload
+pnpm -F ./test/benchmark benchmark --baseline HEAD
 ```
 
 A filter is a case-insensitive substring of a benchmark file's path under `src/`, the way vitest
@@ -59,7 +59,7 @@ every job that compares a branch to its base, so bundle size and the benchmarks 
 instead of each deriving it. Pass it in:
 
 ```bash
-pnpm test:benchmark-run --baseline "$(pnpm code-infra baseline)"
+pnpm test:benchmark --baseline "$(pnpm code-infra baseline)"
 ```
 
 Without `--baseline` the previous commit is used.

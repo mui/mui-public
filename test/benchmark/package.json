@@ -6,7 +6,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "typescript": "tsc -noEmit",
-    "benchmark:run": "node ./scripts/runBenchmark.mjs"
+    "benchmark": "node ./scripts/runBenchmark.mjs"
   },
   "dependencies": {
     "@mui/internal-test-utils": "workspace:*",
