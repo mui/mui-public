@@ -38,7 +38,7 @@ export interface InteractionContext {
    */
   resumeReactRecording: () => void;
   /**
-   * Trusted input gestures (scroll, pinch, tap) dispatched by the browser itself, for interactions
+   * Trusted input gestures (scroll) dispatched by the browser itself, for interactions
    * that should behave like a real mouse or trackpad rather than synthetic DOM events.
    */
   input: BenchmarkInput;

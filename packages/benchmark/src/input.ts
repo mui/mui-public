@@ -14,20 +14,6 @@ export interface ScrollGestureOptions {
   speed?: number;
 }
 
-export interface PinchGestureOptions {
-  x: number;
-  y: number;
-  /** Relative scale at the end of the pinch: `> 1` zooms in, `< 1` zooms out. */
-  scaleFactor: number;
-  /** Relative pointer speed in pixels per second. Defaults to the browser's 800. */
-  relativeSpeed?: number;
-}
-
-export interface TapGestureOptions {
-  x: number;
-  y: number;
-}
-
 /**
  * Trusted input for interactions. Each gesture is one command: the browser generates the whole
  * event sequence itself at frame cadence, so the round trip to the driver is paid once per gesture,
@@ -35,8 +21,6 @@ export interface TapGestureOptions {
  */
 export interface BenchmarkInput {
   scroll: (options: ScrollGestureOptions) => Promise<void>;
-  pinch: (options: PinchGestureOptions) => Promise<void>;
-  tap: (options: TapGestureOptions) => Promise<void>;
 }
 
 /**
@@ -64,18 +48,6 @@ export function createInput(send: CdpSend): BenchmarkInput {
         speed,
         gestureSourceType: 'mouse',
       });
-    },
-    pinch: async ({ x, y, scaleFactor, relativeSpeed }) => {
-      await send('Input.synthesizePinchGesture', {
-        x,
-        y,
-        scaleFactor,
-        relativeSpeed,
-        gestureSourceType: 'mouse',
-      });
-    },
-    tap: async ({ x, y }) => {
-      await send('Input.synthesizeTapGesture', { x, y, gestureSourceType: 'mouse' });
     },
   };
 }

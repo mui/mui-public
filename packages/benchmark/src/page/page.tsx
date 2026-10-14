@@ -14,7 +14,7 @@ import type { RunMetricAlarm } from '../runReport/schema';
 
 /** What a case's `run` is handed on every iteration. */
 export interface BenchmarkContext {
-  /** Trusted input — scroll, pinch, tap — dispatched by the browser rather than from script. */
+  /** Trusted input — scroll gestures — dispatched by the browser rather than from script. */
   input: BenchmarkInput;
   /** The DevTools Protocol, for what the case sets up or reads from the browser itself. */
   cdp: BenchmarkCdp;

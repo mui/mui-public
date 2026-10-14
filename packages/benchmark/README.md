@@ -79,7 +79,6 @@ benchmark(
   () => <Chart />,
   async ({ input }) => {
     await input.scroll({ x: 400, y: 300, deltaY: 600 });
-    await input.pinch({ x: 400, y: 300, scaleFactor: 2 });
   },
 );
 ```
