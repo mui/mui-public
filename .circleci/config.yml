@@ -143,13 +143,17 @@ jobs:
       - run:
           name: Run the benchmark smoke test
           no_output_timeout: 30m
+          command: pnpm test:benchmark-run --baseline "$(cat .benchmark-baseline-sha)"
+      - run:
+          name: Upload the benchmark report
+          # Also after a failed run, so the comment says what happened.
+          when: always
           environment:
             # TEMPORARY: uploads in place of `test_benchmark`, since both write the commit's one
             # `benchmark.json`, and to this pull request's dashboard preview, since production does
-            # not read version 2 reports yet. Remove both lines before merging.
-            BENCHMARK_UPLOAD: 'true'
+            # not read version 2 reports yet. Remove this step's environment before merging.
             CI_REPORT_API_URL: https://code-infra-dashboard-pr-1898.onrender.com
-          command: pnpm test:benchmark-run --baseline "$(cat .benchmark-baseline-sha)"
+          command: pnpm -F ./test/benchmark benchmark:run upload
       - save_cache:
           name: Save the packed-baseline cache
           key: benchmark-run-cache-v1-{{ checksum ".benchmark-baseline-sha" }}

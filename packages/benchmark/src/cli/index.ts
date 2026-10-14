@@ -42,21 +42,10 @@ const runCommand: CommandModule<{}, Args> = {
         describe:
           "Command that builds the publishable workspace packages, in each ref's checkout and in the working tree. Default: pnpm release:build",
       })
-      .option('upload', {
-        type: 'boolean',
-        default: process.env.BENCHMARK_UPLOAD === 'true',
-        describe:
-          'Upload the report and refresh the PR comment. Defaults to BENCHMARK_UPLOAD=true, so CI can switch it on by environment. Requires CIRCLE_OIDC_TOKEN_V2',
-      })
-      .option('timeline', {
-        type: 'string',
-        default: process.env.BENCHMARK_TIMELINE,
-        describe:
-          "With --upload, the dashboard timeline to upload into in place of the branch's, for a run against another baseline such as the last release. Defaults to BENCHMARK_TIMELINE",
-      })
       .option('out', {
         type: 'string',
-        describe: 'Write the JSON report here. Default: .benchmark/results/report.json',
+        describe:
+          'Write the JSON report here, for `benchmark upload`. Default: .benchmark/results/report.json',
       })
       .option('testNamePattern', {
         alias: 't',
@@ -115,8 +104,6 @@ const runCommand: CommandModule<{}, Args> = {
         baseline: argv.baseline,
         buildCmd: argv.buildCmd,
         out: argv.out,
-        upload: argv.upload,
-        timeline: argv.timeline,
         testNamePattern: argv.testNamePattern,
         reporter: argv.reporter,
         profile: argv.profile,
@@ -131,6 +118,31 @@ const runCommand: CommandModule<{}, Args> = {
         throw error;
       }
     }
+  },
+};
+
+const uploadCommand: CommandModule<{}, { file?: string; timeline?: string }> = {
+  command: 'upload [file]',
+  describe:
+    'Upload a report that a run wrote to the dashboard, and refresh the PR comment. Run from the harness package, in CI. Requires CIRCLE_OIDC_TOKEN_V2',
+  builder: (args) =>
+    args
+      .positional('file', {
+        type: 'string',
+        describe: 'The report to upload. Default: .benchmark/results/report.json',
+      })
+      .option('timeline', {
+        type: 'string',
+        default: process.env.BENCHMARK_TIMELINE,
+        describe:
+          "The dashboard timeline to upload into in place of the branch's, for a run against another baseline such as the last release. Defaults to BENCHMARK_TIMELINE",
+      }),
+  handler: async (argv) => {
+    const [{ uploadReportFile }, { resultsPathOf }] = await Promise.all([
+      import('../runner/upload'),
+      import('../runner/outputDir'),
+    ]);
+    await uploadReportFile(argv.file ?? resultsPathOf(process.cwd()), argv.timeline);
   },
 };
 
@@ -154,6 +166,7 @@ await yargs(hideBin(process.argv))
   .middleware((argv) => {
     globalArgv = argv;
   }, true)
+  .command(uploadCommand)
   .command(runCommand)
   .fail((msg, err, yargsInstance) => {
     if (msg) {

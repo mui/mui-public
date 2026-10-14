@@ -487,9 +487,23 @@ A benchmark's alarm is merged over the metric's, and a `name#id` sub-series foll
 
 ### The report
 
-The run writes `.benchmark/results/report.json`, prints it as tables, and with `--upload` sends it to
-the dashboard, which renders the pull request comment's Performance section and the repository's
-history from it.
+The run writes `.benchmark/results/report.json` (or `--out`) and prints it as tables. In CI,
+`benchmark upload` sends that file to the dashboard, which renders the pull request comment's
+Performance section and the repository's history from it. A separate step, so a failed upload can be
+retried without measuring again; run it even when the run step fails (CircleCI's `when: always`), so
+the comment reports a run whose benchmarks all errored:
+
+```yaml
+- run:
+    name: Run benchmarks
+    command: pnpm -F ./test/benchmark benchmark --baseline "$(cat .benchmark-baseline-sha)"
+- run:
+    name: Upload the benchmark report
+    when: always
+    command: pnpm -F ./test/benchmark benchmark upload
+```
+
+`benchmark upload [file]` refuses a report measured on another commit than the one CI is building.
 
 Uploads from a tracked branch (`master`, `next`, `v7.x`, …) join that branch's timeline, the history
 the dashboard draws. A run against another baseline names its own with `--timeline` (or
@@ -497,7 +511,8 @@ the dashboard draws. A run against another baseline names its own with `--timeli
 history, for example a weekly run against the last release:
 
 ```bash
-benchmark --baseline "v$(npm view @mui/material version)" --upload --timeline release
+benchmark --baseline "v$(npm view @mui/material version)"
+benchmark upload --timeline release
 ```
 
 - The report holds **raw samples**, round-aligned across variants, plus each metric's kind, format

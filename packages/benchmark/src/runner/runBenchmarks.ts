@@ -18,7 +18,6 @@ import { traceBenchmarks } from './traceBenchmarks';
 import { buildRefPages, restoreWorkspace } from './buildPages';
 import { resolveBrowserBinary } from './browser';
 import { printRunReport } from './printReport';
-import { publishRunReport } from './upload';
 import { buildsDirOf, prepareOutputDir, resultsPathOf } from './outputDir';
 
 /** Fewer logical CPUs than this starve V8's background compilers. */
@@ -40,15 +39,11 @@ export interface RunBenchmarksOptions {
    * Defaults to `pnpm release:build`.
    */
   buildCmd?: string;
-  /** Where to write the JSON report. Defaults to `.benchmark/results/report.json`. */
-  out?: string;
-  /** Upload the report and refresh the pull request comment. */
-  upload?: boolean;
   /**
-   * The dashboard timeline to upload into, in place of the branch's: for a run against another
-   * baseline, such as the last release. Needs `upload`.
+   * Where to write the JSON report, which `benchmark upload` sends to the dashboard. Defaults to
+   * `.benchmark/results/report.json`.
    */
-  timeline?: string;
+  out?: string;
   /** Defaults, for the whole run, for the sampling options a benchmark doesn't set itself. */
   sampling?: SamplingOptions;
   /** Only run benchmarks whose name matches this regular expression, like Vitest's `-t`. */
@@ -74,7 +69,7 @@ const PROFILE_ROUNDS = 5;
 
 /**
  * Benchmarks a harness's `*.bench.tsx` files across two builds of the workspace — the working tree
- * and a baseline — and writes, prints and optionally uploads the run report. With `profile`, it
+ * and a baseline — and writes and prints the run report. With `profile`, it
  * traces them instead, and returns no report.
  *
  * Both builds are packed from their own commit and installed into the harness the same way, so
@@ -90,17 +85,12 @@ export async function runBenchmarks(
     baseline,
     buildCmd = 'pnpm release:build',
     out,
-    upload = false,
-    timeline,
     sampling,
     testNamePattern,
     reporter = 'default',
     profile = false,
     signal,
   } = options;
-  if (timeline !== undefined && !upload) {
-    throw new Error('A timeline only applies to an upload: pass --upload with --timeline.');
-  }
   // Compiled before anything is built, so a bad pattern fails at once.
   const namePattern = testNamePattern === undefined ? undefined : new RegExp(testNamePattern);
 
@@ -257,12 +247,8 @@ export async function runBenchmarks(
     }
     console.log(chalk.green(`\nWrote JSON report to ${outPath}`));
 
-    if (upload) {
-      await publishRunReport(report, timeline);
-    }
-
-    // Written and uploaded first, so the errors are readable and the comment says what happened —
-    // then fail, because a harness that measured nothing at all otherwise reports a passing job.
+    // Written first, so the errors are readable and an upload can still say what happened — then
+    // fail, because a harness that measured nothing at all otherwise reports a passing job.
     if (report.benchmarks.every((benchmark) => benchmark.error !== undefined)) {
       throw new Error('No benchmark produced any measurement.');
     }

@@ -1,10 +1,11 @@
 /* eslint-disable no-console -- progress belongs in the CI log. */
 
+import { readFile } from 'node:fs/promises';
 import chalk from 'chalk';
 import { postToDashboard } from '../ciApi';
 import { getCiMetadata } from '../ciReport';
 import { syncPrComment } from '../syncPrComment';
-import { benchmarkRunUploadSchema } from '../runReport';
+import { benchmarkRunReportSchema, benchmarkRunUploadSchema } from '../runReport';
 import type { BenchmarkRunReport } from '../runReport';
 
 /**
@@ -53,4 +54,21 @@ export async function publishRunReport(
       ),
     );
   }
+}
+
+/**
+ * Uploads a report file that `benchmark` wrote, and refreshes the pull request comment.
+ *
+ * The dashboard files the report under the commit CI is building, so a report measured on another
+ * commit is refused rather than filed under the wrong one.
+ */
+export async function uploadReportFile(file: string, timeline: string | undefined): Promise<void> {
+  const report = benchmarkRunReportSchema.parse(JSON.parse(await readFile(file, 'utf8')));
+  const { commitSha } = await getCiMetadata();
+  if (commitSha && report.head.sha && report.head.sha !== commitSha) {
+    throw new Error(
+      `${file} was measured on ${report.head.sha}, but CI is building ${commitSha}. Upload a report from this commit's run.`,
+    );
+  }
+  await publishRunReport(report, timeline);
 }
