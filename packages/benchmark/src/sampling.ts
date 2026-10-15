@@ -23,17 +23,23 @@ export const DEFAULT_SAMPLING: Required<SamplingOptions> = {
 };
 
 /**
- * Checks sampling options and fills in the defaults. Called when a case registers, so a mistake fails
- * the page rather than a round, and the runner gets complete options.
+ * Throws on a sampling option out of range. Called when a case registers, so a mistake fails the
+ * page where it was written rather than a round.
  */
-export function resolveSampling(options: SamplingOptions): Required<SamplingOptions> {
-  const { sampleSize = DEFAULT_SAMPLING.sampleSize, timeout = DEFAULT_SAMPLING.timeout } = options;
-  if (!(Number.isInteger(sampleSize) && sampleSize >= 2)) {
+export function validateSampling(options: SamplingOptions): void {
+  const { sampleSize, timeout } = options;
+  if (sampleSize !== undefined && !(Number.isInteger(sampleSize) && sampleSize >= 2)) {
     throw new Error(`Invalid sampleSize ${sampleSize}: expected an integer of at least 2.`);
   }
-  if (!(timeout >= 0)) {
+  if (timeout !== undefined && !(timeout >= 0)) {
     throw new Error(`Invalid timeout ${timeout}: expected a number of minutes, 0 or more.`);
   }
+}
+
+/** Validates sampling options and fills in the defaults for those left out or undefined. */
+export function resolveSampling(options: SamplingOptions): Required<SamplingOptions> {
+  validateSampling(options);
+  const { sampleSize = DEFAULT_SAMPLING.sampleSize, timeout = DEFAULT_SAMPLING.timeout } = options;
   return { sampleSize, timeout };
 }
 

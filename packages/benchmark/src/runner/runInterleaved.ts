@@ -6,7 +6,7 @@ import type { Browser, CDPSession, Page } from '@playwright/test';
 import { BENCHMARK_LAUNCH_ARGS, BENCHMARK_VIEWPORT } from '../launchArgs';
 import { compareBenchmark, formatDuration, formatRoundCount } from '../runReport';
 import type { RunBenchmark, RunMetricDefinition } from '../runReport';
-import { differencesSettled, pickSampling, resolveSampling } from '../sampling';
+import { differencesSettled, resolveSampling } from '../sampling';
 import type { SamplingOptions } from '../sampling';
 import type { BenchFile } from './benchFiles';
 import type { ResolvedRef } from './refs';
@@ -443,7 +443,7 @@ function samplingOf(
   own: SamplingOptions,
   runDefaults: SamplingOptions = {},
 ): Required<SamplingOptions> {
-  return resolveSampling({ ...pickSampling(runDefaults), ...own });
+  return resolveSampling({ ...runDefaults, ...own });
 }
 
 /** What a run drives: the browser, and every benchmark it was asked for, in order. */

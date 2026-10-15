@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { analyzeBenchmark } from './runReport/analyzeRun';
 import type { RunBenchmark, RunMetricDefinition } from './runReport';
-import { DEFAULT_SAMPLING, differencesSettled, resolveSampling } from './sampling';
+import {
+  DEFAULT_SAMPLING,
+  differencesSettled,
+  resolveSampling,
+  validateSampling,
+} from './sampling';
 
 describe('resolveSampling', () => {
   it('fills in a default for every option left out or undefined', () => {
@@ -11,17 +16,24 @@ describe('resolveSampling', () => {
     });
   });
 
-  it('accepts the documented ranges', () => {
-    expect(() => resolveSampling({ sampleSize: 2, timeout: 0 })).not.toThrow();
+  it('rejects options out of range', () => {
+    expect(() => resolveSampling({ sampleSize: 1 })).toThrow(/Invalid sampleSize 1/);
+  });
+});
+
+describe('validateSampling', () => {
+  it('accepts the documented ranges, and options left out', () => {
+    expect(() => validateSampling({ sampleSize: 2, timeout: 0 })).not.toThrow();
+    expect(() => validateSampling({})).not.toThrow();
   });
 
   it('rejects a sample size that cannot form an interval', () => {
-    expect(() => resolveSampling({ sampleSize: 1 })).toThrow(/Invalid sampleSize 1/);
-    expect(() => resolveSampling({ sampleSize: 2.5 })).toThrow(/Invalid sampleSize 2.5/);
+    expect(() => validateSampling({ sampleSize: 1 })).toThrow(/Invalid sampleSize 1/);
+    expect(() => validateSampling({ sampleSize: 2.5 })).toThrow(/Invalid sampleSize 2.5/);
   });
 
   it('rejects a negative timeout', () => {
-    expect(() => resolveSampling({ timeout: -1 })).toThrow(/Invalid timeout -1/);
+    expect(() => validateSampling({ timeout: -1 })).toThrow(/Invalid timeout -1/);
   });
 });
 
