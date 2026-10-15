@@ -3,7 +3,7 @@
 The `loadServerSitemap` utility parses sitemap index files to load page metadata at runtime. It reads the sitemap index file, finds [`createSitemap`](../../factories/create-sitemap/page.mdx) factory calls, resolves page imports, and builds a complete `Sitemap` object with schema and data.
 
 > [!TIP]
-> Use this function for runtime loading outside of Next.js builds (e.g., in tests, scripts, or non-Next.js applications).
+> Use this function for runtime loading outside of Next.js builds (for example, in tests, scripts, or non-Next.js applications).
 
 ## Basic Usage
 
@@ -129,10 +129,10 @@ const results = await search(searchIndex, { term: 'code' });
 
 ## Comparison: Build-Time vs Runtime
 
-| Feature            | Build-Time (Webpack Loader) | Runtime (`loadServerSitemap`)    |
+| Feature            | Build-Time (webpack Loader) | Runtime (`loadServerSitemap`)    |
 | :----------------- | :-------------------------- | :------------------------------- |
 | **When processed** | During Next.js build        | At runtime when called           |
-| **Caching**        | Webpack dependency cache    | Manual caching via Map           |
+| **Caching**        | webpack dependency cache    | Manual caching via Map           |
 | **Environment**    | Next.js only                | Any Node.js environment          |
 | **Use case**       | Production builds           | Tests, scripts, non-Next.js apps |
 | **Performance**    | Fastest (precomputed)       | Slower (reads files at runtime)  |
@@ -170,4 +170,4 @@ import { TypesLoadServerSitemap, TypesLoadServerSitemapAdditional } from './type
 ## Related
 
 - [`loadServerPageIndex`](../load-server-page-index/page.mdx) - Loads individual page metadata
-- [`loadPrecomputedSitemap`](../load-precomputed-sitemap/page.mdx) - Webpack loader for build-time processing
+- [`loadPrecomputedSitemap`](../load-precomputed-sitemap/page.mdx) - webpack loader for build-time processing

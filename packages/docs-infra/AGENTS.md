@@ -47,10 +47,10 @@ Follow additional instructions when working in the `@mui/internal-docs-infra` (`
 - **7.1** Write type-safe code. Avoid using `any` or `unknown` unless absolutely necessary. Prefer using `unknown` over `any` and always narrow `unknown` to a specific type as soon as possible. Avoid using `as` type assertions except when working with well-known browser APIs or when you have verified the type through runtime checks. Prefer type guards, type predicates, and proper type narrowing over assertions. User-facing exports should have as strong of typing as possible.
 - **7.2** Use `async/await` for asynchronous code. Avoid using `.then()` and `.catch()`.
 - **7.3** Use `import { ... } from '...'` syntax for imports. Avoid using `require()`.
-- **7.4** Use ES modules and `import`/`export` syntax.
-- **7.5** When importing from React, always use namespace imports: `import * as React from 'react'`. Access React exports via the namespace (e.g., `React.Suspense`, `React.useState`). Do not use named imports like `import { Suspense } from 'react'`.
+- **7.4** Use ES modules and `import`/`export` syntax.
+- **7.5** When importing from React, always use namespace imports: `import * as React from 'react'`. Access React exports via the namespace (for example, `React.Suspense`, `React.useState`). Do not use named imports like `import { Suspense } from 'react'`.
 - **7.6** This package is ESM only. Do not add any CJS code.
-- **7.7** Avoid using default exports unless that API is required by another package (e.g. webpack). Use named exports for all functions, types, and constants.
+- **7.7** Avoid using default exports unless that API is required by another package (for example, webpack). Use named exports for all functions, types, and constants.
 - **7.8** Always try to parallelize asynchronous operations using `Promise.all()` or similar techniques. If the result of an async operation is not needed for subsequent operations, it should be started as early as possible and awaited later.
 - **7.9** When parsing long strings, avoid looping through the entire file more than once.
 - **7.10** Use streaming APIs when working with large files to reduce memory usage.

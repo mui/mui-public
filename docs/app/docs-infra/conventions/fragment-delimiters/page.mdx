@@ -1,6 +1,6 @@
 # Fragment Delimiters
 
-We use `:` to express hierarchy inside URL fragments. Example: `https://example.com/page#section:subsection` uses `:` to separate a primary section (`section`) from a nested part (`subsection`). The full value appears in an element's `id`, e.g. <span id="section:subsection">`section:subsection`</span>.
+We use `:` to express hierarchy inside URL fragments. Example: `https://example.com/page#section:subsection` uses `:` to separate a primary section (`section`) from a nested part (`subsection`). The full value appears in an element's `id`, for example, <span id="section:subsection">`section:subsection`</span>.
 
 ## Rationale
 
@@ -9,7 +9,7 @@ We need a delimiter that clearly separates logical segments without clashing wit
 - **Readable** - Stands out more than `-` or `_`, which already saturate slugs.
 - **Low collision** - Our slug generation collapses most punctuation to `-`; literal colons almost never appear organically.
 - **Familiar mental model** - Common in namespace-like contexts (design tokens, type references, etc.).
-- **Standards compliant** - RFC 3986 lists `:` in the reserved _gen-delims_ set (Section 2.2). The fragment syntax (Section 3.5) does not define internal structure, and Appendix A (`pchar`) allows `:`. That leaves the colon semantically free for client-side interpretation. If a literal colon must appear within a segment, encode it as `%3A` so parsing treats it as data, not a separator (e.g. `#token:pattern%3Aliteral:details` → `token`, `pattern:literal`, `details`).
+- **Standards compliant** - RFC 3986 lists `:` in the reserved _gen-delims_ set (Section 2.2). The fragment syntax (Section 3.5) does not define internal structure, and Appendix A (`pchar`) allows `:`. That leaves the colon semantically free for client-side interpretation. If a literal colon must appear within a segment, encode it as `%3A` so parsing treats it as data, not a separator (for example, `#token:pattern%3Aliteral:details` → `token`, `pattern:literal`, `details`).
 
 ## Syntax
 
@@ -49,7 +49,7 @@ Do:
 Don't:
 
 - Overload `:` with arbitrary flags that aren't structural.
-- Mix delimiter styles (e.g. `section/sub:part`).
+- Mix delimiter styles (for example, `section/sub:part`).
 - Expose transient UI state (scroll position, ephemeral filters, temporary sorts) in the URL.
 
 ## Interoperability
@@ -99,7 +99,7 @@ Standards summary:
 
 Practical rules:
 
-- Uniqueness: Every full multi-segment value (e.g. `theming:palette:primary`) must be unique.
+- Uniqueness: Every full multi-segment value (for example, `theming:palette:primary`) must be unique.
 - Stability: Changing a primary segment breaks inbound links; avoid unless necessary.
 - Whitespace: Reject IDs with spaces/newlines before adding hierarchy.
 - CSS: Escape colons in raw CSS selectors:
@@ -150,7 +150,7 @@ Migration strategy (if delimiter ever changes):
 
 ## Future Considerations
 
-- Range targeting (e.g. `component:lines-10-20`) would need a clearly documented pattern.
+- Range targeting (for example, `component:lines-10-20`) would need a clearly documented pattern.
 - Structured JSON-in-fragment rejected (verbosity, readability).
 
 ## FAQ

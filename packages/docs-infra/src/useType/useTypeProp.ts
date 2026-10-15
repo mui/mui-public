@@ -29,8 +29,8 @@ export interface TypePropRefProps {
  * - No `TypesDataProvider` is present in the tree
  * - The type or property has not been registered
  *
- * @param typeName - The type name (e.g., "Root", "Trigger")
- * @param propName - The property name (e.g., "className", "defaultOpen")
+ * @param typeName - The type name (for example, "Root", "Trigger")
+ * @param propName - The property name (for example, "className", "defaultOpen")
  */
 export function useTypeProp(typeName: string, propName: string): TypePropData | undefined {
   const context = useTypesDataContext();

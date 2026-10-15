@@ -43,7 +43,7 @@ Use `loadServerCodeSource` when you need to:
 - **Implement server-side code loading** for [`CodeHighlighter`](../../components/code-highlighter/page.mdx) in React Server Components
 - **Build demo processing pipelines** that need automatic dependency resolution from disk
 - **Analyze import dependencies** in source files for documentation generation
-- **Load code with its dependencies** at request time (e.g., dynamic routes like `app/components/[component].tsx`)
+- **Load code with its dependencies** at request time (for example, dynamic routes like `app/components/[component].tsx`)
 
 > [!TIP]
 > For build-time optimization, use the [Precompute Loader](../load-precomputed-code-highlighter/page.mdx) instead, which calls `loadServerCodeSource` during webpack compilation and caches the results.

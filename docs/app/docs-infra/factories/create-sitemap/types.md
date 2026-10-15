@@ -10,7 +10,7 @@ Creates sitemap data from page components with optional precomputed data.
 Returns a sitemap data object containing schema and page data.
 
 In Next.js builds, the webpack loader precomputes the sitemap data.
-Outside Next.js (e.g., tests or scripts), use `loadServerSitemap()` for runtime loading.
+Outside Next.js (for example, tests or scripts), use `loadServerSitemap()` for runtime loading.
 
 **Parameters:**
 

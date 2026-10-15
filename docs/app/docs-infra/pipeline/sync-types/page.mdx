@@ -12,7 +12,7 @@ The server-side function for synchronizing TypeScript type documentation to disk
 4. Optionally updates the parent index page with component metadata
 5. Returns the organized data for rendering
 
-This function is separated from the webpack loader to allow reuse in other contexts (e.g., API routes, scripts, or custom build tools).
+This function is separated from the webpack loader to allow reuse in other contexts (for example, API routes, scripts, or custom build tools).
 
 > **Note**: Type highlighting is handled separately by [`loadServerTypes`](../load-server-types/page.mdx), which calls this function and then applies `highlightTypes` and `highlightTypesMeta` to convert plain text types to syntax-highlighted HAST.
 
@@ -119,7 +119,7 @@ await syncPageIndex({
 
 - [`loadServerTypesMeta`](../load-server-types-meta/page.mdx) - Core type loading and formatting (used internally)
 - [`loadServerTypes`](../load-server-types/page.mdx) - Server-side function that calls this and applies highlighting
-- [`loadPrecomputedTypes`](../load-precomputed-types/page.mdx) - Webpack loader that uses this function
+- [`loadPrecomputedTypes`](../load-precomputed-types/page.mdx) - webpack loader that uses this function
 - [`syncPageIndex`](../sync-page-index/page.mdx) - Updates parent index pages with component metadata
 - [`abstractCreateTypes`](../../factories/abstract-create-types/page.mdx) - Create type documentation factories
 - [`typescript-api-extractor`](https://github.com/michaldudak/typescript-api-extractor) - Underlying type extraction library

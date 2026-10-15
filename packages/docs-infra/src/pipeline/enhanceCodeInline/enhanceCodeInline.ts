@@ -329,7 +329,7 @@ function enhanceBuiltInTypes(children: ElementContent[]): void {
  *    inside — no semantic information is destroyed.
  *
  * 2. **Token reclassification**: Corrects misidentified token classes,
- *    e.g., `function` marked as `pl-en` is changed to `pl-k` (keyword).
+ *    for example, `function` marked as `pl-en` is changed to `pl-k` (keyword).
  *
  * 3. **Built-in type enhancement** (TypeScript only): Reclassifies standalone
  *    type keywords (`string`, `number`, `void`, etc.) from `pl-smi`/`pl-k`
