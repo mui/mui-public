@@ -518,7 +518,7 @@ export async function generateTypesMarkdown(
         }
       }
     } else if (typeMeta.type === 'function') {
-      const part = typeMeta.data.name;
+      const part = typeMeta.name;
       const data = typeMeta.data;
 
       const displayName = getDisplayName(part);
@@ -668,7 +668,7 @@ export async function generateTypesMarkdown(
       }
     } else if (typeMeta.type === 'class') {
       // For 'class' types (ClassTypeMeta)
-      const part = typeMeta.data.name;
+      const part = typeMeta.name;
       const data = typeMeta.data;
 
       const displayName = getDisplayName(part);
