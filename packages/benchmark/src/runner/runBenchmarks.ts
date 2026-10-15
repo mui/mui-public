@@ -122,7 +122,7 @@ export async function runBenchmarks(
   const refs: ResolvedRef[] = [WORKTREE_REF, await resolveBaselineRef(baseline, repoRoot)];
 
   // Before any build, so a missing browser fails in seconds rather than after the packing.
-  const browserBinary = await resolveBrowserBinary(harnessDir);
+  const browserBinary = await resolveBrowserBinary();
   // `getuid` is POSIX-only; on Windows nobody is root. Chrome cannot enter its sandbox as root.
   const launchArgs = process.getuid?.() === 0 ? ['--no-sandbox'] : [];
 

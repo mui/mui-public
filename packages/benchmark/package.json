@@ -61,9 +61,6 @@
     "benchmark": "./src/cli/index.ts"
   },
   "peerDependenciesMeta": {
-    "@playwright/test": {
-      "optional": true
-    },
     "vite": {
       "optional": true
     }

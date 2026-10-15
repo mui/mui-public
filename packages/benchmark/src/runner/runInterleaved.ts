@@ -2,6 +2,7 @@
 
 import { addAbortListener } from 'node:events';
 import chalk from 'chalk';
+import { chromium } from '@playwright/test';
 import type { Browser, CDPSession, Page } from '@playwright/test';
 import { BENCHMARK_LAUNCH_ARGS, BENCHMARK_VIEWPORT } from '../launchArgs';
 import { compareBenchmark, formatDuration, formatRoundCount } from '../runReport';
@@ -461,7 +462,6 @@ export async function withPlannedRun<T>(
   options: RunInterleavedOptions,
   drive: (run: PlannedRun) => Promise<T>,
 ): Promise<T> {
-  const { chromium } = await import('@playwright/test');
   const [server, browser] = await Promise.all([
     serveDirectory(options.buildsDir),
     chromium.launch({
