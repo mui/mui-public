@@ -32,7 +32,6 @@ export interface RunInterleavedOptions {
   benchFiles: BenchFile[];
   /** The builds a benchmark file compares: the working tree first, then the baseline. */
   benchRefs: ResolvedRef[];
-  browserBinary: string;
   launchArgs: string[];
   /** Defaults for the sampling options a benchmark doesn't set itself, from `getSampling`. */
   sampling?: SamplingOptions;
@@ -465,7 +464,6 @@ export async function withPlannedRun<T>(
   const [server, browser] = await Promise.all([
     serveDirectory(options.buildsDir),
     chromium.launch({
-      executablePath: options.browserBinary,
       headless: true,
       args: [...BENCHMARK_LAUNCH_ARGS, ...options.launchArgs],
     }),

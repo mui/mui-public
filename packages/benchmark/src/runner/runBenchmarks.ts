@@ -4,6 +4,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
 import chalk from 'chalk';
+import { chromium } from '@playwright/test';
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import { packRef, packWorkingTree } from '../utils/packWorkspace';
 import { getCiMetadata } from '../ciReport';
@@ -17,7 +18,6 @@ import { discoverBenchFiles } from './benchFiles';
 import { runInterleaved } from './runInterleaved';
 import { traceBenchmarks } from './traceBenchmarks';
 import { buildRefPages, restoreWorkspace } from './buildPages';
-import { resolveBrowserBinary } from './browser';
 import { printRunReport } from './printReport';
 import { buildsDirOf, prepareOutputDir, resultsPathOf } from './outputDir';
 
@@ -121,8 +121,6 @@ export async function runBenchmarks(
   // The working tree first: it is the reference every comparison is judged from.
   const refs: ResolvedRef[] = [WORKTREE_REF, await resolveBaselineRef(baseline, repoRoot)];
 
-  // Before any build, so a missing browser fails in seconds rather than after the packing.
-  const browserBinary = await resolveBrowserBinary();
   // `getuid` is POSIX-only; on Windows nobody is root. Chrome cannot enter its sandbox as root.
   const launchArgs = process.getuid?.() === 0 ? ['--no-sandbox'] : [];
 
@@ -131,7 +129,7 @@ export async function runBenchmarks(
     ref.sha ? `${refLabel(ref)} (${ref.sha.slice(0, 9)})` : refLabel(ref);
   console.log(chalk.cyan(`Files:   ${benchFiles.map((benchFile) => benchFile.file).join(', ')}`));
   console.log(chalk.cyan(`Refs:    ${refs.map(describeRef).join(', ')}`));
-  console.log(chalk.cyan(`Browser: ${browserBinary} ${launchArgs.join(' ')}`));
+  console.log(chalk.cyan(`Browser: ${chromium.executablePath()} ${launchArgs.join(' ')}`));
   // Logical CPUs (hardware threads, vCPUs in CI), not physical cores; it honours CPU affinity, and
   // in practice a container's CPU quota.
   const cpus = os.availableParallelism();
@@ -187,7 +185,6 @@ export async function runBenchmarks(
       buildsDir,
       benchFiles,
       benchRefs: refs,
-      browserBinary,
       launchArgs,
       testNamePattern: namePattern,
     };
