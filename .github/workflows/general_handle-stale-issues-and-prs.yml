@@ -1,4 +1,4 @@
-name: Close stale issues and PRs
+name: Close stale issues
 
 on:
   workflow_call:
@@ -18,6 +18,7 @@ jobs:
       # only needed for delete-branch option (which we are currently not using)
       # contents: write
       issues: write
+      # PRs labeled stale before PR handling was turned off still get the label removed when updated
       pull-requests: write
     steps:
       - uses: actions/stale@4391f3da665fdf50b6810c1a66712fb9ba21aa93 # v11.0.0
@@ -33,11 +34,6 @@ jobs:
           # only run on issues with the waiting for author label
           only-issue-labels: 'status: waiting for author'
 
-          # stale PR handling
-          stale-pr-message: 'This pull request has been inactive for 30 days. Please remove the stale label or leave a comment to keep it open. Otherwise, it will be closed in 15 days.'
-          close-pr-message: 'This pull request has been closed due to 15 days of inactivity after being marked stale.'
-          # labeling "stale" after 30 days and closing after additional 15 days
-          days-before-pr-stale: 30
-          days-before-pr-close: 15
-          # do not run this on draft PRs
-          exempt-draft-pr: true
+          # PRs are never marked stale or closed, whoever opened them
+          days-before-pr-stale: -1
+          days-before-pr-close: -1
