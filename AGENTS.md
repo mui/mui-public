@@ -30,12 +30,13 @@ Always reference these instructions first and fallback to search or bash command
 
 ### Run Applications
 
-- **Code Infra Dashboard** (React/Vite app):
+- **Code Infra Dashboard** (Next.js App Router app, deployed as a Node web service on Render -- see `render.yaml`):
   - **ALWAYS run the bootstrapping steps first**
-  - Build: `pnpm -F code-infra-dashboard run build` -- takes 5 seconds
-  - Dev server: `pnpm -F code-infra-dashboard run start` -- runs on http://localhost:3000
+  - Build: `pnpm -F code-infra-dashboard run build` -- needs `GITHUB_TOKEN` (or the GitHub App vars) in `.env.local`, because the `/kpis` pages are prerendered against the GitHub API and anonymous requests hit the rate limit.
+  - Dev server: `pnpm -F code-infra-dashboard run dev` -- runs on http://localhost:3000 (`run start` serves an existing build instead)
   - Production URL: `https://frontend-public.mui.com`
   - PR preview URLs follow the pattern: `https://code-infra-dashboard-pr-{number}.onrender.com`
+  - Optional GitHub sign-in: unset by default, so the app runs anonymously. Set `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET`, `SESSION_SECRET` and `DASHBOARD_ORIGIN` to enable it locally -- see `.env.example`.
 
 ## Validation
 

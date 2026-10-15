@@ -17,11 +17,13 @@ import {
 } from '@mui/x-data-grid-premium';
 import type { GridColDef } from '@mui/x-data-grid-premium';
 import { LineChart } from '@mui/x-charts-pro/LineChart';
+import type { Octokit } from '@octokit/rest';
 import Heading from '../components/Heading';
 import ErrorDisplay from '../components/ErrorDisplay';
 import { useSearchParamsState } from '../hooks/useSearchParamsState';
-import { octokit, parseIssueUrl } from '../utils/github';
+import { parseIssueUrl } from '../utils/github';
 import type { IssueReactionTarget } from '../utils/github';
+import { useGitHubClient } from '../hooks/useGitHubClient';
 
 const EXAMPLES = [
   { label: 'mui-design-kits#10', url: 'https://github.com/mui/mui-design-kits/issues/10' },
@@ -73,6 +75,7 @@ const MAX_PAGES = 3;
 const PAGE_SIZE = 100;
 
 async function fetchReactions(
+  octokit: Octokit,
   target: IssueReactionTarget,
   unbounded: boolean,
 ): Promise<ReactionsResult> {
@@ -194,10 +197,12 @@ export default function Reactions() {
   );
   const parseError = Boolean(searchParams.url) && target === null;
 
+  const { octokit, ready, key } = useGitHubClient();
+
   const query = useQuery({
-    queryKey: ['reactions', target ? targetKey(target) : null, unbounded],
-    queryFn: () => fetchReactions(target!, unbounded),
-    enabled: Boolean(target),
+    queryKey: key('reactions', target ? targetKey(target) : null, unbounded),
+    queryFn: () => fetchReactions(octokit, target!, unbounded),
+    enabled: ready && Boolean(target),
     staleTime: 60 * 1000,
     retry: false,
   });
