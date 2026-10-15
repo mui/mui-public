@@ -1,8 +1,11 @@
 /* eslint-disable no-console */
 
 import { addAbortListener } from 'node:events';
+import * as http from 'node:http';
+import type { AddressInfo } from 'node:net';
 import chalk from 'chalk';
 import { chromium } from '@playwright/test';
+import sirv from 'sirv';
 import type { Browser, CDPSession, Page } from '@playwright/test';
 import { BENCHMARK_LAUNCH_ARGS, BENCHMARK_VIEWPORT } from '../launchArgs';
 import { compareBenchmark, formatDuration, formatRoundCount } from '../runReport';
@@ -11,7 +14,6 @@ import { DEFAULT_SAMPLING, differencesSettled } from '../sampling';
 import type { SamplingOptions } from '../sampling';
 import type { BenchFile } from './benchFiles';
 import type { ResolvedRef } from './refs';
-import { serveDirectory } from './serveDirectory';
 import type { BenchPage } from '../page/page';
 
 /**
@@ -461,13 +463,20 @@ export async function withPlannedRun<T>(
   options: RunInterleavedOptions,
   drive: (run: PlannedRun) => Promise<T>,
 ): Promise<T> {
-  const [server, browser] = await Promise.all([
-    serveDirectory(options.buildsDir),
+  // Each build is served under its own path. In `dev` mode, every page load reads the build from
+  // disk and the browser caches nothing (`no-store`).
+  const server = http.createServer(sirv(options.buildsDir, { dev: true }));
+  const [, browser] = await Promise.all([
+    new Promise<void>((resolve) => {
+      server.listen(0, '127.0.0.1', resolve);
+    }),
     chromium.launch({
       headless: true,
       args: [...BENCHMARK_LAUNCH_ARGS, ...options.launchArgs],
     }),
   ]);
+
+  const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 
   // Closing the browser ends whatever a page is doing at once, rather than when its sample would.
   const closeOnAbort =
@@ -479,9 +488,7 @@ export async function withPlannedRun<T>(
     const { testNamePattern } = options;
     const planned = (
       await Promise.all(
-        options.benchFiles.map((benchFile) =>
-          planBenchFile(browser, server.origin, benchFile, options),
-        ),
+        options.benchFiles.map((benchFile) => planBenchFile(browser, origin, benchFile, options)),
       )
     )
       .flat()
@@ -493,7 +500,9 @@ export async function withPlannedRun<T>(
   } finally {
     closeOnAbort?.[Symbol.dispose]();
     await browser.close();
-    await server.close();
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => (error ? reject(error) : resolve()));
+    });
   }
 }
 
