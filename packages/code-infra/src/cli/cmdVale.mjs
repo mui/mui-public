@@ -381,10 +381,6 @@ export async function applyFixes(results, fixLevel) {
         return replacement === null ? [] : [{ ...alert, replacement }];
       });
 
-      if (fixableAlerts.length === 0) {
-        return { fixed: 0, skipped: alerts.length };
-      }
-
       // Group alerts by line number
       /** @type {Map<number, typeof fixableAlerts>} */
       const alertsByLine = new Map();
@@ -416,6 +412,8 @@ export async function applyFixes(results, fixLevel) {
         for (const fix of located) {
           if (accepted.every((other) => fix.end <= other.start || fix.start >= other.end)) {
             accepted.push(fix);
+          } else {
+            fileSkipped += 1;
           }
         }
 

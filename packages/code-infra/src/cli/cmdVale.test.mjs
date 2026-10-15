@@ -294,7 +294,7 @@ describe('applyFixes', () => {
 
     const { fixed, skipped } = await applyFixes(results, 'all');
     expect(fixed).toBe(1);
-    expect(skipped).toBe(0);
+    expect(skipped).toBe(1);
     expect(await readFile(filePath)).toBe('Pick a name (for example, `Button`) here.\n');
   });
 
@@ -323,6 +323,9 @@ describe('applyFixes', () => {
 
   it('skips an alert when the span is wrong and the match is ambiguous', async () => {
     const filePath = await createFile('test.md', '- `data-*`: e.g. one, e.g. two\n');
+    // Backdate the file so a rewrite would be visible in its mtime
+    const past = new Date('2020-01-01T00:00:00Z');
+    await fs.utimes(filePath, past, past);
     const results = {
       [filePath]: [
         {
@@ -341,6 +344,7 @@ describe('applyFixes', () => {
     expect(fixed).toBe(0);
     expect(skipped).toBe(1);
     expect(await readFile(filePath)).toBe('- `data-*`: e.g. one, e.g. two\n');
+    expect((await fs.stat(filePath)).mtime).toEqual(past);
   });
 
   describe('fixLevel filtering', () => {
