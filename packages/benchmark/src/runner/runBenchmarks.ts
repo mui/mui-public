@@ -192,7 +192,7 @@ export async function runBenchmarks(
     if (profile) {
       const traced = await traceBenchmarks({
         ...runOptions,
-        rounds: sampling?.sampleSize ?? PROFILE_ROUNDS,
+        rounds: sampling.sampleSize ?? PROFILE_ROUNDS,
         tracesDir: path.join(outputDir, 'traces'),
       });
       if (reporter === 'json') {

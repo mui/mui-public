@@ -521,7 +521,7 @@ the comment reports a run whose benchmarks all errored:
 `benchmark upload [file]` refuses a report measured on another commit than the one CI is building.
 
 Uploads from a tracked branch (`master`, `next`, `v7.x`, …) join that branch's timeline, the history
-the dashboard draws. A run against another baseline names its own with `--timeline` (or
+the dashboard draws. A run against another baseline uploads into its own with `benchmark upload --timeline` (or
 `BENCHMARK_TIMELINE`), so it neither overwrites the commit's regular report nor lands in the branch's
 history, for example a weekly run against the last release:
 

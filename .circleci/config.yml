@@ -146,7 +146,8 @@ jobs:
           command: pnpm test:benchmark --baseline "$(cat .benchmark-baseline-sha)"
       - run:
           name: Upload the benchmark report
-          # Also after a failed run, so the comment says what happened.
+          # Also after a failed run that wrote its report, such as one where every benchmark errored,
+          # so the comment says what happened.
           when: always
           environment:
             # TEMPORARY: uploads in place of `test_benchmark`, since both write the commit's one

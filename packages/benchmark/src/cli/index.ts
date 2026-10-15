@@ -138,11 +138,8 @@ const uploadCommand: CommandModule<{}, { file?: string; timeline?: string }> = {
           "The dashboard timeline to upload into in place of the branch's, for a run against another baseline such as the last release. Defaults to BENCHMARK_TIMELINE",
       }),
   handler: async (argv) => {
-    const [{ uploadReportFile }, { resultsPathOf }] = await Promise.all([
-      import('../runner/upload'),
-      import('../runner/outputDir'),
-    ]);
-    await uploadReportFile(argv.file ?? resultsPathOf(process.cwd()), argv.timeline);
+    const { uploadReportFile } = await import('../runner/upload');
+    await uploadReportFile({ harnessDir: process.cwd(), file: argv.file, timeline: argv.timeline });
   },
 };
 

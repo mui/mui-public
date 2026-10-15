@@ -1,24 +1,44 @@
 /* eslint-disable no-console -- progress belongs in the CI log. */
 
+import * as path from 'node:path';
 import { readFile } from 'node:fs/promises';
 import chalk from 'chalk';
 import { postToDashboard } from '../ciApi';
 import { getCiMetadata } from '../ciReport';
 import { syncPrComment } from '../syncPrComment';
 import { benchmarkRunReportSchema, benchmarkRunUploadSchema } from '../runReport';
-import type { BenchmarkRunReport } from '../runReport';
+import { resultsPathOf } from './outputDir';
+
+export interface UploadReportOptions {
+  /** The harness package directory, where a run writes its report by default. */
+  harnessDir: string;
+  /** The report to upload. Defaults to the one a run writes, `.benchmark/results/report.json`. */
+  file?: string;
+  /** The dashboard timeline to upload into, in place of the branch's. */
+  timeline?: string;
+}
 
 /**
- * Uploads a report and refreshes the pull request comment.
+ * Uploads a report that a `benchmark` run wrote, and refreshes the pull request comment.
  *
- * Validates before sending because the server stores `report` without inspecting it. A failure to
- * refresh the comment does not fail the run: the numbers are already measured, written and
- * uploaded, and losing them to a comment API hiccup would waste the whole run.
+ * The dashboard files the report under the commit CI is building, so a report measured on another
+ * commit is refused rather than filed under the wrong one. Validates before sending because the
+ * server stores `report` without inspecting it. A failure to refresh the comment does not fail the
+ * upload: the report has landed, and the next sync shows it.
  */
-export async function publishRunReport(
-  report: BenchmarkRunReport,
-  timeline: string | undefined,
-): Promise<void> {
+export async function uploadReportFile(options: UploadReportOptions): Promise<void> {
+  const file = options.file ? path.resolve(options.file) : resultsPathOf(options.harnessDir);
+  let text: string;
+  try {
+    text = await readFile(file, 'utf8');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new Error(`No report at ${file}: the run failed before writing one.`);
+    }
+    throw error;
+  }
+  const report = benchmarkRunReportSchema.parse(JSON.parse(text));
+
   const metadata = await getCiMetadata();
   if (!metadata.repo) {
     console.warn(
@@ -26,12 +46,17 @@ export async function publishRunReport(
     );
     return;
   }
+  if (report.head.sha !== metadata.commitSha) {
+    throw new Error(
+      `${file} was measured on ${report.head.sha}, but CI is building ${metadata.commitSha}. Upload a report from this commit's run.`,
+    );
+  }
 
   const upload = benchmarkRunUploadSchema.parse({
     version: 2,
     reportType: 'benchmark',
     ...metadata,
-    timeline,
+    timeline: options.timeline,
     report,
   });
   const responseText = await postToDashboard(
@@ -54,21 +79,4 @@ export async function publishRunReport(
       ),
     );
   }
-}
-
-/**
- * Uploads a report file that `benchmark` wrote, and refreshes the pull request comment.
- *
- * The dashboard files the report under the commit CI is building, so a report measured on another
- * commit is refused rather than filed under the wrong one.
- */
-export async function uploadReportFile(file: string, timeline: string | undefined): Promise<void> {
-  const report = benchmarkRunReportSchema.parse(JSON.parse(await readFile(file, 'utf8')));
-  const { commitSha } = await getCiMetadata();
-  if (commitSha && report.head.sha && report.head.sha !== commitSha) {
-    throw new Error(
-      `${file} was measured on ${report.head.sha}, but CI is building ${commitSha}. Upload a report from this commit's run.`,
-    );
-  }
-  await publishRunReport(report, timeline);
 }

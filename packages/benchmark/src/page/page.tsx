@@ -90,7 +90,7 @@ export function compare(
   const ownSampling = getSampling(sampling);
   for (const benchCase of compared) {
     const own = cases.get(benchCase.name);
-    if (own && Object.keys(own.sampling).length > 0) {
+    if (own && (own.sampling.sampleSize !== undefined || own.sampling.timeout !== undefined)) {
       throw new Error(
         `"${benchCase.name}" sets its own sampling, but a compared case is sampled as its ` +
           `compare() asks: pass the options to compare("${name}", …) instead.`,
