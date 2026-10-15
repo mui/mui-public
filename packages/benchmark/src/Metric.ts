@@ -49,9 +49,9 @@ export interface MetricRecordOptions {
 export abstract class Metric {
   abstract readonly kind: MetricKind;
 
-  readonly name: string;
+  declare readonly name: string;
 
-  protected readonly config: MetricConfig;
+  declare protected readonly config: MetricConfig;
 
   constructor(config: MetricConfig | string) {
     this.config = typeof config === 'string' ? { name: config } : config;

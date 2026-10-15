@@ -44,13 +44,13 @@ async function fileExists(path: string): Promise<boolean> {
  * Socket server that handles requests from other workers
  */
 export class SocketServer {
-  private server: Server;
+  declare private server: Server;
 
-  private socketPath: string;
+  declare private socketPath: string;
 
   private connections = new Set<Socket>();
 
-  private requestHandler: (request: WorkerRequest) => Promise<WorkerResponse>;
+  declare private requestHandler: (request: WorkerRequest) => Promise<WorkerResponse>;
 
   /**
    * Request queue to serialize processTypes calls.

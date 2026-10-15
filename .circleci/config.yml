@@ -13,7 +13,7 @@ default-job: &default-job
   working_directory: /tmp/mui
   executor:
     name: code-infra/mui-node
-    node-version: '22.23.2'
+    node-version: '22.23.3'
   resource_class: medium
 
 default-context: &default-context
@@ -91,7 +91,7 @@ jobs:
     <<: *default-job
     executor:
       name: code-infra/mui-node-browser
-      playwright-img-version: 'v1.63.0-noble'
+      playwright-img-version: 'v1.64.0-noble'
     steps:
       - checkout
       - code-infra/install-deps
@@ -108,7 +108,7 @@ jobs:
     <<: *default-job
     executor:
       name: code-infra/mui-node-browser
-      playwright-img-version: 'v1.63.0-noble'
+      playwright-img-version: 'v1.64.0-noble'
     # `medium` (4 GB) intermittently OOM-kills the Playwright server when
     # all three browsers (chromium/firefox/webkit) are driving tests at
     # once. `medium+` (6 GB) gives enough headroom without paying for

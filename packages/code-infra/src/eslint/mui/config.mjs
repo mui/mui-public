@@ -1,5 +1,5 @@
 import { defineConfig } from 'eslint/config';
-import { EXTENSION_DTS } from '../extensions.mjs';
+import { EXTENSION_DTS, EXTENSION_TS_ONLY } from '../extensions.mjs';
 
 const restrictedMethods = ['setTimeout', 'setInterval', 'clearTimeout', 'clearInterval'];
 
@@ -184,6 +184,14 @@ const typescriptOverrides = {
   // TypeScript equivalents of ESLint rules
   'default-param-last': 'off',
   '@typescript-eslint/default-param-last': 'error',
+  '@typescript-eslint/ban-ts-comment': [
+    'error',
+    {
+      'ts-expect-error': 'allow-with-description',
+      'ts-ignore': true,
+      minimumDescriptionLength: 10,
+    },
+  ],
   'no-array-constructor': 'off',
   '@typescript-eslint/no-array-constructor': 'error',
   '@typescript-eslint/triple-slash-reference': 'off',
@@ -536,6 +544,13 @@ export function createCoreConfig(options = {}) {
         // Prevent the use of `e` as a shorthand for `event`, `error`, etc.
         'id-denylist': ['error', 'e'],
         '@typescript-eslint/return-await': 'off',
+      },
+    },
+    {
+      name: 'mui-base/ts',
+      files: [`**/*${EXTENSION_TS_ONLY}`],
+      rules: {
+        'mui/no-constructor-assigned-field': 'error',
       },
     },
     {
