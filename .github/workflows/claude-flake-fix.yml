@@ -99,6 +99,13 @@ on:
         # another project's CircleCI (circleci-org/repo/branch) while editing its own tree.
         type: string
         required: false
+      circleci-token-environment:
+        # Name of a GitHub Environment in the caller repo that holds the CircleCI token as a secret.
+        # Setting it runs the fetch job in that environment, so the environment's deployment-branch
+        # rule gates the token (e.g. master-only) and its CIRCLECI_TOKEN secret is what fetch reads.
+        # Blank runs fetch with no environment — for public projects read unauthenticated.
+        type: string
+        required: false
       debug:
         # Print the agent's full output to the run log. Off by default: the log is public and the
         # output includes the CircleCI logs (data, not secrets). Turn on to see why a run behaved
@@ -149,6 +156,9 @@ jobs:
   fetch:
     needs: resolve-ref
     runs-on: ubuntu-latest
+    # Blank => no environment. When set, the environment's branch rule gates the CircleCI token and
+    # supplies it, so a non-allowed branch can't read it.
+    environment: ${{ inputs.circleci-token-environment }}
     permissions: {} # holds only the CircleCI token (a secret), no GITHUB_TOKEN scopes
     outputs:
       classify: ${{ steps.fetch.outputs.classify }}
