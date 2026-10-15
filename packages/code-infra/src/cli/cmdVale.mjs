@@ -372,12 +372,13 @@ export async function applyFixes(results, fixLevel) {
       const content = await fs.readFile(filePath, 'utf-8');
       const lines = content.split('\n');
 
-      // Filter alerts by severity and whether we can determine a replacement
-      const fixableAlerts = alerts.filter((alert) => {
+      // Keep alerts at the requested severity for which we can determine a replacement
+      const fixableAlerts = alerts.flatMap((alert) => {
         if (fixLevel === 'error' && alert.Severity !== 'error') {
-          return false;
+          return [];
         }
-        return getReplacementText(alert) !== null;
+        const replacement = getReplacementText(alert);
+        return replacement === null ? [] : [{ ...alert, replacement }];
       });
 
       if (fixableAlerts.length === 0) {
@@ -402,22 +403,17 @@ export async function applyFixes(results, fixLevel) {
         for (const alert of lineAlerts) {
           const range = locateAlert(line, alert);
           if (range) {
-            located.push({
-              ...range,
-              replacement: /** @type {string} */ (getReplacementText(alert)),
-            });
+            located.push({ ...range, replacement: alert.replacement });
           } else {
             fileSkipped += 1;
           }
         }
 
-        // Keep the widest of overlapping alerts (the first one on ties)
-        const widestFirst = located
-          .map((fix, order) => ({ ...fix, order }))
-          .sort((a, b) => b.end - b.start - (a.end - a.start) || a.order - b.order);
-        /** @type {typeof widestFirst} */
+        // Keep the widest of overlapping alerts (the first one on ties, as the sort is stable)
+        located.sort((a, b) => b.end - b.start - (a.end - a.start));
+        /** @type {typeof located} */
         const accepted = [];
-        for (const fix of widestFirst) {
+        for (const fix of located) {
           if (accepted.every((other) => fix.end <= other.start || fix.start >= other.end)) {
             accepted.push(fix);
           }
@@ -432,7 +428,9 @@ export async function applyFixes(results, fixLevel) {
         lines[lineNum - 1] = line;
       }
 
-      await fs.writeFile(filePath, lines.join('\n'), 'utf-8');
+      if (fileFixed > 0) {
+        await fs.writeFile(filePath, lines.join('\n'), 'utf-8');
+      }
 
       return { fixed: fileFixed, skipped: fileSkipped };
     },
