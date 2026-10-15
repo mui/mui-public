@@ -333,7 +333,31 @@ export function getReplacementText(alert) {
 }
 
 /**
+ * Resolves the 0-based [start, end) range of an alert's match within its line.
+ * Vale sometimes reports a span that doesn't point at the match (for example on lines
+ * with inline code), so the span is only trusted when it covers `Match`. Otherwise the
+ * match is located by text, and null is returned when that's ambiguous.
+ * @param {string} line
+ * @param {{ Span: [number, number]; Match: string }} alert
+ * @returns {{ start: number; end: number } | null}
+ */
+function locateAlert(line, alert) {
+  // Span is 1-based [start, end] inclusive
+  const start = alert.Span[0] - 1;
+  const end = alert.Span[1];
+  if (!alert.Match || line.slice(start, end) === alert.Match) {
+    return { start, end };
+  }
+  const index = line.indexOf(alert.Match);
+  if (index === -1 || line.indexOf(alert.Match, index + 1) !== -1) {
+    return null;
+  }
+  return { start: index, end: index + alert.Match.length };
+}
+
+/**
  * Applies auto-fixes from vale alerts to the source files.
+ * When alerts overlap (several rules flagging the same text), only the widest one is applied.
  * Processes alerts in reverse order within each line to preserve column positions.
  * @param {Record<string, Array<{ Action: { Name: string; Params: string[] | null }; Span: [number, number]; Check: string; Message: string; Severity: string; Match: string; Line: number }>>} results
  * @param {'all' | 'error'} fixLevel
@@ -360,43 +384,49 @@ export async function applyFixes(results, fixLevel) {
         return { fixed: 0, skipped: alerts.length };
       }
 
-      // Deduplicate alerts at the same location (same line + span), keeping the first one
-      /** @type {Map<string, typeof fixableAlerts[0]>} */
-      const uniqueAlerts = new Map();
-      for (const alert of fixableAlerts) {
-        const key = `${alert.Line}:${alert.Span[0]}:${alert.Span[1]}`;
-        if (!uniqueAlerts.has(key)) {
-          uniqueAlerts.set(key, alert);
-        }
-      }
-
-      // Sort by line ascending, then by span start descending (so we apply right-to-left)
-      const sortedAlerts = [...uniqueAlerts.values()].sort((a, b) => {
-        if (a.Line !== b.Line) {
-          return a.Line - b.Line;
-        }
-        return b.Span[0] - a.Span[0];
-      });
-
       // Group alerts by line number
-      /** @type {Map<number, typeof sortedAlerts>} */
+      /** @type {Map<number, typeof fixableAlerts>} */
       const alertsByLine = new Map();
-      for (const alert of sortedAlerts) {
+      for (const alert of fixableAlerts) {
         const lineAlerts = alertsByLine.get(alert.Line) ?? [];
         lineAlerts.push(alert);
         alertsByLine.set(alert.Line, lineAlerts);
       }
 
-      // Apply fixes line by line, right-to-left within each line
       let fileFixed = 0;
+      let fileSkipped = alerts.length - fixableAlerts.length;
       for (const [lineNum, lineAlerts] of alertsByLine) {
         let line = lines[lineNum - 1]; // Line is 1-based
+
+        const located = [];
         for (const alert of lineAlerts) {
-          const replacement = /** @type {string} */ (getReplacementText(alert));
-          // Span is 1-based [start, end] inclusive
-          const start = alert.Span[0] - 1;
-          const end = alert.Span[1];
-          line = line.slice(0, start) + replacement + line.slice(end);
+          const range = locateAlert(line, alert);
+          if (range) {
+            located.push({
+              ...range,
+              replacement: /** @type {string} */ (getReplacementText(alert)),
+            });
+          } else {
+            fileSkipped += 1;
+          }
+        }
+
+        // Keep the widest of overlapping alerts (the first one on ties)
+        const widestFirst = located
+          .map((fix, order) => ({ ...fix, order }))
+          .sort((a, b) => b.end - b.start - (a.end - a.start) || a.order - b.order);
+        /** @type {typeof widestFirst} */
+        const accepted = [];
+        for (const fix of widestFirst) {
+          if (accepted.every((other) => fix.end <= other.start || fix.start >= other.end)) {
+            accepted.push(fix);
+          }
+        }
+
+        // Apply right-to-left so earlier offsets stay valid
+        accepted.sort((a, b) => b.start - a.start);
+        for (const fix of accepted) {
+          line = line.slice(0, fix.start) + fix.replacement + line.slice(fix.end);
           fileFixed += 1;
         }
         lines[lineNum - 1] = line;
@@ -404,7 +434,7 @@ export async function applyFixes(results, fixLevel) {
 
       await fs.writeFile(filePath, lines.join('\n'), 'utf-8');
 
-      return { fixed: fileFixed, skipped: alerts.length - fixableAlerts.length };
+      return { fixed: fileFixed, skipped: fileSkipped };
     },
     { concurrency: 10 },
   );

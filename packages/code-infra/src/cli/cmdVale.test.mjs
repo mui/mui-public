@@ -267,6 +267,82 @@ describe('applyFixes', () => {
     expect(await readFile(filePath)).toBe('Use for example here.\n');
   });
 
+  it('applies only the widest of overlapping alerts', async () => {
+    const filePath = await createFile('test.md', 'Pick a name (e.g., `Button`) here.\n');
+    const results = {
+      [filePath]: [
+        {
+          Action: { Name: '', Params: null },
+          Span: /** @type {[number, number]} */ ([14, 16]),
+          Check: 'MUI.CorrectRererenceCased',
+          Message: "Use 'e.g.' instead of 'e.g'",
+          Severity: 'error',
+          Match: 'e.g',
+          Line: 1,
+        },
+        {
+          Action: { Name: 'replace', Params: ['for example'] },
+          Span: /** @type {[number, number]} */ ([14, 17]),
+          Check: 'MUI.GoogleLatin',
+          Message: "Use 'for example' instead of 'e.g.'",
+          Severity: 'error',
+          Match: 'e.g.',
+          Line: 1,
+        },
+      ],
+    };
+
+    const { fixed, skipped } = await applyFixes(results, 'all');
+    expect(fixed).toBe(1);
+    expect(skipped).toBe(0);
+    expect(await readFile(filePath)).toBe('Pick a name (for example, `Button`) here.\n');
+  });
+
+  it('locates the match when the reported span points elsewhere', async () => {
+    // Vale can report a span inside inline code instead of the actual match
+    const filePath = await createFile('test.md', '- `data-*`: The name (e.g., `foo`)\n');
+    const results = {
+      [filePath]: [
+        {
+          Action: { Name: 'replace', Params: ['for example'] },
+          Span: /** @type {[number, number]} */ ([7, 10]),
+          Check: 'MUI.GoogleLatin',
+          Message: "Use 'for example' instead of 'e.g.'",
+          Severity: 'error',
+          Match: 'e.g.',
+          Line: 1,
+        },
+      ],
+    };
+
+    const { fixed, skipped } = await applyFixes(results, 'all');
+    expect(fixed).toBe(1);
+    expect(skipped).toBe(0);
+    expect(await readFile(filePath)).toBe('- `data-*`: The name (for example, `foo`)\n');
+  });
+
+  it('skips an alert when the span is wrong and the match is ambiguous', async () => {
+    const filePath = await createFile('test.md', '- `data-*`: e.g. one, e.g. two\n');
+    const results = {
+      [filePath]: [
+        {
+          Action: { Name: 'replace', Params: ['for example'] },
+          Span: /** @type {[number, number]} */ ([7, 10]),
+          Check: 'MUI.GoogleLatin',
+          Message: "Use 'for example' instead of 'e.g.'",
+          Severity: 'error',
+          Match: 'e.g.',
+          Line: 1,
+        },
+      ],
+    };
+
+    const { fixed, skipped } = await applyFixes(results, 'all');
+    expect(fixed).toBe(0);
+    expect(skipped).toBe(1);
+    expect(await readFile(filePath)).toBe('- `data-*`: e.g. one, e.g. two\n');
+  });
+
   describe('fixLevel filtering', () => {
     it('fixes only errors when fixLevel is "error"', async () => {
       const filePath = await createFile('test.md', 'The MUI Dashboard has colour.\n');
