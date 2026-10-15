@@ -260,7 +260,7 @@ export async function measureIteration(
   renderFn: () => React.ReactElement,
   interaction: BenchmarkInteraction | undefined,
   options: CaseOptions | undefined,
-  driver: Pick<InteractionContext, 'input' | 'cdp'>,
+  driver: Pick<InteractionContext, 'cdp'>,
 ): Promise<MeasuredIteration> {
   // Per-iteration switch for the harness's React render/paint recording. Starts paused when
   // `reactRecordingPaused` is set; the interaction callback drives it from there.

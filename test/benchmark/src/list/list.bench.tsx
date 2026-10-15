@@ -38,12 +38,18 @@ reactBenchmark(
       <List count={500} />
     </ScrollingList>
   ),
-  async ({ input, resumeReactRecording, waitForElementTiming }) => {
+  async ({ cdp, resumeReactRecording, waitForElementTiming }) => {
     // The scroller has to be painted before a gesture can hit it.
     await waitForElementTiming('default');
     resumeReactRecording();
     scrollDuration.time();
-    await input.scroll({ x: 200, y: 150, deltaY: 1200, speed: 2400 });
+    await cdp.send('Input.synthesizeScrollGesture', {
+      x: 200,
+      y: 150,
+      yDistance: -1200,
+      speed: 2400,
+      gestureSourceType: 'mouse',
+    });
     scrollDuration.timeEnd();
   },
   { reactRecordingPaused: true, ...SMOKE_SAMPLING },

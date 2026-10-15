@@ -1,6 +1,5 @@
 import { collectGarbage } from '../gc';
-import { createInput } from '../input';
-import type { BenchmarkCdp, BenchmarkInput, CdpSend } from '../input';
+import type { BenchmarkCdp, CdpSend } from '../cdp';
 import { seriesName, setMetricRecorder } from '../metricCore';
 import { pickSampling, resolveSampling } from '../sampling';
 import type { SamplingOptions } from '../sampling';
@@ -14,8 +13,6 @@ import type { RunMetricAlarm } from '../runReport/schema';
 
 /** What a case's `run` is handed on every iteration. */
 export interface BenchmarkContext {
-  /** Trusted input — scroll gestures — dispatched by the browser rather than from script. */
-  input: BenchmarkInput;
   /** The DevTools Protocol, for what the case sets up or reads from the browser itself. */
   cdp: BenchmarkCdp;
 }
@@ -172,7 +169,6 @@ const send: CdpSend = (method, params) => {
   }
   return window.benchmarkCdp(method, params);
 };
-const input = createInput(send);
 const cdp: BenchmarkCdp = { send };
 
 async function sample(name: string): Promise<Record<string, number>> {
@@ -187,7 +183,7 @@ async function sample(name: string): Promise<Record<string, number>> {
   const values = new Map<string, number>();
   sampleValues = values;
   try {
-    await run({ input, cdp });
+    await run({ cdp });
   } finally {
     sampleValues = null;
   }

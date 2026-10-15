@@ -6,8 +6,7 @@ import type { RenderEvent, IterationData } from './types';
 import { ScalarMetric } from './ScalarMetric';
 import { metricsGate } from './metricsGate';
 import { runProfileSession } from './profileSession';
-import { createInput } from './input';
-import type { CdpSend } from './input';
+import type { CdpSend } from './cdp';
 import { collectGarbage } from './gc';
 import {
   createCaseRuntime,
@@ -34,11 +33,11 @@ const PROFILE_MODE = process.env.BENCHMARK_PROFILE === 'true';
 
 type CdpMethod = Parameters<ReturnType<typeof cdp>['send']>[0];
 
-// Gestures and `cdp` go through the CDP session Vitest's Playwright provider holds for the test
+// `cdp` goes through the CDP session Vitest's Playwright provider holds for the test
 // page. The session's `send` only accepts protocol method names it knows; ours takes any string and
 // leaves unknown methods for Chrome to reject.
 const send: CdpSend = (method, params) => cdp().send(method as CdpMethod, params);
-const driver = { input: createInput(send), cdp: { send } };
+const driver = { cdp: { send } };
 
 // Paint timings are recorded as one harness-owned `bench:paint` metric: the default sentinel
 // is the base series (`bench:paint`) and named `elementtiming` markers are sub-series

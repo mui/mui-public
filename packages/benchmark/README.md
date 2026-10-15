@@ -70,15 +70,22 @@ benchmark(
 );
 ```
 
-For input that should behave like a real mouse or trackpad, the interaction context has `input`:
-trusted gestures the browser generates itself at frame cadence, one command per gesture.
+The interaction context has `cdp`, the Chrome DevTools Protocol on the session that drives the page.
+For input that should behave like a real mouse or trackpad, send a gesture: the browser generates the
+whole event sequence itself at frame cadence, one command per gesture. Its distances point the other
+way from a wheel's: a negative `yDistance` scrolls down.
 
 ```tsx
 benchmark(
   'Chart zoom',
   () => <Chart />,
-  async ({ input }) => {
-    await input.scroll({ x: 400, y: 300, deltaY: 600 });
+  async ({ cdp }) => {
+    await cdp.send('Input.synthesizeScrollGesture', {
+      x: 400,
+      y: 300,
+      yDistance: -600,
+      gestureSourceType: 'mouse',
+    });
   },
 );
 ```
@@ -88,8 +95,7 @@ iteration to the next. Wait for the mount to be painted — `await waitForElemen
 before starting a gesture on something the case just rendered; until then, the browser may not route
 the gesture to it.
 
-For anything else the browser can do, the context has `cdp`, the Chrome DevTools Protocol on the
-session that drives the page: throttle the CPU, or read the engine's own counters as a custom metric.
+The same session can throttle the CPU, or read the engine's own counters as a custom metric.
 
 ```tsx
 const layouts = new DiscreteMetric({ name: 'layout:count' });
@@ -97,7 +103,7 @@ const layouts = new DiscreteMetric({ name: 'layout:count' });
 benchmark(
   'Grid scroll',
   () => <Grid />,
-  async ({ input, cdp }) => {
+  async ({ cdp }) => {
     await cdp.send('Performance.enable');
     const count = async () => {
       const { metrics } = (await cdp.send('Performance.getMetrics')) as {
@@ -106,7 +112,12 @@ benchmark(
       return metrics.find((metric) => metric.name === 'LayoutCount')!.value;
     };
     const before = await count();
-    await input.scroll({ x: 400, y: 300, deltaY: 2000 });
+    await cdp.send('Input.synthesizeScrollGesture', {
+      x: 400,
+      y: 300,
+      yDistance: -2000,
+      gestureSourceType: 'mouse',
+    });
     layouts.record((await count()) - before);
   },
 );
@@ -382,8 +393,13 @@ reactBenchmark('mount', () => <Grid rows={1000} />);
 reactBenchmark(
   'scroll',
   () => <Grid rows={1000} />,
-  async ({ input }) => {
-    await input.scroll({ x: 100, y: 100, deltaY: 2000 });
+  async ({ cdp }) => {
+    await cdp.send('Input.synthesizeScrollGesture', {
+      x: 100,
+      y: 100,
+      yDistance: -2000,
+      gestureSourceType: 'mouse',
+    });
   },
 );
 ```

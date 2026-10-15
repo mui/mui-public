@@ -1,4 +1,4 @@
-import type { BenchmarkCdp, BenchmarkInput } from './input';
+import type { BenchmarkCdp } from './cdp';
 
 export interface RenderEvent {
   id: string;
@@ -37,11 +37,6 @@ export interface InteractionContext {
    * already active.
    */
   resumeReactRecording: () => void;
-  /**
-   * Trusted input gestures (scroll) dispatched by the browser itself, for interactions
-   * that should behave like a real mouse or trackpad rather than synthetic DOM events.
-   */
-  input: BenchmarkInput;
   /** The DevTools Protocol, for what the interaction sets up or reads from the browser itself. */
   cdp: BenchmarkCdp;
 }
