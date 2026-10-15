@@ -1,7 +1,7 @@
 import { collectGarbage } from '../gc';
 import type { BenchmarkCdp, CdpSend } from '../cdp';
 import { seriesName, setMetricRecorder } from '../metricCore';
-import { pickSampling, validateSampling } from '../sampling';
+import { getSampling } from '../sampling';
 import type { SamplingOptions } from '../sampling';
 import type { MetricDefinition } from '../types';
 import type { RunMetricAlarm } from '../runReport/schema';
@@ -58,8 +58,7 @@ export function benchmark(
   if (cases.has(name)) {
     throw new Error(`Two benchmarks share the name "${name}". Benchmark names must be unique.`);
   }
-  validateSampling(options);
-  cases.set(name, { run, sampling: pickSampling(options), alarms: options.alarms });
+  cases.set(name, { run, sampling: getSampling(options), alarms: options.alarms });
   return { name };
 }
 
@@ -88,7 +87,7 @@ export function compare(
   if (compared.length < 2) {
     throw new Error(`Comparison "${name}" needs at least two cases.`);
   }
-  validateSampling(sampling);
+  const ownSampling = getSampling(sampling);
   for (const benchCase of compared) {
     const own = cases.get(benchCase.name);
     if (own && Object.keys(own.sampling).length > 0) {
@@ -111,7 +110,7 @@ export function compare(
   comparisons.push({
     name,
     cases: compared.map((benchCase) => benchCase.name),
-    sampling: pickSampling(sampling),
+    sampling: ownSampling,
   });
 }
 

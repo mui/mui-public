@@ -9,6 +9,7 @@ import { packRef, packWorkingTree } from '../utils/packWorkspace';
 import { getCiMetadata } from '../ciReport';
 import { summarizeRun } from '../runReport';
 import type { BenchmarkRunReport } from '../runReport';
+import { getSampling } from '../sampling';
 import type { SamplingOptions } from '../sampling';
 import { refLabel, resolveBaselineRef, WORKTREE_REF } from './refs';
 import type { ResolvedRef } from './refs';
@@ -85,13 +86,13 @@ export async function runBenchmarks(
     baseline,
     buildCmd = 'pnpm release:build',
     out,
-    sampling,
     testNamePattern,
     reporter = 'default',
     profile = false,
     signal,
   } = options;
-  // Compiled before anything is built, so a bad pattern fails at once.
+  // Checked before anything is built, so a bad option fails at once.
+  const sampling = getSampling(options.sampling ?? {});
   const namePattern = testNamePattern === undefined ? undefined : new RegExp(testNamePattern);
 
   const repoRoot = await findWorkspaceDir(harnessDir);

@@ -23,10 +23,12 @@ export const DEFAULT_SAMPLING: Required<SamplingOptions> = {
 };
 
 /**
- * Throws on a sampling option out of range. Called when a case registers, so a mistake fails the
- * page where it was written rather than a round.
+ * The sampling options `options` sets, checked: only `sampleSize` and `timeout`, and only those not
+ * undefined, so spreading them over defaults keeps the defaults for the rest. Throws on one out of
+ * range. Called where options come in, when a case registers and when a run starts, so a mistake
+ * fails there rather than in a round, and what it returns is valid from then on.
  */
-export function validateSampling(options: SamplingOptions): void {
+export function getSampling(options: SamplingOptions): SamplingOptions {
   const { sampleSize, timeout } = options;
   if (sampleSize !== undefined && !(Number.isInteger(sampleSize) && sampleSize >= 2)) {
     throw new Error(`Invalid sampleSize ${sampleSize}: expected an integer of at least 2.`);
@@ -34,21 +36,10 @@ export function validateSampling(options: SamplingOptions): void {
   if (timeout !== undefined && !(timeout >= 0)) {
     throw new Error(`Invalid timeout ${timeout}: expected a number of minutes, 0 or more.`);
   }
-}
-
-/** Validates sampling options and fills in the defaults for those left out or undefined. */
-export function resolveSampling(options: SamplingOptions): Required<SamplingOptions> {
-  validateSampling(options);
-  const { sampleSize = DEFAULT_SAMPLING.sampleSize, timeout = DEFAULT_SAMPLING.timeout } = options;
-  return { sampleSize, timeout };
-}
-
-/** The sampling options `options` sets, leaving out any other key and any left undefined. */
-export function pickSampling(options: SamplingOptions): SamplingOptions {
-  const { sampleSize, timeout } = options;
-  return Object.fromEntries(
-    Object.entries({ sampleSize, timeout }).filter(([, value]) => value !== undefined),
-  );
+  return {
+    ...(sampleSize !== undefined ? { sampleSize } : {}),
+    ...(timeout !== undefined ? { timeout } : {}),
+  };
 }
 
 /**

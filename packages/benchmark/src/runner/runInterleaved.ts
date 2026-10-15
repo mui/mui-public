@@ -6,7 +6,7 @@ import type { Browser, CDPSession, Page } from '@playwright/test';
 import { BENCHMARK_LAUNCH_ARGS, BENCHMARK_VIEWPORT } from '../launchArgs';
 import { compareBenchmark, formatDuration, formatRoundCount } from '../runReport';
 import type { RunBenchmark, RunMetricDefinition } from '../runReport';
-import { differencesSettled, resolveSampling } from '../sampling';
+import { DEFAULT_SAMPLING, differencesSettled } from '../sampling';
 import type { SamplingOptions } from '../sampling';
 import type { BenchFile } from './benchFiles';
 import type { ResolvedRef } from './refs';
@@ -33,7 +33,7 @@ export interface RunInterleavedOptions {
   benchRefs: ResolvedRef[];
   browserBinary: string;
   launchArgs: string[];
-  /** Defaults for the sampling options a benchmark doesn't set itself. */
+  /** Defaults for the sampling options a benchmark doesn't set itself, from `getSampling`. */
   sampling?: SamplingOptions;
   /** Only run benchmarks whose name matches this, like Vitest's `-t`. */
   testNamePattern?: RegExp;
@@ -437,13 +437,14 @@ async function planBenchFile(
 
 /**
  * A benchmark's sampling, as in Vitest: what it sets itself, then what the run gives as defaults,
- * then the built-in defaults.
+ * then the built-in defaults. Both come from `getSampling`, so they are valid and set no key to
+ * undefined.
  */
 function samplingOf(
   own: SamplingOptions,
   runDefaults: SamplingOptions = {},
 ): Required<SamplingOptions> {
-  return resolveSampling({ ...runDefaults, ...own });
+  return { ...DEFAULT_SAMPLING, ...runDefaults, ...own };
 }
 
 /** What a run drives: the browser, and every benchmark it was asked for, in order. */

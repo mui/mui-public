@@ -1,39 +1,27 @@
 import { describe, expect, it } from 'vitest';
 import { analyzeBenchmark } from './runReport/analyzeRun';
 import type { RunBenchmark, RunMetricDefinition } from './runReport';
-import {
-  DEFAULT_SAMPLING,
-  differencesSettled,
-  resolveSampling,
-  validateSampling,
-} from './sampling';
+import { differencesSettled, getSampling } from './sampling';
 
-describe('resolveSampling', () => {
-  it('fills in a default for every option left out or undefined', () => {
-    expect(resolveSampling({ timeout: 1, sampleSize: undefined })).toEqual({
-      ...DEFAULT_SAMPLING,
-      timeout: 1,
-    });
+describe('getSampling', () => {
+  it('keeps only the sampling options that are set', () => {
+    const options = { sampleSize: undefined, timeout: 1, alarms: {} };
+    expect(getSampling(options)).toEqual({ timeout: 1 });
+    expect(Object.keys(getSampling(options))).toEqual(['timeout']);
   });
 
-  it('rejects options out of range', () => {
-    expect(() => resolveSampling({ sampleSize: 1 })).toThrow(/Invalid sampleSize 1/);
-  });
-});
-
-describe('validateSampling', () => {
   it('accepts the documented ranges, and options left out', () => {
-    expect(() => validateSampling({ sampleSize: 2, timeout: 0 })).not.toThrow();
-    expect(() => validateSampling({})).not.toThrow();
+    expect(getSampling({ sampleSize: 2, timeout: 0 })).toEqual({ sampleSize: 2, timeout: 0 });
+    expect(getSampling({})).toEqual({});
   });
 
   it('rejects a sample size that cannot form an interval', () => {
-    expect(() => validateSampling({ sampleSize: 1 })).toThrow(/Invalid sampleSize 1/);
-    expect(() => validateSampling({ sampleSize: 2.5 })).toThrow(/Invalid sampleSize 2.5/);
+    expect(() => getSampling({ sampleSize: 1 })).toThrow(/Invalid sampleSize 1/);
+    expect(() => getSampling({ sampleSize: 2.5 })).toThrow(/Invalid sampleSize 2.5/);
   });
 
   it('rejects a negative timeout', () => {
-    expect(() => validateSampling({ timeout: -1 })).toThrow(/Invalid timeout -1/);
+    expect(() => getSampling({ timeout: -1 })).toThrow(/Invalid timeout -1/);
   });
 });
 
