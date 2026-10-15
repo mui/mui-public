@@ -3,6 +3,7 @@ import eslintJs from '@eslint/js';
 import { defineConfig } from 'eslint/config';
 import prettier from 'eslint-config-prettier/flat';
 import compatPlugin from 'eslint-plugin-compat';
+import nPlugin from 'eslint-plugin-n';
 import importPlugin from 'eslint-plugin-import';
 import jsxA11yPlugin from 'eslint-plugin-jsx-a11y';
 import reactPlugin from 'eslint-plugin-react';
@@ -17,6 +18,7 @@ import { createCoreConfig } from './mui/config.mjs';
 import muiPlugin from './mui/index.mjs';
 import { EXTENSION_TS } from './extensions.mjs';
 import { createJsonConfig } from './jsonConfig.mjs';
+import { createNodeSupportConfig } from './nodeSupportConfig.mjs';
 
 /**
  * @param {string} filePath
@@ -58,6 +60,9 @@ export function createBaseConfig({
       },
       plugins: {
         mui: muiPlugin,
+        // Registered once for all files, so consumers can enable `n/*` rules without registering
+        // a second, possibly different, instance of the plugin.
+        n: nPlugin,
       },
       settings: {
         react: {
@@ -73,6 +78,7 @@ export function createBaseConfig({
     includeIgnoreIfExists(path.join(baseDirectory, '.gitignore'), `Ignore rules from .gitignore`),
     includeIgnoreIfExists(path.join(baseDirectory, '.lintignore'), `Ignore rules from .lintignore`),
     createJsonConfig(),
+    createNodeSupportConfig(baseDirectory),
     prettier,
     // Markdown + MDX linting via eslint-plugin-mdx. Severities for markdown
     // quality checks live in the project's `.remarkrc` (see
