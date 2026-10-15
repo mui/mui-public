@@ -184,6 +184,14 @@ const typescriptOverrides = {
   // TypeScript equivalents of ESLint rules
   'default-param-last': 'off',
   '@typescript-eslint/default-param-last': 'error',
+  '@typescript-eslint/ban-ts-comment': [
+    'error',
+    {
+      'ts-expect-error': 'allow-with-description',
+      'ts-ignore': true,
+      minimumDescriptionLength: 10,
+    },
+  ],
   'no-array-constructor': 'off',
   '@typescript-eslint/no-array-constructor': 'error',
   '@typescript-eslint/triple-slash-reference': 'off',

@@ -30,7 +30,7 @@ When `textContent` is omitted or empty, returns `HAST_DICTIONARY` as-is.
 type ReturnValue = Uint8Array;
 ```
 
-### compressString
+### compressHast
 
 Compress a JSON string using DEFLATE with the shared HAST dictionary.
 Returns a base64-encoded string suitable for embedding in serialized props.
@@ -56,7 +56,7 @@ checksum is embedded (opt-out / backward-compatible path).
 type ReturnValue = string;
 ```
 
-### compressStringAsync
+### compressHastAsync
 
 Compress a string asynchronously using DEFLATE with the shared HAST
 dictionary. Returns a base64-encoded string.
@@ -144,7 +144,7 @@ Returns 4 bytes in big-endian order.
 type ReturnValue = Uint8Array;
 ```
 
-### decompressString
+### decompressHast
 
 Decompress a base64-encoded DEFLATE payload that was compressed with
 `compressString`. Returns the original JSON string.
@@ -170,7 +170,7 @@ decompression and no checksum verification is performed.
 type ReturnValue = string;
 ```
 
-### decompressStringAsync
+### decompressHastAsync
 
 Decompress a base64-encoded DEFLATE payload asynchronously.
 Returns the original JSON string.
