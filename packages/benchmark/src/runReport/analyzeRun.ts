@@ -1,4 +1,4 @@
-import { calculateMean, calculateSampleStdDev, quantile } from '../stats';
+import { calculateMean, calculateSampleStdDev, median } from '../stats';
 import { baseMetricName } from '../metricCore';
 import type {
   BenchmarkRunReport,
@@ -197,13 +197,6 @@ function intervalAround(mean: number, stdDev: number, count: number): Interval {
   return { low: mean - halfWidth, high: mean + halfWidth };
 }
 
-export function median(values: number[]): number {
-  return quantile(
-    [...values].sort((left, right) => left - right),
-    0.5,
-  );
-}
-
 function summarizeSamples(values: number[]): SampleSummary {
   return { count: values.length, median: median(values) };
 }
@@ -215,7 +208,11 @@ function definitionOf(
   metrics: Record<string, RunMetricDefinition>,
   metric: string,
 ): RunMetricDefinition {
-  return metrics[metric] ?? metrics[baseMetricName(metric)] ?? DEFAULT_DEFINITION;
+  if (Object.hasOwn(metrics, metric)) {
+    return metrics[metric];
+  }
+  const base = baseMetricName(metric);
+  return Object.hasOwn(metrics, base) ? metrics[base] : DEFAULT_DEFINITION;
 }
 
 /**
@@ -230,8 +227,8 @@ function alarmOverrideOf(
   if (!alarms) {
     return undefined;
   }
-  const key = metric in alarms ? metric : baseMetricName(metric);
-  return key in alarms ? alarms[key] : undefined;
+  const key = Object.hasOwn(alarms, metric) ? metric : baseMetricName(metric);
+  return Object.hasOwn(alarms, key) ? alarms[key] : undefined;
 }
 
 /**
@@ -252,15 +249,20 @@ function inAlarmUnits(
  * nearest zero — against the `error` band. Without a band, which only a discrete metric's alarm
  * keeps, every confirmed change for the worse alarms.
  */
-function severityOf(change: Change, interval: Interval, alarm: RunMetricAlarm): Severity {
+function severityOf(
+  change: Change,
+  interval: Interval,
+  error: number | undefined,
+  worseSign: 1 | -1,
+): Severity {
   if (change !== 'worse') {
     return 'none';
   }
-  if (alarm.error === undefined) {
+  if (error === undefined) {
     return 'error';
   }
-  const worseningAtLeast = alarm.direction === 'higherIsBetter' ? -interval.high : interval.low;
-  return worseningAtLeast >= alarm.error ? 'error' : 'none';
+  const worseningAtLeast = worseSign === 1 ? interval.low : -interval.high;
+  return worseningAtLeast >= error ? 'error' : 'none';
 }
 
 /** The per-round differences `subject − against`, over the rounds both have. */
@@ -300,17 +302,17 @@ export function compareSamples(
   const noise = (stdDev / reference) * 100;
   const banded = inAlarmUnits({ absolute, relative }, definition);
   const precision = (banded.high - banded.low) / 2;
+  // Which way is worse: an increase, unless the alarm says higher is better.
+  const worseSign = (alarm ?? definition.alarm)?.direction === 'higherIsBetter' ? -1 : 1;
   // Only the worse side's edge matters: an improvement never raises an alarm, however large.
-  const worseEdge =
-    alarm?.direction === 'higherIsBetter' ? -(alarm.error ?? 0) : (alarm?.error ?? 0);
+  const worseEdge = worseSign * (alarm?.error ?? 0);
 
   let change: Change = 'undetected';
   if (rounds > 0 && differences.every((difference) => difference === 0)) {
     change = 'unchanged';
   } else if (absolute.low > 0 || absolute.high < 0) {
     const increased = absolute.low > 0;
-    const lowerIsBetter = (alarm ?? definition.alarm)?.direction !== 'higherIsBetter';
-    change = increased === lowerIsBetter ? 'worse' : 'better';
+    change = increased === (worseSign === 1) ? 'worse' : 'better';
   }
 
   return {
@@ -323,7 +325,7 @@ export function compareSamples(
     precision,
     settled: alarm === null || !(banded.low < worseEdge && worseEdge < banded.high),
     change,
-    severity: alarm ? severityOf(change, banded, alarm) : 'none',
+    severity: alarm ? severityOf(change, banded, alarm.error, worseSign) : 'none',
   };
 }
 
@@ -430,7 +432,7 @@ export interface AlarmedChange {
  * for the worse, past its `error` band.
  */
 export function isRegression(comparison: MetricComparison): boolean {
-  return comparison.alarm !== null && comparison.severity !== 'none';
+  return comparison.severity !== 'none';
 }
 
 /** Whether a change is one for the better on an alarmed metric: what the code under test sped up. */

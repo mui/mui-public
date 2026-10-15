@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { calculateMean, calculateStdDev, quantile, isOutlier, aggregateSamples } from './stats';
+import {
+  calculateMean,
+  calculateStdDev,
+  median,
+  quantile,
+  isOutlier,
+  aggregateSamples,
+} from './stats';
 
 describe('calculateMean', () => {
   it('returns the mean of values', () => {
@@ -99,5 +106,12 @@ describe('aggregateSamples', () => {
     const result = aggregateSamples([5]);
     expect(result.mean).toBe(5);
     expect(result.outliers).toBe(0);
+  });
+});
+
+describe('median', () => {
+  it('takes the middle value, or the mean of the middle two', () => {
+    expect(median([3, 1, 2])).toBe(2);
+    expect(median([4, 1, 3, 2])).toBe(2.5);
   });
 });
