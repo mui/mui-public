@@ -29,6 +29,77 @@ import { getFileNameFromUrl, IGNORE_COMMENT_PREFIXES } from '../loaderUtils';
 import { createPerformanceLogger, logPerformance, performanceMeasure } from './performanceLogger';
 import { fallbackToHast } from '../../CodeHighlighter/fallbackFormat';
 
+type DeferredOutput = { source: string; dependencies: string[] };
+
+// Compilation identity prevents reuse across compilers and watch rebuilds.
+const deferredCaches = new WeakMap<object, Map<string, DeferredOutput>>();
+
+/** Rejects options whose behavior would be lost in a JSON cache key. */
+function isSerializable(value: unknown, ancestors = new Set<object>()): boolean {
+  if (value === null || typeof value === 'string' || typeof value === 'boolean') {
+    return true;
+  }
+  if (typeof value === 'number') {
+    return Number.isFinite(value);
+  }
+  if (
+    typeof value !== 'object' ||
+    ancestors.has(value) ||
+    Object.getOwnPropertySymbols(value).length
+  ) {
+    return false;
+  }
+
+  const prototype = Object.getPrototypeOf(value);
+  if (!Array.isArray(value) && prototype !== Object.prototype && prototype !== null) {
+    return false;
+  }
+
+  ancestors.add(value);
+  const supported = Object.entries(Object.getOwnPropertyDescriptors(value)).every(
+    ([name, descriptor]) => {
+      if (Array.isArray(value) && name === 'length') {
+        return true;
+      }
+      return (
+        descriptor.enumerable &&
+        'value' in descriptor &&
+        isSerializable(descriptor.value, ancestors)
+      );
+    },
+  );
+  ancestors.delete(value);
+  return supported;
+}
+
+/** Shares completed source only when webpack provides a compilation boundary. */
+function getDeferredCache(
+  context: LoaderContext<LoaderOptions>,
+  source: string,
+  options: LoaderOptions,
+) {
+  const { _compilation: compilation } = context;
+  if (!options.deferPrecompute || !compilation || !isSerializable(options)) {
+    return undefined;
+  }
+
+  let entries = deferredCaches.get(compilation);
+  if (!entries) {
+    entries = new Map();
+    deferredCaches.set(compilation, entries);
+  }
+  return { entries, key: JSON.stringify([context.resourcePath, source, options]) };
+}
+
+/** Both the shell and deferred module must invalidate when imported source changes. */
+function registerDependencies(context: LoaderContext<LoaderOptions>, dependencies: string[]) {
+  dependencies.forEach((dependency) => {
+    context.addDependency(
+      dependency.startsWith('file://') ? fileURLToPath(dependency) : dependency,
+    );
+  });
+}
+
 /**
  * Extracts a string array from structured options data.
  * Handles the parser's array format: [[element1, element2, ...]]
@@ -195,6 +266,15 @@ export async function loadPrecomputedCodeHighlighter(
   this.cacheable();
 
   const options = this.getOptions();
+  const isDeferredRequest = this.resourceQuery === '?mui-deferred-precompute';
+  const deferredCache = getDeferredCache(this, source, options);
+  const cached = isDeferredRequest ? deferredCache?.entries.get(deferredCache.key) : undefined;
+  if (cached) {
+    registerDependencies(this, cached.dependencies);
+    callback(null, cached.source);
+    return;
+  }
+
   const performanceNotableMs = options.performance?.notableMs ?? 100;
   const performanceShowWrapperMeasures = options.performance?.showWrapperMeasures ?? false;
 
@@ -390,9 +470,19 @@ export async function loadPrecomputedCodeHighlighter(
     );
 
     const deferredRequest = `./${path.basename(this.resourcePath)}?mui-deferred-precompute`;
-    const isDeferredRequest = this.resourceQuery === '?mui-deferred-precompute';
+    const deferredSource =
+      isDeferredRequest || deferredCache
+        ? `export default ${JSON.stringify(variantData)};`
+        : undefined;
+    registerDependencies(this, allDependencies);
+    if (deferredCache && deferredSource) {
+      deferredCache.entries.set(deferredCache.key, {
+        source: deferredSource,
+        dependencies: allDependencies,
+      });
+    }
     if (isDeferredRequest) {
-      callback(null, `export default ${JSON.stringify(variantData)};`);
+      callback(null, deferredSource);
       return;
     }
 
@@ -417,13 +507,6 @@ export async function loadPrecomputedCodeHighlighter(
       { mark: 'Replaced Precompute', measure: 'Precompute Replacement' },
       [functionName, relativePath],
     );
-
-    // Add all dependencies to webpack's watch list
-    allDependencies.forEach((dep) => {
-      // Convert file:// URLs to proper file system paths for webpack's dependency tracking
-      // Using fileURLToPath handles Windows drive letters correctly (e.g., file:///C:/... → C:\...)
-      this.addDependency(dep.startsWith('file://') ? fileURLToPath(dep) : dep);
-    });
 
     // log any pending performance entries before completing
     observer
