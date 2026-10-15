@@ -1,5 +1,6 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import getTargets from '@babel/helper-compilation-targets';
 import { globby } from 'globby';
 import * as semver from 'semver';
 
@@ -864,6 +865,39 @@ export function validatePkgJson(packageJson, options = {}) {
   if (errors.length > 0) {
     const error = new Error(errors.join('\n'));
     throw error;
+  }
+}
+
+/**
+ * Validates that "engines.node" in package.json doesn't allow Node.js versions older than the
+ * "node" browserslist environment, which the CommonJS bundle is compiled for. Otherwise the
+ * build can emit syntax that the oldest supported Node.js version can't run.
+ * Targets are resolved the same way `@babel/preset-env` resolves them during the build.
+ * @param {{ name?: string; engines?: { node?: string } }} packageJson
+ * @param {string} cwd - The package directory, used to find the browserslist config.
+ */
+export function validateEnginesNode(packageJson, cwd) {
+  const enginesNode = packageJson.engines?.node;
+  if (!enginesNode) {
+    return;
+  }
+
+  const minEnginesVersion = semver.minVersion(enginesNode);
+  if (!minEnginesVersion) {
+    throw new Error(
+      `Unable to determine the minimum Node.js version from "engines.node" in "${packageJson.name}" package.json: "${enginesNode}".`,
+    );
+  }
+
+  const targetNode = getTargets(undefined, { configPath: cwd, browserslistEnv: 'node' }).node;
+  if (!targetNode) {
+    return;
+  }
+
+  if (semver.gt(targetNode, minEnginesVersion)) {
+    throw new Error(
+      `"engines.node" in "${packageJson.name}" package.json allows Node.js ${minEnginesVersion.version}, but the "node" browserslist environment compiles for Node.js ${targetNode} and up. Raise "engines.node" to at least ${targetNode}, or lower the "node" browserslist target.`,
+    );
   }
 }
 
