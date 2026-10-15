@@ -1,6 +1,11 @@
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
 import { describe, it, expect } from 'vitest';
+import { ESLint } from 'eslint';
 import { remark } from 'remark';
 import remarkMdx from 'remark-mdx';
+import { createBaseConfig } from '../eslint/baseConfig.mjs';
+import { makeTempDir } from '../utils/testUtils.mjs';
 import { createRemarkConfig } from './config.mjs';
 
 /**
@@ -69,11 +74,36 @@ describe('createRemarkConfig definition comments', () => {
   });
 });
 
-describe('createRemarkConfig output', () => {
-  // eslint-plugin-mdx replaces the whole file with the processed output as the "fix"
-  // for any message, so the output has to be the untouched source.
-  it('returns Markdown unchanged while still reporting', async () => {
-    const input = `# Example.
+describe('createRemarkConfig with eslint --fix', () => {
+  /**
+   * Runs `eslint --fix` with the shared base config in a project using this preset.
+   * eslint-plugin-mdx offers the processed output as a whole-file fix for any remark
+   * message, so a rewrite shows up as `output`.
+   * @param {string} fileName
+   * @param {string} content
+   */
+  async function eslintFix(fileName, content) {
+    const cwd = await makeTempDir();
+    const configUrl = new URL('./config.mjs', import.meta.url).href;
+    await fs.writeFile(
+      path.join(cwd, '.remarkrc.mjs'),
+      `import { createRemarkConfig } from ${JSON.stringify(configUrl)};\nexport default createRemarkConfig();\n`,
+    );
+    await fs.writeFile(path.join(cwd, fileName), content);
+    const eslint = new ESLint({
+      cwd,
+      fix: true,
+      overrideConfigFile: true,
+      overrideConfig: createBaseConfig({ baseDirectory: cwd }),
+    });
+    const [result] = await eslint.lintFiles([fileName]);
+    return result;
+  }
+
+  it('leaves Markdown untouched while still reporting', async () => {
+    const result = await eslintFix(
+      'example.md',
+      `# Example.
 
 > [!IMPORTANT]
 > See https://example.com for details.
@@ -81,24 +111,30 @@ describe('createRemarkConfig output', () => {
 It takes ~16 min with ai@6, *emphasized*.
 
 - [GET] /items
-`;
-    const result = await remark().use(createRemarkConfig()).process(input);
+`,
+    );
 
-    expect(result.messages.map(({ ruleId }) => ruleId)).toEqual(['no-heading-punctuation']);
-    expect(String(result)).toBe(input);
+    expect(result.messages.map(({ ruleId }) => ruleId)).toEqual([
+      'remark-lint-no-heading-punctuation',
+    ]);
+    expect(result.output).toBeUndefined();
   });
 
-  it('returns MDX unchanged while still reporting', async () => {
-    const input = `# Example.
+  it('leaves MDX untouched while still reporting', async () => {
+    const result = await eslintFix(
+      'example.mdx',
+      `# Example.
 
 <Foo>
   Text
 </Foo>
 <Bar />
-`;
-    const result = await lint(input);
+`,
+    );
 
-    expect(result.messages.map(({ ruleId }) => ruleId)).toEqual(['no-heading-punctuation']);
-    expect(String(result)).toBe(input);
+    expect(result.messages.map(({ ruleId }) => ruleId)).toEqual([
+      'remark-lint-no-heading-punctuation',
+    ]);
+    expect(result.output).toBeUndefined();
   });
 });
