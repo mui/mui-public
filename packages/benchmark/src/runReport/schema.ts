@@ -1,5 +1,6 @@
 import { z } from 'zod/v4';
 import type { MetricDefinition } from '../types';
+import { ciReportUploadSchema } from '../ciReportUploadSchema';
 
 /**
  * The report the `benchmark` CLI produces, uploads and the dashboard reads: version 2 of the `benchmark`
@@ -101,17 +102,13 @@ export const benchmarkRunReportSchema = z.object({
 
 /**
  * The version 2 `benchmark` upload, which the dashboard stores as the commit's `benchmark.json`: the
- * same envelope as every CI report around this report. Declared here, browser-safe, so the runner
- * validates with it and the dashboard reads with its type.
+ * envelope every CI report shares around this report, plus what orders it in a timeline.
  */
-export const benchmarkRunUploadSchema = z.object({
-  version: z.literal(2),
-  timestamp: z.number(),
-  commitSha: z.string().regex(/^[0-9a-f]{40}$/, 'Must be a 40-character hex string'),
-  repo: z.string().includes('/', 'Must be in owner/repo format'),
-  reportType: z.literal('benchmark'),
-  prNumber: z.number().int().positive().optional(),
-  branch: z.string(),
+export const benchmarkRunUploadSchema = ciReportUploadSchema(
+  'benchmark',
+  2,
+  benchmarkRunReportSchema,
+).extend({
   /** When the commit was made, in milliseconds: orders it in its timeline. */
   commitTimestamp: z.number().optional(),
   /**
@@ -119,7 +116,6 @@ export const benchmarkRunUploadSchema = z.object({
    * such as the last release. The dashboard stores it as `benchmark@<timeline>.json`.
    */
   timeline: z.string().optional(),
-  report: benchmarkRunReportSchema,
 });
 
 export type BenchmarkRunReport = z.infer<typeof benchmarkRunReportSchema>;

@@ -1,6 +1,7 @@
 import { execa } from 'execa';
 import { z } from 'zod/v4';
 import envCi from 'env-ci';
+import { ciReportUploadSchema } from './ciReportUploadSchema';
 
 interface CiInfo {
   isCi: boolean;
@@ -32,26 +33,7 @@ async function getGitInfo(): Promise<GitInfo> {
   };
 }
 
-/**
- * Creates a CI report upload schema for a specific report type.
- * Common fields (commitSha, repo, branch, prNumber) are shared across all report types.
- */
-export function ciReportUploadSchema<ReportSchema extends z.ZodType>(
-  type: string,
-  version: number,
-  reportSchema: ReportSchema,
-) {
-  return z.object({
-    version: z.literal(version),
-    timestamp: z.number(),
-    commitSha: z.string().regex(/^[0-9a-f]{40}$/, 'Must be a 40-character hex string'),
-    repo: z.string().includes('/', 'Must be in owner/repo format'),
-    reportType: z.literal(type),
-    prNumber: z.number().int().positive().optional(),
-    branch: z.string(),
-    report: reportSchema,
-  });
-}
+export { ciReportUploadSchema };
 
 const renderStatsSchema = z.object({
   id: z.string(),
