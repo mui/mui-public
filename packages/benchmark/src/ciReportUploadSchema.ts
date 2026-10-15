@@ -2,8 +2,8 @@ import { z } from 'zod/v4';
 
 /**
  * Creates a CI report upload schema for a specific report type: the envelope every report type
- * shares (commit, repository, branch, pull request) around its `report`. Browser-safe, so the
- * dashboard can read with the same schemas the uploaders validate with.
+ * shares (commit, repository, branch, pull request) around its `report`. Kept apart from
+ * `ciReport.ts`, which runs git, so the browser-safe run report schema can build on it.
  */
 export function ciReportUploadSchema<ReportSchema extends z.ZodType>(
   type: string,
@@ -18,6 +18,8 @@ export function ciReportUploadSchema<ReportSchema extends z.ZodType>(
     reportType: z.literal(type),
     prNumber: z.number().int().positive().optional(),
     branch: z.string(),
+    /** When the commit was made, in milliseconds: orders it in its timeline. */
+    commitTimestamp: z.number().optional(),
     report: reportSchema,
   });
 }

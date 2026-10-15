@@ -102,15 +102,13 @@ export const benchmarkRunReportSchema = z.object({
 
 /**
  * The version 2 `benchmark` upload, which the dashboard stores as the commit's `benchmark.json`: the
- * envelope every CI report shares around this report, plus what orders it in a timeline.
+ * envelope every CI report shares around this report, plus the timeline it goes into.
  */
 export const benchmarkRunUploadSchema = ciReportUploadSchema(
   'benchmark',
   2,
   benchmarkRunReportSchema,
 ).extend({
-  /** When the commit was made, in milliseconds: orders it in its timeline. */
-  commitTimestamp: z.number().optional(),
   /**
    * The timeline the upload goes into, in place of its branch's: a run against another baseline,
    * such as the last release. The dashboard stores it as `benchmark@<timeline>.json`.

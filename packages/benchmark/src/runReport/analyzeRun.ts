@@ -1,4 +1,5 @@
-import { calculateMean, calculateSampleStdDev, median } from '../stats';
+import { median } from 'es-toolkit/math';
+import { calculateMean, calculateSampleStdDev } from '../stats';
 import { baseMetricName } from '../metricCore';
 import type {
   BenchmarkRunReport,
@@ -203,16 +204,22 @@ function summarizeSamples(values: number[]): SampleSummary {
 
 const DEFAULT_DEFINITION: RunMetricDefinition = { kind: 'scalar' };
 
+/** The key `record` holds for a metric: its own, else its base metric's for a `name#id` sub-series. */
+function keyOf(record: Record<string, unknown>, metric: string): string | undefined {
+  if (Object.hasOwn(record, metric)) {
+    return metric;
+  }
+  const base = baseMetricName(metric);
+  return Object.hasOwn(record, base) ? base : undefined;
+}
+
 /** A metric's definition; a `name#id` sub-series is defined by its base metric. */
 function definitionOf(
   metrics: Record<string, RunMetricDefinition>,
   metric: string,
 ): RunMetricDefinition {
-  if (Object.hasOwn(metrics, metric)) {
-    return metrics[metric];
-  }
-  const base = baseMetricName(metric);
-  return Object.hasOwn(metrics, base) ? metrics[base] : DEFAULT_DEFINITION;
+  const key = keyOf(metrics, metric);
+  return key === undefined ? DEFAULT_DEFINITION : metrics[key];
 }
 
 /**
@@ -227,8 +234,8 @@ function alarmOverrideOf(
   if (!alarms) {
     return undefined;
   }
-  const key = Object.hasOwn(alarms, metric) ? metric : baseMetricName(metric);
-  return Object.hasOwn(alarms, key) ? alarms[key] : undefined;
+  const key = keyOf(alarms, metric);
+  return key === undefined ? undefined : alarms[key];
 }
 
 /**
@@ -249,20 +256,14 @@ function inAlarmUnits(
  * nearest zero — against the `error` band. Without a band, which only a discrete metric's alarm
  * keeps, every confirmed change for the worse alarms.
  */
-function severityOf(
-  change: Change,
-  interval: Interval,
-  error: number | undefined,
-  worseSign: 1 | -1,
-): Severity {
+function severityOf(change: Change, worsening: Interval, error: number | undefined): Severity {
   if (change !== 'worse') {
     return 'none';
   }
   if (error === undefined) {
     return 'error';
   }
-  const worseningAtLeast = worseSign === 1 ? interval.low : -interval.high;
-  return worseningAtLeast >= error ? 'error' : 'none';
+  return worsening.low >= error ? 'error' : 'none';
 }
 
 /** The per-round differences `subject − against`, over the rounds both have. */
@@ -302,17 +303,18 @@ export function compareSamples(
   const noise = (stdDev / reference) * 100;
   const banded = inAlarmUnits({ absolute, relative }, definition);
   const precision = (banded.high - banded.low) / 2;
-  // Which way is worse: an increase, unless the alarm says higher is better.
+  // Which way is worse: an increase, unless the alarm says higher is better. `worsening` is the
+  // interval in that orientation, so a positive bound is a change for the worse.
   const worseSign = (alarm ?? definition.alarm)?.direction === 'higherIsBetter' ? -1 : 1;
+  const worsening = worseSign === 1 ? banded : { low: -banded.high, high: -banded.low };
   // Only the worse side's edge matters: an improvement never raises an alarm, however large.
-  const worseEdge = worseSign * (alarm?.error ?? 0);
+  const worseEdge = alarm?.error ?? 0;
 
   let change: Change = 'undetected';
   if (rounds > 0 && differences.every((difference) => difference === 0)) {
     change = 'unchanged';
   } else if (absolute.low > 0 || absolute.high < 0) {
-    const increased = absolute.low > 0;
-    change = increased === (worseSign === 1) ? 'worse' : 'better';
+    change = (absolute.low > 0 ? 1 : -1) === worseSign ? 'worse' : 'better';
   }
 
   return {
@@ -323,9 +325,9 @@ export function compareSamples(
     relative,
     noise,
     precision,
-    settled: alarm === null || !(banded.low < worseEdge && worseEdge < banded.high),
+    settled: alarm === null || !(worsening.low < worseEdge && worseEdge < worsening.high),
     change,
-    severity: alarm ? severityOf(change, banded, alarm.error, worseSign) : 'none',
+    severity: alarm ? severityOf(change, worsening, alarm.error) : 'none',
   };
 }
 

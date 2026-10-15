@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 
-import { addAbortListener } from 'node:events';
+import { addAbortListener, once } from 'node:events';
 import * as http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import chalk from 'chalk';
@@ -463,46 +463,41 @@ export async function withPlannedRun<T>(
   options: RunInterleavedOptions,
   drive: (run: PlannedRun) => Promise<T>,
 ): Promise<T> {
-  // Each build is served under its own path. In `dev` mode, every page load reads the build from
-  // disk and the browser caches nothing (`no-store`).
+  // In `dev` mode, every page load reads the build from disk and the browser caches nothing
+  // (`no-store`).
   const server = http.createServer(sirv(options.buildsDir, { dev: true }));
-  const [, browser] = await Promise.all([
-    new Promise<void>((resolve) => {
-      server.listen(0, '127.0.0.1', resolve);
-    }),
-    chromium.launch({
+  await once(server.listen(0, '127.0.0.1'), 'listening');
+  try {
+    const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    const browser = await chromium.launch({
       headless: true,
       args: [...BENCHMARK_LAUNCH_ARGS, ...options.launchArgs],
-    }),
-  ]);
-
-  const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-
-  // Closing the browser ends whatever a page is doing at once, rather than when its sample would.
-  const closeOnAbort =
-    options.signal && addAbortListener(options.signal, () => void browser.close());
-  try {
-    options.signal?.throwIfAborted();
-    // Every file is listed before any is measured, so a name pattern that matches nothing fails
-    // before the run spends anything. Nothing is measured yet, so the files list at once.
-    const { testNamePattern } = options;
-    const planned = (
-      await Promise.all(
-        options.benchFiles.map((benchFile) => planBenchFile(browser, origin, benchFile, options)),
-      )
-    )
-      .flat()
-      .filter((plan) => !testNamePattern || testNamePattern.test(plan.entry.name));
-    if (planned.length === 0) {
-      throw new Error(`No benchmark name matches ${testNamePattern}.`);
-    }
-    return await drive({ browser, planned });
-  } finally {
-    closeOnAbort?.[Symbol.dispose]();
-    await browser.close();
-    await new Promise<void>((resolve, reject) => {
-      server.close((error) => (error ? reject(error) : resolve()));
     });
+    // Closing the browser ends whatever a page is doing at once, rather than when its sample would.
+    const closeOnAbort =
+      options.signal && addAbortListener(options.signal, () => void browser.close());
+    try {
+      options.signal?.throwIfAborted();
+      // Every file is listed before any is measured, so a name pattern that matches nothing fails
+      // before the run spends anything. Nothing is measured yet, so the files list at once.
+      const { testNamePattern } = options;
+      const planned = (
+        await Promise.all(
+          options.benchFiles.map((benchFile) => planBenchFile(browser, origin, benchFile, options)),
+        )
+      )
+        .flat()
+        .filter((plan) => !testNamePattern || testNamePattern.test(plan.entry.name));
+      if (planned.length === 0) {
+        throw new Error(`No benchmark name matches ${testNamePattern}.`);
+      }
+      return await drive({ browser, planned });
+    } finally {
+      closeOnAbort?.[Symbol.dispose]();
+      await browser.close();
+    }
+  } finally {
+    await server[Symbol.asyncDispose]();
   }
 }
 

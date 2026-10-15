@@ -16,13 +16,6 @@ export function calculateSampleStdDev(values: number[], mean: number): number {
   return Math.sqrt(squaredDiffs.reduce((sum, v) => sum + v, 0) / (values.length - 1));
 }
 
-export function median(values: number[]): number {
-  return quantile(
-    values.toSorted((first, second) => first - second),
-    0.5,
-  );
-}
-
 export function quantile(sorted: number[], q: number): number {
   const pos = (sorted.length - 1) * q;
   const base = Math.floor(pos);

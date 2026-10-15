@@ -3,6 +3,8 @@ import { z } from 'zod/v4';
 import envCi from 'env-ci';
 import { ciReportUploadSchema } from './ciReportUploadSchema';
 
+export { ciReportUploadSchema } from './ciReportUploadSchema';
+
 interface CiInfo {
   isCi: boolean;
   commit?: string;
@@ -32,8 +34,6 @@ async function getGitInfo(): Promise<GitInfo> {
     commitTimestamp: Number(commitTime.stdout) * 1000,
   };
 }
-
-export { ciReportUploadSchema };
 
 const renderStatsSchema = z.object({
   id: z.string(),
