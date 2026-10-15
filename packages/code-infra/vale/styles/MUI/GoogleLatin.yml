@@ -7,5 +7,5 @@ nonword: true
 action:
   name: replace
 swap:
-  '\b(?:eg|e\.g\.)(?=[\s,;])': for example
-  '\b(?:ie|i\.e\.)(?=[\s,;])': that is
+  '(?<![\w.])e\.?g\.?(?=[\s,;:)]|$)': for example
+  '(?<![\w.])i\.?e\.?(?=[\s,;:)]|$)': that is
