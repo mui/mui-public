@@ -33,8 +33,8 @@ describe('createRemarkConfig definition comments', () => {
       { ruleId: 'no-empty-url', source: 'remark-lint', fatal: true, line: 7 },
       { ruleId: 'no-empty-url', source: 'remark-lint', fatal: true, line: 9 },
     ]);
-    expect(String(result)).toContain('[//]: # "Generated index marker"');
-    expect(String(result)).toContain('[//]: types.ts "Generated type marker"');
+    expect(String(result)).toContain("[//]: # 'Generated index marker'");
+    expect(String(result)).toContain("[//]: types.ts 'Generated type marker'");
   });
 
   it('does not exempt untitled // definitions', async () => {
@@ -66,5 +66,39 @@ describe('createRemarkConfig definition comments', () => {
     expect(result.messages.map(({ ruleId, fatal }) => ({ ruleId, fatal }))).toEqual([
       { ruleId: 'no-empty-url', fatal: false },
     ]);
+  });
+});
+
+describe('createRemarkConfig output', () => {
+  // eslint-plugin-mdx replaces the whole file with the processed output as the "fix"
+  // for any message, so the output has to be the untouched source.
+  it('returns Markdown unchanged while still reporting', async () => {
+    const input = `# Example.
+
+> [!IMPORTANT]
+> See https://example.com for details.
+
+It takes ~16 min with ai@6, *emphasized*.
+
+- [GET] /items
+`;
+    const result = await remark().use(createRemarkConfig()).process(input);
+
+    expect(result.messages.map(({ ruleId }) => ruleId)).toEqual(['no-heading-punctuation']);
+    expect(String(result)).toBe(input);
+  });
+
+  it('returns MDX unchanged while still reporting', async () => {
+    const input = `# Example.
+
+<Foo>
+  Text
+</Foo>
+<Bar />
+`;
+    const result = await lint(input);
+
+    expect(result.messages.map(({ ruleId }) => ruleId)).toEqual(['no-heading-punctuation']);
+    expect(String(result)).toBe(input);
   });
 });
