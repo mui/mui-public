@@ -8,6 +8,11 @@
   },
   "packageRules": [
     {
+      "description": "This repository loads its own orb from master on purpose, so never pin it to a digest.",
+      "matchDepNames": ["code-infra-orb"],
+      "enabled": false
+    },
+    {
       "description": "Override :pinDevDependencies for packages that are used as both a dev and non-dev dependency, so they are not pinned.",
       "matchSourceUrls": ["https://github.com/vercel/next.js", "https://github.com/react/react"],
       "matchDepTypes": ["devDependencies"],

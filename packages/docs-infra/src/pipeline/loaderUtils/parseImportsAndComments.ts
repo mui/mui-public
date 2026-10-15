@@ -1,4 +1,5 @@
 import * as path from 'path-module';
+import { normalizeCommentContent } from './normalizeCommentContent';
 import { fileUrlToPortablePath, portablePathToFileUrl } from './fileUrlToPortablePath';
 
 /**
@@ -118,19 +119,8 @@ function isStringStart(ch: string, withinMdx?: boolean): boolean {
  * @returns True if the comment starts with any of the specified prefixes
  */
 function matchesCommentPrefix(commentText: string, removeCommentsWithPrefix: string[]): boolean {
-  return removeCommentsWithPrefix.some((prefix) => {
-    // For single-line comments, check after the //
-    if (commentText.startsWith('//')) {
-      const content = commentText.slice(2).trim();
-      return content.startsWith(prefix);
-    }
-    // For multi-line comments, check after the /*
-    if (commentText.startsWith('/*')) {
-      const content = commentText.slice(2, -2).trim();
-      return content.startsWith(prefix);
-    }
-    return false;
-  });
+  const content = stripCommentMarkers(commentText).join('\n');
+  return removeCommentsWithPrefix.some((prefix) => content.startsWith(prefix));
 }
 
 /**
@@ -145,7 +135,7 @@ function stripCommentMarkers(commentText: string): string[] {
   }
   // For multi-line comments, remove /* and */, split by lines, and trim each line
   if (commentText.startsWith('/*') && commentText.endsWith('*/')) {
-    const content = commentText.slice(2, -2);
+    const content = normalizeCommentContent(commentText.slice(2, -2));
     return content
       .split('\n')
       .map((line) => line.trim())
@@ -217,17 +207,7 @@ function scanForImports(
     if (!notableCommentsPrefix || notableCommentsPrefix.length === 0) {
       return false; // If no notable prefix specified, don't match any comments as notable
     }
-    return notableCommentsPrefix.some((prefix) => {
-      if (commentText.startsWith('//')) {
-        const content = commentText.slice(2).trim();
-        return content.startsWith(prefix);
-      }
-      if (commentText.startsWith('/*')) {
-        const content = commentText.slice(2, -2).trim();
-        return content.startsWith(prefix);
-      }
-      return false;
-    });
+    return matchesCommentPrefix(commentText, notableCommentsPrefix);
   };
   let i = 0;
   let outputLine = 0; // Line number in output code after comment removal

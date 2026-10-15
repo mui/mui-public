@@ -1026,7 +1026,7 @@ function normalizeQuotes(str: string) {
  * Formats a JSDoc comment block from property documentation.
  * Returns undefined if no meaningful content to document.
  */
-function formatPropertyComment(documentation: tae.Documentation): string | undefined {
+export function formatPropertyComment(documentation: tae.Documentation): string | undefined {
   const lines: string[] = [];
 
   if (documentation.description) {

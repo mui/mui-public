@@ -69,17 +69,17 @@ Don't:
 
 - Rely on a React component for content that has no plain-markdown fallback.
 - Use raw HTML tags when equivalent markdown syntax exists.
-- Use HTML comments. MDX treats them as JSX, breaking the parse.
-  Use link-reference comments instead:
+- Use HTML comments in MDX. Use JSX comments instead; editors highlight them as comments:
 
   ```mdx
-  [//]: # 'Safe in MDX, invisible in rendered output'
+  {/* Safe in MDX, invisible in rendered output */}
+  ```
 
-  <!-- Breaks MDX, everything below this loses syntax highlighting -->
+  Generated page indexes and `types.md` files use link-reference comments as metadata markers.
+  Keep those markers intact because the docs generators parse them:
 
-  # This heading still renders
-
-  But your editor can no longer parse the file correctly.
+  ```md
+  [//]: # 'Generated metadata marker'
   ```
 
 - Embed large images inline. Store them in a co-located `assets/` directory and reference them with a relative path.

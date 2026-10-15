@@ -102,7 +102,7 @@ import { TypesUseCopier } from './types';
 ## How It Works
 
 1. **Content Resolution**: When `copy` is called, resolves content from string or function
-2. **Clipboard API**: Uses the `clipboard-copy` library for cross-browser compatibility
+2. **Clipboard API**: Writes the content with `navigator.clipboard.writeText()`
 3. **Success State**: Sets `recentlySuccessful` to `true` after successful copy
 4. **Timeout Management**: Automatically resets success state after configured timeout
 5. **Cleanup**: Clears timeouts to prevent memory leaks
@@ -139,13 +139,9 @@ The hook provides the `onError` callback to handle these cases gracefully.
 
 ## Browser Support
 
-Uses the `clipboard-copy` library which provides:
-
-- Modern `navigator.clipboard.writeText()` API when available
-- Fallback to `document.execCommand('copy')` for older browsers
-- Works in both secure (HTTPS) and insecure contexts
+Uses the [Clipboard API](https://developer.mozilla.org/en-US/docs/Web/API/Clipboard/writeText), which is available in all modern browsers.
+It requires a secure context (HTTPS or `localhost`), so copying fails over plain HTTP and calls `onError`.
 
 ## Related
 
 - [`CodeHighlighter`](../../components/code-highlighter/page.mdx) - Often used together for code copy functionality
-- [clipboard-copy](https://www.npmjs.com/package/clipboard-copy) - Underlying clipboard library

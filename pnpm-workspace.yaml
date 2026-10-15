@@ -16,6 +16,7 @@ allowBuilds:
   ssh2: false
   core-js-pure: false
 updateNotifier: false
+autoDedupe: true
 blockExoticSubdeps: true
 minimumReleaseAge: 4320
 minimumReleaseAgeExclude:
