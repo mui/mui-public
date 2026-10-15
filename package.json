@@ -18,6 +18,8 @@
     "test:browser:unconfined": "vitest --config vitest.config.browser.mts",
     "test:e2e": "pnpm -F \"./docs\" run test:e2e",
     "stylelint": "stylelint --reportInvalidScopeDisables --reportNeedlessDisables \"**/*.?(c|m)[jt]s?(x)\" \"**/*.css\" --ignore-path .lintignore",
+    "valelint": "pnpm code-infra vale sync --vale-version $npm_package_config_valeVersion && git ls-files | grep -E \"\\.(md|mdx)$\" | xargs pnpm code-infra vale --vale-version $npm_package_config_valeVersion --filter='.Level==\"error\"'",
+    "vale:fix": "pnpm valelint --auto-fix all",
     "typescript": "pnpm -r run typescript",
     "release:build": "pnpm -r -F \"./packages/*\" run build",
     "size:snapshot": "pnpm -F ./test/bundle-size check",
@@ -67,6 +69,9 @@
     "playwright": "1.64.0",
     "stylelint": "17.16.0",
     "vitest": "5.0.3"
+  },
+  "config": {
+    "valeVersion": "3.24.0"
   },
   "packageManager": "pnpm@12.10.1",
   "engines": {

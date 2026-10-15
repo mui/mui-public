@@ -3,7 +3,7 @@ import type { CreateChunkConfig } from '../CoordinatedLazy/types';
 
 /**
  * Options bound by {@link createStreamFactory}. Extends the chunk config with
- * an optional client provider (e.g. a `ChunkProvider` supplying client loaders,
+ * an optional client provider (for example, a `ChunkProvider` supplying client loaders,
  * or a `PreloadProvider`) wrapped around the chunk.
  *
  * All loader functions on the config are expected to be dynamically imported by

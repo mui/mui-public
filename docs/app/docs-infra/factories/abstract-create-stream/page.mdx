@@ -22,7 +22,7 @@ A build-time loader detects the `create*` call (`parseCreateFactoryCall` matches
 
 ## Dynamically-imported loaders
 
-All loader functions passed to the factory are expected to be dynamic imports, so they can be bundled but never called on the client. Add `import 'server-only'` to a loader module to keep a sensitive loader off the client entirely. A `ClientProvider` option (e.g. a [`ChunkProvider`](../../components/chunk-provider/page.mdx) or `PreloadProvider`) wraps the chunk for client-side loading and preload dedup.
+All loader functions passed to the factory are expected to be dynamic imports, so they can be bundled but never called on the client. Add `import 'server-only'` to a loader module to keep a sensitive loader off the client entirely. A `ClientProvider` option (for example, a [`ChunkProvider`](../../components/chunk-provider/page.mdx) or `PreloadProvider`) wraps the chunk for client-side loading and preload dedup.
 
 ## Reference
 

@@ -93,7 +93,7 @@ export type CodeControllerProps<T extends {} = {}> = {
  * A code-controller component — the counterpart to `DemoContent`. It wraps `children`
  * in a {@link CodeControllerContext} provider, typically sourcing the value from a hook
  * such as `useDemoController`. Parameterize with `T` for the controller's own props
- * (e.g. `CodeController<UseDemoControllerOptions>`).
+ * (for example, `CodeController<UseDemoControllerOptions>`).
  */
 export type CodeController<T extends {} = {}> = React.ComponentType<CodeControllerProps<T>>;
 

@@ -22,7 +22,7 @@ You can [read the Infra documentation here](./docs/README.md).
 - Source: `/docs/`
 - Hosting: https://app.netlify.com/projects/mui-internal/overview
 - [Docs](./docs/#readme)
-- Website for MUI internal packages, e.g. hosts docs-infra.
+- Website for MUI internal packages, for example, hosts docs-infra.
   This is equivalent to https://backoffice.mui.com/ but for public logic.
 
 ## Packages
@@ -39,7 +39,7 @@ You can [read the Infra documentation here](./docs/README.md).
 
 ## Agent skills
 
-This repo ships agent skills under [`skills/`](./skills/) (e.g. `mui-triage`). Install them into a repo's agent skills directory with the [`skills`](https://github.com/vercel-labs/skills) CLI:
+This repo ships agent skills under [`skills/`](./skills/) (for example, `mui-triage`). Install them into a repo's agent skills directory with the [`skills`](https://github.com/vercel-labs/skills) CLI:
 
 ```bash
 npx skills add mui/mui-public --skill mui-triage
@@ -48,7 +48,7 @@ npx skills add mui/mui-public --skill mui-triage
 Notes:
 
 - Omit `--skill <name>` to install every skill this repo ships.
-- Add `-g` to install into the global agent directory, or `--copy` where symlinks aren't supported (e.g. Windows). When a coding agent is detected, the install runs non-interactively.
+- Add `-g` to install into the global agent directory, or `--copy` where symlinks aren't supported (for example, Windows). When a coding agent is detected, the install runs non-interactively.
 
 To refresh installed skills later (`npx skills add` copies the content into your repo):
 

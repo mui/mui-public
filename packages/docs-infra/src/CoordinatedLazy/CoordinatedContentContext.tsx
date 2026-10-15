@@ -14,7 +14,7 @@ export const CoordinatedContentContext = React.createContext<CoordinatedContentC
 
 /**
  * Read the data the fallback hoisted, from inside the full content. Lets the
- * content use what the fallback fetched (e.g. a decompression dictionary)
+ * content use what the fallback fetched (for example, a decompression dictionary)
  * without the consumer threading it through props. Returns an empty map when
  * rendered outside a `CoordinatedLazy`.
  */

@@ -34,15 +34,15 @@ import type { Code, VariantExtraFiles, VariantSource } from '../../CodeHighlight
  * any loading operations. This design is crucial for performance and rendering strategies:
  *
  * - **Synchronous validation** allows immediate decisions about rendering paths without async overhead
- * - **Enables build-time optimization**: When code is precomputed (e.g., via build-time processing),
+ * - **Enables build-time optimization**: When code is precomputed (for example, via build-time processing),
  *   this function can immediately return `initialData`, avoiding async components entirely
  * - **Separates concerns**: Data validation is separate from data loading, making the codebase
  *   more predictable and easier to reason about
  *
  * When `initialData: false` is returned, the calling component is responsible for initiating
- * asynchronous loading operations (e.g., `loadCodeFallback`, `CodeInitialSourceLoader`).
+ * asynchronous loading operations (for example, `loadCodeFallback`, `CodeInitialSourceLoader`).
  *
- * @param variants - Array of all available variant names for this code block (e.g., ['javascript', 'typescript'])
+ * @param variants - Array of all available variant names for this code block (for example, `['javascript', 'typescript']`)
  * @param variant - The specific variant we want to display (must exist in variants array)
  * @param code - The code object containing all variant data (may be undefined if not loaded)
  * @param fileName - Optional specific file to display. Resolution logic:

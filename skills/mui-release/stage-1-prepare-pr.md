@@ -10,9 +10,9 @@ All preparation lands as a normal PR against the branch being released (usually 
 6. Version the packages with `pnpm release:version` — an **interactive** (PTY) script that confirms the new version of each workspace package before bumping it (along with inter-package dependency ranges). Ask the user to run it in their own terminal and end the turn there. On the next turn, verify the outcome from `git diff` (which packages were bumped and to what) instead of the command's output, against these rules:
    - Only bump packages that have changes since the last release — but if the tooling detects **any** change, do not skip the bump.
    - Packages that track the root version — the repo's **main package** above all — must end up at exactly the root `package.json` version, even if that skips version numbers or the package had no changes of its own. The script skips unchanged packages, so the main package may need a manual bump after the run.
-7. Open the PR titled `[release] <target-version>` (e.g. `[release] v1.2.0`) with the `release` label — stage 2 finds the release PR by this label. Keep the PR description minimal: none at all, or a single line when something genuinely needs calling out (the changelog in the diff is the description).
+7. Open the PR titled `[release] <target-version>` (for example, `[release] v1.2.0`) with the `release` label — stage 2 finds the release PR by this label. Keep the PR description minimal: none at all, or a single line when something genuinely needs calling out (the changelog in the diff is the description).
 
-Some repos ship an interactive script (e.g. `pnpm release:prepare`) that automates this stage end to end — prefer it when the README offers one.
+Some repos ship an interactive script (for example, `pnpm release:prepare`) that automates this stage end to end — prefer it when the README offers one.
 
 **Stage complete when:** the PR is approved and CI is green.
 
