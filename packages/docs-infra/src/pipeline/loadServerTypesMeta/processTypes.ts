@@ -7,6 +7,7 @@ import ts from 'typescript';
 import { createOptimizedProgram } from './createOptimizedProgram';
 import { augmentComponentsWithInheritedProps } from './inheritedExternalProps';
 import type { InheritedExternalPropsConfig } from './inheritedExternalProps';
+import { collectExportSymbols } from './collectExportSymbols';
 import { findConstantNamespaces, foldConstantNamespaces } from './constantGroups';
 import { substituteConditionalTypeParameters } from './substituteConditionalTypeParameters';
 import { PARSER_OPTIONS } from './constants';
@@ -378,27 +379,29 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
           // Use parseFromProgram directly - it now handles namespace exports,
           // type aliases, and re-exports properly
           const parsed = parseFromProgram(entrypoint, program, PARSER_OPTIONS);
+          const checker = program.getTypeChecker();
+          const symbolsByExportName = collectExportSymbols(sourceFile, checker);
 
           // Conditional type aliases that test their own type parameters can't be resolved
           // while generic; resolve them with defaults or constraints substituted instead.
           const resolvedExports = substituteConditionalTypeParameters(
             parsed.exports,
-            entrypoint,
+            symbolsByExportName,
             program,
             PARSER_OPTIONS,
           );
 
           // Modules of constants exported as a namespace (`export * as ButtonDataAttributes`)
           // arrive flattened into one export per member; document each as a single group.
-          const constantNamespaces = findConstantNamespaces(entrypoint, program);
+          const constantNamespaces = findConstantNamespaces(symbolsByExportName, checker);
           const exports = foldConstantNamespaces(resolvedExports, constantNamespaces);
 
           // Re-add configured props that the parser dropped because they are
           // inherited from an externally declared type in node_modules
           augmentComponentsWithInheritedProps(
             exports,
-            program,
-            sourceFile,
+            symbolsByExportName,
+            checker,
             request.inheritedExternalProps,
           );
 
