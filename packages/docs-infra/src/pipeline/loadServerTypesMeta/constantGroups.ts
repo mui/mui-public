@@ -1,7 +1,7 @@
 import ts from 'typescript';
 import { EnumMember, EnumNode, ExportNode, TypeName } from 'typescript-api-extractor';
 import type * as tae from 'typescript-api-extractor';
-import { collectExportSymbols, resolveAlias } from './collectExportSymbols';
+import { resolveAlias } from './collectExportSymbols';
 import { formatPropertyComment } from './formatType';
 import { isComponentType, isEnumType } from './typeGuards';
 
@@ -88,18 +88,11 @@ function readConstantModule(
  * @returns Member values keyed by namespace path, then member name
  */
 export function findConstantNamespaces(
-  entrypoint: string,
-  program: ts.Program,
+  symbolsByExportName: Map<string, ts.Symbol>,
+  checker: ts.TypeChecker,
 ): Map<string, Map<string, ConstantValue>> {
   const namespaces = new Map<string, Map<string, ConstantValue>>();
-  const sourceFile = program.getSourceFile(entrypoint);
-  const checker = program.getTypeChecker();
-  const entrypointSymbol = sourceFile && checker.getSymbolAtLocation(sourceFile);
-  if (!entrypointSymbol) {
-    return namespaces;
-  }
-
-  for (const [path, exportSymbol] of collectExportSymbols(entrypointSymbol, checker)) {
+  for (const [path, exportSymbol] of symbolsByExportName) {
     if (exportSymbol.declarations?.some(ts.isNamespaceExport)) {
       const values = readConstantModule(resolveAlias(exportSymbol, checker), checker);
       if (values) {

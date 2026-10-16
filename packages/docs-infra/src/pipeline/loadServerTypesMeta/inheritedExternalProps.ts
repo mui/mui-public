@@ -12,7 +12,7 @@ import {
   UnionNode,
 } from 'typescript-api-extractor';
 import type { AnyType, ComponentNode, ExportNode } from 'typescript-api-extractor';
-import { collectExportSymbols, resolveAlias } from './collectExportSymbols';
+import { resolveAlias } from './collectExportSymbols';
 import { isComponentType, isObjectType } from './typeGuards';
 
 /**
@@ -69,21 +69,13 @@ const MAX_CONVERSION_DEPTH = 8;
  */
 export function augmentComponentsWithInheritedProps(
   exports: ExportNode[],
-  program: ts.Program,
-  sourceFile: ts.SourceFile,
+  symbolsByExportName: Map<string, ts.Symbol>,
+  checker: ts.TypeChecker,
   config: InheritedExternalPropsConfig | undefined,
 ): void {
   if (!config || Object.keys(config).length === 0) {
     return;
   }
-
-  const checker = program.getTypeChecker();
-  const moduleSymbol = checker.getSymbolAtLocation(sourceFile);
-  if (!moduleSymbol) {
-    return;
-  }
-
-  const symbolsByExportName = collectExportSymbols(moduleSymbol, checker);
 
   const exportNames = exports.map((exportNode) => exportNode.name);
   const resolvedConfig = resolveConfig(config);

@@ -2,14 +2,12 @@
 import ts from 'typescript';
 import { parseFromProgram, withTypeName } from 'typescript-api-extractor';
 import type { ExportNode, ParserOptions } from 'typescript-api-extractor';
-import { collectExportSymbols, resolveAlias } from './collectExportSymbols';
+import { resolveAlias } from './collectExportSymbols';
 
 const COMPANION_PREFIX = '__docsSubstituted_';
 
 interface Candidate {
   exportName: string;
-  declaration: ts.TypeAliasDeclaration;
-  testedParameters: Set<ts.TypeParameterDeclaration>;
   companionName: string;
   companionDeclaration: string;
 }
@@ -22,38 +20,52 @@ interface Candidate {
  * choose a branch. Untested type parameters stay generic, and the export keeps its
  * original name and type parameter list.
  *
- * Set `DEBUG_DOCS_INFRA_SUBSTITUTION` to log one line per candidate: the entrypoint, the
+ * Set `DEBUG_DOCS_INFRA_SUBSTITUTION` to log one line per candidate: its declaring file, the
  * export, the companion alias it was resolved through, and whether the result was applied
  * or why it was skipped.
  */
 export function substituteConditionalTypeParameters(
   exports: ExportNode[],
-  entrypoint: string,
+  symbolsByExportName: Map<string, ts.Symbol>,
   program: ts.Program,
   parserOptions: ParserOptions,
 ): ExportNode[] {
-  const entrySourceFile = program.getSourceFile(entrypoint);
-  const moduleSymbol =
-    entrySourceFile && program.getTypeChecker().getSymbolAtLocation(entrySourceFile);
-  if (!moduleSymbol) {
-    return exports;
-  }
-
-  const exportNames = new Set(exports.map((exportNode) => exportNode.name));
-  const candidates = findCandidates(moduleSymbol, program, exportNames);
-  if (candidates.length === 0) {
-    return exports;
-  }
-
+  const checker = program.getTypeChecker();
   const candidatesByFile = new Map<ts.SourceFile, Candidate[]>();
-  for (const candidate of candidates) {
-    const sourceFile = candidate.declaration.getSourceFile();
+  for (const exportNode of exports) {
+    const symbol = symbolsByExportName.get(exportNode.name);
+    const declaration =
+      symbol && resolveAlias(symbol, checker).declarations?.find(ts.isTypeAliasDeclaration);
+    if (!declaration?.typeParameters?.length) {
+      continue;
+    }
+
+    const testedParameters = getTestedTypeParameters(declaration, program);
+    if (testedParameters.size === 0) {
+      continue;
+    }
+
+    const companionName = `${COMPANION_PREFIX}${exportNode.name.replaceAll('.', '_')}`;
+    const candidate: Candidate = {
+      exportName: exportNode.name,
+      companionName,
+      companionDeclaration: createCompanionDeclaration(
+        declaration,
+        testedParameters,
+        companionName,
+      ),
+    };
+    const sourceFile = declaration.getSourceFile();
     const fileCandidates = candidatesByFile.get(sourceFile);
     if (fileCandidates) {
       fileCandidates.push(candidate);
     } else {
       candidatesByFile.set(sourceFile, [candidate]);
     }
+  }
+
+  if (candidatesByFile.size === 0) {
+    return exports;
   }
 
   const substitutedProgram = createProgramWithCompanions(program, candidatesByFile);
@@ -102,51 +114,18 @@ export function substituteConditionalTypeParameters(
   });
 
   if (process.env.DEBUG_DOCS_INFRA_SUBSTITUTION) {
-    for (const candidate of candidates) {
-      console.error(
-        `[substitute] ${entrypoint} ${candidate.exportName}: ${candidate.companionDeclaration} ${
-          outcomes.get(candidate.exportName) ?? 'skipped: companion not resolved'
-        }`,
-      );
+    for (const [sourceFile, fileCandidates] of candidatesByFile) {
+      for (const candidate of fileCandidates) {
+        console.error(
+          `[substitute] ${sourceFile.fileName} ${candidate.exportName}: ${candidate.companionDeclaration} ${
+            outcomes.get(candidate.exportName) ?? 'skipped: companion not resolved'
+          }`,
+        );
+      }
     }
   }
 
   return result;
-}
-
-function findCandidates(
-  moduleSymbol: ts.Symbol,
-  program: ts.Program,
-  exportNames: Set<string>,
-): Candidate[] {
-  const checker = program.getTypeChecker();
-  const candidates: Candidate[] = [];
-  for (const [exportName, exportSymbol] of collectExportSymbols(moduleSymbol, checker)) {
-    const declaration = exportNames.has(exportName)
-      ? resolveAlias(exportSymbol, checker).declarations?.find(ts.isTypeAliasDeclaration)
-      : undefined;
-    if (!declaration?.typeParameters?.length) {
-      continue;
-    }
-
-    const testedParameters = getTestedTypeParameters(declaration, program);
-    if (testedParameters.size > 0) {
-      const companionName = `${COMPANION_PREFIX}${exportName.replaceAll('.', '_')}`;
-      candidates.push({
-        exportName,
-        declaration,
-        testedParameters,
-        companionName,
-        companionDeclaration: createCompanionDeclaration(
-          declaration,
-          testedParameters,
-          companionName,
-        ),
-      });
-    }
-  }
-
-  return candidates;
 }
 
 /**
@@ -249,24 +228,9 @@ function createProgramWithCompanions(
     replacedTexts.set(sourceFile.fileName, `${sourceFile.text}\n${companions.join('\n')}\n`);
   }
 
-  const directories = new Set<string>();
-  for (const sourceFile of program.getSourceFiles()) {
-    for (
-      let directory = sourceFile.fileName.slice(0, sourceFile.fileName.lastIndexOf('/'));
-      directory && !directories.has(directory);
-      directory = directory.slice(0, directory.lastIndexOf('/'))
-    ) {
-      directories.add(directory);
-    }
-  }
-
-  // Files of the original program are served from it, so the new program reuses them and
-  // a program built over in-memory sources keeps resolving them.
+  // Unchanged files are served from the original program, so the new one reuses them.
   const host = ts.createCompilerHost(options, true);
   const getSourceFile = host.getSourceFile.bind(host);
-  const fileExists = host.fileExists.bind(host);
-  const directoryExists = host.directoryExists?.bind(host);
-  const readFile = host.readFile.bind(host);
   host.getSourceFile = (fileName, languageVersionOrOptions, onError, shouldCreateNewSourceFile) => {
     const replacedText = replacedTexts.get(fileName);
     if (replacedText !== undefined) {
@@ -277,12 +241,6 @@ function createProgramWithCompanions(
       getSourceFile(fileName, languageVersionOrOptions, onError, shouldCreateNewSourceFile)
     );
   };
-  host.fileExists = (fileName) =>
-    program.getSourceFile(fileName) !== undefined || fileExists(fileName);
-  host.directoryExists = (directoryName) =>
-    directories.has(directoryName) || (directoryExists?.(directoryName) ?? true);
-  host.readFile = (fileName) =>
-    replacedTexts.get(fileName) ?? program.getSourceFile(fileName)?.text ?? readFile(fileName);
 
   return ts.createProgram({
     rootNames: program.getRootFileNames(),

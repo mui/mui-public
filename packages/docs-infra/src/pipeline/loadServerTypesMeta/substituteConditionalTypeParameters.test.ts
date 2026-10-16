@@ -6,6 +6,7 @@ import ts from 'typescript';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { parseFromProgram } from 'typescript-api-extractor';
 import type { ExportNode } from 'typescript-api-extractor';
+import { collectExportSymbols } from './collectExportSymbols';
 import { PARSER_OPTIONS } from './constants';
 import { createTestProgram } from './parseTestSources';
 import { substituteConditionalTypeParameters } from './substituteConditionalTypeParameters';
@@ -17,7 +18,12 @@ const STANDARD_LIB =
 function parseSubstituted(sources: Record<string, string>): ExportNode[] {
   const { program, entrypoint } = createTestProgram(sources, STANDARD_LIB);
   const parsed = parseFromProgram(entrypoint, program, PARSER_OPTIONS);
-  return substituteConditionalTypeParameters(parsed.exports, entrypoint, program, PARSER_OPTIONS);
+  return substituteConditionalTypeParameters(
+    parsed.exports,
+    collectExportSymbols(program.getSourceFile(entrypoint)!, program.getTypeChecker()),
+    program,
+    PARSER_OPTIONS,
+  );
 }
 
 function findExport(exports: ExportNode[], name: string): ExportNode | undefined {
@@ -152,7 +158,7 @@ export namespace render {
       original = parseFromProgram(entrypoint, program, PARSER_OPTIONS).exports;
       substituted = substituteConditionalTypeParameters(
         original,
-        entrypoint,
+        collectExportSymbols(program.getSourceFile(entrypoint)!, program.getTypeChecker()),
         program,
         PARSER_OPTIONS,
       );
