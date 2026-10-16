@@ -4,6 +4,7 @@ import { parseFromProgram } from 'typescript-api-extractor';
 import { formatRawData, formatReExportData, isRawType } from './formatRaw';
 import { createTestProgram, parseTestSources } from './parseTestSources';
 import { findConstantNamespaces, foldConstantNamespaces } from './constantGroups';
+import { collectExportSymbols } from './collectExportSymbols';
 import { PARSER_OPTIONS } from './constants';
 import { buildTypeCompatibilityMap } from './rewriteTypes';
 import type { TypeRewriteContext } from './rewriteTypes';
@@ -303,7 +304,10 @@ describe('formatRaw', () => {
         });
         const [group] = foldConstantNamespaces(
           parseFromProgram(entrypoint, program, PARSER_OPTIONS).exports,
-          findConstantNamespaces(entrypoint, program),
+          findConstantNamespaces(
+            collectExportSymbols(program.getSourceFile(entrypoint)!, program.getTypeChecker()),
+            program.getTypeChecker(),
+          ),
         );
 
         const result = await formatRawData(group, group.name, {}, defaultRewriteContext, {
