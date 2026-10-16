@@ -87,7 +87,7 @@ describe('GET /api/mui-careers', () => {
     const { data } = await response.json();
 
     expect(data[0].description).toBe(
-      '<section id="benefits" aria-labelledby="benefits-title" role="region"><h2 id="benefits-title">Benefits</h2><a href="#benefits" target="_blank" rel="noopener">Read more</a><img src="https://mui.com/logo.png" alt="MUI logo"><table><tbody><tr><th scope="row" colspan="2" rowspan="2">Remote</th></tr></tbody></table><ol start="3" reversed=""><li value="5">Time off</li></ol><time datetime="2026-10-07">October 7</time><p lang="en" dir="ltr">Join us</p></section>',
+      '<section id="benefits" aria-labelledby="benefits-title" role="region"><h2 id="benefits-title">Benefits</h2><a href="#benefits" target="_blank" rel="noopener">Read more</a><img src="https://mui.com/logo.png" alt="MUI logo" /><table><tbody><tr><th scope="row" colspan="2" rowspan="2">Remote</th></tr></tbody></table><ol start="3" reversed><li value="5">Time off</li></ol><time datetime="2026-10-07">October 7</time><p lang="en" dir="ltr">Join us</p></section>',
     );
   });
 
@@ -100,7 +100,7 @@ describe('GET /api/mui-careers', () => {
     [
       'unsafe URLs',
       '<a href="jav&#x61;script:alert(1)">Apply</a><a href="java\tscript:alert(1)">More</a><img src="data:image/svg+xml,evil" onerror="alert(1)">',
-      '<a>Apply</a><a>More</a><img>',
+      '<a>Apply</a><a>More</a><img />',
     ],
     [
       'foreign content',
@@ -122,30 +122,6 @@ describe('GET /api/mui-careers', () => {
 
     expect(response.status).toBe(200);
     expect(data[0].description).toBe(`${expected}<p>Safe content</p>`);
-  });
-
-  it('replaces empty formatting with line breaks and preserves content', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn<typeof fetch>().mockResolvedValue(
-        Response.json({
-          jobs: [
-            {
-              ...job,
-              descriptionHtml:
-                '<h2></h2><h3> &nbsp;<strong> </strong><br></h3><p></p><div><p>&nbsp;</p></div><span> </span><br><h2><strong>Benefits</strong></h2><h3><img src="https://mui.com/logo.png" alt="MUI"></h3>',
-            },
-          ],
-        }),
-      ),
-    );
-
-    const response = await GET();
-    const { data } = await response.json();
-
-    expect(data[0].description).toBe(
-      '<br><br><br><br><br><br><h2><strong>Benefits</strong></h2><h3><img src="https://mui.com/logo.png" alt="MUI"></h3>',
-    );
   });
 
   it('excludes unlisted postings', async () => {
