@@ -3,13 +3,14 @@ import ts from 'typescript';
 import { parseFromProgram, withTypeName } from 'typescript-api-extractor';
 import type { ExportNode, ParserOptions } from 'typescript-api-extractor';
 
-const COMPANION_PREFIX = '__docsSubstituted';
+const COMPANION_PREFIX = '__docsSubstituted_';
 
 interface Candidate {
   exportName: string;
   declaration: ts.TypeAliasDeclaration;
   testedParameters: Set<ts.TypeParameterDeclaration>;
   companionName: string;
+  companionDeclaration: string;
 }
 
 /**
@@ -21,7 +22,8 @@ interface Candidate {
  * original name and type parameter list.
  *
  * Set `DEBUG_DOCS_INFRA_SUBSTITUTION` to log one line per candidate: the entrypoint, the
- * export, the companion alias it was resolved through, and whether the result was applied.
+ * export, the companion alias it was resolved through, and whether the result was applied
+ * or why it was skipped.
  */
 export function substituteConditionalTypeParameters(
   exports: ExportNode[],
@@ -29,9 +31,9 @@ export function substituteConditionalTypeParameters(
   program: ts.Program,
   parserOptions: ParserOptions,
 ): ExportNode[] {
-  const checker = program.getTypeChecker();
   const entrySourceFile = program.getSourceFile(entrypoint);
-  const moduleSymbol = entrySourceFile && checker.getSymbolAtLocation(entrySourceFile);
+  const moduleSymbol =
+    entrySourceFile && program.getTypeChecker().getSymbolAtLocation(entrySourceFile);
   if (!moduleSymbol) {
     return exports;
   }
@@ -42,58 +44,73 @@ export function substituteConditionalTypeParameters(
     return exports;
   }
 
-  const companionsByFile = new Map<ts.SourceFile, Candidate[]>();
+  const candidatesByFile = new Map<ts.SourceFile, Candidate[]>();
   for (const candidate of candidates) {
     const sourceFile = candidate.declaration.getSourceFile();
-    companionsByFile.set(sourceFile, [...(companionsByFile.get(sourceFile) ?? []), candidate]);
+    const fileCandidates = candidatesByFile.get(sourceFile);
+    if (fileCandidates) {
+      fileCandidates.push(candidate);
+    } else {
+      candidatesByFile.set(sourceFile, [candidate]);
+    }
   }
 
-  const substitutedProgram = createProgramWithCompanions(program, companionsByFile);
+  const substitutedProgram = createProgramWithCompanions(program, candidatesByFile);
   const substitutedTypes = new Map<string, ExportNode['type']>();
-  for (const [sourceFile, fileCandidates] of companionsByFile) {
-    if (hasCompanionErrors(substitutedProgram, sourceFile, fileCandidates)) {
+  const outcomes = new Map<string, string>();
+  for (const [sourceFile, fileCandidates] of candidatesByFile) {
+    if (hasCompanionErrors(substitutedProgram, sourceFile)) {
+      for (const candidate of fileCandidates) {
+        outcomes.set(candidate.exportName, 'skipped: companion does not type-check');
+      }
       continue;
     }
 
-    const companionNames = new Set(fileCandidates.map((candidate) => candidate.companionName));
+    const candidatesByCompanion = new Map(
+      fileCandidates.map((candidate) => [candidate.companionName, candidate]),
+    );
     const parsed = parseFromProgram(sourceFile.fileName, substitutedProgram, parserOptions);
     for (const companionExport of parsed.exports) {
-      if (companionNames.has(companionExport.name)) {
-        substitutedTypes.set(companionExport.name, companionExport.type);
+      const candidate = candidatesByCompanion.get(companionExport.name);
+      if (candidate) {
+        substitutedTypes.set(candidate.exportName, companionExport.type);
       }
     }
   }
 
+  const result = exports.map((exportNode) => {
+    const substitutedType = substitutedTypes.get(exportNode.name);
+    if (!substitutedType) {
+      return exportNode;
+    }
+
+    const originalTypeName = 'typeName' in exportNode.type ? exportNode.type.typeName : undefined;
+    if (!originalTypeName) {
+      outcomes.set(exportNode.name, 'skipped: original export has no type name');
+      return exportNode;
+    }
+    // `any` means the conditional collapsed, as over React's `ElementType`, so the original
+    // rendering says more.
+    if (substitutedType.kind === 'intrinsic' && substitutedType.intrinsic === 'any') {
+      outcomes.set(exportNode.name, 'skipped: resolves to any');
+      return exportNode;
+    }
+
+    outcomes.set(exportNode.name, 'applied');
+    return exportNode.withType(withTypeName(substitutedType, originalTypeName));
+  });
+
   if (process.env.DEBUG_DOCS_INFRA_SUBSTITUTION) {
     for (const candidate of candidates) {
       console.error(
-        `[substitute] ${entrypoint} ${candidate.exportName}: ${createCompanionDeclaration(candidate)} ${
-          substitutedTypes.has(candidate.companionName) ? 'applied' : 'skipped'
+        `[substitute] ${entrypoint} ${candidate.exportName}: ${candidate.companionDeclaration} ${
+          outcomes.get(candidate.exportName) ?? 'skipped: companion not resolved'
         }`,
       );
     }
   }
 
-  const companionNameByExport = new Map(
-    candidates.map((candidate) => [candidate.exportName, candidate.companionName]),
-  );
-
-  return exports.map((exportNode) => {
-    const companionName = companionNameByExport.get(exportNode.name);
-    const substitutedType = companionName && substitutedTypes.get(companionName);
-    const originalTypeName = 'typeName' in exportNode.type ? exportNode.type.typeName : undefined;
-    // `any` means the conditional collapsed, as over React's `ElementType`, so the original
-    // rendering says more.
-    if (!substitutedType || !originalTypeName || isAny(substitutedType)) {
-      return exportNode;
-    }
-
-    return exportNode.withType(withTypeName(substitutedType, originalTypeName));
-  });
-}
-
-function isAny(type: ExportNode['type']): boolean {
-  return type.kind === 'intrinsic' && type.intrinsic === 'any';
+  return result;
 }
 
 function findCandidates(
@@ -111,15 +128,23 @@ function findCandidates(
           : exportSymbol;
       const exportName = prefix + exportSymbol.name;
 
-      const declaration = symbol.declarations?.find(ts.isTypeAliasDeclaration);
-      if (declaration?.typeParameters?.length && exportNames.has(exportName)) {
+      const declaration = exportNames.has(exportName)
+        ? symbol.declarations?.find(ts.isTypeAliasDeclaration)
+        : undefined;
+      if (declaration?.typeParameters?.length) {
         const testedParameters = getTestedTypeParameters(declaration, program);
         if (testedParameters.size > 0) {
+          const companionName = `${COMPANION_PREFIX}${exportName.replaceAll('.', '_')}`;
           candidates.push({
             exportName,
             declaration,
             testedParameters,
-            companionName: `${COMPANION_PREFIX}${candidates.length}`,
+            companionName,
+            companionDeclaration: createCompanionDeclaration(
+              declaration,
+              testedParameters,
+              companionName,
+            ),
           });
         }
       }
@@ -147,20 +172,17 @@ function getTestedTypeParameters(
 ): Set<ts.TypeParameterDeclaration> {
   const checker = program.getTypeChecker();
   const aliasType = checker.getTypeAtLocation(declaration.name);
-  if (
-    !(aliasType.flags & ts.TypeFlags.Conditional) ||
-    isFromDependency((aliasType as ts.ConditionalType).root.node.getSourceFile(), program)
-  ) {
+  if (!(aliasType.flags & ts.TypeFlags.Conditional)) {
+    return new Set();
+  }
+
+  const conditional = aliasType as ts.ConditionalType;
+  if (isFromDependency(conditional.root.node.getSourceFile(), program)) {
     return new Set();
   }
 
   const referenced = new Set<ts.Type>();
-  collectTypeParameters(
-    (aliasType as ts.ConditionalType).checkType,
-    checker,
-    referenced,
-    new Set(),
-  );
+  collectTypeParameters(conditional.checkType, checker, referenced, new Set());
 
   return new Set(
     (declaration.typeParameters ?? []).filter((parameter) =>
@@ -172,8 +194,7 @@ function getTestedTypeParameters(
 function isFromDependency(sourceFile: ts.SourceFile, program: ts.Program): boolean {
   return (
     program.isSourceFileFromExternalLibrary(sourceFile) ||
-    program.isSourceFileDefaultLibrary(sourceFile) ||
-    sourceFile.fileName.includes('/node_modules/')
+    program.isSourceFileDefaultLibrary(sourceFile)
   );
 }
 
@@ -225,54 +246,53 @@ function collectTypeParameters(
 /**
  * Appends one companion alias per candidate to its declaring file, so constraints and
  * defaults resolve against the same names the original declaration sees:
- * `export type __docsSubstituted0<Row> = Cell<Row, readonly { id: string }[]>;`
+ * `export type __docsSubstituted_Cell<Row> = Cell<Row, readonly { id: string }[]>;`
  */
 function createProgramWithCompanions(
   program: ts.Program,
-  companionsByFile: Map<ts.SourceFile, Candidate[]>,
+  candidatesByFile: Map<ts.SourceFile, Candidate[]>,
 ): ts.Program {
   const options = program.getCompilerOptions();
-  const replacedFiles = new Map<string, ts.SourceFile>();
-  for (const [sourceFile, fileCandidates] of companionsByFile) {
-    const companions = fileCandidates.map(createCompanionDeclaration).join('\n');
-    replacedFiles.set(
-      sourceFile.fileName,
-      ts.createSourceFile(
-        sourceFile.fileName,
-        `${sourceFile.text}\n${companions}\n`,
-        sourceFile.languageVersion,
-        true,
-      ),
-    );
+  const replacedTexts = new Map<string, string>();
+  for (const [sourceFile, fileCandidates] of candidatesByFile) {
+    const companions = fileCandidates.map((candidate) => candidate.companionDeclaration);
+    replacedTexts.set(sourceFile.fileName, `${sourceFile.text}\n${companions.join('\n')}\n`);
   }
 
-  // Files of the original program are served from it, so a program built over in-memory
-  // sources keeps resolving them. Duplicate package copies are redirects to another source
-  // file, which a host must not return; the program recreates those itself.
+  const directories = new Set<string>();
+  for (const sourceFile of program.getSourceFiles()) {
+    for (
+      let directory = sourceFile.fileName.slice(0, sourceFile.fileName.lastIndexOf('/'));
+      directory && !directories.has(directory);
+      directory = directory.slice(0, directory.lastIndexOf('/'))
+    ) {
+      directories.add(directory);
+    }
+  }
+
+  // Files of the original program are served from it, so the new program reuses them and
+  // a program built over in-memory sources keeps resolving them.
   const host = ts.createCompilerHost(options, true);
   const getSourceFile = host.getSourceFile.bind(host);
   const fileExists = host.fileExists.bind(host);
+  const directoryExists = host.directoryExists?.bind(host);
   const readFile = host.readFile.bind(host);
-  const getOriginalSourceFile = (fileName: string) => {
-    const sourceFile = program.getSourceFile(fileName);
-    return sourceFile && !isRedirectSourceFile(sourceFile) ? sourceFile : undefined;
+  host.getSourceFile = (fileName, languageVersionOrOptions, onError, shouldCreateNewSourceFile) => {
+    const replacedText = replacedTexts.get(fileName);
+    if (replacedText !== undefined) {
+      return ts.createSourceFile(fileName, replacedText, languageVersionOrOptions, true);
+    }
+    return (
+      getOriginalSourceFile(program, fileName) ??
+      getSourceFile(fileName, languageVersionOrOptions, onError, shouldCreateNewSourceFile)
+    );
   };
-  host.getSourceFile = (fileName, languageVersion, onError, shouldCreateNewSourceFile) =>
-    replacedFiles.get(fileName) ??
-    getOriginalSourceFile(fileName) ??
-    getSourceFile(fileName, languageVersion, onError, shouldCreateNewSourceFile);
   host.fileExists = (fileName) =>
     program.getSourceFile(fileName) !== undefined || fileExists(fileName);
-  const directoryExists = host.directoryExists?.bind(host);
   host.directoryExists = (directoryName) =>
-    program
-      .getSourceFiles()
-      .some((sourceFile) => sourceFile.fileName.startsWith(`${directoryName}/`)) ||
-    (directoryExists?.(directoryName) ?? true);
+    directories.has(directoryName) || (directoryExists?.(directoryName) ?? true);
   host.readFile = (fileName) =>
-    replacedFiles.get(fileName)?.text ??
-    program.getSourceFile(fileName)?.text ??
-    readFile(fileName);
+    replacedTexts.get(fileName) ?? program.getSourceFile(fileName)?.text ?? readFile(fileName);
 
   return ts.createProgram({
     rootNames: program.getRootFileNames(),
@@ -283,15 +303,24 @@ function createProgramWithCompanions(
 }
 
 /**
- * TypeScript marks a duplicate copy of a package's file with internal `redirectInfo`;
- * there is no public API for it.
+ * A duplicate copy of a package's file is a redirect, which a host must not return. Its
+ * unredirected file is what program reuse expects instead. TypeScript only exposes this
+ * through the internal `redirectInfo`.
  */
-function isRedirectSourceFile(sourceFile: ts.SourceFile): boolean {
-  return 'redirectInfo' in sourceFile && sourceFile.redirectInfo !== undefined;
+function getOriginalSourceFile(program: ts.Program, fileName: string): ts.SourceFile | undefined {
+  const sourceFile = program.getSourceFile(fileName);
+  if (sourceFile && 'redirectInfo' in sourceFile) {
+    const { redirectInfo } = sourceFile as { redirectInfo?: { unredirected: ts.SourceFile } };
+    return redirectInfo ? redirectInfo.unredirected : sourceFile;
+  }
+  return sourceFile;
 }
 
-function createCompanionDeclaration(candidate: Candidate): string {
-  const { declaration, testedParameters, companionName } = candidate;
+function createCompanionDeclaration(
+  declaration: ts.TypeAliasDeclaration,
+  testedParameters: Set<ts.TypeParameterDeclaration>,
+  companionName: string,
+): string {
   const parameters = declaration.typeParameters ?? [];
   const keptParameters = parameters
     .filter((parameter) => !testedParameters.has(parameter))
@@ -319,16 +348,12 @@ function getQualifiedName(declaration: ts.TypeAliasDeclaration): string {
 
 /**
  * A substituted default or constraint can stop type-checking, for example when it refers
- * to another substituted parameter. Such a companion is skipped and the export keeps its
- * original rendering.
+ * to another substituted parameter. Such companions are skipped and their exports keep
+ * their original rendering.
  */
-function hasCompanionErrors(
-  program: ts.Program,
-  originalSourceFile: ts.SourceFile,
-  fileCandidates: Candidate[],
-): boolean {
+function hasCompanionErrors(program: ts.Program, originalSourceFile: ts.SourceFile): boolean {
   const sourceFile = program.getSourceFile(originalSourceFile.fileName);
-  if (!sourceFile || fileCandidates.length === 0) {
+  if (!sourceFile) {
     return true;
   }
 
