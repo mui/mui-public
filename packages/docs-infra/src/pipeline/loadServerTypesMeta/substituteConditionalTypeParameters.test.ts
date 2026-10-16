@@ -20,32 +20,24 @@ function parseSubstituted(sources: Record<string, string>): ExportNode[] {
   return substituteConditionalTypeParameters(parsed.exports, entrypoint, program, PARSER_OPTIONS);
 }
 
-function describeExport(exports: ExportNode[], name: string): string | undefined {
-  const exportNode = exports.find((candidate) => candidate.name === name);
-  if (!exportNode) {
-    return undefined;
-  }
-
-  const { type } = exportNode;
-  const header = 'typeName' in type && type.typeName ? type.typeName.toString() : '';
-  return `${header} ${describeBody(type)}`;
+function findExport(exports: ExportNode[], name: string): ExportNode | undefined {
+  return exports.find((candidate) => candidate.name === name);
 }
 
-// The structure under the alias name, which `toString()` would print as the name itself.
-function describeBody(type: ExportNode['type']): string {
-  if ('properties' in type) {
-    const properties = type.properties.map(
-      (property) => `${property.name}: ${property.type.toString()}`,
-    );
-    return `{ ${properties.join('; ')} }`;
+function describeExport(exports: ExportNode[], name: string): string {
+  const exportNode = findExport(exports, name);
+  if (!exportNode) {
+    throw new Error(`Missing export: ${name}`);
   }
-  if (type.kind === 'union') {
-    return type.types.map((member) => member.toString()).join(' | ');
-  }
-  if (type.kind === 'intrinsic') {
-    return type.intrinsic;
-  }
-  return type.toString();
+
+  // The structure under the alias name, which \`toString()\` would print as the name itself.
+  const { type } = exportNode;
+  const header = 'typeName' in type && type.typeName ? type.typeName.toString() : '';
+  const body =
+    'properties' in type
+      ? `{ ${type.properties.map((property) => `${property.name}: ${property.type.toString()}`).join('; ')} }`
+      : type.toString();
+  return `${header} ${body}`;
 }
 
 describe('substituteConditionalTypeParameters', () => {
@@ -171,14 +163,14 @@ export namespace render {
     });
 
     it('leaves an alias passing its parameter to a conditional from a dependency untouched', () => {
-      expect(describeExport(substituted, 'render.ElementProps')).toBe(
-        describeExport(original, 'render.ElementProps'),
+      expect(findExport(substituted, 'render.ElementProps')).toBe(
+        findExport(original, 'render.ElementProps'),
       );
     });
 
     it('keeps the original rendering when substitution collapses to any', () => {
-      expect(describeExport(substituted, 'render.OwnElementProps')).toBe(
-        describeExport(original, 'render.OwnElementProps'),
+      expect(findExport(substituted, 'render.OwnElementProps')).toBe(
+        findExport(original, 'render.OwnElementProps'),
       );
     });
   });
