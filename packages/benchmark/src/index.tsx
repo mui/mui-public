@@ -1,5 +1,6 @@
 import * as React from 'react';
-import { expect, it } from 'vitest';
+import { expect, it, TestRunner } from 'vitest';
+import type { RunnerTestCase } from 'vitest';
 import * as ReactDOMClient from 'react-dom/client'; // aliased to react-dom/profiling by Vite
 import * as ReactDOM from 'react-dom';
 import type { RenderEvent, IterationData, InteractionContext, BenchmarkCaseRuntime } from './types';
@@ -243,6 +244,175 @@ interface BenchmarkOptions {
   reactRecordingPaused?: boolean;
 }
 
+/** Iteration counts for a single run, taking precedence over what the benchmark declared. */
+export interface BenchmarkIterationOverrides {
+  runs?: number;
+  warmupRuns?: number;
+}
+
+export interface BenchmarkRunResult {
+  /** One entry per measured iteration; warmup iterations are not included. */
+  iterations: IterationData[];
+  /** The error a render threw, if one did. The loop stops at the iteration that threw. */
+  renderError: unknown;
+  /** Whether any iteration had a recording window that was active yet captured no renders. */
+  sawEmptyActiveWindow: boolean;
+}
+
+/**
+ * A benchmark as `benchmark()` defined it, separate from the Vitest test it registers.
+ *
+ * `run()` is the measurement loop on its own: it registers nothing and asserts nothing, so a driver
+ * other than `benchmark()`'s own `it()` can run the same case repeatedly, with its own iteration
+ * counts, without the benchmark file changing. An A/B runner comparing two builds needs exactly
+ * that — one iteration per call, so the two builds can alternate iteration by iteration instead of
+ * in blocks.
+ *
+ * Custom metrics still resolve the running Vitest test when they record, so a driver that wants
+ * them has to call `run()` from inside one.
+ */
+export interface BenchmarkCase {
+  name: string;
+  run: (overrides?: BenchmarkIterationOverrides) => Promise<BenchmarkRunResult>;
+}
+
+/** Every case `benchmark()` has defined so far, in declaration order. */
+export const benchmarkCases: BenchmarkCase[] = [];
+
+interface RunCaseOptions {
+  renderFn: () => React.ReactElement;
+  interaction?: (ctx: InteractionContext) => Promise<void> | void;
+  options?: BenchmarkOptions;
+  overrides?: BenchmarkIterationOverrides;
+}
+
+// The measurement loop. Everything Vitest-specific — registering the test, writing `task.meta`,
+// asserting the run was valid — belongs to the caller, so this can also run under another driver.
+async function runCase({
+  renderFn,
+  interaction,
+  options,
+  overrides,
+}: RunCaseOptions): Promise<BenchmarkRunResult> {
+  const runs = overrides?.runs ?? options?.runs ?? 20;
+  const warmupRuns = overrides?.warmupRuns ?? options?.warmupRuns ?? 10;
+
+  const totalRuns = warmupRuns + runs;
+  const iterations: IterationData[] = [];
+
+  // Paint timings are recorded as one harness-owned `bench:paint` metric: the default sentinel
+  // is the base series (`bench:paint`) and named `elementtiming` markers are sub-series
+  // (`bench:paint#grid-header`, …), all sharing a single definition. Paint is informational (no
+  // alarm): it dominates each test's total duration, so a per-test paint alarm just duplicates the
+  // Duration regression signal and floods the report on any broadly-regressed run.
+  const paint = new ScalarMetric({
+    name: 'bench:paint',
+    format: { style: 'unit', unit: 'millisecond', maximumFractionDigits: 2 },
+  });
+
+  if (typeof window.gc !== 'function') {
+    console.warn(
+      'window.gc is not available. Run with --js-flags=--expose-gc for consistent GC between iterations.',
+    );
+  }
+
+  let renderError: unknown = null;
+  // Set if any iteration had a recording window that was active yet captured no renders.
+  let sawEmptyActiveWindow = false;
+
+  for (let i = 0; i < totalRuns; i += 1) {
+    const isWarmup = i < warmupRuns;
+
+    // Custom metrics recorded inside the benchmark honor warmup exclusion through the gate, the
+    // same way renders and `bench:paint` are excluded during warmup. The gate is keyed on the
+    // running test, so it only applies when a driver runs the loop inside one.
+    const test = TestRunner.getCurrentTest<RunnerTestCase | undefined>();
+    if (test) {
+      metricsGate.setRecordingEnabled(test, !isWarmup);
+    }
+
+    // Per-iteration switch for the harness's React render/paint recording. Starts paused when
+    // `reactRecordingPaused` is set; the interaction callback drives it from there.
+    const recording = createReactRecordingControls(!(options?.reactRecordingPaused ?? false));
+
+    // Drain event loop from previous unmount, then double GC for thorough cleanup
+    // eslint-disable-next-line no-await-in-loop
+    await settle();
+    forceGC();
+
+    const captures: RenderEvent[] = [];
+    const timing = createElementTimingWaiter();
+
+    const runtime = createCaseRuntime({
+      // Wrap the case in BenchProfiler so its renders are captured; the runtime mounts whatever
+      // renderFn returns (profiling passes the case bare).
+      renderFn: () => (
+        <BenchProfiler captures={captures} recording={recording}>
+          {renderFn()}
+        </BenchProfiler>
+      ),
+      interaction,
+      context: {
+        waitForElementTiming: timing.waitForElementTiming,
+        pauseReactRecording: recording.pauseReactRecording,
+        resumeReactRecording: recording.resumeReactRecording,
+      },
+      // eslint-disable-next-line @typescript-eslint/no-loop-func
+      onUncaughtError: (error) => {
+        renderError = error;
+      },
+    });
+
+    const iterationStart = performance.now();
+
+    runtime.mount();
+
+    if (renderError) {
+      timing.disconnect();
+      runtime.unmount();
+      break;
+    }
+
+    // eslint-disable-next-line no-await-in-loop
+    await runtime.interact?.();
+
+    // Wait for the bench sentinel paint entry (relies on test timeout)
+    // eslint-disable-next-line no-await-in-loop
+    await timing.waitForElementTiming('default', 0);
+
+    // Close the final window and remember if any active window measured no renders.
+    recording.finalizeWindow();
+    if (recording.hadEmptyActiveWindow) {
+      sawEmptyActiveWindow = true;
+    }
+
+    timing.disconnect();
+
+    runtime.unmount();
+
+    if (!isWarmup) {
+      for (const entry of timing.elementEntries) {
+        // Skip paints that happened while recording was paused. Attribute by the paint's
+        // `paintTime`, not by when the observer callback fired (which can lag the paint).
+        if (!recording.activeAt(entry.paintTime)) {
+          continue;
+        }
+        // The default sentinel is the base series; named markers become sub-series.
+        const id = entry.identifier === 'default' ? undefined : entry.identifier;
+        paint.record(entry.paintTime - iterationStart, id !== undefined ? { id } : undefined);
+      }
+      iterations.push({ renders: captures });
+    }
+
+    if (options?.afterEach) {
+      // eslint-disable-next-line no-await-in-loop
+      await options.afterEach();
+    }
+  }
+
+  return { iterations, renderError, sawEmptyActiveWindow };
+}
+
 export function benchmark(
   name: string,
   renderFn: () => React.ReactElement,
@@ -251,6 +421,12 @@ export function benchmark(
 ) {
   const interaction = typeof interactionOrOptions === 'function' ? interactionOrOptions : undefined;
   const options = typeof interactionOrOptions === 'object' ? interactionOrOptions : maybeOptions;
+
+  const benchmarkCase: BenchmarkCase = {
+    name,
+    run: (overrides) => runCase({ renderFn, interaction, options, overrides }),
+  };
+  benchmarkCases.push(benchmarkCase);
 
   // In profile mode, skip the automated measurement loop entirely: build a bare case runtime (no
   // BenchProfiler wrapper, no-op recording since the user drives DevTools by hand) and hand it to
@@ -277,117 +453,7 @@ export function benchmark(
   }
 
   it(name, async ({ task }) => {
-    const runs = options?.runs ?? 20;
-    const warmupRuns = options?.warmupRuns ?? 10;
-
-    const totalRuns = warmupRuns + runs;
-    const iterations: IterationData[] = [];
-
-    // Paint timings are recorded as one harness-owned `bench:paint` metric: the default sentinel
-    // is the base series (`bench:paint`) and named `elementtiming` markers are sub-series
-    // (`bench:paint#grid-header`, …), all sharing a single definition. Paint is informational (no
-    // alarm): it dominates each test's total duration, so a per-test paint alarm just duplicates the
-    // Duration regression signal and floods the report on any broadly-regressed run.
-    const paint = new ScalarMetric({
-      name: 'bench:paint',
-      format: { style: 'unit', unit: 'millisecond', maximumFractionDigits: 2 },
-    });
-
-    if (typeof window.gc !== 'function') {
-      console.warn(
-        'window.gc is not available. Run with --js-flags=--expose-gc for consistent GC between iterations.',
-      );
-    }
-
-    let renderError: unknown = null;
-    // Set if any iteration had a recording window that was active yet captured no renders.
-    let sawEmptyActiveWindow = false;
-
-    for (let i = 0; i < totalRuns; i += 1) {
-      const isWarmup = i < warmupRuns;
-
-      // Custom metrics recorded inside the benchmark honor warmup exclusion through the gate, the
-      // same way renders and `bench:paint` are excluded during warmup.
-      metricsGate.setRecordingEnabled(task, !isWarmup);
-
-      // Per-iteration switch for the harness's React render/paint recording. Starts paused when
-      // `reactRecordingPaused` is set; the interaction callback drives it from there.
-      const recording = createReactRecordingControls(!(options?.reactRecordingPaused ?? false));
-
-      // Drain event loop from previous unmount, then double GC for thorough cleanup
-      // eslint-disable-next-line no-await-in-loop
-      await settle();
-      forceGC();
-
-      const captures: RenderEvent[] = [];
-      const timing = createElementTimingWaiter();
-
-      const runtime = createCaseRuntime({
-        // Wrap the case in BenchProfiler so its renders are captured; the runtime mounts whatever
-        // renderFn returns (profiling passes the case bare).
-        renderFn: () => (
-          <BenchProfiler captures={captures} recording={recording}>
-            {renderFn()}
-          </BenchProfiler>
-        ),
-        interaction,
-        context: {
-          waitForElementTiming: timing.waitForElementTiming,
-          pauseReactRecording: recording.pauseReactRecording,
-          resumeReactRecording: recording.resumeReactRecording,
-        },
-        // eslint-disable-next-line @typescript-eslint/no-loop-func
-        onUncaughtError: (error) => {
-          renderError = error;
-        },
-      });
-
-      const iterationStart = performance.now();
-
-      runtime.mount();
-
-      if (renderError) {
-        timing.disconnect();
-        runtime.unmount();
-        break;
-      }
-
-      // eslint-disable-next-line no-await-in-loop
-      await runtime.interact?.();
-
-      // Wait for the bench sentinel paint entry (relies on test timeout)
-      // eslint-disable-next-line no-await-in-loop
-      await timing.waitForElementTiming('default', 0);
-
-      // Close the final window and remember if any active window measured no renders.
-      recording.finalizeWindow();
-      if (recording.hadEmptyActiveWindow) {
-        sawEmptyActiveWindow = true;
-      }
-
-      timing.disconnect();
-
-      runtime.unmount();
-
-      if (!isWarmup) {
-        for (const entry of timing.elementEntries) {
-          // Skip paints that happened while recording was paused. Attribute by the paint's
-          // `paintTime`, not by when the observer callback fired (which can lag the paint).
-          if (!recording.activeAt(entry.paintTime)) {
-            continue;
-          }
-          // The default sentinel is the base series; named markers become sub-series.
-          const id = entry.identifier === 'default' ? undefined : entry.identifier;
-          paint.record(entry.paintTime - iterationStart, id !== undefined ? { id } : undefined);
-        }
-        iterations.push({ renders: captures });
-      }
-
-      if (options?.afterEach) {
-        // eslint-disable-next-line no-await-in-loop
-        await options.afterEach();
-      }
-    }
+    const { iterations, renderError, sawEmptyActiveWindow } = await benchmarkCase.run();
 
     task.meta.benchmarkIterations = iterations;
     task.meta.benchmarkName = name;
