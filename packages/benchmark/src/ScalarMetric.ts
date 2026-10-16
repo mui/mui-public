@@ -1,9 +1,8 @@
-import { Metric } from './Metric';
+import { Metric } from './metricCore';
 import type { MetricKind } from './types';
 
 /**
- * A continuous measurement (timings, sizes, …). Samples are aggregated with mean ± standard
- * deviation and IQR outlier removal, and compared against a baseline with a relative noise band.
+ * A continuous measurement (timings, sizes, …), whose alarm bands are relative fractions.
  *
  * It offers a `console.time`-style timing helper:
  *
