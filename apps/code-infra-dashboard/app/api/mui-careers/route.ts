@@ -1,6 +1,4 @@
 import { NextResponse } from 'next/server';
-import { defaultTreeAdapter, parseFragment, serialize } from 'parse5';
-import type { DefaultTreeAdapterTypes } from 'parse5';
 import sanitizeHtml from 'sanitize-html';
 import { z } from 'zod/v4';
 
@@ -26,72 +24,8 @@ const jobBoardSchema = z.object({
   ),
 });
 
-const emptyTextTags = new Set([
-  'h1',
-  'h2',
-  'h3',
-  'h4',
-  'h5',
-  'h6',
-  'p',
-  'div',
-  'span',
-  'a',
-  'strong',
-  'em',
-  'b',
-  'i',
-  'u',
-  's',
-  'small',
-  'blockquote',
-  'pre',
-  'code',
-  'section',
-  'article',
-  'aside',
-  'header',
-  'footer',
-  'address',
-  'figure',
-  'figcaption',
-  'del',
-  'ins',
-  'mark',
-  'sub',
-  'sup',
-  'time',
-]);
-
-function isEmpty(node: DefaultTreeAdapterTypes.Node): boolean {
-  if (node.nodeName === '#text') {
-    return !(node as DefaultTreeAdapterTypes.TextNode).value.trim();
-  }
-  if ('tagName' in node && (node.tagName === 'img' || node.tagName === 'hr')) {
-    return false;
-  }
-  return !('childNodes' in node) || node.childNodes.every(isEmpty);
-}
-
-function replaceEmpty(node: DefaultTreeAdapterTypes.ParentNode) {
-  node.childNodes = node.childNodes.map((child) => {
-    if (!('tagName' in child)) {
-      return child;
-    }
-    replaceEmpty(child);
-
-    if (!emptyTextTags.has(child.tagName) || !isEmpty(child)) {
-      return child;
-    }
-
-    const lineBreak = defaultTreeAdapter.createElement('br', child.namespaceURI, []);
-    lineBreak.parentNode = node;
-    return lineBreak;
-  });
-}
-
 function sanitizeDescription(html: string): string {
-  const sanitized = sanitizeHtml(html, {
+  return sanitizeHtml(html, {
     allowedTags: [...sanitizeHtml.defaults.allowedTags, 'img'],
     allowedAttributes: {
       '*': ['title', 'lang', 'dir', 'role', 'id', 'aria-*'],
@@ -120,11 +54,6 @@ function sanitizeDescription(html: string): string {
       'math',
     ],
   });
-
-  // Preserve spacing without leaving empty headings or nested formatting.
-  const fragment = parseFragment(sanitized);
-  replaceEmpty(fragment);
-  return serialize(fragment);
 }
 
 export async function GET() {
