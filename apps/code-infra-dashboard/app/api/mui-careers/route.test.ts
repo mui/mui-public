@@ -67,7 +67,7 @@ describe('GET /api/mui-careers', () => {
         {
           ...careerJob,
           description:
-            '<h2>About the role</h2><p>Build <strong>tools</strong> &amp; improve operations.</p><a href="https://mui.com" title="a style=example">MUI</a><p>Use style="display: none" as text.</p><template><span>Details</span></template>',
+            '<h2>About the role</h2><p>Build <strong>tools</strong> &amp; improve operations.</p><a href="https://mui.com" title="a style=example">MUI</a><p>Use style="display: none" as text.</p>',
         },
       ],
     });
@@ -88,6 +88,63 @@ describe('GET /api/mui-careers', () => {
 
     expect(data[0].description).toBe(
       '<section id="benefits" aria-labelledby="benefits-title" role="region"><h2 id="benefits-title">Benefits</h2><a href="#benefits" target="_blank" rel="noopener">Read more</a><img src="https://mui.com/logo.png" alt="MUI logo"><table><tbody><tr><th scope="row" colspan="2" rowspan="2">Remote</th></tr></tbody></table><ol start="3" reversed=""><li value="5">Time off</li></ol><time datetime="2026-10-07">October 7</time><p lang="en" dir="ltr">Join us</p></section>',
+    );
+  });
+
+  it.each([
+    [
+      'active elements',
+      '<script src="https://example.com/evil.js">alert(1)</script><iframe src="https://example.com"></iframe><object data="https://example.com"></object><embed src="https://example.com"><style>body{display:none}</style>',
+      '',
+    ],
+    [
+      'unsafe URLs',
+      '<a href="jav&#x61;script:alert(1)">Apply</a><a href="java\tscript:alert(1)">More</a><img src="data:image/svg+xml,evil" onerror="alert(1)">',
+      '<a>Apply</a><a>More</a><img>',
+    ],
+    [
+      'foreign content',
+      '<svg><a xlink:href="javascript:alert(1)"><text>SVG</text></a></svg><math><mtext>Math</mtext></math>',
+      '',
+    ],
+  ])('removes executable content: %s', async (_name, unsafeHtml, expected) => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>().mockResolvedValue(
+        Response.json({
+          jobs: [{ ...job, descriptionHtml: `${unsafeHtml}<p>Safe content</p>` }],
+        }),
+      ),
+    );
+
+    const response = await GET();
+    const { data } = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data[0].description).toBe(`${expected}<p>Safe content</p>`);
+  });
+
+  it('replaces empty formatting with line breaks and preserves content', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>().mockResolvedValue(
+        Response.json({
+          jobs: [
+            {
+              ...job,
+              descriptionHtml:
+                '<h2></h2><h3> &nbsp;<strong> </strong><br></h3><p></p><div><p>&nbsp;</p></div><span> </span><br><h2><strong>Benefits</strong></h2><h3><img src="https://mui.com/logo.png" alt="MUI"></h3>',
+            },
+          ],
+        }),
+      ),
+    );
+
+    const response = await GET();
+    const { data } = await response.json();
+
+    expect(data[0].description).toBe(
+      '<br><br><br><br><br><br><h2><strong>Benefits</strong></h2><h3><img src="https://mui.com/logo.png" alt="MUI"></h3>',
     );
   });
 
@@ -158,6 +215,8 @@ describe('GET /api/mui-careers', () => {
     ['missing description', { jobs: [{ ...job, descriptionHtml: undefined }] }],
     ['missing visibility', { jobs: [{ ...job, isListed: undefined }] }],
     ['invalid application URL', { jobs: [{ ...job, applyUrl: 'invalid' }] }],
+    // eslint-disable-next-line no-script-url -- Exercise rejection of executable URLs.
+    ['executable application URL', { jobs: [{ ...job, applyUrl: 'javascript:alert(1)' }] }],
   ])('returns an error for malformed upstream data: %s', async (_name, body) => {
     vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockResolvedValue(Response.json(body)));
 

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { parseFragment, serialize } from 'parse5';
+import { defaultTreeAdapter, parseFragment, serialize } from 'parse5';
 import type { DefaultTreeAdapterTypes } from 'parse5';
+import sanitizeHtml from 'sanitize-html';
 import { z } from 'zod/v4';
 
 interface CareerJob {
@@ -20,52 +21,109 @@ const jobBoardSchema = z.object({
       department: z.string().optional(),
       isListed: z.boolean(),
       descriptionHtml: z.string(),
-      applyUrl: z.url(),
+      applyUrl: z.url({ protocol: /^https?$/ }),
     }),
   ),
 });
 
-// Retain attributes that carry content, navigation, or semantic meaning.
-const descriptionAttributes = new Set([
-  'href',
-  'target',
-  'rel',
-  'src',
-  'alt',
-  'title',
-  'colspan',
-  'rowspan',
-  'scope',
-  'start',
-  'reversed',
-  'value',
-  'datetime',
-  'lang',
-  'dir',
-  'role',
-  'id',
+const emptyTextTags = new Set([
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'p',
+  'div',
+  'span',
+  'a',
+  'strong',
+  'em',
+  'b',
+  'i',
+  'u',
+  's',
+  'small',
+  'blockquote',
+  'pre',
+  'code',
+  'section',
+  'article',
+  'aside',
+  'header',
+  'footer',
+  'address',
+  'figure',
+  'figcaption',
+  'del',
+  'ins',
+  'mark',
+  'sub',
+  'sup',
+  'time',
 ]);
 
-function stripHtmlAttributes(html: string): string {
-  const fragment = parseFragment(html);
-
-  function visit(node: DefaultTreeAdapterTypes.Node) {
-    if ('attrs' in node) {
-      node.attrs = node.attrs.filter(
-        (attribute) =>
-          (descriptionAttributes.has(attribute.name) || attribute.name.startsWith('aria-')) &&
-          !attribute.namespace,
-      );
-    }
-    if ('childNodes' in node) {
-      node.childNodes.forEach(visit);
-    }
-    if ('content' in node) {
-      visit(node.content);
-    }
+function isEmpty(node: DefaultTreeAdapterTypes.Node): boolean {
+  if (node.nodeName === '#text') {
+    return !(node as DefaultTreeAdapterTypes.TextNode).value.trim();
   }
+  if ('tagName' in node && (node.tagName === 'img' || node.tagName === 'hr')) {
+    return false;
+  }
+  return !('childNodes' in node) || node.childNodes.every(isEmpty);
+}
 
-  visit(fragment);
+function replaceEmpty(node: DefaultTreeAdapterTypes.ParentNode) {
+  node.childNodes = node.childNodes.map((child) => {
+    if (!('tagName' in child)) {
+      return child;
+    }
+    replaceEmpty(child);
+
+    if (!emptyTextTags.has(child.tagName) || !isEmpty(child)) {
+      return child;
+    }
+
+    const lineBreak = defaultTreeAdapter.createElement('br', child.namespaceURI, []);
+    lineBreak.parentNode = node;
+    return lineBreak;
+  });
+}
+
+function sanitizeDescription(html: string): string {
+  const sanitized = sanitizeHtml(html, {
+    allowedTags: [...sanitizeHtml.defaults.allowedTags, 'img'],
+    allowedAttributes: {
+      '*': ['title', 'lang', 'dir', 'role', 'id', 'aria-*'],
+      a: ['href', 'target', 'rel'],
+      img: ['src', 'alt'],
+      th: ['colspan', 'rowspan', 'scope'],
+      td: ['colspan', 'rowspan'],
+      ol: ['start', 'reversed'],
+      li: ['value'],
+      time: ['datetime'],
+    },
+    allowedSchemes: ['http', 'https', 'mailto'],
+    allowedSchemesByTag: { img: ['http', 'https'] },
+    allowProtocolRelative: false,
+    // Drop active and foreign subtrees, including their text and nested HTML.
+    nonTextTags: [
+      'script',
+      'style',
+      'textarea',
+      'option',
+      'iframe',
+      'object',
+      'embed',
+      'template',
+      'svg',
+      'math',
+    ],
+  });
+
+  // Preserve spacing without leaving empty headings or nested formatting.
+  const fragment = parseFragment(sanitized);
+  replaceEmpty(fragment);
   return serialize(fragment);
 }
 
@@ -88,7 +146,7 @@ export async function GET() {
         id: job.id,
         title: job.title,
         category: job.department || 'Other',
-        description: stripHtmlAttributes(job.descriptionHtml),
+        description: sanitizeDescription(job.descriptionHtml),
         summary: '',
         applicationUrl: job.applyUrl,
       }));
