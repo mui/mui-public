@@ -2,6 +2,7 @@
 import ts from 'typescript';
 import { parseFromProgram, withTypeName } from 'typescript-api-extractor';
 import type { ExportNode, ParserOptions } from 'typescript-api-extractor';
+import { collectExportSymbols, resolveAlias } from './collectExportSymbols';
 
 const COMPANION_PREFIX = '__docsSubstituted_';
 
@@ -120,42 +121,31 @@ function findCandidates(
 ): Candidate[] {
   const checker = program.getTypeChecker();
   const candidates: Candidate[] = [];
-  const visit = (containerSymbol: ts.Symbol, prefix: string, visited: Set<ts.Symbol>) => {
-    for (const exportSymbol of checker.getExportsOfModule(containerSymbol)) {
-      const symbol =
-        exportSymbol.flags & ts.SymbolFlags.Alias
-          ? checker.getAliasedSymbol(exportSymbol)
-          : exportSymbol;
-      const exportName = prefix + exportSymbol.name;
-
-      const declaration = exportNames.has(exportName)
-        ? symbol.declarations?.find(ts.isTypeAliasDeclaration)
-        : undefined;
-      if (declaration?.typeParameters?.length) {
-        const testedParameters = getTestedTypeParameters(declaration, program);
-        if (testedParameters.size > 0) {
-          const companionName = `${COMPANION_PREFIX}${exportName.replaceAll('.', '_')}`;
-          candidates.push({
-            exportName,
-            declaration,
-            testedParameters,
-            companionName,
-            companionDeclaration: createCompanionDeclaration(
-              declaration,
-              testedParameters,
-              companionName,
-            ),
-          });
-        }
-      }
-
-      if (symbol.flags & ts.SymbolFlags.Namespace && !visited.has(symbol)) {
-        visit(symbol, `${exportName}.`, new Set([...visited, symbol]));
-      }
+  for (const [exportName, exportSymbol] of collectExportSymbols(moduleSymbol, checker)) {
+    const declaration = exportNames.has(exportName)
+      ? resolveAlias(exportSymbol, checker).declarations?.find(ts.isTypeAliasDeclaration)
+      : undefined;
+    if (!declaration?.typeParameters?.length) {
+      continue;
     }
-  };
 
-  visit(moduleSymbol, '', new Set([moduleSymbol]));
+    const testedParameters = getTestedTypeParameters(declaration, program);
+    if (testedParameters.size > 0) {
+      const companionName = `${COMPANION_PREFIX}${exportName.replaceAll('.', '_')}`;
+      candidates.push({
+        exportName,
+        declaration,
+        testedParameters,
+        companionName,
+        companionDeclaration: createCompanionDeclaration(
+          declaration,
+          testedParameters,
+          companionName,
+        ),
+      });
+    }
+  }
+
   return candidates;
 }
 
