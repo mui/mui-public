@@ -158,27 +158,25 @@ export function formatMultilineUnionHast(hast: HastRoot): HastRoot {
 }
 
 /**
- * Formats an inline type string with syntax highlighting.
+ * Memoization cache for {@link formatInlineTypeAsHast}.
  *
- * This function transforms type strings (like `string`, `number | null`, etc.) into
- * syntax-highlighted HAST nodes. It ensures proper TypeScript context by prefixing
- * the type with `type _ =` before highlighting, then removes the prefix from the result.
+ * Large component prop graphs (e.g. mui-x DataGrid) reference a small number of
+ * shared nested types thousands of times. Without this cache the same type string
+ * is pushed through `transformHtmlCodeInline` → `parseSource` → Oniguruma's WASM
+ * tokenizer on every reference. Oniguruma runs in a fixed-size WebAssembly
+ * linear memory buffer, and the repeated scratch allocations fragment that buffer
+ * until it overruns with `RuntimeError: memory access out of bounds`.
  *
- * @param typeText - The type string to format (e.g., "string | number")
- * @param unionPrintWidth - Optional width threshold for multiline union formatting.
- *                          When set, unions exceeding this width are split across lines.
- * @returns A promise that resolves to a HAST root containing highlighted nodes
+ * Instrumenting a DataGrid extraction showed **1947 calls for 5 unique inputs**
+ * before the crash. Memoizing on `(unionPrintWidth, typeText)` collapses the
+ * redundant work to 5 calls and unblocks extraction.
  *
- * @example
- * ```ts
- * await formatInlineTypeAsHast('string | number')
- * // Returns HAST nodes with syntax highlighting for "string | number"
- *
- * await formatInlineTypeAsHast('"a" | "b" | "c" | "d" | "e"', 20)
- * // Returns HAST nodes with multiline formatting for long unions
- * ```
+ * The cached HAST is deep-cloned on return so downstream mutations don't poison
+ * the cache.
  */
-export async function formatInlineTypeAsHast(
+const inlineTypeHastCache = new Map<string, Promise<HastRoot>>();
+
+async function computeInlineTypeAsHast(
   typeText: string,
   unionPrintWidth?: number,
 ): Promise<HastRoot> {
@@ -215,6 +213,54 @@ export async function formatInlineTypeAsHast(
   }
 
   return result;
+}
+
+/**
+ * Formats an inline type string with syntax highlighting.
+ *
+ * This function transforms type strings (like `string`, `number | null`, etc.) into
+ * syntax-highlighted HAST nodes. It ensures proper TypeScript context by prefixing
+ * the type with `type _ =` before highlighting, then removes the prefix from the result.
+ *
+ * Memoized by `(typeText, unionPrintWidth)` — see {@link inlineTypeHastCache}.
+ *
+ * @param typeText - The type string to format (e.g., "string | number")
+ * @param unionPrintWidth - Optional width threshold for multiline union formatting.
+ *                          When set, unions exceeding this width are split across lines.
+ * @returns A promise that resolves to a HAST root containing highlighted nodes
+ *
+ * @example
+ * ```ts
+ * await formatInlineTypeAsHast('string | number')
+ * // Returns HAST nodes with syntax highlighting for "string | number"
+ *
+ * await formatInlineTypeAsHast('"a" | "b" | "c" | "d" | "e"', 20)
+ * // Returns HAST nodes with multiline formatting for long unions
+ * ```
+ */
+export async function formatInlineTypeAsHast(
+  typeText: string,
+  unionPrintWidth?: number,
+): Promise<HastRoot> {
+  const cacheKey = `${unionPrintWidth ?? ''}:${typeText}`;
+  let cached = inlineTypeHastCache.get(cacheKey);
+  if (!cached) {
+    cached = computeInlineTypeAsHast(typeText, unionPrintWidth);
+    inlineTypeHastCache.set(cacheKey, cached);
+  }
+  const result = await cached;
+  // Deep clone so downstream mutations don't poison the cached entry.
+  return structuredClone(result);
+}
+
+/**
+ * Clears the inline-type HAST memoization cache. Intended for test isolation —
+ * production use of the pipeline should let the cache grow for the lifetime of
+ * the process, since it's bounded by the number of distinct type strings in the
+ * project and provides a large perf win on repeat invocations.
+ */
+export function clearInlineTypeHastCache(): void {
+  inlineTypeHastCache.clear();
 }
 
 /**

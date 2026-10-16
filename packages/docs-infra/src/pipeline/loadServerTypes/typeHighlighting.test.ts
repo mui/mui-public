@@ -6,6 +6,7 @@ import {
   formatMultilineUnionHast,
   getShortTypeString,
   shouldShowDetailedType,
+  clearInlineTypeHastCache,
   DEFAULT_UNION_PRINT_WIDTH,
 } from './typeHighlighting';
 import { getHastTextContent } from './hastTypeUtils';
@@ -250,6 +251,53 @@ describe('typeHighlighting', () => {
         const text = extractText(result);
         // The text should have pipes as leading characters after formatting
         expect(text.includes('|')).toBe(true);
+      });
+    });
+
+    describe('memoization', () => {
+      it('should return equivalent HAST for repeated calls with the same input', async () => {
+        clearInlineTypeHastCache();
+        const input = 'string | number | null';
+        const first = await formatInlineTypeAsHast(input);
+        const second = await formatInlineTypeAsHast(input);
+        const third = await formatInlineTypeAsHast(input);
+        expect(second).toEqual(first);
+        expect(third).toEqual(first);
+      });
+
+      it('should return distinct object instances so downstream mutation cannot poison the cache', async () => {
+        clearInlineTypeHastCache();
+        const input = 'boolean';
+        const first = await formatInlineTypeAsHast(input);
+        const second = await formatInlineTypeAsHast(input);
+        // Distinct object identities (not the same reference).
+        expect(second).not.toBe(first);
+        // Mutating the first result must not affect the second.
+        first.children.length = 0;
+        expect(second.children.length).toBeGreaterThan(0);
+      });
+
+      it('should key memoization on both typeText and unionPrintWidth', async () => {
+        clearInlineTypeHastCache();
+        const longUnion = '"a" | "b" | "c" | "d" | "e"';
+        const inline = await formatInlineTypeAsHast(longUnion);
+        const multiline = await formatInlineTypeAsHast(longUnion, 10);
+        // Different unionPrintWidth values must produce different structures
+        // (multiline splits across lines, inline doesn't).
+        expect(multiline).not.toEqual(inline);
+      });
+
+      it('should be idempotent: mutating one result does not affect subsequent calls', async () => {
+        clearInlineTypeHastCache();
+        const input = 'Record<string, unknown>';
+        const first = await formatInlineTypeAsHast(input);
+        // Deeply mutate.
+        const firstCodeElement = first.children[0] as Element;
+        firstCodeElement.children = [];
+        firstCodeElement.properties = { className: ['corrupted'] };
+        const second = await formatInlineTypeAsHast(input);
+        expect(hasClassInHast(second, 'corrupted')).toBe(false);
+        expect(extractText(second)).toContain('Record');
       });
     });
   });
