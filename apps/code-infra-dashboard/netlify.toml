@@ -9,7 +9,7 @@
 
 [dev]
   framework = "#custom"
-  command = "pnpm -F @apps/code-infra-dashboard start"
+  command = "pnpm -F ./apps/code-infra-dashboard start"
   targetPort = 3000
 
 [build.environment]
