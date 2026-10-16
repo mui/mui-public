@@ -99,9 +99,7 @@ export default async function extractErrorCodes(args) {
   const packages = basePackages.filter(
     (pkg) =>
       // Ignore obvious packages that do not have user-facing errors
-      !pkg.name.startsWith('@mui/internal-') &&
-      !pkg.name.startsWith('@mui-internal/') &&
-      !skipPackages.includes(pkg.name),
+      !pkg.name.startsWith('@mui/internal-') && !skipPackages.includes(pkg.name),
   );
   const files = await Promise.all(packages.map((pkg) => getFilesForPackage(pkg)));
   packages.forEach((pkg, index) => {
