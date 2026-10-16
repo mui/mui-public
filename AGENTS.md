@@ -14,7 +14,7 @@ Always reference these instructions first and fallback to search or bash command
 
 ### Bootstrap, Build, and Test the Repository
 
-- **Prerequisites**: Node.js 22.23.3+ required. Install pnpm: `npm install -g pnpm@12.9.0`
+- **Prerequisites**: Node.js 22.23.3+ required. Install pnpm: `npm install -g pnpm@12.10.1`
 - **Install dependencies**: `pnpm install --no-frozen-lockfile` -- takes 15-20 seconds. **NEVER CANCEL**. Set timeout to 30+ minutes.
 - **Build all packages**: `pnpm release:build` -- takes 5-10 seconds. **NEVER CANCEL**. Set timeout to 30+ minutes.
 - **Type checking**: `pnpm typescript` -- takes 10-15 seconds. **NEVER CANCEL**. Set timeout to 30+ minutes.
@@ -30,10 +30,10 @@ Always reference these instructions first and fallback to search or bash command
 
 ### Run Applications
 
-- **Code Infra Dashboard** (React/Vite app):
+- **Code Infra Dashboard** (Next.js app):
   - **ALWAYS run the bootstrapping steps first**
-  - Build: `pnpm -F code-infra-dashboard run build` -- takes 5 seconds
-  - Dev server: `pnpm -F code-infra-dashboard run start` -- runs on http://localhost:3000
+  - Build: `pnpm -F ./apps/code-infra-dashboard run build` -- takes 5 seconds
+  - Dev server: `pnpm -F ./apps/code-infra-dashboard run dev` -- runs on http://localhost:3000
   - Production URL: `https://frontend-public.mui.com`
   - PR preview URLs follow the pattern: `https://code-infra-dashboard-pr-{number}.onrender.com`
 
@@ -83,6 +83,8 @@ Applies to the whole repository.
 ## Common Tasks
 
 ### pnpm Workspace Commands
+
+- Private workspaces without workspace dependents omit package names; reference them by path.
 
 - **CRITICAL**: When running pnpm commands for workspace packages, always use the `-F` flag followed by the package name.
 - **Example**: `pnpm -F @mui/internal-bundle-size-checker add micromatch`

@@ -66,7 +66,7 @@ jobs:
       - run:
           # make sure the netlify ignore command has the correct dependencies
           name: '`pnpm update-netlify-ignore` changes committed?'
-          command: pnpm code-infra netlify-ignore @apps/code-infra-dashboard --check
+          command: pnpm code-infra netlify-ignore ./apps/code-infra-dashboard --check
       - run:
           name: Tests TypeScript
           command: pnpm typescript
