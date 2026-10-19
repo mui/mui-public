@@ -23,11 +23,12 @@ const accessedCredentials = new Map();
 
 /**
  * @param {string} key
- * @returns {Promise<string | undefined>}
+ * @returns {Promise<string | null>}
  */
 export async function getPassword(key) {
-  if (accessedCredentials.has(key)) {
-    return accessedCredentials.get(key);
+  const cached = accessedCredentials.get(key);
+  if (cached) {
+    return cached;
   }
   let credential = credentials.get(key);
   if (!credential) {
