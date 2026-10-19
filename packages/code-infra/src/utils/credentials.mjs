@@ -27,7 +27,7 @@ const accessedCredentials = new Map();
  */
 export async function getPassword(key) {
   const cached = accessedCredentials.get(key);
-  if (cached !== undefined) {
+  if (cached) {
     return cached;
   }
   let credential = credentials.get(key);
