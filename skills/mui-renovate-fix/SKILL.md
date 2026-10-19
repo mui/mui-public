@@ -1,18 +1,16 @@
 ---
 name: mui-renovate-fix
 description:
-  Fix a Renovate dependency-update PR with the best code adaptation, shipping it source-only when
-  it works with both versions and together with the dependency bump when it needs the new version.
-  Use when a Renovate PR has failing checks or requires migration for a breaking dependency update.
+  Fix a Renovate dependency-update PR with the best code adaptation, including the dependency bump
+  when that fix needs the new version. Use when a Renovate PR has failing checks or requires
+  migration for a breaking dependency update.
 ---
 
 # Renovate PR fix
 
-Choose the best adaptation first, then decide where it lands. Avoiding a dependency change is not a
-goal: when the best fix needs the new version, bump the dependency; when it works with both
-versions, leave the dependency alone. Never settle for a worse fix (compatibility shims, preserving
-an outdated contract, working around the new API) just to keep the bump out. Keep fixes separate
-from grouped Renovate updates.
+Choose the best adaptation, never a worse one (compatibility shims, preserving an outdated contract,
+working around the new API) to avoid a dependency bump. Keep fixes separate from grouped Renovate
+updates.
 
 ## Inputs
 
@@ -55,8 +53,8 @@ Evaluate CI attribution and dependency compatibility independently:
 
 Design the adaptation you would write if the target version were already in place, then determine
 whether it also works with the version on the default branch. Validate both under otherwise
-identical conditions before calling it backwards compatible. Don't bend that adaptation to fit the
-current version; if it doesn't work there, it requires the new version.
+identical conditions before calling it backwards compatible; if it doesn't work there, it requires
+the new version.
 
 - **Works with both versions:** branch off the default branch and open a source-only draft PR.
   Leave dependency manifests and the lockfile unchanged. Test the target version in a disposable
@@ -71,8 +69,8 @@ current version; if it doesn't work there, it requires the new version.
 
 ## Build the fix
 
-- Apply the smallest adaptation that is correct, guided by the confirmed diagnosis, the failing
-  output, and the dependency's changelog for the version range.
+- Apply the adaptation designed above, guided by the confirmed diagnosis, the failing output, and
+  the dependency's changelog for the version range.
 - When a bump is needed, use the repo's package-manager conventions — in MUI repos:
   `pnpm -F <workspace> update '<dep>@<version>'` per affected workspace, then `pnpm dedupe`. Never
   hand-edit `package.json`.
