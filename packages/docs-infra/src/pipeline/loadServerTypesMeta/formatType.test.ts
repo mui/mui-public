@@ -1,3 +1,4 @@
+import ts from 'typescript';
 import { describe, it, expect } from 'vitest';
 import type * as tae from '@mui/internal-typescript-api-extractor';
 import { formatType, prettyFormatType } from './formatType';
@@ -149,6 +150,36 @@ describe('formatType', () => {
     expect(formatType(intersectionType, { exportNames: [], typeNameMap: {} })).toBe(
       '{ a: string; b: number }',
     );
+  });
+
+  it('should name the one named member left after dropping empty intersection members', () => {
+    // `Omit<{ id: string }, keyof ColumnData>` has no members left, so the intersection is
+    // just `ColumnData<string>` and should read as that name rather than its expanded fields.
+    const [cell] = parseTestSources(
+      {
+        'index.ts': `
+export interface ColumnData<Value> {
+  id: string;
+  value: Value;
+}
+
+export interface Cell {
+  column: Omit<{ id: string }, keyof ColumnData<string>> & ColumnData<string>;
+}
+`,
+      },
+      {
+        lib: ts.sys.readFile(`${ts.getDefaultLibFilePath({}).replace(/[^/]+$/, '')}lib.es5.d.ts`),
+      },
+    ).filter((exportNode) => exportNode.name === 'Cell');
+    const column =
+      cell.type.kind === 'object'
+        ? cell.type.properties.find((property) => property.name === 'column')
+        : undefined;
+
+    expect(
+      column && formatType(column.type, { exportNames: ['ColumnData', 'Cell'], typeNameMap: {} }),
+    ).toBe('ColumnData<string>');
   });
 
   it('should format object types when expanded', () => {
