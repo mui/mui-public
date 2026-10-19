@@ -1,8 +1,7 @@
 ---
 name: mui-renovate-fix
 description:
-  Fix a Renovate dependency-update PR with the best code adaptation, including the dependency bump
-  when that fix needs the new version. Use when a Renovate PR has failing checks or requires
+  Fix a Renovate dependency-update PR. Use when a Renovate PR has failing checks or requires
   migration for a breaking dependency update.
 ---
 
