@@ -1,15 +1,18 @@
 ---
 name: mui-renovate-fix
 description:
-  Fix a Renovate dependency-update PR with the minimal compatible code adaptation, extracting
-  a dependency bump from a grouped PR only when the fix requires the new version. Use when a Renovate
-  PR has failing checks or requires migration for a breaking dependency update.
+  Fix a Renovate dependency-update PR with the best code adaptation, shipping it source-only when
+  it works with both versions and together with the dependency bump when it needs the new version.
+  Use when a Renovate PR has failing checks or requires migration for a breaking dependency update.
 ---
 
 # Renovate PR fix
 
-Prefer a source-only fix that works with both the current and target dependency versions. Keep
-fixes separate from grouped Renovate updates; extract a bump only when compatibility requires it.
+Choose the best adaptation first, then decide where it lands. Avoiding a dependency change is not a
+goal: when the best fix needs the new version, bump the dependency; when it works with both
+versions, leave the dependency alone. Never settle for a worse fix (compatibility shims, preserving
+an outdated contract, working around the new API) just to keep the bump out. Keep fixes separate
+from grouped Renovate updates.
 
 ## Inputs
 
@@ -50,9 +53,10 @@ Evaluate CI attribution and dependency compatibility independently:
 
 ## Choose where the fix belongs
 
-Determine whether the adaptation works with both the version on the default branch and the
-Renovate target version. Validate both under otherwise identical conditions before calling it
-backwards compatible.
+Design the adaptation you would write if the target version were already in place, then determine
+whether it also works with the version on the default branch. Validate both under otherwise
+identical conditions before calling it backwards compatible. Don't bend that adaptation to fit the
+current version; if it doesn't work there, it requires the new version.
 
 - **Works with both versions:** branch off the default branch and open a source-only draft PR.
   Leave dependency manifests and the lockfile unchanged. Test the target version in a disposable
