@@ -7,7 +7,7 @@
   },
   "plugins": [
     {
-      "name": "mui-code-infra",
+      "name": "code-infra",
       "source": ".",
       "description": "Agent skills for working in MUI repositories, shipped from the skills/ directory."
     }
