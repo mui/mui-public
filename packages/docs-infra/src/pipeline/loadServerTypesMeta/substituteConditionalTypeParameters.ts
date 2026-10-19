@@ -72,9 +72,10 @@ export function substituteConditionalTypeParameters(
   const substitutedTypes = new Map<string, ExportNode['type']>();
   const outcomes = new Map<string, string>();
   for (const [sourceFile, fileCandidates] of candidatesByFile) {
-    if (hasCompanionErrors(substitutedProgram, sourceFile)) {
+    const companionError = getCompanionError(substitutedProgram, sourceFile);
+    if (companionError) {
       for (const candidate of fileCandidates) {
-        outcomes.set(candidate.exportName, 'skipped: companion does not type-check');
+        outcomes.set(candidate.exportName, `skipped: ${companionError}`);
       }
       continue;
     }
@@ -295,20 +296,24 @@ function getQualifiedName(declaration: ts.TypeAliasDeclaration): string {
 }
 
 /**
- * A substituted default or constraint can stop type-checking, for example when it refers
- * to another substituted parameter. Such companions are skipped and their exports keep
- * their original rendering.
+ * Why the companions appended to a file can't be used, if they can't. A substituted default
+ * or constraint can stop type-checking, for example when it refers to another substituted
+ * parameter. Such companions are skipped and their exports keep their original rendering.
  */
-function hasCompanionErrors(program: ts.Program, originalSourceFile: ts.SourceFile): boolean {
+function getCompanionError(
+  program: ts.Program,
+  originalSourceFile: ts.SourceFile,
+): string | undefined {
   const sourceFile = program.getSourceFile(originalSourceFile.fileName);
   if (!sourceFile) {
-    return true;
+    return 'declaring file is missing from the companion program';
   }
 
-  return program
+  const diagnostic = program
     .getSemanticDiagnostics(sourceFile)
-    .some(
-      (diagnostic) =>
-        diagnostic.start !== undefined && diagnostic.start >= originalSourceFile.text.length,
+    .find(
+      (candidate) =>
+        candidate.start !== undefined && candidate.start >= originalSourceFile.text.length,
     );
+  return diagnostic && ts.flattenDiagnosticMessageText(diagnostic.messageText, ' ');
 }
