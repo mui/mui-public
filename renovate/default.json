@@ -107,6 +107,9 @@
     // minimumReleaseAgeExclude entries pnpm prunes from pnpm-workspace.yaml are lost and the
     // repo's generated-files check fails. Re-running the install commits that prune.
     "commands": ["pnpm install --lockfile-only --ignore-scripts"],
+    // Install the repo's pinned node and pnpm (`packageManager`, `engines`) rather than use
+    // whatever the container has on PATH: only recent pnpm versions prune on install.
+    "installTools": { "node": {}, "pnpm": {} },
     "fileFilters": ["pnpm-workspace.yaml", "pnpm-lock.yaml"],
     "executionMode": "branch"
   },
@@ -118,6 +121,7 @@
         "pnpm install --lockfile-only --ignore-scripts",
         "pnpm exec prettier --write pnpm-workspace.yaml package.json"
       ],
+      "installTools": { "node": {}, "pnpm": {} },
       "fileFilters": ["**/*"],
       "executionMode": "branch"
     }
@@ -285,6 +289,7 @@
           "pnpm install --lockfile-only --ignore-scripts",
           "pnpm exec prettier --write . --ignore-path .lintignore"
         ],
+        "installTools": { "node": {}, "pnpm": {} },
         "fileFilters": ["**/*"],
         "executionMode": "branch"
       }
