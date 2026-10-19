@@ -129,6 +129,18 @@ function withDefinitionComments(plugin) {
 }
 
 /**
+ * Makes the processor output the source text unchanged. The preset only lints, and
+ * remark-stringify doesn't round-trip Markdown (it escapes GitHub alerts, rewrites bare
+ * URLs, ...). eslint-plugin-mdx offers the processed output as a whole-file fix for any
+ * remark message, so with this `eslint --fix` leaves Markdown alone.
+ *
+ * @this {import('unified').Processor}
+ */
+function remarkPreserveSource() {
+  this.compiler = (_tree, file) => String(file);
+}
+
+/**
  * Returns a remark preset wiring the MUI-authored remark-lint plugins together
  * with a curated set of community plugins. Drop this into `.remarkrc.mjs`:
  *
@@ -181,14 +193,12 @@ export function createRemarkConfig({ overrides = [], allowDefinitionComments = f
   });
 
   return {
-    settings: {
-      bullet: '-',
-      emphasis: '_',
-      fence: '`',
-      listItemIndent: 'one',
-      resourceLink: true,
-      rule: '-',
-    },
-    plugins: [[remarkFrontmatter, ['yaml', 'toml']], remarkGfm, remarkLint, ...entries],
+    plugins: [
+      [remarkFrontmatter, ['yaml', 'toml']],
+      remarkGfm,
+      remarkLint,
+      ...entries,
+      remarkPreserveSource,
+    ],
   };
 }
