@@ -1,0 +1,10 @@
+{
+  "extraKnownMarketplaces": {
+    "mui-public": {
+      "source": { "source": "github", "repo": "mui/mui-public" }
+    }
+  },
+  "enabledPlugins": {
+    "code-infra@mui-public": true
+  }
+}
