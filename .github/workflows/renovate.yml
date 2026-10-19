@@ -79,8 +79,8 @@ jobs:
           RENOVATE_ONBOARDING: 'false' # never open onboarding PRs
           RENOVATE_REQUIRE_CONFIG: 'required' # skip installed repos without a Renovate config
           # Allowlist for postUpgradeTasks commands (globalOnly, can't be set in repo config).
-          # Matches the Prettier pass in renovate/default.json. Anchored to avoid command injection.
-          RENOVATE_ALLOWED_COMMANDS: '["^pnpm exec prettier --write [\\w./ -]+$"]'
+          # Matches the install and Prettier passes in renovate/default.json. Anchored to avoid command injection.
+          RENOVATE_ALLOWED_COMMANDS: '["^pnpm install --lockfile-only --ignore-scripts$", "^pnpm exec prettier --write [\\w./ -]+$"]'
           # Inject CI=true into postUpgradeTasks child processes. Without it, `pnpm exec` on pnpm 11
           # aborts the non-interactive node_modules purge (ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY).
           # customEnvVariables (not allowedEnv) is required: Renovate runs in a Docker container that
