@@ -63,7 +63,22 @@ claude plugin marketplace add mui/mui-public
 claude plugin install code-infra@mui-public --scope local
 ```
 
-The skills are then available as `/code-infra:<skill>` (for example, `/code-infra:mui-renovate-triage`), only in that repo. Use `--scope user` to enable them everywhere instead. To stay on the latest `master`, enable auto-update for the `mui-public` marketplace under `/plugin` → **Marketplaces**, or run `claude plugin update code-infra@mui-public`.
+The skills are then available as `/code-infra:<skill>` (for example, `/code-infra:mui-renovate-triage`). They're enabled only for you and only in that repo: `--scope local` records this in `.claude/settings.local.json`, which isn't committed. Use `--scope user` to enable them in every repo instead. To stay on the latest `master`, enable auto-update for the `mui-public` marketplace under `/plugin` → **Marketplaces**, or run `claude plugin update code-infra@mui-public`.
+
+To enable the skills for everyone who works in a repo, use `--scope project`, which writes to the committed `.claude/settings.json`. Also add the marketplace there, so Claude Code knows where to install the plugin from for teammates who haven't added it:
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "mui-public": {
+      "source": { "source": "github", "repo": "mui/mui-public" }
+    }
+  },
+  "enabledPlugins": {
+    "code-infra@mui-public": true
+  }
+}
+```
 
 ### Renovate PR workflow
 
