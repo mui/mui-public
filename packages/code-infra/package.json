@@ -78,7 +78,7 @@
     "@mui/internal-babel-plugin-display-name": "workspace:*",
     "@mui/internal-babel-plugin-minify-errors": "workspace:*",
     "@mui/internal-babel-plugin-resolve-imports": "workspace:*",
-    "@napi-rs/keyring": "^2.1.0",
+    "@napi-rs/keyring": "^2.1.1",
     "@octokit/auth-action": "^6.0.3",
     "@octokit/oauth-methods": "^6.0.5",
     "@octokit/plugin-retry": "^8.1.1",

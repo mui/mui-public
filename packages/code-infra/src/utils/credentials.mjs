@@ -35,8 +35,7 @@ export async function getPassword(key) {
     credential = new AsyncEntry(KEYRING_SERVICE, key);
     credentials.set(key, credential);
   }
-  // @napi-rs/keyring resolves a missing password as `undefined` or `null`, depending on the version
-  const res = (await credential.getPassword()) ?? null;
+  const res = await credential.getPassword();
   if (res) {
     accessedCredentials.set(key, res);
   }
