@@ -166,7 +166,7 @@ jobs:
             await reaction;
       - name: Upload the issue snapshot
         if: steps.request.outputs.mode != ''
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: triage-request-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
@@ -200,7 +200,7 @@ jobs:
         with:
           ref: ${{ needs.authorize.outputs.base }}
           persist-credentials: false
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: triage-request-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/request
@@ -231,7 +231,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_HOST: github.com
           GH_PROMPT_DISABLED: '1'
-        uses: anthropics/claude-code-action@86d88e619d8e6caf07b5c3944dd14f441c533718 # v1.0.243
+        uses: anthropics/claude-code-action@5eb090f3c3afd701a0672cd32981197ca27688f6 # v1.0.253
         with:
           github_token: ${{ github.token }} # Use this job's read-only token instead of minting an App token.
           allowed_bots: ${{ needs.authorize.outputs.allowed-bot }} # Forward only the bot approved by authorization.
@@ -422,7 +422,7 @@ jobs:
           ')
           mkdir -p "$RUNNER_TEMP/triage"
           printf '%s\n' "$result" > "$RUNNER_TEMP/triage/result.json"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: triage-report-${{ github.run_id }}-${{ github.run_attempt }}
@@ -444,7 +444,7 @@ jobs:
       url: ${{ steps.comment.outputs.url }}
     steps:
       - continue-on-error: true
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: triage-report-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/triage
@@ -623,11 +623,11 @@ jobs:
         with:
           ref: ${{ needs.authorize.outputs.base }}
           persist-credentials: false
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: triage-report-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/triage
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: triage-request-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/request
@@ -640,7 +640,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/fix"
       - name: Set up the repository Node.js runtime
         if: steps.eligible.outputs.actionable == 'true'
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ inputs.node-version }}
           # Prevent untrusted fix execution from modifying dependency caches that later workflows might restore
@@ -671,7 +671,7 @@ jobs:
       - name: Develop and test the fix on the runner
         id: claude
         if: steps.eligible.outputs.actionable == 'true'
-        uses: anthropics/claude-code-action@86d88e619d8e6caf07b5c3944dd14f441c533718 # v1.0.243
+        uses: anthropics/claude-code-action@5eb090f3c3afd701a0672cd32981197ca27688f6 # v1.0.253
         with:
           github_token: ${{ github.token }} # Use this job's read-only token instead of minting an App token.
           show_full_output: ${{ inputs.debug }}
@@ -729,7 +729,7 @@ jobs:
           fi
       - name: Upload the untrusted proposal
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: triage-fix-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
@@ -761,7 +761,7 @@ jobs:
       - name: Download the untrusted proposal
         if: always() && needs.fix.result != 'skipped'
         continue-on-error: true
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: triage-fix-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/fix
