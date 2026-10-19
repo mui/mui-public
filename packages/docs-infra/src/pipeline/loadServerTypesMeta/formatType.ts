@@ -268,6 +268,16 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
       }
     }
 
+    // Members without properties, like `Omit<T, keyof T>`, add nothing. When a single member
+    // is left the intersection is that member, so a named one reads as its name.
+    const contentfulMembers = type.types.filter(
+      (member) =>
+        !isObjectType(member) || (member.properties ?? []).length > 0 || member.indexSignature,
+    );
+    if (contentfulMembers.length === 1 && contentfulMembers.length < type.types.length) {
+      return formatType(contentfulMembers[0], options);
+    }
+
     // Check if all members are object types - if so, merge them into a single object
     const allAreObjects = type.types.every((t) => isObjectType(t));
     if (allAreObjects) {
