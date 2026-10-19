@@ -107,6 +107,7 @@
   "scripts": {
     "build": "code-infra build --tsgo --bundle esm",
     "release": "pnpm build && pnpm publish --no-git-checks",
+    "generate:mdn-type-links": "node scripts/generateMdnTypeLinks.mts",
     "test": "pnpm -w test --project @mui/internal-docs-infra",
     "test:watch": "pnpm -w test:watch --project @mui/internal-docs-infra",
     "test:coverage": "pnpm -w test --project @mui/internal-docs-infra --coverage --coverage.include=packages/docs-infra --coverage.exclude=packages/docs-infra/docs --coverage.exclude=packages/docs-infra/build --coverage.exclude=packages/docs-infra/scripts",
@@ -157,6 +158,7 @@
     "zx": "^8.8.5"
   },
   "devDependencies": {
+    "@mdn/browser-compat-data": "^8.1.6",
     "@testing-library/react": "16.3.3",
     "@types/babel__standalone": "7.1.9",
     "@types/babel__traverse": "7.28.0",
