@@ -5,7 +5,7 @@ import { formatRawData, formatReExportData, isRawType } from './formatRaw';
 import { createTestProgram, parseTestSources } from './parseTestSources';
 import { findConstantNamespaces, foldConstantNamespaces } from './constantGroups';
 import { PARSER_OPTIONS } from './constants';
-import { buildTypeCompatibilityMap } from './rewriteTypes';
+import { addReexportedTypeNames, buildTypeCompatibilityMap } from './rewriteTypes';
 import type { TypeRewriteContext } from './rewriteTypes';
 
 /** Default rewrite context for testing - empty map and empty export names */
@@ -820,6 +820,120 @@ describe('formatRaw', () => {
       });
     });
     /* eslint-enable no-template-curly-in-string */
+
+    describe('type names in the code', () => {
+      // DateField declares the section types; TimeField re-exports the section part and its
+      // types under its own prefix.
+      const sharedSources = {
+        'section.ts': [
+          'import type {',
+          '  DateFieldSectionValue,',
+          '  DateFieldSectionDatePart,',
+          '  DateFieldSectionToken,',
+          "} from './types';",
+          'export declare function DateFieldSection(props: { value: DateFieldSectionValue }): null;',
+          'export declare namespace DateFieldSection {',
+          '  export type Value = DateFieldSectionValue;',
+          '  export type DatePart = DateFieldSectionDatePart;',
+          '  export type Token = DateFieldSectionToken;',
+          '}',
+        ].join('\n'),
+        // The separator isn't exported, so it keeps its declared name everywhere
+        'types.ts': [
+          'export interface DateFieldSectionToken { value: string }',
+          "export interface DateFieldSectionDatePart { type: 'datePart'; token: DateFieldSectionToken }",
+          "export interface DateFieldSectionSeparator { type: 'separator' }",
+          'export type DateFieldSectionValue = DateFieldSectionDatePart | DateFieldSectionSeparator;',
+        ].join('\n'),
+      };
+
+      const dateFieldExports = parseTestSources({
+        'index.ts': [
+          "export * as DateField from './parts';",
+          "export type { DateFieldSectionValue, DateFieldSectionDatePart, DateFieldSectionToken } from './types';",
+        ].join('\n'),
+        'parts.ts': "export { DateFieldSection as Section } from './section';",
+        ...sharedSources,
+      });
+      const dateFieldTypeNameMap = {
+        DateFieldSectionValue: 'DateField.Section.Value',
+        DateFieldSectionDatePart: 'DateField.Section.DatePart',
+        DateFieldSectionToken: 'DateField.Section.Token',
+      };
+
+      const timeFieldExports = parseTestSources({
+        'index.ts': [
+          "export * as TimeField from './parts';",
+          'export type {',
+          '  DateFieldSectionValue as TimeFieldSectionValue,',
+          '  DateFieldSectionDatePart as TimeFieldSectionDatePart,',
+          '  DateFieldSectionToken as TimeFieldSectionToken,',
+          "} from './types';",
+        ].join('\n'),
+        'parts.ts': "export { DateFieldSection as Section } from './section';",
+        ...sharedSources,
+      });
+      const timeFieldTypeNameMap = {
+        TimeFieldSectionValue: 'TimeField.Section.Value',
+        TimeFieldSectionDatePart: 'TimeField.Section.DatePart',
+        TimeFieldSectionToken: 'TimeField.Section.Token',
+      };
+
+      function findExport(exports: tae.ExportNode[], name: string) {
+        const exportNode = exports.find((node) => node.name === name);
+        if (!exportNode) {
+          throw new Error(`Missing export ${name}`);
+        }
+        return exportNode;
+      }
+
+      it("should print the entrypoint's own types by their dotted names", async () => {
+        const value = await formatRawData(
+          findExport(dateFieldExports, 'DateField.Section.Value'),
+          'DateField.Section.Value',
+          dateFieldTypeNameMap,
+          defaultRewriteContext,
+        );
+        const datePart = await formatRawData(
+          findExport(dateFieldExports, 'DateField.Section.DatePart'),
+          'DateField.Section.DatePart',
+          dateFieldTypeNameMap,
+          defaultRewriteContext,
+        );
+
+        // The declaration keeps the flat name, which is valid TypeScript
+        expect(value.formattedCode).toBe(
+          'type DateFieldSectionValue = DateField.Section.DatePart | DateFieldSectionSeparator;',
+        );
+        expect(datePart.formattedCode).toBe(
+          "type DateFieldSectionDatePart = { type: 'datePart'; token: DateField.Section.Token };",
+        );
+      });
+
+      it('should print re-exported types with the namespace of the entrypoint that re-exports them', async () => {
+        const typeNameMap = addReexportedTypeNames(timeFieldTypeNameMap, timeFieldExports);
+
+        const value = await formatRawData(
+          findExport(timeFieldExports, 'TimeField.Section.Value'),
+          'TimeField.Section.Value',
+          typeNameMap,
+          defaultRewriteContext,
+        );
+        const datePart = await formatRawData(
+          findExport(timeFieldExports, 'TimeField.Section.DatePart'),
+          'TimeField.Section.DatePart',
+          typeNameMap,
+          defaultRewriteContext,
+        );
+
+        expect(value.formattedCode).toBe(
+          'type TimeFieldSectionValue = TimeField.Section.DatePart | DateFieldSectionSeparator;',
+        );
+        expect(datePart.formattedCode).toBe(
+          "type TimeFieldSectionDatePart = { type: 'datePart'; token: TimeField.Section.Token };",
+        );
+      });
+    });
   });
 
   describe('formatReExportData', () => {

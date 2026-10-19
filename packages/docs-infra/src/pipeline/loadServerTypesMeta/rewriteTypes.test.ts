@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { buildTypeCompatibilityMap, rewriteTypeStringsDeep } from './rewriteTypes';
+import {
+  addReexportedTypeNames,
+  buildTypeCompatibilityMap,
+  rewriteTypeStringsDeep,
+} from './rewriteTypes';
+import { parseTestSources } from './parseTestSources';
 
 describe('buildTypeCompatibilityMap', () => {
   describe('reexportedFrom mapping', () => {
@@ -310,6 +315,43 @@ describe('buildTypeCompatibilityMap', () => {
       expect(map.get('Base.Props')).toBe('MyComponent.Props');
       expect(map.get('BaseProps')).toBe('MyComponent.Props');
       expect(map.size).toBe(2);
+    });
+  });
+});
+
+describe('addReexportedTypeNames', () => {
+  const types = [
+    'export interface ButtonState { disabled: boolean }',
+    'export interface ButtonGroupState { orientation: string }',
+  ].join('\n');
+
+  it('should not map a declared name the entrypoint exports itself', () => {
+    const exports = parseTestSources({
+      'index.ts': [
+        "export type { ButtonState, ButtonState as ToggleState } from './types';",
+        "export * as Toggle from './parts';",
+      ].join('\n'),
+      'parts.ts': "export type { ButtonState as State } from './types';",
+      'types.ts': types,
+    });
+    const typeNameMap = { ToggleState: 'Toggle.State' };
+
+    expect(addReexportedTypeNames(typeNameMap, exports)).toStrictEqual(typeNameMap);
+  });
+
+  it('should skip re-exports without a dotted name', () => {
+    const exports = parseTestSources({
+      'index.ts': [
+        "export type { ButtonState as ToggleState, ButtonGroupState as ToggleRootGroupState } from './types';",
+        "export * as Toggle from './parts';",
+      ].join('\n'),
+      'parts.ts': "export type { ButtonState as State } from './types';",
+      'types.ts': types,
+    });
+
+    expect(addReexportedTypeNames({ ToggleState: 'Toggle.State' }, exports)).toStrictEqual({
+      ToggleState: 'Toggle.State',
+      ButtonState: 'Toggle.State',
     });
   });
 });

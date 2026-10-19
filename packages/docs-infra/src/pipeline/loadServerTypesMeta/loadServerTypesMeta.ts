@@ -25,7 +25,7 @@ import type {
   DescriptionReplacement,
 } from './format';
 import type { InheritedExternalPropsConfig } from './inheritedExternalProps';
-import { buildTypeCompatibilityMap } from './rewriteTypes';
+import { addReexportedTypeNames, buildTypeCompatibilityMap } from './rewriteTypes';
 import type { TypeRewriteContext } from './rewriteTypes';
 import type { ExternalTypeMeta, ExternalTypesCollector } from './externalTypes';
 import { matchConstantGroups } from './constantGroups';
@@ -298,13 +298,21 @@ export async function loadServerTypesMeta(
   // Process all variants in parallel
   await Promise.all(
     Object.entries(rawVariantData).map(async ([variantName, variantResult]) => {
+      // Formatting also maps the declared names of re-exported types, so a type shared
+      // with another entrypoint prints with this entrypoint's namespace. The variant's own
+      // typeNameMap (its exports only) is what gets documented.
+      const formattingTypeNameMap = addReexportedTypeNames(
+        variantResult.typeNameMap || {},
+        variantResult.exports,
+      );
+
       // Create a per-variant external types collector.
       // Each variant shares the same collected map so types are deduplicated automatically.
       const externalTypesCollector: ExternalTypesCollector = {
         collected: collectedExternalTypes,
         allExports: variantResult.exports,
         pattern: externalTypesPatternRegex,
-        typeNameMap: variantResult.typeNameMap,
+        typeNameMap: formattingTypeNameMap,
       };
 
       const constantGroups = matchConstantGroups(variantResult.exports);
@@ -316,7 +324,7 @@ export async function loadServerTypesMeta(
           if (isPublicComponent(exportNode)) {
             const formattedData = await formatComponentData(
               exportNode,
-              variantResult.typeNameMap || {},
+              formattingTypeNameMap,
               rewriteContext,
               {
                 formatting: formattingOptions,
@@ -337,7 +345,7 @@ export async function loadServerTypesMeta(
           if (isPublicHook(exportNode)) {
             const formattedData = await formatHookData(
               exportNode,
-              variantResult.typeNameMap || {},
+              formattingTypeNameMap,
               rewriteContext,
               {
                 formatting: formattingOptions,
@@ -356,7 +364,7 @@ export async function loadServerTypesMeta(
           if (isPublicFunction(exportNode)) {
             const formattedData = await formatFunctionData(
               exportNode,
-              variantResult.typeNameMap || {},
+              formattingTypeNameMap,
               rewriteContext,
               {
                 formatting: formattingOptions,
@@ -375,7 +383,7 @@ export async function loadServerTypesMeta(
           if (isPublicClass(exportNode)) {
             const formattedData = await formatClassData(
               exportNode,
-              variantResult.typeNameMap || {},
+              formattingTypeNameMap,
               rewriteContext,
               {
                 formatting: formattingOptions,
@@ -395,7 +403,7 @@ export async function loadServerTypesMeta(
           const formattedData = await formatRawData(
             exportNode,
             exportNode.name,
-            variantResult.typeNameMap || {},
+            formattingTypeNameMap,
             rewriteContext,
             {
               formatting: formattingOptions,

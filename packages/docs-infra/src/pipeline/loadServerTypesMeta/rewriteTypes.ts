@@ -98,6 +98,44 @@ export function buildTypeCompatibilityMap(
 }
 
 /**
+ * Extends a `typeNameMap` with the declared names of the types an entrypoint re-exports
+ * under another name.
+ *
+ * A re-exported type keeps its declared name in the types that reference it, so
+ * `export type { DateFieldSectionToken as TimeFieldSectionToken }` leaves
+ * `DateFieldSectionToken` in every type that uses it. Mapping that declared name to the
+ * re-export's dotted name makes those references print the way the documented entrypoint
+ * exports them (`TimeField.Section.Token`), not with the namespace of the module that
+ * declares them.
+ *
+ * Only re-exports that already have a dotted name are added, and a declared name that
+ * is itself exported by the entrypoint keeps its own mapping.
+ */
+export function addReexportedTypeNames(
+  typeNameMap: Record<string, string>,
+  exports: tae.ExportNode[],
+): Record<string, string> {
+  const exportNames = new Set(exports.map((exp) => exp.name));
+  const result = { ...typeNameMap };
+
+  for (const exp of exports) {
+    const dottedName = typeNameMap[exp.name];
+    const { reexportedFrom } = exp;
+    if (
+      dottedName &&
+      reexportedFrom &&
+      reexportedFrom !== exp.name &&
+      !exportNames.has(reexportedFrom) &&
+      result[reexportedFrom] === undefined
+    ) {
+      result[reexportedFrom] = dottedName;
+    }
+  }
+
+  return result;
+}
+
+/**
  * Context for type string rewriting operations.
  */
 export interface TypeRewriteContext {
