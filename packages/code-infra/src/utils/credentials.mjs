@@ -23,19 +23,20 @@ const accessedCredentials = new Map();
 
 /**
  * @param {string} key
- * @returns {Promise<string | undefined>}
+ * @returns {Promise<string | null>}
  */
 export async function getPassword(key) {
-  if (accessedCredentials.has(key)) {
-    return accessedCredentials.get(key);
+  const cached = accessedCredentials.get(key);
+  if (cached !== undefined) {
+    return cached;
   }
   let credential = credentials.get(key);
   if (!credential) {
     credential = new AsyncEntry(KEYRING_SERVICE, key);
     credentials.set(key, credential);
   }
-  // @napi-rs/keyring resolves `null` for a missing password
-  const res = (await credential.getPassword()) ?? undefined;
+  // @napi-rs/keyring resolves a missing password as `undefined` or `null`, depending on the version
+  const res = (await credential.getPassword()) ?? null;
   if (res) {
     accessedCredentials.set(key, res);
   }
