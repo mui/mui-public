@@ -60,10 +60,10 @@ In Claude Code, you can install them as a plugin instead, which tracks `master` 
 
 ```bash
 claude plugin marketplace add mui/mui-public
-claude plugin install mui@mui-public --scope local
+claude plugin install mui-code-infra@mui-public --scope local
 ```
 
-The skills are then available as `/mui:<skill>` (for example, `/mui:mui-renovate-triage`), only in that repo. Use `--scope user` to enable them everywhere instead. To stay on the latest `master`, enable auto-update for the `mui-public` marketplace under `/plugin` → **Marketplaces**, or run `claude plugin update mui@mui-public`.
+The skills are then available as `/mui-code-infra:<skill>` (for example, `/mui-code-infra:mui-renovate-triage`), only in that repo. Use `--scope user` to enable them everywhere instead. To stay on the latest `master`, enable auto-update for the `mui-public` marketplace under `/plugin` → **Marketplaces**, or run `claude plugin update mui-code-infra@mui-public`.
 
 ### Renovate PR workflow
 
