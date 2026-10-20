@@ -1116,7 +1116,7 @@ describe('getDistTagConflicts', () => {
     async ({ version, conflicts }) => {
       const root = await makeTempDir();
       const registry = await createTestRegistry(
-        { '@scope/example': { latest: '2.0.0', versions: ['1.0.0', '2.0.0'] } },
+        { '@scope/example': { tags: { latest: '2.0.0' }, versions: ['1.0.0', '2.0.0'] } },
         { authenticate: true },
       );
       await fs.writeFile(path.join(root, 'pnpm-workspace.yaml'), "packages:\n  - 'packages/*'\n");

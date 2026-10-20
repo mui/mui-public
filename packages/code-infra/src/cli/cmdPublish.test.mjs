@@ -78,8 +78,8 @@ function publish(cwd, args = []) {
 describe('publish', () => {
   it('rejects a conflicting default latest release before publishing any package', async () => {
     const registry = await createTestRegistry({
-      '@scope/first': { latest: '2.0.0' },
-      '@scope/legacy': { latest: '2.0.0' },
+      '@scope/first': { tags: { latest: '2.0.0' } },
+      '@scope/legacy': { tags: { latest: '2.0.0' } },
     });
     const root = await createPublishWorkspace(registry, {
       '@scope/first': '2.1.0',
@@ -94,9 +94,30 @@ describe('publish', () => {
     expect(registry.published).toEqual([]);
   });
 
+  it.each(['next', 'latest-v2'])(
+    'rejects a conflicting %s release before publishing any package',
+    async (tag) => {
+      const registry = await createTestRegistry({
+        '@scope/first': { tags: { latest: '2.0.0', [tag]: '2.4.0' } },
+        '@scope/second': { tags: { latest: '2.0.0', [tag]: '2.4.0' } },
+      });
+      const root = await createPublishWorkspace(registry, {
+        '@scope/first': '2.5.0',
+        '@scope/second': '2.3.0',
+      });
+
+      const result = await publish(root, ['--tag', tag]);
+
+      expect(result.exitCode).not.toBe(0);
+      expect(result.stderr).toContain(`Publishing with the "${tag}" dist-tag`);
+      expect(result.stderr).toContain('@scope/second: 2.3.0 is lower than 2.4.0');
+      expect(registry.published).toEqual([]);
+    },
+  );
+
   it('publishes an older release with an explicit legacy tag', async () => {
     const registry = await createTestRegistry(
-      { '@scope/example': { latest: '2.0.0' } },
+      { '@scope/example': { tags: { latest: '2.0.0' } } },
       { authenticate: true },
     );
     const root = await createPublishWorkspace(registry, { '@scope/example': '1.1.0' });
@@ -111,7 +132,7 @@ describe('publish', () => {
 
   it('publishes a newer latest release using configured registry credentials', async () => {
     const registry = await createTestRegistry(
-      { '@scope/example': { latest: '2.0.0' } },
+      { '@scope/example': { tags: { latest: '2.0.0' } } },
       { authenticate: true },
     );
     const root = await createPublishWorkspace(registry, { '@scope/example': '2.1.0' });

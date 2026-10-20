@@ -56,7 +56,7 @@ export function privatePkg(name, pkgPath) {
 
 /**
  * Serve npm metadata and accept publishes on localhost, using real HTTP and clients.
- * @param {Record<string, { latest: string, versions?: string[] }>} packages
+ * @param {Record<string, { tags: Record<string, string>, versions?: string[] }>} packages
  * @param {{ authenticate?: boolean }} [options]
  */
 export async function createTestRegistry(packages, { authenticate = false } = {}) {
@@ -99,13 +99,13 @@ export async function createTestRegistry(packages, { authenticate = false } = {}
       response.writeHead(404).end(JSON.stringify({ error: 'Package not found' }));
       return;
     }
-    const versions = pkg.versions ?? [pkg.latest];
+    const versions = pkg.versions ?? Object.values(pkg.tags);
     if (isVersion) {
       const version = endpoint.slice(endpoint.lastIndexOf('/') + 1);
       response.writeHead(versions.includes(version) ? 200 : 404).end();
       return;
     }
-    const tags = { latest: pkg.latest };
+    const { tags } = pkg;
     response.end(
       JSON.stringify(
         isDistTags
