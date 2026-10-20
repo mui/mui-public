@@ -42,8 +42,6 @@ Every type declared in TypeScript's lib files that MDN covers resolves:
 - **Aliases of a built-in type**, such as `WindowProxy`, link to the page of the type they alias.
 - **Types that only exist in TypeScript**, such as `Intl.NumberFormatOptions` or `AddEventListenerOptions`, link to the section of the parameter they describe: the `options` parameter of the `Intl.NumberFormat()` constructor, or of `addEventListener()`. When several methods take the type, the one whose name starts the type's name wins, and types used too widely to pick one do not resolve.
 
-Matching is by name, so a type from a package that shares its name with a built-in type, such as a package's own `Range`, also resolves to the built-in type's page.
-
 ### With a Source
 
 When you know where a type is declared, pass it as the second argument. Only types declared in the DOM, JavaScript, or worker lib files resolve:
@@ -56,7 +54,7 @@ resolveMdnLink('Range', { kind: 'package', name: 'some-package' });
 // null
 ```
 
-`enhanceCodeTypes` does not pass a source to `resolveExternalLink` yet, so links from type documentation still match by name.
+Without a source, matching is by name, so a package's own `Range` also resolves to the DOM `Range` page. `enhanceCodeTypes` does not pass a source to `resolveExternalLink` yet, so links from type documentation match by name.
 
 ## Types
 
@@ -68,9 +66,7 @@ import { TypesResolveMdnLink } from './types';
 
 ## How the Table Is Generated
 
-The links come from a table generated with `pnpm -F @mui/internal-docs-infra generate:mdn-type-links`. Pages come from [`@mdn/browser-compat-data`](https://github.com/mdn/browser-compat-data), and parameter sections from the parameter lists in the page sources in [`mdn/content`](https://github.com/mdn/content), at the commit pinned in the generator.
-
-The table only depends on the versions of `@mdn/browser-compat-data` and `typescript` and on the pinned `mdn/content` commit, so rerun the generator after bumping any of them.
+The links come from a table generated with `pnpm -F @mui/internal-docs-infra generate:mdn-type-links`. Pages come from [`@mdn/browser-compat-data`](https://github.com/mdn/browser-compat-data), and parameter sections from the page sources in [`mdn/content`](https://github.com/mdn/content) at the commit pinned in the generator. Rerun it after bumping `@mdn/browser-compat-data`, `typescript`, or the pinned commit.
 
 ## Related
 

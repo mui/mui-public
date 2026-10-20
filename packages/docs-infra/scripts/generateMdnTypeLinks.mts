@@ -85,30 +85,11 @@ type ParameterUsage = {
   memberName: string;
 };
 
-type LibAnalysis = {
-  /** Names of the interfaces and type aliases declared only in lib files. */
-  typeNames: Set<string>;
-  /** Aliases of another named type, such as `WindowProxy` for `Window`. */
-  aliases: Map<string, string>;
-  /** Parameters typed with each lib type, whose method or constructor has an MDN page. */
-  usages: Map<string, ParameterUsage[]>;
-};
-
 /**
- * Analyzes the types declared in TypeScript's lib files.
+ * Maps interfaces to the interfaces that extend them. Mixins such as `HTMLOrSVGElement` have no
+ * MDN page; their members are documented on the interfaces that extend them.
  */
-function analyzeLibFiles(): LibAnalysis {
-  const libDirectory = path.dirname(ts.getDefaultLibFilePath({}));
-  const program = ts.createProgram([path.join(libDirectory, 'lib.esnext.full.d.ts')], {
-    noEmit: true,
-  });
-  const checker = program.getTypeChecker();
-  const libFiles = new Set(
-    program.getSourceFiles().filter((sourceFile) => sourceFile.fileName.startsWith(libDirectory)),
-  );
-
-  // Mixins such as `HTMLOrSVGElement` have no MDN page; their members are documented on the
-  // interfaces that extend them.
+function collectExtenders(libFiles: Set<ts.SourceFile>): Map<string, string[]> {
   const extenders = new Map<string, string[]>();
   for (const sourceFile of libFiles) {
     for (const statement of sourceFile.statements) {
@@ -127,16 +108,66 @@ function analyzeLibFiles(): LibAnalysis {
   for (const list of extenders.values()) {
     list.sort();
   }
+  return extenders;
+}
 
-  function findMemberUrl(ownerPath: string[], member: string): string | undefined {
-    const url = getMdnUrl(getFeature([...ownerPath, member]));
-    if (url || ownerPath.length !== 1) {
-      return url;
-    }
-    return (extenders.get(ownerPath[0]) ?? [])
-      .map((extender) => getMdnUrl(getFeature([extender, member])))
-      .find(Boolean);
+/**
+ * Returns the MDN page of a method or constructor, falling back to the interfaces that extend a
+ * mixin owner.
+ */
+function findMemberUrl(
+  extenders: Map<string, string[]>,
+  ownerPath: string[],
+  member: string,
+): string | undefined {
+  const url = getMdnUrl(getFeature([...ownerPath, member]));
+  if (url || ownerPath.length !== 1) {
+    return url;
   }
+  return (extenders.get(ownerPath[0]) ?? [])
+    .map((extender) => getMdnUrl(getFeature([extender, member])))
+    .find(Boolean);
+}
+
+/**
+ * Lists the named type references in a parameter type, looking into unions.
+ */
+function getReferences(typeNode: ts.TypeNode | undefined): ts.TypeReferenceNode[] {
+  if (!typeNode) {
+    return [];
+  }
+  if (ts.isTypeReferenceNode(typeNode)) {
+    return [typeNode];
+  }
+  if (ts.isUnionTypeNode(typeNode)) {
+    return typeNode.types.flatMap(getReferences);
+  }
+  return ts.isParenthesizedTypeNode(typeNode) ? getReferences(typeNode.type) : [];
+}
+
+type LibAnalysis = {
+  /**
+   * Names of the interfaces and type aliases declared only in lib files, mapped to the named
+   * type they alias, such as `Window` for `WindowProxy`.
+   */
+  types: Map<string, string | undefined>;
+  /** Parameters typed with each lib type, whose method or constructor has an MDN page. */
+  usages: Map<string, ParameterUsage[]>;
+};
+
+/**
+ * Analyzes the types declared in TypeScript's lib files.
+ */
+function analyzeLibFiles(): LibAnalysis {
+  const libDirectory = path.dirname(ts.getDefaultLibFilePath({}));
+  const program = ts.createProgram([path.join(libDirectory, 'lib.esnext.full.d.ts')], {
+    noEmit: true,
+  });
+  const checker = program.getTypeChecker();
+  const libFiles = new Set(
+    program.getSourceFiles().filter((sourceFile) => sourceFile.fileName.startsWith(libDirectory)),
+  );
+  const extenders = collectExtenders(libFiles);
 
   function isLibOnlyType(symbol: ts.Symbol): boolean {
     const declarations = symbol.declarations ?? [];
@@ -148,21 +179,7 @@ function analyzeLibFiles(): LibAnalysis {
     );
   }
 
-  function getReferences(typeNode: ts.TypeNode | undefined): ts.TypeReferenceNode[] {
-    if (!typeNode) {
-      return [];
-    }
-    if (ts.isTypeReferenceNode(typeNode)) {
-      return [typeNode];
-    }
-    if (ts.isUnionTypeNode(typeNode)) {
-      return typeNode.types.flatMap(getReferences);
-    }
-    return ts.isParenthesizedTypeNode(typeNode) ? getReferences(typeNode.type) : [];
-  }
-
-  const typeNames = new Set<string>();
-  const aliases = new Map<string, string>();
+  const types = new Map<string, string | undefined>();
   const usages = new Map<string, ParameterUsage[]>();
 
   function record(
@@ -170,7 +187,7 @@ function analyzeLibFiles(): LibAnalysis {
     member: string,
     parameters: ts.NodeArray<ts.ParameterDeclaration>,
   ) {
-    const url = findMemberUrl(ownerPath, member);
+    const url = findMemberUrl(extenders, ownerPath, member);
     if (!url) {
       return;
     }
@@ -200,14 +217,13 @@ function analyzeLibFiles(): LibAnalysis {
 
   function visit(node: ts.Node, namespace: string[]) {
     if (ts.isTypeAliasDeclaration(node)) {
-      const name = [...namespace, node.name.text].join('.');
-      typeNames.add(name);
-      if (ts.isTypeReferenceNode(node.type)) {
-        const target = checker.getSymbolAtLocation(node.type.typeName);
-        if (target) {
-          aliases.set(name, checker.getFullyQualifiedName(target));
-        }
-      }
+      const target = ts.isTypeReferenceNode(node.type)
+        ? checker.getSymbolAtLocation(node.type.typeName)
+        : undefined;
+      types.set(
+        [...namespace, node.name.text].join('.'),
+        target && checker.getFullyQualifiedName(target),
+      );
     } else if (ts.isModuleDeclaration(node) && ts.isIdentifier(node.name) && node.body) {
       const inner = [...namespace, node.name.text];
       node.body.forEachChild((child) => visit(child, inner));
@@ -215,28 +231,26 @@ function analyzeLibFiles(): LibAnalysis {
       node.forEachChild((child) => visit(child, namespace));
     } else if (ts.isInterfaceDeclaration(node)) {
       const name = node.name.text;
-      typeNames.add([...namespace, name].join('.'));
+      types.set([...namespace, name].join('.'), undefined);
       for (const member of node.members) {
         if (ts.isMethodSignature(member) && ts.isIdentifier(member.name)) {
           record([...namespace, name], member.name.text, member.parameters);
-        } else if (ts.isConstructSignatureDeclaration(member) && name.endsWith('Constructor')) {
-          const owner = name.slice(0, -'Constructor'.length);
-          record([...namespace, owner], owner, member.parameters);
         }
       }
     } else if (ts.isVariableStatement(node)) {
-      // `declare var IntersectionObserver: { new (...): IntersectionObserver }`
+      // Constructors of globals such as `declare var IntersectionObserver: { new (...) }` or
+      // `var NumberFormat: NumberFormatConstructor` are documented under the global's name.
       for (const declaration of node.declarationList.declarations) {
-        if (
-          ts.isIdentifier(declaration.name) &&
-          declaration.type &&
-          ts.isTypeLiteralNode(declaration.type)
-        ) {
-          const owner = declaration.name.text;
-          for (const member of declaration.type.members) {
-            if (ts.isConstructSignatureDeclaration(member)) {
-              record([...namespace, owner], owner, member.parameters);
-            }
+        if (!ts.isIdentifier(declaration.name)) {
+          continue;
+        }
+        const name = declaration.name.text;
+        for (const signature of checker
+          .getTypeAtLocation(declaration.name)
+          .getConstructSignatures()) {
+          const signatureDeclaration = signature.getDeclaration();
+          if (signatureDeclaration) {
+            record([...namespace, name], name, signatureDeclaration.parameters);
           }
         }
       }
@@ -249,7 +263,7 @@ function analyzeLibFiles(): LibAnalysis {
     sourceFile.forEachChild((child) => visit(child, []));
   }
 
-  return { typeNames, aliases, usages };
+  return { types, usages };
 }
 
 /**
@@ -374,19 +388,19 @@ function findParameterSection(
 }
 
 async function collectLinks(): Promise<Record<string, string>> {
-  const { typeNames, aliases, usages } = analyzeLibFiles();
+  const { types, usages } = analyzeLibFiles();
   const links: Record<string, string> = {};
 
-  for (const typeName of typeNames) {
+  for (const typeName of types.keys()) {
     const url = findTypePage(typeName);
     if (url) {
       links[typeName] = url;
     }
   }
 
-  for (const [alias, target] of aliases) {
-    if (!(alias in links) && target in links) {
-      links[alias] = links[target];
+  for (const [typeName, target] of types) {
+    if (target && !(typeName in links) && target in links) {
+      links[typeName] = links[target];
     }
   }
 
@@ -399,7 +413,7 @@ async function collectLinks(): Promise<Record<string, string>> {
     }
   }
 
-  const overridePages = Object.values(OVERRIDES).map((url) => url.slice(0, url.indexOf('#')));
+  const overridePages = Object.values(OVERRIDES).map((url) => url.split('#')[0]);
   const pages = await fetchMdnPages([
     ...Array.from(picked.values(), (usage) => usage.url),
     ...overridePages,

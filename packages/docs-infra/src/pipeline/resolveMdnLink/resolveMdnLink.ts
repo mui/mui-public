@@ -8,12 +8,8 @@ import { MDN_TYPE_LINKS } from './mdnTypeLinks';
 const MDN_DOCUMENTED_LIBS = ['lib.dom', 'lib.es', 'lib.webworker'];
 
 /**
- * Returns the MDN page for a global type, such as `HTMLElement` or `Intl.LocalesArgument`,
- * or `null` when MDN does not document it.
- *
- * Types that only exist in TypeScript's lib files link to the section of the parameter
- * they describe, so `Intl.NumberFormatOptions` links to the `options` parameter of the
- * `Intl.NumberFormat()` constructor.
+ * Returns the MDN page for a type from TypeScript's lib files, such as `HTMLElement` or
+ * `Intl.NumberFormatOptions`, or `null` when MDN does not document it.
  *
  * Without a `source`, matching is by name, so a type from a package that shares its name
  * with a built-in type also resolves to the built-in type's page. With a `source`, only
@@ -21,7 +17,7 @@ const MDN_DOCUMENTED_LIBS = ['lib.dom', 'lib.es', 'lib.webworker'];
  *
  * @param name - Type name as written in code, including namespaces, such as `Intl.NumberFormat`.
  * @param source - Where the type is declared, when known.
- * @returns The MDN URL, or `null` when MDN does not document the type.
+ * @returns The MDN URL, or `null`.
  */
 export function resolveMdnLink(name: string, source?: ExternalTypeSource): string | null {
   if (

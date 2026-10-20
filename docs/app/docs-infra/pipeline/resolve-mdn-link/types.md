@@ -6,12 +6,8 @@
 
 ### resolveMdnLink
 
-Returns the MDN page for a global type, such as `HTMLElement` or `Intl.LocalesArgument`,
-or `null` when MDN does not document it.
-
-Types that only exist in TypeScript's lib files link to the section of the parameter
-they describe, so `Intl.NumberFormatOptions` links to the `options` parameter of the
-`Intl.NumberFormat()` constructor.
+Returns the MDN page for a type from TypeScript's lib files, such as `HTMLElement` or
+`Intl.NumberFormatOptions`, or `null` when MDN does not document it.
 
 Without a `source`, matching is by name, so a type from a package that shares its name
 with a built-in type also resolves to the built-in type's page. With a `source`, only
@@ -26,7 +22,7 @@ types declared in the DOM, JavaScript, or worker lib files resolve.
 
 **Return Value:**
 
-The MDN URL, or `null` when MDN does not document the type.
+The MDN URL, or `null`.
 
 ```tsx
 type ReturnValue = string | null;
