@@ -91,8 +91,8 @@ describe('enhanceCodeTypes', () => {
 
   describe('resolveExternalLink option', () => {
     const externalLinks: Record<string, string> = {
-      HTMLElement: 'https://example.com/html-element',
-      'Intl.NumberFormatOptions': 'https://example.com/number-format#options',
+      Theme: 'https://example.com/theme',
+      'Format.Options': 'https://example.com/format#options',
     };
 
     async function processWithExternalLinks(
@@ -114,45 +114,45 @@ describe('enhanceCodeTypes', () => {
     }
 
     it('links types the link map does not know', async () => {
-      const input = '<code class="language-ts"><span class="pl-en">HTMLElement</span></code>';
+      const input = '<code class="language-ts"><span class="pl-en">Theme</span></code>';
 
       const output = await processWithExternalLinks(input, {});
 
       expect(output).toBe(
-        '<code class="language-ts"><a href="https://example.com/html-element" class="pl-en">HTMLElement</a></code>',
+        '<code class="language-ts"><a href="https://example.com/theme" class="pl-en">Theme</a></code>',
       );
     });
 
     it('prefers the link map', async () => {
-      const input = '<code class="language-ts"><span class="pl-en">HTMLElement</span></code>';
+      const input = '<code class="language-ts"><span class="pl-en">Theme</span></code>';
 
-      const output = await processWithExternalLinks(input, { HTMLElement: '#html-element' });
+      const output = await processWithExternalLinks(input, { Theme: '#theme' });
 
       expect(output).toBe(
-        '<code class="language-ts"><a href="#html-element" class="pl-en">HTMLElement</a></code>',
+        '<code class="language-ts"><a href="#theme" class="pl-en">Theme</a></code>',
       );
     });
 
     it('links dotted chains as a whole', async () => {
       const input =
-        '<code class="language-ts"><span class="pl-en">Intl</span>.<span class="pl-en">NumberFormatOptions</span></code>';
+        '<code class="language-ts"><span class="pl-en">Format</span>.<span class="pl-en">Options</span></code>';
 
       const output = await processWithExternalLinks(input, {});
 
       expect(output).toBe(
-        '<code class="language-ts"><a href="https://example.com/number-format#options"><span class="pl-en">Intl</span>.<span class="pl-en">NumberFormatOptions</span></a></code>',
+        '<code class="language-ts"><a href="https://example.com/format#options"><span class="pl-en">Format</span>.<span class="pl-en">Options</span></a></code>',
       );
     });
 
     it('does not link properties of externally linked types', async () => {
-      // const opts: Intl.NumberFormatOptions = { style: "currency" };
+      // const opts: Format.Options = { style: "short" };
       const input =
-        '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">opts</span><span class="pl-k">:</span> <span class="pl-en">Intl</span>.<span class="pl-en">NumberFormatOptions</span> <span class="pl-k">=</span> { style: <span class="pl-s"><span class="pl-pds">"</span>currency<span class="pl-pds">"</span></span> };</code>';
+        '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">opts</span><span class="pl-k">:</span> <span class="pl-en">Format</span>.<span class="pl-en">Options</span> <span class="pl-k">=</span> { style: <span class="pl-s"><span class="pl-pds">"</span>short<span class="pl-pds">"</span></span> };</code>';
 
       const output = await processWithExternalLinks(input, {}, 'shallow');
 
       expect(output).toBe(
-        '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">opts</span><span class="pl-k">:</span> <a href="https://example.com/number-format#options"><span class="pl-en">Intl</span>.<span class="pl-en">NumberFormatOptions</span></a> <span class="pl-k">=</span> { style: <span class="pl-s"><span class="pl-pds">"</span>currency<span class="pl-pds">"</span></span> };</code>',
+        '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">opts</span><span class="pl-k">:</span> <a href="https://example.com/format#options"><span class="pl-en">Format</span>.<span class="pl-en">Options</span></a> <span class="pl-k">=</span> { style: <span class="pl-s"><span class="pl-pds">"</span>short<span class="pl-pds">"</span></span> };</code>',
       );
     });
   });

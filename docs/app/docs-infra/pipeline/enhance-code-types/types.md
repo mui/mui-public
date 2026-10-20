@@ -72,8 +72,8 @@ type EnhanceCodeTypesOptions = {
     css?: Record<string, string>;
   };
   /**
-   * Resolves type names that `linkMap` does not know to a link documented elsewhere,
-   * such as `resolveServerMdnLink` for built-in types like `HTMLElement`.
+   * Resolves type names that `linkMap` does not know to documentation elsewhere,
+   * such as the docs of a dependency.
    * Return `null` to leave a name unlinked. `source` is passed when it is known.
    *
    * Only the type name itself is linked. External links never act as owners for

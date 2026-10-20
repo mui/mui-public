@@ -276,14 +276,17 @@ This option can be set at the factory level (applies to all types) or overridden
 
 ## resolveExternalLink
 
-The `resolveExternalLink` option links types that the page does not document, such as built-in DOM and JavaScript types. It is passed to [`enhanceCodeTypes`](../../pipeline/enhance-code-types/page.mdx#resolveexternallink-option):
+The `resolveExternalLink` option links types that the page does not document, such as types from a dependency. It is passed to [`enhanceCodeTypes`](../../pipeline/enhance-code-types/page.mdx#resolveexternallink-option):
 
 ```tsx
+const externalDocs: Record<string, string> = {
+  Theme: 'https://example.com/docs/theme',
+};
+
 export const createTypes = createTypesFactory({
   TypesTable,
   TypePre,
-  resolveExternalLink: (name) =>
-    name === 'HTMLElement' ? 'https://developer.mozilla.org/docs/Web/API/HTMLElement' : null,
+  resolveExternalLink: (name) => externalDocs[name] ?? null,
 });
 ```
 
