@@ -276,19 +276,23 @@ This option can be set at the factory level (applies to all types) or overridden
 
 ## resolveExternalLink
 
-The `resolveExternalLink` option links types that the page does not document, such as built-in DOM and JavaScript types. Pass [`resolveServerMdnLink`](../../pipeline/resolve-server-mdn-link/page.mdx) to link them to MDN:
+The `resolveExternalLink` option links types that the page does not document, such as types from a dependency. It is passed to [`enhanceCodeTypes`](../../pipeline/enhance-code-types/page.mdx#resolveexternallink-option):
 
 ```tsx
-import { resolveServerMdnLink } from '@mui/internal-docs-infra/pipeline/resolveServerMdnLink';
+const externalDocs: Record<string, string> = {
+  Theme: 'https://example.com/docs/theme',
+};
 
 export const createTypes = createTypesFactory({
   TypesTable,
   TypePre,
-  resolveExternalLink: resolveServerMdnLink,
+  resolveExternalLink: (name) => externalDocs[name] ?? null,
 });
 ```
 
 Types documented on the page keep their page links. This option can be set at the factory level or overridden per type via `TypesTableMeta.resolveExternalLink`.
+
+To link built-in DOM and JavaScript types such as `HTMLElement` to MDN, pass [`resolveServerMdnLink`](../../pipeline/resolve-server-mdn-link/page.mdx).
 
 ## typePropRefComponent
 

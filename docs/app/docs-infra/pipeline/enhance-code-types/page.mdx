@@ -123,18 +123,25 @@ See [`useType`](../../hooks/use-type/page.mdx) for how to build an interactive `
 
 ### resolveExternalLink Option
 
-Types documented elsewhere, such as built-in DOM and JavaScript types, can be linked with `resolveExternalLink`. It receives each type name that the `linkMap` does not know, plus where the type is declared when that is known, and returns a URL, or `null` to leave the name unlinked. [`resolveServerMdnLink`](../resolve-server-mdn-link/page.mdx) resolves built-in types to MDN:
+Types documented elsewhere, such as types from a dependency, can be linked with `resolveExternalLink`. It receives each type name that the `linkMap` does not know, plus where the type is declared when that is known, and returns a URL, or `null` to leave the name unlinked:
 
 ```typescript
-import { resolveServerMdnLink } from '@mui/internal-docs-infra/pipeline/resolveServerMdnLink';
+const externalDocs: Record<string, string> = {
+  Theme: 'https://example.com/docs/theme',
+};
 
 const processor = unified()
   .use(rehypeParse, { fragment: true })
-  .use(enhanceCodeTypes, { linkMap, resolveExternalLink: resolveServerMdnLink })
+  .use(enhanceCodeTypes, {
+    linkMap,
+    resolveExternalLink: (name) => externalDocs[name] ?? null,
+  })
   .use(rehypeStringify);
 ```
 
-Only the type name is linked. Unlike `linkMap` entries, external links never act as owners for property or parameter links, so `{ style: 'currency' }` typed as `Intl.NumberFormatOptions` keeps `style` unlinked.
+Only the type name is linked. Unlike `linkMap` entries, external links never act as owners for property or parameter links, so in `const theme: Theme = { mode: 'dark' }` the `mode` property stays unlinked.
+
+To link built-in DOM and JavaScript types such as `HTMLElement` to MDN, pass [`resolveServerMdnLink`](../resolve-server-mdn-link/page.mdx).
 
 ---
 

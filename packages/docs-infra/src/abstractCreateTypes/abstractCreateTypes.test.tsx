@@ -25,7 +25,7 @@ const TYPES_MARKDOWN = `# Button API
 
 | Prop      | Type                     | Default | Description    |
 | :-------- | :----------------------- | :------ | :------------- |
-| container | \`HTMLElement \\| null\` | -       | The container. |
+| container | \`Theme \\| null\` | -       | The container. |
 `;
 
 function TypesTable({ type }: TypesTableProps<{}>) {
@@ -69,16 +69,16 @@ describe('abstractCreateTypes', () => {
   describe('resolveExternalLink', () => {
     it('links types the page does not document', async () => {
       const markup = await getButtonTypesMarkup((name) =>
-        name === 'HTMLElement' ? 'https://example.com/html-element' : null,
+        name === 'Theme' ? 'https://example.com/theme' : null,
       );
 
-      expect(markup).toContain('<a href="https://example.com/html-element"');
+      expect(markup).toContain('<a href="https://example.com/theme"');
     });
 
     it('leaves types the page does not document unlinked by default', async () => {
       const markup = await getButtonTypesMarkup();
 
-      expect(markup).toContain('HTMLElement');
+      expect(markup).toContain('Theme');
       expect(markup).not.toContain('<a href=');
     });
   });

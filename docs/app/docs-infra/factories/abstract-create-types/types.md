@@ -161,8 +161,8 @@ type AbstractCreateTypesOptions<T extends {} = {}> = {
    */
   defaultImportSlug?: string;
   /**
-   * Resolves type names that the page does not document to a link elsewhere, such as
-   * `resolveServerMdnLink` for built-in types like `HTMLElement`.
+   * Resolves type names that the page does not document to documentation elsewhere,
+   * such as the docs of a dependency.
    * Can be overridden by TypesTableMeta.resolveExternalLink.
    */
   resolveExternalLink?: ResolveExternalLink;
