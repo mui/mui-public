@@ -1,5 +1,5 @@
 /**
- * Generates `src/pipeline/resolveServerMdnLink/mdnTypeLinks.ts`, a map from the types declared in
+ * Generates `src/pipeline/resolveMdnLink/mdnTypeLinks.ts`, a map from the types declared in
  * TypeScript's lib files to their MDN page.
  *
  * - Interfaces and global objects link to their page in `@mdn/browser-compat-data`.
@@ -22,10 +22,7 @@ const MDN_CONTENT_COMMIT = '6c2954d3490bd0f445547e1ec359684c5cb36712';
 
 const MDN_URL_PREFIX = 'https://developer.mozilla.org/docs/';
 
-const OUTPUT_FILE = new URL(
-  '../src/pipeline/resolveServerMdnLink/mdnTypeLinks.ts',
-  import.meta.url,
-);
+const OUTPUT_FILE = new URL('../src/pipeline/resolveMdnLink/mdnTypeLinks.ts', import.meta.url);
 
 /**
  * Types used by too many parameters to pick one automatically, mapped to the MDN section that

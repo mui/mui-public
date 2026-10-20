@@ -25,7 +25,7 @@
 - Loader Utilities - ([Outline](#loader-utilities), [Contents](./loader-utils/page.mdx))
 - Parse Create Factory Call [New] - ([Outline](#parse-create-factory-call), [Contents](./parse-create-factory-call/page.mdx))
 - Parse Source - ([Outline](#parse-source), [Contents](./parse-source/page.mdx))
-- Resolve Server MDN Link [New] - ([Outline](#resolve-server-mdn-link), [Contents](./resolve-server-mdn-link/page.mdx))
+- Resolve MDN Link [New] - ([Outline](#resolve-mdn-link), [Contents](./resolve-mdn-link/page.mdx))
 - Sync Page Index - ([Outline](#sync-page-index), [Contents](./sync-page-index/page.mdx))
 - Sync Types - ([Outline](#sync-types), [Contents](./sync-types/page.mdx))
 - Transform HTML Code Block - ([Outline](#transform-html-code-block), [Contents](./transform-html-code-block/page.mdx))
@@ -1161,9 +1161,9 @@ The `parseSource` utility parses source code into HAST (Hypertext Abstract Synta
 
 [Read more](./parse-source/page.mdx)
 
-## Resolve Server MDN Link
+## Resolve MDN Link
 
-The `resolveServerMdnLink` function returns the MDN page for a built-in type, such as `HTMLElement`, `Intl.NumberFormat`, or `Intl.LocalesArgument`, or `null` when MDN does not document it.
+The `resolveMdnLink` function returns the MDN page for a built-in type, such as `HTMLElement`, `Intl.NumberFormat`, or `Intl.LocalesArgument`, or `null` when MDN does not document it.
 
 <details>
 
@@ -1177,12 +1177,12 @@ The `resolveServerMdnLink` function returns the MDN page for a built-in type, su
   - How the Table Is Generated
   - Related
 - Exports:
-  - resolveServerMdnLink
+  - resolveMdnLink
     - Parameters: name, source
 
 </details>
 
-[Read more](./resolve-server-mdn-link/page.mdx)
+[Read more](./resolve-mdn-link/page.mdx)
 
 ## Sync Page Index
 

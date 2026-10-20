@@ -1,6 +1,6 @@
-# Resolve Server MDN Link
+# Resolve MDN Link
 
-The `resolveServerMdnLink` function returns the MDN page for a built-in type, such as `HTMLElement`, `Intl.NumberFormat`, or `Intl.LocalesArgument`, or `null` when MDN does not document it.
+The `resolveMdnLink` function returns the MDN page for a built-in type, such as `HTMLElement`, `Intl.NumberFormat`, or `Intl.LocalesArgument`, or `null` when MDN does not document it.
 
 It is server-only: importing it from a client component fails the build, so the link table never reaches the browser.
 
@@ -10,12 +10,12 @@ Pass it as `resolveExternalLink` to the types factory so built-in types in type 
 
 ```ts
 import { createTypesFactory } from '@mui/internal-docs-infra/abstractCreateTypes';
-import { resolveServerMdnLink } from '@mui/internal-docs-infra/pipeline/resolveServerMdnLink';
+import { resolveMdnLink } from '@mui/internal-docs-infra/pipeline/resolveMdnLink';
 
 export const createTypes = createTypesFactory({
   TypesTable,
   TypePre,
-  resolveExternalLink: resolveServerMdnLink,
+  resolveExternalLink: resolveMdnLink,
 });
 ```
 
@@ -24,13 +24,13 @@ Types documented on the page keep their page links, and only the type name is li
 It can also be called directly:
 
 ```ts
-resolveServerMdnLink('HTMLElement');
+resolveMdnLink('HTMLElement');
 // 'https://developer.mozilla.org/docs/Web/API/HTMLElement'
 
-resolveServerMdnLink('Intl.NumberFormatOptions');
+resolveMdnLink('Intl.NumberFormatOptions');
 // 'https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Intl/NumberFormat/NumberFormat#options'
 
-resolveServerMdnLink('Button');
+resolveMdnLink('Button');
 // null
 ```
 
@@ -47,10 +47,10 @@ Matching is by name, so a type from a package that shares its name with a built-
 When you know where a type is declared, pass it as the second argument. Only types declared in the DOM, JavaScript, or worker lib files resolve:
 
 ```ts
-resolveServerMdnLink('Range', { kind: 'lib', files: ['lib.dom.d.ts'] });
+resolveMdnLink('Range', { kind: 'lib', files: ['lib.dom.d.ts'] });
 // 'https://developer.mozilla.org/docs/Web/API/Range'
 
-resolveServerMdnLink('Range', { kind: 'package', name: 'some-package' });
+resolveMdnLink('Range', { kind: 'package', name: 'some-package' });
 // null
 ```
 
@@ -58,9 +58,9 @@ resolveServerMdnLink('Range', { kind: 'package', name: 'some-package' });
 
 ## Types
 
-import { TypesResolveServerMdnLink } from './types';
+import { TypesResolveMdnLink } from './types';
 
-<TypesResolveServerMdnLink />
+<TypesResolveMdnLink />
 
 [See Types](./types.md)
 

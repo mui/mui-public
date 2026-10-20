@@ -23,7 +23,7 @@ const MDN_DOCUMENTED_LIBS = ['lib.dom', 'lib.es', 'lib.webworker'];
  * @param source - Where the type is declared, when known.
  * @returns The MDN URL, or `null` when MDN does not document the type.
  */
-export function resolveServerMdnLink(name: string, source?: ExternalTypeSource): string | null {
+export function resolveMdnLink(name: string, source?: ExternalTypeSource): string | null {
   if (
     source &&
     (source.kind !== 'lib' ||
