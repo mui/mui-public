@@ -39,18 +39,37 @@ function getMdnUrl(identifier: Identifier | undefined): string | undefined {
 }
 
 /**
+ * Returns the BCD feature of a global name, such as `HTMLElement`, `fetch`, `Intl`, or
+ * `WebAssembly`.
+ */
+function getGlobalFeature(name: string): Identifier | undefined {
+  if (name === 'WebAssembly') {
+    return bcd.webassembly.api as Identifier;
+  }
+  return bcd.api[name] ?? bcd.javascript.builtins[name];
+}
+
+/**
+ * Returns the BCD feature at a path of global and member names, such as
+ * `['Intl', 'NumberFormat', 'format']`.
+ */
+function getFeature([first, ...rest]: string[]): Identifier | undefined {
+  let feature = getGlobalFeature(first);
+  for (const segment of rest) {
+    feature = feature?.[segment] as Identifier | undefined;
+  }
+  return feature;
+}
+
+/**
  * Returns the MDN page of a type that BCD documents under the same name, such as `HTMLElement`
  * or `Intl.NumberFormat`.
  */
 function findTypePage(typeName: string): string | undefined {
-  const [first, ...rest] = typeName.split('.');
-  if (rest.length === 0) {
-    return getMdnUrl(bcd.api[first]) ?? getMdnUrl(bcd.javascript.builtins[first]);
-  }
-  // Namespaced objects such as `Intl.NumberFormat` are documented under their namespace.
-  const member = rest.length === 1 ? bcd.javascript.builtins[first]?.[rest[0]] : undefined;
-  const url = getMdnUrl(member as Identifier | undefined);
-  return url?.endsWith(`/${first}/${rest[0]}`) ? url : undefined;
+  const path = typeName.split('.');
+  const url = getMdnUrl(getFeature(path));
+  // A namespaced name must be an object page, such as `Intl/NumberFormat`, not a method.
+  return path.length === 1 || url?.endsWith(`/${path[path.length - 1]}`) ? url : undefined;
 }
 
 type ParameterUsage = {
@@ -61,12 +80,13 @@ type ParameterUsage = {
   /** Position of the parameter, and how many parameters the signature has. */
   parameterIndex: number;
   parameterCount: number;
-  /** Names of the owning interface and of the method, used to rank usages. */
-  names: string[];
+  /** Names of the owning interface, if any, and of the method, used to rank usages. */
+  ownerName: string | undefined;
+  memberName: string;
 };
 
 type LibAnalysis = {
-  /** Names of the interfaces, type aliases, and classes declared only in lib files. */
+  /** Names of the interfaces and type aliases declared only in lib files. */
   typeNames: Set<string>;
   /** Aliases of another named type, such as `WindowProxy` for `Window`. */
   aliases: Map<string, string>;
@@ -83,9 +103,9 @@ function analyzeLibFiles(): LibAnalysis {
     noEmit: true,
   });
   const checker = program.getTypeChecker();
-  const libFiles = program
-    .getSourceFiles()
-    .filter((sourceFile) => sourceFile.fileName.startsWith(libDirectory));
+  const libFiles = new Set(
+    program.getSourceFiles().filter((sourceFile) => sourceFile.fileName.startsWith(libDirectory)),
+  );
 
   // Mixins such as `HTMLOrSVGElement` have no MDN page; their members are documented on the
   // interfaces that extend them.
@@ -96,26 +116,25 @@ function analyzeLibFiles(): LibAnalysis {
         for (const heritage of statement.heritageClauses ?? []) {
           for (const base of heritage.types) {
             const baseName = base.expression.getText(sourceFile);
-            extenders.set(baseName, [...(extenders.get(baseName) ?? []), statement.name.text]);
+            const list = extenders.get(baseName) ?? [];
+            list.push(statement.name.text);
+            extenders.set(baseName, list);
           }
         }
       }
     }
   }
+  for (const list of extenders.values()) {
+    list.sort();
+  }
 
   function findMemberUrl(ownerPath: string[], member: string): string | undefined {
-    const [first, ...rest] = ownerPath;
-    let node: Identifier | undefined = bcd.api[first] ?? bcd.javascript.builtins[first];
-    for (const segment of [...rest, member]) {
-      node = node?.[segment] as Identifier | undefined;
-    }
-    const url = getMdnUrl(node);
-    if (url || ownerPath.length > 1) {
+    const url = getMdnUrl(getFeature([...ownerPath, member]));
+    if (url || ownerPath.length !== 1) {
       return url;
     }
-    return [...(extenders.get(first) ?? [])]
-      .sort()
-      .map((extender) => getMdnUrl(bcd.api[extender]?.[member] as Identifier | undefined))
+    return (extenders.get(ownerPath[0]) ?? [])
+      .map((extender) => getMdnUrl(getFeature([extender, member])))
       .find(Boolean);
   }
 
@@ -125,7 +144,7 @@ function analyzeLibFiles(): LibAnalysis {
       // eslint-disable-next-line no-bitwise
       (symbol.flags & (ts.SymbolFlags.Interface | ts.SymbolFlags.TypeAlias)) !== 0 &&
       declarations.length > 0 &&
-      declarations.every((declaration) => libFiles.includes(declaration.getSourceFile()))
+      declarations.every((declaration) => libFiles.has(declaration.getSourceFile()))
     );
   }
 
@@ -165,16 +184,16 @@ function analyzeLibFiles(): LibAnalysis {
           continue;
         }
         const typeName = checker.getFullyQualifiedName(symbol);
-        usages.set(typeName, [
-          ...(usages.get(typeName) ?? []),
-          {
-            url,
-            parameterName: parameter.name.text,
-            parameterIndex,
-            parameterCount: parameters.length,
-            names: [ownerPath[ownerPath.length - 1], member],
-          },
-        ]);
+        const list = usages.get(typeName) ?? [];
+        list.push({
+          url,
+          parameterName: parameter.name.text,
+          parameterIndex,
+          parameterCount: parameters.length,
+          ownerName: ownerPath[ownerPath.length - 1],
+          memberName: member,
+        });
+        usages.set(typeName, list);
       }
     });
   }
@@ -205,8 +224,6 @@ function analyzeLibFiles(): LibAnalysis {
           record([...namespace, owner], owner, member.parameters);
         }
       }
-    } else if (ts.isClassDeclaration(node) && node.name) {
-      typeNames.add([...namespace, node.name.text].join('.'));
     } else if (ts.isVariableStatement(node)) {
       // `declare var IntersectionObserver: { new (...): IntersectionObserver }`
       for (const declaration of node.declarationList.declarations) {
@@ -224,8 +241,7 @@ function analyzeLibFiles(): LibAnalysis {
         }
       }
     } else if (ts.isFunctionDeclaration(node) && node.name) {
-      // Global functions such as `fetch` are documented on `Window`.
-      record(namespace.length > 0 ? namespace : ['Window'], node.name.text, node.parameters);
+      record(namespace, node.name.text, node.parameters);
     }
   }
 
@@ -242,12 +258,12 @@ function analyzeLibFiles(): LibAnalysis {
  */
 function pickUsage(typeName: string, usages: ParameterUsage[]): ParameterUsage | undefined {
   const shortName = typeName.slice(typeName.lastIndexOf('.') + 1).toLowerCase();
+  const scoreName = (name: string | undefined) =>
+    name && shortName.startsWith(name.toLowerCase()) ? name.length : 0;
   const ranked = usages
     .map((usage) => ({
       usage,
-      score: Math.max(
-        ...usage.names.map((name) => (shortName.startsWith(name.toLowerCase()) ? name.length : 0)),
-      ),
+      score: Math.max(scoreName(usage.ownerName), scoreName(usage.memberName)),
     }))
     .sort(
       (left, right) => right.score - left.score || left.usage.url.localeCompare(right.usage.url),

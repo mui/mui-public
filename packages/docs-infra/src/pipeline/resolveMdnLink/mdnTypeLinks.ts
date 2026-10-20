@@ -630,10 +630,12 @@ export const MDN_TYPE_LINKS: Record<string, string> = {
   IdleRequestOptions:
     'https://developer.mozilla.org/docs/Web/API/Window/requestIdleCallback#options',
   ImageBitmap: 'https://developer.mozilla.org/docs/Web/API/ImageBitmap',
+  ImageBitmapOptions: 'https://developer.mozilla.org/docs/Web/API/Window/createImageBitmap#options',
   ImageBitmapRenderingContext:
     'https://developer.mozilla.org/docs/Web/API/ImageBitmapRenderingContext',
   ImageBitmapRenderingContextSettings:
     'https://developer.mozilla.org/docs/Web/API/HTMLCanvasElement/getContext#contextattributes',
+  ImageBitmapSource: 'https://developer.mozilla.org/docs/Web/API/Window/createImageBitmap#image',
   ImageCapture: 'https://developer.mozilla.org/docs/Web/API/ImageCapture',
   ImageData: 'https://developer.mozilla.org/docs/Web/API/ImageData',
   ImageDataArray:
@@ -707,6 +709,8 @@ export const MDN_TYPE_LINKS: Record<string, string> = {
     'https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Intl/Segmenter',
   'Intl.SegmenterOptions':
     'https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Intl/Segmenter/Segmenter#options',
+  'Intl.Segments':
+    'https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Intl/Segmenter/segment/Segments',
   'Intl.UnicodeBCP47LocaleIdentifier':
     'https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Intl/Locale/Locale#tag',
   Iterator: 'https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Iterator',
@@ -1465,6 +1469,40 @@ export const MDN_TYPE_LINKS: Record<string, string> = {
   WeakMap: 'https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/WeakMap',
   WeakRef: 'https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/WeakRef',
   WeakSet: 'https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/WeakSet',
+  'WebAssembly.CompileError':
+    'https://developer.mozilla.org/docs/WebAssembly/Reference/JavaScript_interface/CompileError',
+  'WebAssembly.Exception':
+    'https://developer.mozilla.org/docs/WebAssembly/Reference/JavaScript_interface/Exception',
+  'WebAssembly.ExceptionOptions':
+    'https://developer.mozilla.org/docs/WebAssembly/Reference/JavaScript_interface/Exception/Exception#options',
+  'WebAssembly.Global':
+    'https://developer.mozilla.org/docs/WebAssembly/Reference/JavaScript_interface/Global',
+  'WebAssembly.GlobalDescriptor':
+    'https://developer.mozilla.org/docs/WebAssembly/Reference/JavaScript_interface/Global/Global#descriptor',
+  'WebAssembly.Imports':
+    'https://developer.mozilla.org/docs/WebAssembly/Reference/JavaScript_interface/Instance/Instance#importobject',
+  'WebAssembly.Instance':
+    'https://developer.mozilla.org/docs/WebAssembly/Reference/JavaScript_interface/Instance',
+  'WebAssembly.LinkError':
+    'https://developer.mozilla.org/docs/WebAssembly/Reference/JavaScript_interface/LinkError',
+  'WebAssembly.Memory':
+    'https://developer.mozilla.org/docs/WebAssembly/Reference/JavaScript_interface/Memory',
+  'WebAssembly.MemoryDescriptor':
+    'https://developer.mozilla.org/docs/WebAssembly/Reference/JavaScript_interface/Memory/Memory#memorydescriptor',
+  'WebAssembly.Module':
+    'https://developer.mozilla.org/docs/WebAssembly/Reference/JavaScript_interface/Module',
+  'WebAssembly.RuntimeError':
+    'https://developer.mozilla.org/docs/WebAssembly/Reference/JavaScript_interface/RuntimeError',
+  'WebAssembly.Table':
+    'https://developer.mozilla.org/docs/WebAssembly/Reference/JavaScript_interface/Table',
+  'WebAssembly.TableDescriptor':
+    'https://developer.mozilla.org/docs/WebAssembly/Reference/JavaScript_interface/Table/Table#tabledescriptor',
+  'WebAssembly.Tag':
+    'https://developer.mozilla.org/docs/WebAssembly/Reference/JavaScript_interface/Tag',
+  'WebAssembly.TagType':
+    'https://developer.mozilla.org/docs/WebAssembly/Reference/JavaScript_interface/Tag/Tag#type',
+  'WebAssembly.WebAssemblyCompileOptions':
+    'https://developer.mozilla.org/docs/WebAssembly/Reference/JavaScript_interface/Module/Module#compileoptions',
   WebGL2RenderingContext: 'https://developer.mozilla.org/docs/Web/API/WebGL2RenderingContext',
   WebGLActiveInfo: 'https://developer.mozilla.org/docs/Web/API/WebGLActiveInfo',
   WebGLBuffer: 'https://developer.mozilla.org/docs/Web/API/WebGLBuffer',
