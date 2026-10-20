@@ -50,19 +50,19 @@ directly instead of this component.
 
 **CoordinatedLazy Props:**
 
-| Prop         | Type                                           | Default | Description                                                                                                                                                                                                                                                                                                                                                    |
-| :----------- | :--------------------------------------------- | :------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| awaitContent | `boolean`                                      | -       | Hold the swap until the content reports it has loaded, mounting the content&#xA;behind the fallback so a code-split (e.g. `LazyContent`) content can load in&#xA;the background and reveal only once its chunk has arrived. See&#xA;.                                                                                                                          |
-| content\*    | `React.ReactNode`                              | -       | Full content, shown after the swap. Pre-rendered on the server.                                                                                                                                                                                                                                                                                                |
-| data         | `Record<string, unknown>`                      | -       | Arbitrary parent->fallback data exposed to the fallback subtree.                                                                                                                                                                                                                                                                                               |
-| defer        | `boolean`                                      | -       | Hold the swap while real async work is in flight even though `ready`.                                                                                                                                                                                                                                                                                          |
-| fallback     | `React.ReactNode`                              | -       | Loading placeholder; force-mounted once so its hoist hook runs.                                                                                                                                                                                                                                                                                                |
-| gate         | `SettleGate`                                   | -       | Settle gate to register this swap with. When omitted, the ambient gate from&#xA;a surrounding coordinator (e.g. the `useStream` controller, via&#xA;[`CoordinatedGateContext`](#coordinatedgatecontext)) is used instead. The page-global gate is&#xA;always registered on top of either, so a page-wide coordinated commit waits&#xA;for the swap regardless. |
-| holdGate     | `boolean`                                      | -       | Hold the settle gate open without re-showing the fallback (content stays&#xA;rendered). See .                                                                                                                                                                                                                                                                  |
-| preload      | `((hoisted: Record<string, unknown>) => void)` | -       | Speculative preload hook. See :&#xA;fired with the hoisted data so the consumer can start dynamic imports of&#xA;helpers in parallel with loading the full content.                                                                                                                                                                                            |
-| ready\*      | `boolean`                                      | -       | Whether the content's data is ready to display.                                                                                                                                                                                                                                                                                                                |
-| requireHoist | `boolean`                                      | -       | Hold the swap until the fallback hoists at least once.                                                                                                                                                                                                                                                                                                         |
-| skipFallback | `boolean`                                      | -       | Skip the fallback entirely.                                                                                                                                                                                                                                                                                                                                    |
+| Prop         | Type                                           | Default | Description                                                                                                                                                                                                                                                                                                                                                            |
+| :----------- | :--------------------------------------------- | :------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| awaitContent | `boolean`                                      | -       | Hold the swap until the content reports it has loaded, mounting the content&#xA;behind the fallback so a code-split (for example, `LazyContent`) content can load in&#xA;the background and reveal only once its chunk has arrived. See&#xA;.                                                                                                                          |
+| content\*    | `React.ReactNode`                              | -       | Full content, shown after the swap. Pre-rendered on the server.                                                                                                                                                                                                                                                                                                        |
+| data         | `Record<string, unknown>`                      | -       | Arbitrary parent->fallback data exposed to the fallback subtree.                                                                                                                                                                                                                                                                                                       |
+| defer        | `boolean`                                      | -       | Hold the swap while real async work is in flight even though `ready`.                                                                                                                                                                                                                                                                                                  |
+| fallback     | `React.ReactNode`                              | -       | Loading placeholder; force-mounted once so its hoist hook runs.                                                                                                                                                                                                                                                                                                        |
+| gate         | `SettleGate`                                   | -       | Settle gate to register this swap with. When omitted, the ambient gate from&#xA;a surrounding coordinator (for example, the `useStream` controller, via&#xA;[`CoordinatedGateContext`](#coordinatedgatecontext)) is used instead. The page-global gate is&#xA;always registered on top of either, so a page-wide coordinated commit waits&#xA;for the swap regardless. |
+| holdGate     | `boolean`                                      | -       | Hold the settle gate open without re-showing the fallback (content stays&#xA;rendered). See .                                                                                                                                                                                                                                                                          |
+| preload      | `((hoisted: Record<string, unknown>) => void)` | -       | Speculative preload hook. See :&#xA;fired with the hoisted data so the consumer can start dynamic imports of&#xA;helpers in parallel with loading the full content.                                                                                                                                                                                                    |
+| ready\*      | `boolean`                                      | -       | Whether the content's data is ready to display.                                                                                                                                                                                                                                                                                                                        |
+| requireHoist | `boolean`                                      | -       | Hold the swap until the fallback hoists at least once.                                                                                                                                                                                                                                                                                                                 |
+| skipFallback | `boolean`                                      | -       | Skip the fallback entirely.                                                                                                                                                                                                                                                                                                                                            |
 
 ### createCoordinatedLazy
 
@@ -85,7 +85,7 @@ and client loading, and server or client rendering:
 The client-mode branch hands the (function-bearing) `config` to a `'use client'`
 component, so a client-loaded chunk must render inside a client subtree - call
 `createCoordinatedLazy` from a client module, or wrap it in a client provider
-(e.g. `abstractCreateStream`'s `ClientProvider`). Server-loaded and
+(for example, `abstractCreateStream`'s `ClientProvider`). Server-loaded and
 preloaded/precomputed chunks have no such constraint - they render entirely on
 the server path.
 
@@ -174,12 +174,12 @@ placeholder keeps covering the load, with no empty flash.
 
 **LazyContent Props:**
 
-| Prop      | Type                      | Default | Description                                                                                                                                                                                                                                                                           |
-| :-------- | :------------------------ | :------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| content\* | `LazyComponentImport<{}>` | -       | Dynamic import of the component to render.                                                                                                                                                                                                                                            |
-| fallback  | `React.ReactNode`         | -       | Placeholder shown while the module loads. Defaults to `null`.                                                                                                                                                                                                                         |
-| gate      | `SettleGate`              | -       | Additional settle gate to report readiness to once the component has loaded&#xA;and mounted (e.g. a `useStream` controller gate). The page-global gate is&#xA;always registered too. Client path only - the server path streams via&#xA;Suspense and has no client gate to report to. |
-| props     | `{}`                      | -       | Props forwarded to the imported component.                                                                                                                                                                                                                                            |
+| Prop      | Type                      | Default | Description                                                                                                                                                                                                                                                                                   |
+| :-------- | :------------------------ | :------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| content\* | `LazyComponentImport<{}>` | -       | Dynamic import of the component to render.                                                                                                                                                                                                                                                    |
+| fallback  | `React.ReactNode`         | -       | Placeholder shown while the module loads. Defaults to `null`.                                                                                                                                                                                                                                 |
+| gate      | `SettleGate`              | -       | Additional settle gate to report readiness to once the component has loaded&#xA;and mounted (for example, a `useStream` controller gate). The page-global gate is&#xA;always registered too. Client path only - the server path streams via&#xA;Suspense and has no client gate to report to. |
+| props     | `{}`                      | -       | Props forwarded to the imported component.                                                                                                                                                                                                                                                    |
 
 ### LazyContentServer
 
@@ -273,7 +273,7 @@ type ReturnValue = UseChunkResult<P>;
 ### useCoordinatedContent
 
 Read the data the fallback hoisted, from inside the full content. Lets the
-content use what the fallback fetched (e.g. a decompression dictionary)
+content use what the fallback fetched (for example, a decompression dictionary)
 without the consumer threading it through props. Returns an empty map when
 rendered outside a `CoordinatedLazy`.
 
@@ -479,7 +479,7 @@ type CoordinatedContentContext = React.Context<CoordinatedContentContextValue>;
 ### CoordinatedContentContextValue
 
 The data the fallback hoisted, handed down to the full content so it can use
-what the fallback fetched (e.g. a DEFLATE dictionary). Read via
+what the fallback fetched (for example, a DEFLATE dictionary). Read via
 [`useCoordinatedContent`](#usecoordinatedcontent).
 
 ```typescript
@@ -551,7 +551,7 @@ type CoordinatedFallbackContextValue = {
 ### CoordinatedGateContext
 
 The ambient settle gate that a [`CoordinatedLazy`](#coordinatedlazy) swap registers with
-when it isn't given an explicit `gate` prop. A coordinator (e.g. the
+when it isn't given an explicit `gate` prop. A coordinator (for example, the
 `useStream` controller) provides its gate here so every swap rendered beneath
 it reports into the same gate - that is how a group's `loading` reflects each
 piece's swap without threading a `gate` prop through every one. `null` outside
@@ -587,14 +587,14 @@ type CoordinatedLazyProps = {
   requireHoist?: boolean;
   /**
    * Hold the swap until the content reports it has loaded, mounting the content
-   * behind the fallback so a code-split (e.g. `LazyContent`) content can load in
+   * behind the fallback so a code-split (for example, `LazyContent`) content can load in
    * the background and reveal only once its chunk has arrived. See
    * .
    */
   awaitContent?: boolean;
   /**
    * Settle gate to register this swap with. When omitted, the ambient gate from
-   * a surrounding coordinator (e.g. the `useStream` controller, via
+   * a surrounding coordinator (for example, the `useStream` controller, via
    * [`CoordinatedGateContext`](#coordinatedgatecontext)) is used instead. The page-global gate is
    * always registered on top of either, so a page-wide coordinated commit waits
    * for the swap regardless.
@@ -681,7 +681,7 @@ type LazyContentProps<T extends {} = {}> = {
   fallback?: React.ReactNode;
   /**
    * Additional settle gate to report readiness to once the component has loaded
-   * and mounted (e.g. a `useStream` controller gate). The page-global gate is
+   * and mounted (for example, a `useStream` controller gate). The page-global gate is
    * always registered too. Client path only - the server path streams via
    * Suspense and has no client gate to report to.
    */
@@ -801,7 +801,7 @@ type UseCoordinatedSwapOptions = {
   awaitContent?: boolean;
   /**
    * Settle gate to register this swap with. When omitted, the ambient gate from
-   * a surrounding coordinator (e.g. the `useStream` controller, via
+   * a surrounding coordinator (for example, the `useStream` controller, via
    * [`CoordinatedGateContext`](#coordinatedgatecontext)) is used instead. The page-global gate is
    * always registered on top of either, so a page-wide coordinated commit waits
    * for the swap regardless.

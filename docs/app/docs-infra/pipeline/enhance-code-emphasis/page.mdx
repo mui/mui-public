@@ -7,8 +7,8 @@ The `enhanceCodeEmphasis` source enhancer adds visual emphasis to specific lines
 - Single-line emphasis with `@highlight` comments
 - Multi-line emphasis blocks with `@highlight-start` / `@highlight-end` pairs
 - Text highlighting within a line with `@highlight-text "text"`
-- Optional descriptions in quoted strings (e.g., `@highlight "description"`)
-- **Strong emphasis** with `!` at the end of descriptions (e.g., `@highlight "We must do this!"`)
+- Optional descriptions in quoted strings (for example, `@highlight "description"`)
+- **Strong emphasis** with `!` at the end of descriptions (for example, `@highlight "We must do this!"`)
 - **Automatic strong emphasis for nested blocks** - lines inside multiple emphasis ranges are automatically marked as strong
 - Works with all code languages that support comments
 - Compatible with both inline and block comment styles
@@ -374,7 +374,7 @@ When line 4 also has `@focus` and padding is configured (see [Configurable Paddi
 | `data-frame-type`         | string | `"highlighted"` (focused region with line highlights), `"highlighted-unfocused"` (non-focused regions with line highlights), `"focus"` (focused region without line highlights), `"focus-unfocused"` (non-focused region without line highlights), `"padding-top"`, or `"padding-bottom"`. Normal frames have no type attribute.                                                                                               |
 | `data-frame-focus-target` | marker | Present on the frame an explicit `@focus` selects for the collapsed preview (the visible window when the region is truncated). It distinguishes the focus target from its padding frames, including when the target frame is also `highlighted`.                                                                                                                                                                               |
 | `data-frame-indent`       | number | Only on `highlighted`, `highlighted-unfocused`, `focus`, and `focus-unfocused` frames, and only when `createEnhanceCodeEmphasis({ emitFrameIndent: true })` is used. Frames visible while collapsed share the indent level of the whole collapsed window (min leading spaces ÷ 2), so an automatic preview's `focus` and `highlighted` frames stay aligned. Hidden `-unfocused` frames carry the indent level of their region. |
-| `data-frame-description`  | string | Present on highlighted frames when the `@highlight` or `@highlight-start` directive includes a description (e.g., `@highlight "description"`). Not set when highlighting is at the line level (inside a focus region or when strong).                                                                                                                                                                                          |
+| `data-frame-description`  | string | Present on highlighted frames when the `@highlight` or `@highlight-start` directive includes a description (for example, `@highlight "description"`). Not set when highlighting is at the line level (inside a focus region or when strong).                                                                                                                                                                                   |
 
 ### Configurable Padding
 
@@ -464,7 +464,7 @@ const sourceEnhancers = [
 
 When the focused region exceeds `focusFramesMaxSize`, no visible-window frame is produced. The block stays `collapsible`, but `focusedLines` is `0`, so the collapsed state is empty and expanding reveals the entire source. This applies to explicit `@focus` regions and to the automatic preview from line 1.
 
-The `<code>` element exposes both counts as `data-total-lines` and `data-focused-lines` (alongside `data-collapsible`) so CSS and consumers can react to the empty collapsed window — e.g. `code[data-collapsible][data-focused-lines="0"]` to render an "expand" affordance.
+The `<code>` element exposes both counts as `data-total-lines` and `data-focused-lines` (alongside `data-collapsible`) so CSS and consumers can react to the empty collapsed window — for example, `code[data-collapsible][data-focused-lines="0"]` to render an "expand" affordance.
 
 ### The `@focus` Directive
 

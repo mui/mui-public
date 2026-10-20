@@ -39,6 +39,7 @@ jobs:
           command: pnpm docs:lib
       - code-infra/eslint
       - code-infra/stylelint
+      - code-infra/valelint
   docs_validate:
     <<: *default-job
     steps:
@@ -65,7 +66,7 @@ jobs:
       - run:
           # make sure the netlify ignore command has the correct dependencies
           name: '`pnpm update-netlify-ignore` changes committed?'
-          command: pnpm code-infra netlify-ignore @apps/code-infra-dashboard --check
+          command: pnpm code-infra netlify-ignore ./apps/code-infra-dashboard --check
       - run:
           # A package that publishes from `build/` is linked there, not at its source, so a consumer
           # of one sees no types at all until it is built.

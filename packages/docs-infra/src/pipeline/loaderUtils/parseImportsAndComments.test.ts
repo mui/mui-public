@@ -2,6 +2,65 @@ import { describe, expect, it } from 'vitest';
 import { parseImportsAndComments } from './parseImportsAndComments';
 
 describe('parseImportsAndComments', () => {
+  describe('JSDoc directives', () => {
+    const options = {
+      removeCommentsWithPrefix: ['@focus', '@highlight'],
+      notableCommentsPrefix: ['@focus', '@highlight'],
+    };
+
+    it('removes single-line JSX JSDoc directives and preserves import offsets', () => {
+      const code = `const node = <div>
+  {/** @focus */}
+  <span />
+</div>;
+import Value from './Value';`;
+      const result = parseImportsAndComments(code, '/src/demo.tsx', options);
+      expect(result.code).toBe(`const node = <div>
+  <span />
+</div>;
+import Value from './Value';`);
+      expect(result.comments).toEqual({ 2: ['@focus'] });
+      const [position] = result.relative['./Value'].positions;
+      expect(result.code?.slice(position.start, position.end)).toBe("'./Value'");
+    });
+
+    it('normalizes multiline decoration and keeps quoted directive descriptions intact', () => {
+      const code = `/**
+ * @focus-start @padding 2
+ */
+const value = 1;
+/**
+ * @focus-end
+ */
+/** @highlight "* @focus is quoted" */
+const next = 2;`;
+      const result = parseImportsAndComments(code, '/src/demo.ts', options);
+      expect(result.code).toBe('const value = 1;\nconst next = 2;');
+      expect(result.comments).toEqual({
+        1: ['@focus-start @padding 2'],
+        2: ['@focus-end', '@highlight "* @focus is quoted"'],
+      });
+    });
+
+    it('preserves ordinary JSDoc, prose mentions, and directive strings', () => {
+      const code = `/**
+ * Describes @focus rather than declaring a directive.
+ * @param value - The input.
+ */
+const value = "{/** @focus */}";
+/** "@focus" is quoted. */
+const next = '@highlight';`;
+      const result = parseImportsAndComments(code, '/src/demo.ts', options);
+      expect(result).toEqual({ relative: {}, externals: {} });
+      const collected = parseImportsAndComments(code, '/src/demo.ts', {
+        notableCommentsPrefix: ['Describes'],
+      });
+      expect(collected.comments).toEqual({
+        1: ['Describes @focus rather than declaring a directive.', '@param value - The input.'],
+      });
+    });
+  });
+
   it('should resolve relative import paths and group by import path', async () => {
     const code = `
       import Component1 from './Component1';

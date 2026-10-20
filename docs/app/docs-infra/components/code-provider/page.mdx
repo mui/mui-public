@@ -61,14 +61,14 @@ The previous demo asks `loadVariantMeta` to enumerate every file a variant expos
 
 ### Choosing between the two approaches
 
-| Concern                | Eager (`fetch-demo`)                                                                            | Recursive (`fetch-demo-recursive`)                                                             |
-| :--------------------- | :---------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------- |
-| **Loader surface**     | `loadCodeMeta`, `loadVariantMeta`, `loadSource`                                                 | `loadCodeMeta`, `loadSource`                                                                   |
-| **File discovery**     | One directory listing per variant via the Contents API                                          | Imports are parsed inside `loadSource`; only files actually imported are fetched               |
-| **Network shape**      | Many small Contents API calls up front, then raw fetches in parallel                            | A short serial chain (entry → its imports → their imports), but no Contents API per file       |
-| **Source assumptions** | Works even when sources don't have static imports (handy for assets, JSON, generated bundles)   | Requires the host to ship parseable JS/TS/MDX/CSS so `parseImportsAndComments` can see imports |
-| **Best for**           | Demos that expose a known set of files (e.g. `index.tsx` + a sibling `styles.css`)              | Demos with deeper, evolving import trees where listing every file up front is awkward          |
-| **Stale risk**         | Each variant points at a `tree` URL; ref drift between variants is possible if you don't pin it | Pinning the entry to a commit SHA cascades to every recursively discovered file                |
+| Concern                | Eager (`fetch-demo`)                                                                            | Recursive (`fetch-demo-recursive`)                                                                             |
+| :--------------------- | :---------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------- |
+| **Loader surface**     | `loadCodeMeta`, `loadVariantMeta`, `loadSource`                                                 | `loadCodeMeta`, `loadSource`                                                                                   |
+| **File discovery**     | One directory listing per variant via the Contents API                                          | Imports are parsed inside `loadSource`; only files actually imported are fetched                               |
+| **Network shape**      | Many small Contents API calls up front, then raw fetches in parallel                            | A short serial chain (entry → its imports → their imports), but no Contents API per file                       |
+| **Source assumptions** | Works even when sources don't have static imports (handy for assets, JSON, generated bundles)   | Requires the host to ship parseable JavaScript/TypeScript/MDX/CSS so `parseImportsAndComments` can see imports |
+| **Best for**           | Demos that expose a known set of files (for example, `index.tsx` + a sibling `styles.css`)      | Demos with deeper, evolving import trees where listing every file up front is awkward                          |
+| **Stale risk**         | Each variant points at a `tree` URL; ref drift between variants is possible if you don't pin it | Pinning the entry to a commit SHA cascades to every recursively discovered file                                |
 
 In practice the eager variant is the right starting point for documentation that mirrors a small, hand-curated set of files. Reach for the recursive variant once a demo grows beyond a couple of files or starts importing helpers from sibling directories — at that point the savings from on-demand resolution and SHA-pinned caching outweigh the extra request round-trips.
 
@@ -171,7 +171,7 @@ file extensions and `language` props, and speculatively preloads them on first
 render — in parallel with the content — so they are usually ready before the
 block parses. A block keeps showing its fallback until its grammars land (rather
 than flashing un-highlighted text), then highlights. Languages discovered later
-(e.g. a variant fetched from a URL) are loaded on demand the same way.
+(for example, a variant fetched from a URL) are loaded on demand the same way.
 
 > [!NOTE]
 > The eager `CodeProvider` bundles all grammars (no per-request fetch), so this

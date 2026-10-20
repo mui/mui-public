@@ -19,7 +19,7 @@ export const languageMap: Record<string, string> = {
 
 /**
  * Maps language aliases to canonical language names.
- * Used to normalize short language names (e.g., from className like 'language-js')
+ * Used to normalize short language names (for example, from className like 'language-js')
  * to their full names.
  */
 export const languageAliasMap: Record<string, string> = {
@@ -44,7 +44,7 @@ export const languageAliasMap: Record<string, string> = {
 
 /**
  * Gets the language name from a file extension.
- * @param extension - The file extension (e.g., '.tsx', '.css')
+ * @param extension - The file extension (for example, '.tsx', '.css')
  * @returns The language name or undefined if not recognized
  */
 export function getLanguageFromExtension(extension: string): string | undefined {
@@ -53,7 +53,7 @@ export function getLanguageFromExtension(extension: string): string | undefined 
 
 /**
  * Normalizes a language name to its canonical form.
- * This handles aliases like 'js' -> 'javascript', 'ts' -> 'typescript'.
+ * This handles aliases like `'js'` -> `'javascript'`, `'ts'` -> `'typescript'`.
  * @param language - The language name or alias
  * @returns The canonical language name, or the input if not a known alias
  */

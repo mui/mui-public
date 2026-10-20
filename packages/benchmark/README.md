@@ -318,9 +318,9 @@ export default createBenchmarkVitestConfig({
 - `baselinePath` — path to a prior results JSON file to inline as the comparison base (see [Baseline comparisons](#baseline-comparisons)). Also settable via `BENCHMARK_BASELINE_PATH`.
 - `launchArgs` — additional browser launch arguments
 - `profile` — run an interactive profiling session in a headed browser with DevTools instead of measuring (see [Profiling in DevTools](#profiling-in-devtools)). Also settable via `BENCHMARK_PROFILE=true`.
-- `viewport` — `{ width, height }` browser viewport (and window size in profile mode), applied to both modes. Defaults to `1920x1080`. Also settable via `BENCHMARK_VIEWPORT` (e.g. `2560x1440`).
+- `viewport` — `{ width, height }` browser viewport (and window size in profile mode), applied to both modes. Defaults to `1920x1080`. Also settable via `BENCHMARK_VIEWPORT` (for example, `2560x1440`).
 
-To override standard Vitest options (e.g. `include`, `testTimeout`, `headless`), use `mergeConfig`:
+To override standard Vitest options (for example, `include`, `testTimeout`, `headless`), use `mergeConfig`:
 
 ```ts
 import { mergeConfig } from 'vitest/config';

@@ -144,7 +144,7 @@ type UseCodeResult<T extends {} = {}> = {
   /**
    * Slug for the currently selected file. Always derived from the canonical
    * (original) file name — transforms are a view preference and do not
-   * produce separate slugs. Useful for building permalinks (e.g. `#${slug}`)
+   * produce separate slugs. Useful for building permalinks (for example, `#${slug}`)
    * that survive transform changes.
    */
   selectedFileSlug: string | undefined;
