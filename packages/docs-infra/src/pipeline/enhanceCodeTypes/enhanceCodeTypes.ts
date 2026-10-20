@@ -28,6 +28,15 @@ export interface EnhanceCodeTypesOptions {
     css?: Record<string, string>;
   };
   /**
+   * Resolves type names that `linkMap` does not know to a link documented elsewhere,
+   * such as `resolveServerMdnLink` for built-in types like `HTMLElement`.
+   * Return `null` to leave a name unlinked.
+   *
+   * Only the type name itself is linked. External links never act as owners for
+   * property or parameter anchors.
+   */
+  resolveExternalLink?: (name: string) => string | null;
+  /**
    * When set, the plugin emits a custom component element instead of an `<a>` tag
    * for type/export name references.
    * The custom element receives `href` and `name` (the matched identifier) as properties.
@@ -200,6 +209,7 @@ export default function enhanceCodeTypes(options: EnhanceCodeTypesOptions) {
       }
       const enhanceOptions: EnhanceOptions = {
         linkMap,
+        resolveExternalLink: options.resolveExternalLink,
         typeRefComponent: options.typeRefComponent,
         typePropRefComponent: options.typePropRefComponent,
         typeParamRefComponent: options.typeParamRefComponent,

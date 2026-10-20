@@ -1,0 +1,66 @@
+# Resolve Server MDN Link
+
+The `resolveServerMdnLink` function returns the MDN page for a built-in type, such as `HTMLElement`, `Intl.NumberFormat`, or `Intl.LocalesArgument`, or `null` when MDN does not document it.
+
+It is server-only: importing it from a client component fails the build, so the link table never reaches the browser.
+
+## Usage
+
+Pass it as `resolveExternalLink` to the types factory so built-in types in type signatures link to MDN:
+
+```ts
+import { createTypesFactory } from '@mui/internal-docs-infra/abstractCreateTypes';
+import { resolveServerMdnLink } from '@mui/internal-docs-infra/pipeline/resolveServerMdnLink';
+
+export const createTypes = createTypesFactory({
+  TypesTable,
+  TypePre,
+  resolveExternalLink: resolveServerMdnLink,
+});
+```
+
+Types documented on the page keep their page links, and only the type name is linked. See the [`resolveExternalLink` option](../enhance-code-types/page.mdx#resolveexternallink-option) of `enhanceCodeTypes`.
+
+It can also be called directly:
+
+```ts
+resolveServerMdnLink('HTMLElement');
+// 'https://developer.mozilla.org/docs/Web/API/HTMLElement'
+
+resolveServerMdnLink('Intl.NumberFormatOptions');
+// 'https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Intl/NumberFormat/NumberFormat#options'
+
+resolveServerMdnLink('Button');
+// null
+```
+
+## Which Types Resolve
+
+- **Interfaces and global objects** with an MDN page, such as `HTMLElement`, `PointerEvent`, `Promise`, or `Intl.NumberFormat`, link to that page.
+- **Types that only exist in TypeScript**, such as `Intl.NumberFormatOptions` or `AddEventListenerOptions`, link to the section of the parameter they describe: the `options` parameter of the `Intl.NumberFormat()` constructor, or of `addEventListener()`.
+- **Aliases of a built-in type**, such as `WindowProxy`, link to the page of the type they alias.
+
+Matching is by name, so a type from a package that shares its name with a built-in type, such as a package's own `Range`, also resolves to the built-in type's page.
+
+## Types
+
+import { TypesResolveServerMdnLink } from './types';
+
+<TypesResolveServerMdnLink />
+
+[See Types](./types.md)
+
+## How the Table Is Generated
+
+The links come from a table generated with `pnpm -F @mui/internal-docs-infra generate:mdn-type-links`:
+
+1. Interfaces and global objects come from [`@mdn/browser-compat-data`](https://github.com/mdn/browser-compat-data).
+2. For types that only exist in TypeScript's lib files, the generator finds the parameters typed with them. It prefers the method or constructor whose name starts the type's name, such as `addEventListener` for `AddEventListenerOptions`, and skips types used too widely to pick one.
+3. Each parameter section is checked against the live MDN page. When the section is missing, the type links to the page itself.
+
+Rerun the generator after bumping `@mdn/browser-compat-data` or `typescript`.
+
+## Related
+
+- [Enhance Code Types](../enhance-code-types/page.mdx) - Links type references in code
+- [Abstract Create Types](../../factories/abstract-create-types/page.mdx) - Creates type documentation factories

@@ -161,6 +161,12 @@ type AbstractCreateTypesOptions<T extends {} = {}> = {
    */
   defaultImportSlug?: string;
   /**
+   * Resolves type names that the page does not document to a link elsewhere, such as
+   * `resolveServerMdnLink` for built-in types like `HTMLElement`.
+   * Can be overridden by TypesTableMeta.resolveExternalLink.
+   */
+  resolveExternalLink?: (name: string) => string | null;
+  /**
    * Controls when expensive detailedType and formattedCode HAST fields are
    * converted to fully-highlighted JSX.
    * Can be overridden by TypesTableMeta.highlightAt.
@@ -349,5 +355,10 @@ type TypesTableMeta = {
    * in `moduleLinkMap` does not specify a `defaultSlug`.
    */
   defaultImportSlug?: string;
+  /**
+   * Resolves type names that the page does not document to a link elsewhere.
+   * When set, overrides the factory-level resolveExternalLink.
+   */
+  resolveExternalLink?: (name: string) => string | null;
 };
 ```

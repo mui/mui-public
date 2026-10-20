@@ -4,6 +4,7 @@ import {
   createMultipleTypesFactory,
 } from '@mui/internal-docs-infra/abstractCreateTypes';
 import type { AbstractCreateTypesOptions } from '@mui/internal-docs-infra/abstractCreateTypes';
+import { resolveServerMdnLink } from '@mui/internal-docs-infra/pipeline/resolveServerMdnLink';
 import { mdxComponents } from '@/mdx-components';
 import { PreInline } from '@/components/PreInline';
 import { TypesTable } from './TypesTable';
@@ -15,6 +16,7 @@ const options = {
   typeRefComponent: 'TypeRef' as const,
   typePropRefComponent: 'TypePropRef' as const,
   linkProps: 'deep' as const,
+  resolveExternalLink: resolveServerMdnLink,
 } satisfies AbstractCreateTypesOptions;
 
 /**

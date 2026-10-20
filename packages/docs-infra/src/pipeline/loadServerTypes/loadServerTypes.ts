@@ -29,7 +29,6 @@ import type { FormatInlineTypeOptions } from '../loadServerTypesMeta/format';
 import type { ExportData } from '../../abstractCreateTypes';
 import type { TypesOutputFormat } from './hastTypeUtils';
 import type { TransformHtmlCodeBlockOptions } from '../transformHtmlCodeBlock/transformHtmlCodeBlock';
-import { resolveMdnTypeLinks } from './resolveMdnTypeLinks';
 
 export type {
   HighlightedTypesMeta,
@@ -159,14 +158,6 @@ export async function loadServerTypes(
     [functionName, relativePath],
   );
 
-  // Resolved from the plain-text types before highlighting rewrites them in place, and outside
-  // the cache so regenerating the MDN table takes effect without invalidating cached highlighting.
-  const mdnLinks = resolveMdnTypeLinks([
-    syncResult.exports,
-    syncResult.additionalTypes,
-    syncResult.variantOnlyAdditionalTypes,
-  ]);
-
   // The enhanced (highlighted) result is cached keyed by the loaded types plus the options that
   // affect the output, so a hit skips highlightTypes/highlightTypesMeta. `allDependencies` (the
   // webpack watch list) and the transient `updated` flag are excluded from both the hash and the
@@ -199,12 +190,9 @@ export async function loadServerTypes(
       enhanceTypes(source, { output, formattingOptions, codeBlockEmphasisOptions, relativePath }),
   });
 
-  // Types documented on the page take precedence over MDN links.
-  const anchorMap = { ...enhanced.anchorMap, js: { ...mdnLinks, ...enhanced.anchorMap.js } };
-
   // allDependencies is the webpack watch list — always take it FRESH from syncResult, never a
   // possibly-stale cached value, so a cache hit can't omit a newly-added source file (missed rebuild).
-  return { ...enhanced, anchorMap, allDependencies: syncResult.allDependencies };
+  return { ...enhanced, allDependencies: syncResult.allDependencies };
 }
 
 /**

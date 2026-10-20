@@ -1048,6 +1048,9 @@ importers:
       remark-typography:
         specifier: ^0.8.10
         version: 0.8.10
+      server-only:
+        specifier: ^0.0.1
+        version: 0.0.1
       sucrase:
         specifier: ^3.35.1
         version: 3.35.1

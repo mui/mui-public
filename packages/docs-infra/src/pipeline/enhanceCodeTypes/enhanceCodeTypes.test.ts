@@ -89,6 +89,74 @@ describe('enhanceCodeTypes', () => {
     });
   });
 
+  describe('resolveExternalLink option', () => {
+    const externalLinks: Record<string, string> = {
+      HTMLElement: 'https://example.com/html-element',
+      'Intl.NumberFormatOptions': 'https://example.com/number-format#options',
+    };
+
+    async function processWithExternalLinks(
+      input: string,
+      linkMap: Record<string, string>,
+      linkProps?: 'shallow' | 'deep',
+    ): Promise<string> {
+      const result = await unified()
+        .use(rehypeParse, { fragment: true })
+        .use(enhanceCodeTypes, {
+          linkMap: { js: linkMap },
+          linkProps,
+          resolveExternalLink: (name) => externalLinks[name] ?? null,
+        })
+        .use(rehypeStringify)
+        .process(input);
+
+      return String(result);
+    }
+
+    it('links types the link map does not know', async () => {
+      const input = '<code class="language-ts"><span class="pl-en">HTMLElement</span></code>';
+
+      const output = await processWithExternalLinks(input, {});
+
+      expect(output).toBe(
+        '<code class="language-ts"><a href="https://example.com/html-element" class="pl-en">HTMLElement</a></code>',
+      );
+    });
+
+    it('prefers the link map', async () => {
+      const input = '<code class="language-ts"><span class="pl-en">HTMLElement</span></code>';
+
+      const output = await processWithExternalLinks(input, { HTMLElement: '#html-element' });
+
+      expect(output).toBe(
+        '<code class="language-ts"><a href="#html-element" class="pl-en">HTMLElement</a></code>',
+      );
+    });
+
+    it('links dotted chains as a whole', async () => {
+      const input =
+        '<code class="language-ts"><span class="pl-en">Intl</span>.<span class="pl-en">NumberFormatOptions</span></code>';
+
+      const output = await processWithExternalLinks(input, {});
+
+      expect(output).toBe(
+        '<code class="language-ts"><a href="https://example.com/number-format#options"><span class="pl-en">Intl</span>.<span class="pl-en">NumberFormatOptions</span></a></code>',
+      );
+    });
+
+    it('does not link properties of externally linked types', async () => {
+      // const opts: Intl.NumberFormatOptions = { style: "currency" };
+      const input =
+        '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">opts</span><span class="pl-k">:</span> <span class="pl-en">Intl</span>.<span class="pl-en">NumberFormatOptions</span> <span class="pl-k">=</span> { style: <span class="pl-s"><span class="pl-pds">"</span>currency<span class="pl-pds">"</span></span> };</code>';
+
+      const output = await processWithExternalLinks(input, {}, 'shallow');
+
+      expect(output).toBe(
+        '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">opts</span><span class="pl-k">:</span> <a href="https://example.com/number-format#options"><span class="pl-en">Intl</span>.<span class="pl-en">NumberFormatOptions</span></a> <span class="pl-k">=</span> { style: <span class="pl-s"><span class="pl-pds">"</span>currency<span class="pl-pds">"</span></span> };</code>',
+      );
+    });
+  });
+
   describe('dotted chain linking', () => {
     it('wraps a two-part dotted chain in an anchor', async () => {
       const input =

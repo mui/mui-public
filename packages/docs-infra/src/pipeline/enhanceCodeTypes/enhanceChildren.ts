@@ -51,6 +51,7 @@ interface LinkableChain {
  */
 export interface EnhanceOptions {
   linkMap: Record<string, string>;
+  resolveExternalLink?: (name: string) => string | null;
   typeRefComponent?: string;
   typePropRefComponent?: string;
   typeParamRefComponent?: string;
@@ -763,7 +764,12 @@ function handleLinkableSpan(
     }
   }
 
-  const href = cssClassHref ?? resolveTypeHref(identifier, linkMap, state);
+  // External links only link the name; owner tracking below keeps using `linkMap`.
+  const href =
+    cssClassHref ??
+    resolveTypeHref(identifier, linkMap, state) ??
+    options.resolveExternalLink?.(identifier) ??
+    undefined;
   const nodes: ElementContent[] = [];
 
   if (isBareCssClass) {

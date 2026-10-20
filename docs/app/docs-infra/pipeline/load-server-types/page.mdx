@@ -149,10 +149,6 @@ span.frame[data-frame-type='comment'] {
 
 Constructs a map from type names to anchor hrefs (for example, `"Accordion.Trigger" → "#trigger"`). Both dotted names and flat names from `typeNameMap` (for example, `"AccordionTrigger"`) are included, enabling linking from either naming convention.
 
-Global types mentioned on the page, such as `HTMLElement` or `Intl.LocalesArgument`, are mapped to their MDN page. Only names that appear in the page's types are added, and a type documented on the page, including one listed under External Types, takes precedence over the MDN link. The MDN table is generated from [`@mdn/browser-compat-data`](https://github.com/mdn/browser-compat-data) with `pnpm -F @mui/internal-docs-infra generate:mdn-type-links`.
-
-Matching is by name, so a type from a package that shares its name with a built-in type, such as a package's own `Range`, links to MDN unless the page documents it.
-
 > **Deep dive**: To understand the TypeScript extraction pipeline in detail, see [`loadServerTypesMeta`](../load-server-types-meta/page.mdx). For how `types.md` files are generated and written, see [`syncTypes`](../sync-types/page.mdx).
 
 ## Related

@@ -274,6 +274,22 @@ The `TypeRef` component receives `href`, `name`, and `className` properties from
 
 This option can be set at the factory level (applies to all types) or overridden per type via `TypesTableMeta.typeRefComponent`.
 
+## resolveExternalLink
+
+The `resolveExternalLink` option links types that the page does not document, such as built-in DOM and JavaScript types. Pass [`resolveServerMdnLink`](../../pipeline/resolve-server-mdn-link/page.mdx) to link them to MDN:
+
+```tsx
+import { resolveServerMdnLink } from '@mui/internal-docs-infra/pipeline/resolveServerMdnLink';
+
+export const createTypes = createTypesFactory({
+  TypesTable,
+  TypePre,
+  resolveExternalLink: resolveServerMdnLink,
+});
+```
+
+Types documented on the page keep their page links. This option can be set at the factory level or overridden per type via `TypesTableMeta.resolveExternalLink`.
+
 ## typePropRefComponent
 
 The `typePropRefComponent` option extends property-level linking to use a custom component element instead of plain `<span id>` / `<a href>` elements. When combined with `linkProps`, properties in type definitions, object literals, function calls, and JSX attributes link to their documentation anchors.
