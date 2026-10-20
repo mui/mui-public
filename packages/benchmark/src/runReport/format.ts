@@ -48,17 +48,18 @@ export type Tone = 'error' | 'warning' | 'success' | 'none';
 
 /**
  * The color a comparison draws the eye with: `error` for a regression that fails the check,
- * `warning` for any other change for the worse, `success` for one for the better, and `none` when
- * nothing moved.
+ * `warning` for any other change for the worse, `success` for an improvement — on an alarmed metric
+ * only past its band, as the pull request comment lists them — and `none` otherwise. A `compare()`'s
+ * variants have no band, so any of them confirmed better is one.
  */
-export function changeTone({ change, severity }: MetricComparison): Tone {
+export function changeTone({ alarm, change, severity, improved }: MetricComparison): Tone {
   if (severity === 'error') {
     return 'error';
   }
   if (change === 'worse') {
     return 'warning';
   }
-  return change === 'better' ? 'success' : 'none';
+  return improved || (alarm === null && change === 'better') ? 'success' : 'none';
 }
 
 // Rounds past which the t-distribution is the normal one, for estimating how many a run needs.

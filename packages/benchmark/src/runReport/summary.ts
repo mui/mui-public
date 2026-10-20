@@ -32,6 +32,8 @@ export interface BenchmarkSummary {
       against: string;
       change: Change;
       severity: Severity;
+      /** Whether the change is for the better past the alarm's band. */
+      improved: boolean;
       /** `subject − against`, in the metric's unit. */
       absolute: Interval;
       /** The same, as a percentage of `against`. */
@@ -65,11 +67,12 @@ export function summarizeRun(report: BenchmarkRunReport): RunSummary {
             Object.entries(variants).map(([variant, summary]) => [variant, summary.median]),
           ),
           comparisons: comparisons.map(
-            ({ subject, against, change, severity, absolute, relative }) => ({
+            ({ subject, against, change, severity, improved, absolute, relative }) => ({
               subject,
               against,
               change,
               severity,
+              improved,
               absolute,
               relative,
             }),
