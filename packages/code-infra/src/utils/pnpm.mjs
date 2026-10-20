@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 
 import { getPublishedByPolicy } from '@pnpm/config.version-policy';
+import { getConfig } from '@pnpm/config';
 import { parseWantedDependency } from '@pnpm/parse-wanted-dependency';
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
+import { createGetAuthHeaderByURI } from '@pnpm/network.auth-header';
 import { $ } from 'execa';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
@@ -259,10 +261,25 @@ export function conflictsWithLatestTag(version, latest) {
  * @returns {Promise<LatestTagConflict[]>}
  */
 export async function getLatestTagConflicts(packages) {
+  const { name = 'code-infra', version = '0.0.0' } = await readPackageJson(
+    path.resolve(import.meta.dirname, '../..'),
+  );
   const results = await Promise.all(
     packages.map(async (pkg) => {
-      const registry = await getPublishRegistry(pkg.path);
-      const res = await fetch(new URL(`-/package/${pkg.name}/dist-tags`, registry));
+      const [registry, workspaceDir] = await Promise.all([
+        getPublishRegistry(pkg.path),
+        findWorkspaceDir(pkg.path),
+      ]);
+      // Resolve credentials through pnpm's config layers, including the workspace
+      // .npmrc, environment variables, and the user's npm config.
+      const { config } = await getConfig({
+        cliOptions: { dir: pkg.path },
+        workspaceDir,
+        packageManager: { name, version },
+      });
+      const authorization = createGetAuthHeaderByURI({ allSettings: config.rawConfig })(registry);
+      const headers = authorization ? { authorization } : undefined;
+      const res = await fetch(new URL(`-/package/${pkg.name}/dist-tags`, registry), { headers });
       if (res.status === 404) {
         return null;
       }
@@ -279,6 +296,7 @@ export async function getLatestTagConflicts(packages) {
       // pnpm skips versions that are already published, such as unchanged packages on a legacy branch.
       const versionRes = await fetch(new URL(`${pkg.name}/${pkg.version}`, registry), {
         method: 'HEAD',
+        headers,
       });
       if (versionRes.ok) {
         return null;

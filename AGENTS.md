@@ -113,6 +113,13 @@ Applies to the whole repository.
 
 ### Common Issues and Workarounds
 
+#### Publish registry authentication
+
+- Publish preflight checks must honor the same registry authentication as pnpm. Plain `fetch`
+  does not read `.npmrc` credentials, and custom `publishConfig.registry` endpoints may require
+  authentication for metadata reads. Validate changes to these checks against an authenticated
+  registry as well as public npm.
+
 #### Peer dependency warnings
 
 ```bash

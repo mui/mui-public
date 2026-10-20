@@ -2,7 +2,13 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { describe, it, expect, vi } from 'vitest';
 
-import { makeTempDir, privatePkg, publicPkg, writePackage } from './testUtils.mjs';
+import {
+  createTestRegistry,
+  makeTempDir,
+  privatePkg,
+  publicPkg,
+  writePackage,
+} from './testUtils.mjs';
 import {
   checkPublishDependencies,
   conflictsWithLatestTag,
@@ -1041,6 +1047,49 @@ describe('getLatestTagConflicts', () => {
       getLatestTagConflicts([await pkgWithVersion(root, 'my-package', '1.0.0')]),
     ).rejects.toThrow(/my-package.*HTTP 500/);
   });
+
+  it.each([
+    ['2.3.0', '2.4.0'],
+    ['2.4.0', '2.4.1'],
+    ['2.0.0-beta.2', '2.0.0-beta.3'],
+  ])('rejects unpublished %s when latest is %s', async (version, latest) => {
+    const root = await makeTempDir();
+    vi.stubEnv('npm_config_registry', undefined);
+    stubRegistry({ '@scope/example': latest });
+    const pkg = await pkgWithVersion(root, '@scope/example', version);
+
+    expect(await getLatestTagConflicts([pkg])).toEqual([{ pkg, latest }]);
+  });
+
+  it.each([
+    { version: '1.1.0', conflicts: true },
+    { version: '1.0.0', conflicts: false },
+    { version: '2.1.0', conflicts: false },
+  ])(
+    'uses workspace credentials to check $version on a custom registry',
+    async ({ version, conflicts }) => {
+      const root = await makeTempDir();
+      const registry = await createTestRegistry(
+        { '@scope/example': { latest: '2.0.0', versions: ['1.0.0', '2.0.0'] } },
+        { authenticate: true },
+      );
+      await fs.writeFile(path.join(root, 'pnpm-workspace.yaml'), "packages:\n  - 'packages/*'\n");
+      await fs.writeFile(
+        path.join(root, '.npmrc'),
+        `${new URL(registry.url).href.slice('http:'.length)}:_authToken=${registry.token}\n`,
+      );
+      const pkgDir = await writePackage(root, 'packages/example', {
+        name: '@scope/example',
+        version,
+        publishConfig: { registry: registry.url },
+      });
+      const pkg = { ...publicPkg('@scope/example', pkgDir), version };
+
+      expect(await getLatestTagConflicts([pkg])).toEqual(
+        conflicts ? [{ pkg, latest: '2.0.0' }] : [],
+      );
+    },
+  );
 });
 
 describe('selectAgedVersion', () => {
