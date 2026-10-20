@@ -1,14 +1,15 @@
 /**
- * Generates `src/pipeline/resolveServerMdnLink/mdnTypeLinks.ts`.
+ * Generates `src/pipeline/resolveServerMdnLink/mdnTypeLinks.ts`, a map from the types declared in
+ * TypeScript's lib files to their MDN page.
  *
- * Interfaces and global objects come from `@mdn/browser-compat-data`. Types that only
- * exist in TypeScript's lib files, such as `Intl.NumberFormatOptions`, link to the MDN
- * section of the parameter they are used for, such as the `options` parameter of the
- * `Intl.NumberFormat()` constructor. Those sections are checked against the live MDN
- * pages, so generating needs network access.
+ * - Interfaces and global objects link to their page in `@mdn/browser-compat-data`.
+ * - Aliases of another type, such as `WindowProxy`, link to that type's page.
+ * - Other types, such as `Intl.NumberFormatOptions`, link to the section of the parameter they
+ *   describe, read from the MDN source in `mdn/content` at `MDN_CONTENT_COMMIT`.
  *
  * Run with `pnpm -F @mui/internal-docs-infra generate:mdn-type-links` after bumping
- * `@mdn/browser-compat-data` or `typescript`.
+ * `@mdn/browser-compat-data`, `typescript`, or `MDN_CONTENT_COMMIT`. Reading `mdn/content` needs
+ * network access, but the output only depends on these three inputs.
  */
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
@@ -16,6 +17,8 @@ import * as prettier from 'prettier';
 import ts from 'typescript';
 import bcd from '@mdn/browser-compat-data' with { type: 'json' };
 import type { Identifier } from '@mdn/browser-compat-data';
+
+const MDN_CONTENT_COMMIT = '6c2954d3490bd0f445547e1ec359684c5cb36712';
 
 const MDN_URL_PREFIX = 'https://developer.mozilla.org/docs/';
 
@@ -25,21 +28,12 @@ const OUTPUT_FILE = new URL(
 );
 
 /**
- * Globals that only exist as values, never as type names.
- */
-const VALUE_ONLY_GLOBALS = new Set(['Infinity', 'NaN']);
-
-/**
- * Types used by too many parameters to pick one automatically, mapped to the MDN
- * section that explains them.
+ * Types used by too many parameters to pick one automatically, mapped to the MDN section that
+ * explains them.
  */
 const OVERRIDES: Record<string, string> = {
   'Intl.LocalesArgument': `${MDN_URL_PREFIX}Web/JavaScript/Reference/Global_Objects/Intl#locales_argument`,
 };
-
-function isTypeName(name: string): boolean {
-  return /^[A-Z]/.test(name) && !VALUE_ONLY_GLOBALS.has(name);
-}
 
 /**
  * Lists the child features of `identifier`, without its own `__compat` statement.
@@ -57,55 +51,43 @@ function getMdnUrl(identifier: Identifier | undefined): string | undefined {
 }
 
 /**
- * Collects the interfaces and global objects that have an MDN page of their own.
+ * Returns the MDN page of a type that BCD documents under the same name, such as `HTMLElement`
+ * or `Intl.NumberFormat`.
  */
-function collectPageLinks(): Record<string, string> {
-  const links: Record<string, string> = {};
-
-  for (const [name, identifier] of [
-    ...getMembers(bcd.api),
-    ...getMembers(bcd.javascript.builtins),
-  ]) {
-    const url = getMdnUrl(identifier);
-    if (!isTypeName(name) || !url) {
-      continue;
-    }
-    links[name] = url;
-
-    // Namespaced objects such as `Intl.NumberFormat` or `Temporal.PlainDate`
-    for (const [memberName, member] of getMembers(identifier)) {
-      const memberUrl = getMdnUrl(member);
-      if (
-        isTypeName(memberName) &&
-        memberName !== name &&
-        memberUrl?.endsWith(`/${name}/${memberName}`)
-      ) {
-        links[`${name}.${memberName}`] = memberUrl;
-      }
-    }
+function findTypePage(typeName: string): string | undefined {
+  const [first, ...rest] = typeName.split('.');
+  if (rest.length === 0) {
+    return getMdnUrl(bcd.api[first]) ?? getMdnUrl(bcd.javascript.builtins[first]);
   }
-
-  return links;
+  // Namespaced objects such as `Intl.NumberFormat` are documented under their namespace.
+  const member = rest.length === 1 ? bcd.javascript.builtins[first]?.[rest[0]] : undefined;
+  const url = getMdnUrl(member as Identifier | undefined);
+  return url?.endsWith(`/${first}/${rest[0]}`) ? url : undefined;
 }
 
 type ParameterUsage = {
   /** MDN page of the method or constructor that takes the parameter. */
   url: string;
-  /** Candidate section ids on that page, most likely first. */
-  anchors: string[];
-  /** Name of the owning interface and of the method, used to rank usages. */
+  /** Name of the parameter in TypeScript's lib files. */
+  parameterName: string;
+  /** Position of the parameter, and how many parameters the signature has. */
+  parameterIndex: number;
+  parameterCount: number;
+  /** Names of the owning interface and of the method, used to rank usages. */
   names: string[];
 };
 
 type LibAnalysis = {
-  /** Parameters typed with each lib-only type, whose method or constructor has an MDN page. */
-  usages: Map<string, ParameterUsage[]>;
-  /** Lib-only aliases of another named type, such as `WindowProxy` for `Window`. */
+  /** Names of the interfaces, type aliases, and classes declared only in lib files. */
+  typeNames: Set<string>;
+  /** Aliases of another named type, such as `WindowProxy` for `Window`. */
   aliases: Map<string, string>;
+  /** Parameters typed with each lib type, whose method or constructor has an MDN page. */
+  usages: Map<string, ParameterUsage[]>;
 };
 
 /**
- * Analyzes the types declared only in TypeScript's lib files.
+ * Analyzes the types declared in TypeScript's lib files.
  */
 function analyzeLibFiles(): LibAnalysis {
   const libDirectory = path.dirname(ts.getDefaultLibFilePath({}));
@@ -172,6 +154,8 @@ function analyzeLibFiles(): LibAnalysis {
     return ts.isParenthesizedTypeNode(typeNode) ? getReferences(typeNode.type) : [];
   }
 
+  const typeNames = new Set<string>();
+  const aliases = new Map<string, string>();
   const usages = new Map<string, ParameterUsage[]>();
 
   function record(
@@ -183,9 +167,9 @@ function analyzeLibFiles(): LibAnalysis {
     if (!url) {
       return;
     }
-    for (const parameter of parameters) {
+    parameters.forEach((parameter, parameterIndex) => {
       if (!ts.isIdentifier(parameter.name)) {
-        continue;
+        return;
       }
       for (const reference of getReferences(parameter.type)) {
         const symbol = checker.getSymbolAtLocation(reference.typeName);
@@ -193,30 +177,29 @@ function analyzeLibFiles(): LibAnalysis {
           continue;
         }
         const typeName = checker.getFullyQualifiedName(symbol);
-        const shortName = typeName.slice(typeName.lastIndexOf('.') + 1);
         usages.set(typeName, [
           ...(usages.get(typeName) ?? []),
           {
             url,
-            // MDN usually names the section after the parameter, and calls dictionaries `options`.
-            anchors: [parameter.name.text.toLowerCase(), shortName.toLowerCase(), 'options'],
+            parameterName: parameter.name.text,
+            parameterIndex,
+            parameterCount: parameters.length,
             names: [ownerPath[ownerPath.length - 1], member],
           },
         ]);
       }
-    }
+    });
   }
 
-  const aliases = new Map<string, string>();
-
   function visit(node: ts.Node, namespace: string[]) {
-    if (ts.isTypeAliasDeclaration(node) && ts.isTypeReferenceNode(node.type)) {
-      const target = checker.getSymbolAtLocation(node.type.typeName);
-      if (target) {
-        aliases.set(
-          [...namespace, node.name.text].join('.'),
-          checker.getFullyQualifiedName(target),
-        );
+    if (ts.isTypeAliasDeclaration(node)) {
+      const name = [...namespace, node.name.text].join('.');
+      typeNames.add(name);
+      if (ts.isTypeReferenceNode(node.type)) {
+        const target = checker.getSymbolAtLocation(node.type.typeName);
+        if (target) {
+          aliases.set(name, checker.getFullyQualifiedName(target));
+        }
       }
     } else if (ts.isModuleDeclaration(node) && ts.isIdentifier(node.name) && node.body) {
       const inner = [...namespace, node.name.text];
@@ -225,6 +208,7 @@ function analyzeLibFiles(): LibAnalysis {
       node.forEachChild((child) => visit(child, namespace));
     } else if (ts.isInterfaceDeclaration(node)) {
       const name = node.name.text;
+      typeNames.add([...namespace, name].join('.'));
       for (const member of node.members) {
         if (ts.isMethodSignature(member) && ts.isIdentifier(member.name)) {
           record([...namespace, name], member.name.text, member.parameters);
@@ -233,6 +217,8 @@ function analyzeLibFiles(): LibAnalysis {
           record([...namespace, owner], owner, member.parameters);
         }
       }
+    } else if (ts.isClassDeclaration(node) && node.name) {
+      typeNames.add([...namespace, node.name.text].join('.'));
     } else if (ts.isVariableStatement(node)) {
       // `declare var IntersectionObserver: { new (...): IntersectionObserver }`
       for (const declaration of node.declarationList.declarations) {
@@ -259,7 +245,7 @@ function analyzeLibFiles(): LibAnalysis {
     sourceFile.forEachChild((child) => visit(child, []));
   }
 
-  return { usages, aliases };
+  return { typeNames, aliases, usages };
 }
 
 /**
@@ -285,36 +271,114 @@ function pickUsage(typeName: string, usages: ParameterUsage[]): ParameterUsage |
   return new Set(usages.map((usage) => usage.url)).size === 1 ? usages[0] : undefined;
 }
 
+type MdnPage = {
+  /** Parameter names in the order the page lists them, lowercased like MDN's section ids. */
+  parameters: string[];
+  /** Ids of the page's headings. */
+  headings: Set<string>;
+};
+
 /**
- * Fetches each MDN page once and returns the section ids it contains.
+ * Returns where `mdn/content` stores the source of an MDN page.
  */
-async function fetchSectionIds(urls: string[]): Promise<Map<string, Set<string>>> {
-  const sections = new Map<string, Set<string>>();
+function getContentPath(url: string): string {
+  const slug = url
+    .slice(MDN_URL_PREFIX.length)
+    .toLowerCase()
+    .replaceAll('::', '_doublecolon_')
+    .replaceAll(':', '_colon_')
+    .replaceAll('*', '_star_')
+    .replaceAll('?', '_question_');
+  return `files/en-us/${slug}/index.md`;
+}
+
+/**
+ * Reads the parameter list and headings from the source of an MDN page.
+ */
+function parseMdnPage(markdown: string): MdnPage {
+  const parameters: string[] = [];
+  const headings = new Set<string>();
+  let inParameters = false;
+
+  for (const line of markdown.split('\n')) {
+    const heading = /^#{2,6} (.+)$/.exec(line);
+    if (heading) {
+      const text = heading[1].trim();
+      headings.add(text.replaceAll('`', '').toLowerCase().replaceAll(' ', '_'));
+      inParameters = text === 'Parameters' || text === 'Values';
+      continue;
+    }
+    // Only plain names, since MDN derives the section id from the listed text.
+    const parameter = inParameters ? /^- `([\w$]+)`/.exec(line) : null;
+    if (parameter) {
+      parameters.push(parameter[1].toLowerCase());
+    }
+  }
+
+  return { parameters, headings };
+}
+
+/**
+ * Fetches the source of each MDN page at `MDN_CONTENT_COMMIT`. Pages missing from `mdn/content`
+ * are left out.
+ */
+async function fetchMdnPages(urls: string[]): Promise<Map<string, MdnPage>> {
+  const pages = new Map<string, MdnPage>();
   const queue = [...new Set(urls)];
 
-  // A few workers drain the queue one page at a time to stay polite to MDN.
+  // A few workers drain the queue one page at a time to stay polite to GitHub.
   async function worker() {
     for (let url = queue.pop(); url; url = queue.pop()) {
       // eslint-disable-next-line no-await-in-loop
       const response = await fetch(
-        url.replace(MDN_URL_PREFIX, 'https://developer.mozilla.org/en-US/docs/'),
+        `https://raw.githubusercontent.com/mdn/content/${MDN_CONTENT_COMMIT}/${getContentPath(url)}`,
       );
+      if (response.status === 404) {
+        continue;
+      }
       if (!response.ok) {
-        throw new Error(`Fetching ${url} failed with ${response.status}`);
+        throw new Error(`Fetching the MDN source of ${url} failed with ${response.status}`);
       }
       // eslint-disable-next-line no-await-in-loop
-      const html = await response.text();
-      sections.set(url, new Set(Array.from(html.matchAll(/ id="([^"]+)"/g), (match) => match[1])));
+      pages.set(url, parseMdnPage(await response.text()));
     }
   }
 
   await Promise.all(Array.from({ length: 8 }, worker));
-  return sections;
+  return pages;
+}
+
+/**
+ * Finds the MDN section of a parameter: the one with the TypeScript parameter's name, the one in
+ * the same position when both list the same number of parameters, or `options`.
+ */
+function findParameterSection(
+  usage: ParameterUsage,
+  page: MdnPage | undefined,
+): string | undefined {
+  if (!page) {
+    return undefined;
+  }
+  const name = usage.parameterName.toLowerCase();
+  if (page.parameters.includes(name)) {
+    return name;
+  }
+  if (page.parameters.length === usage.parameterCount) {
+    return page.parameters[usage.parameterIndex];
+  }
+  return page.parameters.includes('options') ? 'options' : undefined;
 }
 
 async function collectLinks(): Promise<Record<string, string>> {
-  const links = collectPageLinks();
-  const { usages: parameterUsages, aliases } = analyzeLibFiles();
+  const { typeNames, aliases, usages } = analyzeLibFiles();
+  const links: Record<string, string> = {};
+
+  for (const typeName of typeNames) {
+    const url = findTypePage(typeName);
+    if (url) {
+      links[typeName] = url;
+    }
+  }
 
   for (const [alias, target] of aliases) {
     if (!(alias in links) && target in links) {
@@ -323,28 +387,28 @@ async function collectLinks(): Promise<Record<string, string>> {
   }
 
   const picked = new Map<string, ParameterUsage>();
-  for (const [typeName, usages] of parameterUsages) {
+  for (const [typeName, typeUsages] of usages) {
     const usage =
-      typeName in links || typeName in OVERRIDES ? undefined : pickUsage(typeName, usages);
+      typeName in links || typeName in OVERRIDES ? undefined : pickUsage(typeName, typeUsages);
     if (usage) {
       picked.set(typeName, usage);
     }
   }
 
-  const overrideUrls = Object.values(OVERRIDES);
-  const sections = await fetchSectionIds([
+  const overridePages = Object.values(OVERRIDES).map((url) => url.slice(0, url.indexOf('#')));
+  const pages = await fetchMdnPages([
     ...Array.from(picked.values(), (usage) => usage.url),
-    ...overrideUrls.map((url) => url.slice(0, url.indexOf('#'))),
+    ...overridePages,
   ]);
 
   for (const [typeName, usage] of picked) {
-    const anchor = usage.anchors.find((candidate) => sections.get(usage.url)?.has(candidate));
-    links[typeName] = anchor ? `${usage.url}#${anchor}` : usage.url;
+    const section = findParameterSection(usage, pages.get(usage.url));
+    links[typeName] = section ? `${usage.url}#${section}` : usage.url;
   }
 
   for (const [typeName, url] of Object.entries(OVERRIDES)) {
-    const [page, anchor] = url.split('#');
-    if (!sections.get(page)?.has(anchor)) {
+    const [page, section] = url.split('#');
+    if (!pages.get(page)?.headings.has(section)) {
       throw new Error(`The override for ${typeName} points to a missing section: ${url}`);
     }
     links[typeName] = url;
@@ -360,10 +424,11 @@ async function main() {
   // eslint-disable-next-line no-underscore-dangle
   const bcdVersion = bcd.__meta.version;
   const source = `// This file is generated by scripts/generateMdnTypeLinks.mts. Do not edit it manually.
-// Data from @mdn/browser-compat-data ${bcdVersion} and typescript ${ts.version}.
+// Data from @mdn/browser-compat-data ${bcdVersion}, typescript ${ts.version}, and mdn/content ${MDN_CONTENT_COMMIT}.
 
 /**
- * Maps global type names (e.g. \`HTMLElement\`, \`Intl.NumberFormatOptions\`) to their MDN page.
+ * Maps types declared in TypeScript's lib files (e.g. \`HTMLElement\`, \`Intl.NumberFormatOptions\`)
+ * to their MDN page.
  */
 export const MDN_TYPE_LINKS: Record<string, string> = ${JSON.stringify(links)};
 `;

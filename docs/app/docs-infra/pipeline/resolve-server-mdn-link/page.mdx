@@ -66,13 +66,13 @@ import { TypesResolveServerMdnLink } from './types';
 
 ## How the Table Is Generated
 
-The links come from a table generated with `pnpm -F @mui/internal-docs-infra generate:mdn-type-links`:
+The links come from a table generated with `pnpm -F @mui/internal-docs-infra generate:mdn-type-links`. It maps every type declared in TypeScript's lib files to an MDN page:
 
-1. Interfaces and global objects come from [`@mdn/browser-compat-data`](https://github.com/mdn/browser-compat-data).
-2. For types that only exist in TypeScript's lib files, the generator finds the parameters typed with them. It prefers the method or constructor whose name starts the type's name, such as `addEventListener` for `AddEventListenerOptions`, and skips types used too widely to pick one.
-3. Each parameter section is checked against the live MDN page. When the section is missing, the type links to the page itself.
+1. Types that MDN documents under the same name link to their page from [`@mdn/browser-compat-data`](https://github.com/mdn/browser-compat-data).
+2. Aliases of such a type link to the page of the type they alias.
+3. Other types link to the method or constructor that takes them as a parameter. The generator prefers the one whose name starts the type's name, such as `addEventListener` for `AddEventListenerOptions`, and skips types used too widely to pick one. The section is read from the parameter list in the page's source in [`mdn/content`](https://github.com/mdn/content), at the commit pinned in the generator.
 
-Rerun the generator after bumping `@mdn/browser-compat-data` or `typescript`.
+The table only depends on the versions of `@mdn/browser-compat-data` and `typescript` and on the pinned `mdn/content` commit, so rerun the generator after bumping any of them.
 
 ## Related
 
