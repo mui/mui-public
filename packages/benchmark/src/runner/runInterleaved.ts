@@ -347,7 +347,9 @@ async function runBenchFile(
       return { benchmark: { ...plan.entry, error, durationMs }, metrics: {} };
     }
     const { sampleSize, timeout } = plan.sampling;
-    if (rounds.length > sampleSize || !settled) {
+    // A `timeout` of 0 asks for exactly `sampleSize` rounds: stopping there unsettled is the plan.
+    const timedOut = !settled && timeout > 0;
+    if (rounds.length > sampleSize || timedOut) {
       const outcome = settled ? 'settled' : `timed out after ${timeout} min`;
       console.log(
         chalk.dim(
@@ -358,7 +360,7 @@ async function runBenchFile(
     return {
       benchmark: {
         ...benchmarkOf(progress),
-        sampling: { sampleSize, timedOut: !settled },
+        sampling: { sampleSize, timedOut },
         durationMs: Math.round(durationMs),
       },
       metrics: progress.metrics ?? {},
