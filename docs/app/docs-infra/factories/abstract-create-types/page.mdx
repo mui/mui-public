@@ -280,6 +280,8 @@ The `resolveExternalLink` option links types that the page does not document, su
 
 This option can be set at the factory level or overridden per type via `TypesTableMeta.resolveExternalLink`.
 
+To link built-in DOM and JavaScript types such as `HTMLElement` to MDN, pass [`resolveMdnLink`](../../pipeline/resolve-mdn-link/page.mdx).
+
 ## typePropRefComponent
 
 The `typePropRefComponent` option extends property-level linking to use a custom component element instead of plain `<span id>` / `<a href>` elements. When combined with `linkProps`, properties in type definitions, object literals, function calls, and JSX attributes link to their documentation anchors.

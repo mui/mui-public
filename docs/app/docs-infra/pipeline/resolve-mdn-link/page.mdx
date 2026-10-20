@@ -1,0 +1,82 @@
+# Resolve MDN Link
+
+The `resolveMdnLink` function returns the MDN page for a common built-in type, such as `HTMLElement`, `Intl.NumberFormat`, or `Intl.LocalesArgument`, or `null` for any other type.
+
+## Usage
+
+Pass it as `resolveExternalLink` to the types factory so built-in types in type signatures link to MDN:
+
+```ts
+import { createTypesFactory } from '@mui/internal-docs-infra/abstractCreateTypes';
+import { resolveMdnLink } from '@mui/internal-docs-infra/pipeline/resolveMdnLink';
+
+export const createTypes = createTypesFactory({
+  TypesTable,
+  TypePre,
+  resolveExternalLink: resolveMdnLink,
+});
+```
+
+Types documented on the page keep their page links, and only the type name is linked. See the [`resolveExternalLink` option](../enhance-code-types/page.mdx#resolveexternallink-option) of `enhanceCodeTypes`.
+
+It can also be called directly:
+
+```ts
+resolveMdnLink('HTMLElement');
+// 'https://developer.mozilla.org/docs/Web/API/HTMLElement'
+
+resolveMdnLink('Intl.NumberFormatOptions');
+// 'https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Intl/NumberFormat/NumberFormat#options'
+
+resolveMdnLink('Button');
+// null
+```
+
+## Which Types Resolve
+
+The function looks names up in a hand-picked list of the built-in types MUI libraries use in their public APIs, not every type MDN documents:
+
+- **DOM types**, such as `HTMLElement`, `SVGSVGElement`, `PointerEvent`, or `ResizeObserver`, link to their page.
+- **JavaScript built-ins**, such as `Date`, `Promise`, `Intl.NumberFormat`, or `Temporal.PlainDate`, link to their page.
+- **Types that only exist in TypeScript**, such as `Intl.NumberFormatOptions` or `Intl.LocalesArgument`, link to the section that describes them: the `options` parameter of the `Intl.NumberFormat()` constructor, or the locales argument on the `Intl` page.
+
+To link a type the list does not have, add it to the list, or resolve it before falling back to `resolveMdnLink`:
+
+```ts
+const LINKS: Record<string, string> = {
+  GPUDevice: 'https://developer.mozilla.org/docs/Web/API/GPUDevice',
+};
+
+export const createTypes = createTypesFactory({
+  TypesTable,
+  TypePre,
+  resolveExternalLink: (name, source) => LINKS[name] ?? resolveMdnLink(name, source),
+});
+```
+
+### With a Source
+
+When you know where a type is declared, pass it as the second argument. Only types declared in the DOM, JavaScript, or worker lib files resolve:
+
+```ts
+resolveMdnLink('Event', { kind: 'lib', files: ['lib.dom.d.ts'] });
+// 'https://developer.mozilla.org/docs/Web/API/Event'
+
+resolveMdnLink('Event', { kind: 'package', name: 'some-package' });
+// null
+```
+
+Without a source, matching is by name, so a package's own `Event` also resolves to the DOM `Event` page. `enhanceCodeTypes` does not pass a source to `resolveExternalLink` yet, so links from type documentation match by name.
+
+## Types
+
+import { TypesResolveMdnLink } from './types';
+
+<TypesResolveMdnLink />
+
+[See Types](./types.md)
+
+## Related
+
+- [Enhance Code Types](../enhance-code-types/page.mdx) - Links type references in code
+- [Abstract Create Types](../../factories/abstract-create-types/page.mdx) - Creates type documentation factories

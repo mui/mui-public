@@ -25,6 +25,7 @@
 - Loader Utilities - ([Outline](#loader-utilities), [Contents](./loader-utils/page.mdx))
 - Parse Create Factory Call [New] - ([Outline](#parse-create-factory-call), [Contents](./parse-create-factory-call/page.mdx))
 - Parse Source - ([Outline](#parse-source), [Contents](./parse-source/page.mdx))
+- Resolve MDN Link [New] - ([Outline](#resolve-mdn-link), [Contents](./resolve-mdn-link/page.mdx))
 - Sync Page Index - ([Outline](#sync-page-index), [Contents](./sync-page-index/page.mdx))
 - Sync Types - ([Outline](#sync-types), [Contents](./sync-types/page.mdx))
 - Transform HTML Code Block - ([Outline](#transform-html-code-block), [Contents](./transform-html-code-block/page.mdx))
@@ -1159,6 +1160,28 @@ The `parseSource` utility parses source code into HAST (Hypertext Abstract Synta
 </details>
 
 [Read more](./parse-source/page.mdx)
+
+## Resolve MDN Link
+
+The `resolveMdnLink` function returns the MDN page for a common built-in type, such as `HTMLElement`, `Intl.NumberFormat`, or `Intl.LocalesArgument`, or `null` for any other type.
+
+<details>
+
+<summary>Outline</summary>
+
+- Sections:
+  - Usage
+  - Which Types Resolve
+    - With a Source
+  - Types
+  - Related
+- Exports:
+  - resolveMdnLink
+    - Parameters: name, source
+
+</details>
+
+[Read more](./resolve-mdn-link/page.mdx)
 
 ## Sync Page Index
 
