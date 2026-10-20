@@ -684,6 +684,28 @@ function resolveTypeHref(
 }
 
 /**
+ * Resolves a type name that neither the link map nor scope knows through
+ * `resolveExternalLink`. Declarations and names bound in scope refer to local
+ * code, so they are left unlinked. External links only link the name; owner
+ * tracking keeps using `linkMap`.
+ */
+function resolveExternalHref(
+  identifier: string,
+  options: EnhanceOptions,
+  state: ScanState,
+  isDeclaration: boolean,
+): string | undefined {
+  if (
+    !options.resolveExternalLink ||
+    isDeclaration ||
+    state.scopeStack.some((scope) => scope.bindings.has(identifier))
+  ) {
+    return undefined;
+  }
+  return options.resolveExternalLink(identifier) ?? undefined;
+}
+
+/**
  * Handles a linkable span (pl-c1 or pl-en).
  * Detects chains (Accordion.Trigger.State), links them, and updates state.
  */
@@ -765,12 +787,10 @@ function handleLinkableSpan(
     }
   }
 
-  // External links only link the name; owner tracking below keeps using `linkMap`.
   const href =
     cssClassHref ??
     resolveTypeHref(identifier, linkMap, state) ??
-    options.resolveExternalLink?.(identifier) ??
-    undefined;
+    resolveExternalHref(identifier, options, state, Boolean(isVarDecl));
   const nodes: ElementContent[] = [];
 
   if (isBareCssClass) {

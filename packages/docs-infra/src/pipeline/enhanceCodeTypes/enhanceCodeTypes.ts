@@ -45,7 +45,7 @@ export interface EnhanceCodeTypesOptions {
   /**
    * Resolves type names that `linkMap` does not know to documentation elsewhere,
    * such as the docs of a dependency.
-   * Return `null` to leave a name unlinked. `source` is passed when it is known.
+   * Return `null` to leave a name unlinked. The plugin does not pass `source` yet.
    *
    * Only the type name itself is linked. External links never act as owners for
    * property or parameter anchors.
@@ -224,7 +224,8 @@ export default function enhanceCodeTypes(options: EnhanceCodeTypesOptions) {
       }
       const enhanceOptions: EnhanceOptions = {
         linkMap,
-        resolveExternalLink: options.resolveExternalLink,
+        // Type names only occur in JS-family code; CSS values such as `Highlight` are not types.
+        resolveExternalLink: lang.semantics === 'js' ? options.resolveExternalLink : undefined,
         typeRefComponent: options.typeRefComponent,
         typePropRefComponent: options.typePropRefComponent,
         typeParamRefComponent: options.typeParamRefComponent,
