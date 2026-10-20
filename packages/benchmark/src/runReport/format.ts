@@ -43,11 +43,11 @@ export function formatPercent(interval: Interval): string {
   return `${signed(interval.low)} – ${signed(interval.high)}`;
 }
 
-/** The colour a renderer draws the eye with; a `Severity` is one too. */
+/** The color a renderer draws the eye with; a `Severity` is one too. */
 export type Tone = 'error' | 'warning' | 'success' | 'none';
 
 /**
- * The colour a comparison draws the eye with: `error` for a regression that fails the check,
+ * The color a comparison draws the eye with: `error` for a regression that fails the check,
  * `warning` for any other change for the worse, `success` for one for the better, and `none` when
  * nothing moved.
  */
@@ -65,7 +65,7 @@ export function changeTone({ change, severity }: MetricComparison): Tone {
 const MANY_ROUNDS = 1000;
 
 /**
- * The colour a comparison's precision draws the eye with: `error` when a regression the alarm would
+ * The color a comparison's precision draws the eye with: `error` when a regression the alarm would
  * raise — one past its `error` band — could hide in the interval, `none` otherwise.
  */
 export function precisionTone({ alarm, precision }: MetricComparison): Tone {

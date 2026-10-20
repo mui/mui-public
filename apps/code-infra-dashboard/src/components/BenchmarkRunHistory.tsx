@@ -25,7 +25,7 @@ import ErrorDisplay from './ErrorDisplay';
  * read off the chart directly, rather than inferred from a noisy trend.
  */
 
-// An `unchanged` comparison sits at zero, so it has no bar to colour.
+// An `unchanged` comparison sits at zero, so it has no bar to color.
 const CHANGE_COLORS: Record<Exclude<Change, 'unchanged'>, string> = {
   worse: 'var(--mui-palette-error-main)',
   better: 'var(--mui-palette-success-main)',
@@ -110,7 +110,7 @@ export default function BenchmarkRunHistory({ repo }: BenchmarkRunHistoryProps) 
       (name): name is string => name != null && metricNames.includes(name),
     ) ?? null;
 
-  // One series per kind of change, so each bar takes its change's colour. A commit's bar is the
+  // One series per kind of change, so each bar takes its change's color. A commit's bar is the
   // midpoint of its confidence interval; the tooltip gives the interval itself.
   const series = React.useMemo(() => {
     const selected = points.map((point) =>

@@ -39,7 +39,7 @@ import Heading from '../components/Heading';
 import ReportHeader from '../components/ReportHeader';
 import ErrorDisplay from '../components/ErrorDisplay';
 
-/** A cell's colours: a tinted background where something needs a look, so the eye finds it. */
+/** A cell's colors: a tinted background where something needs a look, so the eye finds it. */
 function toneSx(tone: Tone): SxProps<Theme> {
   if (tone === 'none') {
     return { color: 'text.secondary' };
@@ -59,7 +59,7 @@ const COLUMN_WIDTHS: Record<BenchmarkTableColumn['kind'], number> = {
   precision: 110,
 };
 
-/** A table cell's colour: a comparison by its change, a precision by whether a regression could hide. */
+/** A table cell's color: a comparison by its change, a precision by whether a regression could hide. */
 function cellSx(row: BenchmarkTableRow, column: BenchmarkTableColumn): SxProps<Theme> | undefined {
   if (column.comparison === undefined) {
     return undefined;

@@ -241,7 +241,7 @@ You can also `record()` or `time()` from inside a `benchmark()` render function 
 How a regression is judged depends on which report the repository uploads:
 
 - **Version 1** (this Vitest reporter) compares the two runs' means. A scalar metric's change must pass a band; with neither band set, `error` is the dashboard's ±20% noise band. A discrete metric flags any change in its mean.
-- **Version 2** ([the `benchmark` CLI](#the-benchmark-cli)) first needs the metric's confidence interval to lie wholly on the worse side; the `error` band then applies to the end of that interval nearest zero, so a change alarms only once it is confidently that large. Without an `error` band, a scalar metric uses 5% and a discrete one alarms on any confirmed change in its count. Version 2 has no `warn`: the dashboard colours every confirmed change for the worse, and the PR comment shows only alarms. A benchmark can override a metric's alarm for itself; see [Choosing what alarms](#choosing-what-alarms).
+- **Version 2** ([the `benchmark` CLI](#the-benchmark-cli)) first needs the metric's confidence interval to lie wholly on the worse side; the `error` band then applies to the end of that interval nearest zero, so a change alarms only once it is confidently that large. Without an `error` band, a scalar metric uses 5% and a discrete one alarms on any confirmed change in its count. Version 2 has no `warn`: the dashboard colors every confirmed change for the worse, and the PR comment shows only alarms. A benchmark can override a metric's alarm for itself; see [Choosing what alarms](#choosing-what-alarms).
 
 Alarms are evaluated against the baseline when the PR comment is generated, not during the local `vitest run` — a regression never fails the test suite locally. In a version 1 PR comment, `error`-band regressions surface as failures and `warn`-band regressions as warnings.
 
@@ -585,7 +585,7 @@ benchmark grid -t "scroll$" --sample-size 20 --timeout 0
 `--reporter json` prints the run's analysis to stdout as JSON — per benchmark and metric, each
 variant's median and each comparison's interval, verdict and severity, plus the regressions and how
 long it all took — with everything else a run prints sent to stderr. `summarizeRun` from
-`@mui/internal-benchmark/runReport` produces the same from a report. `NO_COLOR` turns colour off.
+`@mui/internal-benchmark/runReport` produces the same from a report. `NO_COLOR` turns color off.
 
 `--profile` records instead of measuring: each sample runs in a freshly loaded page of its own, with
 a performance trace around it, saved under `.benchmark/traces/` to open in DevTools' Performance

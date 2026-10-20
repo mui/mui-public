@@ -144,7 +144,7 @@ const uploadCommand: CommandModule<{}, { file?: string; timeline?: string }> = {
 };
 
 // chalk honours FORCE_COLOR and --no-color, not the NO_COLOR convention (https://no-color.org):
-// set to anything but an empty string, it turns colour off.
+// set to anything but an empty string, it turns color off.
 if (process.env.NO_COLOR) {
   chalk.level = 0;
 }
