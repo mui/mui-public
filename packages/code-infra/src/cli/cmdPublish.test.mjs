@@ -67,10 +67,12 @@ async function createPublishWorkspace(registry, versions) {
  * Invoke the actual CLI and pnpm publisher against the fixture's local registry.
  * @param {string} cwd
  * @param {string[]} [args]
+ * @param {NodeJS.ProcessEnv} [env]
  */
-function publish(cwd, args = []) {
+function publish(cwd, args = [], env = {}) {
   return execa(process.execPath, [CLI_PATH, 'publish', '--ci', ...args], {
     cwd,
+    env,
     reject: false,
   });
 }
@@ -118,7 +120,7 @@ describe('publish', () => {
   it('publishes an older release with an explicit legacy tag', async () => {
     const registry = await createTestRegistry(
       { '@scope/example': { tags: { latest: '2.0.0' } } },
-      { authenticate: true },
+      { authenticate: 'bearer' },
     );
     const root = await createPublishWorkspace(registry, { '@scope/example': '1.1.0' });
 
@@ -133,7 +135,7 @@ describe('publish', () => {
   it('publishes a newer latest release using configured registry credentials', async () => {
     const registry = await createTestRegistry(
       { '@scope/example': { tags: { latest: '2.0.0' } } },
-      { authenticate: true },
+      { authenticate: 'bearer' },
     );
     const root = await createPublishWorkspace(registry, { '@scope/example': '2.1.0' });
 
@@ -142,4 +144,64 @@ describe('publish', () => {
     expect(result).toMatchObject({ exitCode: 0 });
     expect(registry.published).toEqual([{ name: '@scope/example', tags: { latest: '2.1.0' } }]);
   });
+
+  it.each([
+    {
+      action: 'publishes a newer release',
+      version: '2.1.0',
+      published: true,
+      expectedResult: { exitCode: 0 },
+    },
+    {
+      action: 'rejects an unpublished downgrade',
+      version: '1.1.0',
+      published: false,
+      expectedResult: {
+        exitCode: 1,
+        stderr: expect.stringContaining('@scope/example: 1.1.0 is lower than 2.0.0'),
+      },
+    },
+    {
+      action: 'skips an already-published older release',
+      version: '1.0.0',
+      published: false,
+      expectedResult: { exitCode: 0 },
+    },
+  ])(
+    '$action using user-level Basic credentials and a build directory',
+    async ({ version, published, expectedResult }) => {
+      const registry = await createTestRegistry(
+        { '@scope/example': { tags: { latest: '2.0.0' }, versions: ['1.0.0', '2.0.0'] } },
+        { authenticate: 'basic' },
+      );
+      const defaultRegistry = await createTestRegistry({});
+      const root = await createPublishWorkspace(registry, { '@scope/example': version });
+      await fs.rm(path.join(root, '.npmrc'));
+      const userConfig = path.join(await makeTempDir(), '.npmrc');
+      await fs.writeFile(
+        userConfig,
+        `registry=${defaultRegistry.url}\n@scope:registry=${registry.url}\n${registry.url.slice('http:'.length)}:_auth=${registry.token}\n`,
+      );
+      const packageJson = await readPackageJson(path.join(root, 'packages/package-0'));
+      await writePackage(root, 'packages/package-0/build', packageJson);
+      await writePackage(root, 'packages/package-0', {
+        ...packageJson,
+        publishConfig: { ...packageJson.publishConfig, directory: 'build' },
+      });
+
+      const result = await publish(root, [], {
+        NPM_CONFIG_USERCONFIG: userConfig,
+        npm_config_userconfig: undefined,
+        npm_config_registry: defaultRegistry.url,
+        // The fixture registry cannot serve pnpm's own bootstrap package.
+        PNPM_CONFIG_PM_ON_FAIL: 'ignore',
+      });
+
+      expect(result).toMatchObject(expectedResult);
+      expect(registry.published).toEqual(
+        published ? [{ name: '@scope/example', tags: { latest: version } }] : [],
+      );
+      expect(defaultRegistry.published).toEqual([]);
+    },
+  );
 });

@@ -57,17 +57,21 @@ export function privatePkg(name, pkgPath) {
 /**
  * Serve npm metadata and accept publishes on localhost, using real HTTP and clients.
  * @param {Record<string, { tags: Record<string, string>, versions?: string[] }>} packages
- * @param {{ authenticate?: boolean }} [options]
+ * @param {{ authenticate?: 'bearer' | 'basic' }} [options]
  */
-export async function createTestRegistry(packages, { authenticate = false } = {}) {
-  const token = 'registry-test-token';
+export async function createTestRegistry(packages, { authenticate } = {}) {
+  const token =
+    authenticate === 'basic'
+      ? Buffer.from('test-user:test-password').toString('base64')
+      : 'registry-test-token';
+  const authorization = `${authenticate === 'basic' ? 'Basic' : 'Bearer'} ${token}`;
   /** @type {{ name: string, tags: Record<string, string> }[]} */
   const published = [];
   const prefix = '/registry/';
   const server = createServer(async (request, response) => {
     const pathname = decodeURIComponent(new URL(request.url ?? '/', 'http://localhost').pathname);
     response.setHeader('Content-Type', 'application/json');
-    if (authenticate && request.headers.authorization !== `Bearer ${token}`) {
+    if (authenticate && request.headers.authorization !== authorization) {
       response.writeHead(401).end(JSON.stringify({ error: 'Authentication required' }));
       return;
     }

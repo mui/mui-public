@@ -121,6 +121,9 @@ Applies to the whole repository.
   registry as well as public npm.
 - Before simplifying registry support, inspect consuming publish workflows. Custom registry
   authentication has existing users; do not assume every consumer publishes to public npm.
+- Cover user-level `.npmrc` files selected by `NPM_CONFIG_USERCONFIG`, including Basic `_auth`
+  credentials and packages published from `publishConfig.directory`. Both the dist-tag lookup
+  and the already-published version check must authenticate.
 
 #### Peer dependency warnings
 
