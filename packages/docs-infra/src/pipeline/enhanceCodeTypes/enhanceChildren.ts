@@ -2,6 +2,7 @@ import type { Element, ElementContent, Text } from 'hast';
 import { getHastTextContent } from '../loadServerTypes/hastTypeUtils';
 import type { LanguageCapabilities } from './getLanguageCapabilities';
 import type { ScanState, ScopeBinding, ModuleLinkMapEntry } from './scanState';
+import type { ResolveExternalLink } from './enhanceCodeTypes';
 import {
   isLinkableSpan,
   isPropertySpan,
@@ -51,6 +52,7 @@ interface LinkableChain {
  */
 export interface EnhanceOptions {
   linkMap: Record<string, string>;
+  resolveExternalLink?: ResolveExternalLink;
   typeRefComponent?: string;
   typePropRefComponent?: string;
   typeParamRefComponent?: string;
@@ -763,7 +765,12 @@ function handleLinkableSpan(
     }
   }
 
-  const href = cssClassHref ?? resolveTypeHref(identifier, linkMap, state);
+  // External links only link the name; owner tracking below keeps using `linkMap`.
+  const href =
+    cssClassHref ??
+    resolveTypeHref(identifier, linkMap, state) ??
+    options.resolveExternalLink?.(identifier) ??
+    undefined;
   const nodes: ElementContent[] = [];
 
   if (isBareCssClass) {

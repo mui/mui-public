@@ -3,6 +3,7 @@ import type { PluggableList } from 'unified';
 import type { HighlightedTypesMeta } from '@mui/internal-docs-infra/pipeline/loadServerTypes';
 import enhanceCodeInline from '../pipeline/enhanceCodeInline';
 import enhanceCodeTypes from '../pipeline/enhanceCodeTypes';
+import type { ResolveExternalLink } from '../pipeline/enhanceCodeTypes';
 import type { ModuleLinkMapEntry } from '../pipeline/enhanceCodeTypes/scanState';
 import { typeToJsx, additionalTypesToJsx } from './typesToJsx';
 import type { TypesJsxOptions } from './typesToJsx';
@@ -178,6 +179,11 @@ export type TypesTableMeta = {
    * in `moduleLinkMap` does not specify a `defaultSlug`.
    */
   defaultImportSlug?: string;
+  /**
+   * Resolves type names that the page does not document to a link elsewhere.
+   * When set, overrides the factory-level resolveExternalLink.
+   */
+  resolveExternalLink?: ResolveExternalLink;
 };
 
 export type AbstractCreateTypesOptions<T extends {} = {}> = {
@@ -280,6 +286,12 @@ export type AbstractCreateTypesOptions<T extends {} = {}> = {
    */
   defaultImportSlug?: string;
   /**
+   * Resolves type names that the page does not document to a link elsewhere, such as
+   * `resolveServerMdnLink` for built-in types like `HTMLElement`.
+   * Can be overridden by TypesTableMeta.resolveExternalLink.
+   */
+  resolveExternalLink?: ResolveExternalLink;
+  /**
    * Controls when expensive detailedType and formattedCode HAST fields are
    * converted to fully-highlighted JSX.
    * Can be overridden by TypesTableMeta.highlightAt.
@@ -324,10 +336,12 @@ export function abstractCreateTypes<T extends {}>(
   // Use DEFAULT_ENHANCERS if neither meta nor options specify enhancers
   // Then append enhanceCodeTypes if anchorMap is available
   let enhancers = meta.enhancers ?? options.enhancers ?? DEFAULT_ENHANCERS;
+  const resolveExternalLink = meta.resolveExternalLink ?? options.resolveExternalLink;
   if (
-    meta.precompute.anchorMap &&
-    (Object.keys(meta.precompute.anchorMap.js ?? {}).length > 0 ||
-      Object.keys(meta.precompute.anchorMap.css ?? {}).length > 0)
+    resolveExternalLink ||
+    (meta.precompute.anchorMap &&
+      (Object.keys(meta.precompute.anchorMap.js ?? {}).length > 0 ||
+        Object.keys(meta.precompute.anchorMap.css ?? {}).length > 0))
   ) {
     const typeRefComponent = meta.typeRefComponent ?? options.typeRefComponent;
     const typePropRefComponent = meta.typePropRefComponent ?? options.typePropRefComponent;
@@ -337,7 +351,12 @@ export function abstractCreateTypes<T extends {}>(
     const linkScope = meta.linkScope ?? options.linkScope;
     const moduleLinkMap = meta.moduleLinkMap ?? options.moduleLinkMap;
     const defaultImportSlug = meta.defaultImportSlug ?? options.defaultImportSlug;
-    const exportLinksOptions: Record<string, unknown> = { linkMap: meta.precompute.anchorMap };
+    const exportLinksOptions: Record<string, unknown> = {
+      linkMap: meta.precompute.anchorMap ?? {},
+    };
+    if (resolveExternalLink) {
+      exportLinksOptions.resolveExternalLink = resolveExternalLink;
+    }
     if (typeRefComponent) {
       exportLinksOptions.typeRefComponent = typeRefComponent;
     }
@@ -536,10 +555,12 @@ function createAdditionalTypesComponent<T extends {}>(
   // Use DEFAULT_ENHANCERS if neither meta nor options specify enhancers
   // Then append enhanceCodeTypes if anchorMap is available
   let enhancers = meta.enhancers ?? options.enhancers ?? DEFAULT_ENHANCERS;
+  const resolveExternalLink = meta.resolveExternalLink ?? options.resolveExternalLink;
   if (
-    meta.precompute.anchorMap &&
-    (Object.keys(meta.precompute.anchorMap.js ?? {}).length > 0 ||
-      Object.keys(meta.precompute.anchorMap.css ?? {}).length > 0)
+    resolveExternalLink ||
+    (meta.precompute.anchorMap &&
+      (Object.keys(meta.precompute.anchorMap.js ?? {}).length > 0 ||
+        Object.keys(meta.precompute.anchorMap.css ?? {}).length > 0))
   ) {
     const typeRefComponent = meta.typeRefComponent ?? options.typeRefComponent;
     const typePropRefComponent = meta.typePropRefComponent ?? options.typePropRefComponent;
@@ -549,7 +570,12 @@ function createAdditionalTypesComponent<T extends {}>(
     const linkScope = meta.linkScope ?? options.linkScope;
     const moduleLinkMap = meta.moduleLinkMap ?? options.moduleLinkMap;
     const defaultImportSlug = meta.defaultImportSlug ?? options.defaultImportSlug;
-    const exportLinksOptions: Record<string, unknown> = { linkMap: meta.precompute.anchorMap };
+    const exportLinksOptions: Record<string, unknown> = {
+      linkMap: meta.precompute.anchorMap ?? {},
+    };
+    if (resolveExternalLink) {
+      exportLinksOptions.resolveExternalLink = resolveExternalLink;
+    }
     if (typeRefComponent) {
       exportLinksOptions.typeRefComponent = typeRefComponent;
     }

@@ -121,6 +121,23 @@ To resolve these custom HAST elements to React components, you must include the 
 
 See [`useType`](../../hooks/use-type/page.mdx) for how to build an interactive `TypeRef` component.
 
+### resolveExternalLink Option
+
+Types documented elsewhere, such as built-in DOM and JavaScript types, can be linked with `resolveExternalLink`. It receives each type name that the `linkMap` does not know, plus where the type is declared when that is known, and returns a URL, or `null` to leave the name unlinked:
+
+```typescript
+const processor = unified()
+  .use(rehypeParse, { fragment: true })
+  .use(enhanceCodeTypes, {
+    linkMap,
+    resolveExternalLink: (name) =>
+      name === 'HTMLElement' ? 'https://developer.mozilla.org/docs/Web/API/HTMLElement' : null,
+  })
+  .use(rehypeStringify);
+```
+
+Only the type name is linked. Unlike `linkMap` entries, external links never act as owners for property or parameter links, so `{ style: 'currency' }` typed as `Intl.NumberFormatOptions` keeps `style` unlinked.
+
 ---
 
 ## Transformation Examples
