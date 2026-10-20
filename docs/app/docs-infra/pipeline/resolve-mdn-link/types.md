@@ -6,8 +6,8 @@
 
 ### resolveMdnLink
 
-Returns the MDN page for a type from TypeScript's lib files, such as `HTMLElement` or
-`Intl.NumberFormatOptions`, or `null` when MDN does not document it.
+Returns the MDN page for a common built-in type, such as `HTMLElement` or
+`Intl.NumberFormatOptions`, or `null` for any other type.
 
 Without a `source`, matching is by name, so a type from a package that shares its name
 with a built-in type also resolves to the built-in type's page. With a `source`, only

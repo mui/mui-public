@@ -18,8 +18,8 @@ describe('resolveMdnLink', () => {
     expect(resolveMdnLink('Intl.NumberFormatOptions')).toBe(
       'https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Intl/NumberFormat/NumberFormat#options',
     );
-    expect(resolveMdnLink('AddEventListenerOptions')).toBe(
-      'https://developer.mozilla.org/docs/Web/API/EventTarget/addEventListener#options',
+    expect(resolveMdnLink('Intl.LocalesArgument')).toBe(
+      'https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Intl#locales_argument',
     );
   });
 
@@ -44,11 +44,11 @@ describe('resolveMdnLink', () => {
     });
 
     it('returns null for package types that share a name with a built-in type', () => {
-      expect(resolveMdnLink('Range', { kind: 'package', name: 'some-package' })).toBeNull();
+      expect(resolveMdnLink('Event', { kind: 'package', name: 'some-package' })).toBeNull();
     });
 
     it('returns null for types from libs MDN does not document', () => {
-      expect(resolveMdnLink('Range', { kind: 'lib', files: ['lib.scripthost.d.ts'] })).toBeNull();
+      expect(resolveMdnLink('Event', { kind: 'lib', files: ['lib.scripthost.d.ts'] })).toBeNull();
     });
   });
 });
