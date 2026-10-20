@@ -11,11 +11,12 @@ import {
 } from './testUtils.mjs';
 import {
   checkPublishDependencies,
-  conflictsWithLatestTag,
-  getLatestTagConflicts,
+  getDistTagConflict,
+  getDistTagConflicts,
   getPackagesNeedingManualPublish,
   getPublishRegistry,
   getReleaseVersion,
+  PLACEHOLDER_VERSION,
   renameWorkspaceScope,
   readPackageJson,
   selectAgedVersion,
@@ -951,44 +952,62 @@ describe('getPackagesNeedingManualPublish', () => {
   });
 });
 
-describe('conflictsWithLatestTag', () => {
-  it('rejects a previous major', () => {
-    expect(conflictsWithLatestTag('8.29.5', '9.15.0')).toBe(true);
+describe('getDistTagConflict', () => {
+  it('rejects a lower version on any dist-tag', () => {
+    expect(getDistTagConflict('latest', '8.29.6', '9.15.0')).toBe('8.29.6 is lower than 9.15.0');
+    expect(getDistTagConflict('next', '0.7.4', '1.0.0-rc.0')).toBe(
+      '0.7.4 is lower than 1.0.0-rc.0',
+    );
   });
 
-  it('rejects a prerelease of a higher major', () => {
-    expect(conflictsWithLatestTag('10.0.0-alpha.1', '9.5.0')).toBe(true);
-    expect(conflictsWithLatestTag('10.0.0-alpha.1', '9.0.0-beta.10')).toBe(true);
+  it('rejects a prerelease on latest dist-tags that point to a stable version', () => {
+    expect(getDistTagConflict('latest', '10.0.0-alpha.1', '9.5.0')).toBe(
+      '10.0.0-alpha.1 is a prerelease and 9.5.0 is not',
+    );
+    expect(getDistTagConflict('latest', '9.16.0-beta.0', '9.15.0')).not.toBeNull();
+    expect(getDistTagConflict('latest-v7', '7.4.0-beta.0', '7.3.11')).not.toBeNull();
   });
 
-  it('allows a prerelease of the current major', () => {
-    expect(conflictsWithLatestTag('9.0.0-beta.14', '9.0.0-beta.13')).toBe(false);
+  it('allows a prerelease on latest dist-tags that already point to one', () => {
+    // An unstable package moves to the new major together with a stable release.
+    expect(getDistTagConflict('latest', '9.0.0-beta.2', '7.0.1-beta.23')).toBeNull();
+    expect(getDistTagConflict('latest', '9.0.0-beta.14', '9.0.0-beta.13')).toBeNull();
   });
 
-  it('allows a higher stable version', () => {
-    expect(conflictsWithLatestTag('9.16.0', '9.15.0')).toBe(false);
-    expect(conflictsWithLatestTag('10.0.0', '9.15.0')).toBe(false);
+  it('rejects a different major on latest-* dist-tags', () => {
+    expect(getDistTagConflict('latest-v8', '9.16.0', '8.29.5')).toBe(
+      '9.16.0 has a different major than 8.29.5',
+    );
+    expect(getDistTagConflict('latest-v8', '0.4.3', '0.4.2')).toBeNull();
+  });
+
+  it('allows a new major on latest', () => {
+    expect(getDistTagConflict('latest', '10.0.0', '9.15.0')).toBeNull();
+  });
+
+  it('allows a prerelease on other dist-tags', () => {
+    expect(getDistTagConflict('next', '10.0.0-alpha.1', '9.0.0-rc.0')).toBeNull();
   });
 });
 
-describe('getLatestTagConflicts', () => {
+describe('getDistTagConflicts', () => {
   /**
    * Answer dist-tags and version lookups the way the npm registry does.
-   * @param {Record<string, string | number>} latestByName - Current `latest`, or an HTTP error status
+   * @param {Record<string, Record<string, string> | number>} distTagsByName - Dist-tags, or an HTTP error status
    * @param {string[]} [published] - Published `name@version` entries
    */
-  function stubRegistry(latestByName, published = []) {
+  function stubRegistry(distTagsByName, published = []) {
     vi.stubGlobal(
       'fetch',
       vi.fn(async (/** @type {URL} */ url) => {
-        const distTags = /^\/-\/package\/(.+)\/dist-tags$/.exec(url.pathname);
-        if (distTags) {
-          const latest = latestByName[distTags[1]];
-          if (typeof latest === 'number') {
-            return { status: latest, ok: false };
+        const distTagsMatch = /^\/-\/package\/(.+)\/dist-tags$/.exec(url.pathname);
+        if (distTagsMatch) {
+          const distTags = distTagsByName[distTagsMatch[1]];
+          if (typeof distTags === 'number') {
+            return { status: distTags, ok: false };
           }
-          return latest
-            ? { status: 200, ok: true, json: async () => ({ latest }) }
+          return distTags
+            ? { status: 200, ok: true, json: async () => distTags }
             : { status: 404, ok: false };
         }
         const [, name, version] = /^\/(.+)\/([^/]+)$/.exec(url.pathname) ?? [];
@@ -1009,33 +1028,58 @@ describe('getLatestTagConflicts', () => {
     return { ...publicPkg(name, pkgDir), version };
   }
 
-  it('returns the packages that would move latest to another release line', async () => {
+  it('returns the packages that would move the dist-tag to the wrong release line', async () => {
     const root = await makeTempDir();
     vi.stubEnv('npm_config_registry', undefined);
     stubRegistry(
       {
-        '@mui/legacy': '9.15.0',
-        '@mui/unchanged': '9.15.0',
-        '@mui/alpha': '9.5.0',
-        '@mui/beta': '9.0.0-beta.13',
-        '@mui/stable': '9.15.0',
+        '@mui/legacy': { latest: '9.15.0', 'latest-v8': '8.29.5' },
+        '@mui/unchanged': { latest: '9.15.0' },
+        '@mui/alpha': { latest: '9.5.0', next: '10.0.0-alpha.0' },
+        '@mui/beta': { latest: '9.0.0-beta.13' },
+        '@mui/new': { latest: PLACEHOLDER_VERSION, canary: PLACEHOLDER_VERSION },
+        '@mui/stable': { latest: '9.15.0' },
       },
       ['@mui/unchanged@8.29.3'],
     );
 
-    const result = await getLatestTagConflicts([
-      await pkgWithVersion(root, '@mui/legacy', '8.29.5'),
-      await pkgWithVersion(root, '@mui/unchanged', '8.29.3'),
-      await pkgWithVersion(root, '@mui/alpha', '10.0.0-alpha.1'),
-      await pkgWithVersion(root, '@mui/beta', '9.0.0-beta.14'),
-      await pkgWithVersion(root, '@mui/stable', '9.16.0'),
-      await pkgWithVersion(root, '@mui/no-latest', '1.0.0'),
-    ]);
+    const result = await getDistTagConflicts(
+      [
+        await pkgWithVersion(root, '@mui/legacy', '8.29.6'),
+        await pkgWithVersion(root, '@mui/unchanged', '8.29.3'),
+        await pkgWithVersion(root, '@mui/alpha', '10.0.0-alpha.1'),
+        await pkgWithVersion(root, '@mui/beta', '9.0.0-beta.14'),
+        await pkgWithVersion(root, '@mui/new', '9.0.0-alpha.0'),
+        await pkgWithVersion(root, '@mui/stable', '9.16.0'),
+        await pkgWithVersion(root, '@mui/no-tags', '1.0.0'),
+      ],
+      'latest',
+    );
 
-    expect(result.map(({ pkg, latest }) => `${pkg.name}@${pkg.version} > ${latest}`)).toEqual([
-      '@mui/legacy@8.29.5 > 9.15.0',
-      '@mui/alpha@10.0.0-alpha.1 > 9.5.0',
+    expect(result.map(({ pkg, reason }) => `${pkg.name}: ${reason}`)).toEqual([
+      '@mui/legacy: 8.29.6 is lower than 9.15.0',
+      '@mui/alpha: 10.0.0-alpha.1 is a prerelease and 9.5.0 is not',
     ]);
+  });
+
+  it('compares with the dist-tag that the publish uses', async () => {
+    const root = await makeTempDir();
+    vi.stubEnv('npm_config_registry', undefined);
+    stubRegistry({
+      '@mui/legacy': { latest: '9.15.0', 'latest-v8': '8.29.5' },
+      '@mui/virtualizer': { latest: '0.7.3', next: '1.0.0-rc.0' },
+    });
+    const packages = [
+      await pkgWithVersion(root, '@mui/legacy', '8.29.6'),
+      await pkgWithVersion(root, '@mui/virtualizer', '0.7.4'),
+    ];
+
+    expect(await getDistTagConflicts(packages, 'latest-v8')).toEqual([]);
+    expect(
+      (await getDistTagConflicts(packages, 'next')).map(
+        ({ pkg, reason }) => `${pkg.name}: ${reason}`,
+      ),
+    ).toEqual(['@mui/virtualizer: 0.7.4 is lower than 1.0.0-rc.0']);
   });
 
   it('throws when the registry answers with an unexpected status', async () => {
@@ -1044,7 +1088,7 @@ describe('getLatestTagConflicts', () => {
     stubRegistry({ 'my-package': 500 });
 
     await expect(
-      getLatestTagConflicts([await pkgWithVersion(root, 'my-package', '1.0.0')]),
+      getDistTagConflicts([await pkgWithVersion(root, 'my-package', '1.0.0')], 'latest'),
     ).rejects.toThrow(/my-package.*HTTP 500/);
   });
 
@@ -1055,10 +1099,12 @@ describe('getLatestTagConflicts', () => {
   ])('rejects unpublished %s when latest is %s', async (version, latest) => {
     const root = await makeTempDir();
     vi.stubEnv('npm_config_registry', undefined);
-    stubRegistry({ '@scope/example': latest });
+    stubRegistry({ '@scope/example': { latest } });
     const pkg = await pkgWithVersion(root, '@scope/example', version);
 
-    expect(await getLatestTagConflicts([pkg])).toEqual([{ pkg, latest }]);
+    expect(await getDistTagConflicts([pkg], 'latest')).toEqual([
+      { pkg, reason: `${version} is lower than ${latest}` },
+    ]);
   });
 
   it.each([
@@ -1085,8 +1131,8 @@ describe('getLatestTagConflicts', () => {
       });
       const pkg = { ...publicPkg('@scope/example', pkgDir), version };
 
-      expect(await getLatestTagConflicts([pkg])).toEqual(
-        conflicts ? [{ pkg, latest: '2.0.0' }] : [],
+      expect(await getDistTagConflicts([pkg], 'latest')).toEqual(
+        conflicts ? [{ pkg, reason: '1.1.0 is lower than 2.0.0' }] : [],
       );
     },
   );

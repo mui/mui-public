@@ -19,7 +19,7 @@ import * as semver from 'semver';
 
 import { persistentAuthStrategy } from '../utils/github.mjs';
 import {
-  getLatestTagConflicts,
+  getDistTagConflicts,
   getPackagesNeedingManualPublish,
   getReleaseVersion,
   getWorkspacePackages,
@@ -374,15 +374,13 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       );
     }
 
-    if (tag === 'latest') {
-      const conflicts = await getLatestTagConflicts(filteredPackages);
-      if (conflicts.length > 0) {
-        throw new Error(
-          `Publishing with the "latest" dist-tag would move "latest" to the wrong release line:
-${conflicts.map(({ pkg, latest }) => `  * ${pkg.name}@${pkg.version} (current latest: ${latest})`).join('\n')}
-Use the dist-tag of the release line instead, for example "latest-v8" for a previous major or "next" for a prerelease of the next major.`,
-        );
-      }
+    const distTagConflicts = await getDistTagConflicts(filteredPackages, tag);
+    if (distTagConflicts.length > 0) {
+      throw new Error(
+        `Publishing with the "${tag}" dist-tag would move it to the wrong release line:
+${distTagConflicts.map(({ pkg, reason }) => `  * ${pkg.name}: ${reason}`).join('\n')}
+Publish a previous major with its "latest-vX" dist-tag and a prerelease of the next major with "next". On a release branch, also make that dist-tag the "dist-tag" default of the publish workflow. If the dist-tag on npm is outdated, fix it with "npm dist-tag" first.`,
+      );
     }
 
     // Publish to npm (pnpm handles duplicate checking automatically)

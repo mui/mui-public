@@ -90,7 +90,7 @@ describe('publish', () => {
 
     expect(result.exitCode).not.toBe(0);
     expect(result.stderr).toContain('wrong release line');
-    expect(result.stderr).toContain('@scope/legacy@1.1.0 (current latest: 2.0.0)');
+    expect(result.stderr).toContain('@scope/legacy: 1.1.0 is lower than 2.0.0');
     expect(registry.published).toEqual([]);
   });
 

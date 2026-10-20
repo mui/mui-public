@@ -14,6 +14,9 @@ import { parseDocument, isMap } from 'yaml';
 /** Canonical npm registry URL, in the form `getPublishRegistry` returns. */
 const NPMJS_REGISTRY = 'https://registry.npmjs.org/';
 
+/** Version that `publish-new-package` publishes to reserve the name of a new package. */
+export const PLACEHOLDER_VERSION = '0.0.1';
+
 /**
  * @typedef {Object} PrivatePackage
  * @property {string} [name] - Package name
@@ -230,37 +233,49 @@ export async function getPackagesNeedingManualPublish(packages) {
 }
 
 /**
- * Whether `version` must not take the `latest` dist-tag from `latest`.
+ * Why publishing `version` with `tag` would move the dist-tag to the wrong release line.
  *
- * Rejects a lower version, such as a previous major, and a prerelease of a
- * higher major. Allows a prerelease of the current major, such as an unstable
- * package that is still in beta.
+ * - No dist-tag moves to a lower version.
+ * - `latest` and `latest-*` move to a prerelease only when they already point to
+ *   one, so unstable packages that are still in beta can keep `latest`.
+ * - `latest-*` keeps the major of the version it points to.
  *
+ * @param {string} tag - Dist-tag to publish with
  * @param {string} version - Version to publish
- * @param {string} latest - Current `latest` version on the registry
- * @returns {boolean}
+ * @param {string} current - Version that the dist-tag points to on the registry
+ * @returns {string | null} The reason, or null when the publish is safe
  */
-export function conflictsWithLatestTag(version, latest) {
-  if (semver.lt(version, latest)) {
-    return true;
+export function getDistTagConflict(tag, version, current) {
+  if (semver.lt(version, current)) {
+    return `${version} is lower than ${current}`;
   }
-  return semver.prerelease(version) !== null && semver.major(version) > semver.major(latest);
+  if (tag !== 'latest' && !tag.startsWith('latest-')) {
+    return null;
+  }
+  if (semver.prerelease(version) && !semver.prerelease(current)) {
+    return `${version} is a prerelease and ${current} is not`;
+  }
+  if (tag !== 'latest' && semver.major(version) !== semver.major(current)) {
+    return `${version} has a different major than ${current}`;
+  }
+  return null;
 }
 
 /**
- * @typedef {Object} LatestTagConflict
+ * @typedef {Object} DistTagConflict
  * @property {PublicPackage} pkg - Package to publish
- * @property {string} latest - Current `latest` version on the registry
+ * @property {string} reason - Why the dist-tag would move to the wrong release line
  */
 
 /**
- * Find the packages whose publish with the `latest` dist-tag would move `latest`
- * to the wrong release line. See {@link conflictsWithLatestTag}.
+ * Find the packages whose publish with `tag` would move the dist-tag to the
+ * wrong release line. See {@link getDistTagConflict}.
  *
  * @param {PublicPackage[]} packages - Packages to check
- * @returns {Promise<LatestTagConflict[]>}
+ * @param {string} tag - Dist-tag to publish with
+ * @returns {Promise<DistTagConflict[]>}
  */
-export async function getLatestTagConflicts(packages) {
+export async function getDistTagConflicts(packages, tag) {
   const { name = 'code-infra', version = '0.0.0' } = await readPackageJson(
     path.resolve(import.meta.dirname, '../..'),
   );
@@ -288,8 +303,13 @@ export async function getLatestTagConflicts(packages) {
           `Failed to read the dist-tags of ${pkg.name} from ${registry}: HTTP ${res.status}`,
         );
       }
-      const latest = semver.valid((await res.json()).latest);
-      if (!latest || !conflictsWithLatestTag(pkg.version, latest)) {
+      const current = semver.valid((await res.json())[tag]);
+      // npm points `latest` at the first version, which is the placeholder for a new package.
+      if (!current || current === PLACEHOLDER_VERSION) {
+        return null;
+      }
+      const reason = getDistTagConflict(tag, pkg.version, current);
+      if (!reason) {
         return null;
       }
 
@@ -306,7 +326,7 @@ export async function getLatestTagConflicts(packages) {
           `Failed to check whether ${pkg.name}@${pkg.version} exists on ${registry}: HTTP ${versionRes.status}`,
         );
       }
-      return { pkg, latest };
+      return { pkg, reason };
     }),
   );
 
