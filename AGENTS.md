@@ -88,7 +88,7 @@ Applies to the whole repository.
 
 - **CRITICAL**: When running pnpm commands for workspace packages, always use the `-F` flag followed by the package name.
 - **Example**: `pnpm -F @mui/internal-bundle-size-checker add micromatch`
-- Private packages without a `name` field in `package.json` must be filtered by their relative path (for example, `pnpm -F ./test/performance add <dependency>`).
+- Private packages without a `name` field in `package.json` must be filtered by their relative path (for example, `pnpm -F ./test/benchmark add <dependency>`).
 - **Do NOT use `cd` to navigate into package directories** for workspace operations.
 - **Do NOT manually edit package.json files to add/remove dependencies** - always use `pnpm -F <workspace> add <dependency>` or `pnpm -F <workspace> remove <dependency>` to keep the order deterministic.
 - **ALWAYS run `pnpm dedupe`** after installing a dependency.

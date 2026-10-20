@@ -16,13 +16,6 @@ interface Column {
   width: number;
 }
 
-function truncate(str: string, maxLength: number): string {
-  if (str.length <= maxLength) {
-    return str;
-  }
-  return `${str.slice(0, maxLength - 1)}…`;
-}
-
 export function printTable(
   columns: Column[],
   rows: string[][],
@@ -30,11 +23,19 @@ export function printTable(
   title?: string,
 ): void {
   const colWidths = columns.map((col) => col.width);
+  // Widen the last column rather than cut the title short.
+  const shortBy =
+    (title?.length ?? 0) +
+    2 -
+    (colWidths.reduce((sum, w) => sum + w + 2, 0) + colWidths.length - 1);
+  if (shortBy > 0) {
+    colWidths[colWidths.length - 1] += shortBy;
+  }
   const totalInner = colWidths.reduce((sum, w) => sum + w + 2, 0) + colWidths.length - 1;
 
   if (title) {
     const titleTop = dim(`┌${'─'.repeat(totalInner)}┐`);
-    const titleContent = ` ${truncate(title, totalInner - 2)}`;
+    const titleContent = ` ${title}`;
     const titlePadding = totalInner - titleContent.length;
     const titleLine = dim('│') + titleContent + ' '.repeat(Math.max(0, titlePadding)) + dim('│');
     const titleSep = dim(`├${colWidths.map((w) => '─'.repeat(w + 2)).join('┬')}┤`);
@@ -52,7 +53,7 @@ export function printTable(
   }
 
   const headerSep = dim(`├${colWidths.map((w) => '─'.repeat(w + 2)).join('┼')}┤`);
-  const headerCells = columns.map((col) => ` ${col.header.padStart(col.width)} `);
+  const headerCells = columns.map((col, i) => ` ${col.header.padStart(colWidths[i])} `);
   const headerLine = dim('│') + headerCells.join(dim('│')) + dim('│');
 
   // eslint-disable-next-line no-console

@@ -17,6 +17,11 @@
       "matchSourceUrls": ["https://github.com/vercel/next.js", "https://github.com/react/react"],
       "matchDepTypes": ["devDependencies"],
       "rangeStrategy": "bump"
+    },
+    {
+      "description": "Next.js 16.4.x gets the docs build OOM-killed on Netlify: Turbopack spawns a webpack-loader pool per loader chain (vercel/next.js#100064). Skip it until 16.5.0, the first stable release with the fix (vercel/next.js#100414). Remove once on 16.5.0.",
+      "matchPackageNames": ["next", "@next/*"],
+      "allowedVersions": "<16.4.0 || >=16.5.0"
     }
   ]
 }
