@@ -35,15 +35,6 @@ const OVERRIDES: Record<string, string> = {
   'Intl.LocalesArgument': `${MDN_URL_PREFIX}Web/JavaScript/Reference/Global_Objects/Intl#locales_argument`,
 };
 
-/**
- * Lists the child features of `identifier`, without its own `__compat` statement.
- */
-function getMembers(identifier: Identifier): [string, Identifier][] {
-  return Object.entries(identifier).filter(
-    (entry): entry is [string, Identifier] => entry[0] !== '__compat',
-  );
-}
-
 function getMdnUrl(identifier: Identifier | undefined): string | undefined {
   // eslint-disable-next-line no-underscore-dangle
   const url = identifier?.__compat?.mdn_url;
