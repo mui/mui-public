@@ -76,6 +76,12 @@ export interface MetricComparison {
   settled: boolean;
   change: Change;
   severity: Severity;
+  /**
+   * Whether the change is for the better past the alarm's `error` band, as a regression must be past
+   * it on the worse side: any confirmed change for the better without a band. Never where nothing
+   * can alarm.
+   */
+  improved: boolean;
 }
 
 export interface MetricAnalysis {
@@ -328,6 +334,10 @@ export function compareSamples(
     settled: alarm === null || !(worsening.low < worseEdge && worseEdge < worsening.high),
     change,
     severity: alarm ? severityOf(change, worsening, alarm.error) : 'none',
+    improved:
+      alarm !== null &&
+      change === 'better' &&
+      (alarm.error === undefined || -worsening.high >= alarm.error),
   };
 }
 
@@ -437,9 +447,12 @@ export function isRegression(comparison: MetricComparison): boolean {
   return comparison.severity !== 'none';
 }
 
-/** Whether a change is one for the better on an alarmed metric: what the code under test sped up. */
+/**
+ * Whether a change is one for the better on an alarmed metric, past its `error` band: what the code
+ * under test sped up.
+ */
 export function isImprovement(comparison: MetricComparison): boolean {
-  return comparison.alarm !== null && comparison.change === 'better';
+  return comparison.improved;
 }
 
 /** Every regression in a run, with the benchmark and metric it belongs to. */
