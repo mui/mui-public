@@ -42,6 +42,20 @@ resolveServerMdnLink('Button');
 
 Matching is by name, so a type from a package that shares its name with a built-in type, such as a package's own `Range`, also resolves to the built-in type's page.
 
+### With a Source
+
+When you know where a type is declared, pass it as the second argument. Only types declared in the DOM, JavaScript, or worker lib files resolve:
+
+```ts
+resolveServerMdnLink('Range', { kind: 'lib', files: ['lib.dom.d.ts'] });
+// 'https://developer.mozilla.org/docs/Web/API/Range'
+
+resolveServerMdnLink('Range', { kind: 'package', name: 'some-package' });
+// null
+```
+
+`enhanceCodeTypes` passes the source to `resolveExternalLink` when it is known.
+
 ## Types
 
 import { TypesResolveServerMdnLink } from './types';

@@ -165,7 +165,7 @@ type AbstractCreateTypesOptions<T extends {} = {}> = {
    * `resolveServerMdnLink` for built-in types like `HTMLElement`.
    * Can be overridden by TypesTableMeta.resolveExternalLink.
    */
-  resolveExternalLink?: (name: string) => string | null;
+  resolveExternalLink?: ResolveExternalLink;
   /**
    * Controls when expensive detailedType and formattedCode HAST fields are
    * converted to fully-highlighted JSX.
@@ -359,6 +359,17 @@ type TypesTableMeta = {
    * Resolves type names that the page does not document to a link elsewhere.
    * When set, overrides the factory-level resolveExternalLink.
    */
-  resolveExternalLink?: (name: string) => string | null;
+  resolveExternalLink?: ResolveExternalLink;
 };
+```
+
+## External Types
+
+### ResolveExternalLink
+
+```typescript
+type ResolveExternalLink = (
+  name: string,
+  source?: { kind: 'lib'; files: unknown } | { kind: 'package'; name: string } | undefined,
+) => string | null;
 ```

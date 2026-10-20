@@ -282,7 +282,9 @@ A rehype plugin that transforms code identifiers into clickable links, allowing 
 - Exports:
   - default
     - Parameters: options
-- Types: EnhanceCodeTypesOptions
+  - ResolveExternalLink
+    - Parameters: name, source
+- Types: EnhanceCodeTypesOptions, ExternalTypeSource
 
 </details>
 
@@ -1170,12 +1172,13 @@ The `resolveServerMdnLink` function returns the MDN page for a built-in type, su
 - Sections:
   - Usage
   - Which Types Resolve
+    - With a Source
   - Types
   - How the Table Is Generated
   - Related
 - Exports:
   - resolveServerMdnLink
-    - Parameters: name
+    - Parameters: name, source
 
 </details>
 

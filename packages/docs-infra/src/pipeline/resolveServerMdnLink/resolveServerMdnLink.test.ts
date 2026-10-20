@@ -27,4 +27,30 @@ describe('resolveServerMdnLink', () => {
     expect(resolveServerMdnLink('Button')).toBeNull();
     expect(resolveServerMdnLink('constructor')).toBeNull();
   });
+
+  describe('with a source', () => {
+    it('links types declared in a lib MDN documents', () => {
+      expect(resolveServerMdnLink('HTMLElement', { kind: 'lib', files: ['lib.dom.d.ts'] })).toBe(
+        'https://developer.mozilla.org/docs/Web/API/HTMLElement',
+      );
+      expect(
+        resolveServerMdnLink('Intl.NumberFormat', {
+          kind: 'lib',
+          files: ['lib.es2018.intl.d.ts', 'lib.es5.d.ts'],
+        }),
+      ).toBe(
+        'https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Intl/NumberFormat',
+      );
+    });
+
+    it('returns null for package types that share a name with a built-in type', () => {
+      expect(resolveServerMdnLink('Range', { kind: 'package', name: 'some-package' })).toBeNull();
+    });
+
+    it('returns null for types from libs MDN does not document', () => {
+      expect(
+        resolveServerMdnLink('Range', { kind: 'lib', files: ['lib.scripthost.d.ts'] }),
+      ).toBeNull();
+    });
+  });
 });

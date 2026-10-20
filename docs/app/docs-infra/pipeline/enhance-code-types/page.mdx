@@ -123,7 +123,7 @@ See [`useType`](../../hooks/use-type/page.mdx) for how to build an interactive `
 
 ### resolveExternalLink Option
 
-Types documented elsewhere, such as built-in DOM and JavaScript types, can be linked with `resolveExternalLink`. It receives each type name that the `linkMap` does not know and returns a URL, or `null` to leave the name unlinked. [`resolveServerMdnLink`](../resolve-server-mdn-link/page.mdx) resolves built-in types to MDN:
+Types documented elsewhere, such as built-in DOM and JavaScript types, can be linked with `resolveExternalLink`. It receives each type name that the `linkMap` does not know, plus where the type is declared when that is known, and returns a URL, or `null` to leave the name unlinked. [`resolveServerMdnLink`](../resolve-server-mdn-link/page.mdx) resolves built-in types to MDN:
 
 ```typescript
 import { resolveServerMdnLink } from '@mui/internal-docs-infra/pipeline/resolveServerMdnLink';

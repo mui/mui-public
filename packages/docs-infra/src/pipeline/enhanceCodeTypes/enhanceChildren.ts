@@ -2,6 +2,7 @@ import type { Element, ElementContent, Text } from 'hast';
 import { getHastTextContent } from '../loadServerTypes/hastTypeUtils';
 import type { LanguageCapabilities } from './getLanguageCapabilities';
 import type { ScanState, ScopeBinding, ModuleLinkMapEntry } from './scanState';
+import type { ResolveExternalLink } from './enhanceCodeTypes';
 import {
   isLinkableSpan,
   isPropertySpan,
@@ -51,7 +52,7 @@ interface LinkableChain {
  */
 export interface EnhanceOptions {
   linkMap: Record<string, string>;
-  resolveExternalLink?: (name: string) => string | null;
+  resolveExternalLink?: ResolveExternalLink;
   typeRefComponent?: string;
   typePropRefComponent?: string;
   typeParamRefComponent?: string;

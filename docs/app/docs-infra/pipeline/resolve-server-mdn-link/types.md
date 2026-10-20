@@ -13,14 +13,16 @@ Types that only exist in TypeScript's lib files link to the section of the param
 they describe, so `Intl.NumberFormatOptions` links to the `options` parameter of the
 `Intl.NumberFormat()` constructor.
 
-Matching is by name, so a type from a package that shares its name with a built-in
-type also resolves to the built-in type's page.
+Without a `source`, matching is by name, so a type from a package that shares its name
+with a built-in type also resolves to the built-in type's page. With a `source`, only
+types declared in the DOM, JavaScript, or worker lib files resolve.
 
 **Parameters:**
 
-| Parameter | Type     | Default | Description                                                                      |
-| :-------- | :------- | :------ | :------------------------------------------------------------------------------- |
-| name      | `string` | -       | Type name as written in code, including namespaces, such as `Intl.NumberFormat`. |
+| Parameter | Type                 | Default | Description                                                                      |
+| :-------- | :------------------- | :------ | :------------------------------------------------------------------------------- |
+| name      | `string`             | -       | Type name as written in code, including namespaces, such as `Intl.NumberFormat`. |
+| source?   | `ExternalTypeSource` | -       | Where the type is declared, when known.                                          |
 
 **Return Value:**
 
