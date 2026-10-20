@@ -98,13 +98,13 @@ describe('enhanceCodeTypes', () => {
     async function processWithExternalLinks(
       input: string,
       linkMap: Record<string, string>,
-      linkProps?: 'shallow' | 'deep',
+      options?: { linkProps?: 'shallow' | 'deep'; linkScope?: boolean },
     ): Promise<string> {
       const result = await unified()
         .use(rehypeParse, { fragment: true })
         .use(enhanceCodeTypes, {
-          linkMap: { js: linkMap },
-          linkProps,
+          linkMap: { js: linkMap, css: linkMap },
+          ...options,
           resolveExternalLink: (name) => externalLinks[name] ?? null,
         })
         .use(rehypeStringify)
@@ -149,11 +149,33 @@ describe('enhanceCodeTypes', () => {
       const input =
         '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">opts</span><span class="pl-k">:</span> <span class="pl-en">Format</span>.<span class="pl-en">Options</span> <span class="pl-k">=</span> { style: <span class="pl-s"><span class="pl-pds">"</span>short<span class="pl-pds">"</span></span> };</code>';
 
-      const output = await processWithExternalLinks(input, {}, 'shallow');
+      const output = await processWithExternalLinks(input, {}, { linkProps: 'shallow' });
 
       expect(output).toBe(
         '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">opts</span><span class="pl-k">:</span> <a href="https://example.com/format#options"><span class="pl-en">Format</span>.<span class="pl-en">Options</span></a> <span class="pl-k">=</span> { style: <span class="pl-s"><span class="pl-pds">"</span>short<span class="pl-pds">"</span></span> };</code>',
       );
+    });
+
+    it('does not link local declarations that share a name with an external type', async () => {
+      // const Theme: Local = v; Theme
+      const input =
+        '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">Theme</span><span class="pl-k">:</span> <span class="pl-en">Local</span> <span class="pl-k">=</span> v; <span class="pl-c1">Theme</span></code>';
+
+      const output = await processWithExternalLinks(
+        input,
+        { Local: '#local' },
+        { linkScope: true },
+      );
+
+      expect(output).not.toContain('https://example.com/theme');
+    });
+
+    it('does not link names in CSS', async () => {
+      const input = '<code class="language-css"><span class="pl-c1">Theme</span></code>';
+
+      const output = await processWithExternalLinks(input, {});
+
+      expect(output).toBe('<code class="language-css"><span class="pl-c1">Theme</span></code>');
     });
   });
 
