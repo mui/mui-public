@@ -102,22 +102,6 @@ jobs:
     <<: *default-job
     executor:
       name: code-infra/mui-node-browser
-      playwright-img-version: 'v1.64.0-noble'
-    steps:
-      - checkout
-      - code-infra/install-deps
-      - run:
-          name: Build packages
-          command: pnpm release:build
-      - run:
-          name: Run benchmarks
-          # Not uploaded: `test_benchmark_run` uploads the commit's `benchmark.json`, as version 2.
-          command: pnpm -F ./test/performance benchmark
-
-  test_benchmark_run:
-    <<: *default-job
-    executor:
-      name: code-infra/mui-node-browser
       playwright-img-version: 'v1.62.1-noble'
     # 2 vCPUs starve V8's background compilers, which makes the same code's speed vary from sample to
     # sample; see the benchmark package's README.
@@ -224,8 +208,6 @@ workflows:
       - test_package:
           <<: *default-context
       - test_benchmark:
-          <<: *default-context
-      - test_benchmark_run:
           <<: *default-context
       - test_browser:
           <<: *default-context

@@ -32,7 +32,6 @@
     "docs:lint": "pnpm -F \"./docs\" run lint",
     "docs:lib": "pnpm -F \"./packages/docs-infra\" run build",
     "test:benchmark": "pnpm -F ./test/benchmark benchmark",
-    "test:performance": "pnpm -F ./test/performance benchmark",
     "org-versions": "tsx scripts/orgVersions.mts"
   },
   "dependencies": {
