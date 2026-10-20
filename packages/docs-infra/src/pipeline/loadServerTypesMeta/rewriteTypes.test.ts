@@ -325,10 +325,10 @@ describe('addReexportedTypeNames', () => {
     'export interface ButtonGroupState { orientation: string }',
   ].join('\n');
 
-  it('should not map a declared name the entrypoint exports itself', () => {
+  it('should map the declared name of a re-export to its dotted name', () => {
     const exports = parseTestSources({
       'index.ts': [
-        "export type { ButtonState, ButtonState as ToggleState } from './types';",
+        "export type { ButtonState as ToggleState } from './types';",
         "export * as Toggle from './parts';",
       ].join('\n'),
       'parts.ts': "export type { ButtonState as State } from './types';",
@@ -336,13 +336,37 @@ describe('addReexportedTypeNames', () => {
     });
     const typeNameMap = { ToggleState: 'Toggle.State' };
 
-    expect(addReexportedTypeNames(typeNameMap, exports)).toStrictEqual(typeNameMap);
+    const result = addReexportedTypeNames(typeNameMap, exports);
+
+    expect(result).toStrictEqual({ ToggleState: 'Toggle.State', ButtonState: 'Toggle.State' });
+    expect(result).not.toBe(typeNameMap);
+    expect(typeNameMap).toStrictEqual({ ToggleState: 'Toggle.State' });
   });
 
-  it('should skip re-exports without a dotted name', () => {
+  it('should skip a re-export without an entry in the type name map', () => {
     const exports = parseTestSources({
+      'index.ts': "export type { ButtonGroupState as ToggleRootGroupState } from './types';",
+      'types.ts': types,
+    });
+
+    expect(addReexportedTypeNames({}, exports)).toStrictEqual({});
+  });
+
+  it('should not map a component re-exported under a dotted name', () => {
+    const exports = parseTestSources({
+      'index.ts': "export * as Menu from './parts';",
+      'parts.ts': "export { MenuRoot as Root } from './root';",
+      'root.ts': 'export declare function MenuRoot(props: { open: boolean }): null;',
+    });
+
+    expect(addReexportedTypeNames({}, exports)).toStrictEqual({});
+  });
+
+  it('should not map a declared name the entrypoint exports itself', () => {
+    const exports = parseTestSources({
+      // Exports ButtonState under its own name and as ToggleState
       'index.ts': [
-        "export type { ButtonState as ToggleState, ButtonGroupState as ToggleRootGroupState } from './types';",
+        "export type { ButtonState, ButtonState as ToggleState } from './types';",
         "export * as Toggle from './parts';",
       ].join('\n'),
       'parts.ts': "export type { ButtonState as State } from './types';",
@@ -351,8 +375,40 @@ describe('addReexportedTypeNames', () => {
 
     expect(addReexportedTypeNames({ ToggleState: 'Toggle.State' }, exports)).toStrictEqual({
       ToggleState: 'Toggle.State',
-      ButtonState: 'Toggle.State',
     });
+  });
+
+  it('should keep the first re-export when a declared name is re-exported twice', () => {
+    const exports = parseTestSources({
+      'index.ts': [
+        "export type { BaseOrientation as TabsRootOrientation } from './types';",
+        "export type { BaseOrientation as TabsListOrientation } from './types';",
+        "export * as Tabs from './parts';",
+      ].join('\n'),
+      'parts.ts': [
+        "import type { BaseOrientation } from './types';",
+        'export declare namespace Root {',
+        '  export type Orientation = BaseOrientation;',
+        '}',
+        'export declare namespace List {',
+        '  export type Orientation = BaseOrientation;',
+        '}',
+      ].join('\n'),
+      'types.ts': "export type BaseOrientation = 'horizontal' | 'vertical';",
+    });
+    const typeNameMap = {
+      TabsRootOrientation: 'Tabs.Root.Orientation',
+      TabsListOrientation: 'Tabs.List.Orientation',
+    };
+    const typeCompatibilityMap = buildTypeCompatibilityMap(
+      exports,
+      exports.map((exp) => exp.name),
+    );
+
+    expect(addReexportedTypeNames(typeNameMap, exports).BaseOrientation).toBe(
+      'Tabs.Root.Orientation',
+    );
+    expect(typeCompatibilityMap.get('BaseOrientation')).toBe('TabsRootOrientation');
   });
 });
 

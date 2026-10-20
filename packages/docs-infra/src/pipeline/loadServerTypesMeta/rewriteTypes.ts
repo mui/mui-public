@@ -108,8 +108,14 @@ export function buildTypeCompatibilityMap(
  * exports them (`TimeField.Section.Token`), not with the namespace of the module that
  * declares them.
  *
- * Only re-exports that already have a dotted name are added, and a declared name that
- * is itself exported by the entrypoint keeps its own mapping.
+ * Only re-exports whose own name has an entry in `typeNameMap` (a flat name with a dotted
+ * twin) are added. A dotted re-export such as `Menu.Root` of `MenuRoot` isn't: its declared
+ * name would read as one of the entrypoint's own flat names, and the prefix rule of
+ * `getFullyQualifiedName` would turn `MenuRootContext` into `Menu.Root.Context`. A declared
+ * name the entrypoint exports itself is left out, so it keeps printing under that export.
+ * When several re-exports share a declared name, the first in export order wins, the same
+ * order `buildTypeCompatibilityMap` keeps between flat names. `typeNameMap` itself isn't
+ * modified.
  */
 export function addReexportedTypeNames(
   typeNameMap: Record<string, string>,
@@ -124,7 +130,6 @@ export function addReexportedTypeNames(
     if (
       dottedName &&
       reexportedFrom &&
-      reexportedFrom !== exp.name &&
       !exportNames.has(reexportedFrom) &&
       result[reexportedFrom] === undefined
     ) {

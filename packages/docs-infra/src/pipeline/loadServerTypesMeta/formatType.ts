@@ -771,7 +771,12 @@ export function getFullyQualifiedName(
   // Check if flatName starts with a known component prefix
   // e.g., "ComponentPartState" starts with "ComponentPart" -> "Component.Part", so becomes "Component.Part.State"
   // This handles types that don't have namespace structure (already flattened)
-  const sortedEntries = Object.entries(typeNameMap).sort((a, b) => b[0].length - a[0].length);
+  // Only an export's own flat name is a prefix: a re-export's declared name
+  // (DateFieldSectionToken -> TimeField.Section.Token, see addReexportedTypeNames) stands
+  // for that one type.
+  const sortedEntries = Object.entries(typeNameMap)
+    .filter(([flat, dotted]) => dotted.replace(/\./g, '') === flat)
+    .sort((a, b) => b[0].length - a[0].length);
   for (const [flat, dotted] of sortedEntries) {
     if (flatName.startsWith(flat) && flatName.length > flat.length) {
       const suffix = flatName.slice(flat.length);

@@ -299,8 +299,10 @@ export async function loadServerTypesMeta(
   await Promise.all(
     Object.entries(rawVariantData).map(async ([variantName, variantResult]) => {
       // Formatting also maps the declared names of re-exported types, so a type shared
-      // with another entrypoint prints with this entrypoint's namespace. The variant's own
-      // typeNameMap (its exports only) is what gets documented.
+      // with another entrypoint prints with this entrypoint's namespace, and isn't collected
+      // as an external type. Only the variant's own typeNameMap (its exports) is emitted as
+      // the canonical-name map. The rewrite pass doesn't need the wider map:
+      // typeCompatibilityMap already rewrites a declared name to its re-export.
       const formattingTypeNameMap = addReexportedTypeNames(
         variantResult.typeNameMap || {},
         variantResult.exports,
@@ -312,7 +314,7 @@ export async function loadServerTypesMeta(
         collected: collectedExternalTypes,
         allExports: variantResult.exports,
         pattern: externalTypesPatternRegex,
-        typeNameMap: formattingTypeNameMap,
+        typeNameMap: variantResult.typeNameMap,
       };
 
       const constantGroups = matchConstantGroups(variantResult.exports);
