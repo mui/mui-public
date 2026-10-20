@@ -77,9 +77,9 @@ export interface MetricComparison {
   change: Change;
   severity: Severity;
   /**
-   * Whether the change is for the better past the alarm's `error` band, as a regression must be past
-   * it on the worse side: any confirmed change for the better without a band. Never where nothing
-   * can alarm.
+   * Whether the change is for the better by at least the alarm's `error` band, judged by the interval
+   * bound nearest zero, as `severity` is on the worse side; without a band, any confirmed change for
+   * the better. Always false where nothing can alarm.
    */
   improved: boolean;
 }
@@ -257,21 +257,6 @@ function inAlarmUnits(
     : { low: comparison.relative.low / 100, high: comparison.relative.high / 100 };
 }
 
-/**
- * A change for the worse's severity: judged by how far it went at the least — the interval bound
- * nearest zero — against the `error` band. Without a band, which only a discrete metric's alarm
- * keeps, every confirmed change for the worse alarms.
- */
-function severityOf(change: Change, worsening: Interval, error: number | undefined): Severity {
-  if (change !== 'worse') {
-    return 'none';
-  }
-  if (error === undefined) {
-    return 'error';
-  }
-  return worsening.low >= error ? 'error' : 'none';
-}
-
 /** The per-round differences `subject − against`, over the rounds both have. */
 function differencesOf(subject: number[], against: number[]): number[] {
   const rounds = Math.min(subject.length, against.length);
@@ -313,8 +298,10 @@ export function compareSamples(
   // interval in that orientation, so a positive bound is a change for the worse.
   const worseSign = (alarm ?? definition.alarm)?.direction === 'higherIsBetter' ? -1 : 1;
   const worsening = worseSign === 1 ? banded : { low: -banded.high, high: -banded.low };
-  // Only the worse side's edge matters: an improvement never raises an alarm, however large.
-  const worseEdge = alarm?.error ?? 0;
+  // How far a change must go, either way, to count: the alarm's `error` band, judged against the
+  // interval bound nearest zero. Without a band, which only a discrete metric's alarm keeps, 0: a
+  // confirmed change's interval excludes zero, so any of them counts.
+  const edge = alarm?.error ?? 0;
 
   let change: Change = 'undetected';
   if (rounds > 0 && differences.every((difference) => difference === 0)) {
@@ -331,13 +318,11 @@ export function compareSamples(
     relative,
     noise,
     precision,
-    settled: alarm === null || !(worsening.low < worseEdge && worseEdge < worsening.high),
+    // An improvement can't alarm, so only the worse side's edge keeps a run sampling.
+    settled: alarm === null || !(worsening.low < edge && edge < worsening.high),
     change,
-    severity: alarm ? severityOf(change, worsening, alarm.error) : 'none',
-    improved:
-      alarm !== null &&
-      change === 'better' &&
-      (alarm.error === undefined || -worsening.high >= alarm.error),
+    severity: alarm !== null && change === 'worse' && worsening.low >= edge ? 'error' : 'none',
+    improved: alarm !== null && change === 'better' && -worsening.high >= edge,
   };
 }
 
