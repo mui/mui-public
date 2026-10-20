@@ -5,6 +5,8 @@ import { describe, it, expect, vi } from 'vitest';
 import { makeTempDir, privatePkg, publicPkg, writePackage } from './testUtils.mjs';
 import {
   checkPublishDependencies,
+  conflictsWithLatestTag,
+  getLatestTagConflicts,
   getPackagesNeedingManualPublish,
   getPublishRegistry,
   getReleaseVersion,
@@ -940,6 +942,104 @@ describe('getPackagesNeedingManualPublish', () => {
     await expect(
       getPackagesNeedingManualPublish([publicPkg('my-package', pkgDir)]),
     ).rejects.toThrow(/my-package.*HTTP 401/);
+  });
+});
+
+describe('conflictsWithLatestTag', () => {
+  it('rejects a previous major', () => {
+    expect(conflictsWithLatestTag('8.29.5', '9.15.0')).toBe(true);
+  });
+
+  it('rejects a prerelease of a higher major', () => {
+    expect(conflictsWithLatestTag('10.0.0-alpha.1', '9.5.0')).toBe(true);
+    expect(conflictsWithLatestTag('10.0.0-alpha.1', '9.0.0-beta.10')).toBe(true);
+  });
+
+  it('allows a prerelease of the current major', () => {
+    expect(conflictsWithLatestTag('9.0.0-beta.14', '9.0.0-beta.13')).toBe(false);
+  });
+
+  it('allows a higher stable version', () => {
+    expect(conflictsWithLatestTag('9.16.0', '9.15.0')).toBe(false);
+    expect(conflictsWithLatestTag('10.0.0', '9.15.0')).toBe(false);
+  });
+});
+
+describe('getLatestTagConflicts', () => {
+  /**
+   * Answer dist-tags and version lookups the way the npm registry does.
+   * @param {Record<string, string | number>} latestByName - Current `latest`, or an HTTP error status
+   * @param {string[]} [published] - Published `name@version` entries
+   */
+  function stubRegistry(latestByName, published = []) {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (/** @type {URL} */ url) => {
+        const distTags = /^\/-\/package\/(.+)\/dist-tags$/.exec(url.pathname);
+        if (distTags) {
+          const latest = latestByName[distTags[1]];
+          if (typeof latest === 'number') {
+            return { status: latest, ok: false };
+          }
+          return latest
+            ? { status: 200, ok: true, json: async () => ({ latest }) }
+            : { status: 404, ok: false };
+        }
+        const [, name, version] = /^\/(.+)\/([^/]+)$/.exec(url.pathname) ?? [];
+        return published.includes(`${name}@${version}`)
+          ? { status: 200, ok: true }
+          : { status: 404, ok: false };
+      }),
+    );
+  }
+
+  /**
+   * @param {string} root
+   * @param {string} name
+   * @param {string} version
+   */
+  async function pkgWithVersion(root, name, version) {
+    const pkgDir = await writePackage(root, name, { name, version });
+    return { ...publicPkg(name, pkgDir), version };
+  }
+
+  it('returns the packages that would move latest to another release line', async () => {
+    const root = await makeTempDir();
+    vi.stubEnv('npm_config_registry', undefined);
+    stubRegistry(
+      {
+        '@mui/legacy': '9.15.0',
+        '@mui/unchanged': '9.15.0',
+        '@mui/alpha': '9.5.0',
+        '@mui/beta': '9.0.0-beta.13',
+        '@mui/stable': '9.15.0',
+      },
+      ['@mui/unchanged@8.29.3'],
+    );
+
+    const result = await getLatestTagConflicts([
+      await pkgWithVersion(root, '@mui/legacy', '8.29.5'),
+      await pkgWithVersion(root, '@mui/unchanged', '8.29.3'),
+      await pkgWithVersion(root, '@mui/alpha', '10.0.0-alpha.1'),
+      await pkgWithVersion(root, '@mui/beta', '9.0.0-beta.14'),
+      await pkgWithVersion(root, '@mui/stable', '9.16.0'),
+      await pkgWithVersion(root, '@mui/no-latest', '1.0.0'),
+    ]);
+
+    expect(result.map(({ pkg, latest }) => `${pkg.name}@${pkg.version} > ${latest}`)).toEqual([
+      '@mui/legacy@8.29.5 > 9.15.0',
+      '@mui/alpha@10.0.0-alpha.1 > 9.5.0',
+    ]);
+  });
+
+  it('throws when the registry answers with an unexpected status', async () => {
+    const root = await makeTempDir();
+    vi.stubEnv('npm_config_registry', undefined);
+    stubRegistry({ 'my-package': 500 });
+
+    await expect(
+      getLatestTagConflicts([await pkgWithVersion(root, 'my-package', '1.0.0')]),
+    ).rejects.toThrow(/my-package.*HTTP 500/);
   });
 });
 

@@ -228,6 +228,74 @@ export async function getPackagesNeedingManualPublish(packages) {
 }
 
 /**
+ * Whether `version` must not take the `latest` dist-tag from `latest`.
+ *
+ * Rejects a lower version, such as a previous major, and a prerelease of a
+ * higher major. Allows a prerelease of the current major, such as an unstable
+ * package that is still in beta.
+ *
+ * @param {string} version - Version to publish
+ * @param {string} latest - Current `latest` version on the registry
+ * @returns {boolean}
+ */
+export function conflictsWithLatestTag(version, latest) {
+  if (semver.lt(version, latest)) {
+    return true;
+  }
+  return semver.prerelease(version) !== null && semver.major(version) > semver.major(latest);
+}
+
+/**
+ * @typedef {Object} LatestTagConflict
+ * @property {PublicPackage} pkg - Package to publish
+ * @property {string} latest - Current `latest` version on the registry
+ */
+
+/**
+ * Find the packages whose publish with the `latest` dist-tag would move `latest`
+ * to the wrong release line. See {@link conflictsWithLatestTag}.
+ *
+ * @param {PublicPackage[]} packages - Packages to check
+ * @returns {Promise<LatestTagConflict[]>}
+ */
+export async function getLatestTagConflicts(packages) {
+  const results = await Promise.all(
+    packages.map(async (pkg) => {
+      const registry = await getPublishRegistry(pkg.path);
+      const res = await fetch(new URL(`-/package/${pkg.name}/dist-tags`, registry));
+      if (res.status === 404) {
+        return null;
+      }
+      if (!res.ok) {
+        throw new Error(
+          `Failed to read the dist-tags of ${pkg.name} from ${registry}: HTTP ${res.status}`,
+        );
+      }
+      const latest = semver.valid((await res.json()).latest);
+      if (!latest || !conflictsWithLatestTag(pkg.version, latest)) {
+        return null;
+      }
+
+      // pnpm skips versions that are already published, such as unchanged packages on a legacy branch.
+      const versionRes = await fetch(new URL(`${pkg.name}/${pkg.version}`, registry), {
+        method: 'HEAD',
+      });
+      if (versionRes.ok) {
+        return null;
+      }
+      if (versionRes.status !== 404) {
+        throw new Error(
+          `Failed to check whether ${pkg.name}@${pkg.version} exists on ${registry}: HTTP ${versionRes.status}`,
+        );
+      }
+      return { pkg, latest };
+    }),
+  );
+
+  return results.filter((result) => result !== null);
+}
+
+/**
  * Get package version info from registry.
  *
  * Resolves through `pnpm view`, which reports a lookup failure the same way it

@@ -19,6 +19,7 @@ import * as semver from 'semver';
 
 import { persistentAuthStrategy } from '../utils/github.mjs';
 import {
+  getLatestTagConflicts,
   getPackagesNeedingManualPublish,
   getReleaseVersion,
   getWorkspacePackages,
@@ -371,6 +372,17 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       throw new Error(
         `The following packages are new and need to be published to npm manually first: ${newPackageNames}. Read more about it here: https://github.com/mui/mui-public/blob/master/packages/code-infra/README.md#adding-and-publishing-new-packages`,
       );
+    }
+
+    if (tag === 'latest') {
+      const conflicts = await getLatestTagConflicts(filteredPackages);
+      if (conflicts.length > 0) {
+        throw new Error(
+          `Publishing with the "latest" dist-tag would move "latest" to the wrong release line:
+${conflicts.map(({ pkg, latest }) => `  * ${pkg.name}@${pkg.version} (current latest: ${latest})`).join('\n')}
+Use the dist-tag of the release line instead, for example "latest-v8" for a previous major or "next" for a prerelease of the next major.`,
+        );
+      }
     }
 
     // Publish to npm (pnpm handles duplicate checking automatically)
