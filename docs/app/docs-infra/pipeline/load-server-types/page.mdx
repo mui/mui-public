@@ -128,10 +128,10 @@ Also builds a `highlightedExports` map used by the next stage for expanding type
 Converts plain text type fields to syntax-highlighted HAST:
 
 - Converts `typeText` → `type` (syntax-highlighted HAST)
-- Derives `shortType` from the highlighted type structure (e.g., `"Union"`, `"function"`)
+- Derives `shortType` from the highlighted type structure (for example, `"Union"`, `"function"`)
 - Generates `detailedType` with expanded type references (when types reference other exported types)
 - Converts `defaultText` → `default` (syntax-highlighted HAST)
-- Extracts JSDoc comments from `detailedType` HAST into `extractedProperties` — a map of dot-notation property paths (e.g., `"appearance.theme"`) to structured data including `description`, `typeText`, `optional`, `@default`, `@deprecated`, `@see`, and `@example`
+- Extracts JSDoc comments from `detailedType` HAST into `extractedProperties` — a map of dot-notation property paths (for example, `"appearance.theme"`) to structured data including `description`, `typeText`, `optional`, `@default`, `@deprecated`, `@see`, and `@example`
 
 Each export's types are processed in parallel via `Promise.all`. A shared `rawTypeProperties` map is built from all raw types so that named return type references can be expanded into property tables.
 
@@ -147,7 +147,7 @@ span.frame[data-frame-type='comment'] {
 
 ### 5. Build anchorMap
 
-Constructs a map from type names to anchor hrefs (e.g., `"Accordion.Trigger" → "#trigger"`). Both dotted names and flat names from `typeNameMap` (e.g., `"AccordionTrigger"`) are included, enabling linking from either naming convention.
+Constructs a map from type names to anchor hrefs (for example, `"Accordion.Trigger" → "#trigger"`). Both dotted names and flat names from `typeNameMap` (for example, `"AccordionTrigger"`) are included, enabling linking from either naming convention.
 
 > **Deep dive**: To understand the TypeScript extraction pipeline in detail, see [`loadServerTypesMeta`](../load-server-types-meta/page.mdx). For how `types.md` files are generated and written, see [`syncTypes`](../sync-types/page.mdx).
 
@@ -156,7 +156,7 @@ Constructs a map from type names to anchor hrefs (e.g., `"Accordion.Trigger" →
 - [`syncTypes`](../sync-types/page.mdx) - Core type synchronization (called when `sync: true`)
 - [`loadServerTypesText`](../load-server-types-text/page.mdx) - Reads existing types.md (called when `sync: false`)
 - [`loadServerTypesMeta`](../load-server-types-meta/page.mdx) - Low-level type metadata extraction from TypeScript source
-- [`loadPrecomputedTypes`](../load-precomputed-types/page.mdx) - Webpack loader that uses this function
+- [`loadPrecomputedTypes`](../load-precomputed-types/page.mdx) - webpack loader that uses this function
 - [`abstractCreateTypes`](../../factories/abstract-create-types/page.mdx) - Create type documentation factories
 
 ## Types

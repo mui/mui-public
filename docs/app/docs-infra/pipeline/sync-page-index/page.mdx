@@ -182,7 +182,7 @@ See [`transformMarkdownMetadata`](../transform-markdown-metadata/page.mdx#tags) 
 
 #### Why Tags Live in the Index
 
-Tags describe a page's **lifecycle status relative to other pages** (e.g., New, Preview, Private) rather than intrinsic content. They are stored in the page index—not in the individual page's frontmatter or metadata export—for several reasons:
+Tags describe a page's **lifecycle status relative to other pages** (for example, New, Preview, Private) rather than intrinsic content. They are stored in the page index—not in the individual page's frontmatter or metadata export—for several reasons:
 
 - **No circular rebuilds**: Tags like `[New]` can be added automatically when a page is created. If the tag were written back into the page itself, it would trigger a rebuild of that page, which in turn would re-run the indexer—creating a circular dependency. Hoisting tags into the parent index avoids this.
 
@@ -229,7 +229,7 @@ Pages are automatically labeled based on their `audience` and `index` flags. The
 ```
 
 - **`audience`** is read from `metadata.other?.audience` on each page (for example, `export const metadata = { other: { audience: 'private' } }`)
-- **`index`** is set automatically when a page has child pages (i.e., it serves as a section index)
+- **`index`** is set automatically when a page has child pages (that is, it serves as a section index)
 - Pages with no `audience` and no children have no label
 
 ### Title Overrides

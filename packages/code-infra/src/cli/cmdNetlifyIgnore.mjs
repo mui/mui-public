@@ -4,7 +4,7 @@
 
 /**
  * @typedef {Object} Args
- * @property {string[]} workspaces - List of workspace names to process
+ * @property {string[]} workspaces - Workspace names or root-relative paths to process
  * @property {boolean} [check] - Check mode - error if the generated content differs from current
  * @property {string} [baseBranch] - Branch to compare PRs against (default: master)
  */
@@ -100,7 +100,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       .positional('workspaces', {
         type: 'string',
         array: true,
-        describe: 'List of workspace names to process',
+        describe: 'Workspace names or root-relative paths to process',
         demandOption: true,
       })
       .option('check', {
@@ -115,6 +115,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
           "Branch to compare PRs against (the site's production branch on Netlify). Production and branch deploys always rebuild regardless of this value.",
       })
       .example('$0 netlify-ignore @mui/internal-docs-infra', 'Update netlify.toml for a workspace')
+      .example('$0 netlify-ignore ./apps/dashboard', 'Update an unnamed workspace by path')
       .example(
         '$0 netlify-ignore @mui/internal-docs-infra @mui/internal-code-infra',
         'Update netlify.toml for multiple workspaces',
@@ -135,11 +136,17 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
 
     // Get all workspace packages and create workspace map
     const allWorkspaces = await getWorkspacePackages({ cwd: workspaceRoot });
-    const workspaceMap = new Map(
-      allWorkspaces.flatMap((workspace) =>
-        workspace.name ? [[workspace.name, workspace.path]] : [],
-      ),
-    );
+    /** @type {Map<string, string>} */
+    const workspaceMap = new Map();
+    for (const workspace of allWorkspaces) {
+      if (workspace.name) {
+        workspaceMap.set(workspace.name, workspace.path);
+      }
+
+      // Paths also identify private workspaces that have no package name.
+      const relativePath = toPosixPath(path.relative(workspaceRoot, workspace.path));
+      workspaceMap.set(`./${relativePath}`, workspace.path);
+    }
 
     // Process each workspace concurrently
     await Promise.all(

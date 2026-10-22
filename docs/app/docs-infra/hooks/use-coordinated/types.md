@@ -56,7 +56,7 @@ type ReturnValue = () => void;
 Coordinate a piece of state across sibling component instances on
 the same channel, so that visually disruptive value changes commit
 in a single layout pass rather than independently. Designed as a
-thin wrapper around any `useState`-shaped primitive (e.g.
+thin wrapper around any `useState`-shaped primitive (for example,
 `useLocalStorageState`, `usePreference`, plain `useState`).
 
 **Originator flow** — calling the returned `setValue`:
@@ -69,7 +69,7 @@ thin wrapper around any `useState`-shaped primitive (e.g.
    consistent with the optional `onCommit` side-effect
 
 **Receiver flow** — when the underlying `value` changes from outside
-(e.g. a storage event from another tab):
+(for example, a storage event from another tab):
 
 1. `pendingValue` updates to match
 2. Coordination runs locally (this tab's peers run their own
@@ -100,7 +100,7 @@ type ReturnValue = [
 ### useCoordinatedLazy
 
 Declares the calling component as a source of an initial, post-hydration
-layout shift — e.g. a code block that swaps from its plain fallback to
+layout shift — for example, a code block that swaps from its plain fallback to
 highlighted (and focus-collapsed) output once it hydrates.
 
 While any registered source is unsettled, [`useCoordinated`](#usecoordinated) holds its

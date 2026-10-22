@@ -78,6 +78,40 @@ describe('enhanceCodeEmphasis', () => {
     parseSource = await createParseSource();
   });
 
+  it('removes whole JSX focus directive lines', async () => {
+    const result = await testEmphasis(
+      `const node = <div>
+  {/* @focus-start */}
+  <span>Hello</span>
+  {/* @focus-end */}
+</div>;`,
+      parseSource,
+    );
+
+    expect(result).toMatchInlineSnapshot(`
+      "<span class="frame" data-lined=""><span class="line" data-ln="1"><span class="pl-k">const</span> <span class="pl-c1">node</span> <span class="pl-k di-pu">=</span> &#x3C;<span class="pl-ent">div</span>></span>
+      </span><span class="frame" data-lined="" data-frame-type="focus" data-frame-focus-target=""><span class="line" data-ln="2">  &#x3C;<span class="pl-ent">span</span>>Hello&#x3C;/<span class="pl-ent">span</span>></span>
+      </span><span class="frame" data-lined=""><span class="line" data-ln="3">&#x3C;/<span class="pl-ent">div</span>>;</span></span>"
+    `);
+  });
+
+  it('removes whole JSX JSDoc focus directive lines', async () => {
+    const result = await testEmphasis(
+      `const node = <div>
+  {/** @focus-start */}
+  <span>Hello</span>
+  {/** @focus-end */}
+</div>;`,
+      parseSource,
+    );
+
+    expect(result).toMatchInlineSnapshot(`
+      "<span class="frame" data-lined=""><span class="line" data-ln="1"><span class="pl-k">const</span> <span class="pl-c1">node</span> <span class="pl-k di-pu">=</span> &#x3C;<span class="pl-ent">div</span>></span>
+      </span><span class="frame" data-lined="" data-frame-type="focus" data-frame-focus-target=""><span class="line" data-ln="2">  &#x3C;<span class="pl-ent">span</span>>Hello&#x3C;/<span class="pl-ent">span</span>></span>
+      </span><span class="frame" data-lined=""><span class="line" data-ln="3">&#x3C;/<span class="pl-ent">div</span>>;</span></span>"
+    `);
+  });
+
   describe('EMPHASIS_COMMENT_PREFIX', () => {
     it('should export the correct prefix', () => {
       expect(EMPHASIS_COMMENT_PREFIX).toBe('@highlight');

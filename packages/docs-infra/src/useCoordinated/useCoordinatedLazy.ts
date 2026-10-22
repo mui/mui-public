@@ -4,7 +4,7 @@ import { registerLayoutShiftSource } from './layoutShiftGate';
 
 /**
  * Declares the calling component as a source of an initial, post-hydration
- * layout shift — e.g. a code block that swaps from its plain fallback to
+ * layout shift — for example, a code block that swaps from its plain fallback to
  * highlighted (and focus-collapsed) output once it hydrates.
  *
  * While any registered source is unsettled, {@link useCoordinated} holds its

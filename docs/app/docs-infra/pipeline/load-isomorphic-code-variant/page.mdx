@@ -39,7 +39,7 @@ The function:
 
 - Loads source code from files or URLs
 - Applies syntax highlighting (HAST transformation)
-- Generates language transforms (e.g., TypeScript → JavaScript)
+- Generates language transforms (for example, TypeScript → JavaScript)
 - Recursively loads extra files (CSS, utils, etc.)
 - Tracks dependencies for caching and hot reloading
 
@@ -87,7 +87,7 @@ const loadSource = async (url) => {
 
 > [!NOTE]
 > Each `extraFiles` value is a URL/source string or an object `{ source?, transforms?, relativeUrl?, metadata?, ... }`.
-> When an entry is rewritten relative to the entry source (e.g. in `'flat'` mode), `relativeUrl` is preserved so the original file URL can be reconstructed via `new URL(relativeUrl, variant.url)`; otherwise the key itself resolves against `variant.url`.
+> When an entry is rewritten relative to the entry source (for example, in `'flat'` mode), `relativeUrl` is preserved so the original file URL can be reconstructed via `new URL(relativeUrl, variant.url)`; otherwise the key itself resolves against `variant.url`.
 
 ### Loading with Global Dependencies
 
@@ -212,7 +212,7 @@ determined by the loader's
   depth (as in the example above). Imports are left untouched and still resolve
   within the rebuilt tree.
 
-Files marked `metadata: true` (e.g. from `globalsCode` or `mergeCodeMetadata`)
+Files marked `metadata: true` (for example, from `globalsCode` or `mergeCodeMetadata`)
 are scoped to the project root rather than the source directory, and compressed
 sources are decoded back to plain text during flattening. This is the same
 flattening that powers `useDemo`'s
@@ -365,7 +365,7 @@ const enhancedRoot = await sourceEnhancers.reduce(async (rootPromise, enhancer) 
 Each enhancer receives:
 
 - `root` - The current HAST root (output of previous enhancer)
-- `comments` - Comments extracted by `loadSource` (e.g., from `parseImportsAndComments`)
+- `comments` - Comments extracted by `loadSource` (for example, from `parseImportsAndComments`)
 - `fileName` - The file name for context
 
 Enhancers can be synchronous or asynchronous and are applied to both main files and extra files.
@@ -401,7 +401,7 @@ Transforms are applied on-demand during rendering via `applyCodeTransform`.
 
 #### Comments and line shifting
 
-Source comments (e.g. `// @focus`, `// @padding-top`) are keyed by
+Source comments (for example, `// @focus`, `// @padding-top`) are keyed by
 1-indexed line number (the convention everywhere a `Code` is stored). When
 a transform is applied, those keys need to track the lines they were
 attached to. The runtime handles this automatically for the common case:

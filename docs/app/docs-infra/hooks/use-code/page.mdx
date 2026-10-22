@@ -13,7 +13,7 @@ Key features include:
 - **URL-aware file navigation** with automatic hash management
 - **Automatic name and slug generation** from URLs when not provided
 - **Multi-file code management** with seamless file switching
-- **Transform support** for code modifications (e.g., JS ↔ TS conversion)
+- **Transform support** for code modifications (for example, JS ↔ TS conversion)
 - **Clipboard integration** with copy functionality
 - **Source editing capabilities** for interactive code editing
 
@@ -173,7 +173,7 @@ Use the `editActivation` prop — set on [`CodeHighlighter`](../../components/co
 
 A related nicety — **boundary auto-expand**: in a collapsed
 [collapsible block](../use-code-window/page.mdx), the caret respects the
-collapsed-frame boundaries while editing, and moving past them (e.g. pressing <kbd>↓</kbd>
+collapsed-frame boundaries while editing, and moving past them (for example, pressing <kbd>↓</kbd>
 on the last visible line) automatically expands the block instead of stranding the
 caret in hidden lines.
 
@@ -350,13 +350,13 @@ Controls what happens to the URL hash when users interact with file tabs or swit
 - **`'remove-hash'` (default)**: Complete hash removal on interaction
   - Reads URL hash on mount to select the initial file/variant
   - Completely removes the hash when user clicks a file tab
-  - Removes the hash when user manually switches variants (e.g., via dropdown)
+  - Removes the hash when user manually switches variants (for example, via dropdown)
   - **Use case**: Demos that support deep linking but clean up URLs after user engagement
 
 - **`'remove-filename'`**: Keep variant in hash on interaction
   - Reads URL hash on mount to select the initial file/variant
-  - Simplifies hash to just variant when user clicks a file tab (e.g., `#demo:variant:file.tsx` → `#demo:variant`)
-  - For "Default" variant, simplifies to just the demo slug (e.g., `#demo:file.tsx` → `#demo`)
+  - Simplifies hash to just variant when user clicks a file tab (for example, `#demo:variant:file.tsx` → `#demo:variant`)
+  - For "Default" variant, simplifies to just the demo slug (for example, `#demo:file.tsx` → `#demo`)
   - Preserves variant selection in URL even after user interaction
   - **Use case**: Demos where variant selection should remain visible in URL
 
@@ -701,8 +701,8 @@ These variant-only hashes select the main file of that variant.
 
 - **File Tab Clicks**: Hash behavior controlled by `fileHashMode` option
   - `'remove-hash'`: Removes entire hash
-  - `'remove-filename'`: Keeps variant in hash (e.g., `#demo:variant`)
-- **Variant Changes** (e.g., dropdown): Hash behavior controlled by `fileHashMode` option
+  - `'remove-filename'`: Keeps variant in hash (for example, `#demo:variant`)
+- **Variant Changes** (for example, dropdown): Hash behavior controlled by `fileHashMode` option
   - `'remove-hash'`: Removes entire hash
   - `'remove-filename'`: Updates hash to reflect new variant
 
@@ -746,7 +746,7 @@ Manages file selection and navigation within code variants. Features:
 - Hash removal behavior controlled by `fileHashMode`
 - Cross-variant file navigation
 - Detection of user-initiated vs. hash-driven variant changes
-- Derivation of `selectedFileUrl` by resolving the selected file's name (or its `relativeUrl`) against the variant's `url`. Available on the `useCode` result so consumers can link back to the source file (e.g., for an "Edit on GitHub" link).
+- Derivation of `selectedFileUrl` by resolving the selected file's name (or its `relativeUrl`) against the variant's `url`. Available on the `useCode` result so consumers can link back to the source file (for example, for an "Edit on GitHub" link).
 
 The hook generates slugs for all files across all variants, with special handling for the "Default" variant (which omits the variant name from the hash).
 
@@ -764,7 +764,7 @@ Manages source code editing capabilities when available.
 
 ### useSourceEnhancing
 
-Applies enhancer functions to parsed HAST sources asynchronously. Enhancers run in order after parsing and can modify the syntax tree (e.g., adding annotations, highlighting specific lines, injecting comments).
+Applies enhancer functions to parsed HAST sources asynchronously. Enhancers run in order after parsing and can modify the syntax tree (for example, adding annotations, highlighting specific lines, injecting comments).
 
 ## Source Enhancers
 
@@ -912,13 +912,13 @@ function MyCodeContent(props) {
 **When to use build-time enhancers:**
 
 - Static enhancements (line highlighting, syntax annotations)
-- Comment-driven enhancements (e.g., `// @highlight`)
+- Comment-driven enhancements (for example, `// @highlight`)
 - Any transformation that doesn't depend on client state
 
 **When to use server-time enhancers:**
 
 - Custom enhancer logic not available as a built-in configuration
-- Enhancements that need access to server-side data (e.g., database lookups)
+- Enhancements that need access to server-side data (for example, database lookups)
 - Dynamic routes where build-time precomputation isn't possible
 
 **When to use client-time enhancers:**
@@ -951,18 +951,18 @@ This constraint is why comments extracted with `notableCommentsPrefix` are remov
 
 **Use enhancers for:**
 
-- Adding `data-*` attributes (e.g., `data-hl` for line highlighting)
+- Adding `data-*` attributes (for example, `data-hl` for line highlighting)
 - Wrapping tokens in additional `<span>` elements
 - Adding CSS class names to existing elements
 - Injecting metadata into the HAST properties
 
 **Use transformers for:**
 
-- Creating **alternative representations** of the code (e.g., TypeScript → JavaScript)
+- Creating **alternative representations** of the code (for example, TypeScript → JavaScript)
 - Generating optional variants users can switch between
 
 > [!NOTE]
-> **Transformers are for alternatives, not modifications.** Transformers create additional views of the code that users can toggle between—they should not be used to alter the default version. If you need to modify the source itself (e.g., fixing formatting, removing debug code), do that in a linter or build step _before_ the code reaches `CodeHighlighter`.
+> **Transformers are for alternatives, not modifications.** Transformers create additional views of the code that users can toggle between—they should not be used to alter the default version. If you need to modify the source itself (for example, fixing formatting, removing debug code), do that in a linter or build step _before_ the code reaches `CodeHighlighter`.
 
 See the [Code Highlighter transforms documentation](../../components/code-highlighter/page.mdx#code-transformed) for details on using transformers.
 

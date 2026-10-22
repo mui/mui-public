@@ -27,6 +27,11 @@ export interface OidcVerificationResult {
   isTrusted: boolean;
   /** The VCS ref from the CI build (e.g. "refs/heads/my-branch" or "refs/heads/pull/123") */
   ref: string;
+  /**
+   * The branch a trusted build runs on, read from its verified ref; `null` for a fork, whose ref
+   * names a pull request rather than its branch, and for a ref that isn't a branch, such as a tag.
+   */
+  branch: string | null;
   /** All verified JWT claims (provider-specific) */
   rawClaims: Record<string, unknown>;
 }
@@ -50,11 +55,14 @@ export async function verifyOidcToken(token: string): Promise<OidcVerificationRe
   const vcsOrigin = claims['oidc.circleci.com/vcs-origin'];
   const sourceRepo = vcsOrigin.replace(/^github\.com\//, '');
 
+  const ref = claims['oidc.circleci.com/vcs-ref'];
+  const isTrusted = sourceRepo.startsWith('mui/');
   return {
     provider: 'circleci',
     sourceRepo,
-    isTrusted: sourceRepo.startsWith('mui/'),
-    ref: claims['oidc.circleci.com/vcs-ref'],
+    isTrusted,
+    ref,
+    branch: isTrusted && ref.startsWith('refs/heads/') ? ref.slice('refs/heads/'.length) : null,
     rawClaims: claims as unknown as Record<string, unknown>,
   };
 }

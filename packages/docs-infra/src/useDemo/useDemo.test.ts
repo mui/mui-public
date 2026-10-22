@@ -13,9 +13,9 @@ import { useDemo } from './useDemo';
 import type { Code, ContentProps } from '../CodeHighlighter/types';
 import { CodeHighlighterContext } from '../CodeHighlighter/CodeHighlighterContext';
 
-const copyToClipboard = vi.hoisted(() => vi.fn());
-
-vi.mock('clipboard-copy', () => ({ default: copyToClipboard }));
+// JSDOM has no Clipboard API.
+const writeText = vi.fn<Clipboard['writeText']>(async () => {});
+Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
 
 // Store the original createElement function before mocking
 const originalCreateElement = document.createElement.bind(document);
@@ -515,7 +515,7 @@ describe('useDemo export configuration integration', () => {
     await act(() => result.current.copy({} as React.MouseEvent<Element>));
     await act(() => result.current.copyMarkdown({} as React.MouseEvent<Element>));
 
-    expect(copyToClipboard.mock.calls.map(([contents]) => contents)).toEqual([
+    expect(writeText.mock.calls.map(([contents]) => contents)).toEqual([
       'export const helper: boolean = false;',
       `### Source Policy Demo
 
@@ -631,7 +631,7 @@ export const helper: boolean = false;
     await act(() => result.current.copy({} as React.MouseEvent<Element>));
     await act(() => result.current.copyMarkdown({} as React.MouseEvent<Element>));
 
-    expect(copyToClipboard.mock.calls.map(([contents]) => contents)).toEqual([
+    expect(writeText.mock.calls.map(([contents]) => contents)).toEqual([
       'export const helper = true;',
       `### Source Policy Demo
 

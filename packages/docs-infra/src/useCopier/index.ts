@@ -1,5 +1,4 @@
 import * as React from 'react';
-import copyToClipboard from 'clipboard-copy';
 
 type OnCopied = () => void;
 type OnCopyError = (error: unknown) => void;
@@ -25,7 +24,7 @@ export function useCopier(contents: (() => string | undefined) | string, opts?: 
       try {
         const content = typeof contents === 'function' ? contents() : contents;
         if (content) {
-          await copyToClipboard(content);
+          await navigator.clipboard.writeText(content);
         }
 
         setRecentlySuccessful(true);
