@@ -238,7 +238,7 @@ export async function getPackagesNeedingManualPublish(packages) {
  * @param {string} current - Version that the dist-tag points to on the registry
  * @returns {string | null} The reason, or null when the publish is safe
  */
-export function getDistTagConflict(tag, version, current) {
+function getDistTagConflict(tag, version, current) {
   if (semver.lt(version, current)) {
     return `"${tag}" can only move to a newer version, but ${version} is lower than the current ${current}`;
   }
@@ -257,24 +257,20 @@ export function getDistTagConflict(tag, version, current) {
 }
 
 /**
- * @typedef {Object} DistTagConflict
- * @property {PublicPackage} pkg - Package to publish
- * @property {string} reason - Why the dist-tag would move to the wrong release line
+ * @typedef {Object} RegistryPackage
+ * @property {Record<string, string>} distTags - Dist-tags of the package
+ * @property {string[]} versions - Published versions of the package
  */
 
 /**
- * Find the packages whose publish with `tag` would move the dist-tag to the
- * wrong release line. See {@link getDistTagConflict}.
+ * Read the dist-tags and the published versions of each package with `pnpm view`, so
+ * the lookup uses the same registry configuration and credentials as `pnpm publish`.
  *
- * Reads the registry with `pnpm view`, so the check uses the same registry
- * configuration and credentials as `pnpm publish`.
- *
- * @param {PublicPackage[]} packages - Packages to check
- * @param {string} tag - Dist-tag to publish with
- * @returns {Promise<DistTagConflict[]>}
+ * @param {PublicPackage[]} packages - Packages to read
+ * @returns {Promise<Map<string, RegistryPackage | null>>} By package name, null for a package that is not on the registry
  */
-export async function getDistTagConflicts(packages, tag) {
-  const results = await Promise.all(
+export async function getRegistryPackages(packages) {
+  const entries = await Promise.all(
     packages.map(async (pkg) => {
       const registry = await getPublishRegistry(pkg.path);
       const { exitCode, stdout, stderr } = await $({
@@ -290,29 +286,54 @@ export async function getDistTagConflicts(packages, tag) {
         info = {};
       }
       if (exitCode !== 0) {
-        // A package that is not on the registry yet has no dist-tags to protect.
         if (info.error?.code === 'ERR_PNPM_FETCH_404') {
-          return null;
+          return /** @type {const} */ ([pkg.name, null]);
         }
         throw new Error(
           `Failed to read the dist-tags of ${pkg.name} from ${registry}: ${info.error?.message ?? stderr}`,
         );
       }
-      // pnpm skips versions that are already published, such as unchanged packages on a legacy branch.
-      if ([info.versions ?? []].flat().includes(pkg.version)) {
-        return null;
-      }
-      const current = semver.valid(info['dist-tags']?.[tag]);
-      // npm points `latest` at the first version, which is the placeholder for a new package.
-      if (!current || current === PLACEHOLDER_VERSION) {
-        return null;
-      }
-      const reason = getDistTagConflict(tag, pkg.version, current);
-      return reason ? { pkg, reason } : null;
+      /** @type {RegistryPackage} */
+      const registryPackage = {
+        distTags: info['dist-tags'] ?? {},
+        versions: [info.versions ?? []].flat(),
+      };
+      return /** @type {const} */ ([pkg.name, registryPackage]);
     }),
   );
+  return new Map(entries);
+}
 
-  return results.filter((result) => result !== null);
+/**
+ * @typedef {Object} DistTagConflict
+ * @property {PublicPackage} pkg - Package to publish
+ * @property {string} reason - Why the dist-tag would move to the wrong release line
+ */
+
+/**
+ * Find the packages whose publish with `tag` would move the dist-tag to the wrong release line.
+ *
+ * @param {PublicPackage[]} packages - Packages to publish
+ * @param {string} tag - Dist-tag to publish with
+ * @param {Map<string, RegistryPackage | null>} registryPackages - Registry data from {@link getRegistryPackages}
+ * @returns {DistTagConflict[]}
+ */
+export function getDistTagConflicts(packages, tag, registryPackages) {
+  return packages.flatMap((pkg) => {
+    const registryPackage = registryPackages.get(pkg.name);
+    // A package that is not on the registry yet has no dist-tags to protect. pnpm skips versions
+    // that are already published, such as unchanged packages on a legacy branch.
+    if (!registryPackage || registryPackage.versions.includes(pkg.version)) {
+      return [];
+    }
+    const current = semver.valid(registryPackage.distTags[tag]);
+    // npm points `latest` at the first version, which is the placeholder for a new package.
+    if (!current || current === PLACEHOLDER_VERSION) {
+      return [];
+    }
+    const reason = getDistTagConflict(tag, pkg.version, current);
+    return reason ? [{ pkg, reason }] : [];
+  });
 }
 
 /**

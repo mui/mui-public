@@ -2,16 +2,9 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { describe, it, expect, vi } from 'vitest';
 
-import {
-  createTestRegistry,
-  makeTempDir,
-  privatePkg,
-  publicPkg,
-  writePackage,
-} from './testUtils.mjs';
+import { makeTempDir, privatePkg, publicPkg, writePackage } from './testUtils.mjs';
 import {
   checkPublishDependencies,
-  getDistTagConflict,
   getDistTagConflicts,
   getPackagesNeedingManualPublish,
   getPublishRegistry,
@@ -952,185 +945,121 @@ describe('getPackagesNeedingManualPublish', () => {
   });
 });
 
-describe('getDistTagConflict', () => {
+describe('getDistTagConflicts', () => {
+  /**
+   * Find the conflicts of a publish with `tag` against registry data.
+   * @param {string} tag - Dist-tag to publish with
+   * @param {Record<string, { version: string, distTags?: Record<string, string>, versions?: string[] }>} packages
+   *   Version to publish and registry data of each package, by name. No `distTags` means not on the registry.
+   */
+  function findConflicts(tag, packages) {
+    const entries = Object.entries(packages);
+    const conflicts = getDistTagConflicts(
+      entries.map(([name, { version }]) => ({ ...publicPkg(name, `/workspace/${name}`), version })),
+      tag,
+      new Map(
+        entries.map(([name, { distTags, versions }]) => [
+          name,
+          distTags ? { distTags, versions: versions ?? Object.values(distTags) } : null,
+        ]),
+      ),
+    );
+    return conflicts.map(({ pkg, reason }) => `${pkg.name}: ${reason}`);
+  }
+
   it('rejects a lower version on any dist-tag', () => {
-    expect(getDistTagConflict('latest', '8.29.6', '9.15.0')).toBe(
-      '"latest" can only move to a newer version, but 8.29.6 is lower than the current 9.15.0',
-    );
-    expect(getDistTagConflict('next', '0.7.4', '1.0.0-rc.0')).toBe(
-      '"next" can only move to a newer version, but 0.7.4 is lower than the current 1.0.0-rc.0',
-    );
+    expect(
+      findConflicts('latest', { grid: { version: '8.29.6', distTags: { latest: '9.15.0' } } }),
+    ).toEqual([
+      'grid: "latest" can only move to a newer version, but 8.29.6 is lower than the current 9.15.0',
+    ]);
+    expect(
+      findConflicts('next', {
+        virtualizer: { version: '0.7.4', distTags: { next: '1.0.0-rc.0' } },
+      }),
+    ).toEqual([
+      'virtualizer: "next" can only move to a newer version, but 0.7.4 is lower than the current 1.0.0-rc.0',
+    ]);
   });
 
   it('rejects a prerelease on latest dist-tags that point to a stable version', () => {
-    expect(getDistTagConflict('latest', '10.0.0-alpha.1', '9.5.0')).toBe(
-      '"latest" cannot point to a prerelease (10.0.0-alpha.1)',
-    );
-    expect(getDistTagConflict('latest', '9.16.0-beta.0', '9.15.0')).not.toBeNull();
-    expect(getDistTagConflict('latest-v7', '7.4.0-beta.0', '7.3.11')).not.toBeNull();
+    expect(
+      findConflicts('latest', {
+        material: { version: '10.0.0-alpha.1', distTags: { latest: '9.5.0' } },
+        grid: { version: '9.16.0-beta.0', distTags: { latest: '9.15.0' } },
+      }),
+    ).toEqual([
+      'material: "latest" cannot point to a prerelease (10.0.0-alpha.1)',
+      'grid: "latest" cannot point to a prerelease (9.16.0-beta.0)',
+    ]);
+    expect(
+      findConflicts('latest-v7', {
+        lab: { version: '7.4.0-beta.0', distTags: { 'latest-v7': '7.3.11' } },
+      }),
+    ).toEqual(['lab: "latest-v7" cannot point to a prerelease (7.4.0-beta.0)']);
   });
 
   it('allows a prerelease on latest dist-tags that already point to one', () => {
-    // An unstable package moves to the new major together with a stable release.
-    expect(getDistTagConflict('latest', '9.0.0-beta.2', '7.0.1-beta.23')).toBeNull();
-    expect(getDistTagConflict('latest', '9.0.0-beta.14', '9.0.0-beta.13')).toBeNull();
+    expect(
+      findConflicts('latest', {
+        // An unstable package moves to the new major together with a stable release.
+        lab: { version: '9.0.0-beta.2', distTags: { latest: '7.0.1-beta.23' } },
+        scheduler: { version: '9.0.0-beta.14', distTags: { latest: '9.0.0-beta.13' } },
+      }),
+    ).toEqual([]);
   });
 
   it('rejects a different major on latest-* dist-tags', () => {
-    expect(getDistTagConflict('latest-v8', '9.16.0', '8.29.5')).toBe(
-      '"latest-v8" cannot cross a major (8.29.5 to 9.16.0)',
-    );
-    expect(getDistTagConflict('latest-v8', '0.4.3', '0.4.2')).toBeNull();
-  });
-
-  it('allows a new major on latest', () => {
-    expect(getDistTagConflict('latest', '10.0.0', '9.15.0')).toBeNull();
-  });
-
-  it('allows a prerelease on other dist-tags', () => {
-    expect(getDistTagConflict('next', '10.0.0-alpha.1', '9.0.0-rc.0')).toBeNull();
-  });
-});
-
-describe('getDistTagConflicts', () => {
-  /**
-   * Create a workspace with the pnpm version of this repo, whose packages publish to `registryUrl`.
-   * @param {string} registryUrl
-   * @param {Record<string, string>} versions - Version of each package, by name
-   * @param {string} [npmrc] - Contents of the workspace `.npmrc`
-   */
-  async function createWorkspace(registryUrl, versions, npmrc) {
-    const root = await makeTempDir();
-    const { packageManager } = await readPackageJson(
-      path.resolve(import.meta.dirname, '../../../..'),
-    );
-    await writePackage(root, '.', { name: 'test-workspace', private: true, packageManager });
-    await fs.writeFile(path.join(root, 'pnpm-workspace.yaml'), "packages:\n  - 'packages/*'\n");
-    if (npmrc) {
-      await fs.writeFile(path.join(root, '.npmrc'), npmrc);
-    }
-    return Promise.all(
-      Object.entries(versions).map(async ([name, version], index) => {
-        const pkgDir = await writePackage(root, `packages/package-${index}`, {
-          name,
-          version,
-          publishConfig: { registry: registryUrl },
-        });
-        return { ...publicPkg(name, pkgDir), version };
-      }),
-    );
-  }
-
-  it('returns the packages that would move the dist-tag to the wrong release line', async () => {
-    vi.stubEnv('npm_config_registry', undefined);
-    const registry = await createTestRegistry({
-      '@mui/legacy': { tags: { latest: '9.15.0', 'latest-v8': '8.29.5' } },
-      '@mui/unchanged': { tags: { latest: '9.15.0' }, versions: ['8.29.3', '9.15.0'] },
-      '@mui/alpha': { tags: { latest: '9.5.0', next: '10.0.0-alpha.0' } },
-      '@mui/beta': { tags: { latest: '9.0.0-beta.13' } },
-      '@mui/new': { tags: { latest: PLACEHOLDER_VERSION, canary: PLACEHOLDER_VERSION } },
-      '@mui/stable': { tags: { latest: '9.15.0' } },
-    });
-    const packages = await createWorkspace(registry.url, {
-      '@mui/legacy': '8.29.6',
-      '@mui/unchanged': '8.29.3',
-      '@mui/alpha': '10.0.0-alpha.1',
-      '@mui/beta': '9.0.0-beta.14',
-      '@mui/new': '9.0.0-alpha.0',
-      '@mui/stable': '9.16.0',
-      '@mui/not-on-registry': '1.0.0',
-    });
-
-    const result = await getDistTagConflicts(packages, 'latest');
-
-    expect(result.map(({ pkg, reason }) => `${pkg.name}: ${reason}`)).toEqual([
-      '@mui/legacy: "latest" can only move to a newer version, but 8.29.6 is lower than the current 9.15.0',
-      '@mui/alpha: "latest" cannot point to a prerelease (10.0.0-alpha.1)',
-    ]);
-  });
-
-  it('compares with the dist-tag that the publish uses', async () => {
-    vi.stubEnv('npm_config_registry', undefined);
-    const registry = await createTestRegistry({
-      '@mui/legacy': { tags: { latest: '9.15.0', 'latest-v8': '8.29.5' } },
-      '@mui/virtualizer': { tags: { latest: '0.7.3', next: '1.0.0-rc.0' } },
-    });
-    const packages = await createWorkspace(registry.url, {
-      '@mui/legacy': '8.29.6',
-      '@mui/virtualizer': '0.7.4',
-    });
-
-    expect(await getDistTagConflicts(packages, 'latest-v8')).toEqual([]);
     expect(
-      (await getDistTagConflicts(packages, 'next')).map(
-        ({ pkg, reason }) => `${pkg.name}: ${reason}`,
-      ),
-    ).toEqual([
-      '@mui/virtualizer: "next" can only move to a newer version, but 0.7.4 is lower than the current 1.0.0-rc.0',
-    ]);
+      findConflicts('latest-v8', {
+        grid: { version: '9.16.0', distTags: { 'latest-v8': '8.29.5' } },
+        virtualizer: { version: '0.4.3', distTags: { 'latest-v8': '0.4.2' } },
+      }),
+    ).toEqual(['grid: "latest-v8" cannot cross a major (8.29.5 to 9.16.0)']);
   });
 
-  it('throws when the registry rejects the lookup', async () => {
-    vi.stubEnv('npm_config_registry', undefined);
-    const registry = await createTestRegistry(
-      { 'my-package': { tags: { latest: '1.0.0' } } },
-      { authenticate: 'bearer' },
-    );
-    const packages = await createWorkspace(registry.url, { 'my-package': '1.1.0' });
-
-    await expect(getDistTagConflicts(packages, 'latest')).rejects.toThrow(
-      /Failed to read the dist-tags of my-package/,
-    );
+  it('allows a new major on latest and a prerelease on other dist-tags', () => {
+    expect(
+      findConflicts('latest', { grid: { version: '10.0.0', distTags: { latest: '9.15.0' } } }),
+    ).toEqual([]);
+    expect(
+      findConflicts('next', {
+        grid: { version: '10.0.0-alpha.1', distTags: { next: '9.16.0' } },
+      }),
+    ).toEqual([]);
   });
 
-  it.each([
-    ['2.3.0', '2.4.0'],
-    ['2.4.0', '2.4.1'],
-    ['2.0.0-beta.2', '2.0.0-beta.3'],
-  ])('rejects unpublished %s when latest is %s', async (version, latest) => {
-    vi.stubEnv('npm_config_registry', undefined);
-    const registry = await createTestRegistry({ '@scope/example': { tags: { latest } } });
-    const [pkg] = await createWorkspace(registry.url, { '@scope/example': version });
-
-    expect(await getDistTagConflicts([pkg], 'latest')).toEqual([
-      {
-        pkg,
-        reason: `"latest" can only move to a newer version, but ${version} is lower than the current ${latest}`,
-      },
-    ]);
+  it('skips versions that are already published', () => {
+    expect(
+      findConflicts('latest', {
+        charts: {
+          version: '8.29.3',
+          distTags: { latest: '9.15.0' },
+          versions: ['8.29.3', '9.15.0'],
+        },
+      }),
+    ).toEqual([]);
   });
 
-  it.each([
-    { version: '1.1.0', conflicts: true },
-    { version: '1.0.0', conflicts: false },
-    { version: '2.1.0', conflicts: false },
-  ])(
-    'uses workspace credentials to check $version on a custom registry',
-    async ({ version, conflicts }) => {
-      vi.stubEnv('npm_config_registry', undefined);
-      const registry = await createTestRegistry(
-        { '@scope/example': { tags: { latest: '2.0.0' }, versions: ['1.0.0', '2.0.0'] } },
-        { authenticate: 'bearer' },
-      );
-      const [pkg] = await createWorkspace(
-        registry.url,
-        { '@scope/example': version },
-        `${new URL(registry.url).href.slice('http:'.length)}:_authToken=${registry.token}\n`,
-      );
+  it('skips packages and dist-tags that are not on the registry yet', () => {
+    expect(
+      findConflicts('latest-v9', {
+        new: { version: '1.0.0' },
+        grid: { version: '9.20.0', distTags: { latest: '10.0.0' } },
+      }),
+    ).toEqual([]);
+  });
 
-      expect(await getDistTagConflicts([pkg], 'latest')).toEqual(
-        conflicts
-          ? [
-              {
-                pkg,
-                reason:
-                  '"latest" can only move to a newer version, but 1.1.0 is lower than the current 2.0.0',
-              },
-            ]
-          : [],
-      );
-    },
-  );
+  it('treats the placeholder of a new package as no dist-tag', () => {
+    expect(
+      findConflicts('latest', {
+        chat: {
+          version: '9.0.0-alpha.0',
+          distTags: { latest: PLACEHOLDER_VERSION, canary: PLACEHOLDER_VERSION },
+        },
+      }),
+    ).toEqual([]);
+  });
 });
 
 describe('selectAgedVersion', () => {

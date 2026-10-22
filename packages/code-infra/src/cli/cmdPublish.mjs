@@ -21,6 +21,7 @@ import { persistentAuthStrategy } from '../utils/github.mjs';
 import {
   getDistTagConflicts,
   getPackagesNeedingManualPublish,
+  getRegistryPackages,
   getReleaseVersion,
   getWorkspacePackages,
   publishPackages,
@@ -374,7 +375,11 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       );
     }
 
-    const distTagConflicts = await getDistTagConflicts(filteredPackages, tag);
+    const distTagConflicts = getDistTagConflicts(
+      filteredPackages,
+      tag,
+      await getRegistryPackages(filteredPackages),
+    );
     if (distTagConflicts.length > 0) {
       throw new Error(
         `Publishing with the "${tag}" dist-tag would move it to the wrong release line:
