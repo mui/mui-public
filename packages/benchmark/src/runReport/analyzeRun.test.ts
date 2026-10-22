@@ -125,6 +125,27 @@ describe('compareSamples', () => {
       expect(comparison.severity).toBe('error');
     });
   });
+
+  describe('improved', () => {
+    const { base, shifted } = drifting(10);
+    const compareWith = (alarm: RunMetricDefinition['alarm']) =>
+      compareSamples(
+        { name: 'current', values: base },
+        { name: 'baseline', values: shifted },
+        { kind: 'scalar', alarm },
+      ).improved;
+
+    it('counts a change for the better only past the error band, like a regression', () => {
+      // The change is -10 on a mean of 115, about -8.7%.
+      expect(compareWith({ error: 0.08 })).toBe(true);
+      expect(compareWith({ error: 0.2 })).toBe(false);
+      expect(compareWith({})).toBe(true);
+    });
+
+    it('is never true for a metric without an alarm', () => {
+      expect(compareWith(undefined)).toBe(false);
+    });
+  });
 });
 
 describe('analyzeRun', () => {

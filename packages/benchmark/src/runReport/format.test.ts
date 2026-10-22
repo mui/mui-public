@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { analyzeRun } from './analyzeRun';
+import { analyzeRun, compareSamples } from './analyzeRun';
 import {
   benchmarkTable,
+  changeTone,
   formatDuration,
   formatPrecisionDetail,
   precisionTone,
@@ -166,5 +167,29 @@ describe('precision', () => {
     expect(formatPrecisionDetail(comparison, analysis.metrics[0].definition)).toBe(
       '±2.0% per round · about 7 rounds resolve ±2%',
     );
+  });
+});
+
+describe('changeTone', () => {
+  // Every round 10 lower than the baseline, on a mean of 100: confidently 10% better.
+  const baseline = [90, 110, 95, 105, 100, 120, 80];
+  const current = baseline.map((value) => value - 10);
+  const toneWith = (alarm: { error?: number } | undefined, compared = false) =>
+    changeTone(
+      compareSamples(
+        { name: 'current', values: current },
+        { name: 'baseline', values: baseline },
+        { kind: 'scalar', alarm },
+        compared ? { alarm: null } : {},
+      ),
+    );
+
+  it('colors an improvement on an alarmed metric only past its band', () => {
+    expect(toneWith({ error: 0.05 })).toBe('success');
+    expect(toneWith({ error: 0.2 })).toBe('none');
+  });
+
+  it("colors any confirmed improvement between a compare()'s variants", () => {
+    expect(toneWith(undefined, true)).toBe('success');
   });
 });
