@@ -115,15 +115,16 @@ Applies to the whole repository.
 
 #### Publish registry authentication
 
-- Publish preflight checks must honor the same registry authentication as pnpm. Plain `fetch`
-  does not read `.npmrc` credentials, and custom `publishConfig.registry` endpoints may require
-  authentication for metadata reads. Validate changes to these checks against an authenticated
-  registry as well as public npm.
+- Publish preflight checks must honor the same registry authentication as pnpm. Read the
+  registry with pnpm CLI calls, such as `pnpm view`: plain `fetch` does not read `.npmrc`
+  credentials, and custom `publishConfig.registry` endpoints may require authentication for
+  metadata reads. Validate changes to these checks against an authenticated registry as well as
+  public npm.
 - Before simplifying registry support, inspect consuming publish workflows. Custom registry
   authentication has existing users; do not assume every consumer publishes to public npm.
 - Cover user-level `.npmrc` files selected by `NPM_CONFIG_USERCONFIG`, including Basic `_auth`
-  credentials and packages published from `publishConfig.directory`. Both the dist-tag lookup
-  and the already-published version check must authenticate.
+  credentials and packages published from `publishConfig.directory`. The registry lookup of the
+  dist-tag check must authenticate.
 
 #### Peer dependency warnings
 

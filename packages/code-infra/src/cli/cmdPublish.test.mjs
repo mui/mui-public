@@ -92,7 +92,9 @@ describe('publish', () => {
 
     expect(result.exitCode).not.toBe(0);
     expect(result.stderr).toContain('wrong release line');
-    expect(result.stderr).toContain('@scope/legacy: 1.1.0 is lower than 2.0.0');
+    expect(result.stderr).toContain(
+      '@scope/legacy: "latest" can only move to a newer version, but 1.1.0 is lower than the current 2.0.0',
+    );
     expect(registry.published).toEqual([]);
   });
 
@@ -112,7 +114,9 @@ describe('publish', () => {
 
       expect(result.exitCode).not.toBe(0);
       expect(result.stderr).toContain(`Publishing with the "${tag}" dist-tag`);
-      expect(result.stderr).toContain('@scope/second: 2.3.0 is lower than 2.4.0');
+      expect(result.stderr).toContain(
+        `@scope/second: "${tag}" can only move to a newer version, but 2.3.0 is lower than the current 2.4.0`,
+      );
       expect(registry.published).toEqual([]);
     },
   );
@@ -158,7 +162,9 @@ describe('publish', () => {
       published: false,
       expectedResult: {
         exitCode: 1,
-        stderr: expect.stringContaining('@scope/example: 1.1.0 is lower than 2.0.0'),
+        stderr: expect.stringContaining(
+          '@scope/example: "latest" can only move to a newer version, but 1.1.0 is lower than the current 2.0.0',
+        ),
       },
     },
     {

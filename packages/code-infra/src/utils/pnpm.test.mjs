@@ -954,15 +954,17 @@ describe('getPackagesNeedingManualPublish', () => {
 
 describe('getDistTagConflict', () => {
   it('rejects a lower version on any dist-tag', () => {
-    expect(getDistTagConflict('latest', '8.29.6', '9.15.0')).toBe('8.29.6 is lower than 9.15.0');
+    expect(getDistTagConflict('latest', '8.29.6', '9.15.0')).toBe(
+      '"latest" can only move to a newer version, but 8.29.6 is lower than the current 9.15.0',
+    );
     expect(getDistTagConflict('next', '0.7.4', '1.0.0-rc.0')).toBe(
-      '0.7.4 is lower than 1.0.0-rc.0',
+      '"next" can only move to a newer version, but 0.7.4 is lower than the current 1.0.0-rc.0',
     );
   });
 
   it('rejects a prerelease on latest dist-tags that point to a stable version', () => {
     expect(getDistTagConflict('latest', '10.0.0-alpha.1', '9.5.0')).toBe(
-      '10.0.0-alpha.1 is a prerelease and 9.5.0 is not',
+      '"latest" cannot point to a prerelease (10.0.0-alpha.1)',
     );
     expect(getDistTagConflict('latest', '9.16.0-beta.0', '9.15.0')).not.toBeNull();
     expect(getDistTagConflict('latest-v7', '7.4.0-beta.0', '7.3.11')).not.toBeNull();
@@ -976,7 +978,7 @@ describe('getDistTagConflict', () => {
 
   it('rejects a different major on latest-* dist-tags', () => {
     expect(getDistTagConflict('latest-v8', '9.16.0', '8.29.5')).toBe(
-      '9.16.0 has a different major than 8.29.5',
+      '"latest-v8" cannot cross a major (8.29.5 to 9.16.0)',
     );
     expect(getDistTagConflict('latest-v8', '0.4.3', '0.4.2')).toBeNull();
   });
@@ -992,104 +994,93 @@ describe('getDistTagConflict', () => {
 
 describe('getDistTagConflicts', () => {
   /**
-   * Answer dist-tags and version lookups the way the npm registry does.
-   * @param {Record<string, Record<string, string> | number>} distTagsByName - Dist-tags, or an HTTP error status
-   * @param {string[]} [published] - Published `name@version` entries
+   * Create a workspace with the pnpm version of this repo, whose packages publish to `registryUrl`.
+   * @param {string} registryUrl
+   * @param {Record<string, string>} versions - Version of each package, by name
+   * @param {string} [npmrc] - Contents of the workspace `.npmrc`
    */
-  function stubRegistry(distTagsByName, published = []) {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async (/** @type {URL} */ url) => {
-        const distTagsMatch = /^\/-\/package\/(.+)\/dist-tags$/.exec(url.pathname);
-        if (distTagsMatch) {
-          const distTags = distTagsByName[distTagsMatch[1]];
-          if (typeof distTags === 'number') {
-            return { status: distTags, ok: false };
-          }
-          return distTags
-            ? { status: 200, ok: true, json: async () => distTags }
-            : { status: 404, ok: false };
-        }
-        const [, name, version] = /^\/(.+)\/([^/]+)$/.exec(url.pathname) ?? [];
-        return published.includes(`${name}@${version}`)
-          ? { status: 200, ok: true }
-          : { status: 404, ok: false };
+  async function createWorkspace(registryUrl, versions, npmrc) {
+    const root = await makeTempDir();
+    const { packageManager } = await readPackageJson(
+      path.resolve(import.meta.dirname, '../../../..'),
+    );
+    await writePackage(root, '.', { name: 'test-workspace', private: true, packageManager });
+    await fs.writeFile(path.join(root, 'pnpm-workspace.yaml'), "packages:\n  - 'packages/*'\n");
+    if (npmrc) {
+      await fs.writeFile(path.join(root, '.npmrc'), npmrc);
+    }
+    return Promise.all(
+      Object.entries(versions).map(async ([name, version], index) => {
+        const pkgDir = await writePackage(root, `packages/package-${index}`, {
+          name,
+          version,
+          publishConfig: { registry: registryUrl },
+        });
+        return { ...publicPkg(name, pkgDir), version };
       }),
     );
   }
 
-  /**
-   * @param {string} root
-   * @param {string} name
-   * @param {string} version
-   */
-  async function pkgWithVersion(root, name, version) {
-    const pkgDir = await writePackage(root, name, { name, version });
-    return { ...publicPkg(name, pkgDir), version };
-  }
-
   it('returns the packages that would move the dist-tag to the wrong release line', async () => {
-    const root = await makeTempDir();
     vi.stubEnv('npm_config_registry', undefined);
-    stubRegistry(
-      {
-        '@mui/legacy': { latest: '9.15.0', 'latest-v8': '8.29.5' },
-        '@mui/unchanged': { latest: '9.15.0' },
-        '@mui/alpha': { latest: '9.5.0', next: '10.0.0-alpha.0' },
-        '@mui/beta': { latest: '9.0.0-beta.13' },
-        '@mui/new': { latest: PLACEHOLDER_VERSION, canary: PLACEHOLDER_VERSION },
-        '@mui/stable': { latest: '9.15.0' },
-      },
-      ['@mui/unchanged@8.29.3'],
-    );
+    const registry = await createTestRegistry({
+      '@mui/legacy': { tags: { latest: '9.15.0', 'latest-v8': '8.29.5' } },
+      '@mui/unchanged': { tags: { latest: '9.15.0' }, versions: ['8.29.3', '9.15.0'] },
+      '@mui/alpha': { tags: { latest: '9.5.0', next: '10.0.0-alpha.0' } },
+      '@mui/beta': { tags: { latest: '9.0.0-beta.13' } },
+      '@mui/new': { tags: { latest: PLACEHOLDER_VERSION, canary: PLACEHOLDER_VERSION } },
+      '@mui/stable': { tags: { latest: '9.15.0' } },
+    });
+    const packages = await createWorkspace(registry.url, {
+      '@mui/legacy': '8.29.6',
+      '@mui/unchanged': '8.29.3',
+      '@mui/alpha': '10.0.0-alpha.1',
+      '@mui/beta': '9.0.0-beta.14',
+      '@mui/new': '9.0.0-alpha.0',
+      '@mui/stable': '9.16.0',
+      '@mui/not-on-registry': '1.0.0',
+    });
 
-    const result = await getDistTagConflicts(
-      [
-        await pkgWithVersion(root, '@mui/legacy', '8.29.6'),
-        await pkgWithVersion(root, '@mui/unchanged', '8.29.3'),
-        await pkgWithVersion(root, '@mui/alpha', '10.0.0-alpha.1'),
-        await pkgWithVersion(root, '@mui/beta', '9.0.0-beta.14'),
-        await pkgWithVersion(root, '@mui/new', '9.0.0-alpha.0'),
-        await pkgWithVersion(root, '@mui/stable', '9.16.0'),
-        await pkgWithVersion(root, '@mui/no-tags', '1.0.0'),
-      ],
-      'latest',
-    );
+    const result = await getDistTagConflicts(packages, 'latest');
 
     expect(result.map(({ pkg, reason }) => `${pkg.name}: ${reason}`)).toEqual([
-      '@mui/legacy: 8.29.6 is lower than 9.15.0',
-      '@mui/alpha: 10.0.0-alpha.1 is a prerelease and 9.5.0 is not',
+      '@mui/legacy: "latest" can only move to a newer version, but 8.29.6 is lower than the current 9.15.0',
+      '@mui/alpha: "latest" cannot point to a prerelease (10.0.0-alpha.1)',
     ]);
   });
 
   it('compares with the dist-tag that the publish uses', async () => {
-    const root = await makeTempDir();
     vi.stubEnv('npm_config_registry', undefined);
-    stubRegistry({
-      '@mui/legacy': { latest: '9.15.0', 'latest-v8': '8.29.5' },
-      '@mui/virtualizer': { latest: '0.7.3', next: '1.0.0-rc.0' },
+    const registry = await createTestRegistry({
+      '@mui/legacy': { tags: { latest: '9.15.0', 'latest-v8': '8.29.5' } },
+      '@mui/virtualizer': { tags: { latest: '0.7.3', next: '1.0.0-rc.0' } },
     });
-    const packages = [
-      await pkgWithVersion(root, '@mui/legacy', '8.29.6'),
-      await pkgWithVersion(root, '@mui/virtualizer', '0.7.4'),
-    ];
+    const packages = await createWorkspace(registry.url, {
+      '@mui/legacy': '8.29.6',
+      '@mui/virtualizer': '0.7.4',
+    });
 
     expect(await getDistTagConflicts(packages, 'latest-v8')).toEqual([]);
     expect(
       (await getDistTagConflicts(packages, 'next')).map(
         ({ pkg, reason }) => `${pkg.name}: ${reason}`,
       ),
-    ).toEqual(['@mui/virtualizer: 0.7.4 is lower than 1.0.0-rc.0']);
+    ).toEqual([
+      '@mui/virtualizer: "next" can only move to a newer version, but 0.7.4 is lower than the current 1.0.0-rc.0',
+    ]);
   });
 
-  it('throws when the registry answers with an unexpected status', async () => {
-    const root = await makeTempDir();
+  it('throws when the registry rejects the lookup', async () => {
     vi.stubEnv('npm_config_registry', undefined);
-    stubRegistry({ 'my-package': 500 });
+    const registry = await createTestRegistry(
+      { 'my-package': { tags: { latest: '1.0.0' } } },
+      { authenticate: 'bearer' },
+    );
+    const packages = await createWorkspace(registry.url, { 'my-package': '1.1.0' });
 
-    await expect(
-      getDistTagConflicts([await pkgWithVersion(root, 'my-package', '1.0.0')], 'latest'),
-    ).rejects.toThrow(/my-package.*HTTP 500/);
+    await expect(getDistTagConflicts(packages, 'latest')).rejects.toThrow(
+      /Failed to read the dist-tags of my-package/,
+    );
   });
 
   it.each([
@@ -1097,13 +1088,15 @@ describe('getDistTagConflicts', () => {
     ['2.4.0', '2.4.1'],
     ['2.0.0-beta.2', '2.0.0-beta.3'],
   ])('rejects unpublished %s when latest is %s', async (version, latest) => {
-    const root = await makeTempDir();
     vi.stubEnv('npm_config_registry', undefined);
-    stubRegistry({ '@scope/example': { latest } });
-    const pkg = await pkgWithVersion(root, '@scope/example', version);
+    const registry = await createTestRegistry({ '@scope/example': { tags: { latest } } });
+    const [pkg] = await createWorkspace(registry.url, { '@scope/example': version });
 
     expect(await getDistTagConflicts([pkg], 'latest')).toEqual([
-      { pkg, reason: `${version} is lower than ${latest}` },
+      {
+        pkg,
+        reason: `"latest" can only move to a newer version, but ${version} is lower than the current ${latest}`,
+      },
     ]);
   });
 
@@ -1114,25 +1107,27 @@ describe('getDistTagConflicts', () => {
   ])(
     'uses workspace credentials to check $version on a custom registry',
     async ({ version, conflicts }) => {
-      const root = await makeTempDir();
+      vi.stubEnv('npm_config_registry', undefined);
       const registry = await createTestRegistry(
         { '@scope/example': { tags: { latest: '2.0.0' }, versions: ['1.0.0', '2.0.0'] } },
         { authenticate: 'bearer' },
       );
-      await fs.writeFile(path.join(root, 'pnpm-workspace.yaml'), "packages:\n  - 'packages/*'\n");
-      await fs.writeFile(
-        path.join(root, '.npmrc'),
+      const [pkg] = await createWorkspace(
+        registry.url,
+        { '@scope/example': version },
         `${new URL(registry.url).href.slice('http:'.length)}:_authToken=${registry.token}\n`,
       );
-      const pkgDir = await writePackage(root, 'packages/example', {
-        name: '@scope/example',
-        version,
-        publishConfig: { registry: registry.url },
-      });
-      const pkg = { ...publicPkg('@scope/example', pkgDir), version };
 
       expect(await getDistTagConflicts([pkg], 'latest')).toEqual(
-        conflicts ? [{ pkg, reason: '1.1.0 is lower than 2.0.0' }] : [],
+        conflicts
+          ? [
+              {
+                pkg,
+                reason:
+                  '"latest" can only move to a newer version, but 1.1.0 is lower than the current 2.0.0',
+              },
+            ]
+          : [],
       );
     },
   );

@@ -1,10 +1,8 @@
 #!/usr/bin/env node
 
 import { getPublishedByPolicy } from '@pnpm/config.version-policy';
-import { getConfig } from '@pnpm/config';
 import { parseWantedDependency } from '@pnpm/parse-wanted-dependency';
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
-import { createGetAuthHeaderByURI } from '@pnpm/network.auth-header';
 import { $ } from 'execa';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
@@ -235,11 +233,6 @@ export async function getPackagesNeedingManualPublish(packages) {
 /**
  * Why publishing `version` with `tag` would move the dist-tag to the wrong release line.
  *
- * - No dist-tag moves to a lower version.
- * - `latest` and `latest-*` move to a prerelease only when they already point to
- *   one, so unstable packages that are still in beta can keep `latest`.
- * - `latest-*` keeps the major of the version it points to.
- *
  * @param {string} tag - Dist-tag to publish with
  * @param {string} version - Version to publish
  * @param {string} current - Version that the dist-tag points to on the registry
@@ -247,16 +240,18 @@ export async function getPackagesNeedingManualPublish(packages) {
  */
 export function getDistTagConflict(tag, version, current) {
   if (semver.lt(version, current)) {
-    return `${version} is lower than ${current}`;
+    return `"${tag}" can only move to a newer version, but ${version} is lower than the current ${current}`;
   }
-  if (tag !== 'latest' && !tag.startsWith('latest-')) {
-    return null;
+  // A tag that already points to a prerelease can move to the next one, for packages still in beta.
+  if (
+    (tag === 'latest' || tag.startsWith('latest-')) &&
+    semver.prerelease(version) &&
+    !semver.prerelease(current)
+  ) {
+    return `"${tag}" cannot point to a prerelease (${version})`;
   }
-  if (semver.prerelease(version) && !semver.prerelease(current)) {
-    return `${version} is a prerelease and ${current} is not`;
-  }
-  if (tag !== 'latest' && semver.major(version) !== semver.major(current)) {
-    return `${version} has a different major than ${current}`;
+  if (tag.startsWith('latest-') && semver.major(version) !== semver.major(current)) {
+    return `"${tag}" cannot cross a major (${current} to ${version})`;
   }
   return null;
 }
@@ -271,62 +266,49 @@ export function getDistTagConflict(tag, version, current) {
  * Find the packages whose publish with `tag` would move the dist-tag to the
  * wrong release line. See {@link getDistTagConflict}.
  *
+ * Reads the registry with `pnpm view`, so the check uses the same registry
+ * configuration and credentials as `pnpm publish`.
+ *
  * @param {PublicPackage[]} packages - Packages to check
  * @param {string} tag - Dist-tag to publish with
  * @returns {Promise<DistTagConflict[]>}
  */
 export async function getDistTagConflicts(packages, tag) {
-  const { name = 'code-infra', version = '0.0.0' } = await readPackageJson(
-    path.resolve(import.meta.dirname, '../..'),
-  );
   const results = await Promise.all(
     packages.map(async (pkg) => {
-      const [registry, workspaceDir] = await Promise.all([
-        getPublishRegistry(pkg.path),
-        findWorkspaceDir(pkg.path),
-      ]);
-      // Resolve credentials through pnpm's config layers, including the workspace
-      // .npmrc, environment variables, and the user's npm config.
-      const { config } = await getConfig({
-        cliOptions: { dir: pkg.path },
-        workspaceDir,
-        packageManager: { name, version },
-      });
-      const authorization = createGetAuthHeaderByURI({ allSettings: config.rawConfig })(registry);
-      const headers = authorization ? { authorization } : undefined;
-      const res = await fetch(new URL(`-/package/${pkg.name}/dist-tags`, registry), { headers });
-      if (res.status === 404) {
-        return null;
+      const registry = await getPublishRegistry(pkg.path);
+      const { exitCode, stdout, stderr } = await $({
+        cwd: pkg.path,
+        reject: false,
+        // pnpm resolves its own `packageManager` version from `--registry`, which may not serve it.
+        env: { PNPM_CONFIG_PM_ON_FAIL: 'ignore' },
+      })`pnpm view ${pkg.name} dist-tags versions --json --registry ${registry}`;
+      let info;
+      try {
+        info = JSON.parse(stdout || '{}');
+      } catch {
+        info = {};
       }
-      if (!res.ok) {
+      if (exitCode !== 0) {
+        // A package that is not on the registry yet has no dist-tags to protect.
+        if (info.error?.code === 'ERR_PNPM_FETCH_404') {
+          return null;
+        }
         throw new Error(
-          `Failed to read the dist-tags of ${pkg.name} from ${registry}: HTTP ${res.status}`,
+          `Failed to read the dist-tags of ${pkg.name} from ${registry}: ${info.error?.message ?? stderr}`,
         );
       }
-      const current = semver.valid((await res.json())[tag]);
+      // pnpm skips versions that are already published, such as unchanged packages on a legacy branch.
+      if ([info.versions ?? []].flat().includes(pkg.version)) {
+        return null;
+      }
+      const current = semver.valid(info['dist-tags']?.[tag]);
       // npm points `latest` at the first version, which is the placeholder for a new package.
       if (!current || current === PLACEHOLDER_VERSION) {
         return null;
       }
       const reason = getDistTagConflict(tag, pkg.version, current);
-      if (!reason) {
-        return null;
-      }
-
-      // pnpm skips versions that are already published, such as unchanged packages on a legacy branch.
-      const versionRes = await fetch(new URL(`${pkg.name}/${pkg.version}`, registry), {
-        method: 'HEAD',
-        headers,
-      });
-      if (versionRes.ok) {
-        return null;
-      }
-      if (versionRes.status !== 404) {
-        throw new Error(
-          `Failed to check whether ${pkg.name}@${pkg.version} exists on ${registry}: HTTP ${versionRes.status}`,
-        );
-      }
-      return { pkg, reason };
+      return reason ? { pkg, reason } : null;
     }),
   );
 
