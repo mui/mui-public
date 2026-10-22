@@ -24,7 +24,7 @@ During Next.js builds, the [`loadPrecomputedSitemap`](../../pipeline/load-precom
 
 ## Runtime Loading
 
-For loading sitemap data outside of Next.js builds (e.g., in tests, scripts, or non-Next.js applications), use [`loadServerSitemap`](../../pipeline/load-server-sitemap/page.mdx):
+For loading sitemap data outside of Next.js builds (for example, in tests, scripts, or non-Next.js applications), use [`loadServerSitemap`](../../pipeline/load-server-sitemap/page.mdx):
 
 ```typescript
 import { loadServerSitemap } from '@mui/internal-docs-infra/pipeline/loadServerSitemap';
@@ -53,7 +53,7 @@ app/
 │       └── page.mdx          ← Section index
 ```
 
-Each imported page component should be a markdown file that serves as a section index (e.g., `components/page.mdx` lists all components).
+Each imported page component should be a markdown file that serves as a section index (for example, `components/page.mdx` lists all components).
 
 ---
 
@@ -81,7 +81,7 @@ export const sitemap = createSitemap(
 );
 ```
 
-### Webpack Loader Setup
+### webpack Loader Setup
 
 The webpack loader must be configured for the sitemap index file. See [`withDocsInfra`](../../pipeline/with-docs-infra/page.mdx) or [`loadPrecomputedSitemap`](../../pipeline/load-precomputed-sitemap/page.mdx) for configuration details.
 
@@ -165,7 +165,7 @@ This shows:
 
 - [`syncPageIndex`](../../pipeline/sync-page-index/page.mdx) - Maintain index pages with tags, title overrides, and ordering
 - [`transformMarkdownMetadata`](../../pipeline/transform-markdown-metadata/page.mdx) - Extract metadata from MDX pages
-- [`loadPrecomputedSitemap`](../../pipeline/load-precomputed-sitemap/page.mdx) - Webpack loader for build-time processing
+- [`loadPrecomputedSitemap`](../../pipeline/load-precomputed-sitemap/page.mdx) - webpack loader for build-time processing
 - [`loadServerSitemap`](../../pipeline/load-server-sitemap/page.mdx) - Runtime sitemap loading
 - [`loadServerPageIndex`](../../pipeline/load-server-page-index/page.mdx) - Loads individual page metadata
 - [`withDocsInfra`](../../pipeline/with-docs-infra/page.mdx) - Next.js plugin that configures the loader

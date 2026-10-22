@@ -89,7 +89,7 @@ serialized format, such as a stringified JSON object:
 
 _This JSON string is 1.08 KB._
 
-The browser parses and paints this HTML very quickly. When JS downloads, the
+The browser parses and paints this HTML very quickly. When JavaScript downloads, the
 page hydrates immediately. This requires two copies of the plain text code in
 the HTML, doubling the cost for uncompressed HTML, but transfer-level
 compression substantially reduces the duplicate cost in practice.
@@ -341,10 +341,10 @@ Highlight on Init to the visible surface area rather than the entire snippet.
 
 ## Measured Impact
 
-### Core Web Vitals (Base UI Demos)
+### Core Web Vitals (Base UI Demos)
 
 When this pattern was applied to the
-[Base UI docs](https://github.com/mui/base-ui/pull/2443), profiling showed
+[Base UI docs](https://github.com/mui/base-ui/pull/2443), profiling showed
 significant improvements:
 
 | Metric                   | Before | After | Change        |
@@ -374,7 +374,7 @@ different profile than demos. Type pages contain many smaller highlighted
 fragments spread across dozens of props, so even modest per-prop savings
 compound quickly.
 
-#### Base UI Combobox
+#### Base UI Combobox
 
 Decreases the page's uncompressed HTML size by 30%, bringing it below the
 practical 2 MB crawl-budget limit for search engine crawlers. The tradeoff is
@@ -676,7 +676,7 @@ loader's `hastCompressed` output mode is a concrete implementation of this.
 
 At runtime, the factory receives precomputed data through its options, so no
 heavy highlighting or parsing libraries are shipped to the client. When
-precomputation isn't available (e.g. dynamic routes), the same component falls
+precomputation isn't available (for example, dynamic routes), the same component falls
 back to server- or client-time processing.
 
 ### Abstracting Complexity from Users

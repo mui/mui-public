@@ -241,27 +241,27 @@ The output `<pre>` element will include:
 
 ## Variant Naming
 
-| Scenario                        | Variant Names                                                                     |
-| :------------------------------ | :-------------------------------------------------------------------------------- |
-| Single code block / lone `<dl>` | `"Default"`                                                                       |
-| `<figcaption>` label            | The caption text with the ` variant` suffix stripped (e.g. `npm variant` → `npm`) |
-| `data-variant` attribute        | Used when no `<figcaption>` label is present                                      |
+| Scenario                        | Variant Names                                                                             |
+| :------------------------------ | :---------------------------------------------------------------------------------------- |
+| Single code block / lone `<dl>` | `"Default"`                                                                               |
+| `<figcaption>` label            | The caption text with the ` variant` suffix stripped (for example, `npm variant` → `npm`) |
+| `data-variant` attribute        | Used when no `<figcaption>` label is present                                              |
 
 ## Supported Languages
 
-| `class="language-*"` | Extension | Notes                                                                    |
-| :------------------- | :-------- | :----------------------------------------------------------------------- |
-| `javascript`         | `.js`     | Also accepts `js` (normalized)                                           |
-| `typescript`         | `.ts`     | Also accepts `ts`; includes TS→JS transform when `data-transform="true"` |
-| `tsx`                | `.tsx`    | React TypeScript                                                         |
-| `jsx`                | `.jsx`    | React JavaScript                                                         |
-| `json`               | `.json`   |                                                                          |
-| `html`               | `.html`   |                                                                          |
-| `css`                | `.css`    |                                                                          |
-| `shell`              | `.sh`     | Also accepts `bash`, `sh`                                                |
-| `yaml`               | `.yaml`   | Also accepts `yml`                                                       |
-| `markdown`           | `.md`     | Also accepts `md`                                                        |
-| Others               | `.txt`    | Fallback                                                                 |
+| `class="language-*"` | Extension | Notes                                                                            |
+| :------------------- | :-------- | :------------------------------------------------------------------------------- |
+| `javascript`         | `.js`     | Also accepts `js` (normalized)                                                   |
+| `typescript`         | `.ts`     | Also accepts `ts`; includes TypeScript→JS transform when `data-transform="true"` |
+| `tsx`                | `.tsx`    | React TypeScript                                                                 |
+| `jsx`                | `.jsx`    | React JavaScript                                                                 |
+| `json`               | `.json`   |                                                                                  |
+| `html`               | `.html`   |                                                                                  |
+| `css`                | `.css`    |                                                                                  |
+| `shell`              | `.sh`     | Also accepts `bash`, `sh`                                                        |
+| `yaml`               | `.yaml`   | Also accepts `yml`                                                               |
+| `markdown`           | `.md`     | Also accepts `md`                                                                |
+| Others               | `.txt`    | Fallback                                                                         |
 
 ## Integration with transformMarkdownCode
 

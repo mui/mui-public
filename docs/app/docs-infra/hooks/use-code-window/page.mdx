@@ -111,7 +111,7 @@ Defaults to `[data-collapsible]`. When set, the expand transition only animates 
 
 ## CSS contract
 
-The hook flips a `data-scrollbar-gutter` attribute on the inner `<pre>`. To get the gutter animation, your stylesheet must provide the corresponding rules. The example below references a `--scrollbar-h` custom property that **you must define yourself** — either via `scrollbar-gutter: stable` math, a JS-set value on `:root`, or a measured value from your design system. The hook does not expose its internal scrollbar measurement.
+The hook flips a `data-scrollbar-gutter` attribute on the inner `<pre>`. To get the gutter animation, your stylesheet must provide the corresponding rules. The example below references a `--scrollbar-h` custom property that **you must define yourself** — either via `scrollbar-gutter: stable` math, a JavaScript-set value on `:root`, or a measured value from your design system. The hook does not expose its internal scrollbar measurement.
 
 ```css
 /* Just before collapse: lock overflow and reserve the scrollbar's space */
@@ -218,7 +218,7 @@ import { DemoCollapseToEmpty } from './demos/collapse-to-empty';
 
 ### Collapsible Code Block with Transform
 
-A collapsible code block that also exposes a TypeScript → JavaScript transform toggle. Use this to verify that swapping transforms and toggling collapse work together — the actions menu surfaces the JS toggle while the collapse choreography keeps the focused region pinned.
+A collapsible code block that also exposes a TypeScript → JavaScript transform toggle. Use this to verify that swapping transforms and toggling collapse work together — the actions menu surfaces the JavaScript toggle while the collapse choreography keeps the focused region pinned.
 
 import { DemoCollapsibleTransform } from './demos/collapsible-transform';
 

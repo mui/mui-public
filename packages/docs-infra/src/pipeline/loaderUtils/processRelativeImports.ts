@@ -484,7 +484,7 @@ function processJsImports(
 
 /**
  * Processes imports based on the specified storage mode, automatically handling
- * source rewriting when needed (e.g., for 'flat' mode). Works for both JavaScript and simple file types.
+ * source rewriting when needed (for example, for 'flat' mode). Works for both JavaScript and simple file types.
  *
  * @param source - The original source code
  * @param importResult - The result from parseImports

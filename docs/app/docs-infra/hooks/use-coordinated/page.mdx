@@ -146,7 +146,7 @@ This is the pattern that justifies the whole hook: a single source of truth wher
 Two rules make this work:
 
 1. **Use one `channelKey` per piece of coordinated state, not one per visual treatment.** Every peer that should hear about a change joins the same channel, including peers that won't reflow. That's how you keep them in sync; mixing channels would let subscribers drift on stale tabs, cross-tab updates, or aborted fetches.
-2. **Let each peer declare its own layout impact.** `causesLayoutShift` is a per-announcement decision: a peer can return `false` for some targets (e.g. switching between two same-width skins) and `true` for others (e.g. switching to a skin with extra info). The engine routes each announcement independently.
+2. **Let each peer declare its own layout impact.** `causesLayoutShift` is a per-announcement decision: a peer can return `false` for some targets (for example, switching between two same-width skins) and `true` for others (for example, switching to a skin with extra info). The engine routes each announcement independently.
 
 #### Routing on dynamic, per-peer state
 
@@ -341,7 +341,7 @@ All values in milliseconds. Defaults are tuned for the docs-infra demo viewer.
 ### Originator vs receiver flow
 
 - **Originator** — code that calls `setValue` from this hook. Drives the barrier opening.
-- **Receiver** — peers that observe the underlying value changing (e.g. via a cross-tab `storage` event) without calling `setValue` themselves. The hook detects this and opens its own local barrier so visible flips still happen together inside the tab.
+- **Receiver** — peers that observe the underlying value changing (for example, via a cross-tab `storage` event) without calling `setValue` themselves. The hook detects this and opens its own local barrier so visible flips still happen together inside the tab.
 
 ---
 
@@ -372,6 +372,6 @@ Always thread the signal through to `fetch`, downstream `AbortController`s, and 
 
 - **Returns `false` when the swap _does_ shift layout.** The peer takes the lazy path and commits independently of the barrier, so a sibling demo on the page will flash to the new height a frame or two before the others, undoing the whole reason for using `useCoordinated`. Fix by returning `true` for the targets that resize, replace, or reflow visible content.
 - **Returns `true` when the swap _doesn't_ shift layout.** Cheap, non-layout swaps get parked behind the barrier and wait for the slowest peer — UI feels sluggish for no reason. Fix by returning `false` so those swaps go through the lazy path.
-- **Inconsistent answers across peers on the same channel.** Peers that return `true` join the barrier; peers that return `false` are marked skipped and commit immediately. If you expect peers to land together, make sure every peer evaluates the same target with the same predicate (e.g. read shared config rather than per-instance state).
+- **Inconsistent answers across peers on the same channel.** Peers that return `true` join the barrier; peers that return `false` are marked skipped and commit immediately. If you expect peers to land together, make sure every peer evaluates the same target with the same predicate (for example, read shared config rather than per-instance state).
 
 When in doubt, default to `true` (synchronized) for visible structural swaps and `false` only for purely cosmetic transitions where independent timing is acceptable.

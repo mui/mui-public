@@ -1,6 +1,6 @@
 # Load Precomputed Code Highlighter Client
 
-The precomputed code client loader is a Webpack/Turbopack loader that enables build-time optimization of client-side demo components by processing demo client files and precomputing external dependencies for live editing environments.
+The precomputed code client loader is a webpack/Turbopack loader that enables build-time optimization of client-side demo components by processing demo client files and precomputing external dependencies for live editing environments.
 
 ---
 
@@ -136,7 +136,7 @@ export const BasicDemoClient = createDemoClient(import.meta.url, {
 
 ### Multiple Variants
 
-The client file doesn't declare variants itself — the loader discovers them from the paired `index.ts` (e.g. a `createDemoWithVariants` call) and collects and merges externals across all of them:
+The client file doesn't declare variants itself — the loader discovers them from the paired `index.ts` (for example, a `createDemoWithVariants` call) and collects and merges externals across all of them:
 
 ```typescript
 'use client';

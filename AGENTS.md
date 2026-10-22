@@ -14,7 +14,7 @@ Always reference these instructions first and fallback to search or bash command
 
 ### Bootstrap, Build, and Test the Repository
 
-- **Prerequisites**: Node.js 22.23.3+ required. Install pnpm: `npm install -g pnpm@12.9.0`
+- **Prerequisites**: Node.js 22.23.3+ required. Install pnpm: `npm install -g pnpm@12.10.1`
 - **Install dependencies**: `pnpm install --no-frozen-lockfile` -- takes 15-20 seconds. **NEVER CANCEL**. Set timeout to 30+ minutes.
 - **Build all packages**: `pnpm release:build` -- takes 5-10 seconds. **NEVER CANCEL**. Set timeout to 30+ minutes.
 - **Type checking**: `pnpm typescript` -- takes 10-15 seconds. **NEVER CANCEL**. Set timeout to 30+ minutes.
@@ -25,15 +25,15 @@ Always reference these instructions first and fallback to search or bash command
 - **Run browser tests**: `pnpm test:browser --run` -- requires podman or docker. Starts a containerized Playwright server and runs browser tests against it.
 - **Run browser tests in CI**: In a `mcr.microsoft.com/playwright` container image, run `pnpm test:browser:unconfined` directly — no container engine needed. Only use in a CI environment.
 - **ALWAYS use `--run` flag** to avoid watch mode when running tests programmatically
-- **Do NOT use `--`** in test commands (e.g., avoid `pnpm test -- --run`)
-- **Use VS Code Vitest extension** whenever possible for interactive test development and debugging
+- **Do NOT use `--`** in test commands (for example, avoid `pnpm test -- --run`)
+- **Use VS Code Vitest extension** whenever possible for interactive test development and debugging
 
 ### Run Applications
 
-- **Code Infra Dashboard** (React/Vite app):
+- **Code Infra Dashboard** (Next.js app):
   - **ALWAYS run the bootstrapping steps first**
-  - Build: `pnpm -F code-infra-dashboard run build` -- takes 5 seconds
-  - Dev server: `pnpm -F code-infra-dashboard run start` -- runs on http://localhost:3000
+  - Build: `pnpm -F ./apps/code-infra-dashboard run build` -- takes 5 seconds
+  - Dev server: `pnpm -F ./apps/code-infra-dashboard run dev` -- runs on http://localhost:3000
   - Production URL: `https://frontend-public.mui.com`
   - PR preview URLs follow the pattern: `https://code-infra-dashboard-pr-{number}.onrender.com`
 
@@ -84,9 +84,11 @@ Applies to the whole repository.
 
 ### pnpm Workspace Commands
 
+- Private workspaces without workspace dependents omit package names; reference them by path.
+
 - **CRITICAL**: When running pnpm commands for workspace packages, always use the `-F` flag followed by the package name.
 - **Example**: `pnpm -F @mui/internal-bundle-size-checker add micromatch`
-- Private packages without a `name` field in `package.json` must be filtered by their relative path (e.g., `pnpm -F ./test/performance add <dependency>`).
+- Private packages without a `name` field in `package.json` must be filtered by their relative path (for example, `pnpm -F ./test/benchmark add <dependency>`).
 - **Do NOT use `cd` to navigate into package directories** for workspace operations.
 - **Do NOT manually edit package.json files to add/remove dependencies** - always use `pnpm -F <workspace> add <dependency>` or `pnpm -F <workspace> remove <dependency>` to keep the order deterministic.
 - **ALWAYS run `pnpm dedupe`** after installing a dependency.
@@ -103,9 +105,9 @@ Applies to the whole repository.
 - Bot-triggered Claude jobs must also configure the Claude action's `allowed_bots` input; workflow-level authorization does not bypass the action's independent human-actor check.
 - Claude triage comments start directly with findings and end with a `Next steps` section. Classify requests by their substance: an existing supported API that meets the user's goal without evidence of a defect calls for usage guidance, even if the issue is framed as a bug.
 
-- **Pin every action to a full-length commit SHA** and annotate it with the exact release tag it resolves to, e.g. `uses: actions/stale@1e223db275d687790206a7acac4d1a11bd6fe629 # v10.4.0`.
+- **Pin every action to a full-length commit SHA** and annotate it with the exact release tag it resolves to, for example, `uses: actions/stale@1e223db275d687790206a7acac4d1a11bd6fe629 # v10.4.0`.
 - **Use the full version in the comment**, never a major-only alias like `# v1` or `# v10`. Renovate reads that comment as the current version and keeps its precision, so a truncated tag downgrades every future bump to an opaque digest update with no changelog to review.
-- **Never use a branch name in the comment** (e.g. `# master`) for a third-party action. The only exception is this repo's own `mui/mui-public/.github/actions/*` composite actions, which have no release tags to point at.
+- **Never use a branch name in the comment** (for example, `# master`) for a third-party action. The only exception is this repo's own `mui/mui-public/.github/actions/*` composite actions, which have no release tags to point at.
 
 ## Troubleshooting
 

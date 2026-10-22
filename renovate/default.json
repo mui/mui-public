@@ -102,10 +102,27 @@
       "versioningTemplate": "node"
     }
   ],
+  "postUpgradeTasks": {
+    // Renovate only commits the pnpm-lock.yaml its own install writes, so the stale
+    // minimumReleaseAgeExclude entries pnpm prunes from pnpm-workspace.yaml are lost and the
+    // repo's generated-files check fails. Re-running the install commits that prune.
+    // Remove once Renovate keeps the prune: https://github.com/renovatebot/renovate/discussions/47167
+    "commands": ["pnpm install --lockfile-only --ignore-scripts"],
+    // Install the repo's pinned node and pnpm (`packageManager`, `engines`) rather than use
+    // whatever the container has on PATH: only recent pnpm versions prune on install.
+    "installTools": { "node": {}, "pnpm": {} },
+    "fileFilters": ["pnpm-workspace.yaml", "pnpm-lock.yaml"],
+    "executionMode": "branch"
+  },
   "vulnerabilityAlerts": {
     "addLabels": ["security"],
+    // Replaces the top-level postUpgradeTasks, so it repeats the install.
     "postUpgradeTasks": {
-      "commands": ["pnpm exec prettier --write pnpm-workspace.yaml package.json"],
+      "commands": [
+        "pnpm install --lockfile-only --ignore-scripts",
+        "pnpm exec prettier --write pnpm-workspace.yaml package.json"
+      ],
+      "installTools": { "node": {}, "pnpm": {} },
       "fileFilters": ["**/*"],
       "executionMode": "branch"
     }
@@ -269,7 +286,11 @@
       "description": "Group Prettier-related dependencies and run a full Prettier pass on the branch after updating.",
       "matchPackageNames": ["prettier", "pretty-quick", "eslint-config-prettier"],
       "postUpgradeTasks": {
-        "commands": ["pnpm exec prettier --write . --ignore-path .lintignore"],
+        "commands": [
+          "pnpm install --lockfile-only --ignore-scripts",
+          "pnpm exec prettier --write . --ignore-path .lintignore"
+        ],
+        "installTools": { "node": {}, "pnpm": {} },
         "fileFilters": ["**/*"],
         "executionMode": "branch"
       }

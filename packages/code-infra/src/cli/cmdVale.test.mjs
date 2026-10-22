@@ -252,8 +252,8 @@ describe('applyFixes', () => {
         {
           Action: { Name: '', Params: null },
           Span: /** @type {[number, number]} */ ([5, 6]),
-          Check: 'MUI.CorrectRererenceCased',
-          Message: "Use 'e.g.' instead of 'eg'",
+          Check: 'MUI.CorrectReferenceAllCases',
+          Message: "Use 'EG' instead of 'eg'",
           Severity: 'error',
           Match: 'eg',
           Line: 1,

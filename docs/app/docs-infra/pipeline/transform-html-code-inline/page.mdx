@@ -13,7 +13,7 @@ The `transformHtmlCodeInline` plugin transforms plain inline code into beautiful
 - **Lightweight highlighting**: Applies syntax highlighting without line numbers, gutters, or frames
 - **Prefix support**: Handles `data-highlighting-prefix` attribute for proper type context
 - **Automatic cleanup**: Removes highlighting prefixes after processing
-- **Language detection**: Reads language from `className` attribute (e.g., `language-ts`)
+- **Language detection**: Reads language from `className` attribute (for example, `language-ts`)
 - **Lazy initialization**: Automatically initializes Starry Night on first use
 - **Inline marker**: Adds a `data-inline` attribute to processed inline code so CSS can target it
 - **Block code skipped**: Code inside `<pre>` is left for [`transformHtmlCodeBlock`](../transform-html-code-block/page.mdx) (opt in with `includePreElements`)
@@ -108,7 +108,7 @@ The language comes from the `language-*` class name; aliases are normalized befo
 2. **Find code elements**: Visits all `<code>` elements in the HAST tree, skipping those inside `<pre>` (unless `includePreElements` is set)
 3. **Extract text content**: Gets the raw text from the code element
 4. **Check for prefix**: Reads `data-highlighting-prefix` attribute if present
-5. **Apply prefix**: Temporarily prepends prefix for proper context. Without a prefix, a JS-family snippet that looks like a bare object literal (`{ height: 400 }`) is wrapped in `(...)` so it parses as an expression instead of a block statement
+5. **Apply prefix**: Temporarily prepends prefix for proper context. Without a prefix, a JavaScript-family snippet that looks like a bare object literal (`{ height: 400 }`) is wrapped in `(...)` so it parses as an expression instead of a block statement
 6. **Highlight**: Uses Starry Night to apply syntax highlighting, then extends the tree with the additive `di-*` classes from [`extendSyntaxTokens`](../parse-source/page.mdx#syntax-token-classes)
 7. **Remove prefix**: Strips prefix (and any object-literal wrapping) characters from the highlighted output
 8. **Replace children**: Updates code element with highlighted nodes

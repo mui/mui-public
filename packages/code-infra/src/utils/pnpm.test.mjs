@@ -369,7 +369,7 @@ describe('checkPublishDependencies', () => {
      *
      * Public packages-internal:
      *   @mui/internal-core-docs   – deps: @mui/internal-markdown (workspace:^)
-     *                             – devDeps: @mui-internal/api-docs-builder (workspace:*),
+     *                             – devDeps: @mui/internal-api-docs-builder (workspace:*),
      *                                        @mui/icons-material (workspace:*), @mui/material (workspace:*)
      *                             – peers: @mui/material, @mui/icons-material, @mui/system, … (pinned ranges)
      *   @mui/internal-docs-utils  – no workspace deps
@@ -377,9 +377,9 @@ describe('checkPublishDependencies', () => {
      *   @mui/internal-scripts     – deps: @mui/internal-docs-utils (workspace:^)
      *
      * Private packages-internal:
-     *   @mui-internal/api-docs-builder       – deps: @mui/internal-docs-utils (workspace:^),
+     *   @mui/internal-api-docs-builder       – deps: @mui/internal-docs-utils (workspace:^),
      *                                                @mui/internal-markdown (workspace:^)
-     *   @mui-internal/api-docs-builder-core  – deps: @mui-internal/api-docs-builder (workspace:^),
+     *   @mui/internal-api-docs-builder-core  – deps: @mui/internal-api-docs-builder (workspace:^),
      *                                                @mui/internal-markdown (workspace:^)
      *   @mui/internal-waterfall              – no workspace deps
      *
@@ -401,7 +401,7 @@ describe('checkPublishDependencies', () => {
           clsx: '^2.1.1',
         },
         devDependencies: {
-          '@mui-internal/api-docs-builder': 'workspace:*',
+          '@mui/internal-api-docs-builder': 'workspace:*',
           '@mui/icons-material': 'workspace:*',
           '@mui/material': 'workspace:*',
         },
@@ -438,7 +438,7 @@ describe('checkPublishDependencies', () => {
 
       // packages-internal — private
       const apiDocsBuilder = await writePackage(root, 'packages-internal/api-docs-builder', {
-        name: '@mui-internal/api-docs-builder',
+        name: '@mui/internal-api-docs-builder',
         version: '1.0.0',
         private: true,
         dependencies: {
@@ -451,11 +451,11 @@ describe('checkPublishDependencies', () => {
         root,
         'packages-internal/api-docs-builder-core',
         {
-          name: '@mui-internal/api-docs-builder-core',
+          name: '@mui/internal-api-docs-builder-core',
           version: '1.0.0',
           private: true,
           dependencies: {
-            '@mui-internal/api-docs-builder': 'workspace:^',
+            '@mui/internal-api-docs-builder': 'workspace:^',
             '@mui/internal-markdown': 'workspace:^',
           },
         },
@@ -499,8 +499,8 @@ describe('checkPublishDependencies', () => {
         publicPkg('@mui/internal-scripts', scripts),
       ];
       const privateInternalPkgs = [
-        privatePkg('@mui-internal/api-docs-builder', apiDocsBuilder),
-        privatePkg('@mui-internal/api-docs-builder-core', apiDocsBuilderCore),
+        privatePkg('@mui/internal-api-docs-builder', apiDocsBuilder),
+        privatePkg('@mui/internal-api-docs-builder-core', apiDocsBuilderCore),
         privatePkg('@mui/internal-waterfall', waterfall),
       ];
       const publicMainPkgs = [
@@ -537,7 +537,7 @@ describe('checkPublishDependencies', () => {
     });
 
     it('passes when workspace:* devDependencies of core-docs are not in the publish set', async () => {
-      // core-docs has @mui-internal/api-docs-builder and @mui/icons-material as workspace:*
+      // core-docs has @mui/internal-api-docs-builder and @mui/icons-material as workspace:*
       // devDependencies. They must NOT be required — devDeps are not installed on consumer devices.
       const root = await makeTempDir();
       const { publicInternalPkgs, allPkgs } = await buildMaterialUiWorkspace(root);
