@@ -441,7 +441,7 @@ async function triggerLocalGithubPublishWorkflow(opts) {
   const packages = await getWorkspacePackages({ publicOnly: true });
   const newPackages = getPackagesNeedingManualPublish(
     packages,
-    await getRegistryPackages(packages),
+    await getRegistryPackages(packages, { npmOnly: true }),
   );
   if (newPackages.length) {
     console.warn(

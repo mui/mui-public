@@ -8,6 +8,7 @@ import {
   getDistTagConflicts,
   getPackagesNeedingManualPublish,
   getPublishRegistry,
+  getRegistryPackages,
   getReleaseVersion,
   PLACEHOLDER_VERSION,
   renameWorkspaceScope,
@@ -854,6 +855,23 @@ describe('getReleaseVersion', () => {
     const root = await makeWorkspace({ name: 'root', version: 'not-a-version' }, WORKSPACE_YAML);
 
     expect(await getReleaseVersion(root)).toBeNull();
+  });
+});
+
+describe('getRegistryPackages', () => {
+  it('skips packages on another registry with npmOnly, without a registry request', async () => {
+    const root = await makeTempDir();
+    const pkgDir = await writePackage(root, 'pkg', {
+      name: '@scope/private',
+      version: '1.0.0',
+      publishConfig: { registry: 'https://npm.example.com/' },
+    });
+
+    const registryPackages = await getRegistryPackages([publicPkg('@scope/private', pkgDir)], {
+      npmOnly: true,
+    });
+
+    expect(registryPackages.size).toBe(0);
   });
 });
 

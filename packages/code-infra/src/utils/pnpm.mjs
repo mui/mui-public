@@ -204,12 +204,17 @@ function requiresTrustedPublisherBootstrap(registry) {
  * same registry configuration and credentials as `pnpm publish`.
  *
  * @param {PublicPackage[]} packages - Packages to read
+ * @param {{ npmOnly?: boolean }} [options] - `npmOnly` reads only the packages that publish to npm.
+ *   Checks that only concern npm use it, so a missing credential for another registry does not block them.
  * @returns {Promise<Map<string, RegistryPackage>>} By package name
  */
-export async function getRegistryPackages(packages) {
+export async function getRegistryPackages(packages, { npmOnly = false } = {}) {
   const entries = await Promise.all(
     packages.map(async (pkg) => {
       const registry = await getPublishRegistry(pkg.path);
+      if (npmOnly && registry !== NPMJS_REGISTRY) {
+        return null;
+      }
       const { exitCode, stdout, stderr } = await $({
         cwd: pkg.path,
         reject: false,
@@ -239,7 +244,7 @@ export async function getRegistryPackages(packages) {
       return /** @type {const} */ ([pkg.name, registryPackage]);
     }),
   );
-  return new Map(entries);
+  return new Map(entries.filter((entry) => entry !== null));
 }
 
 /**
