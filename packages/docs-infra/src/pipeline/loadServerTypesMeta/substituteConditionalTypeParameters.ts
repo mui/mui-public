@@ -4,11 +4,12 @@ import { parseFromProgram, withTypeName } from 'typescript-api-extractor';
 import type { ExportNode, ParserOptions } from 'typescript-api-extractor';
 import { resolveAlias } from './collectExportSymbols';
 
-const NAME_PREFIX = '__docsSubstituted';
-
 interface Candidate {
-  exportName: string;
-  companionName: string;
+  declaration: ts.TypeAliasDeclaration;
+  /** The exports documenting the declaration, more than one when it is reached twice. */
+  exportNames: string[];
+  /** The companion's export name in the declaring file, qualified by its namespaces. */
+  companionExportName: string;
   wideProbeName: string;
   narrowProbeName: string;
 }
@@ -22,9 +23,6 @@ interface Probe {
   name: string;
   declaration: ts.TypeAliasDeclaration;
 }
-
-/** Aliases to write right after each declaration, so they see the names it sees. */
-type Insertions = Map<ts.SourceFile, Map<ts.TypeAliasDeclaration, string[]>>;
 
 /**
  * Re-resolves generic type aliases whose body is a conditional type that tests their own
@@ -52,23 +50,19 @@ export function substituteConditionalTypeParameters(
   parserOptions: ParserOptions,
 ): ExportNode[] {
   const checker = program.getTypeChecker();
-  const insertions: Insertions = new Map();
-  const probes = new Map<ts.TypeAliasDeclaration, Probe | null>();
-  const candidates: Candidate[] = [];
-  let nameCount = 0;
-  const createName = () => {
-    const name = `${NAME_PREFIX}${nameCount}`;
-    nameCount += 1;
+  // Aliases to write right after each declaration, so they see the names it sees.
+  const insertions = new Map<ts.TypeAliasDeclaration, string[]>();
+  const generatedNames = new Set<string>();
+  const probes = new Map<ts.TypeAliasDeclaration, Probe | undefined>();
+  const candidates = new Map<ts.TypeAliasDeclaration, Candidate>();
+
+  const writeAlias = (declaration: ts.TypeAliasDeclaration, body: string) => {
+    const name = `__docsSubstituted${generatedNames.size}`;
+    generatedNames.add(name);
+    const aliases = insertions.get(declaration) ?? [];
+    aliases.push(`type ${name}${getTypeParameterList(declaration)} = ${body};`);
+    insertions.set(declaration, aliases);
     return name;
-  };
-  const insert = (declaration: ts.TypeAliasDeclaration, text: string) => {
-    const sourceFile = declaration.getSourceFile();
-    let fileInsertions = insertions.get(sourceFile);
-    if (!fileInsertions) {
-      fileInsertions = new Map();
-      insertions.set(sourceFile, fileInsertions);
-    }
-    fileInsertions.set(declaration, [...(fileInsertions.get(declaration) ?? []), text]);
   };
 
   // Writes the probe for a declaration, and for each alias it forwards to on the way to the
@@ -78,9 +72,9 @@ export function substituteConditionalTypeParameters(
     conditional: ts.ConditionalTypeNode,
   ): Probe | undefined => {
     if (probes.has(declaration)) {
-      return probes.get(declaration) ?? undefined;
+      return probes.get(declaration);
     }
-    probes.set(declaration, null);
+    probes.set(declaration, undefined);
 
     const body = skipParentheses(declaration.type);
     let condition: string | undefined;
@@ -101,8 +95,7 @@ export function substituteConditionalTypeParameters(
       return undefined;
     }
 
-    const probe: Probe = { name: createName(), declaration };
-    insert(declaration, `type ${probe.name}${getTypeParameterList(declaration)} = ${condition};`);
+    const probe: Probe = { name: writeAlias(declaration, condition), declaration };
     probes.set(declaration, probe);
     return probe;
   };
@@ -116,121 +109,110 @@ export function substituteConditionalTypeParameters(
     }
 
     const declaration = symbol.declarations?.find(ts.isTypeAliasDeclaration);
+    const existing = declaration && candidates.get(declaration);
+    if (existing) {
+      existing.exportNames.push(exportNode.name);
+      continue;
+    }
+
     const typeParameters = declaration?.typeParameters;
     const conditional = declaration && getProjectConditional(declaration, program);
     if (!declaration || !typeParameters || !conditional) {
       continue;
     }
 
-    const testedParameters = getTestedTypeParameters(declaration, conditional, checker);
+    const testedParameters = getTestedTypeParameters(typeParameters, conditional, checker);
     const probe = testedParameters.size > 0 && createProbe(declaration, conditional.root.node);
     if (!probe) {
       continue;
     }
 
-    const getTypeArguments = (
-      substituteTested: (parameter: ts.TypeParameterDeclaration) => string,
-      substituteUntested: (parameter: ts.TypeParameterDeclaration) => string,
-    ) =>
+    // Tested type parameters get their constraint. Every original type parameter is kept on
+    // the generated aliases, so constraints and defaults that refer to one still resolve.
+    const getTypeArguments = (getUntested: (parameter: ts.TypeParameterDeclaration) => string) =>
       typeParameters
         .map((parameter) =>
           testedParameters.has(parameter)
-            ? substituteTested(parameter)
-            : substituteUntested(parameter),
+            ? (parameter.constraint?.getText() ?? 'unknown')
+            : getUntested(parameter),
         )
         .join(', ');
-    const getConstraint = (parameter: ts.TypeParameterDeclaration) =>
-      parameter.constraint?.getText() ?? 'unknown';
-    // The condition doesn't involve untested type parameters, so the probes pass `never`,
-    // which satisfies any constraint they have on a substituted one.
-    const companionArguments = getTypeArguments(getConstraint, (parameter) => parameter.name.text);
-    const wideArguments = getTypeArguments(getConstraint, () => 'never');
-    const narrowArguments = getTypeArguments(
-      () => 'never',
-      () => 'never',
-    );
-    // Every original type parameter is kept, so constraints and defaults that refer to a
-    // substituted one still resolve.
-    const typeParameterList = getTypeParameterList(declaration);
-    const candidate: Candidate = {
-      exportName: exportNode.name,
-      companionName: createName(),
-      wideProbeName: createName(),
-      narrowProbeName: createName(),
-    };
-    insert(
+    const companionName = writeAlias(
       declaration,
-      `type ${candidate.companionName}${typeParameterList} = ${declaration.name.text}<${companionArguments}>;`,
+      `${declaration.name.text}<${getTypeArguments((parameter) => parameter.name.text)}>`,
     );
-    insert(
+    candidates.set(declaration, {
       declaration,
-      `type ${candidate.wideProbeName}${typeParameterList} = ${probe.name}<${wideArguments}>;`,
-    );
-    insert(
-      declaration,
-      `type ${candidate.narrowProbeName}${typeParameterList} = ${probe.name}<${narrowArguments}>;`,
-    );
-    candidates.push(candidate);
+      exportNames: [exportNode.name],
+      companionExportName: [...getNamespacePath(declaration), companionName].join('.'),
+      // The condition doesn't involve untested type parameters, so the probes pass `never`,
+      // which satisfies any constraint they have on a substituted one.
+      wideProbeName: writeAlias(declaration, `${probe.name}<${getTypeArguments(() => 'never')}>`),
+      narrowProbeName: writeAlias(
+        declaration,
+        `${probe.name}<${typeParameters.map(() => 'never').join(', ')}>`,
+      ),
+    });
   }
 
-  if (candidates.length === 0) {
+  if (candidates.size === 0) {
     return exports;
   }
 
   const companionProgram = createCompanionProgram(program, insertions);
   const companionChecker = companionProgram.getTypeChecker();
   const aliasesByName = new Map<string, ts.TypeAliasDeclaration>();
-  for (const sourceFile of insertions.keys()) {
-    const companionFile = companionProgram.getSourceFile(sourceFile.fileName);
-    if (!companionFile) {
-      throw new Error(`${sourceFile.fileName} is missing from the substitution program.`);
-    }
-    collectGeneratedAliases(companionFile, aliasesByName);
+  for (const fileName of new Set(
+    Array.from(insertions.keys(), (declaration) => declaration.getSourceFile().fileName),
+  )) {
+    collectGeneratedAliases(
+      companionProgram.getSourceFile(fileName)!,
+      generatedNames,
+      aliasesByName,
+    );
   }
 
-  const appliedCandidates: Candidate[] = [];
-  for (const candidate of candidates) {
+  const appliedCandidates = new Map<string, Candidate>();
+  for (const candidate of candidates.values()) {
     const wide = readProbe(candidate.wideProbeName, aliasesByName, companionChecker);
     const narrow = readProbe(candidate.narrowProbeName, aliasesByName, companionChecker);
     const isApplied =
       narrow === 'never' ? wide === 'T' : wide === narrow && (wide === 'T' || wide === 'F');
     if (isApplied) {
-      appliedCandidates.push(candidate);
+      appliedCandidates.set(candidate.companionExportName, candidate);
     }
     if (process.env.DEBUG_DOCS_INFRA_SUBSTITUTION) {
       console.error(
-        `[substitute] ${candidate.exportName}: constraint ${wide}, never ${narrow}, ${
+        `[substitute] ${candidate.exportNames.join(', ')}: constraint ${wide}, never ${narrow}, ${
           isApplied ? 'applied' : 'kept'
         }`,
       );
     }
   }
 
-  const companionTypes = new Map<string, ExportNode['type']>();
+  const substitutedTypes = new Map<string, ExportNode['type']>();
   const companionFiles = new Set(
-    appliedCandidates.map(
-      (candidate) => aliasesByName.get(candidate.companionName)!.getSourceFile().fileName,
+    Array.from(
+      appliedCandidates.values(),
+      (candidate) => candidate.declaration.getSourceFile().fileName,
     ),
   );
   for (const fileName of companionFiles) {
     for (const companionExport of parseFromProgram(fileName, companionProgram, parserOptions)
       .exports) {
-      const name = companionExport.name.slice(companionExport.name.lastIndexOf('.') + 1);
-      if (name.startsWith(NAME_PREFIX)) {
-        companionTypes.set(name, companionExport.type);
+      const candidate = appliedCandidates.get(companionExport.name);
+      if (candidate) {
+        for (const exportName of candidate.exportNames) {
+          substitutedTypes.set(exportName, companionExport.type);
+        }
+        appliedCandidates.delete(companionExport.name);
       }
     }
   }
-
-  const substitutedTypes = new Map<string, ExportNode['type']>();
-  for (const candidate of appliedCandidates) {
-    const companionType = companionTypes.get(candidate.companionName);
-    if (!companionType) {
-      throw new Error(
-        `The substitution of ${candidate.exportName} is missing from the parsed exports.`,
-      );
-    }
-    substitutedTypes.set(candidate.exportName, companionType);
+  if (appliedCandidates.size > 0) {
+    throw new Error(
+      `Substituted types are missing from the parsed exports: ${Array.from(appliedCandidates.keys()).join(', ')}`,
+    );
   }
 
   return exports.map((exportNode) => {
@@ -267,7 +249,7 @@ function getProjectConditional(
  * conditional alias, such as `type Cell<Row, Columns> = RowCell<Row, Columns>`.
  */
 function getTestedTypeParameters(
-  declaration: ts.TypeAliasDeclaration,
+  typeParameters: ts.NodeArray<ts.TypeParameterDeclaration>,
   conditional: ts.ConditionalType,
   checker: ts.TypeChecker,
 ): Set<ts.TypeParameterDeclaration> {
@@ -279,9 +261,7 @@ function getTestedTypeParameters(
   collectTypeParameters(conditional.extendsType, checker, referenced, visited);
 
   return new Set(
-    (declaration.typeParameters ?? []).filter((parameter) =>
-      referenced.has(checker.getTypeAtLocation(parameter.name)),
-    ),
+    typeParameters.filter((parameter) => referenced.has(checker.getTypeAtLocation(parameter.name))),
   );
 }
 
@@ -390,22 +370,33 @@ function getNamespacePath(node: ts.Node): string[] {
  * exported, except at the top level of a global script, where exporting would turn the
  * script into a module.
  */
-function createCompanionProgram(program: ts.Program, insertions: Insertions): ts.Program {
+function createCompanionProgram(
+  program: ts.Program,
+  insertions: Map<ts.TypeAliasDeclaration, string[]>,
+): ts.Program {
+  const declarationsByFile = new Map<ts.SourceFile, ts.TypeAliasDeclaration[]>();
+  for (const declaration of insertions.keys()) {
+    const sourceFile = declaration.getSourceFile();
+    declarationsByFile.set(sourceFile, [
+      ...(declarationsByFile.get(sourceFile) ?? []),
+      declaration,
+    ]);
+  }
+
   const replacedFiles = new Map<string, { text: string; ranges: Array<[number, number]> }>();
-  for (const [sourceFile, fileInsertions] of insertions) {
-    const declarations = Array.from(fileInsertions.keys()).sort(
-      (first, second) => first.end - second.end,
-    );
+  for (const [sourceFile, declarations] of declarationsByFile) {
     const ranges: Array<[number, number]> = [];
     let text = '';
     let position = 0;
-    for (const declaration of declarations) {
+    for (const declaration of declarations.sort((first, second) => first.end - second.end)) {
       const exportKeyword =
         ts.isSourceFile(declaration.parent) && !ts.isExternalModule(sourceFile) ? '' : 'export ';
-      const aliases = fileInsertions.get(declaration)!.map((alias) => `${exportKeyword}${alias}`);
       text += `${sourceFile.text.slice(position, declaration.end)}\n`;
       const start = text.length;
-      text += aliases.join('\n');
+      text += insertions
+        .get(declaration)!
+        .map((alias) => `${exportKeyword}${alias}`)
+        .join('\n');
       ranges.push([start, text.length]);
       position = declaration.end;
     }
@@ -417,20 +408,8 @@ function createCompanionProgram(program: ts.Program, insertions: Insertions): ts
   const options = { ...program.getCompilerOptions(), skipLibCheck: false };
   const host = ts.createCompilerHost(options, true);
   const getSourceFile = host.getSourceFile.bind(host);
-  const fileExists = host.fileExists.bind(host);
-  const readFile = host.readFile.bind(host);
-  const directoryExists = host.directoryExists?.bind(host);
-  // Files are resolved the way the original program resolved them: from its directory, and
-  // from its files before the file system, since they may only exist in memory.
+  // Relative names resolve from the original program's directory, not the process's.
   host.getCurrentDirectory = () => program.getCurrentDirectory();
-  host.fileExists = (fileName) =>
-    program.getSourceFile(fileName) !== undefined || fileExists(fileName);
-  host.directoryExists = (directoryName) =>
-    program
-      .getSourceFiles()
-      .some((sourceFile) => sourceFile.fileName.startsWith(`${directoryName}/`)) ||
-    (directoryExists?.(directoryName) ?? true);
-  host.readFile = (fileName) => program.getSourceFile(fileName)?.text ?? readFile(fileName);
   // Unchanged files are served from the original program, so the new one reuses them.
   host.getSourceFile = (fileName, languageVersionOrOptions, onError, shouldCreateNewSourceFile) => {
     const replacedFile = replacedFiles.get(fileName);
@@ -488,14 +467,15 @@ function getOriginalSourceFile(program: ts.Program, fileName: string): ts.Source
 
 function collectGeneratedAliases(
   node: ts.Node,
+  generatedNames: Set<string>,
   aliasesByName: Map<string, ts.TypeAliasDeclaration>,
 ): void {
-  if (ts.isTypeAliasDeclaration(node) && node.name.text.startsWith(NAME_PREFIX)) {
+  if (ts.isTypeAliasDeclaration(node) && generatedNames.has(node.name.text)) {
     aliasesByName.set(node.name.text, node);
     return;
   }
   if (ts.isSourceFile(node) || ts.isModuleDeclaration(node) || ts.isModuleBlock(node)) {
-    ts.forEachChild(node, (child) => collectGeneratedAliases(child, aliasesByName));
+    ts.forEachChild(node, (child) => collectGeneratedAliases(child, generatedNames, aliasesByName));
   }
 }
 

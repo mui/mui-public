@@ -8,29 +8,58 @@ import { parseFromProgram } from 'typescript-api-extractor';
 import type { ExportNode } from 'typescript-api-extractor';
 import { collectExportSymbols } from './collectExportSymbols';
 import { PARSER_OPTIONS } from './constants';
-import { createTestProgram } from './parseTestSources';
 import { substituteConditionalTypeParameters } from './substituteConditionalTypeParameters';
 
-// The real standard library, so aliases resolve the way they do in a project.
-const STANDARD_LIB =
-  ts.sys.readFile(`${ts.getDefaultLibFilePath({}).replace(/[^/]+$/, '')}lib.es5.d.ts`) ?? '';
+interface Parsed {
+  original: ExportNode[];
+  substituted: ExportNode[];
+}
 
-function substitute(exports: ExportNode[], entrypoint: string, program: ts.Program) {
-  return substituteConditionalTypeParameters(
-    exports,
-    collectExportSymbols(program.getSourceFile(entrypoint)!, program.getTypeChecker(), exports),
+// Sources are written to disk, so they resolve the way a project does. React's types sit in
+// the shared `node_modules`, where the parser treats them as external.
+let rootDir: string;
+
+beforeAll(() => {
+  rootDir = mkdtempSync(path.join(tmpdir(), 'substitute-conditional-'));
+  const reactTypesDir = path.dirname(
+    createRequire(import.meta.url).resolve('@types/react/package.json'),
+  );
+  mkdirSync(path.join(rootDir, 'node_modules', '@types'), { recursive: true });
+  symlinkSync(reactTypesDir, path.join(rootDir, 'node_modules', '@types', 'react'), 'dir');
+});
+
+afterAll(() => {
+  rmSync(rootDir, { recursive: true, force: true });
+});
+
+/** Parses the first source as the entrypoint, before and after substitution. */
+function parseSubstituted(sources: Record<string, string>): Parsed {
+  const projectDir = mkdtempSync(path.join(rootDir, 'project-'));
+  const fileNames = Object.entries(sources).map(([name, text]) => {
+    const fileName = path.join(projectDir, name);
+    writeFileSync(fileName, text);
+    return fileName;
+  });
+  const entrypoint = fileNames[0];
+
+  const program = ts.createProgram(fileNames, {
+    target: ts.ScriptTarget.ESNext,
+    module: ts.ModuleKind.ESNext,
+    moduleResolution: ts.ModuleResolutionKind.Bundler,
+    lib: ['lib.es5.d.ts'],
+    strict: true,
+    skipLibCheck: true,
+    rootDir: projectDir,
+    types: [],
+  });
+  const original = parseFromProgram(entrypoint, program, PARSER_OPTIONS).exports;
+  const substituted = substituteConditionalTypeParameters(
+    original,
+    collectExportSymbols(program.getSourceFile(entrypoint)!, program.getTypeChecker(), original),
     program,
     PARSER_OPTIONS,
   );
-}
-
-function parseSubstituted(sources: Record<string, string>): {
-  original: ExportNode[];
-  substituted: ExportNode[];
-} {
-  const { program, entrypoint } = createTestProgram(sources, STANDARD_LIB);
-  const original = parseFromProgram(entrypoint, program, PARSER_OPTIONS).exports;
-  return { original, substituted: substitute(original, entrypoint, program) };
+  return { original, substituted };
 }
 
 function findExport(exports: ExportNode[], name: string): ExportNode | undefined {
@@ -51,12 +80,6 @@ function describeExport(exports: ExportNode[], name: string): string {
       ? `{ ${type.properties.map((property) => `${property.name}: ${property.type.toString()}`).join('; ')} }`
       : type.toString();
   return `${header} ${body}`;
-}
-
-/** Whether the export kept its original rendering. */
-function isKept(sources: Record<string, string>, name: string): boolean {
-  const { original, substituted } = parseSubstituted(sources);
-  return findExport(substituted, name) === findExport(original, name);
 }
 
 const IS_ANY = `type IsAny<Value> = 0 extends 1 & Value ? true : false;`;
@@ -224,65 +247,68 @@ export type Items<List extends readonly string[]> = List extends readonly unknow
     );
   });
 
+  it('resolves a declaration reached under two export names once', () => {
+    const { substituted } = parseSubstituted({
+      'index.ts': `
+export { Cell, Cell as RowCell } from './cell';
+`,
+      'cell.ts': `
+export type Cell<Columns extends readonly { id: string }[]> =
+  0 extends 1 & Columns ? { columnId: any } : { columnId: string };
+`,
+    });
+
+    expect(describeExport(substituted, 'RowCell')).toBe(describeExport(substituted, 'Cell'));
+    expect(describeExport(substituted, 'Cell')).toMatchInlineSnapshot(
+      `"Cell<Columns> { columnId: string }"`,
+    );
+  });
+
   it('keeps a conditional the constraint decides differently from a narrower type', () => {
-    expect(
-      isKept(
-        {
-          'index.ts': `
+    const { original, substituted } = parseSubstituted({
+      'index.ts': `
 export type Value<Mode extends string> = Mode extends 'multiple' ? { value: string[] } : { value: string };
 `,
-        },
-        'Value',
-      ),
-    ).toBe(true);
+    });
+
+    expect(findExport(substituted, 'Value')).toBe(findExport(original, 'Value'));
   });
 
   it('keeps a conditional whose branch depends on the default', () => {
-    expect(
-      isKept(
-        {
-          'index.ts': `
+    const { original, substituted } = parseSubstituted({
+      'index.ts': `
 export type Selected<Value, Multiple extends boolean = false> = Multiple extends true
   ? { value: Value[] }
   : { value: Value };
 `,
-        },
-        'Selected',
-      ),
-    ).toBe(true);
+    });
+
+    expect(findExport(substituted, 'Selected')).toBe(findExport(original, 'Selected'));
   });
 
   it('keeps a conditional on an unconstrained type parameter', () => {
-    expect(
-      isKept(
-        {
-          'index.ts': `
+    const { original, substituted } = parseSubstituted({
+      'index.ts': `
 export type Value<Multiple> = Multiple extends true ? { value: string[] } : { value: string };
 `,
-        },
-        'Value',
-      ),
-    ).toBe(true);
+    });
+
+    expect(findExport(substituted, 'Value')).toBe(findExport(original, 'Value'));
   });
 
   it('keeps a conditional that differs between its ends and its middle', () => {
-    expect(
-      isKept(
-        {
-          'index.ts': `
+    const { original, substituted } = parseSubstituted({
+      'index.ts': `
 export type Pick<Key extends 'a' | 'b'> = [Key] extends ['a'] ? { a: true } : { other: true };
 `,
-        },
-        'Pick',
-      ),
-    ).toBe(true);
+    });
+
+    expect(findExport(substituted, 'Pick')).toBe(findExport(original, 'Pick'));
   });
 
   it('leaves a type alias sharing its name with a value untouched', () => {
-    expect(
-      isKept(
-        {
-          'index.ts': `
+    const { original, substituted } = parseSubstituted({
+      'index.ts': `
 ${IS_ANY}
 
 export function Cell(props: { row: string }) {
@@ -292,50 +318,34 @@ export function Cell(props: { row: string }) {
 export type Cell<Row, Columns extends readonly { id: string }[]> =
   IsAny<Columns> extends true ? { row: Row; columnId: any } : { row: Row; columnId: string };
 `,
-        },
-        'Cell',
-      ),
-    ).toBe(true);
+    });
+
+    expect(findExport(substituted, 'Cell')).toBe(findExport(original, 'Cell'));
   });
 
   it('leaves aliases without a conditional on their own parameters untouched', () => {
-    expect(
-      isKept(
-        {
-          'index.ts': `
+    const { original, substituted } = parseSubstituted({
+      'index.ts': `
 export type Box<Value> = { value: Value };
 `,
-        },
-        'Box',
-      ),
-    ).toBe(true);
+    });
+
+    expect(findExport(substituted, 'Box')).toBe(findExport(original, 'Box'));
   });
 
-  // React's types sit in a real `node_modules`, where the parser treats them as external.
   describe('with the React types', () => {
-    let projectDir: string;
-    let original: ExportNode[];
-    let substituted: ExportNode[];
+    let parsed: Parsed;
 
     beforeAll(() => {
-      projectDir = mkdtempSync(path.join(tmpdir(), 'substitute-conditional-'));
-      const reactTypesDir = path.dirname(
-        createRequire(import.meta.url).resolve('@types/react/package.json'),
-      );
-      mkdirSync(path.join(projectDir, 'node_modules', '@types'), { recursive: true });
-      symlinkSync(reactTypesDir, path.join(projectDir, 'node_modules', '@types', 'react'), 'dir');
-
-      const entrypoint = path.join(projectDir, 'index.ts');
-      writeFileSync(
-        entrypoint,
-        `import type * as React from 'react';
+      parsed = parseSubstituted({
+        'index.ts': `import type * as React from 'react';
 
 // The conditional lives in \`@types/react\`, not in this source.
 export type RenderElementProps<ElementType extends React.ElementType> =
   React.ComponentPropsWithRef<ElementType>;
 
 // Over React's \`ElementType\`, which includes components with \`any\` props, this
-// conditional resolves to \`any\`.
+// conditional doesn't take one branch for every type argument.
 export type RenderOwnElementProps<ElementType extends React.ElementType> =
   ElementType extends React.JSXElementConstructor<infer Props> ? Props : { type?: string };
 
@@ -347,35 +357,18 @@ export namespace render {
     RenderOwnElementProps<ElementType>;
 }
 `,
-      );
-
-      const program = ts.createProgram([entrypoint], {
-        target: ts.ScriptTarget.ESNext,
-        module: ts.ModuleKind.ESNext,
-        moduleResolution: ts.ModuleResolutionKind.Bundler,
-        jsx: ts.JsxEmit.ReactJSX,
-        strict: true,
-        skipLibCheck: true,
-        rootDir: projectDir,
-        types: [],
       });
-      original = parseFromProgram(entrypoint, program, PARSER_OPTIONS).exports;
-      substituted = substitute(original, entrypoint, program);
-    });
-
-    afterAll(() => {
-      rmSync(projectDir, { recursive: true, force: true });
     });
 
     it('leaves an alias passing its parameter to a conditional from a dependency untouched', () => {
-      expect(findExport(substituted, 'render.ElementProps')).toBe(
-        findExport(original, 'render.ElementProps'),
+      expect(findExport(parsed.substituted, 'render.ElementProps')).toBe(
+        findExport(parsed.original, 'render.ElementProps'),
       );
     });
 
-    it('keeps the original rendering when substitution collapses to any', () => {
-      expect(findExport(substituted, 'render.OwnElementProps')).toBe(
-        findExport(original, 'render.OwnElementProps'),
+    it('keeps a conditional over React element types', () => {
+      expect(findExport(parsed.substituted, 'render.OwnElementProps')).toBe(
+        findExport(parsed.original, 'render.OwnElementProps'),
       );
     });
   });
