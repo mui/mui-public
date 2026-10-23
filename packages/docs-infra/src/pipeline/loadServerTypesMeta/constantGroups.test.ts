@@ -1,3 +1,4 @@
+import type ts from 'typescript';
 import { describe, it, expect } from 'vitest';
 import { parseFromProgram } from 'typescript-api-extractor';
 import type * as tae from 'typescript-api-extractor';
@@ -6,6 +7,7 @@ import {
   foldConstantNamespaces,
   matchConstantGroups,
 } from './constantGroups';
+import { collectExportSymbols } from './collectExportSymbols';
 import { createTestProgram } from './parseTestSources';
 import { PARSER_OPTIONS } from './constants';
 
@@ -24,11 +26,20 @@ const BUTTON_DATA_ATTRIBUTES = `
 `;
 
 /** Parses the entrypoint and folds its constant namespaces, the way the pipeline does. */
+function findNamespaces(entrypoint: string, program: ts.Program) {
+  const checker = program.getTypeChecker();
+  const { exports } = parseFromProgram(entrypoint, program, PARSER_OPTIONS);
+  return findConstantNamespaces(
+    collectExportSymbols(program.getSourceFile(entrypoint)!, checker, exports),
+    checker,
+  );
+}
+
 function foldSources(sources: Record<string, string>) {
   const { program, entrypoint } = createTestProgram(sources, LIB);
   return foldConstantNamespaces(
     parseFromProgram(entrypoint, program, PARSER_OPTIONS).exports,
-    findConstantNamespaces(entrypoint, program),
+    findNamespaces(entrypoint, program),
   );
 }
 
@@ -56,7 +67,7 @@ describe('findConstantNamespaces', () => {
       'attributes.ts': BUTTON_DATA_ATTRIBUTES,
     });
 
-    expect(findConstantNamespaces(entrypoint, program)).toEqual(
+    expect(findNamespaces(entrypoint, program)).toEqual(
       new Map([['ButtonDataAttributes', new Map([['pressed', 'data-pressed']])]]),
     );
   });
@@ -68,7 +79,7 @@ describe('findConstantNamespaces', () => {
       'attributes.ts': BUTTON_DATA_ATTRIBUTES,
     });
 
-    expect(findConstantNamespaces(entrypoint, program)).toEqual(
+    expect(findNamespaces(entrypoint, program)).toEqual(
       new Map([['ButtonDataAttributes', new Map([['pressed', 'data-pressed']])]]),
     );
   });
@@ -84,7 +95,7 @@ describe('findConstantNamespaces', () => {
       'attributes.ts': BUTTON_DATA_ATTRIBUTES,
     });
 
-    expect(findConstantNamespaces(entrypoint, program)).toEqual(
+    expect(findNamespaces(entrypoint, program)).toEqual(
       new Map([['Toolbar.ButtonDataAttributes', new Map([['pressed', 'data-pressed']])]]),
     );
   });
@@ -108,7 +119,7 @@ describe('findConstantNamespaces', () => {
       'settings.ts': `export let label = 'label';`,
     });
 
-    expect(findConstantNamespaces(entrypoint, program)).toEqual(new Map());
+    expect(findNamespaces(entrypoint, program)).toEqual(new Map());
   });
 });
 

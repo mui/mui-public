@@ -5,6 +5,7 @@ import path from 'node:path';
 import ts from 'typescript';
 import { parseFromProgram } from 'typescript-api-extractor';
 import type { ComponentNode, ExportNode, ObjectNode } from 'typescript-api-extractor';
+import { collectExportSymbols } from './collectExportSymbols';
 import { augmentComponentsWithInheritedProps } from './inheritedExternalProps';
 import type { InheritedExternalPropsConfig } from './inheritedExternalProps';
 import { formatType } from './formatType';
@@ -131,10 +132,11 @@ let exports: ExportNode[];
 
 function parseAndAugment(config: InheritedExternalPropsConfig | undefined): ExportNode[] {
   const result = parseFromProgram(entry, program, PARSER_OPTIONS);
+  const checker = program.getTypeChecker();
   augmentComponentsWithInheritedProps(
     result.exports,
-    program,
-    program.getSourceFile(entry)!,
+    collectExportSymbols(program.getSourceFile(entry)!, checker, result.exports),
+    checker,
     config,
   );
   return result.exports;
