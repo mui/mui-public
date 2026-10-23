@@ -11,7 +11,11 @@ import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 
 import { getRepositoryInfo } from '../utils/git.mjs';
 import { toPosixPath } from '../utils/path.mjs';
-import { getPackagesNeedingManualPublish, getWorkspacePackages } from '../utils/pnpm.mjs';
+import {
+  getPackagesNeedingManualPublish,
+  getWorkspacePackages,
+  PLACEHOLDER_VERSION,
+} from '../utils/pnpm.mjs';
 
 /**
  * @typedef {Object} Args
@@ -78,7 +82,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
           const repo = await getRepositoryInfo();
           const packageJson = {
             name: pkg.name,
-            version: '0.0.1',
+            version: PLACEHOLDER_VERSION,
             repository: {
               type: 'git',
               url: `git+https://github.com/${repo.owner}/${repo.repo}.git`,

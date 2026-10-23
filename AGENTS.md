@@ -14,7 +14,7 @@ Always reference these instructions first and fallback to search or bash command
 
 ### Bootstrap, Build, and Test the Repository
 
-- **Prerequisites**: Node.js 22.23.3+ required. Install pnpm: `npm install -g pnpm@12.10.1`
+- **Prerequisites**: Node.js 22.23.3+ required. Use the pnpm version pinned in the root `package.json`'s `packageManager` field.
 - **Install dependencies**: `pnpm install --no-frozen-lockfile` -- takes 15-20 seconds. **NEVER CANCEL**. Set timeout to 30+ minutes.
 - **Build all packages**: `pnpm release:build` -- takes 5-10 seconds. **NEVER CANCEL**. Set timeout to 30+ minutes.
 - **Type checking**: `pnpm typescript` -- takes 10-15 seconds. **NEVER CANCEL**. Set timeout to 30+ minutes.
@@ -112,6 +112,16 @@ Applies to the whole repository.
 ## Troubleshooting
 
 ### Common Issues and Workarounds
+
+#### Publish registry authentication
+
+- Publish preflight checks must honor the same registry authentication as pnpm. Read the
+  registry with pnpm CLI calls, such as `pnpm view`: plain `fetch` does not read `.npmrc`
+  credentials, and custom `publishConfig.registry` endpoints may require authentication for
+  metadata reads. Validate changes to these checks against an authenticated registry as well as
+  public npm.
+- Before simplifying registry support, inspect consuming publish workflows. Custom registry
+  authentication has existing users; do not assume every consumer publishes to public npm.
 
 #### Peer dependency warnings
 
