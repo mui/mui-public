@@ -178,7 +178,6 @@
     "rehype-parse": "9.0.1",
     "rehype-stringify": "10.0.1",
     "remark-rehype": "11.1.2",
-    "remark-stringify": "11.0.0",
     "webpack": "5.110.3"
   },
   "peerDependencies": {

@@ -72,7 +72,7 @@ export async function collectModuleSpecifiers(code, filename) {
     },
     // Declaration emit writes these for inferred types, so they appear without a matching import in the sources.
     TSImportType(nodePath) {
-      add(nodePath.node.argument.value, 'importType');
+      add(nodePath.node.source.value, 'importType');
     },
     TSExternalModuleReference(nodePath) {
       add(nodePath.node.expression.value);
