@@ -16,4 +16,4 @@ Requires stage 1 complete. Before merging, verify the PR still has the `release`
 
 ## Troubleshooting
 
-- **Publish reports "no new packages to publish":** the workflow ran against a commit whose package versions are already on npm — usually a wrong SHA (e.g. the picker's pre-selected default). Re-dispatch with `--sha <merge-commit-sha>` of the release PR.
+- **Publish reports "no new packages to publish":** the workflow ran against a commit whose package versions are already on npm — usually a wrong SHA (for example, the picker's pre-selected default). Re-dispatch with `--sha <merge-commit-sha>` of the release PR.

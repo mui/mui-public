@@ -46,7 +46,7 @@ export const languageToGrammarMap: Record<string, string> = {
 
 /**
  * Gets the grammar scope from a language name.
- * @param language - The language name (e.g., 'tsx', 'css', 'typescript')
+ * @param language - The language name (for example, 'tsx', 'css', 'typescript')
  * @returns The grammar scope or undefined if not recognized
  */
 export function getGrammarFromLanguage(language: string): string | undefined {

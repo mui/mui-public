@@ -19,7 +19,9 @@ import * as semver from 'semver';
 
 import { persistentAuthStrategy } from '../utils/github.mjs';
 import {
+  getDistTagConflicts,
   getPackagesNeedingManualPublish,
+  getRegistryPackages,
   getReleaseVersion,
   getWorkspacePackages,
   publishPackages,
@@ -30,7 +32,13 @@ import { getCurrentGitSha, getRepositoryInfo, remoteGitTagExists } from '../util
 const isCI = envCI().isCi;
 
 function getOctokit() {
-  return new Octokit({ authStrategy: isCI ? createActionAuth : persistentAuthStrategy });
+  const octokit = new Octokit({
+    authStrategy: isCI ? createActionAuth : persistentAuthStrategy,
+  });
+  octokit.hook.before('request', (requestOptions) => {
+    requestOptions.headers['x-github-api-version'] = '2026-03-10';
+  });
+  return octokit;
 }
 
 /**
@@ -364,6 +372,19 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       const newPackageNames = newPackages.map((pkg) => pkg.name).join(', ');
       throw new Error(
         `The following packages are new and need to be published to npm manually first: ${newPackageNames}. Read more about it here: https://github.com/mui/mui-public/blob/master/packages/code-infra/README.md#adding-and-publishing-new-packages`,
+      );
+    }
+
+    const distTagConflicts = getDistTagConflicts(
+      filteredPackages,
+      tag,
+      await getRegistryPackages(filteredPackages),
+    );
+    if (distTagConflicts.length > 0) {
+      throw new Error(
+        `Publishing with the "${tag}" dist-tag would move it to the wrong release line:
+${distTagConflicts.map(({ pkg, reason }) => `  * ${pkg.name}: ${reason}`).join('\n')}
+Publish a previous major with its "latest-vX" dist-tag and a prerelease of the next major with "next". On a release branch, also make that dist-tag the "dist-tag" default of the publish workflow. If the dist-tag on npm is outdated, fix it with "npm dist-tag" first.`,
       );
     }
 

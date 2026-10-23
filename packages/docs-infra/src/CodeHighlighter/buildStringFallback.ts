@@ -2,7 +2,7 @@ import type { Root as HastRoot } from 'hast';
 import type { SourceComments, SourceEnhancers } from './types';
 import { buildRootFallback } from './fallbackFormat';
 import type { FallbackNode } from './fallbackFormat';
-import { parsePlainText } from '../pipeline/parseSource';
+import { parsePlainText } from '../pipeline/parseSource/createPlainTextRoot';
 
 export interface StringFallbackResult {
   /** Compact, windowed fallback frames (text only — `.line` spans stripped). */

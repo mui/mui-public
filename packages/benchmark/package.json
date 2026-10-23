@@ -1,49 +1,73 @@
 {
   "name": "@mui/internal-benchmark",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "author": "MUI Team",
   "description": "Benchmark utilities for MUI projects. Internal package.",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mui/mui-public.git",
     "directory": "packages/benchmark"
   },
   "exports": {
+    "./package.json": "./package.json",
     ".": "./src/index.tsx",
     "./ciReport": "./src/ciReport.ts",
     "./reporter": "./src/reporter.ts",
-    "./vitest": "./src/vitest.ts"
+    "./vitest": "./src/vitest.ts",
+    "./page": "./src/page/index.ts",
+    "./vitePlugin": "./src/runner/plugin.ts",
+    "./runReport": "./src/runReport/index.ts",
+    "./cli": "./src/cli/index.ts"
   },
   "scripts": {
     "build": "code-infra build --flat --tsgo --bundle esm",
     "typescript": "tsc -noEmit"
   },
   "dependencies": {
-    "@babel/runtime": "^7.29.7",
-    "@vitejs/plugin-react": "^6.1.1",
+    "@babel/runtime": "^8.0.7",
+    "@pnpm/find-workspace-dir": "^1000.1.5",
+    "@vitejs/plugin-react": "^6.1.2",
+    "chalk": "^6.0.1",
     "env-ci": "^11.2.0",
-    "execa": "^10.0.1",
-    "zod": "^4.6.4"
+    "es-toolkit": "^1.52.0",
+    "execa": "^10.1.1",
+    "globby": "^16.2.4",
+    "sirv": "^3.0.2",
+    "yaml": "^2.9.1",
+    "yargs": "^18.2.0",
+    "zod": "^4.6.7"
   },
   "peerDependencies": {
+    "@playwright/test": ">=1.50.0",
     "@types/react": "^18.0.0 || ^19.0.0",
     "@vitest/browser-playwright": ">=4.1",
     "react": "^18.0.0 || ^19.0.0",
     "react-dom": "^18.0.0 || ^19.0.0",
+    "vite": "^7.0.0 || ^8.0.0",
     "vitest": ">=4.1"
   },
   "devDependencies": {
+    "@playwright/test": "1.64.1",
     "@types/env-ci": "3.1.4",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
-    "vitest": "5.0.1"
+    "@types/yargs": "17.0.35",
+    "vite": "^8.3.1",
+    "vitest": "5.0.5"
   },
   "publishConfig": {
     "access": "public",
     "directory": "build"
   },
+  "bin": {
+    "benchmark": "./src/cli/index.ts"
+  },
   "peerDependenciesMeta": {
     "@types/react": {
+      "optional": true
+    },
+    "vite": {
       "optional": true
     }
   }

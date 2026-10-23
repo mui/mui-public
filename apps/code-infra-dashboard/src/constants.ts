@@ -170,6 +170,18 @@ export const repositories = new Map<string, Repository>(
       },
       {
         owner: 'mui',
+        name: 'base-ui-plus',
+        displayName: 'Base UI Plus',
+        description: 'More Base UI components',
+        isPublic: false,
+        packages: [],
+        prComment: {
+          bundleSize: true,
+          benchmark: true,
+        },
+      },
+      {
+        owner: 'mui',
         name: 'mui-design-kits',
         displayName: 'Design Kits',
         description: 'MUI design kits for Figma and other design tools',

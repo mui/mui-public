@@ -1,9 +1,9 @@
 // @ts-check
 
-const helperModuleImports = require('@babel/helper-module-imports');
-const fs = require('fs');
-const nodePath = require('path');
-const finder = require('find-package-json');
+import * as helperModuleImports from '@babel/helper-module-imports';
+import * as fs from 'node:fs';
+import * as nodePath from 'node:path';
+import finder from 'find-package-json';
 
 /**
  * Normalize a file path to POSIX in order for it to be platform-agnostic.
@@ -29,13 +29,16 @@ const COMMENT_OPT_OUT_MARKER = 'minify-error-disabled';
 const SUPPORTED_ERROR_CONSTRUCTORS = new Set(['Error', 'TypeError']);
 
 /**
- * @typedef {typeof import('@babel/core')} babel
  * @typedef {typeof import('@babel/core').types} BabelTypes
+ */
+/**
+ * @template {import('@babel/core').types.Node | null} [T=import('@babel/core').types.Node]
+ * @typedef {import('@babel/core').NodePath<T>} NodePath
  */
 
 /**
  * @typedef {'annotate' | 'throw' | 'write'} MissingError
- * @typedef {import('@babel/core').PluginPass & {formatErrorMessageIdentifier?: import('@babel/core').types.Identifier, processedNodes?: WeakSet<import('@babel/core').types.Node>}} PluginState
+ * @typedef {import('@babel/core').PluginPass & {formatErrorMessageIdentifier?: import('@babel/core').types.Expression, processedNodes?: WeakSet<import('@babel/core').types.Node>}} PluginState
  * @typedef {import('./index.d.ts').Options} Options
  */
 
@@ -87,7 +90,7 @@ function isNodeEnvComparison(t, node, operator, value) {
  * Errors inside such branches are already stripped in production,
  * so minification is unnecessary.
  * @param {BabelTypes} t
- * @param {import('@babel/core').NodePath} path
+ * @param {NodePath} path
  * @returns {boolean}
  */
 function isInsideDevOnlyBranch(t, path) {
@@ -110,13 +113,13 @@ function isInsideDevOnlyBranch(t, path) {
 }
 
 /**
- * @typedef {{ path: import('@babel/core').NodePath<import('@babel/core').types.Expression>, message: string, expressions: import('@babel/core').types.Expression[] }} ExtractedMessage
+ * @typedef {{ path: NodePath<import('@babel/core').types.Expression>, message: string, expressions: import('@babel/core').types.Expression[] }} ExtractedMessage
  */
 
 /**
  * Extracts the message and expressions from a path.
  * @param {BabelTypes} t
- * @param {import('@babel/core').NodePath<import('@babel/core').types.ArgumentPlaceholder | import('@babel/core').types.SpreadElement | import('@babel/core').types.Expression>} path
+ * @param {NodePath<import('@babel/core').types.ArgumentPlaceholder | import('@babel/core').types.SpreadElement | import('@babel/core').types.Expression>} path
  * @returns {ExtractedMessage | null}
  */
 function extractMessage(t, path) {
@@ -158,9 +161,9 @@ function extractMessage(t, path) {
 
 /**
  * @param {BabelTypes} t
- * @param {import('@babel/core').NodePath<import('@babel/core').types.NewExpression>} newExpressionPath
+ * @param {NodePath<import('@babel/core').types.NewExpression>} newExpressionPath
  * @param {'opt-in' | 'opt-out'} detection
- * @returns {null | import('@babel/core').NodePath<import('@babel/core').types.ArgumentPlaceholder | import('@babel/core').types.SpreadElement | import('@babel/core').types.Expression>}
+ * @returns {null | NodePath<import('@babel/core').types.ArgumentPlaceholder | import('@babel/core').types.SpreadElement | import('@babel/core').types.Expression>}
  */
 function findMessageNode(t, newExpressionPath, detection) {
   const callee = newExpressionPath.get('callee');
@@ -296,9 +299,9 @@ function transformExtension(importSpecifier, outExtension = '.js') {
 /**
  * @param {{ types: BabelTypes }} file
  * @param {Options} options
- * @returns {import('@babel/core').PluginObj<PluginState>}
+ * @returns {import('@babel/core').PluginObject<PluginState>}
  */
-module.exports = function plugin(
+export default function plugin(
   { types: t },
   {
     errorCodesPath,
@@ -411,4 +414,4 @@ module.exports = function plugin(
       },
     },
   };
-};
+}

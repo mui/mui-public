@@ -5,9 +5,11 @@ import { describe, it, expect, vi } from 'vitest';
 import { makeTempDir, privatePkg, publicPkg, writePackage } from './testUtils.mjs';
 import {
   checkPublishDependencies,
+  getDistTagConflicts,
   getPackagesNeedingManualPublish,
   getPublishRegistry,
   getReleaseVersion,
+  PLACEHOLDER_VERSION,
   renameWorkspaceScope,
   readPackageJson,
   selectAgedVersion,
@@ -369,7 +371,7 @@ describe('checkPublishDependencies', () => {
      *
      * Public packages-internal:
      *   @mui/internal-core-docs   – deps: @mui/internal-markdown (workspace:^)
-     *                             – devDeps: @mui-internal/api-docs-builder (workspace:*),
+     *                             – devDeps: @mui/internal-api-docs-builder (workspace:*),
      *                                        @mui/icons-material (workspace:*), @mui/material (workspace:*)
      *                             – peers: @mui/material, @mui/icons-material, @mui/system, … (pinned ranges)
      *   @mui/internal-docs-utils  – no workspace deps
@@ -377,9 +379,9 @@ describe('checkPublishDependencies', () => {
      *   @mui/internal-scripts     – deps: @mui/internal-docs-utils (workspace:^)
      *
      * Private packages-internal:
-     *   @mui-internal/api-docs-builder       – deps: @mui/internal-docs-utils (workspace:^),
+     *   @mui/internal-api-docs-builder       – deps: @mui/internal-docs-utils (workspace:^),
      *                                                @mui/internal-markdown (workspace:^)
-     *   @mui-internal/api-docs-builder-core  – deps: @mui-internal/api-docs-builder (workspace:^),
+     *   @mui/internal-api-docs-builder-core  – deps: @mui/internal-api-docs-builder (workspace:^),
      *                                                @mui/internal-markdown (workspace:^)
      *   @mui/internal-waterfall              – no workspace deps
      *
@@ -401,7 +403,7 @@ describe('checkPublishDependencies', () => {
           clsx: '^2.1.1',
         },
         devDependencies: {
-          '@mui-internal/api-docs-builder': 'workspace:*',
+          '@mui/internal-api-docs-builder': 'workspace:*',
           '@mui/icons-material': 'workspace:*',
           '@mui/material': 'workspace:*',
         },
@@ -438,7 +440,7 @@ describe('checkPublishDependencies', () => {
 
       // packages-internal — private
       const apiDocsBuilder = await writePackage(root, 'packages-internal/api-docs-builder', {
-        name: '@mui-internal/api-docs-builder',
+        name: '@mui/internal-api-docs-builder',
         version: '1.0.0',
         private: true,
         dependencies: {
@@ -451,11 +453,11 @@ describe('checkPublishDependencies', () => {
         root,
         'packages-internal/api-docs-builder-core',
         {
-          name: '@mui-internal/api-docs-builder-core',
+          name: '@mui/internal-api-docs-builder-core',
           version: '1.0.0',
           private: true,
           dependencies: {
-            '@mui-internal/api-docs-builder': 'workspace:^',
+            '@mui/internal-api-docs-builder': 'workspace:^',
             '@mui/internal-markdown': 'workspace:^',
           },
         },
@@ -499,8 +501,8 @@ describe('checkPublishDependencies', () => {
         publicPkg('@mui/internal-scripts', scripts),
       ];
       const privateInternalPkgs = [
-        privatePkg('@mui-internal/api-docs-builder', apiDocsBuilder),
-        privatePkg('@mui-internal/api-docs-builder-core', apiDocsBuilderCore),
+        privatePkg('@mui/internal-api-docs-builder', apiDocsBuilder),
+        privatePkg('@mui/internal-api-docs-builder-core', apiDocsBuilderCore),
         privatePkg('@mui/internal-waterfall', waterfall),
       ];
       const publicMainPkgs = [
@@ -537,7 +539,7 @@ describe('checkPublishDependencies', () => {
     });
 
     it('passes when workspace:* devDependencies of core-docs are not in the publish set', async () => {
-      // core-docs has @mui-internal/api-docs-builder and @mui/icons-material as workspace:*
+      // core-docs has @mui/internal-api-docs-builder and @mui/icons-material as workspace:*
       // devDependencies. They must NOT be required — devDeps are not installed on consumer devices.
       const root = await makeTempDir();
       const { publicInternalPkgs, allPkgs } = await buildMaterialUiWorkspace(root);
@@ -940,6 +942,123 @@ describe('getPackagesNeedingManualPublish', () => {
     await expect(
       getPackagesNeedingManualPublish([publicPkg('my-package', pkgDir)]),
     ).rejects.toThrow(/my-package.*HTTP 401/);
+  });
+});
+
+describe('getDistTagConflicts', () => {
+  /**
+   * Find the conflicts of a publish with `tag` against registry data.
+   * @param {string} tag - Dist-tag to publish with
+   * @param {Record<string, { version: string, distTags?: Record<string, string>, versions?: string[] }>} packages
+   *   Version to publish and registry data of each package, by name. No `distTags` means not on the registry.
+   */
+  function findConflicts(tag, packages) {
+    const entries = Object.entries(packages);
+    const conflicts = getDistTagConflicts(
+      entries.map(([name, { version }]) => ({ ...publicPkg(name, `/workspace/${name}`), version })),
+      tag,
+      new Map(
+        entries.map(([name, { distTags, versions }]) => [
+          name,
+          distTags ? { distTags, versions: versions ?? Object.values(distTags) } : null,
+        ]),
+      ),
+    );
+    return conflicts.map(({ pkg, reason }) => `${pkg.name}: ${reason}`);
+  }
+
+  it('rejects a lower version on any dist-tag', () => {
+    expect(
+      findConflicts('latest', { grid: { version: '8.29.6', distTags: { latest: '9.15.0' } } }),
+    ).toEqual([
+      'grid: "latest" can only move to a newer version, but 8.29.6 is lower than the current 9.15.0',
+    ]);
+    expect(
+      findConflicts('next', {
+        virtualizer: { version: '0.7.4', distTags: { next: '1.0.0-rc.0' } },
+      }),
+    ).toEqual([
+      'virtualizer: "next" can only move to a newer version, but 0.7.4 is lower than the current 1.0.0-rc.0',
+    ]);
+  });
+
+  it('rejects a prerelease on latest dist-tags that point to a stable version', () => {
+    expect(
+      findConflicts('latest', {
+        material: { version: '10.0.0-alpha.1', distTags: { latest: '9.5.0' } },
+        grid: { version: '9.16.0-beta.0', distTags: { latest: '9.15.0' } },
+      }),
+    ).toEqual([
+      'material: "latest" cannot point to a prerelease (10.0.0-alpha.1)',
+      'grid: "latest" cannot point to a prerelease (9.16.0-beta.0)',
+    ]);
+    expect(
+      findConflicts('latest-v7', {
+        lab: { version: '7.4.0-beta.0', distTags: { 'latest-v7': '7.3.11' } },
+      }),
+    ).toEqual(['lab: "latest-v7" cannot point to a prerelease (7.4.0-beta.0)']);
+  });
+
+  it('allows a prerelease on latest dist-tags that already point to one', () => {
+    expect(
+      findConflicts('latest', {
+        // An unstable package moves to the new major together with a stable release.
+        lab: { version: '9.0.0-beta.2', distTags: { latest: '7.0.1-beta.23' } },
+        scheduler: { version: '9.0.0-beta.14', distTags: { latest: '9.0.0-beta.13' } },
+      }),
+    ).toEqual([]);
+  });
+
+  it('rejects a different major on latest-* dist-tags', () => {
+    expect(
+      findConflicts('latest-v8', {
+        grid: { version: '9.16.0', distTags: { 'latest-v8': '8.29.5' } },
+        virtualizer: { version: '0.4.3', distTags: { 'latest-v8': '0.4.2' } },
+      }),
+    ).toEqual(['grid: "latest-v8" cannot cross a major (8.29.5 to 9.16.0)']);
+  });
+
+  it('allows a new major on latest and a prerelease on other dist-tags', () => {
+    expect(
+      findConflicts('latest', { grid: { version: '10.0.0', distTags: { latest: '9.15.0' } } }),
+    ).toEqual([]);
+    expect(
+      findConflicts('next', {
+        grid: { version: '10.0.0-alpha.1', distTags: { next: '9.16.0' } },
+      }),
+    ).toEqual([]);
+  });
+
+  it('skips versions that are already published', () => {
+    expect(
+      findConflicts('latest', {
+        charts: {
+          version: '8.29.3',
+          distTags: { latest: '9.15.0' },
+          versions: ['8.29.3', '9.15.0'],
+        },
+      }),
+    ).toEqual([]);
+  });
+
+  it('skips packages and dist-tags that are not on the registry yet', () => {
+    expect(
+      findConflicts('latest-v9', {
+        new: { version: '1.0.0' },
+        grid: { version: '9.20.0', distTags: { latest: '10.0.0' } },
+      }),
+    ).toEqual([]);
+  });
+
+  it('treats the placeholder of a new package as no dist-tag', () => {
+    expect(
+      findConflicts('latest', {
+        chat: {
+          version: '9.0.0-alpha.0',
+          distTags: { latest: PLACEHOLDER_VERSION, canary: PLACEHOLDER_VERSION },
+        },
+      }),
+    ).toEqual([]);
   });
 });
 

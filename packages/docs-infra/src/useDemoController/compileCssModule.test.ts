@@ -226,12 +226,14 @@ describe('modern CSS lowering', () => {
 
   it('lowers stepped-value math (round/mod/rem), preserving the modern form', async () => {
     const { css } = await compileCssModule('.a { width: round(13px, 5px); }');
-    expect(css).toMatchInlineSnapshot(`".a-5v2dd8 { width: 15px; width: round(13px, 5px); }"`);
+    expect(css).toMatchInlineSnapshot(
+      `".a-5v2dd8 { width: calc(15px); width: round(13px, 5px); }"`,
+    );
   });
 
   it('applies to plain (non-module) CSS too', async () => {
     expect(await prefixCss('a { width: round(13px, 5px); }')).toMatchInlineSnapshot(
-      `"a { width: 15px; width: round(13px, 5px); }"`,
+      `"a { width: calc(15px); width: round(13px, 5px); }"`,
     );
   });
 

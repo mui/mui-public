@@ -10,9 +10,9 @@ pnpm docs-infra validate [paths...]
 
 ## Arguments
 
-| Argument | Type       | Description                                                |
-| :------- | :--------- | :--------------------------------------------------------- |
-| `paths`  | `string[]` | Optional paths to validate (e.g., `docs-infra/components`) |
+| Argument | Type       | Description                                                       |
+| :------- | :--------- | :---------------------------------------------------------------- |
+| `paths`  | `string[]` | Optional paths to validate (for example, `docs-infra/components`) |
 
 ## Options
 
@@ -97,7 +97,7 @@ When [`withDocsInfra`](../../pipeline/with-docs-infra/page.mdx) is configured wi
 When [`withDocsInfra`](../../pipeline/with-docs-infra/page.mdx) is configured with `requireDemoPage: true`, the command also:
 
 1. **Find Demos**: Walks every demo `index.ts` matched by a configured demo loader rule (the default `./app/**/demos/*/index.ts` pattern plus any `additionalDemoPatterns.index` entries).
-2. **Read the Export Name**: Parses the `create*` factory call in `index.ts` to find the demo's named export (e.g. `DemoButton`), reusing the same parser the code highlighter loader uses to resolve variants.
+2. **Read the Export Name**: Parses the `create*` factory call in `index.ts` to find the demo's named export (for example, `DemoButton`), reusing the same parser the code highlighter loader uses to resolve variants.
 3. **Ensure `page.tsx`**: Creates a sibling `page.tsx` when neither a `page.tsx` nor a `page.ts` exists, rendering the demo from a `Page` component as the route's default export so the demo is browsable on its own page. Existing pages are never overwritten.
 4. **Report Results**: Lists every `page.tsx` that was created.
 

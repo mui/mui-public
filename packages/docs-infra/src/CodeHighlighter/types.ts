@@ -547,7 +547,7 @@ export interface CodeContentProps {
   code?: Code;
   /** React components for live preview alongside code */
   components?: Components;
-  /** What type of variants are available (e.g., a type `packageManager` when variants `npm` and `yarn` are available) */
+  /** What type of variants are available (for example, a type `packageManager` when variants `npm` and `yarn` are available) */
   variantType?: string;
   /** Static variant names that should be fetched at runtime */
   variants?: string[];
@@ -555,7 +555,7 @@ export interface CodeContentProps {
   variant?: string;
   /** Currently selected file name */
   fileName?: string;
-  /** Language for syntax highlighting (e.g., 'tsx', 'css'). When provided, fileName is not required for parsing. */
+  /** Language for syntax highlighting (for example, 'tsx', 'css'). When provided, fileName is not required for parsing. */
   language?: string;
   /** Default variant to show on first load */
   initialVariant?: string;
@@ -633,7 +633,7 @@ export interface CodeFunctionProps {
   loadVariantMeta?: LoadVariantMeta;
   /** Function to load raw source code and dependencies */
   loadSource?: LoadSource;
-  /** Array of source transformers for code processing (e.g., TypeScript to JavaScript) */
+  /** Array of source transformers for code processing (for example, TypeScript to JavaScript) */
   sourceTransformers?: SourceTransformers;
   /** Promise resolving to a source parser for syntax highlighting */
   sourceParser?: Promise<ParseSource>;

@@ -9,7 +9,7 @@ Demo files in `docs/app/**/demos/**` need `@focus` comments so the docs infrastr
 ### Key Features
 
 - **Auto-fixable**: Run `eslint --fix` to insert all comments automatically
-- **Smart comment style**: Uses JSX comments (`{/* */}`) inside wrapper elements and JS comments (`//`) elsewhere
+- **Smart comment style**: Uses JSX comments (`{/* */}`) inside wrapper elements and JavaScript comments (`//`) elsewhere
 - **Single vs multi-line**: Uses `@focus` for single-line previews and `@focus-start` / `@focus-end` for multi-line
 - **Named export detection**: Supports both `export default` and named exports (filename match or single-export fallback)
 - **Function body highlighting**: Wraps the entire body when hooks or setup statements are present
@@ -167,7 +167,7 @@ export default function Demo() {
 
 Not all demos use `export default`. The rule handles named exports with two strategies:
 
-1. **Filename match** (preferred): If a named export matches the filename (e.g., `export function CodeEditor` in `CodeEditor.tsx`), that export is used.
+1. **Filename match** (preferred): If a named export matches the filename (for example, `export function CodeEditor` in `CodeEditor.tsx`), that export is used.
 2. **Single export fallback**: If there is exactly one named component export and no filename match, that export is used.
 
 All common export forms are recognized: `export function`, `export const` with arrow or function expressions, and call-wrapped patterns like `React.forwardRef` or `React.memo`.

@@ -4,6 +4,7 @@ import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 
 import cmdArgosPush from './cmdArgosPush.mjs';
+import cmdBaseline from './cmdBaseline.mjs';
 import cmdBuild from './cmdBuild.mjs';
 import cmdCopyFiles from './cmdCopyFiles.mjs';
 import cmdExtractErrorCodes from './cmdExtractErrorCodes.mjs';
@@ -38,6 +39,7 @@ await yargs(hideBin(process.argv))
     globalArgv = argv;
   }, true)
   .command(cmdArgosPush)
+  .command(cmdBaseline)
   .command(cmdBuild)
   .command(cmdCopyFiles)
   .command(cmdExtractErrorCodes)

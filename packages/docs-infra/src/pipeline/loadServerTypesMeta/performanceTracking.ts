@@ -12,11 +12,7 @@ export interface PerformanceLog {
 export class PerformanceTracker {
   private logs: PerformanceLog[] = [];
 
-  private baseTime: number;
-
-  constructor() {
-    this.baseTime = performance.now();
-  }
+  private baseTime = performance.now();
 
   mark(name: string): number {
     const time = performance.now();

@@ -98,7 +98,7 @@ demos/basic/index.ts (createDemo call)
 
 **Key files:**
 
-- [loadPrecomputedCodeHighlighter](../../pipeline/load-precomputed-code-highlighter/page.mdx) - Webpack loader
+- [loadPrecomputedCodeHighlighter](../../pipeline/load-precomputed-code-highlighter/page.mdx) - webpack loader
 - [parseSource](../../pipeline/parse-source/page.mdx) - Starry Night wrapper
 - [transformTypescriptToJavascript](../../pipeline/transform-typescript-to-javascript/page.mdx) - TS→JS transform
 
@@ -132,7 +132,7 @@ types.ts (createTypes call)
          │
          ▼
     ┌─────────┐
-    │ Format  │  Format props, find DataAttributes/CssVars constant groups
+    │ Format  │  Format props, attach data attribute/CSS variable groups
     │  Types  │  Parse JSDoc descriptions as markdown
     └────┬────┘
          │
@@ -180,7 +180,7 @@ Both paths produce identical `HighlightedTypesMeta` with syntax-highlighted HAST
 
 **Key files:**
 
-- [loadPrecomputedTypes](../../pipeline/load-precomputed-types/page.mdx) - Webpack loader (build-time path)
+- [loadPrecomputedTypes](../../pipeline/load-precomputed-types/page.mdx) - webpack loader (build-time path)
 - [loadServerTypes](../../pipeline/load-server-types/page.mdx) - Orchestrates both paths
 - [syncTypes](../../pipeline/sync-types/page.mdx) - Type extraction and types.md generation
 - [loadServerTypesText](../../pipeline/load-server-types-text/page.mdx) - Parses existing types.md (runtime path)
@@ -231,7 +231,7 @@ app/sitemap/index.ts (createSitemap call)
 **Key files:**
 
 - [transformMarkdownMetadata](../../pipeline/transform-markdown-metadata/page.mdx) - Metadata extraction (out of band)
-- [loadPrecomputedSitemap](../../pipeline/load-precomputed-sitemap/page.mdx) - Webpack loader
+- [loadPrecomputedSitemap](../../pipeline/load-precomputed-sitemap/page.mdx) - webpack loader
 - [useSearch](../../hooks/use-search/page.mdx) - Client-side search hook
 
 ## Coordinated Loading & Streaming
@@ -363,7 +363,7 @@ See [workerManager.ts](https://github.com/mui/mui-public/blob/master/packages/do
 | `ChunkProvider/`                     | Client      | Lazy client loaders + preload dedup  |
 | `abstractCreate*/`                   | Server      | Factory utilities (`'server-only'`)  |
 | `use*/`                              | Client      | React hooks (state/effects)          |
-| `pipeline/loadPrecomputed*`          | Build       | Webpack loaders                      |
+| `pipeline/loadPrecomputed*`          | Build       | webpack loaders                      |
 | `pipeline/loadIsomorphicCodeVariant` | Isomorphic  | Runtime code loading/transforms      |
 | `pipeline/loadServer*`               | Server      | RSC data loading                     |
 | `pipeline/syncTypes`                 | Build       | TypeScript parsing, worker threads   |
@@ -380,7 +380,7 @@ See [workerManager.ts](https://github.com/mui/mui-public/blob/master/packages/do
 
 ### Why webpack loaders over runtime processing?
 
-1. **Caching** - Webpack caches loader results, rebuilds only changed files
+1. **Caching** - webpack caches loader results, rebuilds only changed files
 2. **Dependency tracking** - Loaders can declare file dependencies for watch mode
 3. **Zero runtime cost** - Client never parses or highlights code
 4. **Works with RSC** - Precomputed data is just JSON, serializes cleanly

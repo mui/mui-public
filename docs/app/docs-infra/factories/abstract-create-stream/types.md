@@ -51,7 +51,7 @@ type ReturnValue = (url: string, meta?: CreateStreamMeta<P, O>) => React.Compone
 ### AbstractCreateStreamOptions
 
 Options bound by [`createStreamFactory`](#createstreamfactory). Extends the chunk config with
-an optional client provider (e.g. a `ChunkProvider` supplying client loaders,
+an optional client provider (for example, a `ChunkProvider` supplying client loaders,
 or a `PreloadProvider`) wrapped around the chunk.
 
 All loader functions on the config are expected to be dynamically imported by

@@ -27,3 +27,5 @@ export function Component(props: Props) {
   );
   // @focus-end
 }
+
+export { ComponentDataAttributes } from './ComponentDataAttributes';

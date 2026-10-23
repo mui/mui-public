@@ -91,7 +91,7 @@ function isStaticAsset(path: string): boolean {
 /**
  * Checks if a file path or import path represents a JavaScript/TypeScript module
  * @param path - The file path or import path to check
- * @returns true if it's a JS/TS module, false otherwise
+ * @returns true if it's a JavaScript or TypeScript module, false otherwise
  */
 export function isJavaScriptModule(path: string): boolean {
   // If the path has an extension, check if it's one of the JS/TS extensions
