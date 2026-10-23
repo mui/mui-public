@@ -101,8 +101,9 @@ Applies to the whole repository.
 
 ### GitHub Actions
 
-- The reusable Claude triage workflow accepts explicit issue/mode/comment inputs. Keep event-specific command or label parsing in callers; authorize the event sender in the reusable workflow. Bot senders may request triage for the issue they labeled; other requests require a human collaborator with write access. Labeling automation needs an App token or PAT because GITHUB_TOKEN label events do not trigger workflows.
+- The reusable Claude triage workflow accepts explicit issue/mode/comment inputs. Keep event-specific command or label parsing in callers; authorize the event sender in the reusable workflow. Bot senders may request triage for the issue they labeled; human replies on labeled issues may also come from the issue author or repository/organization members. Labeling automation needs an App token or PAT because GITHUB_TOKEN label events do not trigger workflows.
 - Bot-triggered Claude jobs must also configure the Claude action's `allowed_bots` input; workflow-level authorization does not bypass the action's independent human-actor check.
+- `triage-comment-labels` defaults to `["ai: needs-triage", "ai: triaged"]`. Replies require an allowed live label and the issue author, a repository collaborator, or an organization member. The reusable workflow validates the triggering comment and forwards only the authorized commenter through Claude's `allowed_non_write_users` input. Pass `[]` to retain maintainer-only comment authorization.
 - Claude triage comments start directly with findings and end with a `Next steps` section. Classify requests by their substance: an existing supported API that meets the user's goal without evidence of a defect calls for usage guidance, even if the issue is framed as a bug.
 
 - **Pin every action to a full-length commit SHA** and annotate it with the exact release tag it resolves to, for example, `uses: actions/stale@1e223db275d687790206a7acac4d1a11bd6fe629 # v10.4.0`.
