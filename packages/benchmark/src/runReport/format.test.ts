@@ -174,19 +174,23 @@ describe('changeTone', () => {
   // Every round 10 lower than the baseline, on a mean of 100: confidently 10% better.
   const baseline = [90, 110, 95, 105, 100, 120, 80];
   const current = baseline.map((value) => value - 10);
-  const toneWith = (alarm: { error?: number } | undefined, compared = false) =>
+  const toneWith = (alarm: { error?: number } | undefined, compared = false, values = current) =>
     changeTone(
       compareSamples(
-        { name: 'current', values: current },
+        { name: 'current', values },
         { name: 'baseline', values: baseline },
         { kind: 'scalar', alarm },
         compared ? { alarm: null } : {},
       ),
     );
 
-  it('colors an improvement on an alarmed metric only past its band', () => {
+  it('colors an improvement on an alarmed metric fully only past its band', () => {
     expect(toneWith({ error: 0.05 })).toBe('success');
-    expect(toneWith({ error: 0.2 })).toBe('none');
+    expect(toneWith({ error: 0.2 })).toBe('faintSuccess');
+  });
+
+  it('leaves no change uncolored', () => {
+    expect(toneWith({ error: 0.05 }, false, baseline)).toBe('none');
   });
 
   it("colors any confirmed improvement between a compare()'s variants", () => {

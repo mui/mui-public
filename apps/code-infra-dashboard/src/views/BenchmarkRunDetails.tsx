@@ -44,6 +44,9 @@ function toneSx(tone: Tone): SxProps<Theme> {
   if (tone === 'none') {
     return { color: 'text.secondary' };
   }
+  if (tone === 'faintSuccess') {
+    return { color: 'success.main' };
+  }
   return (theme) => ({
     color: theme.palette[tone].main,
     bgcolor: alpha(theme.palette[tone].main, 0.12),
