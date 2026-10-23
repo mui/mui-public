@@ -19,6 +19,7 @@ import cmdRenameScope from './cmdRenameScope.mjs';
 import cmdSetVersionOverrides from './cmdSetVersionOverrides.mjs';
 import cmdVale from './cmdVale.mjs';
 import cmdValidateBuiltTypes from './cmdValidateBuiltTypes.mjs';
+import cmdValidateConsumerTypes from './cmdValidateConsumerTypes.mjs';
 
 const pkgJson = createRequire(import.meta.url)('../../package.json');
 
@@ -54,6 +55,7 @@ await yargs(hideBin(process.argv))
   .command(cmdSetVersionOverrides)
   .command(cmdVale)
   .command(cmdValidateBuiltTypes)
+  .command(cmdValidateConsumerTypes)
   .fail((msg, err, yargsInstance) => {
     if (msg) {
       yargsInstance.showHelp();
