@@ -37,7 +37,7 @@ async function findBin(dir, name) {
  * @param {string} cwd
  * @returns {Promise<{ native: string | null, js: string }>}
  */
-async function findTscPair(cwd) {
+export async function findTscPair(cwd) {
   const workspaceDir = await findWorkspaceDir(cwd);
   if (!workspaceDir) {
     return { native: null, js: 'tsc' };
