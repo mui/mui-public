@@ -62,24 +62,18 @@ function resolveExportTarget(target, conditions) {
 }
 
 /**
- * Lists the specifiers consumers can import types from under `conditions`. Glob subpaths are
- * skipped: `code-infra build` expands them into concrete entries.
+ * Lists a package's import specifiers with their `exports` targets. Glob subpaths are skipped:
+ * `code-infra build` expands them into concrete entries.
  *
  * @param {PackageJson} packageJson A published manifest.
- * @param {Set<string>} conditions
- * @returns {EntryPoints}
+ * @returns {[specifier: string, target: unknown][]}
  */
-function getTypedEntryPoints(packageJson, conditions) {
+function getExportEntries(packageJson) {
   const name = /** @type {string} */ (packageJson.name);
   const packageExports = packageJson.exports;
-  /** @type {EntryPoints} */
-  const entryPoints = new Map();
   if (packageExports === undefined || packageExports === null) {
     const types = packageJson.types ?? packageJson.typings;
-    if (types) {
-      entryPoints.set(name, types);
-    }
-    return entryPoints;
+    return types ? [[name, { types, default: packageJson.main ?? './index.js' }]] : [];
   }
   /** @type {Record<string, unknown>} */
   const exportsMap =
@@ -88,14 +82,42 @@ function getTypedEntryPoints(packageJson, conditions) {
     !Object.keys(packageExports).some((key) => key.startsWith('.'))
       ? { '.': packageExports }
       : packageExports;
+  return Object.entries(exportsMap)
+    .filter(([subpath]) => !subpath.includes('*') && subpath !== './package.json')
+    .map(([subpath, target]) => [subpath === '.' ? name : `${name}/${subpath.slice(2)}`, target]);
+}
 
-  for (const [subpath, target] of Object.entries(exportsMap)) {
-    if (subpath.includes('*') || subpath === './package.json') {
-      continue;
-    }
-    const resolved = resolveExportTarget(target, conditions);
-    if (resolved && /\.d\.[cm]?ts$/.test(resolved)) {
-      entryPoints.set(subpath === '.' ? name : `${name}/${subpath.slice(2)}`, resolved);
+/**
+ * @param {unknown} target
+ * @param {Set<string>} conditions
+ * @returns {{ types: string | null, runtime: string | null }}
+ */
+function resolveEntryPoint(target, conditions) {
+  const types = resolveExportTarget(target, conditions);
+  return {
+    types: types && /\.d\.[cm]?ts$/.test(types) ? types : null,
+    runtime: resolveExportTarget(
+      target,
+      new Set(Array.from(conditions).filter((condition) => condition !== 'types')),
+    ),
+  };
+}
+
+/**
+ * Lists the modules consumers can import types from under `conditions`. Entry points without a
+ * runtime target, such as code-infra's `build-env`, are left out: nothing imports them.
+ *
+ * @param {PackageJson} packageJson
+ * @param {Set<string>} conditions
+ * @returns {EntryPoints}
+ */
+function getTypedEntryPoints(packageJson, conditions) {
+  /** @type {EntryPoints} */
+  const entryPoints = new Map();
+  for (const [specifier, target] of getExportEntries(packageJson)) {
+    const { types, runtime } = resolveEntryPoint(target, conditions);
+    if (types && runtime) {
+      entryPoints.set(specifier, types);
     }
   }
   return entryPoints;
@@ -219,6 +241,8 @@ async function validateBuiltTypes({ workspaceRoot, tempDir }) {
       }
     }
   }
+  // Installed as in any project that uses Node packages, but not made ambient: a program only loads
+  // Node types when declarations reference them, so they don't reach sources that shouldn't see them.
   peers['@types/node'] ??= await readPackageJson(
     path.join(workspaceRoot, 'node_modules', '@types/node'),
   ).then(
@@ -250,7 +274,7 @@ async function validateBuiltTypes({ workspaceRoot, tempDir }) {
     strict: true,
     skipLibCheck: false,
     noEmit: true,
-    types: ['node'],
+    types: [],
     lib: ['esnext', 'dom', 'dom.iterable'],
     jsx: 'react-jsx',
   };

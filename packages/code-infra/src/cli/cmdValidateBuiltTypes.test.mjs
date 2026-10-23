@@ -79,4 +79,39 @@ describe('validate-built-types', () => {
     },
     CLI_TIMEOUT,
   );
+
+  it(
+    'leaves out entry points that only have types, which nothing imports',
+    async () => {
+      const root = await makeTempDir();
+      await fs.writeFile(path.join(root, 'package.json'), JSON.stringify({ private: true }));
+      await fs.writeFile(path.join(root, 'pnpm-workspace.yaml'), 'packages:\n  - packages/*\n');
+      const pkgDir = await writePackage(root, 'packages/c', {
+        name: '@test/c',
+        version: '1.0.0',
+        exports: {
+          '.': { types: './index.d.ts', default: './index.js' },
+          './env': { types: './env.d.ts' },
+        },
+        files: ['index.d.ts', 'index.js', 'env.d.ts'],
+      });
+      await fs.writeFile(
+        path.join(pkgDir, 'index.d.ts'),
+        '/// <reference types="node" />\nexport declare const cwd: typeof process.cwd;\n',
+      );
+      await fs.writeFile(path.join(pkgDir, 'index.js'), 'export {};\n');
+      // Conflicts with Node's `process`, like code-infra's build-env.
+      await fs.writeFile(
+        path.join(pkgDir, 'env.d.ts'),
+        'export {};\ndeclare global {\n  const process: { env: {} };\n}\n',
+      );
+
+      const { stdout } = await run(process.execPath, [CLI_PATH, 'validate-built-types'], {
+        cwd: root,
+      });
+
+      expect(stdout).toContain('✅ 1 entry points of 1 packages type-check for consumers.');
+    },
+    CLI_TIMEOUT,
+  );
 });
