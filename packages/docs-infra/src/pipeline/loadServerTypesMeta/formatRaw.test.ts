@@ -302,10 +302,15 @@ describe('formatRaw', () => {
             export const width = '--width';
           `,
         });
+        const { exports } = parseFromProgram(entrypoint, program, PARSER_OPTIONS);
         const [group] = foldConstantNamespaces(
-          parseFromProgram(entrypoint, program, PARSER_OPTIONS).exports,
+          exports,
           findConstantNamespaces(
-            collectExportSymbols(program.getSourceFile(entrypoint)!, program.getTypeChecker()),
+            collectExportSymbols(
+              program.getSourceFile(entrypoint)!,
+              program.getTypeChecker(),
+              exports,
+            ),
             program.getTypeChecker(),
           ),
         );

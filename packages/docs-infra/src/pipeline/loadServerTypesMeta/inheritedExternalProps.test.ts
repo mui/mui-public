@@ -135,7 +135,7 @@ function parseAndAugment(config: InheritedExternalPropsConfig | undefined): Expo
   const checker = program.getTypeChecker();
   augmentComponentsWithInheritedProps(
     result.exports,
-    collectExportSymbols(program.getSourceFile(entry)!, checker),
+    collectExportSymbols(program.getSourceFile(entry)!, checker, result.exports),
     checker,
     config,
   );
