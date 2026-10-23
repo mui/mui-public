@@ -28,8 +28,9 @@ const BUTTON_DATA_ATTRIBUTES = `
 /** Parses the entrypoint and folds its constant namespaces, the way the pipeline does. */
 function findNamespaces(entrypoint: string, program: ts.Program) {
   const checker = program.getTypeChecker();
+  const { exports } = parseFromProgram(entrypoint, program, PARSER_OPTIONS);
   return findConstantNamespaces(
-    collectExportSymbols(program.getSourceFile(entrypoint)!, checker),
+    collectExportSymbols(program.getSourceFile(entrypoint)!, checker, exports),
     checker,
   );
 }

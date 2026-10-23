@@ -15,15 +15,22 @@ import { substituteConditionalTypeParameters } from './substituteConditionalType
 const STANDARD_LIB =
   ts.sys.readFile(`${ts.getDefaultLibFilePath({}).replace(/[^/]+$/, '')}lib.es5.d.ts`) ?? '';
 
-function parseSubstituted(sources: Record<string, string>): ExportNode[] {
-  const { program, entrypoint } = createTestProgram(sources, STANDARD_LIB);
-  const parsed = parseFromProgram(entrypoint, program, PARSER_OPTIONS);
+function substitute(exports: ExportNode[], entrypoint: string, program: ts.Program) {
   return substituteConditionalTypeParameters(
-    parsed.exports,
-    collectExportSymbols(program.getSourceFile(entrypoint)!, program.getTypeChecker()),
+    exports,
+    collectExportSymbols(program.getSourceFile(entrypoint)!, program.getTypeChecker(), exports),
     program,
     PARSER_OPTIONS,
   );
+}
+
+function parseSubstituted(sources: Record<string, string>): {
+  original: ExportNode[];
+  substituted: ExportNode[];
+} {
+  const { program, entrypoint } = createTestProgram(sources, STANDARD_LIB);
+  const original = parseFromProgram(entrypoint, program, PARSER_OPTIONS).exports;
+  return { original, substituted: substitute(original, entrypoint, program) };
 }
 
 function findExport(exports: ExportNode[], name: string): ExportNode | undefined {
@@ -46,11 +53,19 @@ function describeExport(exports: ExportNode[], name: string): string {
   return `${header} ${body}`;
 }
 
+/** Whether the export kept its original rendering. */
+function isKept(sources: Record<string, string>, name: string): boolean {
+  const { original, substituted } = parseSubstituted(sources);
+  return findExport(substituted, name) === findExport(original, name);
+}
+
+const IS_ANY = `type IsAny<Value> = 0 extends 1 & Value ? true : false;`;
+
 describe('substituteConditionalTypeParameters', () => {
   it('resolves an escape-hatch conditional through its constraint', () => {
-    const exports = parseSubstituted({
+    const { substituted } = parseSubstituted({
       'index.ts': `
-type IsAny<Value> = 0 extends 1 & Value ? true : false;
+${IS_ANY}
 
 export type Cell<Row, Columns extends readonly { id: string }[]> =
   IsAny<Columns> extends true
@@ -59,15 +74,45 @@ export type Cell<Row, Columns extends readonly { id: string }[]> =
 `,
     });
 
-    expect(describeExport(exports, 'Cell')).toMatchInlineSnapshot(
+    expect(describeExport(substituted, 'Cell')).toMatchInlineSnapshot(
       `"Cell<Row, Columns> { row: Row; columnId: string }"`,
     );
   });
 
-  it('follows an alias that passes its parameters to a conditional alias', () => {
-    const exports = parseSubstituted({
+  it('ignores a default of any', () => {
+    const { substituted } = parseSubstituted({
       'index.ts': `
-type IsAny<Value> = 0 extends 1 & Value ? true : false;
+${IS_ANY}
+
+export type Cell<Row, Columns extends readonly { id: string }[] = any> =
+  IsAny<Columns> extends true
+    ? { row: Row; columnId: any }
+    : { row: Row; columnId: Columns[number]['id'] };
+`,
+    });
+
+    expect(describeExport(substituted, 'Cell')).toMatchInlineSnapshot(
+      `"Cell<Row, Columns> { row: Row; columnId: string }"`,
+    );
+  });
+
+  it('detects a type parameter tested only on the extends side', () => {
+    const { substituted } = parseSubstituted({
+      'index.ts': `
+export type Cell<Columns extends readonly { id: string }[]> =
+  0 extends 1 & Columns ? { columnId: any } : { columnId: Columns[number]['id'] };
+`,
+    });
+
+    expect(describeExport(substituted, 'Cell')).toMatchInlineSnapshot(
+      `"Cell<Columns> { columnId: string }"`,
+    );
+  });
+
+  it('follows an alias that passes its parameters to a conditional alias', () => {
+    const { substituted } = parseSubstituted({
+      'index.ts': `
+${IS_ANY}
 
 type RowCell<Row, Columns extends readonly { id: string }[]> =
   IsAny<Columns> extends true ? { row: Row; columnId: any } : { row: Row; columnId: string };
@@ -78,33 +123,192 @@ export namespace DataRow {
 `,
     });
 
-    expect(describeExport(exports, 'DataRow.Cell')).toMatchInlineSnapshot(
+    expect(describeExport(substituted, 'DataRow.Cell')).toMatchInlineSnapshot(
       `"DataRow.Cell<Row, Columns> { row: Row; columnId: string }"`,
     );
   });
 
-  it('prefers the default over the constraint', () => {
-    const exports = parseSubstituted({
+  it('follows aliases across files to a condition on a private helper', () => {
+    const { substituted } = parseSubstituted({
       'index.ts': `
+export { DataGridValue } from './value';
+`,
+      'value.ts': `
+import type { DataGridRowCell } from './types';
+
+type DataGridValueCell<R, C extends readonly { id: string }[]> = DataGridRowCell<R, C>;
+
+export namespace DataGridValue {
+  export type Cell<Row, Columns extends readonly { id: string }[]> = DataGridValueCell<
+    Row,
+    Columns
+  >;
+}
+`,
+      'types.ts': `
+${IS_ANY}
+
+export type DataGridRowCell<Row, Columns extends readonly { id: string }[]> =
+  IsAny<Columns> extends true ? { row: Row; columnId: any } : { row: Row; columnId: string };
+`,
+    });
+
+    expect(describeExport(substituted, 'DataGridValue.Cell')).toMatchInlineSnapshot(
+      `"DataGridValue.Cell<Row, Columns> { row: Row; columnId: string }"`,
+    );
+  });
+
+  it('follows an alias to a condition declared in a global script', () => {
+    const { substituted } = parseSubstituted({
+      'index.ts': `
+export type Cell<Columns extends readonly { id: string }[]> = GlobalCell<Columns>;
+`,
+      'globals.d.ts': `
+type GlobalCell<Columns extends readonly { id: string }[]> =
+  0 extends 1 & Columns ? { columnId: any } : { columnId: string };
+`,
+    });
+
+    expect(describeExport(substituted, 'Cell')).toMatchInlineSnapshot(
+      `"GlobalCell<Columns> { columnId: string }"`,
+    );
+  });
+
+  it('resolves a constraint written with names local to a namespace', () => {
+    const { substituted } = parseSubstituted({
+      'index.ts': `
+${IS_ANY}
+
+export namespace DataGrid {
+  export interface ColumnData {
+    id: string;
+  }
+
+  export type RowCell<Row, Columns extends readonly ColumnData[]> =
+    IsAny<Columns> extends true ? { row: Row; columnId: any } : { row: Row; columnId: string };
+}
+`,
+    });
+
+    expect(describeExport(substituted, 'DataGrid.RowCell')).toMatchInlineSnapshot(
+      `"DataGrid.RowCell<Row, Columns> { row: Row; columnId: string }"`,
+    );
+  });
+
+  it('keeps type parameters that refer to a substituted one', () => {
+    const { substituted } = parseSubstituted({
+      'index.ts': `
+${IS_ANY}
+
+export type Cell<Columns extends readonly { id: string }[], Id extends Columns[number]['id']> =
+  IsAny<Columns> extends true ? { columnId: any } : { columnId: Id };
+`,
+    });
+
+    expect(describeExport(substituted, 'Cell')).toMatchInlineSnapshot(
+      `"Cell<Columns, Id> { columnId: Id }"`,
+    );
+  });
+
+  it('resolves a distributive conditional the constraint takes the true branch of', () => {
+    const { substituted } = parseSubstituted({
+      'index.ts': `
+export type Items<List extends readonly string[]> = List extends readonly unknown[]
+  ? { items: List }
+  : { item: List };
+`,
+    });
+
+    expect(describeExport(substituted, 'Items')).toMatchInlineSnapshot(
+      `"Items<List> { items: readonly string[] }"`,
+    );
+  });
+
+  it('keeps a conditional the constraint decides differently from a narrower type', () => {
+    expect(
+      isKept(
+        {
+          'index.ts': `
+export type Value<Mode extends string> = Mode extends 'multiple' ? { value: string[] } : { value: string };
+`,
+        },
+        'Value',
+      ),
+    ).toBe(true);
+  });
+
+  it('keeps a conditional whose branch depends on the default', () => {
+    expect(
+      isKept(
+        {
+          'index.ts': `
 export type Selected<Value, Multiple extends boolean = false> = Multiple extends true
   ? { value: Value[] }
   : { value: Value };
 `,
-    });
+        },
+        'Selected',
+      ),
+    ).toBe(true);
+  });
 
-    expect(describeExport(exports, 'Selected')).toMatchInlineSnapshot(
-      `"Selected<Value, Multiple> { value: Value }"`,
-    );
+  it('keeps a conditional on an unconstrained type parameter', () => {
+    expect(
+      isKept(
+        {
+          'index.ts': `
+export type Value<Multiple> = Multiple extends true ? { value: string[] } : { value: string };
+`,
+        },
+        'Value',
+      ),
+    ).toBe(true);
+  });
+
+  it('keeps a conditional that differs between its ends and its middle', () => {
+    expect(
+      isKept(
+        {
+          'index.ts': `
+export type Pick<Key extends 'a' | 'b'> = [Key] extends ['a'] ? { a: true } : { other: true };
+`,
+        },
+        'Pick',
+      ),
+    ).toBe(true);
+  });
+
+  it('leaves a type alias sharing its name with a value untouched', () => {
+    expect(
+      isKept(
+        {
+          'index.ts': `
+${IS_ANY}
+
+export function Cell(props: { row: string }) {
+  return props.row;
+}
+
+export type Cell<Row, Columns extends readonly { id: string }[]> =
+  IsAny<Columns> extends true ? { row: Row; columnId: any } : { row: Row; columnId: string };
+`,
+        },
+        'Cell',
+      ),
+    ).toBe(true);
   });
 
   it('leaves aliases without a conditional on their own parameters untouched', () => {
-    const exports = parseSubstituted({
-      'index.ts': `
+    expect(
+      isKept(
+        {
+          'index.ts': `
 export type Box<Value> = { value: Value };
 `,
-    });
-
-    expect(describeExport(exports, 'Box')).toMatchInlineSnapshot(`"Box<Value> { value: Value }"`);
+        },
+        'Box',
+      ),
+    ).toBe(true);
   });
 
   // React's types sit in a real `node_modules`, where the parser treats them as external.
@@ -156,12 +360,7 @@ export namespace render {
         types: [],
       });
       original = parseFromProgram(entrypoint, program, PARSER_OPTIONS).exports;
-      substituted = substituteConditionalTypeParameters(
-        original,
-        collectExportSymbols(program.getSourceFile(entrypoint)!, program.getTypeChecker()),
-        program,
-        PARSER_OPTIONS,
-      );
+      substituted = substitute(original, entrypoint, program);
     });
 
     afterAll(() => {

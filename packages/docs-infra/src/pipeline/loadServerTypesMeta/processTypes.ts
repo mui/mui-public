@@ -380,15 +380,29 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
           // type aliases, and re-exports properly
           const parsed = parseFromProgram(entrypoint, program, PARSER_OPTIONS);
           const checker = program.getTypeChecker();
-          const symbolsByExportName = collectExportSymbols(sourceFile, checker);
+          const symbolsByExportName = collectExportSymbols(sourceFile, checker, parsed.exports);
 
           // Conditional type aliases that test their own type parameters can't be resolved
-          // while generic; resolve them with defaults or constraints substituted instead.
+          // while generic; resolve them through their constraints where that picks the
+          // branch every caller gets.
+          const substitutionStart = tracker.mark(
+            nameMark(functionName, `Variant ${variantName} Substitution Start`, [
+              request.relativePath,
+            ]),
+          );
           const resolvedExports = substituteConditionalTypeParameters(
             parsed.exports,
             symbolsByExportName,
             program,
             PARSER_OPTIONS,
+          );
+          const substitutionEnd = tracker.mark(
+            nameMark(functionName, `Variant ${variantName} Substituted`, [request.relativePath]),
+          );
+          tracker.measure(
+            nameMark(functionName, `Variant ${variantName} Substitution`, [request.relativePath]),
+            substitutionStart,
+            substitutionEnd,
           );
 
           // Modules of constants exported as a namespace (`export * as ButtonDataAttributes`)
