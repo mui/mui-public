@@ -14,6 +14,5 @@
     "noEmit": true
   },
   "include": ["src"],
-  // build-env types the environment of consumers' library sources, not this package's own
-  "exclude": ["node_modules", "build", "src/build-env.d.ts"]
+  "exclude": ["node_modules", "build"]
 }

@@ -29,7 +29,7 @@ async function createWorkspace({ declareA }) {
     const pkgDir = await writePackage(root, `packages/${name}`, {
       name: `@test/${name}`,
       version: '1.0.0',
-      ...(dependencies ? { dependencies } : {}),
+      dependencies,
       exports: { '.': { types: './index.d.ts', default: './index.js' } },
       files: ['index.d.ts', 'index.js'],
     });

@@ -5,7 +5,9 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { mapAsync } from 'es-toolkit/array';
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
-import { getWorkspacePackages } from '../utils/pnpm.mjs';
+import { stringify } from 'yaml';
+import { getWorkspacePackages, readPackageJson, writePackageJson } from '../utils/pnpm.mjs';
+import { findTscPair } from '../utils/typescript.mjs';
 
 /**
  * @typedef {import('./packageJson').PackageJson} PackageJson
@@ -20,11 +22,19 @@ import { getWorkspacePackages } from '../utils/pnpm.mjs';
  */
 
 /**
- * The conditions TypeScript matches when resolving `exports` in each mode. `types` comes first in
+ * @typedef {Map<string, string>} EntryPoints Import specifier to the declaration file it resolves
+ *   to.
+ */
+
+/**
+ * The `exports` conditions TypeScript matches for each kind of consumer. `types` comes first in
  * every published manifest, so matching it in all modes is what TypeScript does too.
  */
-const ESM_CONDITIONS = new Set(['types', 'import', 'node', 'default']);
-const CJS_CONDITIONS = new Set(['types', 'require', 'node', 'default']);
+const CONDITIONS = {
+  esm: new Set(['types', 'import', 'node', 'default']),
+  cjs: new Set(['types', 'require', 'node', 'default']),
+  bundler: new Set(['types', 'import', 'default']),
+};
 
 /**
  * Follows an `exports` target the way Node.js does: the first key that matches wins, even when
@@ -39,7 +49,7 @@ function resolveExportTarget(target, conditions) {
     return target;
   }
   if (Array.isArray(target)) {
-    return target.length > 0 ? resolveExportTarget(target[0], conditions) : null;
+    return resolveExportTarget(target[0], conditions);
   }
   if (target && typeof target === 'object') {
     for (const [condition, value] of Object.entries(target)) {
@@ -52,57 +62,71 @@ function resolveExportTarget(target, conditions) {
 }
 
 /**
- * Lists the import specifiers consumers can type-check against, per resolution mode. Glob
- * subpaths are skipped: `code-infra build` expands them into concrete entries.
+ * Lists the specifiers consumers can import types from under `conditions`. Glob subpaths are
+ * skipped: `code-infra build` expands them into concrete entries.
  *
  * @param {PackageJson} packageJson A published manifest.
- * @returns {{ esm: string[], cjs: string[] }}
+ * @param {Set<string>} conditions
+ * @returns {EntryPoints}
  */
-function getTypedEntryPoints(packageJson) {
+function getTypedEntryPoints(packageJson, conditions) {
   const name = /** @type {string} */ (packageJson.name);
   const packageExports = packageJson.exports;
-  /** @type {Record<string, unknown>} */
-  let exportsMap;
+  /** @type {EntryPoints} */
+  const entryPoints = new Map();
   if (packageExports === undefined || packageExports === null) {
-    exportsMap = packageJson.types || packageJson.typings ? { '.': '.' } : {};
-  } else if (
+    const types = packageJson.types ?? packageJson.typings;
+    if (types) {
+      entryPoints.set(name, types);
+    }
+    return entryPoints;
+  }
+  /** @type {Record<string, unknown>} */
+  const exportsMap =
     typeof packageExports === 'string' ||
     Array.isArray(packageExports) ||
     !Object.keys(packageExports).some((key) => key.startsWith('.'))
-  ) {
-    exportsMap = { '.': packageExports };
-  } else {
-    exportsMap = packageExports;
-  }
+      ? { '.': packageExports }
+      : packageExports;
 
-  /** @type {{ esm: string[], cjs: string[] }} */
-  const entryPoints = { esm: [], cjs: [] };
   for (const [subpath, target] of Object.entries(exportsMap)) {
     if (subpath.includes('*') || subpath === './package.json') {
       continue;
     }
-    const specifier = subpath === '.' ? name : `${name}/${subpath.slice(2)}`;
-    for (const [mode, conditions] of /** @type {const} */ ([
-      ['esm', ESM_CONDITIONS],
-      ['cjs', CJS_CONDITIONS],
-    ])) {
-      const resolved = resolveExportTarget(target, conditions);
-      if (resolved && (/\.d\.[cm]?ts$/.test(resolved) || resolved === '.')) {
-        entryPoints[mode].push(specifier);
-      }
+    const resolved = resolveExportTarget(target, conditions);
+    if (resolved && /\.d\.[cm]?ts$/.test(resolved)) {
+      entryPoints.set(subpath === '.' ? name : `${name}/${subpath.slice(2)}`, resolved);
     }
   }
   return entryPoints;
 }
 
 /**
- * @param {string[]} specifiers
+ * @param {EntryPoints} a
+ * @param {EntryPoints} b
+ */
+function isSameEntryPoints(a, b) {
+  return a.size === b.size && Array.from(a).every(([specifier, file]) => b.get(specifier) === file);
+}
+
+/**
+ * @param {EntryPoints} entryPoints
  * @returns {string}
  */
-function createEntryFile(specifiers) {
-  return `${specifiers
+function createEntryFile(entryPoints) {
+  return `${Array.from(entryPoints.keys())
     .map((specifier, index) => `import type * as entry${index} from '${specifier}';`)
     .join('\n')}\nexport {};\n`;
+}
+
+/**
+ * `@scope/pkg` → `scope+pkg`, the same file names as @mui/internal-benchmark's `packWorkspace`.
+ * `+` cannot appear in a package name, so no two collide.
+ *
+ * @param {string} packageName
+ */
+function toFileStem(packageName) {
+  return packageName.replace(/^@/, '').replace('/', '+');
 }
 
 /**
@@ -148,23 +172,6 @@ async function readPackedManifest(tarball) {
 }
 
 /**
- * @param {string} workspaceRoot
- * @param {string} name
- * @returns {Promise<string | null>}
- */
-async function getInstalledVersion(workspaceRoot, name) {
-  try {
-    const content = await fs.readFile(
-      path.join(workspaceRoot, 'node_modules', name, 'package.json'),
-      'utf8',
-    );
-    return JSON.parse(content).version;
-  } catch {
-    return null;
-  }
-}
-
-/**
  * Installs the packed public packages into a fresh project, the way a consumer would, and
  * type-checks an import of every typed entry point with `skipLibCheck` off.
  *
@@ -182,27 +189,26 @@ async function validateBuiltTypes({ workspaceRoot, tempDir }) {
   const projectDir = path.join(tempDir, 'project');
   await Promise.all([
     fs.mkdir(tarballDir, { recursive: true }),
-    fs.mkdir(projectDir, { recursive: true }),
+    fs.mkdir(path.join(projectDir, 'checks'), { recursive: true }),
   ]);
 
-  // Packed the same way as @mui/internal-benchmark's `packWorkspace`, so each tarball is what
-  // `pnpm publish` would upload.
+  // Packed like @mui/internal-benchmark's `packWorkspace`, so each tarball is what `pnpm publish`
+  // would upload.
   const packed = await mapAsync(
     packages,
     async (pkg) => {
-      // `+` cannot appear in a package name, so no two tarballs collide.
-      const tarball = path.join(tarballDir, `${pkg.name.replace(/^@/, '').replace('/', '+')}.tgz`);
+      const tarball = path.join(tarballDir, `${toFileStem(pkg.name)}.tgz`);
       await $({ cwd: pkg.path })`pnpm pack --out ${tarball}`;
       return { tarball, manifest: await readPackedManifest(tarball) };
     },
     { concurrency: os.availableParallelism() },
   );
 
-  const packageNames = packed.map(({ manifest }) => /** @type {string} */ (manifest.name));
   /** @type {Record<string, string>} */
   const tarballs = Object.fromEntries(
     packed.map(({ manifest, tarball }) => [manifest.name, `file:${tarball}`]),
   );
+  const packageNames = Object.keys(tarballs);
   // Consumers provide every peer, optional ones included, at a version in range.
   /** @type {Record<string, string>} */
   const peers = {};
@@ -213,32 +219,30 @@ async function validateBuiltTypes({ workspaceRoot, tempDir }) {
       }
     }
   }
-  if (!peers['@types/node']) {
-    peers['@types/node'] = (await getInstalledVersion(workspaceRoot, '@types/node')) ?? '*';
-  }
-
-  await fs.writeFile(
-    path.join(projectDir, 'package.json'),
-    `${JSON.stringify({ private: true, dependencies: { ...peers, ...tarballs } }, null, 2)}\n`,
+  peers['@types/node'] ??= await readPackageJson(
+    path.join(workspaceRoot, 'node_modules', '@types/node'),
+  ).then(
+    (packageJson) => packageJson.version ?? '*',
+    () => '*',
   );
+
+  await writePackageJson(projectDir, { private: true, dependencies: { ...peers, ...tarballs } });
   // Every package and peer is a dependency of the project, so a package that looked them up from
   // the project's node_modules would resolve what it never declared. With hoisting off and the
   // virtual store outside the project, it only finds the dependencies pnpm linked for it.
   await fs.writeFile(
     path.join(projectDir, 'pnpm-workspace.yaml'),
-    [
-      'virtualStoreDir: ../virtual-store',
-      'enableGlobalVirtualStore: false',
-      'hoistPattern: []',
-      'publicHoistPattern: []',
-      'autoInstallPeers: false',
-      'strictPeerDependencies: false',
-      'blockExoticSubdeps: false',
-      'ignoreScripts: true',
-      'overrides:',
-      ...Object.entries(tarballs).map(([name, spec]) => `  '${name}': '${spec}'`),
-      '',
-    ].join('\n'),
+    stringify({
+      virtualStoreDir: '../virtual-store',
+      enableGlobalVirtualStore: false,
+      hoistPattern: [],
+      publicHoistPattern: [],
+      autoInstallPeers: false,
+      strictPeerDependencies: false,
+      blockExoticSubdeps: false,
+      ignoreScripts: true,
+      overrides: tarballs,
+    }),
   );
   await $({ cwd: projectDir })`pnpm install --lockfile=false --prefer-offline`;
 
@@ -253,30 +257,41 @@ async function validateBuiltTypes({ workspaceRoot, tempDir }) {
   // One program per package and consumer kind. A consumer is either ESM or CommonJS, and installs
   // one package rather than all of them: a shared program would check the global augmentations of
   // unrelated packages, and of a package's CommonJS and ESM declarations, against each other.
-  /** @type {{ file: string, entryPoints: string[], module: string, moduleResolution?: string }[]} */
+  // CommonJS and bundler consumers only get a program of their own when they resolve other
+  // declarations than ESM consumers; on the same files, they find nothing an ESM program misses.
+  /** @type {{ file: string, entryPoints: EntryPoints, module: string, moduleResolution?: string }[]} */
   const checks = [];
+  const specifiers = new Set();
   for (const { manifest } of packed) {
-    const { esm, cjs } = getTypedEntryPoints(manifest);
-    const base = path.join('checks', String(manifest.name).replace(/^@/, '').replace('/', '+'));
-    checks.push(
-      { file: `${base}.esm.mts`, entryPoints: esm, module: 'nodenext' },
-      { file: `${base}.cjs.cts`, entryPoints: cjs, module: 'nodenext' },
-      {
-        file: `${base}.bundler.mts`,
-        entryPoints: esm,
+    const esm = getTypedEntryPoints(manifest, CONDITIONS.esm);
+    const cjs = getTypedEntryPoints(manifest, CONDITIONS.cjs);
+    const bundler = getTypedEntryPoints(manifest, CONDITIONS.bundler);
+    const stem = path.join('checks', toFileStem(/** @type {string} */ (manifest.name)));
+    checks.push({ file: `${stem}.esm.mts`, entryPoints: esm, module: 'nodenext' });
+    if (!isSameEntryPoints(cjs, esm)) {
+      checks.push({ file: `${stem}.cjs.cts`, entryPoints: cjs, module: 'nodenext' });
+    }
+    if (!isSameEntryPoints(bundler, esm)) {
+      checks.push({
+        file: `${stem}.bundler.mts`,
+        entryPoints: bundler,
         module: 'esnext',
         moduleResolution: 'bundler',
-      },
-    );
+      });
+    }
+    for (const entryPoints of [esm, cjs, bundler]) {
+      for (const specifier of entryPoints.keys()) {
+        specifiers.add(specifier);
+      }
+    }
   }
-  const entryPointCount = new Set(checks.flatMap(({ entryPoints }) => entryPoints)).size;
-  const tscBin = path.join(workspaceRoot, 'node_modules', '.bin', 'tsc');
-  const tsc = (await fs.stat(tscBin).catch(() => null)) ? tscBin : 'tsc';
-  const realTempDir = await fs.realpath(tempDir);
-  await fs.mkdir(path.join(projectDir, 'checks'));
 
+  const { native, js } = await findTscPair(workspaceRoot);
+  // The native compiler is multi-threaded itself, and the programs already run in parallel.
+  const tscArgs = native ? [native, '--singleThreaded'] : [js];
+  const realTempDir = await fs.realpath(tempDir);
   const outputs = await mapAsync(
-    checks.filter(({ entryPoints }) => entryPoints.length > 0),
+    checks.filter(({ entryPoints }) => entryPoints.size > 0),
     async ({ file, entryPoints, module, moduleResolution }) => {
       const tsconfigFile = `${file}.json`;
       await Promise.all([
@@ -286,10 +301,11 @@ async function validateBuiltTypes({ workspaceRoot, tempDir }) {
           `${JSON.stringify({ compilerOptions: { ...compilerOptions, module, moduleResolution }, files: [path.basename(file)] }, null, 2)}\n`,
         ),
       ]);
+      const [tsc, ...args] = tscArgs;
       const result = await $({
         cwd: projectDir,
         reject: false,
-      })`${tsc} -p ${tsconfigFile} --pretty false`;
+      })`${tsc} ${args} -p ${tsconfigFile} --pretty false`;
       return result.stdout;
     },
     { concurrency: os.availableParallelism() },
@@ -302,12 +318,16 @@ async function validateBuiltTypes({ workspaceRoot, tempDir }) {
     }
   }
 
-  return { errors: Array.from(errors.values()), entryPointCount, packageCount: packed.length };
+  return {
+    errors: Array.from(errors.values()),
+    entryPointCount: specifiers.size,
+    packageCount: packed.length,
+  };
 }
 
 /**
  * @typedef {Object} Args
- * @property {boolean} [keep]
+ * @property {boolean} keep
  */
 
 export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
@@ -320,7 +340,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       default: false,
       description: 'Keep the consumer project for inspection.',
     }),
-  handler: async ({ keep = false }) => {
+  handler: async ({ keep }) => {
     const workspaceRoot = await findWorkspaceDir(process.cwd());
     if (!workspaceRoot) {
       throw new Error('Workspace directory not found');
