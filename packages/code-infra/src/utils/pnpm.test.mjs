@@ -18,18 +18,6 @@ import {
 } from './pnpm.mjs';
 
 /**
- * Replace global fetch for the current test. Vitest restores it afterwards
- * (`unstubGlobals`), as it does for `vi.stubEnv` (`unstubEnvs`).
- * @param {(url: URL) => Promise<{status: number, ok: boolean}>} [impl]
- * @returns {import('vitest').Mock} The spy, to assert on calls
- */
-function stubFetch(impl = async () => ({ status: 404, ok: false })) {
-  const spy = vi.fn(impl);
-  vi.stubGlobal('fetch', spy);
-  return spy;
-}
-
-/**
  * Build the workspace maps expected by checkPublishDependencies.
  * @param {(import('./pnpm.mjs').PublicPackage | import('./pnpm.mjs').PrivatePackage)[]} allPkgs
  */
@@ -870,78 +858,35 @@ describe('getReleaseVersion', () => {
 });
 
 describe('getPackagesNeedingManualPublish', () => {
-  it('returns the packages that do not exist on the registry yet', async () => {
-    const root = await makeTempDir();
-    vi.stubEnv('npm_config_registry', undefined);
-    const newDir = await writePackage(root, 'new', { name: 'new-package', version: '1.0.0' });
-    const existingDir = await writePackage(root, 'existing', {
-      name: 'existing-package',
-      version: '1.0.0',
-    });
-    stubFetch(async (url) =>
-      String(url).endsWith('/new-package') ? { status: 404, ok: false } : { status: 200, ok: true },
+  /**
+   * Find the packages that need a manual first publish, against registry data.
+   * @param {Record<string, { exists: boolean, registry?: string }>} packages
+   *   Registry data of each package, by name. The registry defaults to npm.
+   */
+  function findNewPackages(packages) {
+    const entries = Object.entries(packages);
+    const newPackages = getPackagesNeedingManualPublish(
+      entries.map(([name]) => publicPkg(name, `/workspace/${name}`)),
+      new Map(
+        entries.map(([name, { exists, registry = 'https://registry.npmjs.org/' }]) => [
+          name,
+          { registry, exists, distTags: {}, versions: [] },
+        ]),
+      ),
     );
+    return newPackages.map((pkg) => pkg.name);
+  }
 
-    const result = await getPackagesNeedingManualPublish([
-      publicPkg('new-package', newDir),
-      publicPkg('existing-package', existingDir),
+  it('returns the packages that are not on npm yet', () => {
+    expect(findNewPackages({ new: { exists: false }, existing: { exists: true } })).toEqual([
+      'new',
     ]);
-
-    expect(result.map((pkg) => pkg.name)).toEqual(['new-package']);
   });
 
-  it('builds registry URLs without a double slash', async () => {
-    const root = await makeTempDir();
-    // npm's own default value carries a trailing slash, which used to produce
-    // `https://registry.npmjs.org//@scope/name`. npmjs tolerates that, other
-    // registries answer 404 and every package looks new.
-    vi.stubEnv('npm_config_registry', 'https://registry.npmjs.org/');
-    const pkgDir = await writePackage(root, 'pkg', { name: '@scope/name', version: '1.0.0' });
-    const fetchSpy = stubFetch(async () => ({ status: 200, ok: true }));
-
-    await getPackagesNeedingManualPublish([publicPkg('@scope/name', pkgDir)]);
-
-    expect(String(fetchSpy.mock.calls[0][0])).toBe('https://registry.npmjs.org/@scope/name');
-  });
-
-  it('still recognizes npm when the ambient registry is written differently', async () => {
-    const root = await makeTempDir();
-    // A non-canonical spelling used to compare unequal to the npm registry, so
-    // the bootstrap check silently skipped every package.
-    vi.stubEnv('npm_config_registry', 'https://REGISTRY.npmjs.org:443');
-    const pkgDir = await writePackage(root, 'pkg', { name: 'my-package', version: '1.0.0' });
-    const fetchSpy = stubFetch(async () => ({ status: 404, ok: false }));
-
-    const result = await getPackagesNeedingManualPublish([publicPkg('my-package', pkgDir)]);
-
-    expect(result.map((pkg) => pkg.name)).toEqual(['my-package']);
-    expect(String(fetchSpy.mock.calls[0][0])).toBe('https://registry.npmjs.org/my-package');
-  });
-
-  it('skips packages aimed at another registry without any network request', async () => {
-    const root = await makeTempDir();
-    const pkgDir = await writePackage(root, 'pkg', {
-      name: '@scope/private',
-      version: '1.0.0',
-      publishConfig: { registry: 'https://npm.example.com/' },
-    });
-    const fetchSpy = stubFetch();
-
-    const result = await getPackagesNeedingManualPublish([publicPkg('@scope/private', pkgDir)]);
-
-    expect(result).toEqual([]);
-    expect(fetchSpy).not.toHaveBeenCalled();
-  });
-
-  it('throws when the registry answers with an unexpected status', async () => {
-    const root = await makeTempDir();
-    vi.stubEnv('npm_config_registry', undefined);
-    const pkgDir = await writePackage(root, 'pkg', { name: 'my-package', version: '1.0.0' });
-    stubFetch(async () => ({ status: 401, ok: false }));
-
-    await expect(
-      getPackagesNeedingManualPublish([publicPkg('my-package', pkgDir)]),
-    ).rejects.toThrow(/my-package.*HTTP 401/);
+  it('skips packages that publish to another registry', () => {
+    expect(
+      findNewPackages({ private: { exists: false, registry: 'https://npm.example.com/' } }),
+    ).toEqual([]);
   });
 });
 
@@ -960,7 +905,12 @@ describe('getDistTagConflicts', () => {
       new Map(
         entries.map(([name, { distTags, versions }]) => [
           name,
-          distTags ? { distTags, versions: versions ?? Object.values(distTags) } : null,
+          {
+            registry: 'https://registry.npmjs.org/',
+            exists: distTags !== undefined,
+            distTags: distTags ?? {},
+            versions: versions ?? Object.values(distTags ?? {}),
+          },
         ]),
       ),
     );

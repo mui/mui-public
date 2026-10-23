@@ -366,7 +366,8 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       githubReleaseData = await validateGitHubRelease(version);
     }
 
-    const newPackages = await getPackagesNeedingManualPublish(filteredPackages);
+    const registryPackages = await getRegistryPackages(filteredPackages);
+    const newPackages = getPackagesNeedingManualPublish(filteredPackages, registryPackages);
 
     if (newPackages.length > 0) {
       const newPackageNames = newPackages.map((pkg) => pkg.name).join(', ');
@@ -375,11 +376,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       );
     }
 
-    const distTagConflicts = getDistTagConflicts(
-      filteredPackages,
-      tag,
-      await getRegistryPackages(filteredPackages),
-    );
+    const distTagConflicts = getDistTagConflicts(filteredPackages, tag, registryPackages);
     if (distTagConflicts.length > 0) {
       throw new Error(
         `Publishing with the "${tag}" dist-tag would move it to the wrong release line:
@@ -441,8 +438,10 @@ const PUBLISH_WORKFLOW_ID = `.github/${WORKFLOW_PATH}`;
  */
 async function triggerLocalGithubPublishWorkflow(opts) {
   console.log(`🔍 Checking if there are new packages to publish in the workspace...`);
-  const newPackages = await getPackagesNeedingManualPublish(
-    await getWorkspacePackages({ publicOnly: true }),
+  const packages = await getWorkspacePackages({ publicOnly: true });
+  const newPackages = getPackagesNeedingManualPublish(
+    packages,
+    await getRegistryPackages(packages),
   );
   if (newPackages.length) {
     console.warn(

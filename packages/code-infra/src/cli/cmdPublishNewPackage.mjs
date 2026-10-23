@@ -13,6 +13,7 @@ import { getRepositoryInfo } from '../utils/git.mjs';
 import { toPosixPath } from '../utils/path.mjs';
 import {
   getPackagesNeedingManualPublish,
+  getRegistryPackages,
   getWorkspacePackages,
   PLACEHOLDER_VERSION,
 } from '../utils/pnpm.mjs';
@@ -50,8 +51,10 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       }),
   async handler(args) {
     console.log(`🔍 Detecting new packages to publish in workspace...`);
-    const newPackages = await getPackagesNeedingManualPublish(
-      await getWorkspacePackages({ publicOnly: true }),
+    const packages = await getWorkspacePackages({ publicOnly: true });
+    const newPackages = getPackagesNeedingManualPublish(
+      packages,
+      await getRegistryPackages(packages),
     );
 
     if (!newPackages.length) {
