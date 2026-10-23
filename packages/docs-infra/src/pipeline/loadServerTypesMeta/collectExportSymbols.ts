@@ -28,12 +28,9 @@ export function collectExportSymbols(
 
   const namespaceNames = new Set<string>();
   for (const exportNode of exports) {
-    for (
-      let separator = exportNode.name.indexOf('.');
-      separator !== -1;
-      separator = exportNode.name.indexOf('.', separator + 1)
-    ) {
-      namespaceNames.add(exportNode.name.slice(0, separator));
+    const parts = exportNode.name.split('.');
+    for (let length = 1; length < parts.length; length += 1) {
+      namespaceNames.add(parts.slice(0, length).join('.'));
     }
   }
 
@@ -42,9 +39,11 @@ export function collectExportSymbols(
       const exportName = prefix + exportSymbol.name;
       symbolsByExportName.set(exportName, exportSymbol);
 
-      const symbol = resolveAlias(exportSymbol, checker);
-      if (symbol.flags & ts.SymbolFlags.Module && namespaceNames.has(exportName)) {
-        visit(symbol, `${exportName}.`);
+      if (namespaceNames.has(exportName)) {
+        const symbol = resolveAlias(exportSymbol, checker);
+        if (symbol.flags & ts.SymbolFlags.Module) {
+          visit(symbol, `${exportName}.`);
+        }
       }
     }
   };
