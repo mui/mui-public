@@ -121,6 +121,26 @@ To resolve these custom HAST elements to React components, you must include the 
 
 See [`useType`](../../hooks/use-type/page.mdx) for how to build an interactive `TypeRef` component.
 
+### resolveExternalLink Option
+
+Types documented elsewhere, such as types from a dependency, can be linked with `resolveExternalLink`. It receives each type name in JavaScript and TypeScript code that the `linkMap` does not know and returns a URL, or `null` to leave the name unlinked. Its optional second argument, where the type is declared, is not passed yet:
+
+```typescript
+const externalDocs: Record<string, string> = {
+  Theme: 'https://example.com/docs/theme',
+};
+
+const processor = unified()
+  .use(rehypeParse, { fragment: true })
+  .use(enhanceCodeTypes, {
+    linkMap,
+    resolveExternalLink: (name) => externalDocs[name] ?? null,
+  })
+  .use(rehypeStringify);
+```
+
+Only the type name is linked. Unlike `linkMap` entries, external links never act as owners for property or parameter links, so in `const theme: Theme = { mode: 'dark' }` the `mode` property stays unlinked. Names declared or bound in the code itself are not resolved either.
+
 ---
 
 ## Transformation Examples

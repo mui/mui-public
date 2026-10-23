@@ -3,6 +3,7 @@ import type { PluggableList } from 'unified';
 import type { HighlightedTypesMeta } from '@mui/internal-docs-infra/pipeline/loadServerTypes';
 import enhanceCodeInline from '../pipeline/enhanceCodeInline';
 import enhanceCodeTypes from '../pipeline/enhanceCodeTypes';
+import type { EnhanceCodeTypesOptions, ResolveExternalLink } from '../pipeline/enhanceCodeTypes';
 import type { ModuleLinkMapEntry } from '../pipeline/enhanceCodeTypes/scanState';
 import { typeToJsx, additionalTypesToJsx } from './typesToJsx';
 import type { TypesJsxOptions } from './typesToJsx';
@@ -178,6 +179,11 @@ export type TypesTableMeta = {
    * in `moduleLinkMap` does not specify a `defaultSlug`.
    */
   defaultImportSlug?: string;
+  /**
+   * Resolves type names that the page does not document to a link elsewhere.
+   * When set, overrides the factory-level resolveExternalLink.
+   */
+  resolveExternalLink?: ResolveExternalLink;
 };
 
 export type AbstractCreateTypesOptions<T extends {} = {}> = {
@@ -280,12 +286,51 @@ export type AbstractCreateTypesOptions<T extends {} = {}> = {
    */
   defaultImportSlug?: string;
   /**
+   * Resolves type names that the page does not document to documentation elsewhere,
+   * such as the docs of a dependency.
+   * Can be overridden by TypesTableMeta.resolveExternalLink.
+   */
+  resolveExternalLink?: ResolveExternalLink;
+  /**
    * Controls when expensive detailedType and formattedCode HAST fields are
    * converted to fully-highlighted JSX.
    * Can be overridden by TypesTableMeta.highlightAt.
    */
   highlightAt?: TypesJsxOptions['highlightAt'];
 };
+
+/**
+ * Resolves the enhancers for type fields: `meta.enhancers`, `options.enhancers`, or the
+ * defaults, followed by `enhanceCodeTypes` when the page has anchors to link or an external
+ * link resolver is set. Meta settings override factory options.
+ */
+function resolveEnhancers<T extends {}>(
+  options: AbstractCreateTypesOptions<T>,
+  meta: TypesTableMeta,
+): PluggableList {
+  const enhancers = meta.enhancers ?? options.enhancers ?? DEFAULT_ENHANCERS;
+  const anchorMap = meta.precompute?.anchorMap;
+  const resolveExternalLink = meta.resolveExternalLink ?? options.resolveExternalLink;
+  const hasAnchors =
+    Object.keys(anchorMap?.js ?? {}).length > 0 || Object.keys(anchorMap?.css ?? {}).length > 0;
+  if (!hasAnchors && !resolveExternalLink) {
+    return enhancers;
+  }
+
+  const enhanceCodeTypesOptions: EnhanceCodeTypesOptions = {
+    linkMap: anchorMap ?? {},
+    resolveExternalLink,
+    typeRefComponent: meta.typeRefComponent ?? options.typeRefComponent,
+    typePropRefComponent: meta.typePropRefComponent ?? options.typePropRefComponent,
+    typeParamRefComponent: meta.typeParamRefComponent ?? options.typeParamRefComponent,
+    linkProps: meta.linkProps ?? options.linkProps,
+    linkParams: meta.linkParams ?? options.linkParams,
+    linkScope: meta.linkScope ?? options.linkScope,
+    moduleLinkMap: meta.moduleLinkMap ?? options.moduleLinkMap,
+    defaultImportSlug: meta.defaultImportSlug ?? options.defaultImportSlug,
+  };
+  return [...enhancers, [enhanceCodeTypes, enhanceCodeTypesOptions]];
+}
 
 export function abstractCreateTypes<T extends {}>(
   options: AbstractCreateTypesOptions<T>,
@@ -320,50 +365,7 @@ export function abstractCreateTypes<T extends {}>(
   const RawTypePre = meta.RawTypePre ?? options.RawTypePre;
   const highlightAt = meta.highlightAt ?? options.highlightAt;
 
-  // Enhancers from meta completely override options.enhancers if set
-  // Use DEFAULT_ENHANCERS if neither meta nor options specify enhancers
-  // Then append enhanceCodeTypes if anchorMap is available
-  let enhancers = meta.enhancers ?? options.enhancers ?? DEFAULT_ENHANCERS;
-  if (
-    meta.precompute.anchorMap &&
-    (Object.keys(meta.precompute.anchorMap.js ?? {}).length > 0 ||
-      Object.keys(meta.precompute.anchorMap.css ?? {}).length > 0)
-  ) {
-    const typeRefComponent = meta.typeRefComponent ?? options.typeRefComponent;
-    const typePropRefComponent = meta.typePropRefComponent ?? options.typePropRefComponent;
-    const typeParamRefComponent = meta.typeParamRefComponent ?? options.typeParamRefComponent;
-    const linkProps = meta.linkProps ?? options.linkProps;
-    const linkParams = meta.linkParams ?? options.linkParams;
-    const linkScope = meta.linkScope ?? options.linkScope;
-    const moduleLinkMap = meta.moduleLinkMap ?? options.moduleLinkMap;
-    const defaultImportSlug = meta.defaultImportSlug ?? options.defaultImportSlug;
-    const exportLinksOptions: Record<string, unknown> = { linkMap: meta.precompute.anchorMap };
-    if (typeRefComponent) {
-      exportLinksOptions.typeRefComponent = typeRefComponent;
-    }
-    if (typePropRefComponent) {
-      exportLinksOptions.typePropRefComponent = typePropRefComponent;
-    }
-    if (typeParamRefComponent) {
-      exportLinksOptions.typeParamRefComponent = typeParamRefComponent;
-    }
-    if (linkProps) {
-      exportLinksOptions.linkProps = linkProps;
-    }
-    if (linkParams) {
-      exportLinksOptions.linkParams = linkParams;
-    }
-    if (linkScope) {
-      exportLinksOptions.linkScope = linkScope;
-    }
-    if (moduleLinkMap) {
-      exportLinksOptions.moduleLinkMap = moduleLinkMap;
-    }
-    if (defaultImportSlug) {
-      exportLinksOptions.defaultImportSlug = defaultImportSlug;
-    }
-    enhancers = [...enhancers, [enhanceCodeTypes, exportLinksOptions]];
-  }
+  const enhancers = resolveEnhancers(options, meta);
 
   // Inline enhancers for shortType and default fields
   const enhancersInline =
@@ -532,50 +534,7 @@ function createAdditionalTypesComponent<T extends {}>(
   const RawTypePre = meta.RawTypePre ?? options.RawTypePre;
   const highlightAt = meta.highlightAt ?? options.highlightAt;
 
-  // Enhancers from meta completely override options.enhancers if set
-  // Use DEFAULT_ENHANCERS if neither meta nor options specify enhancers
-  // Then append enhanceCodeTypes if anchorMap is available
-  let enhancers = meta.enhancers ?? options.enhancers ?? DEFAULT_ENHANCERS;
-  if (
-    meta.precompute.anchorMap &&
-    (Object.keys(meta.precompute.anchorMap.js ?? {}).length > 0 ||
-      Object.keys(meta.precompute.anchorMap.css ?? {}).length > 0)
-  ) {
-    const typeRefComponent = meta.typeRefComponent ?? options.typeRefComponent;
-    const typePropRefComponent = meta.typePropRefComponent ?? options.typePropRefComponent;
-    const typeParamRefComponent = meta.typeParamRefComponent ?? options.typeParamRefComponent;
-    const linkProps = meta.linkProps ?? options.linkProps;
-    const linkParams = meta.linkParams ?? options.linkParams;
-    const linkScope = meta.linkScope ?? options.linkScope;
-    const moduleLinkMap = meta.moduleLinkMap ?? options.moduleLinkMap;
-    const defaultImportSlug = meta.defaultImportSlug ?? options.defaultImportSlug;
-    const exportLinksOptions: Record<string, unknown> = { linkMap: meta.precompute.anchorMap };
-    if (typeRefComponent) {
-      exportLinksOptions.typeRefComponent = typeRefComponent;
-    }
-    if (typePropRefComponent) {
-      exportLinksOptions.typePropRefComponent = typePropRefComponent;
-    }
-    if (typeParamRefComponent) {
-      exportLinksOptions.typeParamRefComponent = typeParamRefComponent;
-    }
-    if (linkProps) {
-      exportLinksOptions.linkProps = linkProps;
-    }
-    if (linkParams) {
-      exportLinksOptions.linkParams = linkParams;
-    }
-    if (linkScope) {
-      exportLinksOptions.linkScope = linkScope;
-    }
-    if (moduleLinkMap) {
-      exportLinksOptions.moduleLinkMap = moduleLinkMap;
-    }
-    if (defaultImportSlug) {
-      exportLinksOptions.defaultImportSlug = defaultImportSlug;
-    }
-    enhancers = [...enhancers, [enhanceCodeTypes, exportLinksOptions]];
-  }
+  const enhancers = resolveEnhancers(options, meta);
 
   // Inline enhancers for shortType and default fields
   const enhancersInline =

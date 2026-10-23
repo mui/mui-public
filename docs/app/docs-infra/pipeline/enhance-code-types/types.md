@@ -31,6 +31,23 @@ A unified transformer function
 type ReturnValue = (tree: Root) => void;
 ```
 
+### ResolveExternalLink
+
+Resolves a type name, and where it is declared when known, to a link or `null`.
+
+**Parameters:**
+
+| Parameter | Type                 | Default | Description |
+| :-------- | :------------------- | :------ | :---------- |
+| name      | `string`             | -       | -           |
+| source?   | `ExternalTypeSource` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = string | null;
+```
+
 ## Additional Types
 
 ### EnhanceCodeTypesOptions
@@ -54,6 +71,15 @@ type EnhanceCodeTypesOptions = {
     /** Anchors for CSS-family languages (css, scss, less, sass). */
     css?: Record<string, string>;
   };
+  /**
+   * Resolves type names that `linkMap` does not know to documentation elsewhere,
+   * such as the docs of a dependency.
+   * Return `null` to leave a name unlinked. The plugin does not pass `source` yet.
+   *
+   * Only the type name itself is linked. External links never act as owners for
+   * property or parameter anchors.
+   */
+  resolveExternalLink?: ResolveExternalLink;
   /**
    * When set, the plugin emits a custom component element instead of an `<a>` tag
    * for type/export name references.
@@ -174,3 +200,15 @@ type EnhanceCodeTypesOptions = {
   defaultImportSlug?: string;
 };
 ````
+
+### ExternalTypeSource
+
+Where a type documented elsewhere is declared.
+
+- `lib`: TypeScript's default library, with the library files that declare the
+  type (for example `['lib.dom.d.ts']`).
+- `package`: an npm package, named after its directory under `node_modules`.
+
+```typescript
+type ExternalTypeSource = { kind: 'lib'; files: string[] } | { kind: 'package'; name: string };
+```
