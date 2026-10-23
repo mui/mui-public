@@ -1,314 +1,362 @@
 /* eslint-disable no-console */
-import * as babel from '@babel/core';
-import pluginTypescriptSyntax from '@babel/plugin-syntax-typescript';
-import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
-import { globby } from 'globby';
+import { $ } from 'execa';
 import * as fs from 'node:fs/promises';
-import { isBuiltin } from 'node:module';
+import * as os from 'node:os';
 import * as path from 'node:path';
-import { groupBy, mapAsync } from 'es-toolkit/array';
+import { mapAsync } from 'es-toolkit/array';
+import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
+import { getWorkspacePackages } from '../utils/pnpm.mjs';
 
 /**
- * @typedef {Object} ModuleSpecifier
- * @property {string} specifier The module the declaration file references.
- * @property {'import' | 'importType' | 'typeReference'} kind How it is referenced: an import or
- *   export declaration, an `import("...")` type, or a `/// <reference types="..." />` directive.
+ * @typedef {import('./packageJson').PackageJson} PackageJson
  */
 
 /**
- * @typedef {Object} Problem
- * @property {string} message What is wrong.
- * @property {string} fix How to resolve it.
+ * @typedef {Object} TypeScriptError
+ * @property {string} file `<package>/<path>` for files inside a packed package, otherwise relative
+ *   to the consumer project.
+ * @property {string} code
+ * @property {string} message
  */
 
 /**
- * @typedef {Problem & { packageDir: string, file: string }} DeclarationProblem
- *   Paths are relative to the workspace root.
+ * The conditions TypeScript matches when resolving `exports` in each mode. `types` comes first in
+ * every published manifest, so matching it in all modes is what TypeScript does too.
  */
-
-const TYPE_REFERENCE_REGEX = /^\/\s*<reference\s+types\s*=\s*(['"])(.+?)\1/;
-
-const LOCAL_PATH_FIX =
-  'A type in the public API is likely not exported from its package. Export it so declaration emit can reference it by package name.';
+const ESM_CONDITIONS = new Set(['types', 'import', 'node', 'default']);
+const CJS_CONDITIONS = new Set(['types', 'require', 'node', 'default']);
 
 /**
- * Collects the modules a declaration file references. Module augmentations
- * (`declare module 'x' {}`) are not included.
+ * Follows an `exports` target the way Node.js does: the first key that matches wins, even when
+ * it maps to `null`.
  *
- * @param {string} code
- * @param {string} filename
- * @returns {Promise<ModuleSpecifier[]>}
+ * @param {unknown} target
+ * @param {Set<string>} conditions
+ * @returns {string | null}
  */
-export async function collectModuleSpecifiers(code, filename) {
-  const ast = await babel.parseAsync(code, {
-    filename,
-    babelrc: false,
-    configFile: false,
-    plugins: [[pluginTypescriptSyntax, { dts: true }]],
-  });
-  if (!ast) {
-    return [];
+function resolveExportTarget(target, conditions) {
+  if (typeof target === 'string') {
+    return target;
+  }
+  if (Array.isArray(target)) {
+    return target.length > 0 ? resolveExportTarget(target[0], conditions) : null;
+  }
+  if (target && typeof target === 'object') {
+    for (const [condition, value] of Object.entries(target)) {
+      if (conditions.has(condition)) {
+        return resolveExportTarget(value, conditions);
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Lists the import specifiers consumers can type-check against, per resolution mode. Glob
+ * subpaths are skipped: `code-infra build` expands them into concrete entries.
+ *
+ * @param {PackageJson} packageJson A published manifest.
+ * @returns {{ esm: string[], cjs: string[] }}
+ */
+function getTypedEntryPoints(packageJson) {
+  const name = /** @type {string} */ (packageJson.name);
+  const packageExports = packageJson.exports;
+  /** @type {Record<string, unknown>} */
+  let exportsMap;
+  if (packageExports === undefined || packageExports === null) {
+    exportsMap = packageJson.types || packageJson.typings ? { '.': '.' } : {};
+  } else if (
+    typeof packageExports === 'string' ||
+    Array.isArray(packageExports) ||
+    !Object.keys(packageExports).some((key) => key.startsWith('.'))
+  ) {
+    exportsMap = { '.': packageExports };
+  } else {
+    exportsMap = packageExports;
   }
 
-  /** @type {ModuleSpecifier[]} */
-  const specifiers = [];
-  /**
-   * @param {string} specifier
-   * @param {ModuleSpecifier['kind']} [kind]
-   */
-  const add = (specifier, kind = 'import') => specifiers.push({ specifier, kind });
-
-  babel.traverse(ast, {
-    ImportDeclaration(nodePath) {
-      add(nodePath.node.source.value);
-    },
-    ExportNamedDeclaration(nodePath) {
-      if (nodePath.node.source) {
-        add(nodePath.node.source.value);
+  /** @type {{ esm: string[], cjs: string[] }} */
+  const entryPoints = { esm: [], cjs: [] };
+  for (const [subpath, target] of Object.entries(exportsMap)) {
+    if (subpath.includes('*') || subpath === './package.json') {
+      continue;
+    }
+    const specifier = subpath === '.' ? name : `${name}/${subpath.slice(2)}`;
+    for (const [mode, conditions] of /** @type {const} */ ([
+      ['esm', ESM_CONDITIONS],
+      ['cjs', CJS_CONDITIONS],
+    ])) {
+      const resolved = resolveExportTarget(target, conditions);
+      if (resolved && (/\.d\.[cm]?ts$/.test(resolved) || resolved === '.')) {
+        entryPoints[mode].push(specifier);
       }
-    },
-    ExportAllDeclaration(nodePath) {
-      add(nodePath.node.source.value);
-    },
-    // Declaration emit writes these for inferred types, so they appear without a matching import in the sources.
-    TSImportType(nodePath) {
-      add(nodePath.node.source.value, 'importType');
-    },
-    TSExternalModuleReference(nodePath) {
-      add(nodePath.node.expression.value);
-    },
-  });
+    }
+  }
+  return entryPoints;
+}
 
-  for (const comment of ast.comments ?? []) {
-    const match = comment.type === 'CommentLine' ? TYPE_REFERENCE_REGEX.exec(comment.value) : null;
+/**
+ * @param {string[]} specifiers
+ * @returns {string}
+ */
+function createEntryFile(specifiers) {
+  return `${specifiers
+    .map((specifier, index) => `import type * as entry${index} from '${specifier}';`)
+    .join('\n')}\nexport {};\n`;
+}
+
+/**
+ * Parses `tsc --pretty false` output. Errors inside a packed package are reported relative to
+ * that package, so the output doesn't depend on the store layout.
+ *
+ * @param {string} output
+ * @param {string[]} packageNames
+ * @param {string} tempDir Stripped from messages.
+ * @returns {TypeScriptError[]}
+ */
+function parseTypeScriptErrors(output, packageNames, tempDir) {
+  /** @type {TypeScriptError[]} */
+  const errors = [];
+  for (const line of output.split('\n')) {
+    const match = /^(.+?)\(\d+,\d+\): error (TS\d+): (.*)$/.exec(line);
     if (match) {
-      add(match[2], 'typeReference');
+      errors.push({ file: match[1], code: match[2], message: match[3] });
+    } else if (line.startsWith(' ') && errors.length > 0) {
+      errors[errors.length - 1].message += `\n${line}`;
     }
   }
-
-  return specifiers;
-}
-
-/**
- * @param {string} specifier
- * @returns {string}
- */
-function getPackageName(specifier) {
-  const segments = specifier.split('/');
-  return specifier.startsWith('@') ? segments.slice(0, 2).join('/') : segments[0];
-}
-
-/**
- * @param {string} packageName
- * @returns {string}
- */
-function getTypesPackageName(packageName) {
-  if (packageName.startsWith('@types/')) {
-    return packageName;
-  }
-  return `@types/${packageName.startsWith('@') ? packageName.slice(1).replace('/', '__') : packageName}`;
-}
-
-/**
- * Checks the modules referenced by a published declaration file against the
- * manifest of the package that publishes it. Consumers only install what the
- * manifest declares, so any other package only resolves when it happens to be
- * hoisted.
- *
- * Suggested fixes mirror how the package uses the referenced package at
- * runtime: types of a dependency are a dependency, types of a peer dependency
- * are an optional peer dependency.
- *
- * @param {ModuleSpecifier[]} specifiers
- * @param {import('./packageJson').PackageJson | null} packageJson The owning manifest, or `null` to
- *   only check for local workspace paths.
- * @returns {Problem[]}
- */
-export function findDeclarationProblems(specifiers, packageJson) {
-  const dependencies = new Set([
-    ...Object.keys(packageJson?.dependencies ?? {}),
-    ...Object.keys(packageJson?.optionalDependencies ?? {}),
-  ]);
-  const peerDependencies = new Set(Object.keys(packageJson?.peerDependencies ?? {}));
-  const devDependencies = new Set(Object.keys(packageJson?.devDependencies ?? {}));
-  /**
-   * @param {string} name
-   */
-  const isDeclared = (name) =>
-    name === packageJson?.name || dependencies.has(name) || peerDependencies.has(name);
-
-  /** @type {Map<string, Problem>} */
-  const problems = new Map();
-  /**
-   * @param {string} message
-   * @param {string} fix
-   */
-  const report = (message, fix) => problems.set(message, { message, fix });
-
-  for (const { specifier, kind } of specifiers) {
-    if (
-      specifier.startsWith('.') ||
-      specifier.startsWith('/') ||
-      (kind === 'typeReference' ? specifier === 'node' : isBuiltin(specifier))
-    ) {
-      continue;
+  return errors.flatMap((error) => {
+    const message = error.message.replaceAll(`${tempDir}/`, '');
+    const index = error.file.lastIndexOf('node_modules/');
+    if (index === -1) {
+      return [{ ...error, message }];
     }
-    if (specifier.startsWith('packages/')) {
-      report(`"${specifier}" is a local workspace path`, LOCAL_PATH_FIX);
-      continue;
-    }
-    if (!packageJson) {
-      continue;
-    }
-
-    const name = kind === 'typeReference' ? specifier : getPackageName(specifier);
-    const typesName = getTypesPackageName(name);
-    if (isDeclared(typesName)) {
-      continue;
-    }
-
-    if (devDependencies.has(typesName)) {
-      const message = `types for "${name}" come from "${typesName}", which is only a devDependency`;
-      if (peerDependencies.has(name)) {
-        report(
-          message,
-          `"${name}" is a peer dependency, so add "${typesName}" as an optional peer dependency.`,
-        );
-      } else if (dependencies.has(name)) {
-        report(message, `"${name}" is a dependency, so move "${typesName}" to dependencies.`);
-      } else if (devDependencies.has(name)) {
-        report(
-          message,
-          `"${name}" is only a devDependency, so consumers provide it: add "${name}" and "${typesName}" as optional peer dependencies.`,
-        );
-      } else {
-        report(
-          message,
-          `If "${name}" is a types-only package, move "${typesName}" to dependencies. If consumers provide "${name}", add "${name}" and "${typesName}" as optional peer dependencies.`,
-        );
-      }
-    } else if (isDeclared(name)) {
-      continue;
-    } else if (devDependencies.has(name)) {
-      report(
-        `"${name}" is only a devDependency`,
-        `If consumers provide "${name}", add it as an optional peer dependency. If this package uses it at runtime or it only provides types, move it to dependencies.`,
-      );
-    } else if (kind === 'importType') {
-      report(
-        `"${name}" is not declared`,
-        `An import("${name}") type is usually emitted for an inferred type. Add an explicit type annotation that uses a type from a declared dependency (the isolatedDeclarations compiler option enforces this), or declare "${name}" the way this package uses it at runtime.`,
-      );
-    } else {
-      report(
-        `"${name}" is not declared`,
-        `Declare "${name}" the way this package uses it at runtime: in dependencies, or as a peer dependency if consumers provide it.`,
-      );
-    }
-  }
-  return Array.from(problems.values());
-}
-
-/**
- * Validates the declaration files in every `build` directory of the workspace.
- *
- * @param {string} workspaceRoot
- * @param {{ checkDependencies: boolean }} options With `checkDependencies: false`, only
- *   imports of local workspace paths are reported.
- * @returns {Promise<DeclarationProblem[]>}
- */
-export async function validateBuiltTypes(workspaceRoot, { checkDependencies }) {
-  const declarationFiles = await globby(['**/build/**/*.d.{ts,cts,mts}'], {
-    ignore: ['**/node_modules/**'],
-    followSymbolicLinks: false,
-    cwd: workspaceRoot,
+    const modulePath = error.file.slice(index + 'node_modules/'.length);
+    const owner = packageNames.find((name) => modulePath.startsWith(`${name}/`));
+    // Errors in third-party declarations are not ours to fix.
+    return owner ? [{ ...error, file: modulePath, message }] : [];
   });
-  declarationFiles.sort();
+}
 
-  /** @type {Map<string, Promise<import('./packageJson').PackageJson | null>>} */
-  const manifests = new Map();
-  /**
-   * The source manifest of the package that owns a build directory. It is the
-   * one holding `devDependencies`, which the build output copy may not.
-   *
-   * @param {string} packageDir
-   */
-  const getManifest = (packageDir) => {
-    if (!checkDependencies) {
-      return null;
-    }
-    let manifest = manifests.get(packageDir);
-    if (!manifest) {
-      manifest = fs.readFile(path.join(workspaceRoot, packageDir, 'package.json'), 'utf8').then(
-        (content) => JSON.parse(content),
-        () => null,
-      );
-      manifests.set(packageDir, manifest);
-    }
-    return manifest;
-  };
+/**
+ * @param {string} tarball
+ * @returns {Promise<PackageJson>}
+ */
+async function readPackedManifest(tarball) {
+  const { stdout } = await $`tar -xzOf ${tarball} package/package.json`;
+  return JSON.parse(stdout);
+}
 
-  const problems = await mapAsync(
-    declarationFiles,
-    async (declarationFile) => {
-      const segments = declarationFile.split('/');
-      const packageDir = segments.slice(0, segments.indexOf('build')).join('/');
-      const [code, packageJson] = await Promise.all([
-        fs.readFile(path.join(workspaceRoot, declarationFile), 'utf8'),
-        getManifest(packageDir),
-      ]);
-      const specifiers = await collectModuleSpecifiers(code, declarationFile);
-      return findDeclarationProblems(specifiers, packageJson).map((problem) => ({
-        packageDir,
-        file: declarationFile,
-        ...problem,
-      }));
+/**
+ * @param {string} workspaceRoot
+ * @param {string} name
+ * @returns {Promise<string | null>}
+ */
+async function getInstalledVersion(workspaceRoot, name) {
+  try {
+    const content = await fs.readFile(
+      path.join(workspaceRoot, 'node_modules', name, 'package.json'),
+      'utf8',
+    );
+    return JSON.parse(content).version;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Installs the packed public packages into a fresh project, the way a consumer would, and
+ * type-checks an import of every typed entry point with `skipLibCheck` off.
+ *
+ * @param {Object} options
+ * @param {string} options.workspaceRoot
+ * @param {string} options.tempDir An empty directory outside the workspace.
+ * @returns {Promise<{ errors: TypeScriptError[], entryPointCount: number, packageCount: number }>}
+ */
+async function validateBuiltTypes({ workspaceRoot, tempDir }) {
+  const packages = await getWorkspacePackages({ cwd: workspaceRoot, publicOnly: true });
+  if (packages.length === 0) {
+    throw new Error('No public packages found.');
+  }
+  const tarballDir = path.join(tempDir, 'tarballs');
+  const projectDir = path.join(tempDir, 'project');
+  await Promise.all([
+    fs.mkdir(tarballDir, { recursive: true }),
+    fs.mkdir(projectDir, { recursive: true }),
+  ]);
+
+  // Packed the same way as @mui/internal-benchmark's `packWorkspace`, so each tarball is what
+  // `pnpm publish` would upload.
+  const packed = await mapAsync(
+    packages,
+    async (pkg) => {
+      // `+` cannot appear in a package name, so no two tarballs collide.
+      const tarball = path.join(tarballDir, `${pkg.name.replace(/^@/, '').replace('/', '+')}.tgz`);
+      await $({ cwd: pkg.path })`pnpm pack --out ${tarball}`;
+      return { tarball, manifest: await readPackedManifest(tarball) };
     },
-    { concurrency: 20 },
+    { concurrency: os.availableParallelism() },
   );
-  return problems.flat();
+
+  const packageNames = packed.map(({ manifest }) => /** @type {string} */ (manifest.name));
+  /** @type {Record<string, string>} */
+  const tarballs = Object.fromEntries(
+    packed.map(({ manifest, tarball }) => [manifest.name, `file:${tarball}`]),
+  );
+  // Consumers provide every peer, optional ones included, at a version in range.
+  /** @type {Record<string, string>} */
+  const peers = {};
+  for (const { manifest } of packed) {
+    for (const [name, range] of Object.entries(manifest.peerDependencies ?? {})) {
+      if (range && !tarballs[name] && !peers[name]) {
+        peers[name] = range;
+      }
+    }
+  }
+  if (!peers['@types/node']) {
+    peers['@types/node'] = (await getInstalledVersion(workspaceRoot, '@types/node')) ?? '*';
+  }
+
+  await fs.writeFile(
+    path.join(projectDir, 'package.json'),
+    `${JSON.stringify({ private: true, dependencies: { ...peers, ...tarballs } }, null, 2)}\n`,
+  );
+  // Every package and peer is a dependency of the project, so a package that looked them up from
+  // the project's node_modules would resolve what it never declared. With hoisting off and the
+  // virtual store outside the project, it only finds the dependencies pnpm linked for it.
+  await fs.writeFile(
+    path.join(projectDir, 'pnpm-workspace.yaml'),
+    [
+      'virtualStoreDir: ../virtual-store',
+      'enableGlobalVirtualStore: false',
+      'hoistPattern: []',
+      'publicHoistPattern: []',
+      'autoInstallPeers: false',
+      'strictPeerDependencies: false',
+      'blockExoticSubdeps: false',
+      'ignoreScripts: true',
+      'overrides:',
+      ...Object.entries(tarballs).map(([name, spec]) => `  '${name}': '${spec}'`),
+      '',
+    ].join('\n'),
+  );
+  await $({ cwd: projectDir })`pnpm install --lockfile=false --prefer-offline`;
+
+  const compilerOptions = {
+    strict: true,
+    skipLibCheck: false,
+    noEmit: true,
+    types: ['node'],
+    lib: ['esnext', 'dom', 'dom.iterable'],
+    jsx: 'react-jsx',
+  };
+  // One program per package and consumer kind. A consumer is either ESM or CommonJS, and installs
+  // one package rather than all of them: a shared program would check the global augmentations of
+  // unrelated packages, and of a package's CommonJS and ESM declarations, against each other.
+  /** @type {{ file: string, entryPoints: string[], module: string, moduleResolution?: string }[]} */
+  const checks = [];
+  for (const { manifest } of packed) {
+    const { esm, cjs } = getTypedEntryPoints(manifest);
+    const base = path.join('checks', String(manifest.name).replace(/^@/, '').replace('/', '+'));
+    checks.push(
+      { file: `${base}.esm.mts`, entryPoints: esm, module: 'nodenext' },
+      { file: `${base}.cjs.cts`, entryPoints: cjs, module: 'nodenext' },
+      {
+        file: `${base}.bundler.mts`,
+        entryPoints: esm,
+        module: 'esnext',
+        moduleResolution: 'bundler',
+      },
+    );
+  }
+  const entryPointCount = new Set(checks.flatMap(({ entryPoints }) => entryPoints)).size;
+  const tscBin = path.join(workspaceRoot, 'node_modules', '.bin', 'tsc');
+  const tsc = (await fs.stat(tscBin).catch(() => null)) ? tscBin : 'tsc';
+  const realTempDir = await fs.realpath(tempDir);
+  await fs.mkdir(path.join(projectDir, 'checks'));
+
+  const outputs = await mapAsync(
+    checks.filter(({ entryPoints }) => entryPoints.length > 0),
+    async ({ file, entryPoints, module, moduleResolution }) => {
+      const tsconfigFile = `${file}.json`;
+      await Promise.all([
+        fs.writeFile(path.join(projectDir, file), createEntryFile(entryPoints)),
+        fs.writeFile(
+          path.join(projectDir, tsconfigFile),
+          `${JSON.stringify({ compilerOptions: { ...compilerOptions, module, moduleResolution }, files: [path.basename(file)] }, null, 2)}\n`,
+        ),
+      ]);
+      const result = await $({
+        cwd: projectDir,
+        reject: false,
+      })`${tsc} -p ${tsconfigFile} --pretty false`;
+      return result.stdout;
+    },
+    { concurrency: os.availableParallelism() },
+  );
+  /** @type {Map<string, TypeScriptError>} */
+  const errors = new Map();
+  for (const output of outputs) {
+    for (const error of parseTypeScriptErrors(output, packageNames, realTempDir)) {
+      errors.set(`${error.file}\0${error.code}\0${error.message}`, error);
+    }
+  }
+
+  return { errors: Array.from(errors.values()), entryPointCount, packageCount: packed.length };
 }
 
 /**
  * @typedef {Object} Args
- * @property {boolean} [checkDependencies] - Check that referenced packages are declared (default: true)
+ * @property {boolean} [keep]
  */
 
 export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
   command: 'validate-built-types',
   describe:
-    'Validate built TypeScript declaration files for imports of local files and of undeclared dependencies.',
+    'Install the packed public packages into a fresh project and type-check every entry point that has types, as a consumer would. Run after building.',
   builder: (yargs) =>
-    yargs.option('check-dependencies', {
+    yargs.option('keep', {
       type: 'boolean',
-      default: true,
-      describe:
-        'Check that packages referenced from declaration files are declared in the owning package.json. Use --no-check-dependencies to only check for local workspace paths.',
+      default: false,
+      description: 'Keep the consumer project for inspection.',
     }),
-  handler: async ({ checkDependencies = true }) => {
+  handler: async ({ keep = false }) => {
     const workspaceRoot = await findWorkspaceDir(process.cwd());
     if (!workspaceRoot) {
       throw new Error('Workspace directory not found');
     }
-    const problems = await validateBuiltTypes(workspaceRoot, { checkDependencies });
-
-    if (problems.length > 0) {
-      const grouped = groupBy(problems, ({ packageDir, message }) => `${packageDir}\0${message}`);
-      console.error('❌ Found invalid imports in built declaration files.\n');
-      for (const [first, ...rest] of Object.values(grouped)) {
-        console.error(`${first.packageDir || '.'}: ${first.message}`);
-        console.error(`  Fix: ${first.fix}`);
-        for (const { file } of [first, ...rest]) {
-          console.error(`  - ${file}`);
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'code-infra-built-types-'));
+    let failed = false;
+    try {
+      const { errors, entryPointCount, packageCount } = await validateBuiltTypes({
+        workspaceRoot,
+        tempDir,
+      });
+      if (entryPointCount === 0) {
+        throw new Error(
+          `No entry points with types found in ${packageCount} packages. Build the packages first.`,
+        );
+      }
+      if (errors.length > 0) {
+        failed = true;
+        console.error(
+          `❌ Found ${errors.length} type errors in ${entryPointCount} entry points of ${packageCount} packages.\n`,
+        );
+        for (const error of errors) {
+          console.error(`${error.file}: ${error.code} ${error.message}`);
         }
-        console.error('');
+        process.exitCode = 1;
+      } else {
+        console.log(
+          `✅ ${entryPointCount} entry points of ${packageCount} packages type-check for consumers.`,
+        );
       }
-      if (checkDependencies) {
-        console.error('Run with --no-check-dependencies to only check for local workspace paths.');
+    } finally {
+      if (keep || failed) {
+        console.error(`\nConsumer project: ${path.join(tempDir, 'project')}`);
+      } else {
+        await fs.rm(tempDir, { recursive: true, force: true });
       }
-      process.exit(1);
     }
-
-    console.log('✅ Found no invalid imports in built declaration files.');
   },
 });
