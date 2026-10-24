@@ -41,7 +41,6 @@
     "@mui/internal-code-infra": "workspace:*",
     "@mui/internal-docs-infra": "workspace:*",
     "@mui/internal-netlify-cache": "workspace:*",
-    "@next/eslint-plugin-next": "16.3.8",
     "@octokit/rest": "^22.0.1",
     "@tsconfig/node24": "^24.0.5",
     "@types/node": "^22.20.5",
@@ -59,6 +58,7 @@
   },
   "devDependencies": {
     "@babel/plugin-transform-react-constant-elements": "8.0.5",
+    "@next/eslint-plugin-next": "16.4.1",
     "@vitest/browser-playwright": "5.0.5",
     "@vitest/coverage-v8": "5.0.5",
     "baseline-browser-mapping": "2.11.29",

@@ -38,3 +38,6 @@ trustPolicy: no-downgrade
 # TODO: drop once @babel/core stops depending on semver@^6.3.1 (no 6.x version has provenance);
 # tracked by the broader npm provenance gap in legacy 6.x semver/reselect/@octokit releases.
 trustPolicyIgnoreAfter: 525600
+overrides:
+  # GHSA-vc2v-76pw-4v95: serve@14.2.6 pins compression@1.8.1 exactly
+  compression: 1.8.2
