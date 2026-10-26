@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 // eslint-disable-next-line import/extensions
 import { categorizeCommits } from './categorizeCommits.mjs';
 import type { FetchedCommitDetails, CategorizationConfig, LabelConfig } from './types';
@@ -193,12 +193,20 @@ describe('categorizeCommits', () => {
       expect(result.get('@mui/x-data-grid')).toHaveLength(1);
     });
 
-    it('should throw error when scope mapping is not found', () => {
-      const commits = [createCommit(42, ['scope: unknown-package'])];
+    it('keeps unknown scopes in the fallback section and warns', () => {
+      const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      try {
+        const result = categorizeCommits(
+          [createCommit(42, ['scope: unknown-package', 'scope: data grid', 'scope: data grid'])],
+          packageConfig,
+        );
 
-      expect(() => categorizeCommits(commits, packageConfig)).toThrow(
-        'No package mapping found for scope "unknown-package" in commit #42',
-      );
+        expect(result.get('Other')).toHaveLength(1);
+        expect(result.get('@mui/x-data-grid')).toHaveLength(1);
+        expect(warning).toHaveBeenCalledWith(expect.stringContaining('unknown-package'));
+      } finally {
+        warning.mockRestore();
+      }
     });
 
     it('should throw error when plan mapping is not found for package', () => {

@@ -30,15 +30,19 @@ export function categorizeCommits(commits, config) {
 
     // Get all category keys for this commit (may be multiple)
     const categoryKeys = getCategoryKeys(categorizedCommit, config);
+    if (config.strategy === 'package') {
+      categoryKeys.push(...(config.packageNaming?.additionalPackages?.(categorizedCommit) ?? []));
+    }
 
     // Add commit to all relevant categories
-    for (const categoryKey of categoryKeys) {
-      const cKey = typeof categoryKey === 'string' ? categoryKey : categoryKey.category;
-      if (!categories.has(cKey)) {
-        categories.set(cKey, []);
+    for (const categoryKey of new Set(
+      categoryKeys.map((key) => (typeof key === 'string' ? key : key.category)),
+    )) {
+      if (!categories.has(categoryKey)) {
+        categories.set(categoryKey, []);
       }
 
-      categories.get(cKey)?.push(categorizedCommit);
+      categories.get(categoryKey)?.push(categorizedCommit);
     }
   }
 
@@ -58,6 +62,10 @@ function getCategoryKeys(commit, config) {
   // Check for category override first (e.g., 'all components' -> 'General changes')
   if (commit.parsed.categoryOverride) {
     return [commit.parsed.categoryOverride];
+  }
+
+  if (config.strategy === 'flat') {
+    return [config.sections.fallbackSection];
   }
 
   if (config.strategy === 'component') {
@@ -130,10 +138,11 @@ function getCategoryKeysForPackage(commit, config) {
     // Look up base package name from mappings
     const basePackage = config.packageNaming.mappings[scope];
     if (!basePackage) {
-      throw new Error(
-        `No package mapping found for scope "${scope}" in commit #${commit.prNumber}. ` +
-          `Available mappings: ${Object.keys(config.packageNaming.mappings).join(', ')}`,
+      console.warn(
+        `No package mapping found for scope "${scope}" in commit ${commit.prNumber ?? commit.sha}; using ${config.sections.fallbackSection}.`,
       );
+      keys.push(config.sections.fallbackSection);
+      continue;
     }
 
     // Apply plan if specified

@@ -3,7 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { describe, expect, it, onTestFinished } from 'vitest';
 import { execa } from 'execa';
-import { resolveBaseline } from './git.mjs';
+import { resolveBaseline, findLatestTaggedVersion } from './git.mjs';
 
 // Keeps a contributor's own git config (signing, hooks) out of the fixture commits.
 const GIT_ENV = {
@@ -197,4 +197,30 @@ describe('resolveBaseline: the canonical remote', () => {
 
     await expect(resolveBaseline({ cwd: work.dir, remote: 'mui' })).rejects.toThrow(/'mui'/);
   });
+});
+
+it('finds older-major tags on their release branch and matches the full major', async () => {
+  const remote = await makeRemote();
+  await remote.git('tag', 'v8.1.0', remote.shas[0]);
+  await remote.git('tag', 'v9.0.0', remote.shas[1]);
+  await remote.git('tag', 'v90.0.0', remote.shas[2]);
+  await remote.git('branch', 'v8.x', remote.shas[0]);
+  const work = await clone(remote.dir);
+
+  expect(
+    await findLatestTaggedVersion({
+      cwd: work.dir,
+      majorVersion: '8',
+      remote: 'origin',
+      fetchAll: false,
+    }),
+  ).toBe('v8.1.0');
+  expect(
+    await findLatestTaggedVersion({
+      cwd: work.dir,
+      majorVersion: '9',
+      remote: 'origin',
+      fetchAll: false,
+    }),
+  ).toBe('v9.0.0');
 });

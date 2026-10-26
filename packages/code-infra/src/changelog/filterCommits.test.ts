@@ -209,7 +209,7 @@ describe('filterCommits', () => {
         createCommit({ sha: '3', prNumber: 300 }),
       ];
       const filterConfig: FilterConfig = {
-        customFilter: (commit) => commit.prNumber >= 200,
+        customFilter: (commit) => (commit.prNumber ?? 0) >= 200,
       };
 
       const result = filterCommits(commits, filterConfig);
@@ -237,7 +237,7 @@ describe('filterCommits', () => {
       ];
       const filterConfig: FilterConfig = {
         excludeCommitByAuthors: ['bot'],
-        customFilter: (commit) => commit.prNumber >= 250,
+        customFilter: (commit) => (commit.prNumber ?? 0) >= 250,
       };
 
       const result = filterCommits(commits, filterConfig);
@@ -293,7 +293,7 @@ describe('filterCommits', () => {
       const filterConfig: FilterConfig = {
         excludeCommitByAuthors: [/\[bot\]$/],
         excludeCommitWithLabels: ['skip-changelog'],
-        customFilter: (commit) => commit.prNumber >= 100,
+        customFilter: (commit) => (commit.prNumber ?? 0) >= 100,
       };
 
       const result = filterCommits(commits, filterConfig);

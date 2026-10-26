@@ -132,6 +132,8 @@ export async function resolveBaseline(options = {}) {
  * @param {Object} opts
  * @param {string} opts.cwd
  * @param {boolean} [opts.fetchAll=true] Whether to fetch all tags from all remotes before finding the latest tag.
+ * @param {string} [opts.majorVersion] Restrict tags to this release major.
+ * @param {string} [opts.remote] Remote containing older major release branches.
  * @returns {Promise<string>}
  */
 export async function findLatestTaggedVersion(opts) {
@@ -142,6 +144,17 @@ export async function findLatestTaggedVersion(opts) {
     const { remoteName } = await getRepositoryInfo(opts.cwd);
     await $$`git fetch --tags --force ${remoteName}`;
   }
-  const { stdout } = await $$`git describe --tags --abbrev=0 --match ${'v*'}`; // only include "version-tags"
+  const match = opts.majorVersion ? `v${opts.majorVersion}.*` : 'v*';
+  if (opts.majorVersion) {
+    const remote = opts.remote ?? (await getRepositoryInfo(opts.cwd)).remoteName;
+    const branch = `${remote}/v${opts.majorVersion}.x`;
+    const result = await $$({
+      reject: false,
+    })`git describe --tags --abbrev=0 --match ${match} ${branch}`;
+    if (result.exitCode === 0) {
+      return result.stdout.trim();
+    }
+  }
+  const { stdout } = await $$`git describe --tags --abbrev=0 --match ${match}`;
   return stdout.trim();
 }

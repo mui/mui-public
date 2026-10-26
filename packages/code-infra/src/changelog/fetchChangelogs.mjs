@@ -5,6 +5,8 @@ import { mapAsync } from 'es-toolkit/array';
 
 import { persistentAuthStrategy } from '../utils/github.mjs';
 
+const HTTP_NOT_FOUND = 404;
+
 const ThrottledOctokit = Octokit.plugin(throttling, retry);
 
 /**
@@ -108,30 +110,36 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
    * @returns {Promise<FetchedCommitDetails | null>}
    */
   const fetchCommitDetails = async (commit, signal) => {
-    const matches = [...commit.commit.message.matchAll(/#(\d+)/g)];
-    // The PR number is always the last match.
-    // Sometimes the PR titles include an issue number like this:
-    // [tag] PR title (#00001) (#00002)
-    const prMatch = matches.at(-1);
+    // Squash and merge subjects identify PRs; issue references in prose do not.
+    const subject = commit.commit.message.split('\n')[0];
+    const prMatch =
+      subject.match(/\(#(\d+)\)\s*$/) ?? subject.match(/^Merge pull request #(\d+)\b/);
     if (!prMatch) {
-      return null;
+      return directCommit(commit);
     }
 
-    const prNumber = parseInt(prMatch[1], 10);
+    const prNumber = Number(prMatch[1]);
 
-    const pr = await octokit.pulls.get({
-      owner: org,
-      repo,
-      pull_number: prNumber,
-      headers: {
-        Accept: 'application/vnd.github.text+json',
-      },
-      request: { signal },
-    });
+    let pr;
+    try {
+      pr = await octokit.pulls.get({
+        owner: org,
+        repo,
+        pull_number: prNumber,
+        headers: { Accept: 'application/vnd.github.text+json' },
+        request: { signal },
+      });
+    } catch (error) {
+      if (error instanceof Error && 'status' in error && error.status === HTTP_NOT_FOUND) {
+        return directCommit(commit);
+      }
+      throw error;
+    }
 
     const labels = pr.data.labels.map((label) => label.name);
 
-    return /** @type {FetchedCommitDetails} */ ({
+    /** @type {FetchedCommitDetails} */
+    const details = {
       sha: commit.sha,
       message: commit.commit.message,
       labels,
@@ -146,9 +154,75 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
           }
         : null,
       prTitle: pr.data.title,
-      prBody: pr.data.body,
-    });
+      prBody: pr.data.body ?? '',
+    };
+
+    const isCherryPick = labels.includes('cherry-pick') || labels.includes('backport');
+    if (!isCherryPick || !details.author?.login.endsWith('[bot]')) {
+      return details;
+    }
+
+    // Only structured backport references or an explicit title suffix establish attribution.
+    const originalRef = details.prBody.match(
+      /(?:cherry[- ]pick(?:ed)?(?: from| of)?|original(?: pull request| pr)?)\s*:?\s*(?:https:\/\/github\.com\/([^/\s]+)\/([^/\s]+)\/pull\/|#)(\d+)/i,
+    );
+    const originalLogin = details.prTitle.match(/\(@([\w-]+)\)\s*$/)?.[1];
+    if (originalRef) {
+      const owner = originalRef[1] ?? org;
+      const originalRepo = originalRef[2] ?? repo;
+      const number = Number(originalRef[3]);
+      if (owner !== org || originalRepo !== repo || number !== prNumber) {
+        try {
+          const original = await octokit.pulls.get({
+            owner,
+            repo: originalRepo,
+            pull_number: number,
+            request: { signal },
+          });
+          if (original.data.user?.login) {
+            details.author = {
+              login: original.data.user.login,
+              association: getAuthorAssociation(original.data.author_association),
+            };
+          }
+        } catch (error) {
+          if (!(error instanceof Error && 'status' in error && error.status === HTTP_NOT_FOUND)) {
+            throw error;
+          }
+        }
+      }
+    }
+    if (details.author?.login.endsWith('[bot]') && originalLogin) {
+      details.author = { login: originalLogin, association: 'contributor' };
+    }
+
+    if (details.author?.login.endsWith('[bot]')) {
+      console.warn(
+        `Cannot resolve original author for cherry-pick #${prNumber}; retaining @${details.author.login}.`,
+      );
+    } else {
+      details.message = details.message.replace(/\s+\(@[\w-]+\)(?=\s+\(#\d+\)\s*$)/m, '');
+    }
+    return details;
   };
+
+  /** @param {Commits[number]} commit @returns {FetchedCommitDetails} */
+  function directCommit(commit) {
+    return {
+      sha: commit.sha,
+      message: commit.commit.message,
+      labels: [],
+      prNumber: null,
+      html_url: commit.html_url,
+      author: commit.author?.login
+        ? { login: commit.author.login, association: 'contributor' }
+        : null,
+      mergedAt: commit.commit.author?.date ?? null,
+      createdAt: commit.commit.author?.date ?? null,
+      prTitle: '',
+      prBody: '',
+    };
+  }
 
   // `mapAsync` rejects on the first error but still runs every queued callback.
   // Aborted once it settles, which cancels requests in flight and skips the ones not started yet.

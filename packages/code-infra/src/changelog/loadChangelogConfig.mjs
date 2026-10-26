@@ -74,8 +74,8 @@ function validateConfig(config) {
 
   // Validate categorization
   if (config.categorization) {
-    if (!['component', 'package'].includes(config.categorization.strategy)) {
-      errors.push('categorization.strategy must be "component" or "package"');
+    if (!['component', 'package', 'flat'].includes(config.categorization.strategy)) {
+      errors.push('categorization.strategy must be "component", "package", or "flat"');
     }
 
     if (config.categorization.strategy === 'package' && !config.categorization.packageNaming) {
