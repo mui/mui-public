@@ -7,17 +7,17 @@ the runtime model.
 
 ```typescript
 interface ModuleNode {
-	name: string;
-	exports: ExportNode[];
+  name: string;
+  exports: ExportNode[];
 }
 
 interface ExportNode {
-	name: string;
-	type: TypeNode;
-	documentation?: DocumentationNode;
-	isValue: boolean;
-	isType: boolean;
-	isNamespace: boolean;
+  name: string;
+  type: TypeNode;
+  documentation?: DocumentationNode;
+  isValue: boolean;
+  isType: boolean;
+  isNamespace: boolean;
 }
 ```
 
@@ -62,21 +62,21 @@ Authored `keyof` expressions are represented without expanding away their syntax
 
 ```typescript
 interface TypeOperatorNode {
-	kind: 'typeOperator';
-	operator: 'keyof';
-	type: TypeNode;
-	resolvedType?: TypeNode;
-	resolutionKind?: 'exact' | 'baseConstraint' | 'fallback';
+  kind: 'typeOperator';
+  operator: 'keyof';
+  type: TypeNode;
+  resolvedType?: TypeNode;
+  resolutionKind?: 'exact' | 'baseConstraint' | 'fallback';
 }
 
 type ResolvedTypeOperatorNode = Omit<TypeOperatorNode, 'resolvedType' | 'resolutionKind'> & {
-	resolvedType: TypeNode;
-	resolutionKind: 'exact' | 'baseConstraint' | 'fallback';
+  resolvedType: TypeNode;
+  resolutionKind: 'exact' | 'baseConstraint' | 'fallback';
 };
 
 type SyntaxOnlyTypeOperatorNode = Omit<TypeOperatorNode, 'resolvedType' | 'resolutionKind'> & {
-	resolvedType?: never;
-	resolutionKind?: never;
+  resolvedType?: never;
+  resolutionKind?: never;
 };
 ```
 
@@ -91,8 +91,8 @@ queried value shape:
 
 ```typescript
 interface TypeQueryNode {
-	kind: 'typeQuery';
-	expressionName: string;
+  kind: 'typeQuery';
+  expressionName: string;
 }
 ```
 
@@ -104,17 +104,17 @@ including when they are nested inside a preserved operator:
 
 ```typescript
 interface ArrayNode {
-	kind: 'array';
-	typeName?: TypeName;
-	elementType: TypeNode;
-	isReadonly?: true;
+  kind: 'array';
+  typeName?: TypeName;
+  elementType: TypeNode;
+  isReadonly?: true;
 }
 
 interface TupleNode {
-	kind: 'tuple';
-	typeName?: TypeName;
-	types: TypeNode[];
-	isReadonly?: true;
+  kind: 'tuple';
+  typeName?: TypeName;
+  types: TypeNode[];
+  isReadonly?: true;
 }
 ```
 
@@ -152,10 +152,10 @@ any other type:
 
 ```typescript
 interface TemplateLiteralNode {
-	kind: 'templateLiteral';
-	typeName?: TypeName;
-	texts: string[];
-	types: TypeNode[];
+  kind: 'templateLiteral';
+  typeName?: TypeName;
+  texts: string[];
+  types: TypeNode[];
 }
 ```
 
@@ -176,17 +176,17 @@ parameter of every call signature is merged into one `props` list:
 
 ```typescript
 interface ComponentNode {
-	kind: 'component';
-	typeName?: TypeName;
-	props: PropertyNode[];
-	typeParameters?: TypeParameterNode[];
+  kind: 'component';
+  typeName?: TypeName;
+  props: PropertyNode[];
+  typeParameters?: TypeParameterNode[];
 }
 
 interface TypeParameterNode {
-	kind: 'typeParameter';
-	name: string;
-	constraint?: TypeNode;
-	defaultValue?: TypeNode;
+  kind: 'typeParameter';
+  name: string;
+  constraint?: TypeNode;
+  defaultValue?: TypeNode;
 }
 ```
 
@@ -203,13 +203,13 @@ instead of being expanded:
 
 ```typescript
 interface ExternalTypeNode {
-	kind: 'external';
-	typeName: TypeName;
-	source?: ExternalTypeSource;
+  kind: 'external';
+  typeName: TypeName;
+  source?: ExternalTypeSource;
 }
 
 type ExternalTypeSource =
-	{ kind: 'lib'; files: readonly string[] } | { kind: 'package'; name: string };
+  { kind: 'lib'; files: readonly string[] } | { kind: 'package'; name: string };
 ```
 
 `source` tells where the referenced type is declared, so types that share a name
@@ -248,41 +248,41 @@ would produce:
 
 ```json
 {
-	"name": "src/MyComponent.ts",
-	"exports": [
-		{
-			"name": "MyComponent",
-			"type": {
-				"kind": "component",
-				"typeName": {
-					"name": "MyComponent"
-				},
-				"props": [
-					{
-						"name": "title",
-						"type": {
-							"kind": "intrinsic",
-							"intrinsic": "string"
-						},
-						"optional": false,
-						"documentation": {
-							"description": "The title to display"
-						}
-					},
-					{
-						"name": "disabled",
-						"type": {
-							"kind": "intrinsic",
-							"intrinsic": "boolean"
-						},
-						"optional": true,
-						"documentation": {
-							"description": "Whether the component is disabled"
-						}
-					}
-				]
-			}
-		}
-	]
+  "name": "src/MyComponent.ts",
+  "exports": [
+    {
+      "name": "MyComponent",
+      "type": {
+        "kind": "component",
+        "typeName": {
+          "name": "MyComponent"
+        },
+        "props": [
+          {
+            "name": "title",
+            "type": {
+              "kind": "intrinsic",
+              "intrinsic": "string"
+            },
+            "optional": false,
+            "documentation": {
+              "description": "The title to display"
+            }
+          },
+          {
+            "name": "disabled",
+            "type": {
+              "kind": "intrinsic",
+              "intrinsic": "boolean"
+            },
+            "optional": true,
+            "documentation": {
+              "description": "Whether the component is disabled"
+            }
+          }
+        ]
+      }
+    }
+  ]
 }
 ```

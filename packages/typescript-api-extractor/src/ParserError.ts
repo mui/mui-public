@@ -1,21 +1,21 @@
 export class ParserError extends Error {
-	parsedSymbolStack: string[];
-	innerError: Error | unknown;
+  declare parsedSymbolStack: string[];
+  declare innerError: Error | unknown;
 
-	constructor(
-		innerError: Error | unknown,
-		parsedSymbolStack: string[],
-		message?: string,
-		options?: ErrorOptions,
-	) {
-		super(message, options);
+  constructor(
+    innerError: Error | unknown,
+    parsedSymbolStack: string[],
+    message?: string,
+    options?: ErrorOptions,
+  ) {
+    super(message, options);
 
-		this.stack = (innerError as Error).stack;
+    this.stack = (innerError as Error).stack;
 
-		this.name = 'ParserError';
-		this.parsedSymbolStack = [...parsedSymbolStack];
-		this.innerError = innerError;
+    this.name = 'ParserError';
+    this.parsedSymbolStack = [...parsedSymbolStack];
+    this.innerError = innerError;
 
-		this.message = `Failed to parse ${[...parsedSymbolStack].join(' > ')}\n${this.message}`;
-	}
+    this.message = `Failed to parse ${[...parsedSymbolStack].join(' > ')}\n${this.message}`;
+  }
 }

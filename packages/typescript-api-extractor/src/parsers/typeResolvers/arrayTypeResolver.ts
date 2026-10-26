@@ -1,12 +1,13 @@
 import ts from 'typescript';
-import { ArrayNode, type AnyType } from '../../models';
+import { ArrayNode } from '../../models';
+import type { AnyType } from '../../models';
 import { TypeName } from '../../models/typeName';
 import { getBuiltInArrayReferenceName, isSemanticallyReadonlyArray } from '../typeContainerUtils';
-import { type TypeResolutionRequest, type TypeResolutionSession } from '../typeResolutionTypes';
+import type { TypeResolutionRequest, TypeResolutionSession } from '../typeResolutionTypes';
 import {
-	getPreservableKeyofTypeNode,
-	unwrapParenthesizedTypeNode,
-	unwrapReadonlyContainerTypeNode,
+  getPreservableKeyofTypeNode,
+  unwrapParenthesizedTypeNode,
+  unwrapReadonlyContainerTypeNode,
 } from './typeOperatorTypeNodes';
 
 /**
@@ -17,60 +18,60 @@ import {
  * @returns An array model when the checker recognizes the type as an array, otherwise `undefined`.
  */
 export function resolveArrayType(
-	request: TypeResolutionRequest,
-	session: TypeResolutionSession,
+  request: TypeResolutionRequest,
+  session: TypeResolutionSession,
 ): AnyType | undefined {
-	const { type, typeName, typeNode } = request;
-	const { checker } = session.context;
+  const { type, typeName, typeNode } = request;
+  const { checker } = session.context;
 
-	if (!checker.isArrayType(type)) {
-		return undefined;
-	}
+  if (!checker.isArrayType(type)) {
+    return undefined;
+  }
 
-	// `getElementTypeOfArrayType` is compiler-internal, but unlike reading
-	// `typeArguments` directly it follows TypeScript's own array recognition and
-	// works for the array shapes accepted by `checker.isArrayType` above.
-	// @ts-expect-error - Private TypeChecker method intentionally isolated here.
-	const arrayType: ts.Type = checker.getElementTypeOfArrayType(type);
-	return new ArrayNode(
-		type.aliasSymbol?.name
-			? new TypeName(type.aliasSymbol?.name, typeName?.namespaces, typeName?.typeArguments)
-			: undefined,
-		session.resolve(
-			arrayType,
-			getArrayElementTypeNode(
-				typeNode,
-				checker,
-				session.context.typeParameterTypeNodeSubstitutions,
-				session.context.includeExternalTypes,
-			),
-		),
-		isReadonlyArrayType(type, typeNode, checker) ? true : undefined,
-	);
+  // `getElementTypeOfArrayType` is compiler-internal, but unlike reading
+  // `typeArguments` directly it follows TypeScript's own array recognition and
+  // works for the array shapes accepted by `checker.isArrayType` above.
+  // @ts-expect-error - Private TypeChecker method intentionally isolated here.
+  const arrayType: ts.Type = checker.getElementTypeOfArrayType(type);
+  return new ArrayNode(
+    type.aliasSymbol?.name
+      ? new TypeName(type.aliasSymbol?.name, typeName?.namespaces, typeName?.typeArguments)
+      : undefined,
+    session.resolve(
+      arrayType,
+      getArrayElementTypeNode(
+        typeNode,
+        checker,
+        session.context.typeParameterTypeNodeSubstitutions,
+        session.context.includeExternalTypes,
+      ),
+    ),
+    isReadonlyArrayType(type, typeNode, checker) ? true : undefined,
+  );
 }
 
 function isReadonlyArrayType(
-	type: ts.Type,
-	typeNode: ts.TypeNode | undefined,
-	checker: ts.TypeChecker,
+  type: ts.Type,
+  typeNode: ts.TypeNode | undefined,
+  checker: ts.TypeChecker,
 ): boolean {
-	if (isSemanticallyReadonlyArray(type)) {
-		return true;
-	}
+  if (isSemanticallyReadonlyArray(type)) {
+    return true;
+  }
 
-	if (!typeNode) {
-		return false;
-	}
+  if (!typeNode) {
+    return false;
+  }
 
-	const unwrapped = unwrapParenthesizedTypeNode(typeNode);
-	if (ts.isTypeOperatorNode(unwrapped) && unwrapped.operator === ts.SyntaxKind.ReadonlyKeyword) {
-		return true;
-	}
+  const unwrapped = unwrapParenthesizedTypeNode(typeNode);
+  if (ts.isTypeOperatorNode(unwrapped) && unwrapped.operator === ts.SyntaxKind.ReadonlyKeyword) {
+    return true;
+  }
 
-	return (
-		ts.isTypeReferenceNode(unwrapped) &&
-		getBuiltInArrayReferenceName(unwrapped, checker) === 'ReadonlyArray'
-	);
+  return (
+    ts.isTypeReferenceNode(unwrapped) &&
+    getBuiltInArrayReferenceName(unwrapped, checker) === 'ReadonlyArray'
+  );
 }
 
 /**
@@ -83,38 +84,38 @@ function isReadonlyArrayType(
  * @returns The preservable element node, or `undefined` when semantic resolution is sufficient.
  */
 export function getArrayElementTypeNode(
-	typeNode: ts.TypeNode | undefined,
-	checker: ts.TypeChecker,
-	typeParameterTypeNodeSubstitutions?: Map<ts.Symbol, ts.TypeNode>,
-	includeExternalTypes = false,
+  typeNode: ts.TypeNode | undefined,
+  checker: ts.TypeChecker,
+  typeParameterTypeNodeSubstitutions?: Map<ts.Symbol, ts.TypeNode>,
+  includeExternalTypes = false,
 ): ts.TypeNode | undefined {
-	if (!typeNode) {
-		return undefined;
-	}
+  if (!typeNode) {
+    return undefined;
+  }
 
-	const unwrapped = unwrapReadonlyContainerTypeNode(
-		typeNode,
-		checker,
-		typeParameterTypeNodeSubstitutions,
-	);
-	let elementType: ts.TypeNode | undefined;
-	if (ts.isArrayTypeNode(unwrapped)) {
-		elementType = unwrapped.elementType;
-	}
-	if (
-		ts.isTypeReferenceNode(unwrapped) &&
-		getBuiltInArrayReferenceName(unwrapped, checker) !== undefined
-	) {
-		elementType = unwrapped.typeArguments?.[0];
-	}
+  const unwrapped = unwrapReadonlyContainerTypeNode(
+    typeNode,
+    checker,
+    typeParameterTypeNodeSubstitutions,
+  );
+  let elementType: ts.TypeNode | undefined;
+  if (ts.isArrayTypeNode(unwrapped)) {
+    elementType = unwrapped.elementType;
+  }
+  if (
+    ts.isTypeReferenceNode(unwrapped) &&
+    getBuiltInArrayReferenceName(unwrapped, checker) !== undefined
+  ) {
+    elementType = unwrapped.typeArguments?.[0];
+  }
 
-	if (!elementType) {
-		return undefined;
-	}
-	return getPreservableKeyofTypeNode(
-		elementType,
-		checker,
-		typeParameterTypeNodeSubstitutions,
-		includeExternalTypes,
-	);
+  if (!elementType) {
+    return undefined;
+  }
+  return getPreservableKeyofTypeNode(
+    elementType,
+    checker,
+    typeParameterTypeNodeSubstitutions,
+    includeExternalTypes,
+  );
 }

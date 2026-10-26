@@ -1,5 +1,5 @@
-import { ExportNode } from '../models';
-import { ParserContext } from '../parser';
+import type { ExportNode } from '../models';
+import type { ParserContext } from '../parser';
 import { transformComponentExport } from './componentParser';
 
 type ExportTransform = (node: ExportNode, context: ParserContext) => ExportNode;
@@ -11,10 +11,10 @@ const exportTransforms: ExportTransform[] = [transformComponentExport];
  * reshape already-built generic export nodes (e.g. a function into a React component).
  */
 export function applyExportTransforms(nodes: ExportNode[], context: ParserContext): ExportNode[] {
-	return nodes.map((node) =>
-		exportTransforms.reduce(
-			(transformedNode, transform) => transform(transformedNode, context),
-			node,
-		),
-	);
+  return nodes.map((node) =>
+    exportTransforms.reduce(
+      (transformedNode, transform) => transform(transformedNode, context),
+      node,
+    ),
+  );
 }

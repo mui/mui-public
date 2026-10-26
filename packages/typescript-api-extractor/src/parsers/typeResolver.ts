@@ -1,6 +1,6 @@
-import ts from 'typescript';
-import { type AnyType } from '../models';
-import { type ScopedParserContext } from '../parserContext';
+import type ts from 'typescript';
+import type { AnyType } from '../models';
+import type { ScopedParserContext } from '../parserContext';
 import { TypeResolutionSession } from './typeResolutionSession';
 
 /**
@@ -13,9 +13,9 @@ import { TypeResolutionSession } from './typeResolutionSession';
  * @param context Parser context containing TypeScript checker and other utilities.
  */
 export function resolveType(
-	type: ts.Type,
-	typeNode: ts.TypeNode | undefined,
-	context: ScopedParserContext,
+  type: ts.Type,
+  typeNode: ts.TypeNode | undefined,
+  context: ScopedParserContext,
 ): AnyType {
-	return new TypeResolutionSession(context).resolve(type, typeNode);
+  return new TypeResolutionSession(context).resolve(type, typeNode);
 }

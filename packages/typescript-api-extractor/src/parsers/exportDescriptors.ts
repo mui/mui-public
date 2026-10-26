@@ -1,15 +1,15 @@
 import ts from 'typescript';
 import { getDeclarationSpaces } from './declarationSpaces';
 import { getExportReach } from './exportValuePaths';
-import { type ScopedParserContext } from '../parserContext';
+import type { ScopedParserContext } from '../parserContext';
 import { ParserError } from '../ParserError';
-import { type DeclarationSpaces, type ExtendsTypeInfo } from '../models';
+import type { DeclarationSpaces, ExtendsTypeInfo } from '../models';
 import { isInternalSymbolName } from './common';
 import { declarationHasNodeModulesPathSegment } from './sourceFileUtils';
 import { analyzeTypeAliasSource } from './typeResolvers/authoredTypeAlias';
 
 interface ExportDescriptorResolutionState {
-	nextTypeResolutionOrder: number;
+  nextTypeResolutionOrder: number;
 }
 
 /**
@@ -20,10 +20,10 @@ interface ExportDescriptorResolutionState {
  * threading the same four positional arguments through every helper.
  */
 interface ExportDescriptorScope {
-	context: ScopedParserContext;
-	parentNamespaces: string[];
-	symbolScope: string[];
-	resolutionState: ExportDescriptorResolutionState;
+  context: ScopedParserContext;
+  parentNamespaces: string[];
+  symbolScope: string[];
+  resolutionState: ExportDescriptorResolutionState;
 }
 
 /**
@@ -33,42 +33,42 @@ interface ExportDescriptorScope {
  * emission stay testable without also running the full type resolver.
  */
 export interface ExportDescriptor {
-	/** Public export name for this descriptor, without parent namespace prefixes. */
-	name: string;
-	/** Target symbol used for documentation and final type resolution. */
-	symbol: ts.Symbol;
-	/**
-	 * Lazily acquires the TypeScript type when this descriptor is converted into
-	 * an `ExportNode`. This is deliberately not evaluated during normalization:
-	 * `checker.getTypeAtLocation` mutates TypeScript's lazy internal caches, and
-	 * batched upfront type queries can change observable union/property order.
-	 *
-	 * @returns The semantic type owned by this descriptor's target declaration.
-	 */
-	getType: () => ts.Type;
-	/** Public namespace path applied when this descriptor came from a namespace export. */
-	parentNamespaces: string[];
-	/**
-	 * Order used when descriptors are converted into `ExportNode`s and their types
-	 * are resolved. This can differ from output order: merged namespace members are
-	 * resolved before their owner export to preserve the legacy TypeScript/cache
-	 * side effects that keep authored union member order stable.
-	 */
-	typeResolutionOrder: number;
-	/** Symbol scopes replayed while converting the descriptor into warning-aware output nodes. */
-	symbolScope: string[];
-	/** Authored type node, when it affects alias or union preservation during type resolution. */
-	typeNode?: ts.TypeNode;
-	/**
-	 * Declaration spaces of the export, read from its export symbol so that
-	 * declarations merged onto a re-export count along with the target's, and
-	 * with the value space masked when the export is reached only as a type.
-	 */
-	declarationSpaces: DeclarationSpaces;
-	/** Original exported name when the public descriptor is a renamed re-export. */
-	reexportedFrom?: string;
-	/** Interface or class heritage metadata attached to the export. */
-	extendsTypes?: ExtendsTypeInfo[];
+  /** Public export name for this descriptor, without parent namespace prefixes. */
+  name: string;
+  /** Target symbol used for documentation and final type resolution. */
+  symbol: ts.Symbol;
+  /**
+   * Lazily acquires the TypeScript type when this descriptor is converted into
+   * an `ExportNode`. This is deliberately not evaluated during normalization:
+   * `checker.getTypeAtLocation` mutates TypeScript's lazy internal caches, and
+   * batched upfront type queries can change observable union/property order.
+   *
+   * @returns The semantic type owned by this descriptor's target declaration.
+   */
+  getType: () => ts.Type;
+  /** Public namespace path applied when this descriptor came from a namespace export. */
+  parentNamespaces: string[];
+  /**
+   * Order used when descriptors are converted into `ExportNode`s and their types
+   * are resolved. This can differ from output order: merged namespace members are
+   * resolved before their owner export to preserve the legacy TypeScript/cache
+   * side effects that keep authored union member order stable.
+   */
+  typeResolutionOrder: number;
+  /** Symbol scopes replayed while converting the descriptor into warning-aware output nodes. */
+  symbolScope: string[];
+  /** Authored type node, when it affects alias or union preservation during type resolution. */
+  typeNode?: ts.TypeNode;
+  /**
+   * Declaration spaces of the export, read from its export symbol so that
+   * declarations merged onto a re-export count along with the target's, and
+   * with the value space masked when the export is reached only as a type.
+   */
+  declarationSpaces: DeclarationSpaces;
+  /** Original exported name when the public descriptor is a renamed re-export. */
+  reexportedFrom?: string;
+  /** Interface or class heritage metadata attached to the export. */
+  extendsTypes?: ExtendsTypeInfo[];
 }
 
 /** A descriptor before its declaration spaces are attached. */
@@ -78,18 +78,18 @@ type ExportDescriptorDraft = Omit<ExportDescriptor, 'declarationSpaces'>;
  * Where an export sits while its descriptors are resolved.
  */
 export interface ExportDescriptorOptions {
-	/** Namespace path inherited from enclosing namespace exports, prefixed onto the public name. */
-	parentNamespaces?: string[];
-	/** Symbol-stack entries from enclosing exports, extended with this symbol's name for warning metadata. */
-	parentSymbolScope?: string[];
-	/** Mutable counter shared across one top-level resolution that assigns each descriptor its type-resolution order. */
-	resolutionState?: ExportDescriptorResolutionState;
-	/**
-	 * The module or namespace listing the export, which decides whether it is reached
-	 * as a value, as a type only, or not at all. Without it, only the export symbol's
-	 * own alias chain is considered.
-	 */
-	containerSymbol?: ts.Symbol;
+  /** Namespace path inherited from enclosing namespace exports, prefixed onto the public name. */
+  parentNamespaces?: string[];
+  /** Symbol-stack entries from enclosing exports, extended with this symbol's name for warning metadata. */
+  parentSymbolScope?: string[];
+  /** Mutable counter shared across one top-level resolution that assigns each descriptor its type-resolution order. */
+  resolutionState?: ExportDescriptorResolutionState;
+  /**
+   * The module or namespace listing the export, which decides whether it is reached
+   * as a value, as a type only, or not at all. Without it, only the export symbol's
+   * own alias chain is considered.
+   */
+  containerSymbol?: ts.Symbol;
 }
 
 /**
@@ -105,74 +105,74 @@ export interface ExportDescriptorOptions {
  * @returns One or more normalized descriptors, or `undefined` when the symbol has no extractable declaration or reaches its container only as a value that type-only sites strip.
  */
 export function resolveExportDescriptors(
-	exportSymbol: ts.Symbol,
-	context: ScopedParserContext,
-	{
-		parentNamespaces = [],
-		parentSymbolScope = [],
-		resolutionState = { nextTypeResolutionOrder: 0 },
-		containerSymbol,
-	}: ExportDescriptorOptions = {},
+  exportSymbol: ts.Symbol,
+  context: ScopedParserContext,
+  {
+    parentNamespaces = [],
+    parentSymbolScope = [],
+    resolutionState = { nextTypeResolutionOrder: 0 },
+    containerSymbol,
+  }: ExportDescriptorOptions = {},
 ): ExportDescriptor[] | undefined {
-	return context.runWithSymbolScope(exportSymbol.name, () => {
-		try {
-			const reach = getExportReach(exportSymbol, containerSymbol, context.checker);
-			if (reach === 'hidden') {
-				return;
-			}
+  return context.runWithSymbolScope(exportSymbol.name, () => {
+    try {
+      const reach = getExportReach(exportSymbol, containerSymbol, context.checker);
+      if (reach === 'hidden') {
+        return undefined;
+      }
 
-			const scope: ExportDescriptorScope = {
-				context,
-				parentNamespaces,
-				symbolScope: [...parentSymbolScope, exportSymbol.name],
-				resolutionState,
-			};
+      const scope: ExportDescriptorScope = {
+        context,
+        parentNamespaces,
+        symbolScope: [...parentSymbolScope, exportSymbol.name],
+        resolutionState,
+      };
 
-			const declarations = exportSymbol.declarations;
-			if (!declarations || declarations.length === 0) {
-				return;
-			}
+      const declarations = exportSymbol.declarations;
+      if (!declarations || declarations.length === 0) {
+        return undefined;
+      }
 
-			const exportDeclaration = declarations[0];
-			const namespaceDescriptors = resolveMergedNamespaceDescriptors(
-				exportSymbol,
-				exportSymbol.name,
-				scope,
-			);
+      const exportDeclaration = declarations[0];
+      const namespaceDescriptors = resolveMergedNamespaceDescriptors(
+        exportSymbol,
+        exportSymbol.name,
+        scope,
+      );
 
-			let descriptors: ExportDescriptor[] | undefined;
-			if (ts.isModuleDeclaration(exportDeclaration)) {
-				descriptors = asNonEmptyDescriptors(namespaceDescriptors);
-			} else if (ts.isNamespaceExport(exportDeclaration)) {
-				descriptors = resolveNamespaceExportDescriptors(exportSymbol, scope);
-			} else if (ts.isExportSpecifier(exportDeclaration)) {
-				descriptors = resolveExportSpecifierDescriptors(
-					exportSymbol,
-					exportDeclaration,
-					scope,
-					namespaceDescriptors,
-				);
-			} else {
-				descriptors = withNamespaceDescriptors(
-					withDeclarationSpaces(
-						resolveDeclarationExportDescriptor(exportSymbol, exportDeclaration, scope),
-						exportSymbol,
-						context.checker,
-					),
-					namespaceDescriptors,
-				);
-			}
+      let descriptors: ExportDescriptor[] | undefined;
+      if (ts.isModuleDeclaration(exportDeclaration)) {
+        descriptors = asNonEmptyDescriptors(namespaceDescriptors);
+      } else if (ts.isNamespaceExport(exportDeclaration)) {
+        descriptors = resolveNamespaceExportDescriptors(exportSymbol, scope);
+      } else if (ts.isExportSpecifier(exportDeclaration)) {
+        descriptors = resolveExportSpecifierDescriptors(
+          exportSymbol,
+          exportDeclaration,
+          scope,
+          namespaceDescriptors,
+        );
+      } else {
+        descriptors = withNamespaceDescriptors(
+          withDeclarationSpaces(
+            resolveDeclarationExportDescriptor(exportSymbol, exportDeclaration, scope),
+            exportSymbol,
+            context.checker,
+          ),
+          namespaceDescriptors,
+        );
+      }
 
-			// The members of a namespace merged onto a type-only export are type-only too.
-			return withTypeOnlyExport(descriptors, reach === 'typeOnly');
-		} catch (error) {
-			if (!(error instanceof ParserError)) {
-				throw new ParserError(error, context.parsedSymbolStack);
-			}
+      // The members of a namespace merged onto a type-only export are type-only too.
+      return withTypeOnlyExport(descriptors, reach === 'typeOnly');
+    } catch (error) {
+      if (!(error instanceof ParserError)) {
+        throw new ParserError(error, context.parsedSymbolStack);
+      }
 
-			throw error;
-		}
-	});
+      throw error;
+    }
+  });
 }
 
 /**
@@ -185,17 +185,17 @@ export function resolveExportDescriptors(
  * @param scope Current resolution scope (checker/scope helpers, namespace path, symbol scope, order counter).
  */
 function resolveNamespaceExportDescriptors(
-	exportSymbol: ts.Symbol,
-	scope: ExportDescriptorScope,
+  exportSymbol: ts.Symbol,
+  scope: ExportDescriptorScope,
 ): ExportDescriptor[] | undefined {
-	const aliasedSymbol = scope.context.checker.getAliasedSymbol(exportSymbol);
-	if (!aliasedSymbol) {
-		return;
-	}
+  const aliasedSymbol = scope.context.checker.getAliasedSymbol(exportSymbol);
+  if (!aliasedSymbol) {
+    return undefined;
+  }
 
-	return asNonEmptyDescriptors(
-		resolveNamespaceMemberDescriptors(aliasedSymbol, exportSymbol.name, scope),
-	);
+  return asNonEmptyDescriptors(
+    resolveNamespaceMemberDescriptors(aliasedSymbol, exportSymbol.name, scope),
+  );
 }
 
 /**
@@ -211,88 +211,88 @@ function resolveNamespaceExportDescriptors(
  * @param namespaceDescriptors Descriptors already collected for namespaces merged onto this symbol.
  */
 function resolveExportSpecifierDescriptors(
-	exportSymbol: ts.Symbol,
-	exportDeclaration: ts.ExportSpecifier,
-	scope: ExportDescriptorScope,
-	namespaceDescriptors: ExportDescriptor[],
+  exportSymbol: ts.Symbol,
+  exportDeclaration: ts.ExportSpecifier,
+  scope: ExportDescriptorScope,
+  namespaceDescriptors: ExportDescriptor[],
 ): ExportDescriptor[] | undefined {
-	const { context, parentNamespaces, symbolScope, resolutionState } = scope;
-	const targetSymbol = resolveExportSpecifierTarget(exportSymbol, exportDeclaration, context);
-	if (!targetSymbol) {
-		return withNamespaceDescriptors(undefined, namespaceDescriptors);
-	}
+  const { context, parentNamespaces, symbolScope, resolutionState } = scope;
+  const targetSymbol = resolveExportSpecifierTarget(exportSymbol, exportDeclaration, context);
+  if (!targetSymbol) {
+    return withNamespaceDescriptors(undefined, namespaceDescriptors);
+  }
 
-	const targetNamespaceDescriptors = resolveMergedNamespaceDescriptors(
-		targetSymbol,
-		exportSymbol.name,
-		scope,
-	);
-	const isReExport = isModuleReExportSpecifier(exportDeclaration);
-	const reexportedFrom =
-		isReExport && targetSymbol.name !== exportSymbol.name ? targetSymbol.name : undefined;
-	const targetTypeAlias = findAliasedTypeAliasDeclaration(targetSymbol, context.checker);
-	const targetTypeNode = targetTypeAlias?.type;
-	return withNamespaceDescriptors(
-		{
-			name: exportSymbol.name,
-			symbol: targetSymbol,
-			declarationSpaces: getDeclarationSpaces(exportSymbol, context.checker),
-			getType: () => getExportSpecifierType(targetSymbol, exportDeclaration, context),
-			parentNamespaces,
-			typeResolutionOrder: getNextTypeResolutionOrder(resolutionState),
-			symbolScope,
-			reexportedFrom,
-			typeNode:
-				targetTypeAlias &&
-				shouldPreserveTypeAliasNode(targetTypeAlias, reexportedFrom, context.includeExternalTypes)
-					? targetTypeNode
-					: undefined,
-		},
-		[...namespaceDescriptors, ...targetNamespaceDescriptors],
-	);
+  const targetNamespaceDescriptors = resolveMergedNamespaceDescriptors(
+    targetSymbol,
+    exportSymbol.name,
+    scope,
+  );
+  const isReExport = isModuleReExportSpecifier(exportDeclaration);
+  const reexportedFrom =
+    isReExport && targetSymbol.name !== exportSymbol.name ? targetSymbol.name : undefined;
+  const targetTypeAlias = findAliasedTypeAliasDeclaration(targetSymbol, context.checker);
+  const targetTypeNode = targetTypeAlias?.type;
+  return withNamespaceDescriptors(
+    {
+      name: exportSymbol.name,
+      symbol: targetSymbol,
+      declarationSpaces: getDeclarationSpaces(exportSymbol, context.checker),
+      getType: () => getExportSpecifierType(targetSymbol, exportDeclaration, context),
+      parentNamespaces,
+      typeResolutionOrder: getNextTypeResolutionOrder(resolutionState),
+      symbolScope,
+      reexportedFrom,
+      typeNode:
+        targetTypeAlias &&
+        shouldPreserveTypeAliasNode(targetTypeAlias, reexportedFrom, context.includeExternalTypes)
+          ? targetTypeNode
+          : undefined,
+    },
+    [...namespaceDescriptors, ...targetNamespaceDescriptors],
+  );
 }
 
 function shouldPreserveTypeAliasNode(
-	declaration: ts.TypeAliasDeclaration,
-	reexportedFrom: string | undefined,
-	includeExternalTypes: boolean,
+  declaration: ts.TypeAliasDeclaration,
+  reexportedFrom: string | undefined,
+  includeExternalTypes: boolean,
 ): boolean {
-	const isExternal = declarationHasNodeModulesPathSegment(declaration);
-	if (isExternal && !reexportedFrom) {
-		return true;
-	}
+  const isExternal = declarationHasNodeModulesPathSegment(declaration);
+  if (isExternal && !reexportedFrom) {
+    return true;
+  }
 
-	const analysis = analyzeTypeAliasSource(declaration, includeExternalTypes);
-	return (
-		(isExternal && analysis.replaysKeyof) ||
-		analysis.referencesProjectImport ||
-		analysis.containsKeyof
-	);
+  const analysis = analyzeTypeAliasSource(declaration, includeExternalTypes);
+  return (
+    (isExternal && analysis.replaysKeyof) ||
+    analysis.referencesProjectImport ||
+    analysis.containsKeyof
+  );
 }
 
 function findAliasedTypeAliasDeclaration(
-	symbol: ts.Symbol,
-	checker: ts.TypeChecker,
-	seen: Set<ts.Symbol> = new Set(),
+  symbol: ts.Symbol,
+  checker: ts.TypeChecker,
+  seen: Set<ts.Symbol> = new Set(),
 ): ts.TypeAliasDeclaration | undefined {
-	if (seen.has(symbol)) {
-		return undefined;
-	}
-	seen.add(symbol);
+  if (seen.has(symbol)) {
+    return undefined;
+  }
+  seen.add(symbol);
 
-	const declaration = symbol.declarations?.find(ts.isTypeAliasDeclaration);
-	if (declaration) {
-		return declaration;
-	}
+  const declaration = symbol.declarations?.find(ts.isTypeAliasDeclaration);
+  if (declaration) {
+    return declaration;
+  }
 
-	if (!(symbol.flags & ts.SymbolFlags.Alias)) {
-		return undefined;
-	}
+  if (!(symbol.flags & ts.SymbolFlags.Alias)) {
+    return undefined;
+  }
 
-	const aliasedSymbol = checker.getAliasedSymbol(symbol);
-	return aliasedSymbol && aliasedSymbol !== symbol
-		? findAliasedTypeAliasDeclaration(aliasedSymbol, checker, seen)
-		: undefined;
+  const aliasedSymbol = checker.getAliasedSymbol(symbol);
+  return aliasedSymbol && aliasedSymbol !== symbol
+    ? findAliasedTypeAliasDeclaration(aliasedSymbol, checker, seen)
+    : undefined;
 }
 
 /**
@@ -307,33 +307,35 @@ function findAliasedTypeAliasDeclaration(
  * @param scope Current resolution scope.
  */
 function resolveDeclarationExportDescriptor(
-	exportSymbol: ts.Symbol,
-	exportDeclaration: ts.Declaration,
-	scope: ExportDescriptorScope,
+  exportSymbol: ts.Symbol,
+  exportDeclaration: ts.Declaration,
+  scope: ExportDescriptorScope,
 ): ExportDescriptorDraft | undefined {
-	if (ts.isExportAssignment(exportDeclaration)) {
-		return resolveDefaultExportDescriptor(exportSymbol, exportDeclaration, scope);
-	}
+  if (ts.isExportAssignment(exportDeclaration)) {
+    return resolveDefaultExportDescriptor(exportSymbol, exportDeclaration, scope);
+  }
 
-	if (ts.isVariableDeclaration(exportDeclaration) || ts.isFunctionDeclaration(exportDeclaration)) {
-		return resolveValueExportDescriptor(exportSymbol, exportDeclaration, scope);
-	}
+  if (ts.isVariableDeclaration(exportDeclaration) || ts.isFunctionDeclaration(exportDeclaration)) {
+    return resolveValueExportDescriptor(exportSymbol, exportDeclaration, scope);
+  }
 
-	if (ts.isInterfaceDeclaration(exportDeclaration)) {
-		return resolveInterfaceExportDescriptor(exportSymbol, exportDeclaration, scope);
-	}
+  if (ts.isInterfaceDeclaration(exportDeclaration)) {
+    return resolveInterfaceExportDescriptor(exportSymbol, exportDeclaration, scope);
+  }
 
-	if (ts.isEnumDeclaration(exportDeclaration)) {
-		return resolveEnumExportDescriptor(exportSymbol, exportDeclaration, scope);
-	}
+  if (ts.isEnumDeclaration(exportDeclaration)) {
+    return resolveEnumExportDescriptor(exportSymbol, exportDeclaration, scope);
+  }
 
-	if (ts.isClassDeclaration(exportDeclaration)) {
-		return resolveClassExportDescriptor(exportSymbol, exportDeclaration, scope);
-	}
+  if (ts.isClassDeclaration(exportDeclaration)) {
+    return resolveClassExportDescriptor(exportSymbol, exportDeclaration, scope);
+  }
 
-	if (ts.isTypeAliasDeclaration(exportDeclaration)) {
-		return resolveTypeAliasExportDescriptor(exportSymbol, exportDeclaration, scope);
-	}
+  if (ts.isTypeAliasDeclaration(exportDeclaration)) {
+    return resolveTypeAliasExportDescriptor(exportSymbol, exportDeclaration, scope);
+  }
+
+  return undefined;
 }
 
 /**
@@ -347,25 +349,25 @@ function resolveDeclarationExportDescriptor(
  * @param scope Current resolution scope.
  */
 function resolveDefaultExportDescriptor(
-	exportSymbol: ts.Symbol,
-	exportDeclaration: ts.ExportAssignment,
-	scope: ExportDescriptorScope,
+  exportSymbol: ts.Symbol,
+  exportDeclaration: ts.ExportAssignment,
+  scope: ExportDescriptorScope,
 ): ExportDescriptorDraft | undefined {
-	const { context, parentNamespaces, symbolScope, resolutionState } = scope;
-	const exportedSymbol = context.checker.getSymbolAtLocation(exportDeclaration.expression);
-	if (!exportedSymbol) {
-		warnMissingDefaultExportSymbol(exportDeclaration, context);
-		return;
-	}
+  const { context, parentNamespaces, symbolScope, resolutionState } = scope;
+  const exportedSymbol = context.checker.getSymbolAtLocation(exportDeclaration.expression);
+  if (!exportedSymbol) {
+    warnMissingDefaultExportSymbol(exportDeclaration, context);
+    return undefined;
+  }
 
-	return {
-		name: exportSymbol.name,
-		symbol: exportedSymbol,
-		getType: () => context.checker.getTypeOfSymbol(exportedSymbol),
-		parentNamespaces,
-		typeResolutionOrder: getNextTypeResolutionOrder(resolutionState),
-		symbolScope,
-	};
+  return {
+    name: exportSymbol.name,
+    symbol: exportedSymbol,
+    getType: () => context.checker.getTypeOfSymbol(exportedSymbol),
+    parentNamespaces,
+    typeResolutionOrder: getNextTypeResolutionOrder(resolutionState),
+    symbolScope,
+  };
 }
 
 /**
@@ -379,28 +381,28 @@ function resolveDefaultExportDescriptor(
  * @param scope Current resolution scope.
  */
 function resolveValueExportDescriptor(
-	exportSymbol: ts.Symbol,
-	exportDeclaration: ts.VariableDeclaration | ts.FunctionDeclaration,
-	scope: ExportDescriptorScope,
+  exportSymbol: ts.Symbol,
+  exportDeclaration: ts.VariableDeclaration | ts.FunctionDeclaration,
+  scope: ExportDescriptorScope,
 ): ExportDescriptorDraft | undefined {
-	if (!exportDeclaration.name) {
-		return;
-	}
+  if (!exportDeclaration.name) {
+    return undefined;
+  }
 
-	const { context, parentNamespaces, symbolScope, resolutionState } = scope;
-	const exportedSymbol = context.checker.getSymbolAtLocation(exportDeclaration.name);
-	if (!exportedSymbol) {
-		return;
-	}
+  const { context, parentNamespaces, symbolScope, resolutionState } = scope;
+  const exportedSymbol = context.checker.getSymbolAtLocation(exportDeclaration.name);
+  if (!exportedSymbol) {
+    return undefined;
+  }
 
-	return {
-		name: exportSymbol.name,
-		symbol: exportedSymbol,
-		getType: () => context.checker.getTypeOfSymbol(exportedSymbol),
-		parentNamespaces,
-		typeResolutionOrder: getNextTypeResolutionOrder(resolutionState),
-		symbolScope,
-	};
+  return {
+    name: exportSymbol.name,
+    symbol: exportedSymbol,
+    getType: () => context.checker.getTypeOfSymbol(exportedSymbol),
+    parentNamespaces,
+    typeResolutionOrder: getNextTypeResolutionOrder(resolutionState),
+    symbolScope,
+  };
 }
 
 /**
@@ -414,25 +416,25 @@ function resolveValueExportDescriptor(
  * @param scope Current resolution scope.
  */
 function resolveInterfaceExportDescriptor(
-	exportSymbol: ts.Symbol,
-	exportDeclaration: ts.InterfaceDeclaration,
-	scope: ExportDescriptorScope,
+  exportSymbol: ts.Symbol,
+  exportDeclaration: ts.InterfaceDeclaration,
+  scope: ExportDescriptorScope,
 ): ExportDescriptorDraft | undefined {
-	const { context, parentNamespaces, symbolScope, resolutionState } = scope;
-	const exportedSymbol = context.checker.getSymbolAtLocation(exportDeclaration.name);
-	if (!exportedSymbol) {
-		return;
-	}
+  const { context, parentNamespaces, symbolScope, resolutionState } = scope;
+  const exportedSymbol = context.checker.getSymbolAtLocation(exportDeclaration.name);
+  if (!exportedSymbol) {
+    return undefined;
+  }
 
-	return {
-		name: exportSymbol.name,
-		symbol: exportedSymbol,
-		getType: () => context.checker.getTypeAtLocation(exportDeclaration),
-		parentNamespaces,
-		typeResolutionOrder: getNextTypeResolutionOrder(resolutionState),
-		symbolScope,
-		extendsTypes: extractExtendsTypes(exportDeclaration.heritageClauses, context.checker),
-	};
+  return {
+    name: exportSymbol.name,
+    symbol: exportedSymbol,
+    getType: () => context.checker.getTypeAtLocation(exportDeclaration),
+    parentNamespaces,
+    typeResolutionOrder: getNextTypeResolutionOrder(resolutionState),
+    symbolScope,
+    extendsTypes: extractExtendsTypes(exportDeclaration.heritageClauses, context.checker),
+  };
 }
 
 /**
@@ -447,30 +449,30 @@ function resolveInterfaceExportDescriptor(
  * @param scope Current resolution scope.
  */
 function resolveEnumExportDescriptor(
-	exportSymbol: ts.Symbol,
-	exportDeclaration: ts.EnumDeclaration,
-	scope: ExportDescriptorScope,
+  exportSymbol: ts.Symbol,
+  exportDeclaration: ts.EnumDeclaration,
+  scope: ExportDescriptorScope,
 ): ExportDescriptorDraft | undefined {
-	const { context, parentNamespaces, symbolScope, resolutionState } = scope;
-	const exportedSymbol = context.checker.getSymbolAtLocation(exportDeclaration.name);
-	if (!exportedSymbol) {
-		return;
-	}
+  const { context, parentNamespaces, symbolScope, resolutionState } = scope;
+  const exportedSymbol = context.checker.getSymbolAtLocation(exportDeclaration.name);
+  if (!exportedSymbol) {
+    return undefined;
+  }
 
-	const enumDeclaration = exportedSymbol.declarations?.[0];
-	if (!enumDeclaration) {
-		warnMissingEnumDeclaration(exportedSymbol, exportDeclaration, context);
-		return;
-	}
+  const enumDeclaration = exportedSymbol.declarations?.[0];
+  if (!enumDeclaration) {
+    warnMissingEnumDeclaration(exportedSymbol, exportDeclaration, context);
+    return undefined;
+  }
 
-	return {
-		name: exportSymbol.name,
-		symbol: exportedSymbol,
-		getType: () => context.checker.getTypeAtLocation(enumDeclaration),
-		parentNamespaces,
-		typeResolutionOrder: getNextTypeResolutionOrder(resolutionState),
-		symbolScope,
-	};
+  return {
+    name: exportSymbol.name,
+    symbol: exportedSymbol,
+    getType: () => context.checker.getTypeAtLocation(enumDeclaration),
+    parentNamespaces,
+    typeResolutionOrder: getNextTypeResolutionOrder(resolutionState),
+    symbolScope,
+  };
 }
 
 /**
@@ -484,28 +486,28 @@ function resolveEnumExportDescriptor(
  * @param scope Current resolution scope.
  */
 function resolveClassExportDescriptor(
-	exportSymbol: ts.Symbol,
-	exportDeclaration: ts.ClassDeclaration,
-	scope: ExportDescriptorScope,
+  exportSymbol: ts.Symbol,
+  exportDeclaration: ts.ClassDeclaration,
+  scope: ExportDescriptorScope,
 ): ExportDescriptorDraft | undefined {
-	if (!exportDeclaration.name) {
-		return;
-	}
+  if (!exportDeclaration.name) {
+    return undefined;
+  }
 
-	const { context, parentNamespaces, symbolScope, resolutionState } = scope;
-	const exportedSymbol = context.checker.getSymbolAtLocation(exportDeclaration.name);
-	if (!exportedSymbol) {
-		return;
-	}
+  const { context, parentNamespaces, symbolScope, resolutionState } = scope;
+  const exportedSymbol = context.checker.getSymbolAtLocation(exportDeclaration.name);
+  if (!exportedSymbol) {
+    return undefined;
+  }
 
-	return {
-		name: exportSymbol.name,
-		symbol: exportedSymbol,
-		getType: () => context.checker.getTypeOfSymbol(exportedSymbol),
-		parentNamespaces,
-		typeResolutionOrder: getNextTypeResolutionOrder(resolutionState),
-		symbolScope,
-	};
+  return {
+    name: exportSymbol.name,
+    symbol: exportedSymbol,
+    getType: () => context.checker.getTypeOfSymbol(exportedSymbol),
+    parentNamespaces,
+    typeResolutionOrder: getNextTypeResolutionOrder(resolutionState),
+    symbolScope,
+  };
 }
 
 /**
@@ -519,25 +521,25 @@ function resolveClassExportDescriptor(
  * @param scope Current resolution scope.
  */
 function resolveTypeAliasExportDescriptor(
-	exportSymbol: ts.Symbol,
-	exportDeclaration: ts.TypeAliasDeclaration,
-	scope: ExportDescriptorScope,
+  exportSymbol: ts.Symbol,
+  exportDeclaration: ts.TypeAliasDeclaration,
+  scope: ExportDescriptorScope,
 ): ExportDescriptorDraft | undefined {
-	const { context, parentNamespaces, symbolScope, resolutionState } = scope;
-	const exportedSymbol = context.checker.getSymbolAtLocation(exportDeclaration.name);
-	if (!exportedSymbol) {
-		return;
-	}
+  const { context, parentNamespaces, symbolScope, resolutionState } = scope;
+  const exportedSymbol = context.checker.getSymbolAtLocation(exportDeclaration.name);
+  if (!exportedSymbol) {
+    return undefined;
+  }
 
-	return {
-		name: exportSymbol.name,
-		symbol: exportedSymbol,
-		getType: () => context.checker.getTypeAtLocation(exportDeclaration),
-		parentNamespaces,
-		typeResolutionOrder: getNextTypeResolutionOrder(resolutionState),
-		symbolScope,
-		typeNode: exportDeclaration.type,
-	};
+  return {
+    name: exportSymbol.name,
+    symbol: exportedSymbol,
+    getType: () => context.checker.getTypeAtLocation(exportDeclaration),
+    parentNamespaces,
+    typeResolutionOrder: getNextTypeResolutionOrder(resolutionState),
+    symbolScope,
+    typeNode: exportDeclaration.type,
+  };
 }
 
 /**
@@ -549,18 +551,18 @@ function resolveTypeAliasExportDescriptor(
  * @param context Parser context providing the TypeScript checker.
  */
 function resolveExportSpecifierTarget(
-	exportSymbol: ts.Symbol,
-	exportDeclaration: ts.ExportSpecifier,
-	context: ScopedParserContext,
+  exportSymbol: ts.Symbol,
+  exportDeclaration: ts.ExportSpecifier,
+  context: ScopedParserContext,
 ): ts.Symbol | undefined {
-	if (!isModuleReExportSpecifier(exportDeclaration)) {
-		return context.checker.getExportSpecifierLocalTargetSymbol(exportDeclaration);
-	}
+  if (!isModuleReExportSpecifier(exportDeclaration)) {
+    return context.checker.getExportSpecifierLocalTargetSymbol(exportDeclaration);
+  }
 
-	const aliasedSymbol = context.checker.getAliasedSymbol(exportSymbol);
-	return aliasedSymbol && aliasedSymbol !== exportSymbol
-		? aliasedSymbol
-		: context.checker.getExportSpecifierLocalTargetSymbol(exportDeclaration);
+  const aliasedSymbol = context.checker.getAliasedSymbol(exportSymbol);
+  return aliasedSymbol && aliasedSymbol !== exportSymbol
+    ? aliasedSymbol
+    : context.checker.getExportSpecifierLocalTargetSymbol(exportDeclaration);
 }
 
 /**
@@ -572,36 +574,36 @@ function resolveExportSpecifierTarget(
  * @param context Parser context providing the TypeScript checker.
  */
 function getExportSpecifierType(
-	targetSymbol: ts.Symbol,
-	exportDeclaration: ts.ExportSpecifier,
-	context: ScopedParserContext,
+  targetSymbol: ts.Symbol,
+  exportDeclaration: ts.ExportSpecifier,
+  context: ScopedParserContext,
 ): ts.Type {
-	const targetDeclaration = targetSymbol.declarations?.[0];
-	if (targetDeclaration && ts.isImportSpecifier(targetDeclaration)) {
-		const resolvedSymbol = context.checker.getAliasedSymbol(targetSymbol);
-		const resolvedDeclaration = resolvedSymbol?.declarations?.[0];
-		if (
-			resolvedDeclaration &&
-			(ts.isClassDeclaration(resolvedDeclaration) || ts.isClassExpression(resolvedDeclaration))
-		) {
-			return context.checker.getTypeOfSymbol(resolvedSymbol);
-		}
+  const targetDeclaration = targetSymbol.declarations?.[0];
+  if (targetDeclaration && ts.isImportSpecifier(targetDeclaration)) {
+    const resolvedSymbol = context.checker.getAliasedSymbol(targetSymbol);
+    const resolvedDeclaration = resolvedSymbol?.declarations?.[0];
+    if (
+      resolvedDeclaration &&
+      (ts.isClassDeclaration(resolvedDeclaration) || ts.isClassExpression(resolvedDeclaration))
+    ) {
+      return context.checker.getTypeOfSymbol(resolvedSymbol);
+    }
 
-		return context.checker.getTypeAtLocation(exportDeclaration);
-	}
+    return context.checker.getTypeAtLocation(exportDeclaration);
+  }
 
-	if (
-		targetDeclaration &&
-		(ts.isClassDeclaration(targetDeclaration) || ts.isClassExpression(targetDeclaration))
-	) {
-		return context.checker.getTypeOfSymbol(targetSymbol);
-	}
+  if (
+    targetDeclaration &&
+    (ts.isClassDeclaration(targetDeclaration) || ts.isClassExpression(targetDeclaration))
+  ) {
+    return context.checker.getTypeOfSymbol(targetSymbol);
+  }
 
-	if (targetDeclaration) {
-		return context.checker.getTypeAtLocation(targetDeclaration);
-	}
+  if (targetDeclaration) {
+    return context.checker.getTypeAtLocation(targetDeclaration);
+  }
 
-	return context.checker.getTypeOfSymbol(targetSymbol);
+  return context.checker.getTypeOfSymbol(targetSymbol);
 }
 
 /**
@@ -613,32 +615,32 @@ function getExportSpecifierType(
  * @param scope Current resolution scope.
  */
 function resolveMergedNamespaceDescriptors(
-	namespaceOwnerSymbol: ts.Symbol,
-	namespaceExportName: string,
-	scope: ExportDescriptorScope,
+  namespaceOwnerSymbol: ts.Symbol,
+  namespaceExportName: string,
+  scope: ExportDescriptorScope,
 ): ExportDescriptor[] {
-	const namespaceDescriptors: ExportDescriptor[] = [];
-	const declarations = namespaceOwnerSymbol.declarations;
-	if (!declarations) {
-		return namespaceDescriptors;
-	}
+  const namespaceDescriptors: ExportDescriptor[] = [];
+  const declarations = namespaceOwnerSymbol.declarations;
+  if (!declarations) {
+    return namespaceDescriptors;
+  }
 
-	for (const declaration of declarations) {
-		if (!ts.isModuleDeclaration(declaration)) {
-			continue;
-		}
+  for (const declaration of declarations) {
+    if (!ts.isModuleDeclaration(declaration)) {
+      continue;
+    }
 
-		const namespaceSymbol = scope.context.checker.getSymbolAtLocation(declaration.name);
-		if (!namespaceSymbol) {
-			continue;
-		}
+    const namespaceSymbol = scope.context.checker.getSymbolAtLocation(declaration.name);
+    if (!namespaceSymbol) {
+      continue;
+    }
 
-		namespaceDescriptors.push(
-			...resolveNamespaceMemberDescriptors(namespaceSymbol, namespaceExportName, scope),
-		);
-	}
+    namespaceDescriptors.push(
+      ...resolveNamespaceMemberDescriptors(namespaceSymbol, namespaceExportName, scope),
+    );
+  }
 
-	return namespaceDescriptors;
+  return namespaceDescriptors;
 }
 
 /**
@@ -650,27 +652,27 @@ function resolveMergedNamespaceDescriptors(
  * @param scope Current resolution scope.
  */
 function resolveNamespaceMemberDescriptors(
-	namespaceSymbol: ts.Symbol,
-	namespaceExportName: string,
-	scope: ExportDescriptorScope,
+  namespaceSymbol: ts.Symbol,
+  namespaceExportName: string,
+  scope: ExportDescriptorScope,
 ): ExportDescriptor[] {
-	const { context, parentNamespaces, symbolScope, resolutionState } = scope;
-	const namespaceMembers = context.checker.getExportsOfModule(namespaceSymbol);
-	const descriptors: ExportDescriptor[] = [];
+  const { context, parentNamespaces, symbolScope, resolutionState } = scope;
+  const namespaceMembers = context.checker.getExportsOfModule(namespaceSymbol);
+  const descriptors: ExportDescriptor[] = [];
 
-	for (const member of namespaceMembers) {
-		const memberDescriptors = resolveExportDescriptors(member, context, {
-			parentNamespaces: [...parentNamespaces, namespaceExportName],
-			parentSymbolScope: symbolScope,
-			resolutionState,
-			containerSymbol: namespaceSymbol,
-		});
-		if (memberDescriptors) {
-			descriptors.push(...memberDescriptors);
-		}
-	}
+  for (const member of namespaceMembers) {
+    const memberDescriptors = resolveExportDescriptors(member, context, {
+      parentNamespaces: [...parentNamespaces, namespaceExportName],
+      parentSymbolScope: symbolScope,
+      resolutionState,
+      containerSymbol: namespaceSymbol,
+    });
+    if (memberDescriptors) {
+      descriptors.push(...memberDescriptors);
+    }
+  }
 
-	return descriptors;
+  return descriptors;
 }
 
 /**
@@ -679,7 +681,9 @@ function resolveNamespaceMemberDescriptors(
  * @param state Shared resolution state holding the next order value.
  */
 function getNextTypeResolutionOrder(state: ExportDescriptorResolutionState): number {
-	return state.nextTypeResolutionOrder++;
+  const order = state.nextTypeResolutionOrder;
+  state.nextTypeResolutionOrder += 1;
+  return order;
 }
 
 /**
@@ -690,13 +694,13 @@ function getNextTypeResolutionOrder(state: ExportDescriptorResolutionState): num
  * @param namespaceDescriptors Descriptors collected for merged namespace members.
  */
 function withNamespaceDescriptors(
-	mainDescriptor: ExportDescriptor | undefined,
-	namespaceDescriptors: ExportDescriptor[],
+  mainDescriptor: ExportDescriptor | undefined,
+  namespaceDescriptors: ExportDescriptor[],
 ): ExportDescriptor[] | undefined {
-	const descriptors = mainDescriptor
-		? [mainDescriptor, ...namespaceDescriptors]
-		: namespaceDescriptors;
-	return asNonEmptyDescriptors(descriptors);
+  const descriptors = mainDescriptor
+    ? [mainDescriptor, ...namespaceDescriptors]
+    : namespaceDescriptors;
+  return asNonEmptyDescriptors(descriptors);
 }
 
 /**
@@ -705,7 +709,7 @@ function withNamespaceDescriptors(
  * @param descriptors Candidate descriptor list.
  */
 function asNonEmptyDescriptors(descriptors: ExportDescriptor[]): ExportDescriptor[] | undefined {
-	return descriptors.length > 0 ? descriptors : undefined;
+  return descriptors.length > 0 ? descriptors : undefined;
 }
 
 /**
@@ -716,11 +720,11 @@ function asNonEmptyDescriptors(descriptors: ExportDescriptor[]): ExportDescripto
  * @param checker Type checker for walking the export symbol's alias chain.
  */
 function withDeclarationSpaces(
-	draft: ExportDescriptorDraft | undefined,
-	exportSymbol: ts.Symbol,
-	checker: ts.TypeChecker,
+  draft: ExportDescriptorDraft | undefined,
+  exportSymbol: ts.Symbol,
+  checker: ts.TypeChecker,
 ): ExportDescriptor | undefined {
-	return draft && { ...draft, declarationSpaces: getDeclarationSpaces(exportSymbol, checker) };
+  return draft && { ...draft, declarationSpaces: getDeclarationSpaces(exportSymbol, checker) };
 }
 
 /**
@@ -731,15 +735,15 @@ function withDeclarationSpaces(
  * @param isTypeOnlyExport Whether the export is reached only through type-only sites.
  */
 function withTypeOnlyExport(
-	descriptors: ExportDescriptor[] | undefined,
-	isTypeOnlyExport: boolean,
+  descriptors: ExportDescriptor[] | undefined,
+  isTypeOnlyExport: boolean,
 ): ExportDescriptor[] | undefined {
-	return isTypeOnlyExport
-		? descriptors?.map((descriptor) => ({
-				...descriptor,
-				declarationSpaces: { ...descriptor.declarationSpaces, isValue: false },
-			}))
-		: descriptors;
+  return isTypeOnlyExport
+    ? descriptors?.map((descriptor) => ({
+        ...descriptor,
+        declarationSpaces: { ...descriptor.declarationSpaces, isValue: false },
+      }))
+    : descriptors;
 }
 
 /**
@@ -749,10 +753,10 @@ function withTypeOnlyExport(
  * @param exportDeclaration The export specifier declaration.
  */
 function isModuleReExportSpecifier(exportDeclaration: ts.ExportSpecifier): boolean {
-	return (
-		ts.isExportDeclaration(exportDeclaration.parent.parent) &&
-		exportDeclaration.parent.parent.moduleSpecifier !== undefined
-	);
+  return (
+    ts.isExportDeclaration(exportDeclaration.parent.parent) &&
+    exportDeclaration.parent.parent.moduleSpecifier !== undefined
+  );
 }
 
 /**
@@ -764,23 +768,23 @@ function isModuleReExportSpecifier(exportDeclaration: ts.ExportSpecifier): boole
  * @param context Parser context used to format and dispatch the warning.
  */
 function warnMissingEnumDeclaration(
-	exportedSymbol: ts.Symbol,
-	exportDeclaration: ts.EnumDeclaration,
-	context: ScopedParserContext,
+  exportedSymbol: ts.Symbol,
+  exportDeclaration: ts.EnumDeclaration,
+  context: ScopedParserContext,
 ): void {
-	const { line, character } = context.sourceFile.getLineAndCharacterOfPosition(
-		exportDeclaration.getStart(context.sourceFile),
-	);
+  const { line, character } = context.sourceFile.getLineAndCharacterOfPosition(
+    exportDeclaration.getStart(context.sourceFile),
+  );
 
-	context.onWarning({
-		code: 'missing-enum-declaration',
-		message: `Type extraction warning: Could not find the declaration of enum "${exportedSymbol.name}" at "${context.sourceFile.fileName}:${line + 1}:${character + 1}". Skipping this export.`,
-		filePath: context.sourceFile.fileName,
-		line: line + 1,
-		column: character + 1,
-		parsedSymbolStack: [...context.parsedSymbolStack],
-		enumName: exportedSymbol.name,
-	});
+  context.onWarning({
+    code: 'missing-enum-declaration',
+    message: `Type extraction warning: Could not find the declaration of enum "${exportedSymbol.name}" at "${context.sourceFile.fileName}:${line + 1}:${character + 1}". Skipping this export.`,
+    filePath: context.sourceFile.fileName,
+    line: line + 1,
+    column: character + 1,
+    parsedSymbolStack: [...context.parsedSymbolStack],
+    enumName: exportedSymbol.name,
+  });
 }
 
 /**
@@ -791,24 +795,24 @@ function warnMissingEnumDeclaration(
  * @param context Parser context used to format and dispatch the warning.
  */
 function warnMissingDefaultExportSymbol(
-	exportDeclaration: ts.ExportAssignment,
-	context: ScopedParserContext,
+  exportDeclaration: ts.ExportAssignment,
+  context: ScopedParserContext,
 ): void {
-	const expression = exportDeclaration.expression;
-	const { line, character } = context.sourceFile.getLineAndCharacterOfPosition(
-		expression.getStart(context.sourceFile),
-	);
-	const sourceText = expression.getText(context.sourceFile);
+  const expression = exportDeclaration.expression;
+  const { line, character } = context.sourceFile.getLineAndCharacterOfPosition(
+    expression.getStart(context.sourceFile),
+  );
+  const sourceText = expression.getText(context.sourceFile);
 
-	context.onWarning({
-		code: 'missing-default-export-symbol',
-		message: `Type extraction warning: Could not find the symbol of default export "${sourceText}" at "${context.sourceFile.fileName}:${line + 1}:${character + 1}". Skipping this export.`,
-		filePath: context.sourceFile.fileName,
-		line: line + 1,
-		column: character + 1,
-		parsedSymbolStack: [...context.parsedSymbolStack],
-		sourceText,
-	});
+  context.onWarning({
+    code: 'missing-default-export-symbol',
+    message: `Type extraction warning: Could not find the symbol of default export "${sourceText}" at "${context.sourceFile.fileName}:${line + 1}:${character + 1}". Skipping this export.`,
+    filePath: context.sourceFile.fileName,
+    line: line + 1,
+    column: character + 1,
+    parsedSymbolStack: [...context.parsedSymbolStack],
+    sourceText,
+  });
 }
 
 /**
@@ -822,68 +826,68 @@ function warnMissingDefaultExportSymbol(
  * @param checker TypeScript checker used to resolve extended type symbols.
  */
 function extractExtendsTypes(
-	heritageClauses: ts.NodeArray<ts.HeritageClause> | undefined,
-	checker: ts.TypeChecker,
+  heritageClauses: ts.NodeArray<ts.HeritageClause> | undefined,
+  checker: ts.TypeChecker,
 ): ExtendsTypeInfo[] | undefined {
-	if (!heritageClauses) {
-		return undefined;
-	}
+  if (!heritageClauses) {
+    return undefined;
+  }
 
-	// Utility types where the first type argument is the base type
-	const utilityTypes = new Set(['Omit', 'Pick', 'Partial', 'Required', 'Readonly']);
+  // Utility types where the first type argument is the base type
+  const utilityTypes = new Set(['Omit', 'Pick', 'Partial', 'Required', 'Readonly']);
 
-	const extendsTypes: ExtendsTypeInfo[] = [];
-	for (const clause of heritageClauses) {
-		// Only process 'extends' clauses (SyntaxKind.ExtendsKeyword)
-		// Skip 'implements' clauses for now
-		if (clause.token !== ts.SyntaxKind.ExtendsKeyword) {
-			continue;
-		}
+  const extendsTypes: ExtendsTypeInfo[] = [];
+  for (const clause of heritageClauses) {
+    // Only process 'extends' clauses (SyntaxKind.ExtendsKeyword)
+    // Skip 'implements' clauses for now
+    if (clause.token !== ts.SyntaxKind.ExtendsKeyword) {
+      continue;
+    }
 
-		for (const typeExpr of clause.types) {
-			const baseTypeName = typeExpr.expression.getText();
+    for (const typeExpr of clause.types) {
+      const baseTypeName = typeExpr.expression.getText();
 
-			// Check if this is a utility type wrapping another type
-			// e.g., Omit<DialogRoot.Props, 'modal'> -> extract DialogRoot.Props
-			if (
-				utilityTypes.has(baseTypeName) &&
-				typeExpr.typeArguments &&
-				typeExpr.typeArguments.length > 0
-			) {
-				const firstTypeArg = typeExpr.typeArguments[0];
-				// Get the base type name from the first type argument (without its own type arguments)
-				const innerTypeName = ts.isTypeReferenceNode(firstTypeArg)
-					? firstTypeArg.typeName.getText()
-					: firstTypeArg.getText();
+      // Check if this is a utility type wrapping another type
+      // e.g., Omit<DialogRoot.Props, 'modal'> -> extract DialogRoot.Props
+      if (
+        utilityTypes.has(baseTypeName) &&
+        typeExpr.typeArguments &&
+        typeExpr.typeArguments.length > 0
+      ) {
+        const firstTypeArg = typeExpr.typeArguments[0];
+        // Get the base type name from the first type argument (without its own type arguments)
+        const innerTypeName = ts.isTypeReferenceNode(firstTypeArg)
+          ? firstTypeArg.typeName.getText()
+          : firstTypeArg.getText();
 
-				// Try to resolve the actual symbol, following type alias chains
-				const type = checker.getTypeAtLocation(firstTypeArg);
-				const symbol = resolveUnderlyingSymbol(type, checker);
-				const resolvedName = symbol?.name;
+        // Try to resolve the actual symbol, following type alias chains
+        const type = checker.getTypeAtLocation(firstTypeArg);
+        const symbol = resolveUnderlyingSymbol(type, checker);
+        const resolvedName = symbol?.name;
 
-				const info: ExtendsTypeInfo = { name: innerTypeName };
-				if (resolvedName && resolvedName !== innerTypeName && !isInternalSymbolName(resolvedName)) {
-					info.resolvedName = resolvedName;
-				}
+        const info: ExtendsTypeInfo = { name: innerTypeName };
+        if (resolvedName && resolvedName !== innerTypeName && !isInternalSymbolName(resolvedName)) {
+          info.resolvedName = resolvedName;
+        }
 
-				extendsTypes.push(info);
-			} else {
-				// Regular extends clause
-				const type = checker.getTypeAtLocation(typeExpr);
-				const symbol = resolveUnderlyingSymbol(type, checker);
-				const resolvedName = symbol?.name;
+        extendsTypes.push(info);
+      } else {
+        // Regular extends clause
+        const type = checker.getTypeAtLocation(typeExpr);
+        const symbol = resolveUnderlyingSymbol(type, checker);
+        const resolvedName = symbol?.name;
 
-				const info: ExtendsTypeInfo = { name: baseTypeName };
-				if (resolvedName && resolvedName !== baseTypeName && !isInternalSymbolName(resolvedName)) {
-					info.resolvedName = resolvedName;
-				}
+        const info: ExtendsTypeInfo = { name: baseTypeName };
+        if (resolvedName && resolvedName !== baseTypeName && !isInternalSymbolName(resolvedName)) {
+          info.resolvedName = resolvedName;
+        }
 
-				extendsTypes.push(info);
-			}
-		}
-	}
+        extendsTypes.push(info);
+      }
+    }
+  }
 
-	return extendsTypes.length > 0 ? extendsTypes : undefined;
+  return extendsTypes.length > 0 ? extendsTypes : undefined;
 }
 
 /**
@@ -895,34 +899,34 @@ function extractExtendsTypes(
  * @param checker TypeScript checker used to follow alias chains.
  */
 function resolveUnderlyingSymbol(type: ts.Type, checker: ts.TypeChecker): ts.Symbol | undefined {
-	const symbol = type.aliasSymbol ?? type.symbol;
+  const symbol = type.aliasSymbol ?? type.symbol;
 
-	if (!symbol) {
-		return undefined;
-	}
+  if (!symbol) {
+    return undefined;
+  }
 
-	// For type aliases, follow the chain to find the underlying type
-	// This handles generic type aliases like `type Props<T> = DialogProps<T>`
-	const aliasDecl = symbol.declarations?.[0];
-	if (aliasDecl && ts.isTypeAliasDeclaration(aliasDecl) && ts.isTypeReferenceNode(aliasDecl.type)) {
-		// Get the symbol from the type reference name, not from the resolved type
-		// This preserves the alias chain for generic types
-		const targetTypeName = aliasDecl.type.typeName;
-		const targetSymbol = checker.getSymbolAtLocation(targetTypeName);
+  // For type aliases, follow the chain to find the underlying type
+  // This handles generic type aliases like `type Props<T> = DialogProps<T>`
+  const aliasDecl = symbol.declarations?.[0];
+  if (aliasDecl && ts.isTypeAliasDeclaration(aliasDecl) && ts.isTypeReferenceNode(aliasDecl.type)) {
+    // Get the symbol from the type reference name, not from the resolved type
+    // This preserves the alias chain for generic types
+    const targetTypeName = aliasDecl.type.typeName;
+    const targetSymbol = checker.getSymbolAtLocation(targetTypeName);
 
-		if (targetSymbol && !isInternalSymbolName(targetSymbol.name) && targetSymbol !== symbol) {
-			// Check if the target is also a type alias - if so, recurse
-			const targetDecl = targetSymbol.declarations?.[0];
-			if (targetDecl && ts.isTypeAliasDeclaration(targetDecl)) {
-				const targetType = checker.getDeclaredTypeOfSymbol(targetSymbol);
-				const deeperSymbol = resolveUnderlyingSymbol(targetType, checker);
-				if (deeperSymbol && deeperSymbol !== targetSymbol) {
-					return deeperSymbol;
-				}
-			}
-			return targetSymbol;
-		}
-	}
+    if (targetSymbol && !isInternalSymbolName(targetSymbol.name) && targetSymbol !== symbol) {
+      // Check if the target is also a type alias - if so, recurse
+      const targetDecl = targetSymbol.declarations?.[0];
+      if (targetDecl && ts.isTypeAliasDeclaration(targetDecl)) {
+        const targetType = checker.getDeclaredTypeOfSymbol(targetSymbol);
+        const deeperSymbol = resolveUnderlyingSymbol(targetType, checker);
+        if (deeperSymbol && deeperSymbol !== targetSymbol) {
+          return deeperSymbol;
+        }
+      }
+      return targetSymbol;
+    }
+  }
 
-	return symbol;
+  return symbol;
 }

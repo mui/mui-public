@@ -7,27 +7,30 @@ them. Do not duplicate that material here.
 
 ## Project Basics
 
-- Use `pnpm`.
-- Use a Node.js version supported by `engines.node` in `package.json`.
 - Source lives under `src/`; fixture-based integration inputs live under
-  `test/fixtures/`.
-- Treat `dist/` as build output unless the user explicitly asks otherwise.
+  `test/fixtures/`. Fixtures are excluded from Prettier and ESLint, so keep
+  them byte-for-byte as written.
+- Treat `build/` as build output.
 
 ## Verification
 
 Run the narrowest useful check while iterating, then broaden before finishing.
+From the repository root:
 
-- `pnpm prettier`
-- `pnpm typecheck`
-- `pnpm typecheck:test-inputs`
-- `pnpm lint`
-- `pnpm test`
+- `pnpm test --run --project @mui/internal-typescript-api-extractor`
+- `pnpm -F @mui/internal-typescript-api-extractor typescript` (also typechecks
+  the fixture inputs)
+- `pnpm eslint` and `pnpm prettier`
+
+docs-infra consumes this package through its build output, so run
+`pnpm -F @mui/internal-typescript-api-extractor build` before testing
+docs-infra against a change here.
 
 For parser behavior changes that intentionally alter fixture output, regenerate
 expected JSON with:
 
-```sh
-pnpm test:regen
+```bash
+UPDATE_OUTPUT=true pnpm test --run --project @mui/internal-typescript-api-extractor
 ```
 
 Review generated fixture diffs carefully; they are part of the behavior contract.
@@ -49,8 +52,6 @@ same commit as the code they describe.
   callers drive the parser or adds an option worth demonstrating.
 - `README.md` stays a landing page: features, installation, quick start, and
   links. Detail belongs in `docs/`.
-
-`pnpm lint` checks the docs too, via Prettier and `markdownlint-cli2`.
 
 ## Architecture Guardrails
 

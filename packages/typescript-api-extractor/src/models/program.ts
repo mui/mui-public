@@ -1,5 +1,5 @@
-import { ModuleNode } from './module';
+import type { ModuleNode } from './module';
 
 export class ProgramNode {
-	constructor(public modules: ModuleNode[]) {}
+  constructor(public modules: ModuleNode[]) {}
 }
