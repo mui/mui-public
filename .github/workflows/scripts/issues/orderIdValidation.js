@@ -1,9 +1,9 @@
 // @ts-check
 /**
  * @param {Object} params
- * @param {import("@actions/core")} params.core
- * @param {ReturnType<import("@actions/github").getOctokit>} params.github
- * @param {import("@actions/github").context} params.context
+ * @param {typeof import("@actions/core")} params.core
+ * @param {ReturnType<typeof import("@actions/github").getOctokit>} params.github
+ * @param {typeof import("@actions/github").context} params.context
  */
 module.exports = async ({ core, context, github }) => {
   try {
@@ -32,24 +32,18 @@ module.exports = async ({ core, context, github }) => {
         core.info(`Request to ${orderApi} failed. Response status code: ${order.status}.`);
       }
 
+      /** @type {{ line_items?: { name: string }[] }} */
       const orderDetails = await order.json();
 
       core.info(`>>> Order Items: ${orderDetails.line_items?.join(',')}`);
 
-      const plan =
-        orderDetails.line_items?.filter((item) => /\b(pro|premium)\b/i.test(item.name))[0].name ||
-        '';
+      // An order can contain both plans. Item order must not determine support priority.
+      const planName = ['premium', 'pro'].find((plan) =>
+        orderDetails.line_items?.some((item) => new RegExp(`\\b${plan}\\b`, 'i').test(item.name)),
+      );
 
-      if (!plan) {
+      if (!planName) {
         core.info('No Pro or Premium plan found in order');
-        return;
-      }
-
-      const planName = plan.match(/\b(pro|premium)\b/i)[0].toLowerCase();
-
-      if (planName !== 'pro' && planName !== 'premium') {
-        core.info(`>>> planName: ${planName}`);
-        core.info('planName could not be extracted');
         return;
       }
 
@@ -66,7 +60,8 @@ module.exports = async ({ core, context, github }) => {
       });
     }
   } catch (error) {
-    core.error(`>>> Workflow failed with: ${error.message}`);
-    core.setFailed(error.message);
+    const message = error instanceof Error ? error.message : String(error);
+    core.error(`>>> Workflow failed with: ${message}`);
+    core.setFailed(message);
   }
 };
