@@ -1,3 +1,5 @@
+import path from 'node:path';
+
 /**
  * @typedef {Object} Args
  * @property {string} [config] Path to the changelog configuration file
@@ -38,7 +40,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
   handler: async (args) => {
     const { generateChangelog } = await import('../changelog/index.mjs');
     const changelog = await generateChangelog({
-      config: args.config,
+      config: args.config ? path.resolve(args.config) : undefined,
       lastRelease: args.lastRelease,
       release: args.release,
       version: args.releaseVersion,

@@ -315,6 +315,10 @@ function renderCommitMessage(commit, config) {
       /\(\[?#\{\{prNumber\}\}\]?(?:\(\{\{prUrl\}\}\))?\)/g,
       '[{{sha}}]({{prUrl}})',
     );
+    template = template
+      .replace(/#?\[#?\{\{prNumber\}\}\]\(\{\{prUrl\}\}\)/g, '[{{sha}}]({{prUrl}})')
+      .replace(/#\{\{prNumber\}\}/g, '[{{sha}}]({{prUrl}})')
+      .replaceAll('{{prNumber}}', '{{sha}}');
   }
 
   const login = commit.author?.login;
@@ -326,9 +330,7 @@ function renderCommitMessage(commit, config) {
     prUrl: commit.html_url,
     author: commit.author?.login || 'unknown',
     authorUrl: `https://github.com/${login}`,
-    scope: commit.labels.some((label) => label.startsWith('scope:'))
-      ? commit.parsed.scopes[0]
-      : undefined,
+    scope: commit.parsed.scopes[0],
     plan: commit.parsed.plan,
     flagPrefix: commit.parsed.flags
       .filter((flag) => {
@@ -482,7 +484,7 @@ function renderDate(date, format) {
  * for other reasons (like missing labels or being in excludeLabels).
  *
  * @param {import('./types.js').FetchedCommitDetails[]} allCommits - All fetched commits
- * @param {(string|RegExp)[]} [excludeAuthors] - Author patterns to exclude (e.g., ['[bot]'])
+ * @param {(string|RegExp)[]} [excludeAuthors] - Exact logins or regular expressions to exclude
  * @returns {{team: string[], community: string[]; all: string[]}} Contributors grouped by type
  */
 export function extractContributorsFromAllCommits(allCommits, excludeAuthors = []) {

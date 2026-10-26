@@ -18,4 +18,25 @@ npm install @mui/internal-code-infra
 
 ## Usage
 
-TODO
+### Changelog generation
+
+```bash
+pnpm code-infra generate-changelog --lastRelease v1.0.0
+```
+
+The default release is the local HEAD commit, including on maintenance branches.
+The default config is `scripts/changelog.config.mjs` inside `--cwd`.
+An explicit `--config` path is relative to the process working directory.
+
+Repository configs control output, package routing, filters and contributor policy.
+`contributors.source: 'all'` credits fetched changes even when entry filters exclude them;
+use `excludeAuthorsFromContributors` to exclude credit separately.
+Explicit author filters still apply after cherry-pick attribution is resolved.
+
+Direct changes receive commit links. Merge bookkeeping is omitted; a merge PR represents
+its branch changes once. Direct authors are classified using GitHub organization membership;
+if membership access is forbidden, generation warns and falls back to community credit.
+
+Callbacks now receive `prNumber: number | null`: handle `null` in custom filters and
+message callbacks. String message templates handle direct-commit links automatically.
+Package versions come from the checkout, so check out the release when generating historical notes.
