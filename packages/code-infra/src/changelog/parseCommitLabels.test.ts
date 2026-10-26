@@ -321,7 +321,7 @@ describe('parseCommitLabels', () => {
       const result = parseCommitLabels(commit, config);
 
       expect(result.scopes).toEqual(['core']);
-      expect(commit.labels).toContain('scope: core');
+      expect(commit.labels).toEqual([]);
     });
 
     it('should merge extracted labels with existing labels', () => {
@@ -340,7 +340,7 @@ describe('parseCommitLabels', () => {
       const result = parseCommitLabels(commit, config);
 
       expect(result.scopes).toEqual(['charts']);
-      expect(commit.labels).toContain('scope: charts');
+      expect(commit.labels).toEqual(['enhancement']);
       expect(commit.labels).toContain('enhancement');
     });
 
@@ -493,7 +493,7 @@ describe('parseCommitLabels', () => {
       expect(result.scopes).toEqual(['']);
     });
 
-    it('should mutate the original commit labels array when extracting from title', () => {
+    it('keeps source labels unchanged when extracting from title', () => {
       const commit = createCommit({ message: '[core] Fix bug', labels: [] });
       const config: LabelConfig = {
         ...baseLabelConfig,
@@ -505,7 +505,26 @@ describe('parseCommitLabels', () => {
 
       parseCommitLabels(commit, config);
 
-      expect(commit.labels).toEqual(['scope: core']);
+      expect(commit.labels).toEqual([]);
     });
+  });
+});
+
+describe('title fallback precedence', () => {
+  it('fills missing categories without overriding GitHub labels', () => {
+    const commit = createCommit({
+      message: '[DataGridPro] Fix selection (#1)',
+      labels: ['scope: charts', 'component: legend'],
+    });
+    const labels = [...commit.labels];
+    const result = parseCommitLabels(commit, {
+      ...baseLabelConfig,
+      extractLabelsFromTitle: () => ['scope: data grid', 'component: grid', 'plan: pro'],
+    });
+
+    expect(result.scopes).toEqual(['charts']);
+    expect(result.components).toEqual(['legend']);
+    expect(result.plan).toBe('pro');
+    expect(commit.labels).toEqual(labels);
   });
 });
