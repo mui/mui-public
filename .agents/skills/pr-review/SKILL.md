@@ -100,7 +100,7 @@ Core regression + correctness pass. Cover all sub-angles:
   dependency. Also check callees: parallel change in same PR make call
   unsafe?
 - **Language-pitfall specialist.** Scan classic pitfalls of diff's
-  language/framework — example: JS falsy-zero, `==` coercion, closure-captured
+  language/framework — example: JavaScript falsy-zero, `==` coercion, closure-captured
   loop var; Python mutable default args, late-binding closures; Go nil-map write,
   range-var capture; SQL injection; timezone/DST drift; float equality. Flag any
   instance diff introduces.

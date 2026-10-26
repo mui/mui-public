@@ -5,14 +5,17 @@ level: error
 ignorecase: true # There is only one correct way to spell those, so we want to match inputs regardless of case.
 # swap maps tokens in form of bad: good
 # for more information: https://vale.sh/docs/topics/styles/#substitution
+# (?<!\S)…(?![-./]\w) keeps a short term from matching inside `Node.js`, `/api/` or `ts-node`.
+# The match must not include the whitespace: Vale matches a space across a line wrap,
+# and a match that differs from its replacement only by a newline is still reported.
 swap:
-  ' api': ' API'
-  'typescript ': 'TypeScript '
-  ' ts': ' TypeScript'
+  '(?<!\S)api(?![-./]\w)': API
+  '(?<!\S)typescript(?![-./]\w)': TypeScript
+  '(?<!\S)ts(?![-./]\w)': TypeScript
   javascript: JavaScript
-  ' js': ' JavaScript'
-  ' css ': ' CSS '
-  ' html ': ' HTML '
+  '(?<!\S)js(?![-./]\w)': JavaScript
+  '(?<!\S)css(?![-./]\w)': CSS
+  '(?<!\S)html(?![-./]\w)': HTML
   NPM: npm # https://css-tricks.com/start-sentence-npm/
   Github: GitHub
   StackOverflow: Stack Overflow
@@ -31,7 +34,7 @@ swap:
   Material 3: Material Design 3
   VSCode: VS Code
   VS Code: VS Code
-  'Codesandbox ': 'CodeSandbox '
+  '(?<!\S)Codesandbox(?![-./]\w)': CodeSandbox
   code sandbox: CodeSandbox
   Stackblitz: StackBlitz
   Webpack: webpack # https://x.com/wSokra/status/855800490713649152

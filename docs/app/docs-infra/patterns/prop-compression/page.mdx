@@ -585,7 +585,7 @@ time on whichever path renders the block:
 
 - **HTML parse**, when the block is server-rendered — fewer bytes of serialized
   props in the streamed HTML.
-- **JS parse**, when the block is rendered on the client from build-time
+- **JavaScript parse**, when the block is rendered on the client from build-time
   precomputed data — the residual ships as a compact blob instead of inline
   source in the module.
 - **JSON parse**, when the block is rendered on the client at runtime — only the
@@ -640,7 +640,7 @@ documentation, keep the full fallback in the initial HTML (the default) so the
 complete source stays indexable — see
 [When Not to Use This Pattern](#when-not-to-use-this-pattern). The payoff where
 it does apply is a smaller uncompressed initial HTML and lower parse cost (HTML
-when server-rendered, JS or JSON when client-rendered), since a deeply collapsed
+when server-rendered, JavaScript or JSON when client-rendered), since a deeply collapsed
 block can paint a handful of visible lines instead of the entire file up front.
 
 ### Decompression & Rendering
