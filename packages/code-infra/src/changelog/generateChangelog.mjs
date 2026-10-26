@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { execa } from 'execa';
 import { getWorkspacePackages } from '../utils/pnpm.mjs';
-import { findLatestTaggedVersion, getRepositoryInfo } from '../utils/git.mjs';
+import { findLatestTaggedVersion, getRepositoryInfo, getCurrentGitSha } from '../utils/git.mjs';
 import { loadChangelogConfig } from './loadChangelogConfig.mjs';
 import { buildSections } from './buildSections.mjs';
 import { categorizeCommits } from './categorizeCommits.mjs';
@@ -29,7 +29,10 @@ export async function generateChangelog(options = {}) {
     : await getRepositoryInfo(cwd);
   const release = {
     lastRelease: options.lastRelease ?? (await findLatestTaggedVersion({ cwd })),
-    release: options.release ?? 'HEAD',
+    release:
+      !options.release || options.release === 'HEAD'
+        ? await getCurrentGitSha(cwd)
+        : options.release,
     version:
       options.version ??
       JSON.parse(await fs.readFile(path.join(cwd, 'package.json'), 'utf8')).version,
@@ -110,6 +113,17 @@ async function getPackageVersions(cwd, lastRelease, config) {
     versions.set(pkg.name, pkg.version);
   }
   if (!config.categorization.packageNaming?.omitUnchanged) {
+    return { versions, unchanged };
+  }
+
+  const base = await execa('git', ['rev-parse', '--verify', `${lastRelease}^{commit}`], {
+    cwd,
+    reject: false,
+  });
+  if (base.exitCode !== 0) {
+    console.warn(
+      `Cannot compare package versions against ${lastRelease}: ref is not available locally; retaining empty package sections.`,
+    );
     return { versions, unchanged };
   }
 

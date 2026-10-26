@@ -33,6 +33,19 @@ function createCommit(
 }
 
 describe('categorizeCommits', () => {
+  it('keeps category overrides authoritative over additional packages', () => {
+    const result = categorizeCommits([createCommit(1, ['docs'])], {
+      strategy: 'package',
+      labels: { categoryOverrides: { docs: 'Docs' } },
+      sections: { fallbackSection: 'Other' },
+      packageNaming: {
+        mappings: { grid: '@test/grid' },
+        additionalPackages: () => ['@test/grid'],
+      },
+    });
+    expect([...result.keys()]).toEqual(['Docs']);
+  });
+
   describe('component strategy', () => {
     const componentConfig: CategorizationConfig = {
       strategy: 'component',

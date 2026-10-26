@@ -6,6 +6,9 @@ import { mapAsync } from 'es-toolkit/array';
 import { persistentAuthStrategy } from '../utils/github.mjs';
 
 const HTTP_NOT_FOUND = 404;
+const HTTP_FORBIDDEN = 403;
+const MIN_MERGE_PARENTS = 2;
+const AUTHOR_SUFFIX = /\s+\(@[\w-]+\)(?=\s+\(#\d+\)\s*$)/m;
 
 const ThrottledOctokit = Octokit.plugin(throttling, retry);
 
@@ -104,6 +107,28 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
     });
   }
 
+  /** @type {Map<string, Promise<'team' | 'contributor'>>} */
+  const directAuthors = new Map();
+
+  /** @param {string} login @returns {Promise<'team' | 'contributor'>} */
+  async function checkMembership(login) {
+    try {
+      await octokit.orgs.checkMembershipForUser({ org, username: login });
+      return 'team';
+    } catch (error) {
+      if (error instanceof Error && 'status' in error) {
+        if (error.status === HTTP_NOT_FOUND) {
+          return 'contributor';
+        }
+        if (error.status === HTTP_FORBIDDEN) {
+          console.warn(`Cannot check membership for @${login}; treating as community.`);
+          return 'contributor';
+        }
+      }
+      throw error;
+    }
+  }
+
   /**
    * @param {Commits[number]} commit
    * @param {AbortSignal} signal
@@ -114,8 +139,9 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
     const subject = commit.commit.message.split('\n')[0];
     const prMatch =
       subject.match(/\(#(\d+)\)\s*$/) ?? subject.match(/^Merge pull request #(\d+)\b/);
+    const isMerge = (commit.parents?.length ?? 0) >= MIN_MERGE_PARENTS;
     if (!prMatch) {
-      return directCommit(commit);
+      return isMerge ? null : directCommit(commit);
     }
 
     const prNumber = Number(prMatch[1]);
@@ -131,7 +157,7 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
       });
     } catch (error) {
       if (error instanceof Error && 'status' in error && error.status === HTTP_NOT_FOUND) {
-        return directCommit(commit);
+        return isMerge ? null : directCommit(commit);
       }
       throw error;
     }
@@ -141,7 +167,7 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
     /** @type {FetchedCommitDetails} */
     const details = {
       sha: commit.sha,
-      message: commit.commit.message,
+      message: isMerge ? `${pr.data.title} (#${prNumber})` : commit.commit.message,
       labels,
       prNumber,
       html_url: pr.data.html_url,
@@ -158,7 +184,11 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
     };
 
     const isCherryPick = labels.includes('cherry-pick') || labels.includes('backport');
-    if (!isCherryPick || !details.author?.login.endsWith('[bot]')) {
+    if (!isCherryPick) {
+      return details;
+    }
+    if (!details.author?.login.endsWith('[bot]')) {
+      details.message = details.message.replace(AUTHOR_SUFFIX, '');
       return details;
     }
 
@@ -201,22 +231,30 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
         `Cannot resolve original author for cherry-pick #${prNumber}; retaining @${details.author.login}.`,
       );
     } else {
-      details.message = details.message.replace(/\s+\(@[\w-]+\)(?=\s+\(#\d+\)\s*$)/m, '');
+      details.message = details.message.replace(AUTHOR_SUFFIX, '');
     }
     return details;
   };
 
-  /** @param {Commits[number]} commit @returns {FetchedCommitDetails} */
-  function directCommit(commit) {
+  /** @param {Commits[number]} commit @returns {Promise<FetchedCommitDetails>} */
+  async function directCommit(commit) {
+    const login = commit.author?.login;
+    let association = /** @type {'team' | 'contributor'} */ ('contributor');
+    if (login === org) {
+      association = 'team';
+    } else if (login && !login.endsWith('[bot]')) {
+      if (!directAuthors.has(login)) {
+        directAuthors.set(login, checkMembership(login));
+      }
+      association = await /** @type {Promise<'team' | 'contributor'>} */ (directAuthors.get(login));
+    }
     return {
       sha: commit.sha,
       message: commit.commit.message,
       labels: [],
       prNumber: null,
       html_url: commit.html_url,
-      author: commit.author?.login
-        ? { login: commit.author.login, association: 'contributor' }
-        : null,
+      author: login ? { login, association } : null,
       mergedAt: commit.commit.author?.date ?? null,
       createdAt: commit.commit.author?.date ?? null,
       prTitle: '',
@@ -245,10 +283,53 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
       },
       { concurrency: 10 },
     );
-    return commits.filter((entry) => entry !== null);
+    return omitMergedChildren(
+      results,
+      commits.filter((entry) => entry !== null),
+    );
   } finally {
     controller.abort();
   }
+}
+
+/**
+ * A merge PR represents its branch changes once; changes already on the mainline stay visible.
+ * @param {Awaited<ReturnType<OctokitType['repos']['compareCommits']>>['data']['commits']} source
+ * @param {FetchedCommitDetails[]} commits
+ */
+function omitMergedChildren(source, commits) {
+  const graph = new Map(source.map((commit) => [commit.sha, commit]));
+  /** @param {string} sha */
+  function ancestors(sha) {
+    const seen = new Set();
+    const pending = [sha];
+    while (pending.length > 0) {
+      const current = pending.pop();
+      if (!current || seen.has(current) || !graph.has(current)) {
+        continue;
+      }
+      seen.add(current);
+      pending.push(...(graph.get(current)?.parents ?? []).map((parent) => parent.sha));
+    }
+    return seen;
+  }
+
+  const suppressed = new Set();
+  for (const commit of commits) {
+    const parents = graph.get(commit.sha)?.parents ?? [];
+    if (commit.prNumber === null || parents.length < MIN_MERGE_PARENTS) {
+      continue;
+    }
+    const mainline = ancestors(parents[0].sha);
+    for (const parent of parents.slice(1)) {
+      for (const sha of ancestors(parent.sha)) {
+        if (!mainline.has(sha)) {
+          suppressed.add(sha);
+        }
+      }
+    }
+  }
+  return commits.filter((commit) => !suppressed.has(commit.sha));
 }
 
 /**

@@ -59,7 +59,10 @@ export interface LabelConfig {
   plan?: {
     values: string[];
   };
-  /** Bracket prefixes mapped to canonical labels; first alias is the display name. */
+  /**
+   * Bracket prefix -> canonical labels. The first matching prefix names equivalent mappings.
+   * Rendering keeps unmapped prefixes first, then prefers mappings with more labels.
+   */
   titleMappings?: Record<string, string[]>;
   scope?: {
     prefix: string[];
@@ -98,11 +101,11 @@ export interface PackageNamingConfig {
    * Example: { 'data grid': '@mui/x-data-grid', 'charts': '@mui/x-charts' }
    */
   mappings: Record<string, string>;
-  /** Only omit empty product groups when their package version is unchanged. */
+  /** Only omit empty product groups when every configured tier version is unchanged. */
   omitUnchanged?: boolean;
   /** Omit private or absent packages when workspace manifests are available. */
   omitUnavailable?: boolean;
-  /** Additional package destinations inferred from repository-specific metadata. */
+  /** Additional package destinations; ignored when a category override applies. */
   additionalPackages?: (commit: CategorizedCommit) => string[];
 
   /**
@@ -218,13 +221,17 @@ export interface FormatConfig {
    * Format for PR and author attribution. Available placeholders:
    * - {{message}}: Commit message (cleaned up first line)
    * - {{rawMessage}}: Raw commit message (without cleanup and only the first line)
-   * - {{prNumber}}: Pull request number
-   * - {{prUrl}}: Pull request URL
+   * - {{prNumber}}: Pull request number (SHA for direct-commit string templates)
+   * - {{prUrl}}: Pull request or commit URL
+   * - {{sha}}: Short commit SHA
    * - {{author}}: Author username
    * - {{scope}}: Scope value
    * - {{plan}}: Plan value
    *
-   * @example '{{message}} (#[{{prNumber}}]({{prUrl}}) by @{{author}})'
+   * Function callbacks receive null prNumber for direct commits and must format their own links.
+   * String templates replace PR links with commit links for direct commits.
+   *
+   * @example '{{message}} ([#{{prNumber}}]({{prUrl}})) by @{{author}}'
    */
   changelogMessage?: string | ((commit: CategorizedCommit) => string);
   sectionTitle?: {
@@ -318,7 +325,8 @@ export interface FilterConfig {
 
   /**
    * Exclude these authors from being shown in the intro thank you message.
-   * Supports string matching and regular expressions.
+   * Strings match exact logins; regular expressions match patterns.
+   * Applies independently of entry exclusions, including when contributors.source is 'all'.
    */
   excludeAuthorsFromContributors?: (RegExp | string)[];
 

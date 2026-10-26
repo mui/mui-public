@@ -30,7 +30,7 @@ export function categorizeCommits(commits, config) {
 
     // Get all category keys for this commit (may be multiple)
     const categoryKeys = getCategoryKeys(categorizedCommit, config);
-    if (config.strategy === 'package') {
+    if (config.strategy === 'package' && !parsed.categoryOverride) {
       categoryKeys.push(...(config.packageNaming?.additionalPackages?.(categorizedCommit) ?? []));
     }
 
@@ -59,13 +59,13 @@ export function categorizeCommits(commits, config) {
  * @throws {Error} If required labels are missing or mappings not found
  */
 function getCategoryKeys(commit, config) {
+  if (config.strategy === 'flat') {
+    return [config.sections.fallbackSection];
+  }
+
   // Check for category override first (e.g., 'all components' -> 'General changes')
   if (commit.parsed.categoryOverride) {
     return [commit.parsed.categoryOverride];
-  }
-
-  if (config.strategy === 'flat') {
-    return [config.sections.fallbackSection];
   }
 
   if (config.strategy === 'component') {

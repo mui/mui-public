@@ -10,6 +10,7 @@ import { generateChangelog, loadChangelogConfig } from './index.mjs';
 import type { ChangelogConfig } from './index.mjs';
 
 const OK = 200;
+const NOT_FOUND = 404;
 const RELEASE_DATE = '2026-10-01T00:00:00Z';
 const gitEnv = {
   GIT_AUTHOR_NAME: 'Fixture',
@@ -77,6 +78,9 @@ it('generates package and flat entries through the same API', async () => {
     request: {
       fetch: async (input: Parameters<typeof fetch>[0]) => {
         const url = new URL(input instanceof Request ? input.url : String(input));
+        if (url.pathname.includes('/members/')) {
+          return Response.json({ message: 'Not Found' }, { status: NOT_FOUND });
+        }
         const data = url.pathname.includes('/compare/')
           ? {
               url: url.href,

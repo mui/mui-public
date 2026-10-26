@@ -25,17 +25,21 @@ it('keeps direct commits and resolves structured cherry-pick attribution', async
       commit: { message: 'Backport fix (#3)' },
       author: { login: 'github-actions[bot]' },
     },
+    {
+      sha: 'issue-only',
+      commit: { message: 'Fix issue (#999)' },
+      author: { login: 'direct-author' },
+    },
   ];
-  commits.push({
-    sha: 'issue-only',
-    commit: { message: 'Fix issue (#999)' },
-    author: { login: 'direct-author' },
-  });
+
   const octokit = new Octokit({
     request: {
       fetch: async (input: Parameters<typeof fetch>[0]) => {
         const url = new URL(input instanceof Request ? input.url : String(input));
         requests.push(url.pathname);
+        if (url.pathname.includes('/members/')) {
+          return Response.json({ message: 'Not Found' }, { status: NOT_FOUND });
+        }
         if (url.pathname.includes('/compare/')) {
           return Object.defineProperty(
             Response.json(
