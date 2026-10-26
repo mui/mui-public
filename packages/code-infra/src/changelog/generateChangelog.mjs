@@ -12,6 +12,7 @@ import { extractContributorsFromAllCommits, renderChangelog } from './renderChan
 import { sortSections } from './sortSections.mjs';
 
 const DEFAULT_CONFIG = 'scripts/changelog.config.mjs';
+const HTTP_NOT_FOUND = 404;
 
 /**
  * Generate a release entry using the repository's config and authenticated GitHub client.
@@ -27,24 +28,40 @@ export async function generateChangelog(options = {}) {
   const repository = options.repo
     ? { repo: options.repo, owner: options.org ?? 'mui' }
     : await getRepositoryInfo(cwd);
+  const releaseRef = options.release || 'HEAD';
+  const localHead = releaseRef === 'HEAD';
   const release = {
     lastRelease: options.lastRelease ?? (await findLatestTaggedVersion({ cwd })),
-    release:
-      !options.release || options.release === 'HEAD'
-        ? await getCurrentGitSha(cwd)
-        : options.release,
+    release: localHead ? await getCurrentGitSha(cwd) : releaseRef,
     version:
       options.version ??
       JSON.parse(await fs.readFile(path.join(cwd, 'package.json'), 'utf8')).version,
     date: options.date ?? new Date(),
   };
-  const allCommits = await fetchCommitsBetweenRefs({
-    repo: repository.repo,
-    org: options.org ?? repository.owner,
-    lastRelease: release.lastRelease,
-    release: release.release,
-    octokit: options.octokit,
-  });
+  /** @type {import('./types.ts').FetchedCommitDetails[]} */
+  let allCommits;
+  try {
+    allCommits = await fetchCommitsBetweenRefs({
+      repo: repository.repo,
+      org: options.org ?? repository.owner,
+      lastRelease: release.lastRelease,
+      release: release.release,
+      octokit: options.octokit,
+    });
+  } catch (error) {
+    if (
+      localHead &&
+      error instanceof Error &&
+      'status' in error &&
+      error.status === HTTP_NOT_FOUND
+    ) {
+      throw new Error(
+        `GitHub could not compare ${release.lastRelease} with local HEAD ${release.release}. Push HEAD or pass --release, and verify the base ref and repository access.`,
+        { cause: error },
+      );
+    }
+    throw error;
+  }
   const commits = filterCommits(allCommits, config.filter);
   const contributors = extractContributorsFromAllCommits(
     config.contributors?.source === 'all' ? allCommits : commits,

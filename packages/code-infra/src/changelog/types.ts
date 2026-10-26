@@ -60,7 +60,8 @@ export interface LabelConfig {
     values: string[];
   };
   /**
-   * Bracket prefix -> canonical labels. The first matching prefix names equivalent mappings.
+   * Bracket prefix -> canonical labels, e.g. { Grid: ['scope: grid'], grid: ['scope: grid'] }
+   * renders either equivalent spelling as [Grid], since Grid is listed first.
    * Rendering keeps unmapped prefixes first, then prefers mappings with more labels.
    */
   titleMappings?: Record<string, string[]>;
