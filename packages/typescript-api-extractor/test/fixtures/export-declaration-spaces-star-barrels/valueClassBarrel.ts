@@ -1,0 +1,1 @@
+export { DualPathClass } from './classes';

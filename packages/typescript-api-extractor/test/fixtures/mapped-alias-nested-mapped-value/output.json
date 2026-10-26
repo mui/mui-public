@@ -1,0 +1,169 @@
+{
+	"name": "test/fixtures/mapped-alias-nested-mapped-value/input",
+	"exports": [
+		{
+			"name": "Outer",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Outer",
+					"typeArguments": [
+						{
+							"type": {
+								"name": "K",
+								"constraint": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						},
+						{
+							"type": {
+								"name": "L",
+								"constraint": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						},
+						{
+							"type": {
+								"name": "V",
+								"defaultValue": {
+									"kind": "intrinsic",
+									"intrinsic": "boolean"
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [],
+				"indexSignature": {
+					"keyName": "P",
+					"keyType": "string",
+					"valueType": {
+						"kind": "union",
+						"types": [
+							{
+								"kind": "object",
+								"properties": [],
+								"indexSignature": {
+									"keyName": "Q",
+									"keyType": "string",
+									"valueType": {
+										"kind": "union",
+										"types": [
+											{
+												"name": "V",
+												"defaultValue": {
+													"kind": "intrinsic",
+													"intrinsic": "boolean"
+												},
+												"kind": "typeParameter"
+											},
+											{
+												"kind": "intrinsic",
+												"intrinsic": "undefined"
+											}
+										]
+									}
+								}
+							},
+							{
+								"kind": "intrinsic",
+								"intrinsic": "undefined"
+							}
+						]
+					}
+				}
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Use",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Outer",
+					"typeArguments": [
+						{
+							"type": {
+								"name": "K",
+								"constraint": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						},
+						{
+							"type": {
+								"name": "L",
+								"constraint": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						},
+						{
+							"type": {
+								"kind": "intrinsic",
+								"intrinsic": "number"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [],
+				"indexSignature": {
+					"keyName": "P",
+					"keyType": "string",
+					"valueType": {
+						"kind": "union",
+						"types": [
+							{
+								"kind": "object",
+								"properties": [],
+								"indexSignature": {
+									"keyName": "Q",
+									"keyType": "string",
+									"valueType": {
+										"kind": "union",
+										"types": [
+											{
+												"kind": "intrinsic",
+												"intrinsic": "number"
+											},
+											{
+												"kind": "intrinsic",
+												"intrinsic": "undefined"
+											}
+										]
+									}
+								}
+							},
+							{
+								"kind": "intrinsic",
+								"intrinsic": "undefined"
+							}
+						]
+					}
+				}
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

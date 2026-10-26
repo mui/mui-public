@@ -1,0 +1,81 @@
+{
+	"name": "test/fixtures/symbol-double-underscore-name-preservation/input",
+	"exports": [
+		{
+			"name": "useNamed",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "useNamed"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "object",
+									"typeName": {
+										"name": "__Named"
+									},
+									"properties": [
+										{
+											"name": "value",
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											},
+											"optional": false
+										}
+									]
+								},
+								"name": "x",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "object",
+							"typeName": {
+								"name": "__Named"
+							},
+							"properties": [
+								{
+									"name": "value",
+									"type": {
+										"kind": "intrinsic",
+										"intrinsic": "string"
+									},
+									"optional": false
+								}
+							]
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "__Named",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "__Named"
+				},
+				"properties": [
+					{
+						"name": "value",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

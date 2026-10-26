@@ -1,0 +1,238 @@
+{
+	"name": "test/fixtures/generic-function-and-interface-resolution/input",
+	"exports": [
+		{
+			"name": "genericFunction",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "genericFunction"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "object",
+									"typeName": {
+										"name": "GenericFunctionParameters",
+										"typeArguments": [
+											{
+												"type": {
+													"name": "T",
+													"constraint": {
+														"kind": "external",
+														"typeName": {
+															"name": "HTMLAttributes",
+															"namespaces": ["React"],
+															"typeArguments": [
+																{
+																	"type": {
+																		"kind": "external",
+																		"typeName": {
+																			"name": "HTMLElement"
+																		},
+																		"source": {
+																			"kind": "lib",
+																			"files": ["lib.dom.d.ts"]
+																		}
+																	},
+																	"equalToDefault": false
+																}
+															]
+														},
+														"source": {
+															"kind": "package",
+															"name": "@types/react"
+														}
+													},
+													"kind": "typeParameter"
+												},
+												"equalToDefault": false
+											}
+										]
+									},
+									"properties": [
+										{
+											"name": "value",
+											"type": {
+												"name": "T",
+												"constraint": {
+													"kind": "external",
+													"typeName": {
+														"name": "HTMLAttributes",
+														"namespaces": ["React"],
+														"typeArguments": [
+															{
+																"type": {
+																	"kind": "external",
+																	"typeName": {
+																		"name": "HTMLElement"
+																	},
+																	"source": {
+																		"kind": "lib",
+																		"files": ["lib.dom.d.ts"]
+																	}
+																},
+																"equalToDefault": false
+															}
+														]
+													},
+													"source": {
+														"kind": "package",
+														"name": "@types/react"
+													}
+												},
+												"kind": "typeParameter"
+											},
+											"optional": false
+										},
+										{
+											"name": "nestedGenericType",
+											"type": {
+												"kind": "object",
+												"typeName": {
+													"name": "GenericInterface",
+													"typeArguments": [
+														{
+															"type": {
+																"kind": "object",
+																"typeName": {
+																	"name": "GenericInterface",
+																	"typeArguments": [
+																		{
+																			"type": {
+																				"kind": "intrinsic",
+																				"intrinsic": "string"
+																			},
+																			"equalToDefault": false
+																		}
+																	]
+																},
+																"properties": [
+																	{
+																		"name": "data",
+																		"type": {
+																			"kind": "intrinsic",
+																			"intrinsic": "string"
+																		},
+																		"optional": false
+																	}
+																]
+															},
+															"equalToDefault": false
+														}
+													]
+												},
+												"properties": [
+													{
+														"name": "data",
+														"type": {
+															"kind": "object",
+															"typeName": {
+																"name": "GenericInterface",
+																"typeArguments": [
+																	{
+																		"type": {
+																			"kind": "intrinsic",
+																			"intrinsic": "string"
+																		},
+																		"equalToDefault": false
+																	}
+																]
+															},
+															"properties": [
+																{
+																	"name": "data",
+																	"type": {
+																		"kind": "intrinsic",
+																		"intrinsic": "string"
+																	},
+																	"optional": false
+																}
+															]
+														},
+														"optional": false
+													}
+												]
+											},
+											"optional": false
+										}
+									]
+								},
+								"name": "params",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"name": "T",
+							"constraint": {
+								"kind": "external",
+								"typeName": {
+									"name": "HTMLAttributes",
+									"namespaces": ["React"],
+									"typeArguments": [
+										{
+											"type": {
+												"kind": "external",
+												"typeName": {
+													"name": "HTMLElement"
+												},
+												"source": {
+													"kind": "lib",
+													"files": ["lib.dom.d.ts"]
+												}
+											},
+											"equalToDefault": false
+										}
+									]
+								},
+								"source": {
+									"kind": "package",
+									"name": "@types/react"
+								}
+							},
+							"kind": "typeParameter"
+						},
+						"typeParameters": [
+							{
+								"name": "T",
+								"constraint": {
+									"kind": "external",
+									"typeName": {
+										"name": "HTMLAttributes",
+										"namespaces": ["React"],
+										"typeArguments": [
+											{
+												"type": {
+													"kind": "external",
+													"typeName": {
+														"name": "HTMLElement"
+													},
+													"source": {
+														"kind": "lib",
+														"files": ["lib.dom.d.ts"]
+													}
+												},
+												"equalToDefault": false
+											}
+										]
+									},
+									"source": {
+										"kind": "package",
+										"name": "@types/react"
+									}
+								},
+								"kind": "typeParameter"
+							}
+						]
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		}
+	],
+	"imports": ["react"]
+}

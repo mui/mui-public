@@ -1,0 +1,259 @@
+{
+	"name": "test/fixtures/template-literal-types/input",
+	"exports": [
+		{
+			"name": "listen",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "listen"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "templateLiteral",
+									"texts": ["on", ""],
+									"types": [
+										{
+											"name": "T",
+											"constraint": {
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											},
+											"kind": "typeParameter"
+										}
+									]
+								},
+								"name": "event",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						},
+						"typeParameters": [
+							{
+								"name": "T",
+								"constraint": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"kind": "typeParameter"
+							}
+						]
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "Fraction",
+			"type": {
+				"kind": "templateLiteral",
+				"texts": ["", "fr"],
+				"types": [
+					{
+						"kind": "intrinsic",
+						"intrinsic": "number"
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "DataAttribute",
+			"type": {
+				"kind": "templateLiteral",
+				"texts": ["data-", ""],
+				"types": [
+					{
+						"kind": "intrinsic",
+						"intrinsic": "string"
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "TrackMinimum",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "TrackMinimum"
+				},
+				"types": [
+					{
+						"kind": "intrinsic",
+						"intrinsic": "number"
+					},
+					{
+						"kind": "templateLiteral",
+						"typeName": {
+							"name": "Percentage"
+						},
+						"texts": ["", "%"],
+						"types": [
+							{
+								"kind": "intrinsic",
+								"intrinsic": "number"
+							}
+						]
+					},
+					{
+						"kind": "literal",
+						"value": "\"auto\""
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Placement",
+			"type": {
+				"kind": "union",
+				"types": [
+					{
+						"kind": "templateLiteral",
+						"texts": ["top-", ""],
+						"types": [
+							{
+								"kind": "intrinsic",
+								"intrinsic": "number"
+							}
+						]
+					},
+					{
+						"kind": "templateLiteral",
+						"texts": ["bottom-", ""],
+						"types": [
+							{
+								"kind": "intrinsic",
+								"intrinsic": "number"
+							}
+						]
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Nested",
+			"type": {
+				"kind": "templateLiteral",
+				"texts": ["a-b-", ""],
+				"types": [
+					{
+						"kind": "intrinsic",
+						"intrinsic": "number"
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Multiple",
+			"type": {
+				"kind": "templateLiteral",
+				"texts": ["", "-to-", ""],
+				"types": [
+					{
+						"kind": "intrinsic",
+						"intrinsic": "number"
+					},
+					{
+						"kind": "intrinsic",
+						"intrinsic": "number"
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Props",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Props"
+				},
+				"properties": [
+					{
+						"name": "width",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "templateLiteral",
+									"texts": ["", "px"],
+									"types": [
+										{
+											"kind": "intrinsic",
+											"intrinsic": "number"
+										}
+									]
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "minimum",
+						"type": {
+							"kind": "union",
+							"typeName": {
+								"name": "TrackMinimum"
+							},
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "number"
+								},
+								{
+									"kind": "templateLiteral",
+									"typeName": {
+										"name": "Percentage"
+									},
+									"texts": ["", "%"],
+									"types": [
+										{
+											"kind": "intrinsic",
+											"intrinsic": "number"
+										}
+									]
+								},
+								{
+									"kind": "literal",
+									"value": "\"auto\""
+								}
+							]
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

@@ -1,0 +1,252 @@
+{
+	"name": "test/fixtures/module-export-forms/input",
+	"exports": [
+		{
+			"name": "inlineExport",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "inlineExport"
+				},
+				"callSignatures": [
+					{
+						"parameters": [],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "default",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "defaultExport"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "number"
+								},
+								"name": "a",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "number"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "overloadedFunction",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "overloadedFunction"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "number"
+								},
+								"name": "a",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "number"
+						}
+					},
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"name": "a",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "aliasedOverloadedFunction",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "overloadedFunction"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "number"
+								},
+								"name": "a",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "number"
+						}
+					},
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"name": "a",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "functionAndNamespaceDeclaration",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "functionAndNamespaceDeclaration"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "object",
+									"typeName": {
+										"name": "Params",
+										"namespaces": ["functionAndNamespaceDeclaration"]
+									},
+									"properties": [
+										{
+											"name": "a",
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "number"
+											},
+											"optional": false
+										}
+									]
+								},
+								"name": "params",
+								"optional": false
+							},
+							{
+								"type": {
+									"kind": "external",
+									"typeName": {
+										"name": "ForwardedRef",
+										"namespaces": ["React"],
+										"typeArguments": [
+											{
+												"type": {
+													"kind": "external",
+													"typeName": {
+														"name": "Element"
+													},
+													"source": {
+														"kind": "lib",
+														"files": ["lib.dom.d.ts"]
+													}
+												},
+												"equalToDefault": false
+											}
+										]
+									},
+									"source": {
+										"kind": "package",
+										"name": "@types/react"
+									}
+								},
+								"name": "ref",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "external",
+							"typeName": {
+								"name": "Element",
+								"namespaces": ["React", "JSX"]
+							},
+							"source": {
+								"kind": "package",
+								"name": "@types/react"
+							}
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": true
+		},
+		{
+			"name": "functionAndNamespaceDeclaration.Params",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Params",
+					"namespaces": ["functionAndNamespaceDeclaration"]
+				},
+				"properties": [
+					{
+						"name": "a",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "number"
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	],
+	"imports": ["react"]
+}

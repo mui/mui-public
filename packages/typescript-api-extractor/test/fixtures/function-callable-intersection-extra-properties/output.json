@@ -1,0 +1,52 @@
+{
+	"name": "test/fixtures/function-callable-intersection-extra-properties/input",
+	"exports": [
+		{
+			"name": "test",
+			"type": {
+				"kind": "function",
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "number"
+								},
+								"name": "param",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "number"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "TestComponent",
+			"type": {
+				"kind": "component",
+				"props": [
+					{
+						"name": "value",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		}
+	],
+	"imports": ["react"]
+}

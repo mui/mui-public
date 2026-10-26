@@ -1,0 +1,52 @@
+{
+	"name": "test/fixtures/type-intrinsic-props-resolution/input",
+	"exports": [
+		{
+			"name": "IntrinsicPropsComponent",
+			"type": {
+				"kind": "component",
+				"typeName": {
+					"name": "IntrinsicPropsComponent"
+				},
+				"props": [
+					{
+						"name": "s",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "nb",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "number"
+						},
+						"optional": false
+					},
+					{
+						"name": "b",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "boolean"
+						},
+						"optional": false
+					},
+					{
+						"name": "n",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "null"
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		}
+	],
+	"imports": ["react"]
+}

@@ -1,0 +1,92 @@
+{
+	"name": "test/fixtures/type-alias-generic-argument-resolution/input",
+	"exports": [
+		{
+			"name": "f",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "f"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "object",
+									"typeName": {
+										"name": "Params"
+									},
+									"properties": [
+										{
+											"name": "a",
+											"type": {
+												"kind": "object",
+												"typeName": {
+													"name": "Generic",
+													"typeArguments": [
+														{
+															"type": {
+																"kind": "object",
+																"typeName": {
+																	"name": "Alias"
+																},
+																"properties": [
+																	{
+																		"name": "x",
+																		"type": {
+																			"kind": "intrinsic",
+																			"intrinsic": "number"
+																		},
+																		"optional": false
+																	}
+																]
+															},
+															"equalToDefault": false
+														}
+													]
+												},
+												"properties": [
+													{
+														"name": "value",
+														"type": {
+															"kind": "object",
+															"typeName": {
+																"name": "Obj"
+															},
+															"properties": [
+																{
+																	"name": "x",
+																	"type": {
+																		"kind": "intrinsic",
+																		"intrinsic": "number"
+																	},
+																	"optional": false
+																}
+															]
+														},
+														"optional": false
+													}
+												]
+											},
+											"optional": false
+										}
+									]
+								},
+								"name": "x",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		}
+	]
+}

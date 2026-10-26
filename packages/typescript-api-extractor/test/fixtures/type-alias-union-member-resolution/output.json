@@ -1,0 +1,105 @@
+{
+	"name": "test/fixtures/type-alias-union-member-resolution/input",
+	"exports": [
+		{
+			"name": "f",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "f"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "union",
+									"typeName": {
+										"name": "Params"
+									},
+									"types": [
+										{
+											"kind": "union",
+											"typeName": {
+												"name": "Alias"
+											},
+											"types": [
+												{
+													"kind": "literal",
+													"value": 1
+												},
+												{
+													"kind": "literal",
+													"value": 2
+												}
+											]
+										},
+										{
+											"kind": "literal",
+											"value": 0
+										}
+									]
+								},
+								"name": "x",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "Props",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Props"
+				},
+				"properties": [
+					{
+						"name": "x",
+						"type": {
+							"kind": "union",
+							"typeName": {
+								"name": "Params"
+							},
+							"types": [
+								{
+									"kind": "union",
+									"typeName": {
+										"name": "Alias"
+									},
+									"types": [
+										{
+											"kind": "literal",
+											"value": 1
+										},
+										{
+											"kind": "literal",
+											"value": 2
+										}
+									]
+								},
+								{
+									"kind": "literal",
+									"value": 0
+								}
+							]
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

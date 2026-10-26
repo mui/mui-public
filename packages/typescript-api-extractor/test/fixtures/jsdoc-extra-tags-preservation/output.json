@@ -1,0 +1,190 @@
+{
+	"name": "test/fixtures/jsdoc-extra-tags-preservation/input",
+	"exports": [
+		{
+			"name": "documentedFunction",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "documentedFunction"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "object",
+									"typeName": {
+										"name": "Params"
+									},
+									"properties": [
+										{
+											"name": "s",
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											},
+											"optional": false
+										},
+										{
+											"name": "n",
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "number"
+											},
+											"documentation": {
+												"tags": [
+													{
+														"name": "type",
+														"value": "Integer"
+													}
+												]
+											},
+											"optional": false
+										},
+										{
+											"name": "onChange",
+											"type": {
+												"kind": "function",
+												"callSignatures": [
+													{
+														"parameters": [
+															{
+																"type": {
+																	"kind": "external",
+																	"typeName": {
+																		"name": "ChangeEvent",
+																		"namespaces": ["React"],
+																		"typeArguments": [
+																			{
+																				"type": {
+																					"kind": "external",
+																					"typeName": {
+																						"name": "HTMLInputElement"
+																					},
+																					"source": {
+																						"kind": "lib",
+																						"files": ["lib.dom.d.ts"]
+																					}
+																				},
+																				"equalToDefault": false
+																			},
+																			{
+																				"type": {
+																					"kind": "external",
+																					"typeName": {
+																						"name": "Element"
+																					},
+																					"source": {
+																						"kind": "lib",
+																						"files": ["lib.dom.d.ts"]
+																					}
+																				},
+																				"equalToDefault": true
+																			}
+																		]
+																	},
+																	"source": {
+																		"kind": "package",
+																		"name": "@types/react"
+																	}
+																},
+																"name": "event",
+																"optional": false
+															},
+															{
+																"type": {
+																	"kind": "union",
+																	"types": [
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "string"
+																		},
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "undefined"
+																		}
+																	]
+																},
+																"name": "reason",
+																"documentation": {
+																	"description": "",
+																	"tags": [
+																		{
+																			"name": "type",
+																			"value": "ChangeReason"
+																		}
+																	]
+																},
+																"optional": false
+															}
+														],
+														"returnValueType": {
+															"kind": "intrinsic",
+															"intrinsic": "void"
+														}
+													}
+												]
+											},
+											"optional": false
+										},
+										{
+											"name": "_id",
+											"type": {
+												"kind": "union",
+												"types": [
+													{
+														"kind": "intrinsic",
+														"intrinsic": "string"
+													},
+													{
+														"kind": "intrinsic",
+														"intrinsic": "undefined"
+													}
+												]
+											},
+											"documentation": {
+												"description": "For internal use only",
+												"visibility": "internal",
+												"tags": []
+											},
+											"optional": true
+										}
+									]
+								},
+								"name": "params",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						}
+					}
+				]
+			},
+			"documentation": {
+				"description": "This is a test.",
+				"visibility": "public",
+				"tags": [
+					{
+						"name": "example",
+						"value": "documentedFunction();"
+					},
+					{
+						"name": "type",
+						"value": "function"
+					},
+					{
+						"name": "category",
+						"value": "important-functions"
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		}
+	],
+	"imports": ["react"]
+}

@@ -1,0 +1,1952 @@
+{
+	"name": "test/fixtures/interface-extends-namespace-and-omit-resolution/input",
+	"exports": [
+		{
+			"name": "DialogRootProps",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "DialogRootProps",
+					"typeArguments": [
+						{
+							"type": {
+								"name": "Payload",
+								"defaultValue": {
+									"kind": "intrinsic",
+									"intrinsic": "unknown"
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [
+					{
+						"name": "open",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "boolean"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "defaultOpen",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "boolean"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "modal",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "boolean"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "disablePointerDismissal",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "boolean"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "onOpenChange",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "function",
+									"callSignatures": [
+										{
+											"parameters": [
+												{
+													"type": {
+														"kind": "intrinsic",
+														"intrinsic": "boolean"
+													},
+													"name": "open",
+													"optional": false
+												},
+												{
+													"type": {
+														"kind": "object",
+														"typeName": {
+															"name": "DialogRootChangeEventDetails"
+														},
+														"properties": [
+															{
+																"name": "reason",
+																"type": {
+																	"kind": "union",
+																	"typeName": {
+																		"name": "DialogRootChangeEventReason"
+																	},
+																	"types": [
+																		{
+																			"kind": "literal",
+																			"value": "\"click\""
+																		},
+																		{
+																			"kind": "literal",
+																			"value": "\"escape\""
+																		},
+																		{
+																			"kind": "literal",
+																			"value": "\"focus-out\""
+																		}
+																	]
+																},
+																"optional": false
+															},
+															{
+																"name": "preventUnmountOnClose",
+																"type": {
+																	"kind": "function",
+																	"typeName": {
+																		"name": "preventUnmountOnClose"
+																	},
+																	"callSignatures": [
+																		{
+																			"parameters": [],
+																			"returnValueType": {
+																				"kind": "intrinsic",
+																				"intrinsic": "void"
+																			}
+																		}
+																	]
+																},
+																"optional": false
+															}
+														]
+													},
+													"name": "details",
+													"optional": false
+												}
+											],
+											"returnValueType": {
+												"kind": "intrinsic",
+												"intrinsic": "void"
+											}
+										}
+									]
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "children",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "external",
+									"typeName": {
+										"name": "ReactNode",
+										"namespaces": ["React"]
+									},
+									"source": {
+										"kind": "package",
+										"name": "@types/react"
+									}
+								},
+								{
+									"kind": "function",
+									"callSignatures": [
+										{
+											"parameters": [
+												{
+													"type": {
+														"kind": "object",
+														"properties": [
+															{
+																"name": "payload",
+																"type": {
+																	"kind": "union",
+																	"types": [
+																		{
+																			"name": "Payload",
+																			"defaultValue": {
+																				"kind": "intrinsic",
+																				"intrinsic": "unknown"
+																			},
+																			"kind": "typeParameter"
+																		},
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "undefined"
+																		}
+																	]
+																},
+																"optional": false
+															}
+														]
+													},
+													"name": "state",
+													"optional": false
+												}
+											],
+											"returnValueType": {
+												"kind": "external",
+												"typeName": {
+													"name": "ReactNode",
+													"namespaces": ["React"]
+												},
+												"source": {
+													"kind": "package",
+													"name": "@types/react"
+												}
+											}
+										}
+									]
+								}
+							]
+						},
+						"optional": true
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "DialogRootActions",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "DialogRootActions"
+				},
+				"properties": [
+					{
+						"name": "unmount",
+						"type": {
+							"kind": "function",
+							"typeName": {
+								"name": "unmount"
+							},
+							"callSignatures": [
+								{
+									"parameters": [],
+									"returnValueType": {
+										"kind": "intrinsic",
+										"intrinsic": "void"
+									}
+								}
+							]
+						},
+						"optional": false
+					},
+					{
+						"name": "close",
+						"type": {
+							"kind": "function",
+							"typeName": {
+								"name": "close"
+							},
+							"callSignatures": [
+								{
+									"parameters": [],
+									"returnValueType": {
+										"kind": "intrinsic",
+										"intrinsic": "void"
+									}
+								}
+							]
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "DialogRootChangeEventReason",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "DialogRootChangeEventReason"
+				},
+				"types": [
+					{
+						"kind": "literal",
+						"value": "\"click\""
+					},
+					{
+						"kind": "literal",
+						"value": "\"escape\""
+					},
+					{
+						"kind": "literal",
+						"value": "\"focus-out\""
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "DialogRootChangeEventDetails",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "DialogRootChangeEventDetails"
+				},
+				"properties": [
+					{
+						"name": "reason",
+						"type": {
+							"kind": "union",
+							"typeName": {
+								"name": "DialogRootChangeEventReason"
+							},
+							"types": [
+								{
+									"kind": "literal",
+									"value": "\"click\""
+								},
+								{
+									"kind": "literal",
+									"value": "\"escape\""
+								},
+								{
+									"kind": "literal",
+									"value": "\"focus-out\""
+								}
+							]
+						},
+						"optional": false
+					},
+					{
+						"name": "preventUnmountOnClose",
+						"type": {
+							"kind": "function",
+							"typeName": {
+								"name": "preventUnmountOnClose"
+							},
+							"callSignatures": [
+								{
+									"parameters": [],
+									"returnValueType": {
+										"kind": "intrinsic",
+										"intrinsic": "void"
+									}
+								}
+							]
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "DialogRoot.Props",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Props",
+					"namespaces": ["DialogRoot"],
+					"typeArguments": [
+						{
+							"type": {
+								"name": "Payload",
+								"defaultValue": {
+									"kind": "intrinsic",
+									"intrinsic": "unknown"
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [
+					{
+						"name": "open",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "boolean"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "defaultOpen",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "boolean"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "modal",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "boolean"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "disablePointerDismissal",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "boolean"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "onOpenChange",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "function",
+									"callSignatures": [
+										{
+											"parameters": [
+												{
+													"type": {
+														"kind": "intrinsic",
+														"intrinsic": "boolean"
+													},
+													"name": "open",
+													"optional": false
+												},
+												{
+													"type": {
+														"kind": "object",
+														"typeName": {
+															"name": "DialogRootChangeEventDetails"
+														},
+														"properties": [
+															{
+																"name": "reason",
+																"type": {
+																	"kind": "union",
+																	"typeName": {
+																		"name": "DialogRootChangeEventReason"
+																	},
+																	"types": [
+																		{
+																			"kind": "literal",
+																			"value": "\"click\""
+																		},
+																		{
+																			"kind": "literal",
+																			"value": "\"escape\""
+																		},
+																		{
+																			"kind": "literal",
+																			"value": "\"focus-out\""
+																		}
+																	]
+																},
+																"optional": false
+															},
+															{
+																"name": "preventUnmountOnClose",
+																"type": {
+																	"kind": "function",
+																	"typeName": {
+																		"name": "preventUnmountOnClose"
+																	},
+																	"callSignatures": [
+																		{
+																			"parameters": [],
+																			"returnValueType": {
+																				"kind": "intrinsic",
+																				"intrinsic": "void"
+																			}
+																		}
+																	]
+																},
+																"optional": false
+															}
+														]
+													},
+													"name": "details",
+													"optional": false
+												}
+											],
+											"returnValueType": {
+												"kind": "intrinsic",
+												"intrinsic": "void"
+											}
+										}
+									]
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "children",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "external",
+									"typeName": {
+										"name": "ReactNode",
+										"namespaces": ["React"]
+									},
+									"source": {
+										"kind": "package",
+										"name": "@types/react"
+									}
+								},
+								{
+									"kind": "function",
+									"callSignatures": [
+										{
+											"parameters": [
+												{
+													"type": {
+														"kind": "object",
+														"properties": [
+															{
+																"name": "payload",
+																"type": {
+																	"kind": "union",
+																	"types": [
+																		{
+																			"name": "Payload",
+																			"defaultValue": {
+																				"kind": "intrinsic",
+																				"intrinsic": "unknown"
+																			},
+																			"kind": "typeParameter"
+																		},
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "undefined"
+																		}
+																	]
+																},
+																"optional": false
+															}
+														]
+													},
+													"name": "state",
+													"optional": false
+												}
+											],
+											"returnValueType": {
+												"kind": "external",
+												"typeName": {
+													"name": "ReactNode",
+													"namespaces": ["React"]
+												},
+												"source": {
+													"kind": "package",
+													"name": "@types/react"
+												}
+											}
+										}
+									]
+								}
+							]
+						},
+						"optional": true
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "DialogRoot.Actions",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Actions",
+					"namespaces": ["DialogRoot"]
+				},
+				"properties": [
+					{
+						"name": "unmount",
+						"type": {
+							"kind": "function",
+							"typeName": {
+								"name": "unmount"
+							},
+							"callSignatures": [
+								{
+									"parameters": [],
+									"returnValueType": {
+										"kind": "intrinsic",
+										"intrinsic": "void"
+									}
+								}
+							]
+						},
+						"optional": false
+					},
+					{
+						"name": "close",
+						"type": {
+							"kind": "function",
+							"typeName": {
+								"name": "close"
+							},
+							"callSignatures": [
+								{
+									"parameters": [],
+									"returnValueType": {
+										"kind": "intrinsic",
+										"intrinsic": "void"
+									}
+								}
+							]
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "DialogRoot.ChangeEventReason",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "ChangeEventReason",
+					"namespaces": ["DialogRoot"]
+				},
+				"types": [
+					{
+						"kind": "literal",
+						"value": "\"click\""
+					},
+					{
+						"kind": "literal",
+						"value": "\"escape\""
+					},
+					{
+						"kind": "literal",
+						"value": "\"focus-out\""
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "DialogRoot.ChangeEventDetails",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "ChangeEventDetails",
+					"namespaces": ["DialogRoot"]
+				},
+				"properties": [
+					{
+						"name": "reason",
+						"type": {
+							"kind": "union",
+							"typeName": {
+								"name": "DialogRootChangeEventReason"
+							},
+							"types": [
+								{
+									"kind": "literal",
+									"value": "\"click\""
+								},
+								{
+									"kind": "literal",
+									"value": "\"escape\""
+								},
+								{
+									"kind": "literal",
+									"value": "\"focus-out\""
+								}
+							]
+						},
+						"optional": false
+					},
+					{
+						"name": "preventUnmountOnClose",
+						"type": {
+							"kind": "function",
+							"typeName": {
+								"name": "preventUnmountOnClose"
+							},
+							"callSignatures": [
+								{
+									"parameters": [],
+									"returnValueType": {
+										"kind": "intrinsic",
+										"intrinsic": "void"
+									}
+								}
+							]
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "AlertDialogRootProps",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "AlertDialogRootProps",
+					"typeArguments": [
+						{
+							"type": {
+								"name": "Payload",
+								"defaultValue": {
+									"kind": "intrinsic",
+									"intrinsic": "unknown"
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [
+					{
+						"name": "onOpenChange",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "function",
+									"callSignatures": [
+										{
+											"parameters": [
+												{
+													"type": {
+														"kind": "intrinsic",
+														"intrinsic": "boolean"
+													},
+													"name": "open",
+													"optional": false
+												},
+												{
+													"type": {
+														"kind": "intersection",
+														"typeName": {
+															"name": "ChangeEventDetails",
+															"namespaces": ["AlertDialogRoot"]
+														},
+														"types": [
+															{
+																"kind": "object",
+																"typeName": {
+																	"name": "DialogRootChangeEventDetails"
+																},
+																"properties": [
+																	{
+																		"name": "reason",
+																		"type": {
+																			"kind": "union",
+																			"typeName": {
+																				"name": "DialogRootChangeEventReason"
+																			},
+																			"types": [
+																				{
+																					"kind": "literal",
+																					"value": "\"click\""
+																				},
+																				{
+																					"kind": "literal",
+																					"value": "\"escape\""
+																				},
+																				{
+																					"kind": "literal",
+																					"value": "\"focus-out\""
+																				}
+																			]
+																		},
+																		"optional": false
+																	},
+																	{
+																		"name": "preventUnmountOnClose",
+																		"type": {
+																			"kind": "function",
+																			"typeName": {
+																				"name": "preventUnmountOnClose"
+																			},
+																			"callSignatures": [
+																				{
+																					"parameters": [],
+																					"returnValueType": {
+																						"kind": "intrinsic",
+																						"intrinsic": "void"
+																					}
+																				}
+																			]
+																		},
+																		"optional": false
+																	}
+																]
+															},
+															{
+																"kind": "object",
+																"properties": [
+																	{
+																		"name": "alertLevel",
+																		"type": {
+																			"kind": "union",
+																			"types": [
+																				{
+																					"kind": "literal",
+																					"value": "\"info\""
+																				},
+																				{
+																					"kind": "literal",
+																					"value": "\"warning\""
+																				},
+																				{
+																					"kind": "literal",
+																					"value": "\"error\""
+																				}
+																			]
+																		},
+																		"documentation": {
+																			"description": "Additional alert-specific detail",
+																			"tags": []
+																		},
+																		"optional": false
+																	}
+																]
+															}
+														],
+														"properties": [
+															{
+																"name": "reason",
+																"type": {
+																	"kind": "union",
+																	"typeName": {
+																		"name": "DialogRootChangeEventReason"
+																	},
+																	"types": [
+																		{
+																			"kind": "literal",
+																			"value": "\"click\""
+																		},
+																		{
+																			"kind": "literal",
+																			"value": "\"escape\""
+																		},
+																		{
+																			"kind": "literal",
+																			"value": "\"focus-out\""
+																		}
+																	]
+																},
+																"optional": false
+															},
+															{
+																"name": "preventUnmountOnClose",
+																"type": {
+																	"kind": "function",
+																	"typeName": {
+																		"name": "preventUnmountOnClose"
+																	},
+																	"callSignatures": [
+																		{
+																			"parameters": [],
+																			"returnValueType": {
+																				"kind": "intrinsic",
+																				"intrinsic": "void"
+																			}
+																		}
+																	]
+																},
+																"optional": false
+															},
+															{
+																"name": "alertLevel",
+																"type": {
+																	"kind": "union",
+																	"types": [
+																		{
+																			"kind": "literal",
+																			"value": "\"info\""
+																		},
+																		{
+																			"kind": "literal",
+																			"value": "\"warning\""
+																		},
+																		{
+																			"kind": "literal",
+																			"value": "\"error\""
+																		}
+																	]
+																},
+																"documentation": {
+																	"description": "Additional alert-specific detail",
+																	"tags": []
+																},
+																"optional": false
+															}
+														]
+													},
+													"name": "details",
+													"optional": false
+												}
+											],
+											"returnValueType": {
+												"kind": "intrinsic",
+												"intrinsic": "void"
+											}
+										}
+									]
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "Event handler called when the dialog is opened or closed.",
+							"tags": []
+						},
+						"optional": true
+					},
+					{
+						"name": "children",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "external",
+									"typeName": {
+										"name": "ReactNode",
+										"namespaces": ["React"]
+									},
+									"source": {
+										"kind": "package",
+										"name": "@types/react"
+									}
+								},
+								{
+									"kind": "function",
+									"callSignatures": [
+										{
+											"parameters": [
+												{
+													"type": {
+														"kind": "object",
+														"properties": [
+															{
+																"name": "payload",
+																"type": {
+																	"kind": "union",
+																	"types": [
+																		{
+																			"name": "Payload",
+																			"defaultValue": {
+																				"kind": "intrinsic",
+																				"intrinsic": "unknown"
+																			},
+																			"kind": "typeParameter"
+																		},
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "undefined"
+																		}
+																	]
+																},
+																"optional": false
+															}
+														]
+													},
+													"name": "state",
+													"optional": false
+												}
+											],
+											"returnValueType": {
+												"kind": "external",
+												"typeName": {
+													"name": "ReactNode",
+													"namespaces": ["React"]
+												},
+												"source": {
+													"kind": "package",
+													"name": "@types/react"
+												}
+											}
+										}
+									]
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "open",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "boolean"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "defaultOpen",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "boolean"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					}
+				]
+			},
+			"extendsTypes": [
+				{
+					"name": "DialogRoot.Props",
+					"resolvedName": "DialogRootProps"
+				}
+			],
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "AlertDialogRootActions",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Actions",
+					"namespaces": ["DialogRoot"]
+				},
+				"properties": [
+					{
+						"name": "unmount",
+						"type": {
+							"kind": "function",
+							"typeName": {
+								"name": "unmount"
+							},
+							"callSignatures": [
+								{
+									"parameters": [],
+									"returnValueType": {
+										"kind": "intrinsic",
+										"intrinsic": "void"
+									}
+								}
+							]
+						},
+						"optional": false
+					},
+					{
+						"name": "close",
+						"type": {
+							"kind": "function",
+							"typeName": {
+								"name": "close"
+							},
+							"callSignatures": [
+								{
+									"parameters": [],
+									"returnValueType": {
+										"kind": "intrinsic",
+										"intrinsic": "void"
+									}
+								}
+							]
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "AlertDialogRootChangeEventReason",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "ChangeEventReason",
+					"namespaces": ["DialogRoot"]
+				},
+				"types": [
+					{
+						"kind": "literal",
+						"value": "\"click\""
+					},
+					{
+						"kind": "literal",
+						"value": "\"escape\""
+					},
+					{
+						"kind": "literal",
+						"value": "\"focus-out\""
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "AlertDialogRootChangeEventDetails",
+			"type": {
+				"kind": "intersection",
+				"typeName": {
+					"name": "AlertDialogRootChangeEventDetails"
+				},
+				"types": [
+					{
+						"kind": "object",
+						"typeName": {
+							"name": "DialogRootChangeEventDetails"
+						},
+						"properties": [
+							{
+								"name": "reason",
+								"type": {
+									"kind": "union",
+									"typeName": {
+										"name": "DialogRootChangeEventReason"
+									},
+									"types": [
+										{
+											"kind": "literal",
+											"value": "\"click\""
+										},
+										{
+											"kind": "literal",
+											"value": "\"escape\""
+										},
+										{
+											"kind": "literal",
+											"value": "\"focus-out\""
+										}
+									]
+								},
+								"optional": false
+							},
+							{
+								"name": "preventUnmountOnClose",
+								"type": {
+									"kind": "function",
+									"typeName": {
+										"name": "preventUnmountOnClose"
+									},
+									"callSignatures": [
+										{
+											"parameters": [],
+											"returnValueType": {
+												"kind": "intrinsic",
+												"intrinsic": "void"
+											}
+										}
+									]
+								},
+								"optional": false
+							}
+						]
+					},
+					{
+						"kind": "object",
+						"properties": [
+							{
+								"name": "alertLevel",
+								"type": {
+									"kind": "union",
+									"types": [
+										{
+											"kind": "literal",
+											"value": "\"info\""
+										},
+										{
+											"kind": "literal",
+											"value": "\"warning\""
+										},
+										{
+											"kind": "literal",
+											"value": "\"error\""
+										}
+									]
+								},
+								"documentation": {
+									"description": "Additional alert-specific detail",
+									"tags": []
+								},
+								"optional": false
+							}
+						]
+					}
+				],
+				"properties": [
+					{
+						"name": "reason",
+						"type": {
+							"kind": "union",
+							"typeName": {
+								"name": "DialogRootChangeEventReason"
+							},
+							"types": [
+								{
+									"kind": "literal",
+									"value": "\"click\""
+								},
+								{
+									"kind": "literal",
+									"value": "\"escape\""
+								},
+								{
+									"kind": "literal",
+									"value": "\"focus-out\""
+								}
+							]
+						},
+						"optional": false
+					},
+					{
+						"name": "preventUnmountOnClose",
+						"type": {
+							"kind": "function",
+							"typeName": {
+								"name": "preventUnmountOnClose"
+							},
+							"callSignatures": [
+								{
+									"parameters": [],
+									"returnValueType": {
+										"kind": "intrinsic",
+										"intrinsic": "void"
+									}
+								}
+							]
+						},
+						"optional": false
+					},
+					{
+						"name": "alertLevel",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "literal",
+									"value": "\"info\""
+								},
+								{
+									"kind": "literal",
+									"value": "\"warning\""
+								},
+								{
+									"kind": "literal",
+									"value": "\"error\""
+								}
+							]
+						},
+						"documentation": {
+							"description": "Additional alert-specific detail",
+							"tags": []
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "AlertDialogRoot.Props",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Props",
+					"namespaces": ["AlertDialogRoot"],
+					"typeArguments": [
+						{
+							"type": {
+								"name": "Payload",
+								"defaultValue": {
+									"kind": "intrinsic",
+									"intrinsic": "unknown"
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [
+					{
+						"name": "onOpenChange",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "function",
+									"callSignatures": [
+										{
+											"parameters": [
+												{
+													"type": {
+														"kind": "intrinsic",
+														"intrinsic": "boolean"
+													},
+													"name": "open",
+													"optional": false
+												},
+												{
+													"type": {
+														"kind": "intersection",
+														"typeName": {
+															"name": "ChangeEventDetails",
+															"namespaces": ["AlertDialogRoot"]
+														},
+														"types": [
+															{
+																"kind": "object",
+																"typeName": {
+																	"name": "DialogRootChangeEventDetails"
+																},
+																"properties": [
+																	{
+																		"name": "reason",
+																		"type": {
+																			"kind": "union",
+																			"typeName": {
+																				"name": "DialogRootChangeEventReason"
+																			},
+																			"types": [
+																				{
+																					"kind": "literal",
+																					"value": "\"click\""
+																				},
+																				{
+																					"kind": "literal",
+																					"value": "\"escape\""
+																				},
+																				{
+																					"kind": "literal",
+																					"value": "\"focus-out\""
+																				}
+																			]
+																		},
+																		"optional": false
+																	},
+																	{
+																		"name": "preventUnmountOnClose",
+																		"type": {
+																			"kind": "function",
+																			"typeName": {
+																				"name": "preventUnmountOnClose"
+																			},
+																			"callSignatures": [
+																				{
+																					"parameters": [],
+																					"returnValueType": {
+																						"kind": "intrinsic",
+																						"intrinsic": "void"
+																					}
+																				}
+																			]
+																		},
+																		"optional": false
+																	}
+																]
+															},
+															{
+																"kind": "object",
+																"properties": [
+																	{
+																		"name": "alertLevel",
+																		"type": {
+																			"kind": "union",
+																			"types": [
+																				{
+																					"kind": "literal",
+																					"value": "\"info\""
+																				},
+																				{
+																					"kind": "literal",
+																					"value": "\"warning\""
+																				},
+																				{
+																					"kind": "literal",
+																					"value": "\"error\""
+																				}
+																			]
+																		},
+																		"documentation": {
+																			"description": "Additional alert-specific detail",
+																			"tags": []
+																		},
+																		"optional": false
+																	}
+																]
+															}
+														],
+														"properties": [
+															{
+																"name": "reason",
+																"type": {
+																	"kind": "union",
+																	"typeName": {
+																		"name": "DialogRootChangeEventReason"
+																	},
+																	"types": [
+																		{
+																			"kind": "literal",
+																			"value": "\"click\""
+																		},
+																		{
+																			"kind": "literal",
+																			"value": "\"escape\""
+																		},
+																		{
+																			"kind": "literal",
+																			"value": "\"focus-out\""
+																		}
+																	]
+																},
+																"optional": false
+															},
+															{
+																"name": "preventUnmountOnClose",
+																"type": {
+																	"kind": "function",
+																	"typeName": {
+																		"name": "preventUnmountOnClose"
+																	},
+																	"callSignatures": [
+																		{
+																			"parameters": [],
+																			"returnValueType": {
+																				"kind": "intrinsic",
+																				"intrinsic": "void"
+																			}
+																		}
+																	]
+																},
+																"optional": false
+															},
+															{
+																"name": "alertLevel",
+																"type": {
+																	"kind": "union",
+																	"types": [
+																		{
+																			"kind": "literal",
+																			"value": "\"info\""
+																		},
+																		{
+																			"kind": "literal",
+																			"value": "\"warning\""
+																		},
+																		{
+																			"kind": "literal",
+																			"value": "\"error\""
+																		}
+																	]
+																},
+																"documentation": {
+																	"description": "Additional alert-specific detail",
+																	"tags": []
+																},
+																"optional": false
+															}
+														]
+													},
+													"name": "details",
+													"optional": false
+												}
+											],
+											"returnValueType": {
+												"kind": "intrinsic",
+												"intrinsic": "void"
+											}
+										}
+									]
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "Event handler called when the dialog is opened or closed.",
+							"tags": []
+						},
+						"optional": true
+					},
+					{
+						"name": "children",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "external",
+									"typeName": {
+										"name": "ReactNode",
+										"namespaces": ["React"]
+									},
+									"source": {
+										"kind": "package",
+										"name": "@types/react"
+									}
+								},
+								{
+									"kind": "function",
+									"callSignatures": [
+										{
+											"parameters": [
+												{
+													"type": {
+														"kind": "object",
+														"properties": [
+															{
+																"name": "payload",
+																"type": {
+																	"kind": "union",
+																	"types": [
+																		{
+																			"name": "Payload",
+																			"defaultValue": {
+																				"kind": "intrinsic",
+																				"intrinsic": "unknown"
+																			},
+																			"kind": "typeParameter"
+																		},
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "undefined"
+																		}
+																	]
+																},
+																"optional": false
+															}
+														]
+													},
+													"name": "state",
+													"optional": false
+												}
+											],
+											"returnValueType": {
+												"kind": "external",
+												"typeName": {
+													"name": "ReactNode",
+													"namespaces": ["React"]
+												},
+												"source": {
+													"kind": "package",
+													"name": "@types/react"
+												}
+											}
+										}
+									]
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "open",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "boolean"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "defaultOpen",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "boolean"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "AlertDialogRoot.Actions",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Actions",
+					"namespaces": ["AlertDialogRoot"]
+				},
+				"properties": [
+					{
+						"name": "unmount",
+						"type": {
+							"kind": "function",
+							"typeName": {
+								"name": "unmount"
+							},
+							"callSignatures": [
+								{
+									"parameters": [],
+									"returnValueType": {
+										"kind": "intrinsic",
+										"intrinsic": "void"
+									}
+								}
+							]
+						},
+						"optional": false
+					},
+					{
+						"name": "close",
+						"type": {
+							"kind": "function",
+							"typeName": {
+								"name": "close"
+							},
+							"callSignatures": [
+								{
+									"parameters": [],
+									"returnValueType": {
+										"kind": "intrinsic",
+										"intrinsic": "void"
+									}
+								}
+							]
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "AlertDialogRoot.ChangeEventReason",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "ChangeEventReason",
+					"namespaces": ["AlertDialogRoot"]
+				},
+				"types": [
+					{
+						"kind": "literal",
+						"value": "\"click\""
+					},
+					{
+						"kind": "literal",
+						"value": "\"escape\""
+					},
+					{
+						"kind": "literal",
+						"value": "\"focus-out\""
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "AlertDialogRoot.ChangeEventDetails",
+			"type": {
+				"kind": "intersection",
+				"typeName": {
+					"name": "ChangeEventDetails",
+					"namespaces": ["AlertDialogRoot"]
+				},
+				"types": [
+					{
+						"kind": "object",
+						"typeName": {
+							"name": "DialogRootChangeEventDetails"
+						},
+						"properties": [
+							{
+								"name": "reason",
+								"type": {
+									"kind": "union",
+									"typeName": {
+										"name": "DialogRootChangeEventReason"
+									},
+									"types": [
+										{
+											"kind": "literal",
+											"value": "\"click\""
+										},
+										{
+											"kind": "literal",
+											"value": "\"escape\""
+										},
+										{
+											"kind": "literal",
+											"value": "\"focus-out\""
+										}
+									]
+								},
+								"optional": false
+							},
+							{
+								"name": "preventUnmountOnClose",
+								"type": {
+									"kind": "function",
+									"typeName": {
+										"name": "preventUnmountOnClose"
+									},
+									"callSignatures": [
+										{
+											"parameters": [],
+											"returnValueType": {
+												"kind": "intrinsic",
+												"intrinsic": "void"
+											}
+										}
+									]
+								},
+								"optional": false
+							}
+						]
+					},
+					{
+						"kind": "object",
+						"properties": [
+							{
+								"name": "alertLevel",
+								"type": {
+									"kind": "union",
+									"types": [
+										{
+											"kind": "literal",
+											"value": "\"info\""
+										},
+										{
+											"kind": "literal",
+											"value": "\"warning\""
+										},
+										{
+											"kind": "literal",
+											"value": "\"error\""
+										}
+									]
+								},
+								"documentation": {
+									"description": "Additional alert-specific detail",
+									"tags": []
+								},
+								"optional": false
+							}
+						]
+					}
+				],
+				"properties": [
+					{
+						"name": "reason",
+						"type": {
+							"kind": "union",
+							"typeName": {
+								"name": "DialogRootChangeEventReason"
+							},
+							"types": [
+								{
+									"kind": "literal",
+									"value": "\"click\""
+								},
+								{
+									"kind": "literal",
+									"value": "\"escape\""
+								},
+								{
+									"kind": "literal",
+									"value": "\"focus-out\""
+								}
+							]
+						},
+						"optional": false
+					},
+					{
+						"name": "preventUnmountOnClose",
+						"type": {
+							"kind": "function",
+							"typeName": {
+								"name": "preventUnmountOnClose"
+							},
+							"callSignatures": [
+								{
+									"parameters": [],
+									"returnValueType": {
+										"kind": "intrinsic",
+										"intrinsic": "void"
+									}
+								}
+							]
+						},
+						"optional": false
+					},
+					{
+						"name": "alertLevel",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "literal",
+									"value": "\"info\""
+								},
+								{
+									"kind": "literal",
+									"value": "\"warning\""
+								},
+								{
+									"kind": "literal",
+									"value": "\"error\""
+								}
+							]
+						},
+						"documentation": {
+							"description": "Additional alert-specific detail",
+							"tags": []
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	],
+	"imports": ["react"]
+}

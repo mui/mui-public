@@ -1,0 +1,286 @@
+{
+	"name": "test/fixtures/type-alias-export-preservation/input",
+	"exports": [
+		{
+			"name": "processWithUnionAlias",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "processWithUnionAlias"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "union",
+									"typeName": {
+										"name": "UnionAlias"
+									},
+									"types": [
+										{
+											"kind": "literal",
+											"value": "\"a\""
+										},
+										{
+											"kind": "literal",
+											"value": "\"b\""
+										},
+										{
+											"kind": "literal",
+											"value": "\"c\""
+										}
+									]
+								},
+								"name": "mode",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "processWithObjectAlias",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "processWithObjectAlias"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "object",
+									"typeName": {
+										"name": "ObjectAlias"
+									},
+									"properties": [
+										{
+											"name": "name",
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											},
+											"optional": false
+										},
+										{
+											"name": "age",
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "number"
+											},
+											"optional": false
+										}
+									]
+								},
+								"name": "obj",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "SimpleAlias",
+			"type": {
+				"kind": "intrinsic",
+				"intrinsic": "string"
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "UnionAlias",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "UnionAlias"
+				},
+				"types": [
+					{
+						"kind": "literal",
+						"value": "\"a\""
+					},
+					{
+						"kind": "literal",
+						"value": "\"b\""
+					},
+					{
+						"kind": "literal",
+						"value": "\"c\""
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "ObjectAlias",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "ObjectAlias"
+				},
+				"properties": [
+					{
+						"name": "name",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "age",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "number"
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "GenericAlias",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "GenericAlias",
+					"typeArguments": [
+						{
+							"type": {
+								"name": "T",
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [
+					{
+						"name": "value",
+						"type": {
+							"name": "T",
+							"kind": "typeParameter"
+						},
+						"optional": false
+					},
+					{
+						"name": "isValid",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "boolean"
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "ConditionalAlias",
+			"type": {
+				"kind": "union",
+				"types": [
+					{
+						"kind": "literal",
+						"value": "\"string\""
+					},
+					{
+						"kind": "literal",
+						"value": "\"other\""
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "ExtendedAlias",
+			"type": {
+				"kind": "intersection",
+				"typeName": {
+					"name": "ExtendedAlias"
+				},
+				"types": [
+					{
+						"kind": "object",
+						"typeName": {
+							"name": "BaseInterface"
+						},
+						"properties": [
+							{
+								"name": "id",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							}
+						]
+					},
+					{
+						"kind": "object",
+						"properties": [
+							{
+								"name": "extra",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "boolean"
+								},
+								"optional": false
+							}
+						]
+					}
+				],
+				"properties": [
+					{
+						"name": "id",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "extra",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "boolean"
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}
