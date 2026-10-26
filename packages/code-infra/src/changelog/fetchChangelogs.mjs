@@ -3,7 +3,7 @@ import { throttling } from '@octokit/plugin-throttling';
 import { Octokit } from '@octokit/rest';
 import { mapAsync } from 'es-toolkit/array';
 
-import { persistentAuthStrategy } from '../utils/github.mjs';
+import { persistentAuthStrategy, getRateLimitRetryTime } from '../utils/github.mjs';
 
 const HTTP_NOT_FOUND = 404;
 const HTTP_FORBIDDEN = 403;
@@ -110,12 +110,15 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
   /** @type {Map<string, Promise<'team' | 'contributor'>>} */
   const directAuthors = new Map();
 
-  /** @param {string} login @returns {Promise<'team' | 'contributor'>} */
-  async function checkMembership(login) {
+  /** @param {string} login @param {AbortSignal} signal @returns {Promise<'team' | 'contributor'>} */
+  async function checkMembership(login, signal) {
     try {
-      await octokit.orgs.checkMembershipForUser({ org, username: login });
+      await octokit.orgs.checkMembershipForUser({ org, username: login, request: { signal } });
       return 'team';
     } catch (error) {
+      if (getRateLimitRetryTime(error)) {
+        throw error;
+      }
       if (error instanceof Error && 'status' in error) {
         if (error.status === HTTP_NOT_FOUND) {
           return 'contributor';
@@ -141,7 +144,7 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
       subject.match(/\(#(\d+)\)\s*$/) ?? subject.match(/^Merge pull request #(\d+)\b/);
     const isMerge = (commit.parents?.length ?? 0) >= MIN_MERGE_PARENTS;
     if (!prMatch) {
-      return isMerge ? null : directCommit(commit);
+      return isMerge ? null : directCommit(commit, signal);
     }
 
     const prNumber = Number(prMatch[1]);
@@ -157,7 +160,7 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
       });
     } catch (error) {
       if (error instanceof Error && 'status' in error && error.status === HTTP_NOT_FOUND) {
-        return isMerge ? null : directCommit(commit);
+        return isMerge ? null : directCommit(commit, signal);
       }
       throw error;
     }
@@ -236,15 +239,15 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
     return details;
   };
 
-  /** @param {Commits[number]} commit @returns {Promise<FetchedCommitDetails>} */
-  async function directCommit(commit) {
+  /** @param {Commits[number]} commit @param {AbortSignal} signal @returns {Promise<FetchedCommitDetails>} */
+  async function directCommit(commit, signal) {
     const login = commit.author?.login;
     let association = /** @type {'team' | 'contributor'} */ ('contributor');
     if (login === org) {
       association = 'team';
     } else if (login && !login.endsWith('[bot]')) {
       if (!directAuthors.has(login)) {
-        directAuthors.set(login, checkMembership(login));
+        directAuthors.set(login, checkMembership(login, signal));
       }
       association = await /** @type {Promise<'team' | 'contributor'>} */ (directAuthors.get(login));
     }

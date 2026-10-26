@@ -1,10 +1,14 @@
 import { Octokit } from '@octokit/rest';
-import { expect, it, vi } from 'vitest';
+import { expect, it, vi, onTestFinished } from 'vitest';
 // eslint-disable-next-line import/extensions
 import { fetchCommitsBetweenRefs } from './index.mjs';
 
 const OK = 200;
 const NOT_FOUND = 404;
+const FORBIDDEN = 403;
+const INTERNAL_SERVER_ERROR = 500;
+const NO_CONTENT = 204;
+const DATE = '2026-10-01T00:00:00Z';
 
 it('keeps direct commits and resolves structured cherry-pick attribution', async () => {
   const requests: string[] = [];
@@ -144,4 +148,279 @@ it('resolves an original PR in its own repository instead of guessing from menti
   });
   expect(result.author).toEqual({ login: 'original', association: 'team' });
   expect(requests).toContain('/repos/mui/source/pulls/1');
+});
+
+const RATE_LIMIT_HEADERS: Record<string, string>[] = [
+  { 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': '2000000000' },
+  { 'retry-after': '60' },
+];
+
+it.each(RATE_LIMIT_HEADERS)(
+  'propagates membership rate limits instead of changing author classification: %j',
+  async (headers) => {
+    const octokit = new Octokit({
+      request: {
+        fetch: async (input: Parameters<typeof fetch>[0]) => {
+          const url = new URL(input instanceof Request ? input.url : String(input));
+          if (url.pathname.includes('/members/')) {
+            return Response.json({ message: 'Forbidden' }, { status: FORBIDDEN, headers });
+          }
+          return Object.defineProperty(
+            Response.json(
+              {
+                url: url.href,
+                total_commits: 1,
+                commits: [
+                  {
+                    sha: 'direct',
+                    author: { login: 'author' },
+                    commit: { message: 'Direct change' },
+                  },
+                ],
+              },
+              { status: OK },
+            ),
+            'url',
+            { value: url.href },
+          );
+        },
+      },
+    });
+    await expect(
+      fetchCommitsBetweenRefs({ octokit, repo: 'test', lastRelease: 'v0', release: 'v1' }),
+    ).rejects.toMatchObject({ status: FORBIDDEN });
+  },
+);
+
+it('aborts pending membership requests when another lookup fails', async () => {
+  let memberStarted: (() => void) | undefined;
+  const started = new Promise<void>((resolve) => {
+    memberStarted = resolve;
+  });
+  let aborted = false;
+  const octokit = new Octokit({
+    request: {
+      fetch: async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+        const url = new URL(input instanceof Request ? input.url : String(input));
+        if (url.pathname.includes('/members/')) {
+          memberStarted?.();
+          return new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener(
+              'abort',
+              () => {
+                aborted = true;
+                reject(new DOMException('Aborted', 'AbortError'));
+              },
+              { once: true },
+            );
+          });
+        }
+        if (url.pathname.includes('/pulls/')) {
+          await started;
+          return Response.json({ message: 'Unavailable' }, { status: INTERNAL_SERVER_ERROR });
+        }
+        return Object.defineProperty(
+          Response.json(
+            {
+              url: url.href,
+              total_commits: 2,
+              commits: [
+                {
+                  sha: 'direct',
+                  author: { login: 'author' },
+                  commit: { message: 'Direct change' },
+                },
+                { sha: 'pr', commit: { message: 'PR change (#1)' } },
+              ],
+            },
+            { status: OK },
+          ),
+          'url',
+          { value: url.href },
+        );
+      },
+    },
+  });
+  await expect(
+    fetchCommitsBetweenRefs({ octokit, repo: 'test', lastRelease: 'v0', release: 'v1' }),
+  ).rejects.toMatchObject({ status: INTERNAL_SERVER_ERROR });
+  expect(aborted).toBe(true);
+});
+
+it('omits merge bookkeeping and PR children without dropping mainline direct changes', async () => {
+  const commits = [
+    {
+      sha: 'base',
+      parents: [{ sha: 'outside' }],
+      commit: { message: 'Direct mainline change' },
+      author: null,
+    },
+    {
+      sha: 'child',
+      parents: [{ sha: 'outside' }],
+      commit: { message: 'PR implementation' },
+      author: null,
+    },
+    {
+      sha: 'sync',
+      parents: [{ sha: 'child' }, { sha: 'base' }],
+      commit: { message: "Merge branch 'master' into feature" },
+      author: null,
+    },
+    {
+      sha: 'merge',
+      parents: [{ sha: 'base' }, { sha: 'sync' }],
+      commit: { message: 'Merge pull request #1 from feature' },
+      author: null,
+    },
+    {
+      sha: 'branch-change',
+      parents: [{ sha: 'outside' }],
+      commit: { message: 'Direct side-branch change' },
+      author: null,
+    },
+    {
+      sha: 'manual',
+      parents: [{ sha: 'merge' }, { sha: 'branch-change' }],
+      commit: { message: "Merge branch 'master' into v9.x" },
+      author: null,
+    },
+    {
+      sha: 'unresolved-child',
+      parents: [{ sha: 'manual' }],
+      commit: { message: 'Unresolved branch change' },
+      author: null,
+    },
+    {
+      sha: 'unresolved',
+      parents: [{ sha: 'manual' }, { sha: 'unresolved-child' }],
+      commit: { message: 'Merge pull request #999 from feature' },
+      author: null,
+    },
+  ];
+  const octokit = new Octokit({
+    request: {
+      fetch: async (input: Parameters<typeof fetch>[0]) => {
+        const url = new URL(input instanceof Request ? input.url : String(input));
+        if (url.pathname.endsWith('/999')) {
+          return Response.json({ message: 'Not Found' }, { status: NOT_FOUND });
+        }
+        const data = url.pathname.includes('/compare/')
+          ? { url: url.href, total_commits: commits.length, commits }
+          : {
+              title: '[Grid] Actual PR change',
+              body: '',
+              labels: [],
+              user: { login: 'author' },
+              author_association: 'MEMBER',
+              merged_at: DATE,
+              created_at: DATE,
+              html_url: url.href,
+            };
+        return Object.defineProperty(Response.json(data, { status: OK }), 'url', {
+          value: url.href,
+        });
+      },
+    },
+  });
+  const result = await fetchCommitsBetweenRefs({
+    octokit,
+    repo: 'test',
+    lastRelease: 'v0',
+    release: 'v1',
+  });
+  expect(result.map((commit) => commit.sha)).toEqual([
+    'base',
+    'merge',
+    'branch-change',
+    'unresolved-child',
+  ]);
+  expect(result.find((commit) => commit.prNumber === 1)?.message).toBe(
+    '[Grid] Actual PR change (#1)',
+  );
+});
+
+it('classifies direct authors using organization membership', async () => {
+  const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  onTestFinished(() => warning.mockRestore());
+  const octokit = new Octokit({
+    request: {
+      fetch: async (input: Parameters<typeof fetch>[0]) => {
+        const url = new URL(input instanceof Request ? input.url : String(input));
+        if (url.pathname.includes('/members/')) {
+          return url.pathname.endsWith('/team-member')
+            ? new Response(null, { status: NO_CONTENT })
+            : Response.json(
+                { message: 'Not Found' },
+                { status: url.pathname.endsWith('/restricted') ? FORBIDDEN : NOT_FOUND },
+              );
+        }
+        const data = {
+          url: url.href,
+          total_commits: 3,
+          commits: ['team-member', 'community-member', 'restricted'].map((login) => ({
+            sha: login,
+            author: { login },
+            commit: { message: 'Direct change' },
+          })),
+        };
+        return Object.defineProperty(Response.json(data, { status: OK }), 'url', {
+          value: url.href,
+        });
+      },
+    },
+  });
+  const result = await fetchCommitsBetweenRefs({
+    octokit,
+    repo: 'test',
+    lastRelease: 'v0',
+    release: 'v1',
+  });
+  expect(result.map((commit) => commit.author)).toEqual([
+    { login: 'team-member', association: 'team' },
+    { login: 'community-member', association: 'contributor' },
+    { login: 'restricted', association: 'contributor' },
+  ]);
+  expect(warning).toHaveBeenCalledWith(
+    expect.stringContaining('Cannot check membership for @restricted'),
+  );
+});
+
+it('cleans human cherry-pick suffixes without changing attribution', async () => {
+  const octokit = new Octokit({
+    request: {
+      fetch: async (input: Parameters<typeof fetch>[0]) => {
+        const url = new URL(input instanceof Request ? input.url : String(input));
+        const data = url.pathname.includes('/compare/')
+          ? {
+              url: url.href,
+              total_commits: 1,
+              commits: [
+                { sha: 'human-backport', commit: { message: 'Fix behavior (@original) (#1)' } },
+              ],
+            }
+          : {
+              title: 'Fix behavior (@original)',
+              body: '',
+              labels: [{ name: 'cherry-pick' }],
+              user: { login: 'human' },
+              author_association: 'MEMBER',
+              created_at: DATE,
+              merged_at: DATE,
+              html_url: url.href,
+            };
+        return Object.defineProperty(Response.json(data, { status: OK }), 'url', {
+          value: url.href,
+        });
+      },
+    },
+  });
+  const [result] = await fetchCommitsBetweenRefs({
+    octokit,
+    repo: 'test',
+    lastRelease: 'v0',
+    release: 'v1',
+  });
+  expect(result.author?.login).toBe('human');
+  expect(result.message).toBe('Fix behavior (#1)');
 });

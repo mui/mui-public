@@ -33,9 +33,18 @@ Repository configs control output, package routing, filters and contributor poli
 use `excludeAuthorsFromContributors` to exclude credit separately.
 Explicit author filters still apply after cherry-pick attribution is resolved.
 
+Run release generation with an organization-member user's token that can read organization
+memberships. Fine-grained tokens need the organization's
+[Members: read permission](https://docs.github.com/en/rest/orgs/members#check-organization-membership-for-a-user).
+
 Direct changes receive commit links. Merge bookkeeping is omitted; a merge PR represents
-its branch changes once. Direct authors are classified using GitHub organization membership;
+its branch changes once, including nested or stacked PR commits. Those inner PRs do not
+retain separate entries or labels. If the merge PR cannot be fetched, its individual changes
+are retained as commit entries instead of being lost.
+
+Direct authors are classified using GitHub organization membership;
 if membership access is forbidden, generation warns and falls back to community credit.
+Rate-limit failures stop generation instead of changing contributor classification.
 
 Callbacks now receive `prNumber: number | null`: handle `null` in custom filters and
 message callbacks. String message templates handle direct-commit links automatically.
