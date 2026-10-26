@@ -1,43 +1,43 @@
-import { TypeName } from './typeName';
-import { ArrayNode } from './types/array';
-import { ClassNode } from './types/class';
-import { ComponentNode } from './types/component';
-import { EnumNode } from './types/enum';
-import { ExternalTypeNode } from './types/external';
-import { FunctionNode } from './types/function';
-import { IntersectionNode } from './types/intersection';
-import { IntrinsicNode } from './types/intrinsic';
-import { LiteralNode } from './types/literal';
-import { ObjectNode } from './types/object';
-import { TemplateLiteralNode } from './types/templateLiteral';
-import { TupleNode } from './types/tuple';
-import { TypeOperatorNode } from './types/typeOperator';
-import { TypeParameterNode } from './types/typeParameter';
-import { TypeQueryNode } from './types/typeQuery';
-import { UnionNode } from './types/union';
+import type { TypeName } from './typeName';
+import type { ArrayNode } from './types/array';
+import type { ClassNode } from './types/class';
+import type { ComponentNode } from './types/component';
+import type { EnumNode } from './types/enum';
+import type { ExternalTypeNode } from './types/external';
+import type { FunctionNode } from './types/function';
+import type { IntersectionNode } from './types/intersection';
+import type { IntrinsicNode } from './types/intrinsic';
+import type { LiteralNode } from './types/literal';
+import type { ObjectNode } from './types/object';
+import type { TemplateLiteralNode } from './types/templateLiteral';
+import type { TupleNode } from './types/tuple';
+import type { TypeOperatorNode } from './types/typeOperator';
+import type { TypeParameterNode } from './types/typeParameter';
+import type { TypeQueryNode } from './types/typeQuery';
+import type { UnionNode } from './types/union';
 
 export interface TypeNode {
-	readonly kind: string;
-	typeName: TypeName | undefined;
+  readonly kind: string;
+  typeName: TypeName | undefined;
 }
 
 export type AnyType =
-	| ArrayNode
-	| ClassNode
-	| ComponentNode
-	| EnumNode
-	| ExternalTypeNode
-	| FunctionNode
-	| IntersectionNode
-	| IntrinsicNode
-	| LiteralNode
-	| ObjectNode
-	| TemplateLiteralNode
-	| TupleNode
-	| TypeOperatorNode
-	| TypeParameterNode
-	| TypeQueryNode
-	| UnionNode;
+  | ArrayNode
+  | ClassNode
+  | ComponentNode
+  | EnumNode
+  | ExternalTypeNode
+  | FunctionNode
+  | IntersectionNode
+  | IntrinsicNode
+  | LiteralNode
+  | ObjectNode
+  | TemplateLiteralNode
+  | TupleNode
+  | TypeOperatorNode
+  | TypeParameterNode
+  | TypeQueryNode
+  | UnionNode;
 
 /**
  * Returns a copy of a type node with a different typeName. Cloning through the
@@ -46,7 +46,7 @@ export type AnyType =
  * layer so parser code can re-label a node without reaching into its internals.
  */
 export function withTypeName<T extends AnyType>(node: T, typeName: TypeName): T {
-	return Object.assign(Object.create(Object.getPrototypeOf(node) as object), node, {
-		typeName,
-	}) as T;
+  return Object.assign(Object.create(Object.getPrototypeOf(node) as object), node, {
+    typeName,
+  }) as T;
 }

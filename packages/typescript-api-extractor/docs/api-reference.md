@@ -8,7 +8,7 @@ See the [usage guide](./usage.md) for worked examples and the
 ### `createProgram`
 
 Re-export of TypeScript's `createProgram` from the TypeScript version bundled
-with `typescript-api-extractor`. It has the same overloads/signature as
+with `@mui/internal-typescript-api-extractor`. It has the same overloads/signature as
 `typescript.createProgram` and returns a `Program`.
 
 ### `loadConfig(tsConfigPath: string)`
@@ -50,16 +50,16 @@ The parser accepts optional configuration through the `ParserOptions` interface:
 
 ```typescript
 interface ParserOptions {
-	shouldInclude?: (data: { name: string; depth: number }) => boolean | undefined;
-	shouldResolveObject?: (data: {
-		name: string;
-		propertyCount: number;
-		depth: number;
-		propertyDepth: number;
-	}) => boolean | undefined;
-	includeExternalTypes?: boolean;
-	typeOperatorOutput?: 'resolved' | 'syntaxOnly';
-	onWarning?: (warning: ParserWarning) => void;
+  shouldInclude?: (data: { name: string; depth: number }) => boolean | undefined;
+  shouldResolveObject?: (data: {
+    name: string;
+    propertyCount: number;
+    depth: number;
+    propertyDepth: number;
+  }) => boolean | undefined;
+  includeExternalTypes?: boolean;
+  typeOperatorOutput?: 'resolved' | 'syntaxOnly';
+  onWarning?: (warning: ParserWarning) => void;
 }
 ```
 
@@ -82,32 +82,32 @@ When `onWarning` is omitted, recoverable parser warnings are printed with
 
 ```typescript
 type ParserWarning =
-	| UnsupportedTypeFallbackWarning
-	| MissingEnumDeclarationWarning
-	| MissingDefaultExportSymbolWarning;
+  | UnsupportedTypeFallbackWarning
+  | MissingEnumDeclarationWarning
+  | MissingDefaultExportSymbolWarning;
 
 interface ParserWarningBase {
-	message: string;
-	filePath: string;
-	line: number;
-	column: number;
-	parsedSymbolStack: string[];
+  message: string;
+  filePath: string;
+  line: number;
+  column: number;
+  parsedSymbolStack: string[];
 }
 
 interface UnsupportedTypeFallbackWarning extends ParserWarningBase {
-	code: 'unsupported-type-fallback';
-	typeFlags: string[];
-	typeText: string;
-	sourceText?: string;
+  code: 'unsupported-type-fallback';
+  typeFlags: string[];
+  typeText: string;
+  sourceText?: string;
 }
 
 interface MissingEnumDeclarationWarning extends ParserWarningBase {
-	code: 'missing-enum-declaration';
-	enumName: string;
+  code: 'missing-enum-declaration';
+  enumName: string;
 }
 
 interface MissingDefaultExportSymbolWarning extends ParserWarningBase {
-	code: 'missing-default-export-symbol';
-	sourceText: string;
+  code: 'missing-default-export-symbol';
+  sourceText: string;
 }
 ```

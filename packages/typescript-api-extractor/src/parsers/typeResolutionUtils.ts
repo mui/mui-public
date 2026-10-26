@@ -1,14 +1,14 @@
 import ts from 'typescript';
 import {
-	ArrayNode,
-	FunctionNode,
-	IntrinsicNode,
-	IntersectionNode,
-	ObjectNode,
-	TupleNode,
-	UnionNode,
-	type AnyType,
+  ArrayNode,
+  FunctionNode,
+  IntrinsicNode,
+  IntersectionNode,
+  ObjectNode,
+  TupleNode,
+  UnionNode,
 } from '../models';
+import type { AnyType } from '../models';
 import { TypeName } from '../models/typeName';
 import { isSemanticallyReadonlyArray, isSemanticallyReadonlyTuple } from './typeContainerUtils';
 
@@ -21,7 +21,7 @@ import { isSemanticallyReadonlyArray, isSemanticallyReadonlyTuple } from './type
  * @returns Whether every requested bit is present.
  */
 export function hasExactFlag(type: ts.Type, flag: number) {
-	return (type.flags & flag) === flag;
+  return (type.flags & flag) === flag;
 }
 
 /**
@@ -33,7 +33,7 @@ export function hasExactFlag(type: ts.Type, flag: number) {
  * @returns Whether at least one requested bit is present.
  */
 export function includesCompositeFlag(type: ts.Type, flag: number) {
-	return (type.flags & flag) !== 0;
+  return (type.flags & flag) !== 0;
 }
 
 /**
@@ -48,16 +48,16 @@ export function includesCompositeFlag(type: ts.Type, flag: number) {
  * @returns Whether the two types are equivalent under the selected policy.
  */
 export function areSemanticTypesEquivalent(
-	type1: ts.Type,
-	type2: ts.Type,
-	checker: ts.TypeChecker,
-	anyPolicy: 'assignable' | 'exact' = 'assignable',
+  type1: ts.Type,
+  type2: ts.Type,
+  checker: ts.TypeChecker,
+  anyPolicy: 'assignable' | 'exact' = 'assignable',
 ): boolean {
-	if (anyPolicy === 'exact' && (type1.flags & ts.TypeFlags.Any || type2.flags & ts.TypeFlags.Any)) {
-		return Boolean(type1.flags & ts.TypeFlags.Any) && Boolean(type2.flags & ts.TypeFlags.Any);
-	}
+  if (anyPolicy === 'exact' && (type1.flags & ts.TypeFlags.Any || type2.flags & ts.TypeFlags.Any)) {
+    return Boolean(type1.flags & ts.TypeFlags.Any) && Boolean(type2.flags & ts.TypeFlags.Any);
+  }
 
-	return checker.isTypeAssignableTo(type1, type2) && checker.isTypeAssignableTo(type2, type1);
+  return checker.isTypeAssignableTo(type1, type2) && checker.isTypeAssignableTo(type2, type1);
 }
 
 /**
@@ -71,8 +71,7 @@ export function areSemanticTypesEquivalent(
  * @returns The internal numeric ID when TypeScript assigned one.
  */
 export function getTypeId(type: ts.Type): number | undefined {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	return (type as any).id;
+  return (type as any).id;
 }
 
 /**
@@ -84,13 +83,13 @@ export function getTypeId(type: ts.Type): number | undefined {
  * @returns The semantic key type, or `undefined` when the internal API is unavailable.
  */
 export function getKeyofTypeForOperand(
-	checker: ts.TypeChecker,
-	operandType: ts.Type,
+  checker: ts.TypeChecker,
+  operandType: ts.Type,
 ): ts.Type | undefined {
-	const checkerWithIndexType = checker as ts.TypeChecker & {
-		getIndexType?: (type: ts.Type) => ts.Type;
-	};
-	return checkerWithIndexType.getIndexType?.(operandType);
+  const checkerWithIndexType = checker as ts.TypeChecker & {
+    getIndexType?: (type: ts.Type) => ts.Type;
+  };
+  return checkerWithIndexType.getIndexType?.(operandType);
 }
 
 /**
@@ -104,43 +103,43 @@ export function getKeyofTypeForOperand(
  * @returns A model node with the same outer kind and no recursively resolved members.
  */
 export function createShallowType(
-	type: ts.Type,
-	typeName: TypeName | undefined,
-	checker: ts.TypeChecker,
+  type: ts.Type,
+  typeName: TypeName | undefined,
+  checker: ts.TypeChecker,
 ): AnyType {
-	if (type.isUnion()) {
-		return new UnionNode(typeName, []);
-	}
+  if (type.isUnion()) {
+    return new UnionNode(typeName, []);
+  }
 
-	if (type.isIntersection()) {
-		return new IntersectionNode(typeName, [], []);
-	}
+  if (type.isIntersection()) {
+    return new IntersectionNode(typeName, [], []);
+  }
 
-	if (checker.isArrayType(type)) {
-		return new ArrayNode(
-			type.aliasSymbol?.name
-				? new TypeName(type.aliasSymbol.name, typeName?.namespaces, typeName?.typeArguments)
-				: undefined,
-			new IntrinsicNode('any'),
-			isSemanticallyReadonlyArray(type) ? true : undefined,
-		);
-	}
+  if (checker.isArrayType(type)) {
+    return new ArrayNode(
+      type.aliasSymbol?.name
+        ? new TypeName(type.aliasSymbol.name, typeName?.namespaces, typeName?.typeArguments)
+        : undefined,
+      new IntrinsicNode('any'),
+      isSemanticallyReadonlyArray(type) ? true : undefined,
+    );
+  }
 
-	if (checker.isTupleType(type)) {
-		return new TupleNode(typeName, [], isSemanticallyReadonlyTuple(type) ? true : undefined);
-	}
+  if (checker.isTupleType(type)) {
+    return new TupleNode(typeName, [], isSemanticallyReadonlyTuple(type) ? true : undefined);
+  }
 
-	if (type.getCallSignatures().length >= 1) {
-		return new FunctionNode(typeName, []);
-	}
+  if (type.getCallSignatures().length >= 1) {
+    return new FunctionNode(typeName, []);
+  }
 
-	return new ObjectNode(typeName, [], undefined);
+  return new ObjectNode(typeName, [], undefined);
 }
 
 // Internal TypeScript API used when enum literal types point at a member symbol
 // and the parser needs to recover the parent enum symbol.
 declare module 'typescript' {
-	interface Symbol {
-		parent?: ts.Symbol;
-	}
+  interface Symbol {
+    parent?: ts.Symbol;
+  }
 }

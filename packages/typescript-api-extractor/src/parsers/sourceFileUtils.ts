@@ -1,4 +1,4 @@
-import ts from 'typescript';
+import type ts from 'typescript';
 
 const nodeModulesPathSubstring = 'node_modules';
 const nodeModulesPathSegmentPattern = /[\\/]node_modules[\\/]/;
@@ -15,7 +15,7 @@ const nodeModulesPathSegmentPattern = /[\\/]node_modules[\\/]/;
  * @returns Whether the file name contains the `node_modules` substring.
  */
 export function isNodeModulesSourceFile(sourceFile: ts.SourceFile): boolean {
-	return sourceFile.fileName.includes(nodeModulesPathSubstring);
+  return sourceFile.fileName.includes(nodeModulesPathSubstring);
 }
 
 /**
@@ -25,7 +25,7 @@ export function isNodeModulesSourceFile(sourceFile: ts.SourceFile): boolean {
  * @returns Whether the declaration belongs to a broadly external path.
  */
 export function isNodeModulesDeclaration(declaration: ts.Declaration): boolean {
-	return isNodeModulesSourceFile(declaration.getSourceFile());
+  return isNodeModulesSourceFile(declaration.getSourceFile());
 }
 
 /**
@@ -39,7 +39,7 @@ export function isNodeModulesDeclaration(declaration: ts.Declaration): boolean {
  * @returns Whether an exact `node_modules` segment occurs in the file name.
  */
 export function hasNodeModulesPathSegment(sourceFile: ts.SourceFile): boolean {
-	return nodeModulesPathSegmentPattern.test(sourceFile.fileName);
+  return nodeModulesPathSegmentPattern.test(sourceFile.fileName);
 }
 
 /**
@@ -49,7 +49,7 @@ export function hasNodeModulesPathSegment(sourceFile: ts.SourceFile): boolean {
  * @returns Whether the declaration is inside an actual `node_modules` segment.
  */
 export function declarationHasNodeModulesPathSegment(declaration: ts.Declaration): boolean {
-	return hasNodeModulesPathSegment(declaration.getSourceFile());
+  return hasNodeModulesPathSegment(declaration.getSourceFile());
 }
 
 /**
@@ -61,12 +61,12 @@ export function declarationHasNodeModulesPathSegment(declaration: ts.Declaration
  * @returns The package name, or `undefined` when the file is not inside `node_modules`.
  */
 export function getNodeModulesPackageName(sourceFile: ts.SourceFile): string | undefined {
-	const segments = sourceFile.fileName.split(/[\\/]/);
-	const nodeModulesIndex = segments.lastIndexOf(nodeModulesPathSubstring);
-	if (nodeModulesIndex === -1) {
-		return undefined;
-	}
+  const segments = sourceFile.fileName.split(/[\\/]/);
+  const nodeModulesIndex = segments.lastIndexOf(nodeModulesPathSubstring);
+  if (nodeModulesIndex === -1) {
+    return undefined;
+  }
 
-	const [scopeOrName, scopedName] = segments.slice(nodeModulesIndex + 1);
-	return scopeOrName.startsWith('@') ? `${scopeOrName}/${scopedName}` : scopeOrName;
+  const [scopeOrName, scopedName] = segments.slice(nodeModulesIndex + 1);
+  return scopeOrName.startsWith('@') ? `${scopeOrName}/${scopedName}` : scopeOrName;
 }

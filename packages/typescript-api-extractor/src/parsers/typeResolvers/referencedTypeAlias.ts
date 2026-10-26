@@ -12,22 +12,22 @@ import ts from 'typescript';
  * @returns The reference's name, or the import type's qualifier.
  */
 export function getReferenceEntityName(
-	typeNode: ts.TypeNode | undefined,
+  typeNode: ts.TypeNode | undefined,
 ): ts.EntityName | undefined {
-	let reference = typeNode;
-	while (reference && ts.isParenthesizedTypeNode(reference)) {
-		reference = reference.type;
-	}
+  let reference = typeNode;
+  while (reference && ts.isParenthesizedTypeNode(reference)) {
+    reference = reference.type;
+  }
 
-	if (!reference) {
-		return undefined;
-	}
+  if (!reference) {
+    return undefined;
+  }
 
-	if (ts.isTypeReferenceNode(reference)) {
-		return reference.typeName;
-	}
+  if (ts.isTypeReferenceNode(reference)) {
+    return reference.typeName;
+  }
 
-	return ts.isImportTypeNode(reference) ? reference.qualifier : undefined;
+  return ts.isImportTypeNode(reference) ? reference.qualifier : undefined;
 }
 
 /**
@@ -38,10 +38,10 @@ export function getReferenceEntityName(
  * @returns The aliased symbol, or `symbol` itself when it is not an alias.
  */
 export function resolveImportAlias(
-	symbol: ts.Symbol | undefined,
-	checker: ts.TypeChecker,
+  symbol: ts.Symbol | undefined,
+  checker: ts.TypeChecker,
 ): ts.Symbol | undefined {
-	return symbol && symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
+  return symbol && symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
 }
 
 /**
@@ -52,14 +52,14 @@ export function resolveImportAlias(
  * @returns The referenced type-alias declaration, when one exists.
  */
 export function getReferencedTypeAliasDeclaration(
-	typeNode: ts.TypeNode | undefined,
-	checker: ts.TypeChecker,
+  typeNode: ts.TypeNode | undefined,
+  checker: ts.TypeChecker,
 ): ts.TypeAliasDeclaration | undefined {
-	const location = getReferenceEntityName(typeNode);
-	const targetSymbol = location
-		? resolveImportAlias(checker.getSymbolAtLocation(location), checker)
-		: undefined;
-	return targetSymbol?.declarations?.find(ts.isTypeAliasDeclaration);
+  const location = getReferenceEntityName(typeNode);
+  const targetSymbol = location
+    ? resolveImportAlias(checker.getSymbolAtLocation(location), checker)
+    : undefined;
+  return targetSymbol?.declarations?.find(ts.isTypeAliasDeclaration);
 }
 
 /**
@@ -73,15 +73,15 @@ export function getReferencedTypeAliasDeclaration(
  * @returns The referenced interface or class declaration, when one exists.
  */
 export function getReferencedInterfaceOrClassDeclaration(
-	typeNode: ts.TypeNode,
-	checker: ts.TypeChecker,
+  typeNode: ts.TypeNode,
+  checker: ts.TypeChecker,
 ): ts.InterfaceDeclaration | ts.ClassDeclaration | undefined {
-	const location = getReferenceEntityName(typeNode);
-	const targetSymbol = location
-		? resolveImportAlias(checker.getSymbolAtLocation(location), checker)
-		: undefined;
-	return targetSymbol?.declarations?.find(
-		(declaration): declaration is ts.InterfaceDeclaration | ts.ClassDeclaration =>
-			ts.isInterfaceDeclaration(declaration) || ts.isClassDeclaration(declaration),
-	);
+  const location = getReferenceEntityName(typeNode);
+  const targetSymbol = location
+    ? resolveImportAlias(checker.getSymbolAtLocation(location), checker)
+    : undefined;
+  return targetSymbol?.declarations?.find(
+    (declaration): declaration is ts.InterfaceDeclaration | ts.ClassDeclaration =>
+      ts.isInterfaceDeclaration(declaration) || ts.isClassDeclaration(declaration),
+  );
 }

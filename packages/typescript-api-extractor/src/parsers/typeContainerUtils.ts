@@ -9,7 +9,7 @@ import ts from 'typescript';
  * @returns Whether the declaration is part of TypeScript's bundled libs.
  */
 export function isTypeScriptLibDeclaration(declaration: ts.Declaration): boolean {
-	return /[\\/]typescript[\\/]lib[\\/]lib\..+\.d\.ts$/.test(declaration.getSourceFile().fileName);
+  return /[\\/]typescript[\\/]lib[\\/]lib\..+\.d\.ts$/.test(declaration.getSourceFile().fileName);
 }
 
 /**
@@ -24,22 +24,22 @@ export function isTypeScriptLibDeclaration(declaration: ts.Declaration): boolean
  * @returns The built-in interface name, or `undefined` for non-array and shadowed references.
  */
 export function getBuiltInArrayReferenceName(
-	typeNode: ts.TypeReferenceNode,
-	checker: ts.TypeChecker,
+  typeNode: ts.TypeReferenceNode,
+  checker: ts.TypeChecker,
 ): 'Array' | 'ReadonlyArray' | undefined {
-	const symbol = checker.getSymbolAtLocation(typeNode.typeName);
-	const targetSymbol =
-		symbol && symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
-	if (
-		!targetSymbol ||
-		!['Array', 'ReadonlyArray'].includes(targetSymbol.getName()) ||
-		!(targetSymbol.flags & ts.SymbolFlags.Interface)
-	) {
-		return undefined;
-	}
+  const symbol = checker.getSymbolAtLocation(typeNode.typeName);
+  const targetSymbol =
+    symbol && symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
+  if (
+    !targetSymbol ||
+    !['Array', 'ReadonlyArray'].includes(targetSymbol.getName()) ||
+    !(targetSymbol.flags & ts.SymbolFlags.Interface)
+  ) {
+    return undefined;
+  }
 
-	const isBuiltIn = targetSymbol.declarations?.some(isTypeScriptLibDeclaration) ?? false;
-	return isBuiltIn ? (targetSymbol.getName() as 'Array' | 'ReadonlyArray') : undefined;
+  const isBuiltIn = targetSymbol.declarations?.some(isTypeScriptLibDeclaration) ?? false;
+  return isBuiltIn ? (targetSymbol.getName() as 'Array' | 'ReadonlyArray') : undefined;
 }
 
 /**
@@ -52,14 +52,14 @@ export function getBuiltInArrayReferenceName(
  * @returns Whether the semantic target is the built-in readonly array interface.
  */
 export function isSemanticallyReadonlyArray(type: ts.Type): boolean {
-	const targetSymbol =
-		type.flags & ts.TypeFlags.Object && 'target' in type
-			? (type as ts.TypeReference).target.symbol
-			: undefined;
-	return (
-		targetSymbol?.name === 'ReadonlyArray' &&
-		Boolean(targetSymbol.declarations?.some(isTypeScriptLibDeclaration))
-	);
+  const targetSymbol =
+    type.flags & ts.TypeFlags.Object && 'target' in type
+      ? (type as ts.TypeReference).target.symbol
+      : undefined;
+  return (
+    targetSymbol?.name === 'ReadonlyArray' &&
+    Boolean(targetSymbol.declarations?.some(isTypeScriptLibDeclaration))
+  );
 }
 
 /**
@@ -71,15 +71,15 @@ export function isSemanticallyReadonlyArray(type: ts.Type): boolean {
  * @returns Whether TypeScript marks the tuple target as readonly.
  */
 export function isSemanticallyReadonlyTuple(type: ts.Type): boolean {
-	return 'target' in type && Boolean((type as ts.TupleTypeReference).target.readonly);
+  return 'target' in type && Boolean((type as ts.TupleTypeReference).target.readonly);
 }
 
 /** Authored tuple element after transparent named, optional, and rest wrappers are removed. */
 export interface TupleElementSyntax {
-	/** Innermost authored type node used for nested type resolution. */
-	typeNode: ts.TypeNode;
-	/** Whether any removed wrapper represented a rest element. */
-	isRest: boolean;
+  /** Innermost authored type node used for nested type resolution. */
+  typeNode: ts.TypeNode;
+  /** Whether any removed wrapper represented a rest element. */
+  isRest: boolean;
 }
 
 /**
@@ -93,20 +93,20 @@ export interface TupleElementSyntax {
  * @returns The innermost type node and whether the element is a rest element.
  */
 export function unwrapTupleElementSyntax(typeNode: ts.TypeNode): TupleElementSyntax {
-	let current = typeNode;
-	let isRest = false;
+  let current = typeNode;
+  let isRest = false;
 
-	if (ts.isNamedTupleMember(current)) {
-		isRest = current.dotDotDotToken != null;
-		current = current.type;
-	}
+  if (ts.isNamedTupleMember(current)) {
+    isRest = current.dotDotDotToken != null;
+    current = current.type;
+  }
 
-	while (ts.isOptionalTypeNode(current) || ts.isRestTypeNode(current)) {
-		isRest ||= ts.isRestTypeNode(current);
-		current = current.type;
-	}
+  while (ts.isOptionalTypeNode(current) || ts.isRestTypeNode(current)) {
+    isRest ||= ts.isRestTypeNode(current);
+    current = current.type;
+  }
 
-	return { typeNode: current, isRest };
+  return { typeNode: current, isRest };
 }
 
 /**
@@ -116,5 +116,5 @@ export function unwrapTupleElementSyntax(typeNode: ts.TypeNode): TupleElementSyn
  * @returns Whether a named or unnamed rest wrapper is present.
  */
 export function isRestTupleElementNode(typeNode: ts.TypeNode): boolean {
-	return unwrapTupleElementSyntax(typeNode).isRest;
+  return unwrapTupleElementSyntax(typeNode).isRest;
 }

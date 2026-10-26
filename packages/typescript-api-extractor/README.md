@@ -1,9 +1,5 @@
 # TypeScript API Extractor
 
-[![npm version](https://badge.fury.io/js/typescript-api-extractor.svg)](https://badge.fury.io/js/typescript-api-extractor)
-[![TypeScript](https://img.shields.io/badge/%3C%2F%3E-TypeScript-%230074c1.svg)](http://www.typescriptlang.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
 A utility for extracting API descriptions from [TypeScript](https://www.npmjs.com/package/typescript) definitions using the TypeScript Compiler API. This tool analyzes TypeScript source code and generates structured metadata about exported functions, components, interfaces, types, and more.
 
 ## Features
@@ -18,30 +14,18 @@ A utility for extracting API descriptions from [TypeScript](https://www.npmjs.co
 ## Installation
 
 ```bash
-npm install typescript-api-extractor
-```
-
-or with yarn:
-
-```bash
-yarn add typescript-api-extractor
-```
-
-or with pnpm:
-
-```bash
-pnpm add typescript-api-extractor
+pnpm add @mui/internal-typescript-api-extractor
 ```
 
 ## Quick start
 
 ```typescript
 import {
-	createProgram,
-	loadConfig,
-	parseFromProgram,
-	type ModuleNode,
-} from 'typescript-api-extractor';
+  createProgram,
+  loadConfig,
+  parseFromProgram,
+  type ModuleNode,
+} from '@mui/internal-typescript-api-extractor';
 
 // Load TypeScript configuration
 const config = loadConfig('./tsconfig.json');
@@ -49,12 +33,12 @@ const program = createProgram(config.fileNames, config.options);
 
 // Parse all files in the project
 for (const file of config.fileNames) {
-	try {
-		const moduleInfo: ModuleNode = parseFromProgram(file, program);
-		console.log(`Extracted API from ${file}:`, moduleInfo);
-	} catch (error) {
-		console.error(`Failed to parse ${file}:`, error);
-	}
+  try {
+    const moduleInfo: ModuleNode = parseFromProgram(file, program);
+    console.log(`Extracted API from ${file}:`, moduleInfo);
+  } catch (error) {
+    console.error(`Failed to parse ${file}:`, error);
+  }
 }
 ```
 
@@ -75,8 +59,10 @@ for (const file of config.fileNames) {
 
 ## License
 
-This project is licensed under the terms of the [MIT license](/LICENSE).
+This project is licensed under the terms of the [MIT license](./LICENSE).
 
 ## Acknowledgments
 
-This project was started as a fork of [typescript-to-proptypes](https://github.com/merceyz/typescript-to-proptypes) created by [Kristoffer K.](https://github.com/merceyz).
+This package is maintained in the MUI public monorepo as a fork of [typescript-api-extractor](https://github.com/michaldudak/typescript-api-extractor) by [Michał Dudak](https://github.com/michaldudak).
+
+That project was started as a fork of [typescript-to-proptypes](https://github.com/merceyz/typescript-to-proptypes) created by [Kristoffer K.](https://github.com/merceyz).

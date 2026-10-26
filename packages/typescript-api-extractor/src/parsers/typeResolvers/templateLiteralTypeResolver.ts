@@ -1,6 +1,7 @@
 import ts from 'typescript';
-import { TemplateLiteralNode, type AnyType } from '../../models';
-import { type TypeResolutionRequest, type TypeResolutionSession } from '../typeResolutionTypes';
+import { TemplateLiteralNode } from '../../models';
+import type { AnyType } from '../../models';
+import type { TypeResolutionRequest, TypeResolutionSession } from '../typeResolutionTypes';
 import { hasExactFlag } from '../typeResolutionUtils';
 
 /**
@@ -17,17 +18,17 @@ import { hasExactFlag } from '../typeResolutionUtils';
  * @returns A template literal model, or `undefined` for any other type.
  */
 export function resolveTemplateLiteralType(
-	{ type, typeName }: TypeResolutionRequest,
-	session: TypeResolutionSession,
+  { type, typeName }: TypeResolutionRequest,
+  session: TypeResolutionSession,
 ): AnyType | undefined {
-	if (!hasExactFlag(type, ts.TypeFlags.TemplateLiteral)) {
-		return undefined;
-	}
+  if (!hasExactFlag(type, ts.TypeFlags.TemplateLiteral)) {
+    return undefined;
+  }
 
-	const { texts, types } = type as ts.TemplateLiteralType;
-	return new TemplateLiteralNode(
-		typeName,
-		texts,
-		types.map((placeholderType) => session.resolve(placeholderType, undefined)),
-	);
+  const { texts, types } = type as ts.TemplateLiteralType;
+  return new TemplateLiteralNode(
+    typeName,
+    texts,
+    types.map((placeholderType) => session.resolve(placeholderType, undefined)),
+  );
 }

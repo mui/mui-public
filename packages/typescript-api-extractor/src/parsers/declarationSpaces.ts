@@ -1,5 +1,5 @@
 import ts from 'typescript';
-import { type DeclarationSpaces } from '../models';
+import type { DeclarationSpaces } from '../models';
 
 /**
  * Determines which declaration spaces an export occupies. See
@@ -13,17 +13,17 @@ import { type DeclarationSpaces } from '../models';
  * assignments (`fn.extra = ...`).
  */
 export function getDeclarationSpaces(
-	symbol: ts.Symbol,
-	checker: ts.TypeChecker,
+  symbol: ts.Symbol,
+  checker: ts.TypeChecker,
 ): DeclarationSpaces {
-	const chain = getAliasChain(symbol, checker);
-	const flags = getCombinedFlags(chain);
+  const chain = getAliasChain(symbol, checker);
+  const flags = getCombinedFlags(chain);
 
-	return {
-		isValue: (flags & ts.SymbolFlags.Value) !== 0,
-		isType: (flags & ts.SymbolFlags.Type) !== 0,
-		isNamespace: chain.some(isNamespaceSymbol),
-	};
+  return {
+    isValue: (flags & ts.SymbolFlags.Value) !== 0,
+    isType: (flags & ts.SymbolFlags.Type) !== 0,
+    isNamespace: chain.some(isNamespaceSymbol),
+  };
 }
 
 /**
@@ -33,16 +33,16 @@ export function getDeclarationSpaces(
  * along with any namespace merged onto it, since only its value would remain.
  */
 export function isRetainedWithoutValue(symbol: ts.Symbol, checker: ts.TypeChecker): boolean {
-	const chain = getAliasChain(symbol, checker);
-	const flags = getCombinedFlags(chain);
-	if (flags & ts.SymbolFlags.Type) {
-		return true;
-	}
+  const chain = getAliasChain(symbol, checker);
+  const flags = getCombinedFlags(chain);
+  if (flags & ts.SymbolFlags.Type) {
+    return true;
+  }
 
-	return (
-		(flags & (ts.SymbolFlags.Function | ts.SymbolFlags.Variable)) === 0 &&
-		chain.some(isNamespaceSymbol)
-	);
+  return (
+    (flags & (ts.SymbolFlags.Function | ts.SymbolFlags.Variable)) === 0 &&
+    chain.some(isNamespaceSymbol)
+  );
 }
 
 /**
@@ -52,35 +52,35 @@ export function isRetainedWithoutValue(symbol: ts.Symbol, checker: ts.TypeChecke
  * even when its module cannot be resolved.
  */
 function isNamespaceSymbol(symbol: ts.Symbol): boolean {
-	return (
-		symbol.declarations?.some(
-			(declaration) =>
-				ts.isModuleDeclaration(declaration) ||
-				ts.isNamespaceImport(declaration) ||
-				(ts.isSourceFile(declaration) && (symbol.flags & ts.SymbolFlags.Module) !== 0),
-		) ?? false
-	);
+  return (
+    symbol.declarations?.some(
+      (declaration) =>
+        ts.isModuleDeclaration(declaration) ||
+        ts.isNamespaceImport(declaration) ||
+        (ts.isSourceFile(declaration) && (symbol.flags & ts.SymbolFlags.Module) !== 0),
+    ) ?? false
+  );
 }
 
 function getAliasChain(symbol: ts.Symbol, checker: ts.TypeChecker): ts.Symbol[] {
-	const chain: ts.Symbol[] = [];
-	let current: ts.Symbol | undefined = symbol;
-	while (current && !chain.includes(current)) {
-		chain.push(current);
-		// An alias into an unresolvable module has no immediate target; the fully
-		// resolved alias then carries the checker's fallback symbol.
-		current =
-			current.flags & ts.SymbolFlags.Alias
-				? (checker.getImmediateAliasedSymbol(current) ?? checker.getAliasedSymbol(current))
-				: undefined;
-	}
+  const chain: ts.Symbol[] = [];
+  let current: ts.Symbol | undefined = symbol;
+  while (current && !chain.includes(current)) {
+    chain.push(current);
+    // An alias into an unresolvable module has no immediate target; the fully
+    // resolved alias then carries the checker's fallback symbol.
+    current =
+      current.flags & ts.SymbolFlags.Alias
+        ? (checker.getImmediateAliasedSymbol(current) ?? checker.getAliasedSymbol(current))
+        : undefined;
+  }
 
-	return chain;
+  return chain;
 }
 
 function getCombinedFlags(chain: ts.Symbol[]): ts.SymbolFlags {
-	return chain.reduce<ts.SymbolFlags>(
-		(flags, current) => flags | current.flags,
-		ts.SymbolFlags.None,
-	);
+  return chain.reduce<ts.SymbolFlags>(
+    (flags, current) => flags | current.flags,
+    ts.SymbolFlags.None,
+  );
 }

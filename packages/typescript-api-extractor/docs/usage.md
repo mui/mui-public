@@ -13,22 +13,22 @@ faster than parsing files one by one.
 
 ```typescript
 import {
-	createProgram,
-	loadConfig,
-	parseFromProgram,
-	type ModuleNode,
-} from 'typescript-api-extractor';
+  createProgram,
+  loadConfig,
+  parseFromProgram,
+  type ModuleNode,
+} from '@mui/internal-typescript-api-extractor';
 
 const config = loadConfig('./tsconfig.json');
 const program = createProgram(config.fileNames, config.options);
 
 for (const file of config.fileNames) {
-	try {
-		const moduleInfo: ModuleNode = parseFromProgram(file, program);
-		console.log(`Extracted API from ${file}:`, moduleInfo);
-	} catch (error) {
-		console.error(`Failed to parse ${file}:`, error);
-	}
+  try {
+    const moduleInfo: ModuleNode = parseFromProgram(file, program);
+    console.log(`Extracted API from ${file}:`, moduleInfo);
+  } catch (error) {
+    console.error(`Failed to parse ${file}:`, error);
+  }
 }
 ```
 
@@ -38,7 +38,7 @@ for (const file of config.fileNames) {
 one-off extraction, but avoid it in a loop.
 
 ```typescript
-import { loadConfig, parseFile } from 'typescript-api-extractor';
+import { loadConfig, parseFile } from '@mui/internal-typescript-api-extractor';
 
 const config = loadConfig('./tsconfig.json');
 const moduleInfo = parseFile('./src/MyComponent.tsx', config.options);
@@ -56,7 +56,7 @@ argument.
 
 ```typescript
 const moduleInfo = parseFromProgram(file, program, {
-	shouldInclude: ({ name }) => !name.startsWith('_'),
+  shouldInclude: ({ name }) => !name.startsWith('_'),
 });
 ```
 
@@ -76,8 +76,8 @@ reported in full while its individual props stay bounded.
 
 ```typescript
 const moduleInfo = parseFromProgram(file, program, {
-	// Expand only the shapes the export directly describes.
-	shouldResolveObject: ({ propertyDepth }) => propertyDepth === 0,
+  // Expand only the shapes the export directly describes.
+  shouldResolveObject: ({ propertyDepth }) => propertyDepth === 0,
 });
 ```
 
@@ -115,11 +115,11 @@ structured warnings. When `onWarning` is omitted, they are printed with
 `console.warn`. Provide the callback to collect or format them yourself.
 
 ```typescript
-import { parseFromProgram, type ParserWarning } from 'typescript-api-extractor';
+import { parseFromProgram, type ParserWarning } from '@mui/internal-typescript-api-extractor';
 
 const warnings: ParserWarning[] = [];
 const moduleInfo = parseFromProgram(file, program, {
-	onWarning: (warning) => warnings.push(warning),
+  onWarning: (warning) => warnings.push(warning),
 });
 ```
 

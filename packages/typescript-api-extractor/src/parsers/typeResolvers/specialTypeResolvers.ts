@@ -1,12 +1,13 @@
 import ts from 'typescript';
-import { IntrinsicNode, TypeParameterNode, UnionNode, type AnyType } from '../../models';
-import { type TypeResolutionRequest, type TypeResolutionSession } from '../typeResolutionTypes';
+import { IntrinsicNode, TypeParameterNode, UnionNode } from '../../models';
+import type { AnyType } from '../../models';
+import type { TypeResolutionRequest, TypeResolutionSession } from '../typeResolutionTypes';
 import { hasExactFlag } from '../typeResolutionUtils';
 import {
-	containsKeyofTypeOperator,
-	containsKeyofTypeOperatorOrAlias,
-	substituteTypeParameterTypeNode,
-	unwrapParenthesizedTypeNode,
+  containsKeyofTypeOperator,
+  containsKeyofTypeOperatorOrAlias,
+  substituteTypeParameterTypeNode,
+  unwrapParenthesizedTypeNode,
 } from './typeOperatorTypeNodes';
 
 // Special resolvers cover TypeScript-internal or context-sensitive
@@ -20,107 +21,105 @@ import {
  * TypeParameterNode carrying the parameter's constraint and default.
  */
 export function resolveTypeParameterType(
-	{ type, typeNode }: TypeResolutionRequest,
-	session: TypeResolutionSession,
+  { type, typeNode }: TypeResolutionRequest,
+  session: TypeResolutionSession,
 ): AnyType | undefined {
-	const { checker, typeParameterSubstitutions } = session.context;
+  const { checker, typeParameterSubstitutions } = session.context;
 
-	if (!hasExactFlag(type, ts.TypeFlags.TypeParameter) || !type.symbol) {
-		return undefined;
-	}
+  if (!hasExactFlag(type, ts.TypeFlags.TypeParameter) || !type.symbol) {
+    return undefined;
+  }
 
-	const substitution = typeParameterSubstitutions?.get(type.symbol);
-	if (
-		substitution &&
-		substitution !== type &&
-		(!(substitution.flags & ts.TypeFlags.TypeParameter) || substitution.symbol !== type.symbol)
-	) {
-		const directTypeNodeSubstitution = session.context.typeParameterTypeNodeSubstitutions?.get(
-			type.symbol,
-		);
-		const substitutedTypeNode = typeNode
-			? substituteTypeParameterTypeNode(
-					typeNode,
-					checker,
-					session.context.typeParameterTypeNodeSubstitutions,
-				)
-			: directTypeNodeSubstitution;
-		const shouldCarrySubstitutionSyntax =
-			substitutedTypeNode != null &&
-			(containsKeyofTypeOperator(substitutedTypeNode) || isKeyofOperandTypeNode(typeNode));
-		return session.resolve(
-			substitution,
-			shouldCarrySubstitutionSyntax
-				? substitutedTypeNode !== typeNode
-					? substitutedTypeNode
-					: directTypeNodeSubstitution
-				: undefined,
-		);
-	}
+  const substitution = typeParameterSubstitutions?.get(type.symbol);
+  if (
+    substitution &&
+    substitution !== type &&
+    (!(substitution.flags & ts.TypeFlags.TypeParameter) || substitution.symbol !== type.symbol)
+  ) {
+    const directTypeNodeSubstitution = session.context.typeParameterTypeNodeSubstitutions?.get(
+      type.symbol,
+    );
+    const substitutedTypeNode = typeNode
+      ? substituteTypeParameterTypeNode(
+          typeNode,
+          checker,
+          session.context.typeParameterTypeNodeSubstitutions,
+        )
+      : directTypeNodeSubstitution;
+    const shouldCarrySubstitutionSyntax =
+      substitutedTypeNode != null &&
+      (containsKeyofTypeOperator(substitutedTypeNode) || isKeyofOperandTypeNode(typeNode));
+    const carriedTypeNode =
+      substitutedTypeNode !== typeNode ? substitutedTypeNode : directTypeNodeSubstitution;
+    return session.resolve(
+      substitution,
+      shouldCarrySubstitutionSyntax ? carriedTypeNode : undefined,
+    );
+  }
 
-	// If we have a typeNode, check if it resolves to a more concrete type than the TypeParameter.
-	// This handles cases where TypeScript doesn't fully instantiate generic parameters,
-	// but the typeNode (authored code) references the actual concrete type.
-	if (typeNode && ts.isTypeReferenceNode(typeNode)) {
-		const symbol = checker.getSymbolAtLocation(typeNode.typeName);
-		if (symbol && !(symbol.flags & ts.SymbolFlags.TypeParameter)) {
-			const symbolType = checker.getDeclaredTypeOfSymbol(symbol);
-			if (symbolType && !hasExactFlag(symbolType, ts.TypeFlags.TypeParameter)) {
-				return session.resolve(symbolType, typeNode);
-			}
-		}
-	}
+  // If we have a typeNode, check if it resolves to a more concrete type than the TypeParameter.
+  // This handles cases where TypeScript doesn't fully instantiate generic parameters,
+  // but the typeNode (authored code) references the actual concrete type.
+  if (typeNode && ts.isTypeReferenceNode(typeNode)) {
+    const symbol = checker.getSymbolAtLocation(typeNode.typeName);
+    if (symbol && !(symbol.flags & ts.SymbolFlags.TypeParameter)) {
+      const symbolType = checker.getDeclaredTypeOfSymbol(symbol);
+      if (symbolType && !hasExactFlag(symbolType, ts.TypeFlags.TypeParameter)) {
+        return session.resolve(symbolType, typeNode);
+      }
+    }
+  }
 
-	const declaration = type.symbol.declarations?.[0] as ts.TypeParameterDeclaration | undefined;
-	let constraint: AnyType | undefined;
-	if (declaration?.constraint) {
-		const shouldPreserveConstraintSyntax = containsKeyofTypeOperatorOrAlias(
-			declaration.constraint,
-			checker,
-			new Set(),
-			session.context.includeExternalTypes,
-		);
-		const constraintType = shouldPreserveConstraintSyntax
-			? checker.getTypeAtLocation(declaration.constraint)
-			: checker.getBaseConstraintOfType(type);
+  const declaration = type.symbol.declarations?.[0] as ts.TypeParameterDeclaration | undefined;
+  let constraint: AnyType | undefined;
+  if (declaration?.constraint) {
+    const shouldPreserveConstraintSyntax = containsKeyofTypeOperatorOrAlias(
+      declaration.constraint,
+      checker,
+      new Set(),
+      session.context.includeExternalTypes,
+    );
+    const constraintType = shouldPreserveConstraintSyntax
+      ? checker.getTypeAtLocation(declaration.constraint)
+      : checker.getBaseConstraintOfType(type);
 
-		constraint = constraintType
-			? session.resolve(
-					constraintType,
-					shouldPreserveConstraintSyntax ? declaration.constraint : undefined,
-				)
-			: undefined;
-	}
+    constraint = constraintType
+      ? session.resolve(
+          constraintType,
+          shouldPreserveConstraintSyntax ? declaration.constraint : undefined,
+        )
+      : undefined;
+  }
 
-	return new TypeParameterNode(
-		type.symbol.name,
-		constraint,
-		declaration?.default
-			? session.resolve(
-					checker.getTypeAtLocation(declaration.default),
-					containsKeyofTypeOperatorOrAlias(
-						declaration.default,
-						checker,
-						new Set(),
-						session.context.includeExternalTypes,
-					)
-						? declaration.default
-						: undefined,
-				)
-			: undefined,
-	);
+  return new TypeParameterNode(
+    type.symbol.name,
+    constraint,
+    declaration?.default
+      ? session.resolve(
+          checker.getTypeAtLocation(declaration.default),
+          containsKeyofTypeOperatorOrAlias(
+            declaration.default,
+            checker,
+            new Set(),
+            session.context.includeExternalTypes,
+          )
+            ? declaration.default
+            : undefined,
+        )
+      : undefined,
+  );
 }
 
 function isKeyofOperandTypeNode(typeNode: ts.TypeNode | undefined): boolean {
-	let current = typeNode;
-	while (current?.parent && ts.isParenthesizedTypeNode(current.parent)) {
-		current = current.parent;
-	}
-	return Boolean(
-		current?.parent &&
-		ts.isTypeOperatorNode(current.parent) &&
-		current.parent.operator === ts.SyntaxKind.KeyOfKeyword,
-	);
+  let current = typeNode;
+  while (current?.parent && ts.isParenthesizedTypeNode(current.parent)) {
+    current = current.parent;
+  }
+  return Boolean(
+    current?.parent &&
+    ts.isTypeOperatorNode(current.parent) &&
+    current.parent.operator === ts.SyntaxKind.KeyOfKeyword,
+  );
 }
 
 /**
@@ -139,40 +138,40 @@ function isKeyofOperandTypeNode(typeNode: ts.TypeNode | undefined): boolean {
  * TypeParameterNode, so those must not take this path.
  */
 export function resolveExtractUtilityType(
-	{ type }: TypeResolutionRequest,
-	session: TypeResolutionSession,
+  { type }: TypeResolutionRequest,
+  session: TypeResolutionSession,
 ): AnyType | undefined {
-	if (!hasExactFlag(type, ts.TypeFlags.Conditional)) {
-		return undefined;
-	}
+  if (!hasExactFlag(type, ts.TypeFlags.Conditional)) {
+    return undefined;
+  }
 
-	const conditionalType = type as ts.ConditionalType;
-	if (
-		!isBuiltInExtractSymbol(conditionalType.root.aliasSymbol) ||
-		!isIndexLikeType(conditionalType.checkType)
-	) {
-		return undefined;
-	}
+  const conditionalType = type as ts.ConditionalType;
+  if (
+    !isBuiltInExtractSymbol(conditionalType.root.aliasSymbol) ||
+    !isIndexLikeType(conditionalType.checkType)
+  ) {
+    return undefined;
+  }
 
-	const baseConstraint = session.context.checker.getBaseConstraintOfType(type);
-	if (!baseConstraint || baseConstraint === type) {
-		return undefined;
-	}
+  const baseConstraint = session.context.checker.getBaseConstraintOfType(type);
+  if (!baseConstraint || baseConstraint === type) {
+    return undefined;
+  }
 
-	return session.resolve(baseConstraint, undefined);
+  return session.resolve(baseConstraint, undefined);
 }
 
 function isIndexLikeType(type: ts.Type): boolean {
-	return hasExactFlag(type, ts.TypeFlags.Index) || hasExactFlag(type, ts.TypeFlags.IndexedAccess);
+  return hasExactFlag(type, ts.TypeFlags.Index) || hasExactFlag(type, ts.TypeFlags.IndexedAccess);
 }
 
 function isBuiltInExtractSymbol(symbol: ts.Symbol | undefined): boolean {
-	return (
-		symbol?.getName() === 'Extract' &&
-		symbol.declarations?.some((declaration) =>
-			/[\\/]typescript[\\/]lib[\\/]lib\.[^\\/]+\.d\.ts$/.test(declaration.getSourceFile().fileName),
-		) === true
-	);
+  return (
+    symbol?.getName() === 'Extract' &&
+    symbol.declarations?.some((declaration) =>
+      /[\\/]typescript[\\/]lib[\\/]lib\.[^\\/]+\.d\.ts$/.test(declaration.getSourceFile().fileName),
+    ) === true
+  );
 }
 
 /**
@@ -181,55 +180,57 @@ function isBuiltInExtractSymbol(symbol: ts.Symbol | undefined): boolean {
  * a union (or the single branch TypeScript managed to resolve).
  */
 export function resolveConditionalType(
-	{ type, typeNode }: TypeResolutionRequest,
-	session: TypeResolutionSession,
+  { type, typeNode }: TypeResolutionRequest,
+  session: TypeResolutionSession,
 ): AnyType | undefined {
-	if (!hasExactFlag(type, ts.TypeFlags.Conditional)) {
-		return undefined;
-	}
+  if (!hasExactFlag(type, ts.TypeFlags.Conditional)) {
+    return undefined;
+  }
 
-	const conditionalType = type as ts.ConditionalType;
-	const conditionalTypeNode = getConditionalTypeNode(typeNode);
-	const trueTypeNode = conditionalTypeNode?.trueType;
-	const falseTypeNode = conditionalTypeNode?.falseType;
-	const preservableBranchTypeNode = (branchTypeNode: ts.TypeNode | undefined) =>
-		containsKeyofTypeOperatorOrAlias(
-			branchTypeNode,
-			session.context.checker,
-			new Set(),
-			session.context.includeExternalTypes,
-		)
-			? branchTypeNode
-			: undefined;
-	if (conditionalType.resolvedTrueType && conditionalType.resolvedFalseType) {
-		return new UnionNode(undefined, [
-			session.resolve(conditionalType.resolvedTrueType, preservableBranchTypeNode(trueTypeNode)),
-			session.resolve(conditionalType.resolvedFalseType, preservableBranchTypeNode(falseTypeNode)),
-		]);
-	} else if (conditionalType.resolvedTrueType) {
-		return session.resolve(
-			conditionalType.resolvedTrueType,
-			preservableBranchTypeNode(trueTypeNode),
-		);
-	} else if (conditionalType.resolvedFalseType) {
-		return session.resolve(
-			conditionalType.resolvedFalseType,
-			preservableBranchTypeNode(falseTypeNode),
-		);
-	}
+  const conditionalType = type as ts.ConditionalType;
+  const conditionalTypeNode = getConditionalTypeNode(typeNode);
+  const trueTypeNode = conditionalTypeNode?.trueType;
+  const falseTypeNode = conditionalTypeNode?.falseType;
+  const preservableBranchTypeNode = (branchTypeNode: ts.TypeNode | undefined) =>
+    containsKeyofTypeOperatorOrAlias(
+      branchTypeNode,
+      session.context.checker,
+      new Set(),
+      session.context.includeExternalTypes,
+    )
+      ? branchTypeNode
+      : undefined;
+  if (conditionalType.resolvedTrueType && conditionalType.resolvedFalseType) {
+    return new UnionNode(undefined, [
+      session.resolve(conditionalType.resolvedTrueType, preservableBranchTypeNode(trueTypeNode)),
+      session.resolve(conditionalType.resolvedFalseType, preservableBranchTypeNode(falseTypeNode)),
+    ]);
+  }
+  if (conditionalType.resolvedTrueType) {
+    return session.resolve(
+      conditionalType.resolvedTrueType,
+      preservableBranchTypeNode(trueTypeNode),
+    );
+  }
+  if (conditionalType.resolvedFalseType) {
+    return session.resolve(
+      conditionalType.resolvedFalseType,
+      preservableBranchTypeNode(falseTypeNode),
+    );
+  }
 
-	return undefined;
+  return undefined;
 }
 
 function getConditionalTypeNode(
-	typeNode: ts.TypeNode | undefined,
+  typeNode: ts.TypeNode | undefined,
 ): ts.ConditionalTypeNode | undefined {
-	if (!typeNode) {
-		return undefined;
-	}
+  if (!typeNode) {
+    return undefined;
+  }
 
-	const unwrapped = unwrapParenthesizedTypeNode(typeNode);
-	return ts.isConditionalTypeNode(unwrapped) ? unwrapped : undefined;
+  const unwrapped = unwrapParenthesizedTypeNode(typeNode);
+  return ts.isConditionalTypeNode(unwrapped) ? unwrapped : undefined;
 }
 
 /**
@@ -238,24 +239,24 @@ function getConditionalTypeNode(
  * (e.g. unresolved indexed access types) — an expected limit.
  */
 export function resolveIndexLikeType(
-	{ type, typeName }: TypeResolutionRequest,
-	session: TypeResolutionSession,
+  { type, typeName }: TypeResolutionRequest,
+  session: TypeResolutionSession,
 ): AnyType | undefined {
-	if (!isIndexLikeType(type)) {
-		return undefined;
-	}
+  if (!isIndexLikeType(type)) {
+    return undefined;
+  }
 
-	// Checker-internal Index and IndexedAccess shapes that reach this fallback no
-	// longer have authored syntax the earlier resolvers can preserve. Expand them
-	// via getBaseConstraintOfType to a representable form.
-	// When the base constraint is unavailable (e.g., T[K] with unresolved type parameters),
-	// fall back to 'any' silently. This is an expected limitation, not a parser bug.
-	const baseConstraint = session.context.checker.getBaseConstraintOfType(type);
-	if (baseConstraint) {
-		return session.resolve(baseConstraint, undefined);
-	}
+  // Checker-internal Index and IndexedAccess shapes that reach this fallback no
+  // longer have authored syntax the earlier resolvers can preserve. Expand them
+  // via getBaseConstraintOfType to a representable form.
+  // When the base constraint is unavailable (e.g., T[K] with unresolved type parameters),
+  // fall back to 'any' silently. This is an expected limitation, not a parser bug.
+  const baseConstraint = session.context.checker.getBaseConstraintOfType(type);
+  if (baseConstraint) {
+    return session.resolve(baseConstraint, undefined);
+  }
 
-	return new IntrinsicNode('any', typeName);
+  return new IntrinsicNode('any', typeName);
 }
 
 /**
@@ -264,43 +265,43 @@ export function resolveIndexLikeType(
  * base type and then its constraint, since the substitution has no model form.
  */
 export function resolveSubstitutionFallback(
-	type: ts.Type,
-	session: TypeResolutionSession,
+  type: ts.Type,
+  session: TypeResolutionSession,
 ): AnyType | undefined {
-	const substitutionType = type as ts.SubstitutionType;
+  const substitutionType = type as ts.SubstitutionType;
 
-	return (
-		resolveSubstitutionCandidate(substitutionType.baseType, session) ??
-		resolveSubstitutionCandidate(substitutionType.constraint, session)
-	);
+  return (
+    resolveSubstitutionCandidate(substitutionType.baseType, session) ??
+    resolveSubstitutionCandidate(substitutionType.constraint, session)
+  );
 }
 
 function resolveSubstitutionCandidate(
-	candidateType: ts.Type,
-	session: TypeResolutionSession,
+  candidateType: ts.Type,
+  session: TypeResolutionSession,
 ): AnyType | undefined {
-	if (hasExactFlag(candidateType, ts.TypeFlags.Substitution)) {
-		return undefined;
-	}
+  if (hasExactFlag(candidateType, ts.TypeFlags.Substitution)) {
+    return undefined;
+  }
 
-	// This is a probe, not the real fallback path. If the candidate still needs
-	// an unsupported-type warning, reject it and let the original substitution
-	// report a single warning with the best source location.
-	const warnings: unknown[] = [];
-	const { context } = session;
-	const onWarning = context.onWarning;
-	context.onWarning = (warning) => {
-		warnings.push(warning);
-	};
+  // This is a probe, not the real fallback path. If the candidate still needs
+  // an unsupported-type warning, reject it and let the original substitution
+  // report a single warning with the best source location.
+  const warnings: unknown[] = [];
+  const { context } = session;
+  const onWarning = context.onWarning;
+  context.onWarning = (warning) => {
+    warnings.push(warning);
+  };
 
-	try {
-		const resolvedCandidate = session.resolve(candidateType, undefined);
-		return warnings.length === 0 && !isAnyNode(resolvedCandidate) ? resolvedCandidate : undefined;
-	} finally {
-		context.onWarning = onWarning;
-	}
+  try {
+    const resolvedCandidate = session.resolve(candidateType, undefined);
+    return warnings.length === 0 && !isAnyNode(resolvedCandidate) ? resolvedCandidate : undefined;
+  } finally {
+    context.onWarning = onWarning;
+  }
 }
 
 function isAnyNode(typeNode: AnyType): boolean {
-	return typeNode instanceof IntrinsicNode && typeNode.intrinsic === 'any' && !typeNode.typeName;
+  return typeNode instanceof IntrinsicNode && typeNode.intrinsic === 'any' && !typeNode.typeName;
 }
