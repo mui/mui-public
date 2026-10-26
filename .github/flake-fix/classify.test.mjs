@@ -23,6 +23,15 @@ const pass = (pipeline) => ({
   url: `u${pipeline}`,
   log: null,
 });
+// A failure with an explicit ISO time, for the coverage rule that compares a merge date to firstSeen.
+const failAt = (pipeline, log, time) => ({
+  result: 'FAIL',
+  time,
+  pipeline,
+  commit: `c${pipeline}`,
+  url: `u${pipeline}`,
+  log,
+});
 
 const timelineOf = (runs) => ({ jobs: [{ job: 'unit', workflow: 'test', runs }] });
 const fingerprintsOf = (logs, external = false) => ({
@@ -119,5 +128,52 @@ describe('classify', () => {
     const { verdicts } = classify(timeline, fingerprints);
     expect(verdicts[0].class).toBe('STRUCTURAL');
     expect(verdicts[0].fixable).toBe(true);
+  });
+
+  it('covered by an open fix PR: still failing, but not fixable and carrying coveredBy', () => {
+    const runs = [fail(103, 'jobs/0000.txt'), fail(102, 'jobs/0001.txt')]; // STRUCTURAL
+    const covered = [{ fingerprint: 'boom', state: 'OPEN', mergedAt: null, pr: 'u/pull/7' }];
+    const verdict = classify(
+      timelineOf(runs),
+      fingerprintsOf(['jobs/0000.txt', 'jobs/0001.txt']),
+      covered,
+    ).verdicts[0];
+    expect(verdict.class).toBe('STRUCTURAL');
+    expect(verdict.fixable).toBe(false);
+    expect(verdict.coveredBy).toBe('u/pull/7');
+  });
+
+  it('covered by a merged fix newer than the oldest failure: not fixable', () => {
+    const runs = [
+      failAt(103, 'jobs/0000.txt', '2026-10-25T00:00:00Z'),
+      failAt(102, 'jobs/0001.txt', '2026-10-20T00:00:00Z'), // oldest -> firstSeen
+    ];
+    const covered = [
+      { fingerprint: 'boom', state: 'MERGED', mergedAt: '2026-10-26T00:00:00Z', pr: '#8' },
+    ];
+    const verdict = classify(
+      timelineOf(runs),
+      fingerprintsOf(['jobs/0000.txt', 'jobs/0001.txt']),
+      covered,
+    ).verdicts[0];
+    expect(verdict.fixable).toBe(false);
+    expect(verdict.coveredBy).toBe('#8');
+  });
+
+  it('a merged fix older than the failures no longer covers: fixable again', () => {
+    const runs = [
+      failAt(105, 'jobs/0000.txt', '2026-11-15T00:00:00Z'),
+      failAt(104, 'jobs/0001.txt', '2026-11-14T00:00:00Z'), // firstSeen postdates the merge
+    ];
+    const covered = [
+      { fingerprint: 'boom', state: 'MERGED', mergedAt: '2026-10-26T00:00:00Z', pr: '#8' },
+    ];
+    const verdict = classify(
+      timelineOf(runs),
+      fingerprintsOf(['jobs/0000.txt', 'jobs/0001.txt']),
+      covered,
+    ).verdicts[0];
+    expect(verdict.fixable).toBe(true);
+    expect(verdict.coveredBy).toBeUndefined();
   });
 });

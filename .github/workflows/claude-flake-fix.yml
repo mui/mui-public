@@ -201,8 +201,54 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+  prior-fixes:
+    # What open or merged fix PRs already cover, so triage can skip a problem that's already in hand
+    # and move to the next one instead of re-proposing the same fix. Kept in its own job so the
+    # pull-requests:read token never sits in the triage job beside the agent. Best-effort: it always
+    # leaves a covered.json behind (an empty list if anything fails) and never blocks triage.
+    needs: resolve-ref
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read # list this repo's prior ci-flake-fix PRs
+    steps:
+      - name: Get the flake-fix scripts
+        continue-on-error: true
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: mui/mui-public
+          ref: ${{ needs.resolve-ref.outputs.sha }}
+          sparse-checkout: .github/flake-fix
+          path: _flake
+      - name: Set up Node.js
+        continue-on-error: true
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22.23.4
+      - name: Collect fingerprints already covered by a fix PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_REPO: ${{ github.repository }}
+        run: |
+          set -uo pipefail
+          out="$RUNNER_TEMP/prior-fixes"
+          mkdir -p "$out"
+          # A closed-unmerged PR is left in by --state all and dropped in prior-fixes.mjs (its fix was
+          # rejected). Any failure falls back to an empty list — "nothing known covered".
+          gh pr list -R "$TARGET_REPO" --label ci-flake-fix --state all \
+            --json number,url,state,mergedAt,body --limit 100 > "$out/pulls.json" || echo '[]' > "$out/pulls.json"
+          node _flake/.github/flake-fix/prior-fixes.mjs "$out/pulls.json" "$out/covered.json" ||
+            echo '[]' > "$out/covered.json"
+      - name: Upload the coverage data
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: prior-fixes
+          path: ${{ runner.temp }}/prior-fixes/covered.json
+          if-no-files-found: warn
+          retention-days: 7
+
   triage:
-    needs: [resolve-ref, fetch]
+    needs: [resolve-ref, fetch, prior-fixes]
     if: ${{ needs.fetch.outputs.classify == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -226,6 +272,15 @@ jobs:
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: flake-data
+          path: ${{ runner.temp }}/flake-data
+
+      - name: Download the prior-fix coverage
+        # Lands covered.json next to the failure data for the classifier. Best-effort — if the
+        # prior-fixes job produced nothing, classify runs as if no fix PRs were known.
+        continue-on-error: true
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: prior-fixes
           path: ${{ runner.temp }}/flake-data
 
       - name: Get the flake-fix scripts
@@ -298,15 +353,17 @@ jobs:
               than one group if its run failed for more than one reason.
               `grep -l '<fingerprint>' ${{ runner.temp }}/flake-data/jobs/*.txt` lists them.
 
-            (b) Classify — deterministically, not by eye. Run:
-              node ${{ runner.temp }}/classify.mjs ${{ runner.temp }}/flake-data/timeline.json ${{ runner.temp }}/flake-out/fingerprints.json ${{ runner.temp }}/flake-out/verdict.json
+            (b) Classify — deterministically, not by eye. Run (the last path, covered.json, may be
+            absent — pass it anyway; classify ignores it when missing):
+              node ${{ runner.temp }}/classify.mjs ${{ runner.temp }}/flake-data/timeline.json ${{ runner.temp }}/flake-out/fingerprints.json ${{ runner.temp }}/flake-out/verdict.json ${{ runner.temp }}/flake-data/covered.json
             That writes verdict.json — a `verdicts` array, most-worth-fixing first. Each entry has
             its class read from the shape of its job's timeline — STRUCTURAL (failing repeatedly, no
             pass since), UNCONFIRMED (a single failure — too little to tell a real break from a
             one-off), FLAKY (fails and passes, up to now), FIXED (recovered), or EXTERNAL (your tag)
-            — a `fixable` flag (everything but FIXED and EXTERNAL), and its evidence: first/last seen
-            (with commit), failure count, and lastSeen.url (the last occurrence) and lastSeen.log.
-            Trust it; do not re-judge the shape yourself.
+            — a `fixable` flag (everything but FIXED and EXTERNAL, and never a problem already
+            covered), a `coveredBy` link when an open or merged fix PR already handles it, and its
+            evidence: first/last seen (with commit), failure count, and lastSeen.url (the last
+            occurrence) and lastSeen.log. Trust it; do not re-judge the shape yourself.
 
             From verdict.json, write ${{ runner.temp }}/flake-out/report.md — the short report. It is
             posted as a comment on a tracking issue maintainers read at a glance, so write plain
@@ -315,7 +372,9 @@ jobs:
             problem per line, each a SINGLE line, no "-" bullet — the circle is the marker — linking
             its last occurrence. Lead with what needs attention (🔴 still failing, then 🟡 flaky, then 🟠
             unconfirmed — a single failure, could be real or a one-off), then the bottom line, then
-            tuck the rest (🟢 already fixed, ⚪ not ours) in a collapsed section. Skip a class that
+            tuck the rest (🟢 already fixed, 🔧 fix already open, ⚪ not ours) in a collapsed section.
+            A problem with a `coveredBy` is already in hand: put it under 🔧 with its PR link, never
+            under 🔴/🟡/🟠, and don't call it out as worth fixing in the bottom line. Skip a class that
             has nothing; drop the whole collapsed section if it would be empty.
 
             🔴 **<short problem name>** — <one plain sentence on what is breaking>. Still failing, <roughly how often>. [last occurrence](<url>)
@@ -327,6 +386,7 @@ jobs:
             <details><summary>Resolved / not ours</summary>
 
             🟢 **<short problem name>** — <one plain sentence>. Already fixed. [last occurrence](<url>)
+            🔧 **<short problem name>** — <one plain sentence>. Fix already open — <coveredBy>. [last occurrence](<url>)
             ⚪ **<short problem name>** — <one plain sentence>. Not ours, <roughly how often>. [last occurrence](<url>)
 
             </details>
@@ -481,6 +541,13 @@ jobs:
             cat "$input/pr-body.md"
             printf '\n\ncc @%s\n' "$INFRA_TEAM"
             printf '\n---\n_Opened by a sandboxed agent. Unverified beyond any local check noted above; CI on this PR is the real test._\n'
+            # Record the fingerprints this PR covers so a later run skips them instead of re-fixing
+            # (prior-fixes.mjs reads this marker back). Only when the agent named any.
+            if [ -s "$input/resolves.txt" ]; then
+              printf '\n<!-- flake-fix:resolves\n'
+              cat "$input/resolves.txt"
+              printf -- '-->\n'
+            fi
           } > "$RUNNER_TEMP/pr-body.md"
 
           # A tilde fence, since a diff's context lines (" ```") can close a backtick one; capped so
