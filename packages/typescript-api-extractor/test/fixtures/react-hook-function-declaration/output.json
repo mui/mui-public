@@ -1,0 +1,174 @@
+{
+	"name": "test/fixtures/react-hook-function-declaration/input",
+	"exports": [
+		{
+			"name": "useHook",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "useHook"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "object",
+									"typeName": {
+										"name": "HookParameters"
+									},
+									"properties": [
+										{
+											"name": "value",
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											},
+											"optional": false
+										},
+										{
+											"name": "severity",
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "number"
+											},
+											"optional": false
+										},
+										{
+											"name": "onChange",
+											"type": {
+												"kind": "function",
+												"callSignatures": [
+													{
+														"parameters": [
+															{
+																"type": {
+																	"kind": "intrinsic",
+																	"intrinsic": "string"
+																},
+																"name": "value",
+																"optional": false
+															}
+														],
+														"returnValueType": {
+															"kind": "intrinsic",
+															"intrinsic": "void"
+														}
+													}
+												]
+											},
+											"optional": false
+										}
+									]
+								},
+								"name": "parameters",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "object",
+							"typeName": {
+								"name": "HookReturnValue"
+							},
+							"properties": [
+								{
+									"name": "getProps",
+									"type": {
+										"kind": "function",
+										"callSignatures": [
+											{
+												"parameters": [
+													{
+														"type": {
+															"kind": "external",
+															"typeName": {
+																"name": "HTMLAttributes",
+																"namespaces": ["React"],
+																"typeArguments": [
+																	{
+																		"type": {
+																			"kind": "external",
+																			"typeName": {
+																				"name": "HTMLElement"
+																			},
+																			"source": {
+																				"kind": "lib",
+																				"files": ["lib.dom.d.ts"]
+																			}
+																		},
+																		"equalToDefault": false
+																	}
+																]
+															},
+															"source": {
+																"kind": "package",
+																"name": "@types/react"
+															}
+														},
+														"name": "externalProps",
+														"optional": false
+													}
+												],
+												"returnValueType": {
+													"kind": "external",
+													"typeName": {
+														"name": "HTMLAttributes",
+														"namespaces": ["React"],
+														"typeArguments": [
+															{
+																"type": {
+																	"kind": "external",
+																	"typeName": {
+																		"name": "HTMLElement"
+																	},
+																	"source": {
+																		"kind": "lib",
+																		"files": ["lib.dom.d.ts"]
+																	}
+																},
+																"equalToDefault": false
+															}
+														]
+													},
+													"source": {
+														"kind": "package",
+														"name": "@types/react"
+													}
+												}
+											}
+										]
+									},
+									"optional": false
+								},
+								{
+									"name": "ref",
+									"type": {
+										"kind": "external",
+										"typeName": {
+											"name": "RefCallback",
+											"namespaces": ["React"]
+										},
+										"source": {
+											"kind": "package",
+											"name": "@types/react"
+										}
+									},
+									"optional": false
+								}
+							]
+						}
+					}
+				]
+			},
+			"documentation": {
+				"description": "A hook defined as a function.",
+				"visibility": "internal",
+				"tags": []
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		}
+	],
+	"imports": ["react"]
+}

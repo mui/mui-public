@@ -1,0 +1,111 @@
+{
+	"name": "test/fixtures/merged-interface-signature-typeparams/input",
+	"exports": [
+		{
+			"name": "MergedCallWithTypeParams",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "MergedCall"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"name": "T",
+									"constraint": {
+										"kind": "intrinsic",
+										"intrinsic": "string"
+									},
+									"defaultValue": {
+										"kind": "literal",
+										"value": "\"x\""
+									},
+									"kind": "typeParameter"
+								},
+								"name": "value",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"name": "T",
+							"constraint": {
+								"kind": "intrinsic",
+								"intrinsic": "string"
+							},
+							"defaultValue": {
+								"kind": "literal",
+								"value": "\"x\""
+							},
+							"kind": "typeParameter"
+						},
+						"typeParameters": [
+							{
+								"name": "T",
+								"constraint": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"defaultValue": {
+									"kind": "literal",
+									"value": "\"x\""
+								},
+								"kind": "typeParameter"
+							}
+						]
+					},
+					{
+						"parameters": [
+							{
+								"type": {
+									"name": "T",
+									"constraint": {
+										"kind": "intrinsic",
+										"intrinsic": "number"
+									},
+									"defaultValue": {
+										"kind": "literal",
+										"value": 1
+									},
+									"kind": "typeParameter"
+								},
+								"name": "value",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"name": "T",
+							"constraint": {
+								"kind": "intrinsic",
+								"intrinsic": "number"
+							},
+							"defaultValue": {
+								"kind": "literal",
+								"value": 1
+							},
+							"kind": "typeParameter"
+						},
+						"typeParameters": [
+							{
+								"name": "T",
+								"constraint": {
+									"kind": "intrinsic",
+									"intrinsic": "number"
+								},
+								"defaultValue": {
+									"kind": "literal",
+									"value": 1
+								},
+								"kind": "typeParameter"
+							}
+						]
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

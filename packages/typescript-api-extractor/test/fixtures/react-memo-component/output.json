@@ -1,0 +1,106 @@
+{
+	"name": "test/fixtures/react-memo-component/input",
+	"exports": [
+		{
+			"name": "TestComponent",
+			"type": {
+				"kind": "component",
+				"typeName": {
+					"name": "NamedExoticComponent",
+					"namespaces": ["React"],
+					"typeArguments": [
+						{
+							"type": {
+								"kind": "object",
+								"typeName": {
+									"name": "Props"
+								},
+								"properties": [
+									{
+										"name": "className",
+										"type": {
+											"kind": "union",
+											"types": [
+												{
+													"kind": "intrinsic",
+													"intrinsic": "string"
+												},
+												{
+													"kind": "intrinsic",
+													"intrinsic": "undefined"
+												}
+											]
+										},
+										"optional": true
+									},
+									{
+										"name": "id",
+										"type": {
+											"kind": "union",
+											"types": [
+												{
+													"kind": "intrinsic",
+													"intrinsic": "string"
+												},
+												{
+													"kind": "intrinsic",
+													"intrinsic": "undefined"
+												}
+											]
+										},
+										"optional": true
+									}
+								]
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"props": [
+					{
+						"name": "className",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "id",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					}
+				]
+			},
+			"documentation": {
+				"description": "A test component",
+				"tags": []
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		}
+	],
+	"imports": ["react"]
+}

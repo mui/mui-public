@@ -1,0 +1,93 @@
+{
+	"name": "test/fixtures/generic-callback-nested-shadow-deduplication/input",
+	"exports": [
+		{
+			"name": "Outer",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "Outer"
+				},
+				"types": [
+					{
+						"kind": "function",
+						"callSignatures": [
+							{
+								"parameters": [
+									{
+										"type": {
+											"kind": "function",
+											"callSignatures": [
+												{
+													"parameters": [
+														{
+															"type": {
+																"name": "T",
+																"constraint": {
+																	"kind": "intrinsic",
+																	"intrinsic": "number"
+																},
+																"kind": "typeParameter"
+															},
+															"name": "x",
+															"optional": false
+														}
+													],
+													"returnValueType": {
+														"name": "T",
+														"constraint": {
+															"kind": "intrinsic",
+															"intrinsic": "number"
+														},
+														"kind": "typeParameter"
+													},
+													"typeParameters": [
+														{
+															"name": "T",
+															"constraint": {
+																"kind": "intrinsic",
+																"intrinsic": "number"
+															},
+															"kind": "typeParameter"
+														}
+													]
+												}
+											]
+										},
+										"name": "fn",
+										"optional": false
+									}
+								],
+								"returnValueType": {
+									"name": "T",
+									"constraint": {
+										"kind": "intrinsic",
+										"intrinsic": "string"
+									},
+									"kind": "typeParameter"
+								},
+								"typeParameters": [
+									{
+										"name": "T",
+										"constraint": {
+											"kind": "intrinsic",
+											"intrinsic": "string"
+										},
+										"kind": "typeParameter"
+									}
+								]
+							}
+						]
+					}
+				]
+			},
+			"documentation": {
+				"description": "Nested generic function types where inner signatures reuse the same\ntype parameter name as an outer mapping. Inner T should shadow outer T\nand not incorrectly resolve via the outer rename map.",
+				"tags": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

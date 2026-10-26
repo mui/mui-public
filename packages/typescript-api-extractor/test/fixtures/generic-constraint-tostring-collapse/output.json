@@ -1,0 +1,195 @@
+{
+	"name": "test/fixtures/generic-constraint-tostring-collapse/input",
+	"exports": [
+		{
+			"name": "Fn",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "Fn"
+				},
+				"types": [
+					{
+						"kind": "function",
+						"callSignatures": [
+							{
+								"parameters": [
+									{
+										"type": {
+											"name": "T",
+											"kind": "typeParameter"
+										},
+										"name": "x",
+										"optional": false
+									}
+								],
+								"returnValueType": {
+									"kind": "intrinsic",
+									"intrinsic": "void"
+								},
+								"typeParameters": [
+									{
+										"name": "T",
+										"kind": "typeParameter"
+									}
+								]
+							}
+						]
+					},
+					{
+						"kind": "function",
+						"callSignatures": [
+							{
+								"parameters": [
+									{
+										"type": {
+											"name": "T",
+											"constraint": {
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											},
+											"kind": "typeParameter"
+										},
+										"name": "x",
+										"optional": false
+									}
+								],
+								"returnValueType": {
+									"kind": "intrinsic",
+									"intrinsic": "void"
+								},
+								"typeParameters": [
+									{
+										"name": "T",
+										"constraint": {
+											"kind": "intrinsic",
+											"intrinsic": "string"
+										},
+										"kind": "typeParameter"
+									}
+								]
+							}
+						]
+					}
+				]
+			},
+			"documentation": {
+				"description": "Tests that generic functions with different type parameter constraints\nare not incorrectly collapsed by the toString() fast-path.\nTypeParameterNode.toString() returns only the name (e.g. \"T\"), omitting\nconstraints and defaults, so `<T>(x: T) => void` and\n`<T extends string>(x: T) => void` stringify identically.\nBoth overloads must be preserved.",
+				"tags": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Outer",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "Outer"
+				},
+				"types": [
+					{
+						"kind": "function",
+						"callSignatures": [
+							{
+								"parameters": [
+									{
+										"type": {
+											"kind": "function",
+											"callSignatures": [
+												{
+													"parameters": [
+														{
+															"type": {
+																"name": "T",
+																"kind": "typeParameter"
+															},
+															"name": "x",
+															"optional": false
+														}
+													],
+													"returnValueType": {
+														"kind": "intrinsic",
+														"intrinsic": "void"
+													},
+													"typeParameters": [
+														{
+															"name": "T",
+															"kind": "typeParameter"
+														}
+													]
+												}
+											]
+										},
+										"name": "cb",
+										"optional": false
+									}
+								],
+								"returnValueType": {
+									"kind": "intrinsic",
+									"intrinsic": "void"
+								}
+							}
+						]
+					},
+					{
+						"kind": "function",
+						"callSignatures": [
+							{
+								"parameters": [
+									{
+										"type": {
+											"kind": "function",
+											"callSignatures": [
+												{
+													"parameters": [
+														{
+															"type": {
+																"name": "T",
+																"constraint": {
+																	"kind": "intrinsic",
+																	"intrinsic": "string"
+																},
+																"kind": "typeParameter"
+															},
+															"name": "x",
+															"optional": false
+														}
+													],
+													"returnValueType": {
+														"kind": "intrinsic",
+														"intrinsic": "void"
+													},
+													"typeParameters": [
+														{
+															"name": "T",
+															"constraint": {
+																"kind": "intrinsic",
+																"intrinsic": "string"
+															},
+															"kind": "typeParameter"
+														}
+													]
+												}
+											]
+										},
+										"name": "cb",
+										"optional": false
+									}
+								],
+								"returnValueType": {
+									"kind": "intrinsic",
+									"intrinsic": "void"
+								}
+							}
+						]
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

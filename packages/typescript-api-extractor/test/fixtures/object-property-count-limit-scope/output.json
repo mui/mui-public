@@ -1,0 +1,1931 @@
+{
+	"name": "test/fixtures/object-property-count-limit-scope/input",
+	"exports": [
+		{
+			"name": "ManyPropsComponent",
+			"type": {
+				"kind": "component",
+				"typeName": {
+					"name": "ManyPropsComponent"
+				},
+				"props": [
+					{
+						"name": "p01",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p02",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p03",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p04",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p05",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p06",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p07",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p08",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p09",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p10",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p11",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p12",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p13",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p14",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p15",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p16",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p17",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p18",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p19",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p20",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p21",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p22",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p23",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p24",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p25",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p26",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p27",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p28",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p29",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p30",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p31",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p32",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p33",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p34",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p35",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p36",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p37",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p38",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p39",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p40",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p41",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p42",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p43",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p44",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p45",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p46",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p47",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p48",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p49",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p50",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "p51",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "extra",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "boolean"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "nested",
+						"type": {
+							"kind": "union",
+							"typeName": {
+								"name": "ManyNestedProps"
+							},
+							"types": [
+								{
+									"kind": "object",
+									"typeName": {
+										"name": "ManyNestedProps"
+									},
+									"properties": []
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "A property value is a nested detail rather than the subject of the export,\nso the property-count limit still collapses it to a bare object.",
+							"tags": []
+						},
+						"optional": true
+					},
+					{
+						"name": "forced",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "literal",
+									"value": "true"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					}
+				]
+			},
+			"documentation": {
+				"description": "A component whose props exceed the default property-count limit.",
+				"tags": []
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "ManyComponentProps",
+			"type": {
+				"kind": "intersection",
+				"typeName": {
+					"name": "ManyComponentProps"
+				},
+				"types": [
+					{
+						"kind": "object",
+						"typeName": {
+							"name": "ManyProps"
+						},
+						"properties": [
+							{
+								"name": "p01",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p02",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p03",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p04",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p05",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p06",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p07",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p08",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p09",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p10",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p11",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p12",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p13",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p14",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p15",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p16",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p17",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p18",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p19",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p20",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p21",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p22",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p23",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p24",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p25",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p26",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p27",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p28",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p29",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p30",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p31",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p32",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p33",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p34",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p35",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p36",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p37",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p38",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p39",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p40",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p41",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p42",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p43",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p44",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p45",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p46",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p47",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p48",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p49",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p50",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							},
+							{
+								"name": "p51",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							}
+						]
+					},
+					{
+						"kind": "object",
+						"typeName": {
+							"name": "ExtraProps"
+						},
+						"properties": [
+							{
+								"name": "extra",
+								"type": {
+									"kind": "union",
+									"types": [
+										{
+											"kind": "intrinsic",
+											"intrinsic": "boolean"
+										},
+										{
+											"kind": "intrinsic",
+											"intrinsic": "undefined"
+										}
+									]
+								},
+								"optional": true
+							},
+							{
+								"name": "nested",
+								"type": {
+									"kind": "union",
+									"typeName": {
+										"name": "ManyNestedProps"
+									},
+									"types": [
+										{
+											"kind": "object",
+											"typeName": {
+												"name": "ManyNestedProps"
+											},
+											"properties": []
+										},
+										{
+											"kind": "intrinsic",
+											"intrinsic": "undefined"
+										}
+									]
+								},
+								"documentation": {
+									"description": "A property value is a nested detail rather than the subject of the export,\nso the property-count limit still collapses it to a bare object.",
+									"tags": []
+								},
+								"optional": true
+							}
+						]
+					},
+					{
+						"kind": "object",
+						"properties": [
+							{
+								"name": "forced",
+								"type": {
+									"kind": "union",
+									"types": [
+										{
+											"kind": "literal",
+											"value": "true"
+										},
+										{
+											"kind": "intrinsic",
+											"intrinsic": "undefined"
+										}
+									]
+								},
+								"optional": true
+							}
+						]
+					}
+				],
+				"properties": [
+					{
+						"name": "p01",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p02",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p03",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p04",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p05",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p06",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p07",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p08",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p09",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p10",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p11",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p12",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p13",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p14",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p15",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p16",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p17",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p18",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p19",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p20",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p21",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p22",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p23",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p24",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p25",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p26",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p27",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p28",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p29",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p30",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p31",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p32",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p33",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p34",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p35",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p36",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p37",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p38",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p39",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p40",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p41",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p42",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p43",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p44",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p45",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p46",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p47",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p48",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p49",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p50",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "p51",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "extra",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "boolean"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "nested",
+						"type": {
+							"kind": "union",
+							"typeName": {
+								"name": "ManyNestedProps"
+							},
+							"types": [
+								{
+									"kind": "object",
+									"typeName": {
+										"name": "ManyNestedProps"
+									},
+									"properties": []
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "A property value is a nested detail rather than the subject of the export,\nso the property-count limit still collapses it to a bare object.",
+							"tags": []
+						},
+						"optional": true
+					},
+					{
+						"name": "forced",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "literal",
+									"value": "true"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					}
+				]
+			},
+			"documentation": {
+				"description": "Aggregates more than 50 properties through composition alone. Real-world\ncomponent props reach the same shape through wrappers such as\n`Omit<Partial<ManyProps> & ExtraProps, 'p51'>`.",
+				"tags": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	],
+	"imports": ["react"]
+}

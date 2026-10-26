@@ -1,0 +1,628 @@
+{
+	"name": "test/fixtures/export-declaration-spaces/input",
+	"exports": [
+		{
+			"name": "plainFunction",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "plainFunction"
+				},
+				"callSignatures": [
+					{
+						"parameters": [],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "expandoFunction",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "expandoFunction"
+				},
+				"callSignatures": [
+					{
+						"parameters": [],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "fnWithNs",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "fnWithNs"
+				},
+				"callSignatures": [
+					{
+						"parameters": [],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": true
+		},
+		{
+			"name": "fnWithNs.Nested",
+			"type": {
+				"kind": "literal",
+				"value": "\"nested\"",
+				"typeName": {
+					"name": "Nested",
+					"namespaces": ["fnWithNs"]
+				}
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "PlainAlias",
+			"type": {
+				"kind": "literal",
+				"value": "\"alias\""
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "annotatedConstant",
+			"type": {
+				"kind": "literal",
+				"value": "\"alias\""
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "plainConstant",
+			"type": {
+				"kind": "literal",
+				"value": "\"constant\""
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "PlainClass",
+			"type": {
+				"kind": "class",
+				"typeName": {
+					"name": "PlainClass"
+				},
+				"constructSignatures": [
+					{
+						"parameters": []
+					}
+				],
+				"properties": [
+					{
+						"name": "id",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false,
+						"readonly": false,
+						"isStatic": false
+					}
+				],
+				"methods": []
+			},
+			"isValue": true,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "PlainEnum",
+			"type": {
+				"typeName": {
+					"name": "PlainEnum"
+				},
+				"members": [
+					{
+						"name": "member",
+						"value": "member"
+					}
+				],
+				"kind": "enum"
+			},
+			"isValue": true,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "PlainInterface",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "PlainInterface"
+				},
+				"properties": [
+					{
+						"name": "id",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Merged",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Merged"
+				},
+				"properties": [
+					{
+						"name": "id",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": true,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "mergedTarget",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "mergedTarget"
+				},
+				"callSignatures": [
+					{
+						"parameters": [],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "TypesNamespace",
+			"type": {
+				"kind": "intrinsic",
+				"intrinsic": "any"
+			},
+			"isValue": false,
+			"isType": false,
+			"isNamespace": true
+		},
+		{
+			"name": "TypesNamespace.Nested",
+			"type": {
+				"kind": "literal",
+				"value": "\"nested\"",
+				"typeName": {
+					"name": "Nested",
+					"namespaces": ["TypesNamespace"]
+				}
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "nsFn",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "nsFn"
+				},
+				"callSignatures": [
+					{
+						"parameters": [],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						}
+					}
+				]
+			},
+			"isValue": false,
+			"isType": false,
+			"isNamespace": true
+		},
+		{
+			"name": "nsFn.inner",
+			"type": {
+				"kind": "literal",
+				"value": "\"inner\"",
+				"typeName": {
+					"name": "inner",
+					"namespaces": ["nsFn"]
+				}
+			},
+			"isValue": false,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "typeOnlyImported",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "typeOnlyImported"
+				},
+				"callSignatures": [
+					{
+						"parameters": [],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						}
+					}
+				]
+			},
+			"isValue": false,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "ReexportedAlias",
+			"type": {
+				"kind": "literal",
+				"value": "\"reexported\""
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "ReexportedClass",
+			"type": {
+				"kind": "class",
+				"typeName": {
+					"name": "ReexportedClass"
+				},
+				"constructSignatures": [
+					{
+						"parameters": []
+					}
+				],
+				"properties": [
+					{
+						"name": "id",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false,
+						"readonly": false,
+						"isStatic": false
+					}
+				],
+				"methods": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "reexportedValue",
+			"type": {
+				"kind": "literal",
+				"value": "\"reexported\""
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "TypeOnlyNamespace.mergedTarget",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "mergedTarget",
+					"namespaces": ["TypeOnlyNamespace"]
+				},
+				"callSignatures": [
+					{
+						"parameters": [],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						}
+					}
+				]
+			},
+			"isValue": false,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "TypeOnlyNamespace.typeOnlyImported",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "typeOnlyImported",
+					"namespaces": ["TypeOnlyNamespace"]
+				},
+				"callSignatures": [
+					{
+						"parameters": [],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						}
+					}
+				]
+			},
+			"isValue": false,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "TypeOnlyNamespace.ReexportedAlias",
+			"type": {
+				"kind": "literal",
+				"value": "\"reexported\"",
+				"typeName": {
+					"name": "ReexportedAlias",
+					"namespaces": ["TypeOnlyNamespace"]
+				}
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "TypeOnlyNamespace.reexportedValue",
+			"type": {
+				"kind": "literal",
+				"value": "\"reexported\"",
+				"typeName": {
+					"name": "reexportedValue",
+					"namespaces": ["TypeOnlyNamespace"]
+				}
+			},
+			"isValue": false,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "TypeOnlyNamespace.ReexportedClass",
+			"type": {
+				"kind": "class",
+				"typeName": {
+					"name": "ReexportedClass",
+					"namespaces": ["TypeOnlyNamespace"]
+				},
+				"constructSignatures": [
+					{
+						"parameters": []
+					}
+				],
+				"properties": [
+					{
+						"name": "id",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false,
+						"readonly": false,
+						"isStatic": false
+					}
+				],
+				"methods": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "ValueNamespace.mergedTarget",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "mergedTarget",
+					"namespaces": ["ValueNamespace"]
+				},
+				"callSignatures": [
+					{
+						"parameters": [],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "ValueNamespace.typeOnlyImported",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "typeOnlyImported",
+					"namespaces": ["ValueNamespace"]
+				},
+				"callSignatures": [
+					{
+						"parameters": [],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "ValueNamespace.ReexportedAlias",
+			"type": {
+				"kind": "literal",
+				"value": "\"reexported\"",
+				"typeName": {
+					"name": "ReexportedAlias",
+					"namespaces": ["ValueNamespace"]
+				}
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "ValueNamespace.reexportedValue",
+			"type": {
+				"kind": "literal",
+				"value": "\"reexported\"",
+				"typeName": {
+					"name": "reexportedValue",
+					"namespaces": ["ValueNamespace"]
+				}
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "ValueNamespace.ReexportedClass",
+			"type": {
+				"kind": "class",
+				"typeName": {
+					"name": "ReexportedClass",
+					"namespaces": ["ValueNamespace"]
+				},
+				"constructSignatures": [
+					{
+						"parameters": []
+					}
+				],
+				"properties": [
+					{
+						"name": "id",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false,
+						"readonly": false,
+						"isStatic": false
+					}
+				],
+				"methods": []
+			},
+			"isValue": true,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "default",
+			"type": {
+				"kind": "class",
+				"typeName": {
+					"name": "default"
+				},
+				"constructSignatures": [
+					{
+						"parameters": []
+					}
+				],
+				"properties": [
+					{
+						"name": "id",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false,
+						"readonly": false,
+						"isStatic": false
+					}
+				],
+				"methods": []
+			},
+			"isValue": true,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "StarEnum",
+			"type": {
+				"typeName": {
+					"name": "StarEnum"
+				},
+				"members": [
+					{
+						"name": "member",
+						"value": "member"
+					}
+				],
+				"kind": "enum"
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "DualStarEnum",
+			"type": {
+				"typeName": {
+					"name": "DualStarEnum"
+				},
+				"members": [
+					{
+						"name": "member",
+						"value": "member"
+					}
+				],
+				"kind": "enum"
+			},
+			"isValue": true,
+			"isType": true,
+			"isNamespace": false
+		}
+	],
+	"imports": ["./helpers", "./helpers"]
+}

@@ -1,0 +1,178 @@
+{
+	"name": "test/fixtures/react-props-callback-types/input",
+	"exports": [
+		{
+			"name": "CallbackPropsComponent",
+			"type": {
+				"kind": "component",
+				"typeName": {
+					"name": "CallbackPropsComponent"
+				},
+				"props": [
+					{
+						"name": "onChange",
+						"type": {
+							"kind": "function",
+							"callSignatures": [
+								{
+									"parameters": [
+										{
+											"type": {
+												"kind": "external",
+												"typeName": {
+													"name": "ChangeEvent",
+													"namespaces": ["React"],
+													"typeArguments": [
+														{
+															"type": {
+																"kind": "external",
+																"typeName": {
+																	"name": "HTMLInputElement"
+																},
+																"source": {
+																	"kind": "lib",
+																	"files": ["lib.dom.d.ts"]
+																}
+															},
+															"equalToDefault": false
+														},
+														{
+															"type": {
+																"kind": "external",
+																"typeName": {
+																	"name": "Element"
+																},
+																"source": {
+																	"kind": "lib",
+																	"files": ["lib.dom.d.ts"]
+																}
+															},
+															"equalToDefault": true
+														}
+													]
+												},
+												"source": {
+													"kind": "package",
+													"name": "@types/react"
+												}
+											},
+											"name": "event",
+											"optional": false
+										},
+										{
+											"type": {
+												"kind": "union",
+												"types": [
+													{
+														"kind": "intrinsic",
+														"intrinsic": "string"
+													},
+													{
+														"kind": "intrinsic",
+														"intrinsic": "undefined"
+													}
+												]
+											},
+											"name": "reason",
+											"optional": false
+										}
+									],
+									"returnValueType": {
+										"kind": "intrinsic",
+										"intrinsic": "void"
+									}
+								}
+							]
+						},
+						"optional": false
+					},
+					{
+						"name": "onClosing",
+						"type": {
+							"kind": "function",
+							"typeName": {
+								"name": "OnClosingCallback"
+							},
+							"callSignatures": [
+								{
+									"parameters": [
+										{
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "boolean"
+											},
+											"name": "animated",
+											"optional": false
+										}
+									],
+									"returnValueType": {
+										"kind": "intrinsic",
+										"intrinsic": "boolean"
+									}
+								}
+							]
+						},
+						"optional": false
+					},
+					{
+						"name": "onOpen",
+						"type": {
+							"kind": "function",
+							"typeName": {
+								"name": "OnOpenCallback"
+							},
+							"callSignatures": [
+								{
+									"parameters": [
+										{
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "boolean"
+											},
+											"name": "animated",
+											"optional": false
+										}
+									],
+									"returnValueType": {
+										"kind": "intrinsic",
+										"intrinsic": "void"
+									}
+								}
+							]
+						},
+						"optional": false
+					},
+					{
+						"name": "onClosed",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "function",
+									"callSignatures": [
+										{
+											"parameters": [],
+											"returnValueType": {
+												"kind": "intrinsic",
+												"intrinsic": "void"
+											}
+										}
+									]
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		}
+	],
+	"imports": ["react"]
+}

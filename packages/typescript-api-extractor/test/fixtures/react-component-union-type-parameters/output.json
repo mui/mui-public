@@ -1,0 +1,194 @@
+{
+	"name": "test/fixtures/react-component-union-type-parameters/input",
+	"exports": [
+		{
+			"name": "SharedTypeParametersComponent",
+			"type": {
+				"kind": "component",
+				"props": [
+					{
+						"name": "value",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"name": "Value",
+									"constraint": {
+										"kind": "intrinsic",
+										"intrinsic": "string"
+									},
+									"kind": "typeParameter"
+								},
+								{
+									"kind": "array",
+									"elementType": {
+										"name": "Value",
+										"constraint": {
+											"kind": "intrinsic",
+											"intrinsic": "string"
+										},
+										"kind": "typeParameter"
+									}
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "multiple",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "boolean"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					}
+				],
+				"typeParameters": [
+					{
+						"name": "Value",
+						"constraint": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"kind": "typeParameter"
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "SharedUnionComponent",
+			"type": {
+				"kind": "component",
+				"props": [
+					{
+						"name": "value",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"name": "Value",
+									"constraint": {
+										"kind": "intrinsic",
+										"intrinsic": "string"
+									},
+									"kind": "typeParameter"
+								},
+								{
+									"kind": "array",
+									"elementType": {
+										"name": "Value",
+										"constraint": {
+											"kind": "intrinsic",
+											"intrinsic": "string"
+										},
+										"kind": "typeParameter"
+									}
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "multiple",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "boolean"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					}
+				],
+				"typeParameters": [
+					{
+						"name": "Value",
+						"constraint": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"kind": "typeParameter"
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "RenamedUnionComponent",
+			"type": {
+				"kind": "component",
+				"props": [
+					{
+						"name": "value",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"name": "Value",
+									"kind": "typeParameter"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "items",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "array",
+									"elementType": {
+										"name": "Item",
+										"kind": "typeParameter"
+									}
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		}
+	],
+	"imports": ["react"]
+}

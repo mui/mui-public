@@ -1,0 +1,394 @@
+{
+	"name": "test/fixtures/type-utility-types-resolution/input",
+	"exports": [
+		{
+			"name": "acceptsPickedProps",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "acceptsPickedProps"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "object",
+									"typeName": {
+										"name": "Pick",
+										"typeArguments": [
+											{
+												"type": {
+													"kind": "object",
+													"typeName": {
+														"name": "Base"
+													},
+													"properties": [
+														{
+															"name": "a",
+															"type": {
+																"kind": "intrinsic",
+																"intrinsic": "boolean"
+															},
+															"optional": false
+														},
+														{
+															"name": "b",
+															"type": {
+																"kind": "union",
+																"types": [
+																	{
+																		"kind": "intrinsic",
+																		"intrinsic": "string"
+																	},
+																	{
+																		"kind": "intrinsic",
+																		"intrinsic": "undefined"
+																	}
+																]
+															},
+															"optional": true
+														},
+														{
+															"name": "c",
+															"type": {
+																"kind": "intrinsic",
+																"intrinsic": "number"
+															},
+															"optional": false
+														}
+													]
+												},
+												"equalToDefault": false
+											},
+											{
+												"type": {
+													"kind": "union",
+													"types": [
+														{
+															"kind": "literal",
+															"value": "\"a\""
+														},
+														{
+															"kind": "literal",
+															"value": "\"b\""
+														}
+													]
+												},
+												"equalToDefault": false
+											}
+										]
+									},
+									"properties": [
+										{
+											"name": "a",
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "boolean"
+											},
+											"optional": false
+										},
+										{
+											"name": "b",
+											"type": {
+												"kind": "union",
+												"types": [
+													{
+														"kind": "intrinsic",
+														"intrinsic": "string"
+													},
+													{
+														"kind": "intrinsic",
+														"intrinsic": "undefined"
+													}
+												]
+											},
+											"optional": true
+										}
+									]
+								},
+								"name": "params",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "acceptsOmittedProps",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "acceptsOmittedProps"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "object",
+									"typeName": {
+										"name": "Omit",
+										"typeArguments": [
+											{
+												"type": {
+													"kind": "object",
+													"typeName": {
+														"name": "Base"
+													},
+													"properties": [
+														{
+															"name": "a",
+															"type": {
+																"kind": "intrinsic",
+																"intrinsic": "boolean"
+															},
+															"optional": false
+														},
+														{
+															"name": "b",
+															"type": {
+																"kind": "union",
+																"types": [
+																	{
+																		"kind": "intrinsic",
+																		"intrinsic": "string"
+																	},
+																	{
+																		"kind": "intrinsic",
+																		"intrinsic": "undefined"
+																	}
+																]
+															},
+															"optional": true
+														},
+														{
+															"name": "c",
+															"type": {
+																"kind": "intrinsic",
+																"intrinsic": "number"
+															},
+															"optional": false
+														}
+													]
+												},
+												"equalToDefault": false
+											},
+											{
+												"type": {
+													"kind": "literal",
+													"value": "\"c\""
+												},
+												"equalToDefault": false
+											}
+										]
+									},
+									"properties": [
+										{
+											"name": "a",
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "boolean"
+											},
+											"optional": false
+										},
+										{
+											"name": "b",
+											"type": {
+												"kind": "union",
+												"types": [
+													{
+														"kind": "intrinsic",
+														"intrinsic": "string"
+													},
+													{
+														"kind": "intrinsic",
+														"intrinsic": "undefined"
+													}
+												]
+											},
+											"optional": true
+										}
+									]
+								},
+								"name": "params",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "number"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "acceptsParameterTuple",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "acceptsParameterTuple"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "tuple",
+									"types": [
+										{
+											"kind": "object",
+											"typeName": {
+												"name": "Pick",
+												"typeArguments": [
+													{
+														"type": {
+															"kind": "object",
+															"typeName": {
+																"name": "Base"
+															},
+															"properties": [
+																{
+																	"name": "a",
+																	"type": {
+																		"kind": "intrinsic",
+																		"intrinsic": "boolean"
+																	},
+																	"optional": false
+																},
+																{
+																	"name": "b",
+																	"type": {
+																		"kind": "union",
+																		"types": [
+																			{
+																				"kind": "intrinsic",
+																				"intrinsic": "string"
+																			},
+																			{
+																				"kind": "intrinsic",
+																				"intrinsic": "undefined"
+																			}
+																		]
+																	},
+																	"optional": true
+																},
+																{
+																	"name": "c",
+																	"type": {
+																		"kind": "intrinsic",
+																		"intrinsic": "number"
+																	},
+																	"optional": false
+																}
+															]
+														},
+														"equalToDefault": false
+													},
+													{
+														"type": {
+															"kind": "union",
+															"types": [
+																{
+																	"kind": "literal",
+																	"value": "\"a\""
+																},
+																{
+																	"kind": "literal",
+																	"value": "\"b\""
+																}
+															]
+														},
+														"equalToDefault": false
+													}
+												]
+											},
+											"properties": [
+												{
+													"name": "a",
+													"type": {
+														"kind": "intrinsic",
+														"intrinsic": "boolean"
+													},
+													"optional": false
+												},
+												{
+													"name": "b",
+													"type": {
+														"kind": "union",
+														"types": [
+															{
+																"kind": "intrinsic",
+																"intrinsic": "string"
+															},
+															{
+																"kind": "intrinsic",
+																"intrinsic": "undefined"
+															}
+														]
+													},
+													"optional": true
+												}
+											]
+										}
+									]
+								},
+								"name": "params",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "acceptsReturnType",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "acceptsReturnType"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "number"
+								},
+								"name": "params",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		}
+	]
+}

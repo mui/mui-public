@@ -1,0 +1,129 @@
+{
+	"name": "test/fixtures/readonly-array-mapped-type-with-concrete-props/input",
+	"exports": [
+		{
+			"name": "Data",
+			"type": {
+				"kind": "array",
+				"typeName": {
+					"name": "Data",
+					"typeArguments": [
+						{
+							"type": {
+								"kind": "intersection",
+								"types": [
+									{
+										"kind": "object",
+										"properties": [],
+										"indexSignature": {
+											"keyName": "key",
+											"keyType": "string",
+											"valueType": {
+												"kind": "union",
+												"types": [
+													{
+														"name": "V",
+														"defaultValue": {
+															"kind": "intrinsic",
+															"intrinsic": "unknown"
+														},
+														"kind": "typeParameter"
+													},
+													{
+														"kind": "intrinsic",
+														"intrinsic": "undefined"
+													}
+												]
+											}
+										}
+									},
+									{
+										"kind": "object",
+										"properties": [
+											{
+												"name": "required",
+												"type": {
+													"kind": "intrinsic",
+													"intrinsic": "string"
+												},
+												"optional": false
+											}
+										]
+									}
+								],
+								"properties": [
+									{
+										"name": "required",
+										"type": {
+											"kind": "intrinsic",
+											"intrinsic": "string"
+										},
+										"optional": false
+									}
+								]
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"elementType": {
+					"kind": "intersection",
+					"types": [
+						{
+							"kind": "object",
+							"properties": [],
+							"indexSignature": {
+								"keyName": "key",
+								"keyType": "string",
+								"valueType": {
+									"kind": "union",
+									"types": [
+										{
+											"name": "V",
+											"defaultValue": {
+												"kind": "intrinsic",
+												"intrinsic": "unknown"
+											},
+											"kind": "typeParameter"
+										},
+										{
+											"kind": "intrinsic",
+											"intrinsic": "undefined"
+										}
+									]
+								}
+							}
+						},
+						{
+							"kind": "object",
+							"properties": [
+								{
+									"name": "required",
+									"type": {
+										"kind": "intrinsic",
+										"intrinsic": "string"
+									},
+									"optional": false
+								}
+							]
+						}
+					],
+					"properties": [
+						{
+							"name": "required",
+							"type": {
+								"kind": "intrinsic",
+								"intrinsic": "string"
+							},
+							"optional": false
+						}
+					]
+				},
+				"isReadonly": true
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

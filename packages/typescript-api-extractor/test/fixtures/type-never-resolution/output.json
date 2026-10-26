@@ -1,0 +1,45 @@
+{
+	"name": "test/fixtures/type-never-resolution/input",
+	"exports": [
+		{
+			"name": "fail",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "fail"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"name": "message",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "never"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "Impossible",
+			"type": {
+				"kind": "intrinsic",
+				"intrinsic": "never"
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

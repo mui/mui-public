@@ -1,0 +1,98 @@
+{
+	"name": "test/fixtures/react-hook-multiple-parameters/input",
+	"exports": [
+		{
+			"name": "useHook",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "useHook"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"name": "value",
+								"documentation": {
+									"description": "The value.",
+									"tags": []
+								},
+								"optional": false
+							},
+							{
+								"type": {
+									"kind": "function",
+									"callSignatures": [
+										{
+											"parameters": [
+												{
+													"type": {
+														"kind": "intrinsic",
+														"intrinsic": "string"
+													},
+													"name": "newValue",
+													"optional": false
+												}
+											],
+											"returnValueType": {
+												"kind": "intrinsic",
+												"intrinsic": "void"
+											}
+										}
+									]
+								},
+								"name": "onChange",
+								"documentation": {
+									"description": "The change handler.",
+									"tags": []
+								},
+								"optional": false
+							},
+							{
+								"type": {
+									"kind": "union",
+									"typeName": {
+										"name": "Severity"
+									},
+									"types": [
+										{
+											"kind": "literal",
+											"value": "\"low\""
+										},
+										{
+											"kind": "literal",
+											"value": "\"high\""
+										}
+									]
+								},
+								"name": "severity",
+								"documentation": {
+									"description": "The severity.",
+									"tags": []
+								},
+								"optional": true,
+								"defaultValue": "\"low\""
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "number"
+						}
+					}
+				]
+			},
+			"documentation": {
+				"description": "A hook defined as a function.",
+				"visibility": "internal",
+				"tags": []
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		}
+	]
+}

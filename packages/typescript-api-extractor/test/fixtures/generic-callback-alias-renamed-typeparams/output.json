@@ -1,0 +1,327 @@
+{
+	"name": "test/fixtures/generic-callback-alias-renamed-typeparams/input",
+	"exports": [
+		{
+			"name": "AlphaEquivAlias",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "AlphaEquivAlias"
+				},
+				"types": [
+					{
+						"kind": "function",
+						"callSignatures": [
+							{
+								"parameters": [
+									{
+										"type": {
+											"name": "T",
+											"kind": "typeParameter"
+										},
+										"name": "x",
+										"optional": false
+									}
+								],
+								"returnValueType": {
+									"kind": "function",
+									"typeName": {
+										"name": "Callback",
+										"typeArguments": [
+											{
+												"type": {
+													"name": "T",
+													"kind": "typeParameter"
+												},
+												"equalToDefault": false
+											}
+										]
+									},
+									"callSignatures": [
+										{
+											"parameters": [
+												{
+													"type": {
+														"name": "T",
+														"kind": "typeParameter"
+													},
+													"name": "value",
+													"optional": false
+												}
+											],
+											"returnValueType": {
+												"kind": "intrinsic",
+												"intrinsic": "void"
+											}
+										}
+									]
+								},
+								"typeParameters": [
+									{
+										"name": "T",
+										"kind": "typeParameter"
+									}
+								]
+							}
+						]
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "AlphaEquivAliasConstrained",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "AlphaEquivAliasConstrained"
+				},
+				"types": [
+					{
+						"kind": "function",
+						"callSignatures": [
+							{
+								"parameters": [
+									{
+										"type": {
+											"name": "T",
+											"constraint": {
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											},
+											"kind": "typeParameter"
+										},
+										"name": "x",
+										"optional": false
+									}
+								],
+								"returnValueType": {
+									"kind": "function",
+									"typeName": {
+										"name": "Callback",
+										"typeArguments": [
+											{
+												"type": {
+													"name": "T",
+													"constraint": {
+														"kind": "intrinsic",
+														"intrinsic": "string"
+													},
+													"kind": "typeParameter"
+												},
+												"equalToDefault": false
+											}
+										]
+									},
+									"callSignatures": [
+										{
+											"parameters": [
+												{
+													"type": {
+														"name": "T",
+														"constraint": {
+															"kind": "intrinsic",
+															"intrinsic": "string"
+														},
+														"kind": "typeParameter"
+													},
+													"name": "value",
+													"optional": false
+												}
+											],
+											"returnValueType": {
+												"kind": "intrinsic",
+												"intrinsic": "void"
+											}
+										}
+									]
+								},
+								"typeParameters": [
+									{
+										"name": "T",
+										"constraint": {
+											"kind": "intrinsic",
+											"intrinsic": "string"
+										},
+										"kind": "typeParameter"
+									}
+								]
+							}
+						]
+					}
+				]
+			},
+			"documentation": {
+				"description": "Same scenario but with constrained type parameters.",
+				"tags": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "NonEquivAliasDifferentConstraints",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "NonEquivAliasDifferentConstraints"
+				},
+				"types": [
+					{
+						"kind": "function",
+						"callSignatures": [
+							{
+								"parameters": [
+									{
+										"type": {
+											"name": "T",
+											"constraint": {
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											},
+											"kind": "typeParameter"
+										},
+										"name": "x",
+										"optional": false
+									}
+								],
+								"returnValueType": {
+									"kind": "function",
+									"typeName": {
+										"name": "Callback",
+										"typeArguments": [
+											{
+												"type": {
+													"name": "T",
+													"constraint": {
+														"kind": "intrinsic",
+														"intrinsic": "string"
+													},
+													"kind": "typeParameter"
+												},
+												"equalToDefault": false
+											}
+										]
+									},
+									"callSignatures": [
+										{
+											"parameters": [
+												{
+													"type": {
+														"name": "T",
+														"constraint": {
+															"kind": "intrinsic",
+															"intrinsic": "string"
+														},
+														"kind": "typeParameter"
+													},
+													"name": "value",
+													"optional": false
+												}
+											],
+											"returnValueType": {
+												"kind": "intrinsic",
+												"intrinsic": "void"
+											}
+										}
+									]
+								},
+								"typeParameters": [
+									{
+										"name": "T",
+										"constraint": {
+											"kind": "intrinsic",
+											"intrinsic": "string"
+										},
+										"kind": "typeParameter"
+									}
+								]
+							}
+						]
+					},
+					{
+						"kind": "function",
+						"callSignatures": [
+							{
+								"parameters": [
+									{
+										"type": {
+											"name": "U",
+											"constraint": {
+												"kind": "intrinsic",
+												"intrinsic": "number"
+											},
+											"kind": "typeParameter"
+										},
+										"name": "x",
+										"optional": false
+									}
+								],
+								"returnValueType": {
+									"kind": "function",
+									"typeName": {
+										"name": "Callback",
+										"typeArguments": [
+											{
+												"type": {
+													"name": "U",
+													"constraint": {
+														"kind": "intrinsic",
+														"intrinsic": "number"
+													},
+													"kind": "typeParameter"
+												},
+												"equalToDefault": false
+											}
+										]
+									},
+									"callSignatures": [
+										{
+											"parameters": [
+												{
+													"type": {
+														"name": "U",
+														"constraint": {
+															"kind": "intrinsic",
+															"intrinsic": "number"
+														},
+														"kind": "typeParameter"
+													},
+													"name": "value",
+													"optional": false
+												}
+											],
+											"returnValueType": {
+												"kind": "intrinsic",
+												"intrinsic": "void"
+											}
+										}
+									]
+								},
+								"typeParameters": [
+									{
+										"name": "U",
+										"constraint": {
+											"kind": "intrinsic",
+											"intrinsic": "number"
+										},
+										"kind": "typeParameter"
+									}
+								]
+							}
+						]
+					}
+				]
+			},
+			"documentation": {
+				"description": "Non-equivalent: different constraints mean the branches should NOT deduplicate.",
+				"tags": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

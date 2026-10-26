@@ -1,0 +1,239 @@
+{
+	"name": "test/fixtures/react-component-overload-any-callback-deduplication/input",
+	"exports": [
+		{
+			"name": "GenericComponent",
+			"type": {
+				"kind": "component",
+				"typeName": {
+					"name": "GenericComponent"
+				},
+				"props": [
+					{
+						"name": "filter",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "function",
+									"callSignatures": [
+										{
+											"parameters": [
+												{
+													"type": {
+														"name": "ItemValue",
+														"kind": "typeParameter"
+													},
+													"name": "itemValue",
+													"optional": false
+												},
+												{
+													"type": {
+														"kind": "intrinsic",
+														"intrinsic": "string"
+													},
+													"name": "query",
+													"optional": false
+												},
+												{
+													"type": {
+														"kind": "union",
+														"types": [
+															{
+																"kind": "function",
+																"callSignatures": [
+																	{
+																		"parameters": [
+																			{
+																				"type": {
+																					"name": "ItemValue",
+																					"kind": "typeParameter"
+																				},
+																				"name": "value",
+																				"optional": false
+																			}
+																		],
+																		"returnValueType": {
+																			"kind": "intrinsic",
+																			"intrinsic": "string"
+																		}
+																	}
+																]
+															},
+															{
+																"kind": "intrinsic",
+																"intrinsic": "undefined"
+															}
+														]
+													},
+													"name": "itemToString",
+													"optional": false
+												}
+											],
+											"returnValueType": {
+												"kind": "intrinsic",
+												"intrinsic": "boolean"
+											}
+										}
+									]
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "null"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "Filter function with nested callback.\nBoth outer and inner callbacks should be deduplicated.",
+							"tags": []
+						},
+						"optional": true
+					},
+					{
+						"name": "onItemSelect",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "function",
+									"callSignatures": [
+										{
+											"parameters": [
+												{
+													"type": {
+														"name": "ItemValue",
+														"kind": "typeParameter"
+													},
+													"name": "itemValue",
+													"optional": false
+												}
+											],
+											"returnValueType": {
+												"kind": "intrinsic",
+												"intrinsic": "void"
+											}
+										}
+									]
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "Callback that receives the item value.\nShould be deduplicated when one overload has `any` and another has concrete type.",
+							"tags": []
+						},
+						"optional": true
+					},
+					{
+						"name": "onItemHighlighted",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "function",
+									"callSignatures": [
+										{
+											"parameters": [
+												{
+													"type": {
+														"kind": "union",
+														"types": [
+															{
+																"name": "ItemValue",
+																"kind": "typeParameter"
+															},
+															{
+																"kind": "intrinsic",
+																"intrinsic": "undefined"
+															}
+														]
+													},
+													"name": "highlightedValue",
+													"optional": false
+												}
+											],
+											"returnValueType": {
+												"kind": "intrinsic",
+												"intrinsic": "void"
+											}
+										}
+									]
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "Callback with union type parameter.",
+							"tags": []
+						},
+						"optional": true
+					},
+					{
+						"name": "items",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"name": "Items",
+									"constraint": {
+										"kind": "array",
+										"elementType": {
+											"kind": "object",
+											"properties": [
+												{
+													"name": "items",
+													"type": {
+														"kind": "array",
+														"elementType": {
+															"kind": "intrinsic",
+															"intrinsic": "any"
+														},
+														"isReadonly": true
+													},
+													"optional": false
+												}
+											]
+										},
+										"isReadonly": true
+									},
+									"kind": "typeParameter"
+								},
+								{
+									"kind": "array",
+									"elementType": {
+										"name": "ItemValue",
+										"kind": "typeParameter"
+									},
+									"isReadonly": true
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					}
+				]
+			},
+			"documentation": {
+				"description": "Component with overloads where one overload results in `any` for ItemValue\nand the other results in a concrete type.\nTests that callbacks with `any` params are deduplicated in favor of concrete types.",
+				"tags": []
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		}
+	],
+	"imports": ["react"]
+}

@@ -1,0 +1,119 @@
+{
+	"name": "test/fixtures/generic-callback-alias-constraint-deduplication/input",
+	"exports": [
+		{
+			"name": "Fn",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "Fn"
+				},
+				"types": [
+					{
+						"kind": "function",
+						"callSignatures": [
+							{
+								"parameters": [],
+								"returnValueType": {
+									"name": "T",
+									"constraint": {
+										"kind": "object",
+										"typeName": {
+											"name": "Foo"
+										},
+										"properties": [
+											{
+												"name": "a",
+												"type": {
+													"kind": "intrinsic",
+													"intrinsic": "string"
+												},
+												"optional": false
+											}
+										]
+									},
+									"kind": "typeParameter"
+								},
+								"typeParameters": [
+									{
+										"name": "T",
+										"constraint": {
+											"kind": "object",
+											"typeName": {
+												"name": "Foo"
+											},
+											"properties": [
+												{
+													"name": "a",
+													"type": {
+														"kind": "intrinsic",
+														"intrinsic": "string"
+													},
+													"optional": false
+												}
+											]
+										},
+										"kind": "typeParameter"
+									}
+								]
+							}
+						]
+					},
+					{
+						"kind": "function",
+						"callSignatures": [
+							{
+								"parameters": [],
+								"returnValueType": {
+									"name": "U",
+									"constraint": {
+										"kind": "object",
+										"typeName": {
+											"name": "Bar"
+										},
+										"properties": [
+											{
+												"name": "a",
+												"type": {
+													"kind": "intrinsic",
+													"intrinsic": "string"
+												},
+												"optional": false
+											}
+										]
+									},
+									"kind": "typeParameter"
+								},
+								"typeParameters": [
+									{
+										"name": "U",
+										"constraint": {
+											"kind": "object",
+											"typeName": {
+												"name": "Bar"
+											},
+											"properties": [
+												{
+													"name": "a",
+													"type": {
+														"kind": "intrinsic",
+														"intrinsic": "string"
+													},
+													"optional": false
+												}
+											]
+										},
+										"kind": "typeParameter"
+									}
+								]
+							}
+						]
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}
