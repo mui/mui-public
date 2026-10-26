@@ -55,7 +55,8 @@ for (const file of config.fileNames) {
 
 ## Requirements
 
-- **Node.js**: `^22.12.0 || ^24.0.0 || >=26.0.0`
+- **Node.js**: `>=22.12.0`
+- **TypeScript**: `^5.8 || ^6.0`, installed as a peer dependency
 
 ## License
 

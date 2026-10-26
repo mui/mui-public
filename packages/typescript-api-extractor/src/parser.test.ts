@@ -9,7 +9,7 @@ import type {
   SyntaxOnlyModuleNode,
   TypeOperatorResolutionKind,
 } from './index';
-import type { ScopedParserContext } from './parserContext';
+import { createParserContext } from './parserContextFactory';
 import { parseExport } from './parsers/exportParser';
 import { createInMemoryProgram } from '../test/support/inMemoryProgram';
 
@@ -483,66 +483,36 @@ it('correlates parseFile return types with literal and dynamic output modes', ()
 });
 
 it('reports missing enum declarations through onWarning', () => {
-  const sourceFile = ts.createSourceFile(
-    '/virtual/missing-enum-declaration.ts',
-    'export enum Missing {}',
-    ts.ScriptTarget.ES2022,
-    true,
-  );
-  const enumDeclaration = sourceFile.statements[0]!;
+  const filePath = '/virtual/missing-enum-declaration.ts';
+  const program = createInMemoryProgram(filePath, 'export enum Missing {}');
+  const sourceFile = program.getSourceFile(filePath)!;
+  const realChecker = program.getTypeChecker();
+  // TypeScript can hand back an enum symbol without declarations; hide them to reproduce that.
+  const checker: ts.TypeChecker = Object.create(realChecker);
+  checker.getSymbolAtLocation = (node) => {
+    const symbol = realChecker.getSymbolAtLocation(node);
+    return symbol && ts.isEnumDeclaration(node.parent)
+      ? Object.create(symbol, { declarations: { value: undefined } })
+      : symbol;
+  };
   const warnings: ParserWarning[] = [];
   const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-  const parsedSymbolStack: string[] = [];
-  const sourceNodeStack: ts.Node[] = [sourceFile];
-  const context = {
-    checker: {
-      getSymbolAtLocation: () => ({ name: 'Missing' }),
-    },
-    sourceFile,
-    parsedSymbolStack,
-    sourceNodeStack,
-    onWarning: (warning: ParserWarning) => {
+  const context = createParserContext(checker, sourceFile, program, {
+    onWarning: (warning) => {
       warnings.push(warning);
     },
-    runWithSymbolScope: <T>(symbolName: string, callback: () => T): T => {
-      parsedSymbolStack.push(symbolName);
-      try {
-        return callback();
-      } finally {
-        parsedSymbolStack.pop();
-      }
-    },
-    runWithSourceNodeScope: <T>(sourceNode: ts.Node | undefined, callback: () => T): T => {
-      if (sourceNode) {
-        sourceNodeStack.push(sourceNode);
-      }
-      try {
-        return callback();
-      } finally {
-        if (sourceNode) {
-          sourceNodeStack.pop();
-        }
-      }
-    },
-    runWithTypeParameterSubstitutionScope: <T>(
-      _substitutions: Map<ts.Symbol, ts.Type>,
-      callback: () => T,
-    ): T => callback(),
-  } as unknown as ScopedParserContext;
-
-  parseExport(
-    {
-      name: 'Missing',
-      declarations: [enumDeclaration],
-    } as unknown as ts.Symbol,
-    context,
+  });
+  const [exportSymbol] = realChecker.getExportsOfModule(
+    realChecker.getSymbolAtLocation(sourceFile)!,
   );
+
+  parseExport(exportSymbol!, context);
 
   expect(warn).not.toHaveBeenCalled();
   expect(warnings).toHaveLength(1);
   expect(warnings[0]).toMatchObject({
     code: 'missing-enum-declaration',
-    filePath: sourceFile.fileName,
+    filePath,
     line: 1,
     column: 1,
     parsedSymbolStack: ['Missing'],

@@ -2,6 +2,8 @@
 
 # dependencies
 node_modules/
+# Fixtures standing in for installed packages
+!packages/typescript-api-extractor/test/fixtures/**/node_modules/
 
 # testing
 /.eslintcache

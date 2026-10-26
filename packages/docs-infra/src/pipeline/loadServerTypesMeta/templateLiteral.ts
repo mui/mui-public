@@ -1,4 +1,4 @@
-import type * as tae from 'typescript-api-extractor';
+import type * as tae from '@mui/internal-typescript-api-extractor';
 
 /**
  * Writes a template literal type as TypeScript source, such as `` `${number}px` ``.

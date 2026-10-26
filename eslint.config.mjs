@@ -61,6 +61,32 @@ const config = defineConfig(
     },
   },
   {
+    files: [`packages/typescript-api-extractor/**/*${EXTENSION_TS}`],
+    rules: {
+      // The TypeScript compiler API reports symbol, type, and node flags as bit sets.
+      'no-bitwise': 'off',
+    },
+  },
+  {
+    files: [`packages/typescript-api-extractor/**/*${EXTENSION_TEST_FILE}`],
+    rules: {
+      // Vitest accepts a failure message as the second argument.
+      'vitest/valid-expect': ['error', { maxArgs: 2 }],
+      'vitest/expect-expect': [
+        'error',
+        {
+          assertFunctionNames: [
+            'expect',
+            'expectTypeOf',
+            'expectKind',
+            'expectExternalAliases',
+            'expectReferenceFormExports',
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ['docs/**/*'],
     extends: createDocsConfig(),
     settings: {

@@ -33,9 +33,12 @@ for (const testCase of testCases) {
     if (regenerateOutput || !fs.existsSync(expectedOutput)) {
       fs.writeFileSync(
         expectedOutput,
+        // Fixtures keep the tab indentation they were written with; the repository config
+        // would reindent every file on regeneration.
         await prettier.format(JSON.stringify(moduleDefinition, null, '\t'), {
-          ...(await prettier.resolveConfig(expectedOutput)),
           filepath: expectedOutput,
+          useTabs: true,
+          printWidth: 100,
         }),
       );
       return;
