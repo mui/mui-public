@@ -16,7 +16,6 @@ import { refLabel, resolveBaselineRef, WORKTREE_REF } from './refs';
 import type { ResolvedRef } from './refs';
 import { discoverBenchFiles } from './benchFiles';
 import { runInterleaved } from './runInterleaved';
-import { traceBenchmarks } from './traceBenchmarks';
 import { buildRefPages, restoreWorkspace } from './buildPages';
 import { printRunReport } from './printReport';
 import { buildsDirOf, prepareOutputDir, resultsPathOf } from './outputDir';
@@ -190,10 +189,12 @@ export async function runBenchmarks(
     };
 
     if (profile) {
-      const traced = await traceBenchmarks({
+      const { traces: traced = [] } = await runInterleaved({
         ...runOptions,
-        rounds: sampling.sampleSize ?? PROFILE_ROUNDS,
-        tracesDir: path.join(outputDir, 'traces'),
+        trace: {
+          tracesDir: path.join(outputDir, 'traces'),
+          rounds: sampling.sampleSize ?? PROFILE_ROUNDS,
+        },
       });
       if (reporter === 'json') {
         process.stdout.write(`${JSON.stringify({ benchmarks: traced }, null, 2)}\n`);

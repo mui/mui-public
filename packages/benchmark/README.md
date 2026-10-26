@@ -587,10 +587,10 @@ variant's median and each comparison's interval, verdict and severity, plus the 
 long it all took — with everything else a run prints sent to stderr. `summarizeRun` from
 `@mui/internal-benchmark/runReport` produces the same from a report. `NO_COLOR` turns color off.
 
-`--profile` records instead of measuring: each sample runs in a freshly loaded page of its own, with
-a performance trace around it, saved under `.benchmark/traces/` to open in DevTools' Performance
-panel — 5 rounds unless `--sample-size` says otherwise. It writes no report: tracing slows the code
-it records.
+`--profile` records instead of measuring: the run samples as it measures, for 5 rounds unless
+`--sample-size` says otherwise, with a performance trace around each case's run, after the garbage
+collection that precedes it, saved under `.benchmark/traces/` to open in DevTools' Performance
+panel. It writes no report: tracing slows the code it records.
 
 `benchmark --help` lists the remaining options.
 

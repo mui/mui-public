@@ -157,6 +157,8 @@ declare global {
     benchmarkPage?: BenchPage;
     /** Exposed by the runner: forwards a CDP command to this page's session. */
     benchmarkCdp?: (method: string, params?: Record<string, unknown>) => Promise<unknown>;
+    /** Exposed by the runner in a profiled run: starts and stops the sample's performance trace. */
+    benchmarkTrace?: (action: 'start' | 'stop') => Promise<void>;
   }
 }
 
@@ -179,21 +181,24 @@ async function sample(name: string): Promise<Record<string, number>> {
 
   const values = new Map<string, number>();
   sampleValues = values;
+  // A profiled run traces the case alone: the collection above stays out of the trace.
+  await window.benchmarkTrace?.('start');
   try {
     await run({ cdp });
+
+    if (values.size === 0) {
+      throw new Error(
+        `Benchmark "${name}" recorded no value. Record its results through a ScalarMetric or DiscreteMetric.`,
+      );
+    }
+    // Also left as `performance.measure` entries, so a sample shows up in a DevTools trace.
+    const now = performance.now();
+    for (const [series, value] of values) {
+      performance.measure(series, { start: now, duration: 0, detail: { value } });
+    }
   } finally {
     sampleValues = null;
-  }
-
-  if (values.size === 0) {
-    throw new Error(
-      `Benchmark "${name}" recorded no value. Record its results through a ScalarMetric or DiscreteMetric.`,
-    );
-  }
-  // Also left as `performance.measure` entries, so a sample shows up in a DevTools trace.
-  const now = performance.now();
-  for (const [series, value] of values) {
-    performance.measure(series, { start: now, duration: 0, detail: { value } });
+    await window.benchmarkTrace?.('stop');
   }
   return Object.fromEntries(values);
 }
