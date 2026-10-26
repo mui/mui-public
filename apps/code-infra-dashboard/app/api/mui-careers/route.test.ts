@@ -22,6 +22,7 @@ const job = {
 const careerJob = {
   id: job.id,
   title: 'Operations Engineer',
+  isFutureRole: false,
   category: 'Operations',
   description: '<h2>About the role</h2><p>Build tools &amp; improve operations.</p>',
   summary: '',
@@ -47,6 +48,28 @@ describe('GET /api/mui-careers', () => {
     expect(fetchMock).toHaveBeenCalledWith('https://api.ashbyhq.com/posting-api/job-board/MUI', {
       cache: 'no-store',
       signal: expect.any(AbortSignal),
+    });
+  });
+
+  it.each([
+    ['Operations Engineer (Future Role)', 'Operations Engineer', true],
+    ['FUTURE ROLE: Operations Engineer', 'Operations Engineer', true],
+    ['Operations Engineer - future role', 'Operations Engineer', true],
+    ['[future role] Operations Engineer', 'Operations Engineer', true],
+    ['Operations (future role) Engineer', 'Operations Engineer', true],
+    ['Operations Engineer', 'Operations Engineer', false],
+    ['Future Platform Engineer', 'Future Platform Engineer', false],
+  ])('flags future roles from the title: %s', async (title, expectedTitle, isFutureRole) => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>().mockResolvedValue(Response.json({ jobs: [{ ...job, title }] })),
+    );
+
+    const response = await GET();
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      data: [{ ...careerJob, title: expectedTitle, isFutureRole }],
     });
   });
 

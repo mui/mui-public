@@ -5,11 +5,14 @@ import { z } from 'zod/v4';
 interface CareerJob {
   id: string;
   title: string;
+  isFutureRole: boolean;
   category: string;
   description: string;
   summary: string;
   applicationUrl: string;
 }
+
+const futureRoleMarker = /(?:\(\s*future role\s*\)|\[\s*future role\s*\]|future role)/i;
 
 const jobBoardSchema = z.object({
   jobs: z.array(
@@ -23,6 +26,21 @@ const jobBoardSchema = z.object({
     }),
   ),
 });
+
+function parseTitle(title: string) {
+  const isFutureRole = futureRoleMarker.test(title);
+  if (!isFutureRole) {
+    return { title, isFutureRole };
+  }
+
+  return {
+    title: title
+      .replace(futureRoleMarker, '')
+      .replace(/^[\s:–—-]+|[\s:–—-]+$/g, '')
+      .replace(/\s{2,}/g, ' '),
+    isFutureRole,
+  };
+}
 
 function sanitizeDescription(html: string): string {
   return sanitizeHtml(html, {
@@ -73,7 +91,7 @@ export async function GET() {
       .filter((job) => job.isListed)
       .map((job) => ({
         id: job.id,
-        title: job.title,
+        ...parseTitle(job.title),
         category: job.department || 'Other',
         description: sanitizeDescription(job.descriptionHtml),
         summary: '',
