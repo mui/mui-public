@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type * as tae from 'typescript-api-extractor';
+import type * as tae from '@mui/internal-typescript-api-extractor';
 import { formatFunctionData, isPublicFunction } from './formatFunction';
 import type { TypeRewriteContext } from './rewriteTypes';
 

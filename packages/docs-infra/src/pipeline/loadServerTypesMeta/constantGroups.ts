@@ -1,6 +1,6 @@
 import ts from 'typescript';
-import { EnumMember, EnumNode, ExportNode, TypeName } from 'typescript-api-extractor';
-import type * as tae from 'typescript-api-extractor';
+import { EnumMember, EnumNode, ExportNode, TypeName } from '@mui/internal-typescript-api-extractor';
+import type * as tae from '@mui/internal-typescript-api-extractor';
 import { formatPropertyComment } from './formatType';
 import { isComponentType, isEnumType } from './typeGuards';
 
@@ -160,6 +160,8 @@ export function foldConstantNamespaces(
             namespace,
             new EnumNode(new TypeName(namespace), members, undefined),
             undefined,
+            // `export * as X` binds a module namespace object.
+            { isValue: true, isType: false, isNamespace: true },
           ),
         );
       }

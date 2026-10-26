@@ -1,0 +1,40 @@
+{
+  "name": "@mui/internal-typescript-api-extractor",
+  "version": "0.1.0",
+  "author": "MUI Team",
+  "description": "Extracts API descriptions from TypeScript code. Forked from typescript-api-extractor.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mui/mui-public.git",
+    "directory": "packages/typescript-api-extractor"
+  },
+  "sideEffects": false,
+  "exports": {
+    "./package.json": "./package.json",
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "code-infra build --tsgo --bundle esm --copy 'docs/*.md:docs'",
+    "test": "pnpm -w test --project @mui/internal-typescript-api-extractor",
+    "typescript": "tsc -noEmit && tsc -p test/tsconfig.inputs.json"
+  },
+  "publishConfig": {
+    "access": "public",
+    "directory": "build"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "dependencies": {
+    "@babel/runtime": "^8.0.7",
+    "es-toolkit": "^1.52.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5.8 || ^6.0"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "typescript": "npm:@typescript/typescript6@6.0.2"
+  }
+}

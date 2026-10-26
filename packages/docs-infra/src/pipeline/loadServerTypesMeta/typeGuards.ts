@@ -1,4 +1,4 @@
-import type * as tae from 'typescript-api-extractor';
+import type * as tae from '@mui/internal-typescript-api-extractor';
 
 /**
  * Base type guard helper to check if a value has a specific kind property.

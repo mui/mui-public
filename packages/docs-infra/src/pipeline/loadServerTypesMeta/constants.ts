@@ -1,4 +1,4 @@
-import type { ParserOptions } from 'typescript-api-extractor';
+import type { ParserOptions } from '@mui/internal-typescript-api-extractor';
 
 /**
  * Extraction policy the pipeline hands to `typescript-api-extractor`.

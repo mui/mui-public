@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { parseFromProgram } from 'typescript-api-extractor';
-import type * as tae from 'typescript-api-extractor';
+import { parseFromProgram } from '@mui/internal-typescript-api-extractor';
+import type * as tae from '@mui/internal-typescript-api-extractor';
 import {
   findConstantNamespaces,
   foldConstantNamespaces,

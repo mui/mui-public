@@ -1,5 +1,5 @@
 import { uniq } from 'es-toolkit';
-import type * as tae from 'typescript-api-extractor';
+import type * as tae from '@mui/internal-typescript-api-extractor';
 import {
   isExternalType,
   isIntrinsicType,
