@@ -246,9 +246,13 @@ export async function runBenchmarks(
     console.log(chalk.green(`\nWrote JSON report to ${outPath}`));
 
     // Written first, so the errors are readable and an upload can still say what happened — then
-    // fail, because a harness that measured nothing at all otherwise reports a passing job.
-    if (report.benchmarks.every((benchmark) => benchmark.error !== undefined)) {
-      throw new Error('No benchmark produced any measurement.');
+    // fail, as a test runner fails on any failed test: a benchmark that threw, such as one whose
+    // correctness check failed, otherwise passes the job.
+    const failed = report.benchmarks.filter((benchmark) => benchmark.error !== undefined);
+    if (failed.length > 0) {
+      throw new Error(
+        `${failed.length} of ${report.benchmarks.length} benchmarks failed: ${failed.map((benchmark) => benchmark.name).join(', ')}.`,
+      );
     }
     return report;
   } finally {
