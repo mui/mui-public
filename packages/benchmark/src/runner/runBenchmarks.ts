@@ -2,20 +2,21 @@
 
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
 import chalk from 'chalk';
 import { chromium } from '@playwright/test';
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import { packRef, packWorkingTree } from '../utils/packWorkspace';
 import { getCiMetadata } from '../ciReport';
 import { summarizeRun } from '../runReport';
-import type { BenchmarkRunReport } from '../runReport';
+import type { BenchmarkRunReport, RunBenchmark } from '../runReport';
 import { getSampling } from '../sampling';
 import type { SamplingOptions } from '../sampling';
 import { refLabel, resolveBaselineRef, WORKTREE_REF } from './refs';
 import type { ResolvedRef } from './refs';
 import { discoverBenchFiles } from './benchFiles';
 import { runInterleaved } from './runInterleaved';
+import type { RunInterleavedOptions } from './runInterleaved';
 import { buildRefPages, restoreWorkspace } from './buildPages';
 import { printRunReport } from './printReport';
 import { buildsDirOf, prepareOutputDir, resultsPathOf } from './outputDir';
@@ -189,13 +190,20 @@ export async function runBenchmarks(
     };
 
     if (profile) {
-      const { traces: traced = [] } = await runInterleaved({
+      const tracing = await createTracing(path.join(outputDir, 'traces'));
+      // Tracing slows the code it records, so these samples are no measurement, and make no report.
+      const { benchmarks } = await runInterleaved({
         ...runOptions,
-        trace: {
-          tracesDir: path.join(outputDir, 'traces'),
-          rounds: sampling.sampleSize ?? PROFILE_ROUNDS,
-        },
+        fixedSampling: { sampleSize: sampling.sampleSize ?? PROFILE_ROUNDS, timeout: 0 },
+        aroundRun: tracing.aroundRun,
       });
+      const traced = benchmarks.map(({ name, file, kind, error }) => ({
+        name,
+        file,
+        kind,
+        error,
+        traces: tracing.tracesOf({ name, file }),
+      }));
       if (reporter === 'json') {
         process.stdout.write(`${JSON.stringify({ benchmarks: traced }, null, 2)}\n`);
       } else {
@@ -263,4 +271,43 @@ function throwIfAnyFailed(benchmarks: ReadonlyArray<{ error?: string }>) {
   if (failed > 0) {
     throw new Error(`${failed} of ${benchmarks.length} benchmarks failed.`);
   }
+}
+
+/**
+ * Records a performance trace around each sample's run, into a directory per benchmark under
+ * `tracesDir`, to open in DevTools' Performance panel.
+ */
+async function createTracing(tracesDir: string) {
+  await rm(tracesDir, { recursive: true, force: true });
+  const traces = new Map<string, Record<string, string[]>>();
+  const keyOf = ({ name, file }: Pick<RunBenchmark, 'name' | 'file'>) => `${file}\0${name}`;
+
+  const aroundRun: NonNullable<RunInterleavedOptions['aroundRun']> = async (
+    { benchmark, variant, round, page },
+    run,
+  ) => {
+    const dir = path.join(tracesDir, benchmark.name.replace(/[^\w.-]+/g, '-'));
+    let byVariant = traces.get(keyOf(benchmark));
+    if (!byVariant) {
+      byVariant = {};
+      traces.set(keyOf(benchmark), byVariant);
+      await mkdir(dir, { recursive: true });
+    }
+    const file = path.join(dir, `${variant}-${round}.json`);
+    const browser = page.context().browser()!;
+    await browser.startTracing(page, { path: file });
+    try {
+      return await run();
+    } finally {
+      await browser.stopTracing();
+      (byVariant[variant] ??= []).push(file);
+    }
+  };
+
+  return {
+    aroundRun,
+    /** A benchmark's trace files, per variant in the order its samples ran. */
+    tracesOf: (benchmark: Pick<RunBenchmark, 'name' | 'file'>) =>
+      traces.get(keyOf(benchmark)) ?? {},
+  };
 }

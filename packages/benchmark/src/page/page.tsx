@@ -7,7 +7,8 @@ import type { MetricDefinition } from '../types';
 import type { RunMetricAlarm } from '../runReport/schema';
 
 // The page runtime the `benchmark` CLI measures. `benchmark()` registers a case, and the runner calls
-// `window.benchmarkPage.sample()` to run one iteration of it at a time. What a case measures is
+// `window.benchmarkPage.prepareSample()` then `runSample()` to run one iteration of it at a time.
+// What a case measures is
 // whatever it records through a `Metric`; every recorded value leaves the page as a
 // `performance.measure` entry, so it also shows up in a DevTools trace.
 
@@ -147,8 +148,13 @@ export interface BenchPage {
   comparisons: Array<{ name: string; cases: string[]; sampling: SamplingOptions }>;
   /** Every metric recorded so far, by name. */
   metricDefinitions: () => Record<string, MetricDefinition>;
-  /** Runs one iteration of a case, and returns what it recorded, by series. */
-  sample: (name: string) => Promise<Record<string, number>>;
+  /** Readies the page for one iteration of a case: collects garbage and clears the timings. */
+  prepareSample: (name: string) => Promise<void>;
+  /**
+   * Runs one iteration of a case, after `prepareSample`, and returns what it recorded, by series.
+   * A separate call, so the runner can wrap the case's run alone, as a profile's trace does.
+   */
+  runSample: (name: string) => Promise<Record<string, number>>;
 }
 
 declare global {
@@ -157,8 +163,6 @@ declare global {
     benchmarkPage?: BenchPage;
     /** Exposed by the runner: forwards a CDP command to this page's session. */
     benchmarkCdp?: (method: string, params?: Record<string, unknown>) => Promise<unknown>;
-    /** Exposed by the runner in a profiled run: starts and stops the sample's performance trace. */
-    benchmarkTrace?: (action: 'start' | 'stop') => Promise<void>;
   }
 }
 
@@ -170,35 +174,40 @@ const send: CdpSend = (method, params) => {
 };
 const cdp: BenchmarkCdp = { send };
 
-async function sample(name: string): Promise<Record<string, number>> {
+function runOf(name: string): BenchmarkRun {
   const run = cases.get(name)?.run;
   if (!run) {
     throw new Error(`No benchmark named "${name}". Known: ${[...cases.keys()].join(', ')}`);
   }
+  return run;
+}
+
+async function prepareSample(name: string): Promise<void> {
+  runOf(name);
   await collectGarbage();
   performance.clearMarks();
   performance.clearMeasures();
+}
 
+async function runSample(name: string): Promise<Record<string, number>> {
+  const run = runOf(name);
   const values = new Map<string, number>();
   sampleValues = values;
-  // A profiled run traces the case alone: the collection above stays out of the trace.
-  await window.benchmarkTrace?.('start');
   try {
     await run({ cdp });
-
-    if (values.size === 0) {
-      throw new Error(
-        `Benchmark "${name}" recorded no value. Record its results through a ScalarMetric or DiscreteMetric.`,
-      );
-    }
-    // Also left as `performance.measure` entries, so a sample shows up in a DevTools trace.
-    const now = performance.now();
-    for (const [series, value] of values) {
-      performance.measure(series, { start: now, duration: 0, detail: { value } });
-    }
   } finally {
     sampleValues = null;
-    await window.benchmarkTrace?.('stop');
+  }
+
+  if (values.size === 0) {
+    throw new Error(
+      `Benchmark "${name}" recorded no value. Record its results through a ScalarMetric or DiscreteMetric.`,
+    );
+  }
+  // Also left as `performance.measure` entries, so a sample shows up in a DevTools trace.
+  const now = performance.now();
+  for (const [series, value] of values) {
+    performance.measure(series, { start: now, duration: 0, detail: { value } });
   }
   return Object.fromEntries(values);
 }
@@ -214,6 +223,7 @@ export function markPageReady(): void {
       .map(([name, { sampling, alarms }]) => ({ name, sampling, ...(alarms ? { alarms } : {}) })),
     comparisons,
     metricDefinitions: () => Object.fromEntries(metricDefinitions),
-    sample,
+    prepareSample,
+    runSample,
   };
 }
