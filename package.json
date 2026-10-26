@@ -61,7 +61,7 @@
     "@babel/plugin-transform-react-constant-elements": "8.0.5",
     "@vitest/browser-playwright": "5.0.5",
     "@vitest/coverage-v8": "5.0.5",
-    "baseline-browser-mapping": "2.11.29",
+    "baseline-browser-mapping": "2.11.31",
     "eslint-plugin-n": "18.5.0",
     "pkg-pr-new": "0.0.91",
     "playwright": "1.64.1",
@@ -71,9 +71,9 @@
   "config": {
     "valeVersion": "3.24.0"
   },
-  "packageManager": "pnpm@12.14.0",
+  "packageManager": "pnpm@12.15.0",
   "engines": {
-    "pnpm": "12.14.0",
-    "node": ">=22.23.3"
+    "pnpm": "12.15.0",
+    "node": ">=22.23.4"
   }
 }
