@@ -219,12 +219,9 @@ jobs:
           ref: ${{ needs.resolve-ref.outputs.sha }}
           sparse-checkout: .github/flake-fix
           path: _flake
-      - name: Set up Node.js
-        continue-on-error: true
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 22.23.4
-      - name: Collect fingerprints already covered by a fix PR
+      # No setup-node: prior-fixes.mjs imports only node:fs/node:url, so the runner's default node
+      # runs it — no toolchain install needed.
+      - name: Collect the prior fix PRs
         env:
           GH_TOKEN: ${{ github.token }}
           TARGET_REPO: ${{ github.repository }}
@@ -239,7 +236,6 @@ jobs:
           node _flake/.github/flake-fix/prior-fixes.mjs "$out/pulls.json" "$out/prs.json" ||
             echo '[]' > "$out/prs.json"
       - name: Upload the prior-fix PRs
-        if: ${{ always() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: prior-fixes
@@ -376,11 +372,10 @@ jobs:
             its last occurrence. Lead with what needs attention (🔴 still failing, then 🟡 flaky, then 🟠
             unconfirmed — a single failure, could be real or a one-off), then the bottom line, then
             tuck the rest (🟢 already fixed, 🔧 fix already open, ⚪ not ours) in a collapsed section.
-            Read ${{ runner.temp }}/flake-data/prs.json (may be absent or empty) — the open and
-            just-merged flake-fix PRs, each with its title and body. If one already addresses a
-            problem, that problem is in hand: put it under 🔧 with the PR's link, never under 🔴/🟡/🟠,
-            and don't call it out as worth fixing in the bottom line. Skip a class that has nothing;
-            drop the whole collapsed section if it would be empty.
+            A problem already addressed by one of the prs.json fix PRs (above) is in hand: put it
+            under 🔧 with that PR's link, never under 🔴/🟡/🟠, and don't call it out as worth fixing in
+            the bottom line. Skip a class that has nothing; drop the whole collapsed section if it
+            would be empty.
 
             🔴 **<short problem name>** — <one plain sentence on what is breaking>. Still failing, <roughly how often>. [last occurrence](<url>)
             🟡 **<short problem name>** — <one plain sentence>. Flaky, <roughly how often>. [last occurrence](<url>)

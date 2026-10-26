@@ -23,16 +23,16 @@ export function recentFixPulls(pulls, now = new Date()) {
       if (pull.state === 'OPEN') {
         return true;
       }
-      const merged = pull.state === 'MERGED' || Boolean(pull.mergedAt);
-      return merged && pull.mergedAt && new Date(pull.mergedAt).getTime() >= cutoff;
+      // Merged PRs carry mergedAt; a closed-but-unmerged one has none and drops out here.
+      return pull.mergedAt != null && new Date(pull.mergedAt).getTime() >= cutoff;
     })
     .map((pull) => ({
       number: pull.number,
       url: pull.url,
       title: pull.title,
       state: pull.state,
-      mergedAt: pull.mergedAt ?? null,
-      body: pull.body ?? '',
+      mergedAt: pull.mergedAt,
+      body: pull.body,
     }));
 }
 
