@@ -1,54 +1,39 @@
 #!/usr/bin/env node
-// Collects the fingerprints that existing flake-fix PRs already cover, so the classifier can mark
-// them not-fixable and the agent moves on to the next problem instead of re-proposing a fix that is
-// already open or merged.
+// Narrows a `gh pr list` dump of this repo's flake-fix PRs to the ones still worth showing the
+// triage agent, so it can see what's already in hand and not re-propose the same fix.
 //
-// Each flake-fix PR records what it resolves in its body, written there by the publish job:
-//   <!-- flake-fix:resolves
-//   <fingerprint>
-//   ...
-//   -->
-// Given a `gh pr list --json number,url,state,mergedAt,body` dump, this returns one entry per
-// covered fingerprint with the covering PR and its state — enough for classify to decide whether the
-// coverage still holds (an open PR always counts; a merged one only until the failures outlast it).
+// Kept: open PRs (a fix in flight) and PRs merged in the last 24h — a just-merged fix keeps showing
+// in the failure data until CI next runs, and that gap is exactly when the agent would waste its one
+// slot re-fixing it. A closed-but-unmerged PR (rejected fix) and older merges are dropped: the
+// former covers nothing, the latter have had time for CI to catch up (the flake reads as FIXED by
+// then). The agent judges overlap from each PR's own title and body — no fingerprint matching, which
+// the agent doesn't regenerate identically run to run.
 
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
-// The resolves marker: everything between the opening comment and its close, one fingerprint a line.
-const MARKER = /<!--\s*flake-fix:resolves\s*\n([\s\S]*?)\n\s*-->/;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
-function resolvesOf(body) {
-  const match = MARKER.exec(body ?? '');
-  if (!match) {
-    return [];
-  }
-  return match[1]
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean);
-}
-
-// pulls: [{ number, url, state, mergedAt, body }] as `gh pr list --json ...` emits them. gh reports
-// state as OPEN | CLOSED | MERGED. A closed-but-unmerged PR's fix was rejected, so it covers nothing.
-export function covered(pulls) {
-  const entries = [];
-  for (const pull of pulls ?? []) {
-    const open = pull.state === 'OPEN';
-    const merged = pull.state === 'MERGED' || Boolean(pull.mergedAt);
-    if (!open && !merged) {
-      continue;
-    }
-    for (const fingerprint of resolvesOf(pull.body)) {
-      entries.push({
-        fingerprint,
-        state: open ? 'OPEN' : 'MERGED',
-        mergedAt: open ? null : (pull.mergedAt ?? null),
-        pr: pull.url || (pull.number != null ? `#${pull.number}` : ''),
-      });
-    }
-  }
-  return entries;
+// pulls: [{ number, url, title, state, mergedAt, body }] as `gh pr list --json ...` emits them. gh
+// reports state as OPEN | CLOSED | MERGED.
+export function recentFixPulls(pulls, now = new Date()) {
+  const cutoff = now.getTime() - DAY_MS;
+  return (pulls ?? [])
+    .filter((pull) => {
+      if (pull.state === 'OPEN') {
+        return true;
+      }
+      const merged = pull.state === 'MERGED' || Boolean(pull.mergedAt);
+      return merged && pull.mergedAt && new Date(pull.mergedAt).getTime() >= cutoff;
+    })
+    .map((pull) => ({
+      number: pull.number,
+      url: pull.url,
+      title: pull.title,
+      state: pull.state,
+      mergedAt: pull.mergedAt ?? null,
+      body: pull.body ?? '',
+    }));
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
@@ -58,6 +43,6 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     process.exit(2);
   }
   const pulls = JSON.parse(fs.readFileSync(pullsPath, 'utf8'));
-  fs.writeFileSync(outPath, `${JSON.stringify(covered(pulls), null, 2)}\n`);
+  fs.writeFileSync(outPath, `${JSON.stringify(recentFixPulls(pulls), null, 2)}\n`);
   process.stderr.write(`wrote ${outPath}\n`);
 }

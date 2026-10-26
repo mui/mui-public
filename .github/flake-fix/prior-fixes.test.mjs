@@ -1,66 +1,69 @@
-// Unit test for the prior-fix coverage collector. It turns a `gh pr list` dump into the set of
-// fingerprints already handled by an open or merged flake-fix PR.
+// Unit test for the prior-fix PR filter. It narrows a `gh pr list` dump to the flake-fix PRs the
+// triage agent should see: open ones, and ones merged within the last 24h.
 //
 // Run: pnpm test (vitest project; see vitest.config.mts).
 
 import { describe, it, expect } from 'vitest';
-import { covered } from './prior-fixes.mjs';
+import { recentFixPulls } from './prior-fixes.mjs';
 
-const body = (...fingerprints) =>
-  `Some PR description.\n\ncc @mui/infra\n\n<!-- flake-fix:resolves\n${fingerprints.join('\n')}\n-->\n`;
+const now = new Date('2026-10-26T12:00:00Z');
+const hoursAgo = (hours) => new Date(now.getTime() - hours * 60 * 60 * 1000).toISOString();
 
-describe('covered', () => {
-  it('extracts each fingerprint from an open PR, with the PR and state', () => {
-    const entries = covered([
-      {
-        number: 7,
-        url: 'https://x/pull/7',
-        state: 'OPEN',
-        mergedAt: null,
-        body: body('boom', 'bang'),
-      },
-    ]);
-    expect(entries).toEqual([
-      { fingerprint: 'boom', state: 'OPEN', mergedAt: null, pr: 'https://x/pull/7' },
-      { fingerprint: 'bang', state: 'OPEN', mergedAt: null, pr: 'https://x/pull/7' },
-    ]);
+const pull = (overrides) => ({
+  number: 1,
+  url: 'u1',
+  title: 't1',
+  state: 'OPEN',
+  mergedAt: null,
+  body: 'b1',
+  ...overrides,
+});
+
+describe('recentFixPulls', () => {
+  it('keeps open PRs', () => {
+    const kept = recentFixPulls([pull({ number: 7, state: 'OPEN' })], now);
+    expect(kept.map((item) => item.number)).toEqual([7]);
   });
 
-  it('carries mergedAt for a merged PR', () => {
-    const entries = covered([
-      {
-        number: 8,
-        url: 'u8',
-        state: 'MERGED',
-        mergedAt: '2026-10-26T09:00:00Z',
-        body: body('boom'),
-      },
-    ]);
-    expect(entries).toEqual([
-      { fingerprint: 'boom', state: 'MERGED', mergedAt: '2026-10-26T09:00:00Z', pr: 'u8' },
-    ]);
+  it('keeps a PR merged within the last 24h', () => {
+    const kept = recentFixPulls([pull({ number: 8, state: 'MERGED', mergedAt: hoursAgo(5) })], now);
+    expect(kept.map((item) => item.number)).toEqual([8]);
   });
 
-  it('ignores a closed-but-unmerged PR — its fix was rejected', () => {
-    expect(
-      covered([{ number: 9, url: 'u9', state: 'CLOSED', mergedAt: null, body: body('boom') }]),
-    ).toEqual([]);
+  it('drops a PR merged more than 24h ago — CI has had time to catch up', () => {
+    const kept = recentFixPulls(
+      [pull({ number: 9, state: 'MERGED', mergedAt: hoursAgo(30) })],
+      now,
+    );
+    expect(kept).toEqual([]);
   });
 
-  it('returns nothing for a PR with no resolves marker', () => {
-    expect(
-      covered([{ number: 10, url: 'u10', state: 'OPEN', mergedAt: null, body: 'no marker here' }]),
-    ).toEqual([]);
+  it('drops a closed-but-unmerged PR — its fix was rejected', () => {
+    expect(recentFixPulls([pull({ number: 10, state: 'CLOSED', mergedAt: null })], now)).toEqual(
+      [],
+    );
   });
 
-  it('trims whitespace and drops blank lines in the marker', () => {
-    const withBlanks = {
+  it('carries the fields the agent judges overlap from', () => {
+    const kept = recentFixPulls(
+      [
+        pull({
+          number: 11,
+          url: 'u11',
+          title: 'Fix the thing',
+          state: 'OPEN',
+          body: 'what it does',
+        }),
+      ],
+      now,
+    );
+    expect(kept[0]).toEqual({
       number: 11,
       url: 'u11',
+      title: 'Fix the thing',
       state: 'OPEN',
       mergedAt: null,
-      body: '<!-- flake-fix:resolves\n  boom  \n\n  bang\n-->',
-    };
-    expect(covered([withBlanks]).map((entry) => entry.fingerprint)).toEqual(['boom', 'bang']);
+      body: 'what it does',
+    });
   });
 });

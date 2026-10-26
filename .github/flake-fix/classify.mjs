@@ -19,19 +19,7 @@ import { pathToFileURL } from 'node:url';
 // A fingerprint's class depends only on its own failures and the PASS runs around them. Any other
 // run — a different error, a skip, or a failure whose log was not downloaded — is no evidence
 // either way.
-//
-// `covered` (from prior-fixes.mjs) lists fingerprints an open or merged fix PR already handles. A
-// verdict whose fingerprint is still covered is marked not fixable and carries `coveredBy`, so the
-// agent shows it as in hand and moves on to the next problem instead of re-proposing the same fix.
-export function classify(timeline, fingerprints, covered = []) {
-  // fingerprint -> the PRs that say they resolve it; the newest-first verdict loop consults this.
-  const coveredByFingerprint = new Map();
-  for (const entry of covered) {
-    const entries = coveredByFingerprint.get(entry.fingerprint) ?? [];
-    entries.push(entry);
-    coveredByFingerprint.set(entry.fingerprint, entries);
-  }
-
+export function classify(timeline, fingerprints) {
   // A single failure log can show more than one distinct error, so a log maps to every group that
   // claims it — not just one, or an overlapping error's occurrence would be lost.
   const groupsByLog = new Map();
@@ -82,27 +70,15 @@ export function classify(timeline, fingerprints, covered = []) {
         klass = 'STRUCTURAL';
       }
 
-      const firstSeen = evidence(oldestFailure);
-      // An open fix PR always counts; a merged one only while the fix is newer than the oldest
-      // failure we still see — once failures outlast the merge, the fix didn't hold and the problem
-      // is live again, so it stops being covered and the agent may re-engage.
-      const coverage = (coveredByFingerprint.get(fingerprint) ?? []).find(
-        (entry) =>
-          entry.state === 'OPEN' ||
-          (entry.mergedAt && new Date(entry.mergedAt) >= new Date(firstSeen.time)),
-      );
-
       verdicts.push({
         fingerprint,
         job: job.job,
         workflow: job.workflow,
         class: klass,
-        // Everything but a clean recovery or an outside service is worth attempting a fix — unless a
-        // fix PR already covers it.
-        fixable: klass !== 'FIXED' && klass !== 'EXTERNAL' && !coverage,
-        ...(coverage ? { coveredBy: coverage.pr } : {}),
+        // Everything but a clean recovery or an outside service is worth attempting a fix.
+        fixable: klass !== 'FIXED' && klass !== 'EXTERNAL',
         failureCount: positions.length,
-        firstSeen,
+        firstSeen: evidence(oldestFailure),
         lastSeen: { ...evidence(newestFailure), log: runs[newestFailure].log },
       });
     }
@@ -118,23 +94,13 @@ export function classify(timeline, fingerprints, covered = []) {
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  const [timelinePath, fingerprintsPath, outPath, coveredPath] = process.argv.slice(2);
+  const [timelinePath, fingerprintsPath, outPath] = process.argv.slice(2);
   if (!timelinePath || !fingerprintsPath || !outPath) {
-    process.stderr.write(
-      'usage: classify.mjs <timeline.json> <fingerprints.json> <out.json> [covered.json]\n',
-    );
+    process.stderr.write('usage: classify.mjs <timeline.json> <fingerprints.json> <out.json>\n');
     process.exit(2);
   }
   const timeline = JSON.parse(fs.readFileSync(timelinePath, 'utf8'));
   const fingerprints = JSON.parse(fs.readFileSync(fingerprintsPath, 'utf8'));
-  // Optional: absent or unreadable means no prior fix PRs are known — classify as if none.
-  let covered = [];
-  if (coveredPath && fs.existsSync(coveredPath)) {
-    covered = JSON.parse(fs.readFileSync(coveredPath, 'utf8'));
-  }
-  fs.writeFileSync(
-    outPath,
-    `${JSON.stringify(classify(timeline, fingerprints, covered), null, 2)}\n`,
-  );
+  fs.writeFileSync(outPath, `${JSON.stringify(classify(timeline, fingerprints), null, 2)}\n`);
   process.stderr.write(`wrote ${outPath}\n`);
 }
