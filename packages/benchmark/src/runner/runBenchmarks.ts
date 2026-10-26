@@ -206,6 +206,7 @@ export async function runBenchmarks(
         }
         console.log(chalk.dim('\nOpen a trace in DevTools: Performance panel, "Load profile…".'));
       }
+      throwIfAnyFailed(traced);
       return undefined;
     }
 
@@ -245,19 +246,20 @@ export async function runBenchmarks(
     }
     console.log(chalk.green(`\nWrote JSON report to ${outPath}`));
 
-    // Written first, so the errors are readable and an upload can still say what happened — then
-    // fail, as a test runner fails on any failed test: a benchmark that threw, such as one whose
-    // correctness check failed, otherwise passes the job.
-    const failed = report.benchmarks.filter((benchmark) => benchmark.error !== undefined);
-    if (failed.length > 0) {
-      throw new Error(
-        `${failed.length} of ${report.benchmarks.length} benchmarks failed: ${failed.map((benchmark) => benchmark.name).join(', ')}.`,
-      );
-    }
+    // Written first, so the errors are readable and an upload can still report them.
+    throwIfAnyFailed(report.benchmarks);
     return report;
   } finally {
     // Always, including after a failure: the repository resolves the library to a tarball until
     // this puts it back.
     await restoreWorkspace(repoRoot, outputDir);
+  }
+}
+
+/** Fails the run when any benchmark failed, as a test runner fails on any failed test. */
+function throwIfAnyFailed(benchmarks: ReadonlyArray<{ error?: string }>) {
+  const failed = benchmarks.filter((benchmark) => benchmark.error !== undefined).length;
+  if (failed > 0) {
+    throw new Error(`${failed} of ${benchmarks.length} benchmarks failed.`);
   }
 }
