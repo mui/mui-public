@@ -1,8 +1,10 @@
 /* eslint-disable no-console */
 
 import { addAbortListener, once } from 'node:events';
+import { mkdir, rm } from 'node:fs/promises';
 import * as http from 'node:http';
 import type { AddressInfo } from 'node:net';
+import * as path from 'node:path';
 import chalk from 'chalk';
 import { chromium } from '@playwright/test';
 import sirv from 'sirv';
@@ -42,27 +44,10 @@ export interface RunInterleavedOptions {
   /** Stops the run: the browser closes, and the run rejects. */
   signal?: AbortSignal;
   /**
-   * Every benchmark's sampling, overriding what it sets itself: a profile records a fixed number of
-   * rounds.
+   * Profiles the run: every benchmark samples exactly `rounds` rounds, whatever it sets itself, with
+   * a performance trace around each sample written under `tracesDir`, to open in DevTools.
    */
-  fixedSampling?: Required<SamplingOptions>;
-  /**
-   * Called before each sample — the page's garbage collection and its case's run, in one call — and
-   * after it, failed or not: a profile traces in between.
-   */
-  onSampleStart?: (sample: SampleRun) => Promise<void>;
-  onSampleEnd?: (sample: SampleRun) => Promise<void>;
-}
-
-type SampleHooks = Pick<RunInterleavedOptions, 'onSampleStart' | 'onSampleEnd'>;
-
-/** A sample about to run: of which benchmark and variant, in which round and tab. */
-export interface SampleRun {
-  benchmark: Pick<RunBenchmark, 'name' | 'file'>;
-  variant: string;
-  /** Counted from 1. */
-  round: number;
-  page: Page;
+  profile?: { tracesDir: string; rounds: number };
 }
 
 export interface InterleavedResults {
@@ -180,20 +165,6 @@ async function listBenchPages(browser: Browser, urls: string[]): Promise<PageLis
   }
 }
 
-/** Runs one iteration of a case, between the sample hooks, and returns what it recorded, by series. */
-async function sampleBenchCase(
-  sample: SampleRun,
-  caseName: string,
-  { onSampleStart, onSampleEnd }: SampleHooks,
-): Promise<Record<string, number>> {
-  await onSampleStart?.(sample);
-  try {
-    return await sample.page.evaluate((name) => window.benchmarkPage!.sample(name), caseName);
-  } finally {
-    await onSampleEnd?.(sample);
-  }
-}
-
 /**
  * A variant of a benchmark: the page it is sampled in and the case it runs there. One build of a
  * benchmark file running a case, or the working tree's build running one case of a `compare()`.
@@ -260,9 +231,9 @@ function isSampling(progress: Progress): boolean {
 async function runFileRound(
   page: Page,
   active: Progress[],
-  options: SampleHooks & Pick<RunInterleavedOptions, 'signal'>,
+  { profile, signal }: Pick<RunInterleavedOptions, 'profile' | 'signal'>,
 ): Promise<void> {
-  const { signal } = options;
+  const browser = page.context().browser()!;
   const entries = active.map((progress) => ({ progress, round: [] as Round }));
   const urls = [...new Set(active.flatMap(({ plan }) => plan.slots.map((slot) => slot.url)))];
   // Unset after a failed sample, so what the failed case left behind doesn't reach the next one.
@@ -296,14 +267,30 @@ async function runFileRound(
           }
         }
         const startedAt = Date.now();
-        const sample: SampleRun = {
-          benchmark: progress.plan.entry,
-          variant: slot.variant,
-          round: progress.rounds.length + 1,
-          page,
-        };
-        // eslint-disable-next-line no-await-in-loop
-        round[index] = await sampleBenchCase(sample, slot.caseName, options);
+        if (profile) {
+          const traceDir = path.join(
+            profile.tracesDir,
+            progress.plan.entry.name.replace(/[^\w.-]+/g, '-'),
+          );
+          // eslint-disable-next-line no-await-in-loop
+          await mkdir(traceDir, { recursive: true });
+          // eslint-disable-next-line no-await-in-loop
+          await browser.startTracing(page, {
+            path: path.join(traceDir, `${slot.variant}-${progress.rounds.length + 1}.json`),
+          });
+        }
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          round[index] = await page.evaluate(
+            (name) => window.benchmarkPage!.sample(name),
+            slot.caseName,
+          );
+        } finally {
+          if (profile) {
+            // eslint-disable-next-line no-await-in-loop
+            await browser.stopTracing();
+          }
+        }
         if (index === 0 && !progress.metrics) {
           // Read from the reference page: a metric whose config the change under test altered is
           // described the way the change describes it. Its first sample recorded every metric the
@@ -344,7 +331,7 @@ async function runFileRound(
 async function runBenchFile(
   browser: Browser,
   plans: PlannedBenchmark[],
-  options: SampleHooks & Pick<RunInterleavedOptions, 'signal'>,
+  options: Pick<RunInterleavedOptions, 'profile' | 'signal'>,
 ): Promise<CaseResult[]> {
   const { signal } = options;
   const count = `${plans.length} benchmark${plans.length === 1 ? '' : 's'}`;
@@ -485,13 +472,16 @@ async function planBenchFile(
 /**
  * A benchmark's sampling, as in Vitest: what it sets itself, then what the run gives as defaults,
  * then the built-in defaults. Both come from `getSampling`, so they are valid and set no key to
- * undefined. A run's `fixedSampling` overrides them all.
+ * undefined. A profile samples exactly its rounds instead.
  */
 function samplingOf(
   own: SamplingOptions,
-  { sampling: runDefaults = {}, fixedSampling }: RunInterleavedOptions,
+  { sampling: runDefaults = {}, profile }: RunInterleavedOptions,
 ): Required<SamplingOptions> {
-  return fixedSampling ?? { ...DEFAULT_SAMPLING, ...runDefaults, ...own };
+  if (profile) {
+    return { sampleSize: profile.rounds, timeout: 0 };
+  }
+  return { ...DEFAULT_SAMPLING, ...runDefaults, ...own };
 }
 
 /**
@@ -499,6 +489,9 @@ function samplingOf(
  * measures them a file at a time.
  */
 export async function runInterleaved(options: RunInterleavedOptions): Promise<InterleavedResults> {
+  if (options.profile) {
+    await rm(options.profile.tracesDir, { recursive: true, force: true });
+  }
   // In `dev` mode, every page load reads the build from disk and the browser caches nothing
   // (`no-store`).
   const server = http.createServer(sirv(options.buildsDir, { dev: true }));

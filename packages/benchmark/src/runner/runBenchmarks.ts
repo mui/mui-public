@@ -2,7 +2,7 @@
 
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import chalk from 'chalk';
 import { chromium } from '@playwright/test';
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
@@ -16,7 +16,6 @@ import { refLabel, resolveBaselineRef, WORKTREE_REF } from './refs';
 import type { ResolvedRef } from './refs';
 import { discoverBenchFiles } from './benchFiles';
 import { runInterleaved } from './runInterleaved';
-import type { RunInterleavedOptions } from './runInterleaved';
 import { buildRefPages, restoreWorkspace } from './buildPages';
 import { printRunReport } from './printReport';
 import { buildsDirOf, prepareOutputDir, resultsPathOf } from './outputDir';
@@ -178,23 +177,16 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
       });
     }
 
-    const runOptions = {
+    const tracesDir = path.join(outputDir, 'traces');
+    const results = await runInterleaved({
       signal,
       buildsDir,
       benchFiles,
       benchRefs: refs,
       launchArgs,
       testNamePattern: namePattern,
-    };
-
-    const tracesDir = path.join(outputDir, 'traces');
-    const results = await runInterleaved({
-      ...runOptions,
       sampling,
-      ...(profile && {
-        fixedSampling: { sampleSize: sampling.sampleSize ?? PROFILE_ROUNDS, timeout: 0 },
-        ...(await traceSamples(tracesDir)),
-      }),
+      ...(profile && { profile: { tracesDir, rounds: sampling.sampleSize ?? PROFILE_ROUNDS } }),
     });
 
     const { commitSha, branch } = await getCiMetadata();
@@ -249,28 +241,4 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
     // this puts it back.
     await restoreWorkspace(repoRoot, outputDir);
   }
-}
-
-/**
- * Records a performance trace around each sample, into a directory per benchmark under `tracesDir`,
- * to open in DevTools' Performance panel, where the page's "Benchmark" track marks its collection
- * and its run.
- */
-async function traceSamples(
-  tracesDir: string,
-): Promise<Pick<RunInterleavedOptions, 'onSampleStart' | 'onSampleEnd'>> {
-  await rm(tracesDir, { recursive: true, force: true });
-  return {
-    async onSampleStart({ benchmark, variant, round, page }) {
-      const dir = path.join(tracesDir, benchmark.name.replace(/[^\w.-]+/g, '-'));
-      await mkdir(dir, { recursive: true });
-      await page
-        .context()
-        .browser()!
-        .startTracing(page, { path: path.join(dir, `${variant}-${round}.json`) });
-    },
-    async onSampleEnd({ page }) {
-      await page.context().browser()!.stopTracing();
-    },
-  };
 }
