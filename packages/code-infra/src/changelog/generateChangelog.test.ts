@@ -488,3 +488,74 @@ it('explains a failed comparison against local HEAD without masking explicit ref
     }),
   ).rejects.toMatchObject({ status: NOT_FOUND });
 });
+
+it.each(['omit', 'include'])(
+  'applies package availability to additional destinations (%s)',
+  async (availability) => {
+    const { cwd } = await repository();
+    await fs.writeFile(path.join(cwd, 'pnpm-workspace.yaml'), "packages: ['packages/*']");
+    await Promise.all(
+      ['widget', 'extra', 'private'].map(async (name) => {
+        const directory = path.join(cwd, 'packages', name);
+        await fs.mkdir(directory, { recursive: true });
+        await fs.writeFile(
+          path.join(directory, 'package.json'),
+          JSON.stringify({ name: `@test/${name}`, version: '1.0.0', private: name === 'private' }),
+        );
+      }),
+    );
+    const octokit = new Octokit({
+      request: {
+        fetch: async (input: Parameters<typeof fetch>[0]) => {
+          const url = new URL(input instanceof Request ? input.url : String(input));
+          const data = url.pathname.includes('/compare/')
+            ? {
+                url: url.href,
+                total_commits: 1,
+                commits: [{ sha: 'change', commit: { message: '[Widget] Fix behavior (#1)' } }],
+              }
+            : {
+                title: '[Widget] Fix behavior',
+                labels: [{ name: 'scope: widget' }],
+                user: { login: 'author' },
+                author_association: 'MEMBER',
+                merged_at: RELEASE_DATE,
+                created_at: RELEASE_DATE,
+                body: '',
+                html_url: url.href,
+              };
+          return Object.defineProperty(Response.json(data, { status: OK }), 'url', {
+            value: url.href,
+          });
+        },
+      },
+    });
+    const result = await generateChangelog({
+      cwd,
+      repo: 'test',
+      octokit,
+      lastRelease: 'v0',
+      release: 'v1',
+      config: {
+        categorization: {
+          strategy: 'package',
+          labels: {},
+          sections: { fallbackSection: 'Other' },
+          packageNaming: {
+            mappings: { widget: '@test/widget' },
+            omitUnavailable: availability === 'omit',
+            additionalPackages: () => ['@test/extra', '@test/private', '@test/missing'],
+          },
+        },
+      },
+    });
+    const packages = result.sections.flatMap(
+      (section) => section.subsections?.map((subsection) => subsection.key) ?? [],
+    );
+    expect(packages).toEqual(
+      availability === 'omit'
+        ? ['@test/extra', '@test/widget']
+        : ['@test/extra', '@test/missing', '@test/private', '@test/widget'],
+    );
+  },
+);

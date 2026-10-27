@@ -317,10 +317,40 @@ function omitMergedChildren(source, commits) {
     return seen;
   }
 
+  const entries = new Map(commits.map((commit) => [commit.sha, commit]));
+  const children = new Map(source.map((commit) => [commit.sha, 0]));
+  for (const commit of source) {
+    for (const parent of commit.parents ?? []) {
+      if (children.has(parent.sha)) {
+        children.set(parent.sha, (children.get(parent.sha) ?? 0) + 1);
+      }
+    }
+  }
+
+  // Visit descendants first so a suppressed sync PR cannot hide independent mainline work.
+  const pending = source
+    .filter((commit) => children.get(commit.sha) === 0)
+    .map((commit) => commit.sha);
   const suppressed = new Set();
-  for (const commit of commits) {
-    const parents = graph.get(commit.sha)?.parents ?? [];
-    if (commit.prNumber === null || parents.length < MIN_MERGE_PARENTS) {
+  while (pending.length > 0) {
+    const sha = pending.pop();
+    if (!sha) {
+      continue;
+    }
+    const parents = graph.get(sha)?.parents ?? [];
+    for (const parent of parents) {
+      const count = children.get(parent.sha);
+      if (count === undefined) {
+        continue;
+      }
+      children.set(parent.sha, count - 1);
+      if (count === 1) {
+        pending.push(parent.sha);
+      }
+    }
+
+    const commit = entries.get(sha);
+    if (suppressed.has(sha) || commit?.prNumber == null || parents.length < MIN_MERGE_PARENTS) {
       continue;
     }
     const mainline = ancestors(parents[0].sha);
