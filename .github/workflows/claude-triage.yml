@@ -452,8 +452,6 @@ jobs:
             completed,
             outcome: process.env.CLAUDE_OUTCOME || 'skipped',
             subtype: typeof result?.subtype === 'string' && /^[a-z_]{1,80}$/.test(result.subtype) ? result.subtype : null,
-            models: result?.modelUsage && typeof result.modelUsage === 'object'
-              ? Object.keys(result.modelUsage).filter((model) => /^[a-zA-Z0-9._:-]{1,100}$/.test(model)).slice(0, 8) : [],
             turns: number(result?.num_turns),
             durationMs: number(result?.duration_ms),
             costUsd: number(result?.total_cost_usd),
@@ -521,14 +519,13 @@ jobs:
                 if (value && typeof value === 'object' && !Array.isArray(value)) metadata = value;
               }
             } catch {
-              // Reports still get the configured model and run link when usage is unavailable.
+              // Reports still get the run link when usage is unavailable.
             }
-            const models = Array.isArray(metadata.models)
-              ? metadata.models.filter((model) => typeof model === 'string' && /^[a-zA-Z0-9._:-]{1,100}$/.test(model)).slice(0, 8) : [];
             const number = (value) => typeof value === 'number' && Number.isFinite(value) && value >= 0;
             const facts = [
               `🤖 ${phase === 'triage' ? 'Triage' : 'Fix'} · Claude Code`,
-              models.length ? models.join(', ') : `${phase === 'triage' ? process.env.TRIAGE_MODEL : process.env.FIX_MODEL} (configured)`,
+              // Claude Code also calls auxiliary models, so report only the configured one.
+              phase === 'triage' ? process.env.TRIAGE_MODEL : process.env.FIX_MODEL,
               `${process.env.REASONING_EFFORT} effort`,
             ];
             if (number(metadata.turns)) facts.push(`${metadata.turns} turns`);
