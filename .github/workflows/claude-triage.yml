@@ -579,16 +579,16 @@ jobs:
             if (completed && result) core.setOutput('category', result.category);
 
       - name: Label the successfully triaged issue
-        if: ${{ !cancelled() && steps.comment.outcome == 'success' && needs.triage.result == 'success' && needs.triage.outputs.completed == 'true' }}
+        if: ${{ !cancelled() && steps.comment.outcome == 'success' && steps.comment.outputs.category != '' && needs.triage.result == 'success' && needs.triage.outputs.completed == 'true' }}
         continue-on-error: true
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           LABEL_TARGETS: >-
-            [{"number": ${{ needs.authorize.outputs.issue }}, "name": "ai: triaged", "color": "c5def5", "description": "AI triage completed and findings posted."}]
+            [{"number": ${{ needs.authorize.outputs.issue }}, "name": "ai: triaged", "color": "c5def5", "description": "AI triage completed and findings posted.", "remove": "ai: needs-triage"}]
         with:
           script: &apply-ai-labels |
             const targets = JSON.parse(process.env.LABEL_TARGETS);
-            await Promise.all(targets.map(async ({ number, name, color, description }) => {
+            await Promise.all(targets.map(async ({ number, name, color, description, remove }) => {
               try {
                 try {
                   await github.rest.issues.addLabels({ ...context.repo, issue_number: number, labels: [name] });
@@ -602,8 +602,16 @@ jobs:
                   }
                   await github.rest.issues.addLabels({ ...context.repo, issue_number: number, labels: [name] });
                 }
+                if (remove) {
+                  try {
+                    await github.rest.issues.removeLabel({ ...context.repo, issue_number: number, name: remove });
+                  } catch (error) {
+                    // The pending label may already be absent on follow-up triage runs.
+                    if (error.status !== 404) throw error;
+                  }
+                }
               } catch (error) {
-                core.warning(`Could not apply ${name} to #${number}: ${error.message}`);
+                core.warning(`Could not complete ${name} labeling for #${number}: ${error.message}`);
               }
             }));
 
