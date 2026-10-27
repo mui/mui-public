@@ -193,7 +193,7 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
       sampling,
       ...(profile && {
         fixedSampling: { sampleSize: sampling.sampleSize ?? PROFILE_ROUNDS, timeout: 0 },
-        aroundSample: await traceSamples(tracesDir),
+        ...(await traceSamples(tracesDir)),
       }),
     });
 
@@ -258,17 +258,19 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
  */
 async function traceSamples(
   tracesDir: string,
-): Promise<NonNullable<RunInterleavedOptions['aroundSample']>> {
+): Promise<Pick<RunInterleavedOptions, 'onSampleStart' | 'onSampleEnd'>> {
   await rm(tracesDir, { recursive: true, force: true });
-  return async ({ benchmark, variant, round, page }, run) => {
-    const dir = path.join(tracesDir, benchmark.name.replace(/[^\w.-]+/g, '-'));
-    await mkdir(dir, { recursive: true });
-    const browser = page.context().browser()!;
-    await browser.startTracing(page, { path: path.join(dir, `${variant}-${round}.json`) });
-    try {
-      return await run();
-    } finally {
-      await browser.stopTracing();
-    }
+  return {
+    async onSampleStart({ benchmark, variant, round, page }) {
+      const dir = path.join(tracesDir, benchmark.name.replace(/[^\w.-]+/g, '-'));
+      await mkdir(dir, { recursive: true });
+      await page
+        .context()
+        .browser()!
+        .startTracing(page, { path: path.join(dir, `${variant}-${round}.json`) });
+    },
+    async onSampleEnd({ page }) {
+      await page.context().browser()!.stopTracing();
+    },
   };
 }

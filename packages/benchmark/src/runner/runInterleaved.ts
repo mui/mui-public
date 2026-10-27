@@ -47,14 +47,14 @@ export interface RunInterleavedOptions {
    */
   fixedSampling?: Required<SamplingOptions>;
   /**
-   * Wraps each sample — the page's garbage collection and its case's run, in one call — and returns
-   * what `sample` returned: a profile traces it.
+   * Called before each sample — the page's garbage collection and its case's run, in one call — and
+   * after it, failed or not: a profile traces in between.
    */
-  aroundSample?: (
-    sample: SampleRun,
-    run: () => Promise<Record<string, number>>,
-  ) => Promise<Record<string, number>>;
+  onSampleStart?: (sample: SampleRun) => Promise<void>;
+  onSampleEnd?: (sample: SampleRun) => Promise<void>;
 }
+
+type SampleHooks = Pick<RunInterleavedOptions, 'onSampleStart' | 'onSampleEnd'>;
 
 /** A sample about to run: of which benchmark and variant, in which round and tab. */
 export interface SampleRun {
@@ -180,14 +180,18 @@ async function listBenchPages(browser: Browser, urls: string[]): Promise<PageLis
   }
 }
 
-/** Runs one iteration of a case, wrapped in `aroundSample`, and returns what it recorded, by series. */
-function sampleBenchCase(
+/** Runs one iteration of a case, between the sample hooks, and returns what it recorded, by series. */
+async function sampleBenchCase(
   sample: SampleRun,
   caseName: string,
-  aroundSample: RunInterleavedOptions['aroundSample'],
+  { onSampleStart, onSampleEnd }: SampleHooks,
 ): Promise<Record<string, number>> {
-  const run = () => sample.page.evaluate((name) => window.benchmarkPage!.sample(name), caseName);
-  return aroundSample ? aroundSample(sample, run) : run();
+  await onSampleStart?.(sample);
+  try {
+    return await sample.page.evaluate((name) => window.benchmarkPage!.sample(name), caseName);
+  } finally {
+    await onSampleEnd?.(sample);
+  }
 }
 
 /**
@@ -256,8 +260,9 @@ function isSampling(progress: Progress): boolean {
 async function runFileRound(
   page: Page,
   active: Progress[],
-  { aroundSample, signal }: Pick<RunInterleavedOptions, 'aroundSample' | 'signal'>,
+  options: SampleHooks & Pick<RunInterleavedOptions, 'signal'>,
 ): Promise<void> {
+  const { signal } = options;
   const entries = active.map((progress) => ({ progress, round: [] as Round }));
   const urls = [...new Set(active.flatMap(({ plan }) => plan.slots.map((slot) => slot.url)))];
   // Unset after a failed sample, so what the failed case left behind doesn't reach the next one.
@@ -298,7 +303,7 @@ async function runFileRound(
           page,
         };
         // eslint-disable-next-line no-await-in-loop
-        round[index] = await sampleBenchCase(sample, slot.caseName, aroundSample);
+        round[index] = await sampleBenchCase(sample, slot.caseName, options);
         if (index === 0 && !progress.metrics) {
           // Read from the reference page: a metric whose config the change under test altered is
           // described the way the change describes it. Its first sample recorded every metric the
@@ -339,7 +344,7 @@ async function runFileRound(
 async function runBenchFile(
   browser: Browser,
   plans: PlannedBenchmark[],
-  options: Pick<RunInterleavedOptions, 'aroundSample' | 'signal'>,
+  options: SampleHooks & Pick<RunInterleavedOptions, 'signal'>,
 ): Promise<CaseResult[]> {
   const { signal } = options;
   const count = `${plans.length} benchmark${plans.length === 1 ? '' : 's'}`;
