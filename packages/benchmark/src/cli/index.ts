@@ -62,7 +62,7 @@ const runCommand: CommandModule<{}, Args> = {
         type: 'boolean',
         default: false,
         describe:
-          'Record instead of measuring: a performance trace around every sample, saved to open in DevTools. Writes no report',
+          'Also record a performance trace around every sample, for a fixed number of rounds, saved to open in DevTools. Tracing slows the code it records, so the report is only indicative',
       })
       .option('sample-size', {
         type: 'number',
