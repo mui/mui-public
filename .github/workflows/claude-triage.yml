@@ -26,10 +26,6 @@ on:
         description: Optional issue comment to acknowledge and use as the discussion cutoff; zero includes all comments available when captured.
         type: number
         default: 0
-      triage-comment-labels:
-        description: JSON array of labels allowing replies from the issue author, repository collaborators, or organization members to request triage.
-        type: string
-        default: '["ai: needs-triage", "ai: triaged"]'
       debug:
         description: Log full Claude output, including tool results, in Actions logs.
         type: boolean
@@ -41,11 +37,11 @@ on:
       triage-model:
         description: Claude model used for triage.
         type: string
-        default: claude-sonnet-5-5
+        default: claude-opus-5-5
       fix-model:
         description: Claude model used for fixing.
         type: string
-        default: claude-sonnet-5-5
+        default: claude-opus-5-5
       triage-max-turns:
         description: Hard turn limit for the triage invocation.
         type: number
@@ -92,7 +88,6 @@ jobs:
           ISSUE_NUMBER: ${{ inputs.issue-number }}
           REQUEST_MODE: ${{ inputs.mode }}
           COMMENT_ID: ${{ inputs.comment-id }}
-          TRIAGE_COMMENT_LABELS: ${{ inputs.triage-comment-labels }}
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
@@ -105,16 +100,14 @@ jobs:
                 !['triage', 'fix'].includes(mode)) {
               throw new Error('Expected a positive issue-number, mode triage or fix, and a non-negative comment-id.');
             }
-            const commentLabels = JSON.parse(process.env.TRIAGE_COMMENT_LABELS);
-            if (!Array.isArray(commentLabels) || commentLabels.some((label) => typeof label !== 'string' || !label)) {
-              throw new Error('triage-comment-labels must be a JSON array of non-empty label names.');
-            }
+            // Replies from the issue author, collaborators, or org members request triage only while one of these is present.
+            const commentLabels = ['ai: needs-triage', 'ai: triaged'];
             const actor = context.payload.sender;
             const { data: issue } = await github.rest.issues.get({
               ...context.repo, issue_number: issueNumber,
             });
             if (issue.pull_request) return;
-            const labeledCommentRequest = commentLabels.length > 0 && context.eventName === 'issue_comment';
+            const labeledCommentRequest = context.eventName === 'issue_comment';
 
             // Validate labeled replies before granting any permission exception.
             if (labeledCommentRequest) {
@@ -350,7 +343,7 @@ jobs:
                category=needs-information and actionable=false, and stop.
             3. Assess the reproduction when supplied. Preserve the reporter's runnable link and useful
                steps instead of replacing them with a less usable prose reconstruction. State that
-               reproduction is unverified in this read-only stage; never claim to have opened,
+               the reproduction is unverified, without mentioning the stage; never claim to have opened,
                executed, reduced, or snapshotted it. Identify any unclear steps that need refinement.
             4. Categorize using the definitions below. Before choosing expected-behavior, look for
                supporting repository documentation, tests, explanatory code comments, or prior
@@ -393,8 +386,18 @@ jobs:
             to proceed. Include this section even when an earlier step tells you to stop; if no
             further action is needed, say so there. Put supporting context above this section.
             Keep fix strategy, internal paths/symbols, root-cause hypotheses, regression tests,
-            and validation plans out of comment, including hidden HTML blocks. Do not claim
-            maintainer review.
+            and validation plans out of comment, including hidden HTML blocks. This includes
+            "Likely cause" and "What the code does" sections. Do not claim maintainer review.
+            Write for the reporter, who already sees the thread:
+            - Do not recap, summarize, or attribute the issue's comments or timeline. Mention a
+              comment only when it changes the conclusion, and link it instead of restating it.
+            - Do not mention workflow internals: the checkout, the read-only stage, search budgets,
+              rate limits, or turn counts. Say what you could not verify once, in one sentence,
+              instead of repeating a disclaimer per claim.
+            - Name a release line only when the issue, a linked source, or the checkout's package
+              metadata states it; never guess versions or release plans.
+            - Do not cite a link or comment you did not read.
+            - Address the reporter as "you"; do not refer to them as "the reporter".
             Return handoff separately for the fix job: checkout SHA, confidence, probable cause,
             supporting evidence, relevant paths, regression test and validation plan, and anything
             unverified. This field is not posted in the issue comment; it is still a workflow artifact,
@@ -442,8 +445,6 @@ jobs:
             completed,
             outcome: process.env.CLAUDE_OUTCOME || 'skipped',
             subtype: typeof result?.subtype === 'string' && /^[a-z_]{1,80}$/.test(result.subtype) ? result.subtype : null,
-            models: result?.modelUsage && typeof result.modelUsage === 'object'
-              ? Object.keys(result.modelUsage).filter((model) => /^[a-zA-Z0-9._:-]{1,100}$/.test(model)).slice(0, 8) : [],
             turns: number(result?.num_turns),
             durationMs: number(result?.duration_ms),
             costUsd: number(result?.total_cost_usd),
@@ -511,14 +512,13 @@ jobs:
                 if (value && typeof value === 'object' && !Array.isArray(value)) metadata = value;
               }
             } catch {
-              // Reports still get the configured model and run link when usage is unavailable.
+              // Reports still get the run link when usage is unavailable.
             }
-            const models = Array.isArray(metadata.models)
-              ? metadata.models.filter((model) => typeof model === 'string' && /^[a-zA-Z0-9._:-]{1,100}$/.test(model)).slice(0, 8) : [];
             const number = (value) => typeof value === 'number' && Number.isFinite(value) && value >= 0;
             const facts = [
               `🤖 ${phase === 'triage' ? 'Triage' : 'Fix'} · Claude Code`,
-              models.length ? models.join(', ') : `${phase === 'triage' ? process.env.TRIAGE_MODEL : process.env.FIX_MODEL} (configured)`,
+              // Claude Code also calls auxiliary models, so report only the configured one.
+              phase === 'triage' ? process.env.TRIAGE_MODEL : process.env.FIX_MODEL,
               `${process.env.REASONING_EFFORT} effort`,
             ];
             if (number(metadata.turns)) facts.push(`${metadata.turns} turns`);
