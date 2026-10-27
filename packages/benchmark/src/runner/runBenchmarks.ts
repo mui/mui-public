@@ -5,6 +5,7 @@ import * as path from 'node:path';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import chalk from 'chalk';
 import { chromium } from '@playwright/test';
+import type { Browser } from '@playwright/test';
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import { packRef, packWorkingTree } from '../utils/packWorkspace';
 import { getCiMetadata } from '../ciReport';
@@ -16,7 +17,7 @@ import { refLabel, resolveBaselineRef, WORKTREE_REF } from './refs';
 import type { ResolvedRef } from './refs';
 import { discoverBenchFiles } from './benchFiles';
 import { runInterleaved } from './runInterleaved';
-import type { RunInterleavedOptions } from './runInterleaved';
+import type { SampleRun } from './runInterleaved';
 import { buildRefPages, restoreWorkspace } from './buildPages';
 import { printRunReport } from './printReport';
 import { buildsDirOf, prepareOutputDir, resultsPathOf } from './outputDir';
@@ -195,7 +196,8 @@ export async function runBenchmarks(
       const { benchmarks } = await runInterleaved({
         ...runOptions,
         fixedSampling: { sampleSize: sampling.sampleSize ?? PROFILE_ROUNDS, timeout: 0 },
-        aroundRun: tracing.aroundRun,
+        onRunStart: tracing.onRunStart,
+        onRunEnd: tracing.onRunEnd,
       });
       const traced = benchmarks.map(({ name, file, kind, error }) => ({
         name,
@@ -282,10 +284,20 @@ async function createTracing(tracesDir: string) {
   const traces = new Map<string, Record<string, string[]>>();
   const keyOf = ({ name, file }: Pick<RunBenchmark, 'name' | 'file'>) => `${file}\0${name}`;
 
-  const aroundRun: NonNullable<RunInterleavedOptions['aroundRun']> = async (
-    { benchmark, variant, round, page },
-    run,
-  ) => {
+  let recording: { browser: Browser; file: string; files: string[] } | undefined;
+
+  const onRunEnd = async () => {
+    if (recording) {
+      const { browser, file, files } = recording;
+      recording = undefined;
+      await browser.stopTracing();
+      files.push(file);
+    }
+  };
+
+  const onRunStart = async ({ benchmark, variant, round, page }: SampleRun) => {
+    // A page that crashed mid-run never reported the end, and left its trace open.
+    await onRunEnd();
     const dir = path.join(tracesDir, benchmark.name.replace(/[^\w.-]+/g, '-'));
     let byVariant = traces.get(keyOf(benchmark));
     if (!byVariant) {
@@ -296,16 +308,12 @@ async function createTracing(tracesDir: string) {
     const file = path.join(dir, `${variant}-${round}.json`);
     const browser = page.context().browser()!;
     await browser.startTracing(page, { path: file });
-    try {
-      return await run();
-    } finally {
-      await browser.stopTracing();
-      (byVariant[variant] ??= []).push(file);
-    }
+    recording = { browser, file, files: (byVariant[variant] ??= []) };
   };
 
   return {
-    aroundRun,
+    onRunStart,
+    onRunEnd,
     /** A benchmark's trace files, per variant in the order its samples ran. */
     tracesOf: (benchmark: Pick<RunBenchmark, 'name' | 'file'>) =>
       traces.get(keyOf(benchmark)) ?? {},
