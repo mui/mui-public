@@ -18,10 +18,7 @@ export interface UseSession {
   isPending: boolean;
 }
 
-/**
- * Shared with code outside React that needs to re-read the session into the same
- * cache entry the components watch.
- */
+/** Shared with the query client, which invalidates it when GitHub rejects the session. */
 export const sessionQueryOptions = queryOptions({
   queryKey: ['auth-session'],
   queryFn: () => fetchJson<SessionResponse>('/api/auth/session'),

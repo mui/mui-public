@@ -1,13 +1,9 @@
 import { DASHBOARD_ORIGIN } from '../../constants';
 
-export const SESSION_COOKIE = 'mui_dashboard_session';
 export const OAUTH_STATE_COOKIE = 'mui_dashboard_oauth_state';
 
 /** The state cookie only ever travels to the auth routes. */
 export const OAUTH_STATE_COOKIE_PATH = '/api/auth';
-
-/** Session lifetime when the GitHub App's tokens don't expire; otherwise the token's. */
-export const SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
 
 /** Short-lived: the user is only mid-redirect. */
 export const OAUTH_STATE_MAX_AGE_SECONDS = 10 * 60;

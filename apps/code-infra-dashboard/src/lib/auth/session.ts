@@ -1,18 +1,22 @@
 import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
 import { z } from 'zod/v4';
-import { BASE_COOKIE_OPTIONS, SESSION_COOKIE, SESSION_MAX_AGE_SECONDS } from './config';
+import { BASE_COOKIE_OPTIONS } from './config';
+
+const SESSION_COOKIE = 'mui_dashboard_session';
+
+/** Session lifetime when the GitHub App's tokens don't expire; otherwise the token's. */
+const SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
 
 /**
- * `expiresAt` is only present when the GitHub App has "Expire user authorization
- * tokens" enabled. The token is never refreshed: the session simply ends with it.
+ * Validated on read rather than trusted: a cookie sealed by an earlier deploy can
+ * hold a different shape for as long as it lives.
  */
 const sessionSchema = z.object({
   login: z.string(),
   name: z.string().nullable(),
   avatarUrl: z.string(),
   token: z.string(),
-  expiresAt: z.string().optional(),
 });
 
 export type Session = z.infer<typeof sessionSchema>;
@@ -27,19 +31,21 @@ async function openSessionCookie(ttl = SESSION_MAX_AGE_SECONDS) {
     cookieName: SESSION_COOKIE,
     password,
     ttl,
-    cookieOptions: { ...BASE_COOKIE_OPTIONS, path: '/' },
+    cookieOptions: BASE_COOKIE_OPTIONS,
   });
 }
 
 /**
  * The cookie is sealed to expire with the token, so nothing downstream checks
  * expiry: the browser drops the cookie a minute early, and the seal itself is
- * refused after that time even if a copy survives.
+ * refused after that time even if a copy survives. The token is never refreshed.
+ * `tokenExpiresAt` is only sent by GitHub Apps with "Expire user authorization
+ * tokens" enabled.
  */
-export async function writeSession(session: Session): Promise<void> {
+export async function writeSession(session: Session, tokenExpiresAt?: string): Promise<void> {
   // At least a second: iron-session reads a ttl of 0 as "never expires".
-  const ttl = session.expiresAt
-    ? Math.max(1, Math.floor((Date.parse(session.expiresAt) - Date.now()) / 1000))
+  const ttl = tokenExpiresAt
+    ? Math.max(1, Math.floor((Date.parse(tokenExpiresAt) - Date.now()) / 1000))
     : SESSION_MAX_AGE_SECONDS;
 
   const cookie = await openSessionCookie(ttl);

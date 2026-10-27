@@ -25,7 +25,7 @@ function matchesState(received: string, expected: string): boolean {
 async function exchangeCodeForSession(
   client: NonNullable<ReturnType<typeof getOAuthClient>>,
   code: string,
-): Promise<Session | null> {
+): Promise<{ session: Session; tokenExpiresAt?: string } | null> {
   try {
     const { authentication } = await exchangeWebFlowCode({
       clientType: 'github-app',
@@ -39,15 +39,16 @@ async function exchangeCodeForSession(
       auth: authentication.token,
     }).rest.users.getAuthenticated();
 
-    // GitHub only sends an expiry when the app has "Expire user authorization
-    // tokens" enabled. Any refresh token is deliberately dropped: the session
-    // ends with the token, so the cookie never holds a long-lived credential.
+    // Any refresh token is deliberately dropped: the session ends with the token,
+    // so the cookie never holds a long-lived credential.
     return {
-      login: user.login,
-      name: user.name ?? null,
-      avatarUrl: user.avatar_url,
-      token: authentication.token,
-      ...('expiresAt' in authentication ? { expiresAt: authentication.expiresAt } : {}),
+      session: {
+        login: user.login,
+        name: user.name ?? null,
+        avatarUrl: user.avatar_url,
+        token: authentication.token,
+      },
+      tokenExpiresAt: 'expiresAt' in authentication ? authentication.expiresAt : undefined,
     };
   } catch (error) {
     // Codes are single-use, so reloading this URL ends up here as well as a
@@ -84,9 +85,9 @@ export async function GET(request: NextRequest) {
     return response;
   }
 
-  const session = await exchangeCodeForSession(client, code);
-  if (session) {
-    await writeSession(session);
+  const signedIn = await exchangeCodeForSession(client, code);
+  if (signedIn) {
+    await writeSession(signedIn.session, signedIn.tokenExpiresAt);
   }
   return response;
 }
