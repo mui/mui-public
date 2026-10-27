@@ -164,7 +164,7 @@ declare global {
  * Puts a sample's spans on a "Benchmark" track of their own in a DevTools trace, through the
  * Performance panel's extensibility API; elsewhere, the `detail` is just data.
  */
-function onBenchmarkTrack(color: 'primary' | 'tertiary') {
+function benchmarkTrackDetail(color: 'primary' | 'tertiary') {
   return { devtools: { dataType: 'track-entry', track: 'Benchmark', color } };
 }
 
@@ -198,12 +198,12 @@ async function sample(name: string): Promise<Record<string, number>> {
     performance.measure('collect', {
       start: collectStart,
       end: runStart,
-      detail: onBenchmarkTrack('tertiary'),
+      detail: benchmarkTrackDetail('tertiary'),
     });
     performance.measure('run', {
       start: runStart,
       end: performance.now(),
-      detail: onBenchmarkTrack('primary'),
+      detail: benchmarkTrackDetail('primary'),
     });
   }
 
