@@ -1,0 +1,70 @@
+name: Check release branch freshness
+
+on:
+  workflow_call:
+    inputs:
+      base-branch:
+        description: Branch that release PRs must contain.
+        type: string
+        default: master
+      release-label:
+        description: Label identifying release PRs.
+        type: string
+        default: release
+
+permissions: {}
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      pull-requests: ${{ steps.prs.outputs.result }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: mui/mui-public
+          persist-credentials: false
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        id: prs
+        env:
+          BASE_BRANCH: ${{ inputs.base-branch }}
+          RELEASE_LABEL: ${{ inputs.release-label }}
+        with:
+          script: |
+            const { getPullRequests } = require('./.github/workflows/scripts/prs/checkReleaseUpToDate.js');
+            return await getPullRequests({ github, context, baseBranch: process.env.BASE_BRANCH, releaseLabel: process.env.RELEASE_LABEL });
+
+  check:
+    needs: prepare
+    if: ${{ needs.prepare.outputs.pull-requests != '[]' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        batch: ${{ fromJSON(needs.prepare.outputs.pull-requests) }}
+    # Serialize SHA buckets across event types. Each job refreshes the whole bucket,
+    # so replacement of a pending job cannot lose updates for another PR.
+    concurrency:
+      group: release-up-to-date-${{ github.repository }}-${{ matrix.batch.bucket }}-${{ inputs.base-branch }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: mui/mui-public
+          persist-credentials: false
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          BASE_BRANCH: ${{ inputs.base-branch }}
+          RELEASE_LABEL: ${{ inputs.release-label }}
+          PR_BATCH: ${{ toJSON(matrix.batch) }}
+        with:
+          script: |
+            const { checkPullRequestBatch } = require('./.github/workflows/scripts/prs/checkReleaseUpToDate.js');
+            await checkPullRequestBatch({ github, context, batch: JSON.parse(process.env.PR_BATCH), baseBranch: process.env.BASE_BRANCH, releaseLabel: process.env.RELEASE_LABEL });
