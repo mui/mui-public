@@ -350,7 +350,7 @@ jobs:
                category=needs-information and actionable=false, and stop.
             3. Assess the reproduction when supplied. Preserve the reporter's runnable link and useful
                steps instead of replacing them with a less usable prose reconstruction. State that
-               reproduction is unverified in this read-only stage; never claim to have opened,
+               the reproduction is unverified, without mentioning the stage; never claim to have opened,
                executed, reduced, or snapshotted it. Identify any unclear steps that need refinement.
             4. Categorize using the definitions below. Before choosing expected-behavior, look for
                supporting repository documentation, tests, explanatory code comments, or prior
@@ -393,8 +393,18 @@ jobs:
             to proceed. Include this section even when an earlier step tells you to stop; if no
             further action is needed, say so there. Put supporting context above this section.
             Keep fix strategy, internal paths/symbols, root-cause hypotheses, regression tests,
-            and validation plans out of comment, including hidden HTML blocks. Do not claim
-            maintainer review.
+            and validation plans out of comment, including hidden HTML blocks. This includes
+            "Likely cause" and "What the code does" sections. Do not claim maintainer review.
+            Write for the reporter, who already sees the thread:
+            - Do not recap, summarize, or attribute the issue's comments or timeline. Mention a
+              comment only when it changes the conclusion, and link it instead of restating it.
+            - Do not mention workflow internals: the checkout, the read-only stage, search budgets,
+              rate limits, or turn counts. Say what you could not verify once, in one sentence,
+              instead of repeating a disclaimer per claim.
+            - Name a release line only when the issue, a linked source, or the checkout's package
+              metadata states it; never guess versions or release plans.
+            - Do not cite a link or comment you did not read.
+            - Address the reporter as "you"; do not refer to them as "the reporter".
             Return handoff separately for the fix job: checkout SHA, confidence, probable cause,
             supporting evidence, relevant paths, regression test and validation plan, and anything
             unverified. This field is not posted in the issue comment; it is still a workflow artifact,
