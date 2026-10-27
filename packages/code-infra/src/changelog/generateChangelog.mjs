@@ -73,16 +73,17 @@ export async function generateChangelog(options = {}) {
   let builtSections = buildSections(categories, config.categorization, versions);
   if (config.categorization.packageNaming?.omitUnavailable && versions) {
     const naming = config.categorization.packageNaming;
-    const packages = new Set([
-      ...Object.values(naming.mappings),
-      ...Object.values(naming.plans ?? {}).flatMap((plans) => Object.values(plans)),
+    const genericSections = new Set([
+      ...(naming.genericScopes ?? []),
+      ...Object.values(config.categorization.labels.categoryOverrides ?? {}),
+      config.categorization.sections.fallbackSection,
     ]);
     builtSections = builtSections.flatMap((section) => {
       if (!section.subsections) {
         return [section];
       }
       const subsections = section.subsections.filter(
-        (subsection) => !packages.has(subsection.key) || versions.has(subsection.key),
+        (subsection) => genericSections.has(subsection.key) || versions.has(subsection.key),
       );
       return subsections.length > 0 ? [{ ...section, subsections }] : [];
     });

@@ -424,3 +424,65 @@ it('cleans human cherry-pick suffixes without changing attribution', async () =>
   expect(result.author?.login).toBe('human');
   expect(result.message).toBe('Fix behavior (#1)');
 });
+
+it.each(['forward', 'reverse'])(
+  'preserves mainline PRs through nested sync PRs (%s)',
+  async (order) => {
+    const commits = [
+      {
+        sha: 'mainline',
+        parents: [{ sha: 'outside' }],
+        commit: { message: 'Mainline change (#1)' },
+      },
+      {
+        sha: 'feature',
+        parents: [{ sha: 'outside' }],
+        commit: { message: 'Feature implementation' },
+      },
+      {
+        sha: 'sync',
+        parents: [{ sha: 'feature' }, { sha: 'mainline' }],
+        commit: { message: 'Merge pull request #2 from mainline' },
+      },
+      {
+        sha: 'outer',
+        parents: [{ sha: 'mainline' }, { sha: 'sync' }],
+        commit: { message: 'Merge pull request #3 from feature' },
+      },
+    ];
+    const octokit = new Octokit({
+      request: {
+        fetch: async (input: Parameters<typeof fetch>[0]) => {
+          const url = new URL(input instanceof Request ? input.url : String(input));
+          const number = Number(url.pathname.split('/').at(-1));
+          const data = url.pathname.includes('/compare/')
+            ? {
+                url: url.href,
+                total_commits: commits.length,
+                commits: order === 'reverse' ? [...commits].reverse() : commits,
+              }
+            : {
+                title: `Change ${number}`,
+                labels: [],
+                user: { login: `author-${number}` },
+                author_association: 'CONTRIBUTOR',
+                merged_at: DATE,
+                created_at: DATE,
+                body: '',
+                html_url: url.href,
+              };
+          return Object.defineProperty(Response.json(data, { status: OK }), 'url', {
+            value: url.href,
+          });
+        },
+      },
+    });
+    const result = await fetchCommitsBetweenRefs({
+      octokit,
+      repo: 'test',
+      lastRelease: 'v0',
+      release: 'v1',
+    });
+    expect(result.map((commit) => commit.prNumber).sort()).toEqual([1, 3]);
+  },
+);
