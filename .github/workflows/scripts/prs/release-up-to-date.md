@@ -32,7 +32,7 @@ The workflow checks out only trusted mui-public code, never PR code. PR events s
 open release PRs, and manual runs initialize all open PRs. Sixteen stable SHA
 buckets keep the matrix bounded. Every worker refreshes its entire bucket, so
 GitHub replacing an older pending job cannot drop another PR's update. Workers
-read current API state and API failures report an error status.
+read current API state and API failures report an error status. Status updates run asynchronously after base pushes.
 
 Commit statuses are shared by PRs with an identical head SHA. If any open PR
 sharing that SHA has the release label, the shared status requires freshness.

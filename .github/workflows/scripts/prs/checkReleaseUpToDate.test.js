@@ -39,11 +39,14 @@ function createGithub({
     async (input, options) => {
       const url = new URL(String(input));
       requests.push(`${options?.method || 'GET'} ${url.pathname}${url.search}`);
-      if (url.pathname.endsWith('/pulls/42')) return Response.json(pr);
-      if (url.pathname.includes('/compare/'))
+      if (url.pathname.endsWith('/pulls/42')) {
+        return Response.json(pr);
+      }
+      if (url.pathname.includes('/compare/')) {
         return compareError
           ? Response.json({ message: 'Comparison unavailable' }, { status: 503 })
           : Response.json({ behind_by: behind });
+      }
       if (url.pathname.includes('/statuses/')) {
         statuses.push({
           sha: url.pathname.split('/').at(-1),
@@ -52,7 +55,9 @@ function createGithub({
         return Response.json({}, { status: 201 });
       }
       if (url.pathname.endsWith('/pulls')) {
-        if (listError) return Response.json({ message: 'PR list unavailable' }, { status: 503 });
+        if (listError) {
+          return Response.json({ message: 'PR list unavailable' }, { status: 503 });
+        }
         const page = Number(url.searchParams.get('page') || 1);
         /** @type {Record<string, string>} */ const headers =
           page < responses.length
@@ -206,6 +211,7 @@ describe('release branch freshness', () => {
       const unlabeled = createGithub({ labels: [], behind: 2, pages });
       const release = createGithub({ behind: 2, pages });
       for (const run of unlabeledFirst ? [unlabeled, release] : [release, unlabeled]) {
+        // eslint-disable-next-line no-await-in-loop -- Replay events in order to exercise shared-status overwrites.
         await checkPullRequestBatch({ github: run.github, context, batch });
         expect(run.statuses.at(-1)?.state).toBe('failure');
       }

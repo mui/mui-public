@@ -1,4 +1,5 @@
 // @ts-check
+/* eslint-disable no-await-in-loop -- Serialize GitHub requests to preserve status ordering and avoid secondary rate limits. */
 
 /**
  * @typedef {Object} Options
@@ -23,15 +24,20 @@ async function getPullRequests({
   let pulls;
   if (context.eventName === 'pull_request_target') {
     const number = context.payload.pull_request?.number;
-    if (!number) throw new Error('Missing PR number.');
+    if (!number) {
+      throw new Error('Missing PR number.');
+    }
     const { data: pr } = await github.rest.pulls.get({ ...context.repo, pull_number: number });
     pulls = [pr];
     // Also refresh an earlier head if this event queued while the head changed.
     const eventHead = context.payload.pull_request?.head?.sha;
-    if (eventHead && eventHead !== pr.head.sha) pulls.push({ number, head: { sha: eventHead } });
+    if (eventHead && eventHead !== pr.head.sha) {
+      pulls.push({ number, head: { sha: eventHead } });
+    }
   } else {
-    if (context.eventName === 'push' && context.payload.ref !== `refs/heads/${baseBranch}`)
+    if (context.eventName === 'push' && context.payload.ref !== `refs/heads/${baseBranch}`) {
       return [];
+    }
     if (context.eventName !== 'push' && context.eventName !== 'workflow_dispatch') {
       throw new Error(`Unsupported event: ${context.eventName}`);
     }
@@ -79,8 +85,9 @@ async function checkPullRequestBatch({
       target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
     });
   const preparedHeads = new Set(batch.pulls.map((pr) => pr.sha));
-  for (const sha of preparedHeads)
+  for (const sha of preparedHeads) {
     await report(sha, 'pending', 'Checking release branch freshness.');
+  }
 
   /** @type {Awaited<ReturnType<typeof github.rest.pulls.list>>['data']} */
   let open;
@@ -92,8 +99,9 @@ async function checkPullRequestBatch({
       per_page: 100,
     });
   } catch (error) {
-    for (const sha of preparedHeads)
+    for (const sha of preparedHeads) {
       await report(sha, 'error', 'Unable to fetch PRs. Re-run the release freshness workflow.');
+    }
     throw error;
   }
 
@@ -101,7 +109,9 @@ async function checkPullRequestBatch({
   // must satisfy freshness, so an unlabeled PR cannot overwrite its failure.
   const heads = new Map([...preparedHeads].map((sha) => [sha, false]));
   for (const pr of open) {
-    if (bucketFor(pr.head.sha) !== batch.bucket) continue;
+    if (bucketFor(pr.head.sha) !== batch.bucket) {
+      continue;
+    }
     heads.set(
       pr.head.sha,
       heads.get(pr.head.sha) === true || pr.labels.some((label) => label.name === releaseLabel),
@@ -111,8 +121,9 @@ async function checkPullRequestBatch({
   const errors = [];
   for (const [sha, release] of heads) {
     try {
-      if (!preparedHeads.has(sha))
+      if (!preparedHeads.has(sha)) {
         await report(sha, 'pending', 'Checking release branch freshness.');
+      }
       if (!release) {
         await report(
           sha,
@@ -143,9 +154,12 @@ async function checkPullRequestBatch({
       errors.push(error);
     }
   }
-  if (errors.length === 1) throw errors[0];
-  if (errors.length > 1)
+  if (errors.length === 1) {
+    throw errors[0];
+  }
+  if (errors.length > 1) {
     throw new AggregateError(errors, 'Some release branch freshness checks failed.');
+  }
 }
 
 module.exports = { getPullRequests, checkPullRequestBatch };
