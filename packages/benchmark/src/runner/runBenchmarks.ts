@@ -65,12 +65,9 @@ export interface RunBenchmarksOptions {
   profile?: boolean;
 }
 
-/** Rounds a profile records unless a sample size is given. */
-const PROFILE_ROUNDS = 5;
-
 /**
  * Benchmarks a harness's `*.bench.tsx` files across two builds of the workspace — the working tree
- * and a baseline — and writes and prints the run report, then fails if any benchmark failed.
+ * and a baseline — and writes, prints, and returns the run report, failed benchmarks included.
  *
  * Both builds are packed from their own commit and installed into the harness the same way, so
  * neither resolves the library through a workspace link.
@@ -186,7 +183,7 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
       launchArgs,
       testNamePattern: namePattern,
       sampling,
-      ...(profile && { profile: { tracesDir, rounds: sampling.sampleSize ?? PROFILE_ROUNDS } }),
+      ...(profile && { profile: { tracesDir } }),
     });
 
     const { commitSha, branch } = await getCiMetadata();
@@ -227,13 +224,6 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
         chalk.green(`Wrote traces to ${tracesDir}`) +
           chalk.dim(' — open one in DevTools: Performance panel, "Load profile…".'),
       );
-    }
-
-    // Written first, so the errors are readable and an upload can still report them; then fail,
-    // as a test runner fails on any failed test.
-    const failed = report.benchmarks.filter((benchmark) => benchmark.error !== undefined).length;
-    if (failed > 0) {
-      throw new Error(`${failed} of ${report.benchmarks.length} benchmarks failed.`);
     }
     return report;
   } finally {

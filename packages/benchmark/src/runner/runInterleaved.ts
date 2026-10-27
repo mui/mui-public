@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 
 import { addAbortListener, once } from 'node:events';
-import { mkdir, rm } from 'node:fs/promises';
+import { rm } from 'node:fs/promises';
 import * as http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import * as path from 'node:path';
@@ -44,11 +44,15 @@ export interface RunInterleavedOptions {
   /** Stops the run: the browser closes, and the run rejects. */
   signal?: AbortSignal;
   /**
-   * Profiles the run: every benchmark samples exactly `rounds` rounds, whatever it sets itself, with
-   * a performance trace around each sample written under `tracesDir`, to open in DevTools.
+   * Profiles the run: every benchmark samples exactly the run's sample size (default
+   * `PROFILE_ROUNDS`), whatever it sets itself, with a performance trace around each sample written
+   * under `tracesDir`, to open in DevTools.
    */
-  profile?: { tracesDir: string; rounds: number };
+  profile?: { tracesDir: string };
 }
+
+/** Rounds a profile records unless the run gives a sample size. */
+const PROFILE_ROUNDS = 5;
 
 export interface InterleavedResults {
   benchmarks: RunBenchmark[];
@@ -229,11 +233,11 @@ function isSampling(progress: Progress): boolean {
  * sampled in it; one whose sample fails stops, with its error, and the page reloads before the next.
  */
 async function runFileRound(
+  browser: Browser,
   page: Page,
   active: Progress[],
   { profile, signal }: Pick<RunInterleavedOptions, 'profile' | 'signal'>,
 ): Promise<void> {
-  const browser = page.context().browser()!;
   const entries = active.map((progress) => ({ progress, round: [] as Round }));
   const urls = [...new Set(active.flatMap(({ plan }) => plan.slots.map((slot) => slot.url)))];
   // Unset after a failed sample, so what the failed case left behind doesn't reach the next one.
@@ -268,15 +272,14 @@ async function runFileRound(
         }
         const startedAt = Date.now();
         if (profile) {
-          const traceDir = path.join(
-            profile.tracesDir,
-            progress.plan.entry.name.replace(/[^\w.-]+/g, '-'),
-          );
-          // eslint-disable-next-line no-await-in-loop
-          await mkdir(traceDir, { recursive: true });
+          // Playwright creates the directories when it writes the trace.
           // eslint-disable-next-line no-await-in-loop
           await browser.startTracing(page, {
-            path: path.join(traceDir, `${slot.variant}-${progress.rounds.length + 1}.json`),
+            path: path.join(
+              profile.tracesDir,
+              progress.plan.entry.name.replace(/[^\w.-]+/g, '-'),
+              `${slot.variant}-${progress.rounds.length + 1}.json`,
+            ),
           });
         }
         try {
@@ -358,7 +361,7 @@ async function runBenchFile(
     opened = page;
     while (page && active.length > 0) {
       // eslint-disable-next-line no-await-in-loop
-      await runFileRound(page, active, options);
+      await runFileRound(browser, page, active, options);
       active = progresses.filter(isSampling);
     }
   } catch (error) {
@@ -472,14 +475,14 @@ async function planBenchFile(
 /**
  * A benchmark's sampling, as in Vitest: what it sets itself, then what the run gives as defaults,
  * then the built-in defaults. Both come from `getSampling`, so they are valid and set no key to
- * undefined. A profile samples exactly its rounds instead.
+ * undefined. A profile samples exactly the run's sample size instead, or `PROFILE_ROUNDS`.
  */
 function samplingOf(
   own: SamplingOptions,
   { sampling: runDefaults = {}, profile }: RunInterleavedOptions,
 ): Required<SamplingOptions> {
   if (profile) {
-    return { sampleSize: profile.rounds, timeout: 0 };
+    return { sampleSize: runDefaults.sampleSize ?? PROFILE_ROUNDS, timeout: 0 };
   }
   return { ...DEFAULT_SAMPLING, ...runDefaults, ...own };
 }

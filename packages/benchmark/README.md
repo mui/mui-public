@@ -503,10 +503,11 @@ A benchmark's alarm is merged over the metric's, and a `name#id` sub-series foll
 ### The report
 
 The run writes `.benchmark/results/report.json` (or `--out`) and prints it as tables, then exits
-with 1 if any benchmark failed, as a test runner would. In CI, `benchmark upload` sends that file to the dashboard,
-which renders the pull request comment's Performance section and the repository's history from it.
-A separate step, so a failed upload can be retried without measuring again; run it even when the run
-step fails (CircleCI's `when: always`), so the comment reports the failed benchmarks:
+with 1 if any benchmark failed, as a test runner would. In CI, `benchmark upload` sends that file
+to the dashboard, which renders the pull request comment's Performance section and the
+repository's history from it. A separate step, so a failed upload can be retried without measuring
+again; run it even when the run step fails (CircleCI's `when: always`), so the comment reports the
+failed benchmarks:
 
 ```yaml
 - run:
