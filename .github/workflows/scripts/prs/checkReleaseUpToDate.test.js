@@ -13,7 +13,7 @@ const context = {
 };
 const batch = { bucket: 10, pulls: [{ number: 42, sha: headSha }] };
 
-/** @param {{ labels?: string[], behind?: number, state?: string, base?: string, compareError?: boolean, listError?: boolean, pages?: {number: number, head: {sha: string}, labels: {name: string}[]}[][] }} [options] */
+/** @param {{ labels?: string[], behind?: number, state?: string, base?: string, compareError?: boolean, listError?: boolean, prError?: boolean, initialStatuses?: {sha: string, state: string, context: string, description?: string}[], pages?: {number: number, head: {sha: string}, labels: {name: string}[]}[][] }} [options] */
 function createGithub({
   labels = ['release'],
   behind = 0,
@@ -21,6 +21,8 @@ function createGithub({
   base = 'master',
   compareError = false,
   listError = false,
+  prError = false,
+  initialStatuses = [],
   pages,
 } = {}) {
   const pr = {
@@ -31,8 +33,8 @@ function createGithub({
     labels: labels.map((name) => ({ name })),
   };
   const responses = pages ?? (state === 'open' && base === 'master' ? [[pr]] : [[]]);
-  /** @type {{sha: string, state: string, context: string}[]} */
-  const statuses = [];
+  /** @type {{sha: string, state: string, context: string, description?: string}[]} */
+  const statuses = [...initialStatuses];
   /** @type {string[]} */
   const requests = [];
   const fetch = /** @type {typeof globalThis.fetch} */ (
@@ -40,7 +42,14 @@ function createGithub({
       const url = new URL(String(input));
       requests.push(`${options?.method || 'GET'} ${url.pathname}${url.search}`);
       if (url.pathname.endsWith('/pulls/42')) {
+        if (prError) {
+          return Response.json({ message: 'PR unavailable' }, { status: 503 });
+        }
         return Response.json(pr);
+      }
+      if (url.pathname.includes('/commits/') && url.pathname.endsWith('/statuses')) {
+        const sha = url.pathname.split('/').at(-2);
+        return Response.json(statuses.filter((status) => status.sha === sha).reverse());
       }
       if (url.pathname.includes('/compare/')) {
         return compareError
@@ -90,10 +99,7 @@ describe('release branch freshness', () => {
   it.each([0, 1, 12])('checks ancestry when the PR is %i commits behind', async (behind) => {
     const { github, statuses, requests } = createGithub({ behind });
     await checkPullRequestBatch({ github, context, batch });
-    expect(statuses.map((status) => status.state)).toEqual([
-      'pending',
-      behind === 0 ? 'success' : 'failure',
-    ]);
+    expect(statuses.map((status) => status.state)).toEqual([behind === 0 ? 'success' : 'failure']);
     expect(requests).toContainEqual(expect.stringContaining(`/compare/master...${headSha}`));
   });
 
@@ -122,11 +128,21 @@ describe('release branch freshness', () => {
   it.each([{ compareError: true }, { listError: true }])(
     'invalidates success when an API request fails: %j',
     async (options) => {
-      const { github, statuses } = createGithub(options);
+      const { github, statuses } = createGithub({
+        ...options,
+        initialStatuses: [
+          {
+            sha: headSha,
+            state: 'success',
+            context: 'Release branch up to date',
+            description: 'This release PR contains the latest master commits.',
+          },
+        ],
+      });
       await expect(checkPullRequestBatch({ github, context, batch })).rejects.toThrow(
         'unavailable',
       );
-      expect(statuses.map((status) => status.state)).toEqual(['pending', 'error']);
+      expect(statuses.map((status) => status.state)).toEqual(['success', 'error']);
     },
   );
 
@@ -148,6 +164,15 @@ describe('release branch freshness', () => {
   it('selects the current head from a PR event', async () => {
     const { github } = createGithub();
     expect(await getPullRequests({ github, context })).toEqual([batch]);
+  });
+
+  it('falls back to the event head when refreshing the PR fails', async () => {
+    const { github } = createGithub({ prError: true });
+    const eventContext = {
+      ...context,
+      payload: { pull_request: { number: 42, head: { sha: headSha } } },
+    };
+    expect(await getPullRequests({ github, context: eventContext })).toEqual([batch]);
   });
 
   it('finds release PRs across pages after a base branch push', async () => {
@@ -249,5 +274,37 @@ describe('release branch freshness', () => {
       expect.objectContaining({ sha: headSha, state: 'success' }),
       expect.objectContaining({ sha: otherSha, state: 'failure' }),
     ]);
+  });
+
+  it('does not republish unchanged statuses for other heads in the bucket', async () => {
+    const otherSha = `${'b'.repeat(38)}aa`;
+    const { github, statuses, requests } = createGithub({
+      labels: [],
+      pages: [
+        [
+          { number: 42, head: { sha: headSha }, labels: [] },
+          { number: 43, head: { sha: otherSha }, labels: [{ name: 'release' }] },
+        ],
+      ],
+      behind: 1,
+      initialStatuses: [
+        {
+          sha: headSha,
+          state: 'success',
+          context: 'Release branch up to date',
+          description: 'No open release PR targets this branch with this head commit.',
+        },
+        {
+          sha: otherSha,
+          state: 'failure',
+          context: 'Release branch up to date',
+          description: 'Merge or rebase master into this release PR.',
+        },
+      ],
+    });
+    await checkPullRequestBatch({ github, context, batch });
+    expect(statuses).toHaveLength(2);
+    expect(requests).not.toContainEqual(expect.stringContaining(`/statuses/${headSha}`));
+    expect(requests).not.toContainEqual(expect.stringContaining(`/statuses/${otherSha}`));
   });
 });
