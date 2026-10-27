@@ -39,20 +39,15 @@ async function exchangeCodeForSession(
       auth: authentication.token,
     }).rest.users.getAuthenticated();
 
-    // Which of these GitHub sends depends on the app's "Expire user authorization
-    // tokens" setting: nothing, an expiry alone, or an expiry with a refresh token.
+    // GitHub only sends an expiry when the app has "Expire user authorization
+    // tokens" enabled. Any refresh token is deliberately dropped: the session
+    // ends with the token, so the cookie never holds a long-lived credential.
     return {
       login: user.login,
       name: user.name ?? null,
       avatarUrl: user.avatar_url,
       token: authentication.token,
       ...('expiresAt' in authentication ? { expiresAt: authentication.expiresAt } : {}),
-      ...('refreshToken' in authentication
-        ? {
-            refreshToken: authentication.refreshToken,
-            refreshTokenExpiresAt: authentication.refreshTokenExpiresAt,
-          }
-        : {}),
     };
   } catch (error) {
     // Codes are single-use, so reloading this URL ends up here as well as a

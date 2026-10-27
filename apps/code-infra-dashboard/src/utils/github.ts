@@ -1,5 +1,5 @@
 import { Octokit } from '@octokit/rest';
-import { verifiedSessionQueryOptions } from '../hooks/useSession';
+import { sessionQueryOptions } from '../hooks/useSession';
 import { queryClient } from './queryClient';
 
 /**
@@ -13,24 +13,15 @@ const GITHUB_API_ORIGIN = 'https://api.github.com';
 const GITHUB_PROXY_PATH = '/api/github';
 
 /**
- * Re-reads the session through the app's query cache: the session endpoint
- * refreshes an expired token or checks a live one against GitHub, and every
- * component sees the outcome — including that the visitor is now signed out, so
- * they fall back to anonymous requests.
- *
- * A session already re-read since `sentAt` is reused, so a page's worth of
- * requests rejected together refreshes it once.
+ * Re-reads the session into the app's query cache, so every component learns the
+ * visitor is signed out and falls back to anonymous requests. Requests rejected
+ * together share one read.
  */
-async function isStillSignedIn(sentAt: number): Promise<boolean> {
+async function rereadSession(): Promise<void> {
   try {
-    const session = await queryClient.query({
-      ...verifiedSessionQueryOptions,
-      staleTime: () => Date.now() - sentAt,
-    });
-    return session.signedIn;
+    await queryClient.query(sessionQueryOptions);
   } catch {
-    // The session couldn't be read either, so there's nothing to retry with.
-    return false;
+    // Unreadable as well: components keep their last answer until the next read.
   }
 }
 
@@ -39,9 +30,8 @@ async function isStillSignedIn(sentAt: number): Promise<boolean> {
  * `baseUrl`: Octokit's pagination follows the absolute api.github.com URLs in
  * GitHub's `Link` header verbatim, and those would bypass a `baseUrl`.
  *
- * The proxy refuses an expired token instead of refreshing it, so a 401 gets one
- * retry after the session endpoint has rotated the token -- unless the session
- * turns out to be over, when the retry would only be refused again.
+ * A 401 means the session is over: its token expired with the cookie, or the
+ * user revoked the app and the proxy has cleared it.
  */
 async function fetchThroughProxy(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const url = new URL(String(input));
@@ -51,13 +41,11 @@ async function fetchThroughProxy(input: RequestInfo | URL, init?: RequestInit): 
     url.pathname = `${GITHUB_PROXY_PATH}${url.pathname}`;
   }
 
-  const sentAt = Date.now();
   const response = await fetch(url, init);
-  if (response.status !== 401) {
-    return response;
+  if (response.status === 401) {
+    await rereadSession();
   }
-
-  return (await isStillSignedIn(sentAt)) ? fetch(url, init) : response;
+  return response;
 }
 
 /**

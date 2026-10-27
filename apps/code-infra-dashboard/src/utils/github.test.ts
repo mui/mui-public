@@ -58,34 +58,11 @@ describe('proxiedOctokit', () => {
     ]);
   });
 
-  it('refreshes the session and retries once when the proxy rejects the token', async () => {
-    let rejectedOnce = false;
-    const requested = stubBrowser((url) => {
-      if (url === `${TAB_ORIGIN}/api/auth/session?verify=1`) {
-        return jsonResponse({ available: true, signedIn: true, login: 'octocat' });
-      }
-      if (!rejectedOnce) {
-        rejectedOnce = true;
-        return new Response('{}', { status: 401 });
-      }
-      return jsonResponse({ login: 'octocat' });
-    });
-
-    const { data } = await proxiedOctokit.rest.users.getAuthenticated();
-
-    expect(data).toEqual({ login: 'octocat' });
-    expect(requested).toEqual([
-      `${TAB_ORIGIN}/api/github/user`,
-      `${TAB_ORIGIN}/api/auth/session?verify=1`,
-      `${TAB_ORIGIN}/api/github/user`,
-    ]);
-  });
-
-  // A revoked token, or a session that couldn't be refreshed: the components
-  // reading the session have to learn about it to switch back to anonymous.
-  it('publishes a signed-out session to the rest of the app without retrying', async () => {
+  // An expired or revoked token: the components reading the session have to
+  // learn the visitor is signed out to switch back to anonymous requests.
+  it('publishes a signed-out session to the rest of the app when the proxy rejects the token', async () => {
     const requested = stubBrowser((url) =>
-      url === `${TAB_ORIGIN}/api/auth/session?verify=1`
+      url === '/api/auth/session'
         ? jsonResponse({ available: true, signedIn: false })
         : new Response('{}', { status: 401 }),
     );
@@ -97,29 +74,20 @@ describe('proxiedOctokit', () => {
       available: true,
       signedIn: false,
     });
-    expect(requested).toEqual([
-      `${TAB_ORIGIN}/api/github/user`,
-      `${TAB_ORIGIN}/api/auth/session?verify=1`,
-    ]);
+    expect(requested).toEqual([`${TAB_ORIGIN}/api/github/user`, '/api/auth/session']);
   });
 
-  it('refreshes the session once for requests rejected together', async () => {
+  it('re-reads the session once for requests rejected together', async () => {
     let sessionReads = 0;
-    let rejected = 0;
     stubBrowser((url) => {
-      if (url === `${TAB_ORIGIN}/api/auth/session?verify=1`) {
+      if (url === '/api/auth/session') {
         sessionReads += 1;
-        return jsonResponse({ available: true, signedIn: true, login: 'octocat' });
+        return jsonResponse({ available: true, signedIn: false });
       }
-      // The first two requests carry the expired token; their retries succeed.
-      if (rejected < 2) {
-        rejected += 1;
-        return new Response('{}', { status: 401 });
-      }
-      return jsonResponse({ login: 'octocat' });
+      return new Response('{}', { status: 401 });
     });
 
-    await Promise.all([
+    await Promise.allSettled([
       proxiedOctokit.rest.users.getAuthenticated(),
       proxiedOctokit.rest.users.getAuthenticated(),
     ]);

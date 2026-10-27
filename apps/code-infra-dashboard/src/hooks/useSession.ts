@@ -20,30 +20,12 @@ export interface UseSession {
 
 /**
  * Shared with code outside React that needs to re-read the session into the same
- * cache entry the components watch. Reading it also refreshes an expired GitHub
- * token, server-side.
+ * cache entry the components watch.
  */
 export const sessionQueryOptions = queryOptions({
   queryKey: ['auth-session'],
-  queryFn: () => fetchSession(false),
+  queryFn: () => fetchJson<SessionResponse>('/api/auth/session'),
 });
-
-/**
- * The same cache entry, read after GitHub rejected the token: also asks GitHub
- * whether the current token still works.
- */
-export const verifiedSessionQueryOptions = queryOptions({
-  ...sessionQueryOptions,
-  queryFn: () => fetchSession(true),
-});
-
-function fetchSession(verify: boolean): Promise<SessionResponse> {
-  const url = new URL('/api/auth/session', window.location.origin);
-  if (verify) {
-    url.searchParams.set('verify', '1');
-  }
-  return fetchJson<SessionResponse>(url.href);
-}
 
 export function useSession(): UseSession {
   const { data, isPending } = useQuery({

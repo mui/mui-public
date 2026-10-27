@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { isCrossOriginRequest } from '@/lib/auth/config';
-import { readSession } from '@/lib/auth/session';
-import { isTokenExpired } from '@/lib/auth/tokens';
+import { clearSession, readSession } from '@/lib/auth/session';
 
 const GITHUB_API_ORIGIN = 'https://api.github.com';
 const USER_AGENT = 'mui-code-infra-dashboard';
@@ -55,11 +54,8 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pat
     return NextResponse.json({ error: 'Cross-origin requests are not allowed.' }, { status: 403 });
   }
 
-  // An expired token is refused rather than refreshed here, and a token GitHub
-  // rejects isn't cleared here either: only /api/auth/session changes the
-  // session, from the current cookie, before the browser retries.
   const session = await readSession();
-  if (!session || isTokenExpired(session)) {
+  if (!session) {
     return NextResponse.json({ error: 'Not signed in to GitHub.' }, { status: 401 });
   }
 
@@ -90,10 +86,17 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pat
     redirect: 'follow',
   });
 
+  // A session's token never changes and its cookie expires with it, so GitHub
+  // rejecting it means the user revoked the app. Drop the session so the visitor
+  // falls back to anonymous rather than failing every request until signing out.
+  if (upstreamResponse.status === 401) {
+    await clearSession();
+  }
+
   const responseHeaders = copyHeaders(upstreamResponse.headers, FORWARDED_RESPONSE_HEADERS);
   // Let the browser hold a copy but revalidate every time, so it sends the etag
-  // back and GitHub can answer 304 for free. Deliberately no `Vary: Cookie`: the
-  // session cookie rotates on refresh and would throw the cache away each time.
+  // back and GitHub can answer 304 for free. No `Vary: Cookie` is needed: every
+  // reuse is revalidated against GitHub with the current visitor's token.
   responseHeaders.set('cache-control', 'private, max-age=0, must-revalidate');
   responseHeaders.set('vary', 'Accept');
 
