@@ -26,10 +26,6 @@ on:
         description: Optional issue comment to acknowledge and use as the discussion cutoff; zero includes all comments available when captured.
         type: number
         default: 0
-      triage-comment-labels:
-        description: JSON array of labels allowing replies from the issue author, repository collaborators, or organization members to request triage.
-        type: string
-        default: '["ai: needs-triage", "ai: triaged"]'
       debug:
         description: Log full Claude output, including tool results, in Actions logs.
         type: boolean
@@ -92,7 +88,6 @@ jobs:
           ISSUE_NUMBER: ${{ inputs.issue-number }}
           REQUEST_MODE: ${{ inputs.mode }}
           COMMENT_ID: ${{ inputs.comment-id }}
-          TRIAGE_COMMENT_LABELS: ${{ inputs.triage-comment-labels }}
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
@@ -105,16 +100,14 @@ jobs:
                 !['triage', 'fix'].includes(mode)) {
               throw new Error('Expected a positive issue-number, mode triage or fix, and a non-negative comment-id.');
             }
-            const commentLabels = JSON.parse(process.env.TRIAGE_COMMENT_LABELS);
-            if (!Array.isArray(commentLabels) || commentLabels.some((label) => typeof label !== 'string' || !label)) {
-              throw new Error('triage-comment-labels must be a JSON array of non-empty label names.');
-            }
+            // Replies from the issue author, collaborators, or org members request triage only while one of these is present.
+            const commentLabels = ['ai: needs-triage', 'ai: triaged'];
             const actor = context.payload.sender;
             const { data: issue } = await github.rest.issues.get({
               ...context.repo, issue_number: issueNumber,
             });
             if (issue.pull_request) return;
-            const labeledCommentRequest = commentLabels.length > 0 && context.eventName === 'issue_comment';
+            const labeledCommentRequest = context.eventName === 'issue_comment';
 
             // Validate labeled replies before granting any permission exception.
             if (labeledCommentRequest) {
