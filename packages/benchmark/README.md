@@ -588,9 +588,10 @@ long it all took — with everything else a run prints sent to stderr. `summariz
 `@mui/internal-benchmark/runReport` produces the same from a report. `NO_COLOR` turns color off.
 
 `--profile` records instead of measuring: the run samples as it measures, for 5 rounds unless
-`--sample-size` says otherwise, with a performance trace around each case's run, after the garbage
-collection that precedes it, saved under `.benchmark/traces/` to open in DevTools' Performance
-panel. It writes no report: tracing slows the code it records.
+`--sample-size` says otherwise, with a performance trace around each sample, saved under
+`.benchmark/traces/` to open in DevTools' Performance panel. A "Benchmark" track there marks the
+garbage collection that precedes the case's run (`collect`) and the run itself (`run`). It writes no
+report: tracing slows the code it records.
 
 `benchmark --help` lists the remaining options.
 

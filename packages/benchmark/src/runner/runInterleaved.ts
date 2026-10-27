@@ -47,18 +47,14 @@ export interface RunInterleavedOptions {
    */
   fixedSampling?: Required<SamplingOptions>;
   /**
-   * Called as each sample's case starts running, after the page's garbage collection, and as it
-   * ends: a profile traces in between. The page then waits on the runner at both, which lets queued
-   * tasks run between the collection and the run, so a measured run sets neither.
+   * Wraps each sample — the page's garbage collection and its case's run, in one call — and returns
+   * what `sample` returned: a profile traces it.
    */
-  onRunStart?: (sample: SampleRun) => Promise<void>;
-  onRunEnd?: (sample: SampleRun) => Promise<void>;
+  aroundSample?: (
+    sample: SampleRun,
+    run: () => Promise<Record<string, number>>,
+  ) => Promise<Record<string, number>>;
 }
-
-type RunHooks = Pick<RunInterleavedOptions, 'onRunStart' | 'onRunEnd'>;
-
-/** The sample each tab is running, for its run hooks. */
-const runningSamples = new WeakMap<Page, SampleRun>();
 
 /** A sample about to run: of which benchmark and variant, in which round and tab. */
 export interface SampleRun {
@@ -117,13 +113,10 @@ function stableMetrics(rounds: Round[]): string[] {
 type PageListing = Pick<BenchPage, 'cases' | 'comparisons'>;
 
 /**
- * Opens a tab, in a browser context of its own, bridged to a CDP session for trusted input, and to
- * the run hooks given. Closing its context closes it.
+ * Opens a tab, in a browser context of its own, bridged to a CDP session for trusted input. Closing
+ * its context closes it.
  */
-async function openBenchTab(
-  browser: Browser,
-  { onRunStart, onRunEnd }: RunHooks = {},
-): Promise<Page> {
+async function openBenchTab(browser: Browser): Promise<Page> {
   const context = await browser.newContext({ viewport: BENCHMARK_VIEWPORT });
   try {
     const page = await context.newPage();
@@ -138,15 +131,6 @@ async function openBenchTab(
       (_source, method: string, params?: Record<string, unknown>) =>
         session.send(method as CdpMethod, params),
     );
-    // Only exposed when hooked: without it, the page goes from the collection to the run at once.
-    if (onRunStart || onRunEnd) {
-      await page.exposeBinding('benchmarkRunHook', async (_source, phase: 'start' | 'end') => {
-        const sample = runningSamples.get(page);
-        if (sample) {
-          await (phase === 'start' ? onRunStart : onRunEnd)?.(sample);
-        }
-      });
-    }
     return page;
   } catch (error) {
     await context.close();
@@ -196,21 +180,14 @@ async function listBenchPages(browser: Browser, urls: string[]): Promise<PageLis
   }
 }
 
-/**
- * Runs one iteration of a case, and returns what it recorded, by series. The tab's run hooks get
- * `sample` while it runs.
- */
-async function sampleBenchCase(
+/** Runs one iteration of a case, wrapped in `aroundSample`, and returns what it recorded, by series. */
+function sampleBenchCase(
   sample: SampleRun,
   caseName: string,
+  aroundSample: RunInterleavedOptions['aroundSample'],
 ): Promise<Record<string, number>> {
-  const { page } = sample;
-  runningSamples.set(page, sample);
-  try {
-    return await page.evaluate((name) => window.benchmarkPage!.sample(name), caseName);
-  } finally {
-    runningSamples.delete(page);
-  }
+  const run = () => sample.page.evaluate((name) => window.benchmarkPage!.sample(name), caseName);
+  return aroundSample ? aroundSample(sample, run) : run();
 }
 
 /**
@@ -279,7 +256,7 @@ function isSampling(progress: Progress): boolean {
 async function runFileRound(
   page: Page,
   active: Progress[],
-  { signal }: Pick<RunInterleavedOptions, 'signal'>,
+  { aroundSample, signal }: Pick<RunInterleavedOptions, 'aroundSample' | 'signal'>,
 ): Promise<void> {
   const entries = active.map((progress) => ({ progress, round: [] as Round }));
   const urls = [...new Set(active.flatMap(({ plan }) => plan.slots.map((slot) => slot.url)))];
@@ -321,7 +298,7 @@ async function runFileRound(
           page,
         };
         // eslint-disable-next-line no-await-in-loop
-        round[index] = await sampleBenchCase(sample, slot.caseName);
+        round[index] = await sampleBenchCase(sample, slot.caseName, aroundSample);
         if (index === 0 && !progress.metrics) {
           // Read from the reference page: a metric whose config the change under test altered is
           // described the way the change describes it. Its first sample recorded every metric the
@@ -362,7 +339,7 @@ async function runFileRound(
 async function runBenchFile(
   browser: Browser,
   plans: PlannedBenchmark[],
-  options: RunHooks & Pick<RunInterleavedOptions, 'signal'>,
+  options: Pick<RunInterleavedOptions, 'aroundSample' | 'signal'>,
 ): Promise<CaseResult[]> {
   const { signal } = options;
   const count = `${plans.length} benchmark${plans.length === 1 ? '' : 's'}`;
@@ -385,7 +362,7 @@ async function runBenchFile(
   let opened: Page | undefined;
   try {
     let active = progresses.filter(isSampling);
-    const page = active.length > 0 ? await openBenchTab(browser, options) : undefined;
+    const page = active.length > 0 ? await openBenchTab(browser) : undefined;
     opened = page;
     while (page && active.length > 0) {
       // eslint-disable-next-line no-await-in-loop

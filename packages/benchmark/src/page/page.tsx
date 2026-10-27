@@ -157,12 +157,15 @@ declare global {
     benchmarkPage?: BenchPage;
     /** Exposed by the runner: forwards a CDP command to this page's session. */
     benchmarkCdp?: (method: string, params?: Record<string, unknown>) => Promise<unknown>;
-    /**
-     * Exposed by the runner only when it hooks into the case's run, as a profile does to trace it:
-     * called as the run starts, after the garbage collection, and as it ends.
-     */
-    benchmarkRunHook?: (phase: 'start' | 'end') => Promise<void>;
   }
+}
+
+/**
+ * Puts a sample's spans on a "Benchmark" track of their own in a DevTools trace, through the
+ * Performance panel's extensibility API; elsewhere, the `detail` is just data.
+ */
+function onBenchmarkTrack(color: 'primary' | 'tertiary') {
+  return { devtools: { dataType: 'track-entry', track: 'Benchmark', color } };
 }
 
 const send: CdpSend = (method, params) => {
@@ -178,32 +181,41 @@ async function sample(name: string): Promise<Record<string, number>> {
   if (!run) {
     throw new Error(`No benchmark named "${name}". Known: ${[...cases.keys()].join(', ')}`);
   }
-  await collectGarbage();
   performance.clearMarks();
   performance.clearMeasures();
+  const collectStart = performance.now();
+  await collectGarbage();
 
   const values = new Map<string, number>();
   sampleValues = values;
-  // Without a runner hook, this awaits `undefined`: a microtask, which no task can run ahead of, so
-  // the run starts on the heap just collected. A hook waits on the runner, which lets queued tasks
-  // run first; only a profile, whose tracing slows the run anyway, sets one.
-  await window.benchmarkRunHook?.('start');
+  const runStart = performance.now();
   try {
     await run({ cdp });
-
-    if (values.size === 0) {
-      throw new Error(
-        `Benchmark "${name}" recorded no value. Record its results through a ScalarMetric or DiscreteMetric.`,
-      );
-    }
-    // Also left as `performance.measure` entries, so a sample shows up in a DevTools trace.
-    const now = performance.now();
-    for (const [series, value] of values) {
-      performance.measure(series, { start: now, duration: 0, detail: { value } });
-    }
   } finally {
     sampleValues = null;
-    await window.benchmarkRunHook?.('end');
+    // The collection and the run as spans of a trace, written after the run so that only reading
+    // the clock happens between the two.
+    performance.measure('collect', {
+      start: collectStart,
+      end: runStart,
+      detail: onBenchmarkTrack('tertiary'),
+    });
+    performance.measure('run', {
+      start: runStart,
+      end: performance.now(),
+      detail: onBenchmarkTrack('primary'),
+    });
+  }
+
+  if (values.size === 0) {
+    throw new Error(
+      `Benchmark "${name}" recorded no value. Record its results through a ScalarMetric or DiscreteMetric.`,
+    );
+  }
+  // Also left as `performance.measure` entries, so a sample shows up in a DevTools trace.
+  const now = performance.now();
+  for (const [series, value] of values) {
+    performance.measure(series, { start: now, duration: 0, detail: { value } });
   }
   return Object.fromEntries(values);
 }
