@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "inlineIntersection"
+					"name": "inlineIntersection",
+					"exportedAs": ["inlineIntersection"]
 				},
 				"callSignatures": [
 					{
@@ -138,7 +139,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "aliasedIntersection"
+					"name": "aliasedIntersection",
+					"exportedAs": ["aliasedIntersection"]
 				},
 				"callSignatures": [
 					{
@@ -273,7 +275,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "intersectionWithMethod"
+					"name": "intersectionWithMethod",
+					"exportedAs": ["intersectionWithMethod"]
 				},
 				"callSignatures": [
 					{

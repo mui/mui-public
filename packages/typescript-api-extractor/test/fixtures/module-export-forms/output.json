@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "inlineExport"
+					"name": "inlineExport",
+					"exportedAs": ["inlineExport"]
 				},
 				"callSignatures": [
 					{
@@ -27,7 +28,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "defaultExport"
+					"name": "defaultExport",
+					"exportedAs": ["default"]
 				},
 				"callSignatures": [
 					{
@@ -57,7 +59,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "overloadedFunction"
+					"name": "overloadedFunction",
+					"exportedAs": ["overloadedFunction", "aliasedOverloadedFunction"]
 				},
 				"callSignatures": [
 					{
@@ -103,7 +106,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "overloadedFunction"
+					"name": "overloadedFunction",
+					"exportedAs": ["overloadedFunction", "aliasedOverloadedFunction"]
 				},
 				"callSignatures": [
 					{
@@ -159,7 +163,8 @@
 									"kind": "object",
 									"typeName": {
 										"name": "Params",
-										"namespaces": ["functionAndNamespaceDeclaration"]
+										"namespaces": ["functionAndNamespaceDeclaration"],
+										"exportedAs": ["functionAndNamespaceDeclaration.Params"]
 									},
 									"properties": [
 										{
@@ -230,7 +235,8 @@
 				"kind": "object",
 				"typeName": {
 					"name": "Params",
-					"namespaces": ["functionAndNamespaceDeclaration"]
+					"namespaces": ["functionAndNamespaceDeclaration"],
+					"exportedAs": ["functionAndNamespaceDeclaration.Params"]
 				},
 				"properties": [
 					{

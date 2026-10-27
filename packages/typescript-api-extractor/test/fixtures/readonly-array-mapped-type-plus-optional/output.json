@@ -36,7 +36,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"exportedAs": ["Data"]
 				},
 				"elementType": {
 					"kind": "object",

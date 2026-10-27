@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "namespacedProps"
+					"name": "namespacedProps",
+					"exportedAs": ["namespacedProps"]
 				},
 				"callSignatures": [
 					{
@@ -84,7 +85,8 @@
 																	"type": {
 																		"kind": "intersection",
 																		"typeName": {
-																			"name": "GenericHTMLProps"
+																			"name": "GenericHTMLProps",
+																			"exportedAs": ["GenericHTMLProps"]
 																		},
 																		"types": [
 																			{
@@ -213,7 +215,8 @@
 																		"type": {
 																			"kind": "intersection",
 																			"typeName": {
-																				"name": "GenericHTMLProps"
+																				"name": "GenericHTMLProps",
+																				"exportedAs": ["GenericHTMLProps"]
 																			},
 																			"types": [
 																				{
@@ -421,7 +424,8 @@
 			"type": {
 				"kind": "intersection",
 				"typeName": {
-					"name": "GenericHTMLProps"
+					"name": "GenericHTMLProps",
+					"exportedAs": ["GenericHTMLProps"]
 				},
 				"types": [
 					{

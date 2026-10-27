@@ -3,11 +3,12 @@ import { ExportNode, TypeName, withTypeName } from '../models';
 import type { AnyType } from '../models';
 import { ParserError } from '../ParserError';
 import type { ScopedParserContext } from '../parserContext';
-import { isInternalSymbolName } from './common';
+import { getExportedAs, isInternalSymbolName } from './common';
 import { getDocumentationFromSymbol } from './documentationParser';
 import { resolveExportDescriptors } from './exportDescriptors';
 import type { ExportDescriptor } from './exportDescriptors';
 import { resolveType } from './typeResolver';
+import { resolveImportAlias } from './typeResolvers/referencedTypeAlias';
 
 /**
  * Converts one TypeScript module export symbol into output `ExportNode`s.
@@ -25,10 +26,39 @@ export function parseExport(
     parentNamespaces,
     containerSymbol,
   });
-  if (!descriptors) {
-    return undefined;
-  }
+  return descriptors ? createExportNodes(descriptors, parserContext) : undefined;
+}
 
+/**
+ * Records the public name of each descriptor under its target symbol, so type
+ * references resolved later can name the type the way the module exports it.
+ *
+ * Example: `export type { State as ToggleState } from './toggle'` records
+ * `ToggleState` for the `State` declared in `./toggle`.
+ */
+export function registerExportNames(
+  descriptors: ExportDescriptor[],
+  parserContext: ScopedParserContext,
+): void {
+  const { checker, exportNamesBySymbol } = parserContext;
+  for (const descriptor of descriptors) {
+    const symbol = resolveImportAlias(descriptor.symbol, checker) ?? descriptor.symbol;
+    const names = exportNamesBySymbol.get(symbol);
+    if (names) {
+      names.push(getExportName(descriptor));
+    } else {
+      exportNamesBySymbol.set(symbol, [getExportName(descriptor)]);
+    }
+  }
+}
+
+/**
+ * Converts the descriptors of one module export into output `ExportNode`s.
+ */
+export function createExportNodes(
+  descriptors: ExportDescriptor[],
+  parserContext: ScopedParserContext,
+): ExportNode[] | undefined {
   const nodesByDescriptor = new Map<ExportDescriptor, ExportNode[] | undefined>();
   for (const descriptor of getTypeResolutionOrderedDescriptors(descriptors)) {
     nodesByDescriptor.set(descriptor, createExportNodesFromDescriptor(descriptor, parserContext));
@@ -75,15 +105,11 @@ function createExportNodesFromDescriptor(
           return undefined;
         }
 
-        parsedType = applyExportTypeNameContext(parsedType, descriptor);
-        const exportName =
-          descriptor.parentNamespaces.length > 0
-            ? [...descriptor.parentNamespaces, descriptor.name].join('.')
-            : descriptor.name;
+        parsedType = applyExportTypeNameContext(parsedType, descriptor, parserContext);
 
         return [
           new ExportNode(
-            exportName,
+            getExportName(descriptor),
             parsedType,
             getDocumentationFromSymbol(descriptor.symbol, parserContext.checker),
             descriptor.declarationSpaces,
@@ -111,6 +137,7 @@ function createExportNodesFromDescriptor(
 function applyExportTypeNameContext<T extends AnyType>(
   parsedType: T,
   descriptor: ExportDescriptor,
+  parserContext: ScopedParserContext,
 ): T {
   if (!('typeName' in parsedType)) {
     return parsedType;
@@ -122,7 +149,12 @@ function applyExportTypeNameContext<T extends AnyType>(
   // Fix type names for resolved anonymous/internal symbols. Re-exported aliases
   // can otherwise lose their authored export name and surface as `__type`.
   if (typeName?.name != null && isInternalSymbolName(typeName.name)) {
-    typeName = new TypeName(descriptor.name, typeName.namespaces, typeName.typeArguments);
+    typeName = new TypeName(
+      descriptor.name,
+      typeName.namespaces,
+      typeName.typeArguments,
+      getExportedAs(descriptor.symbol, parserContext),
+    );
     typeNameChanged = true;
   }
 
@@ -134,11 +166,22 @@ function applyExportTypeNameContext<T extends AnyType>(
     // export parser first replaced `__type` with the public member name and
     // then overwrote the namespace, so `export * as NS` exposed `NS.member`
     // even for anonymous external object declarations.
-    typeName = new TypeName(descriptor.name, descriptor.parentNamespaces, typeName?.typeArguments);
+    typeName = new TypeName(
+      descriptor.name,
+      descriptor.parentNamespaces,
+      typeName?.typeArguments,
+      getExportedAs(descriptor.symbol, parserContext),
+    );
     typeNameChanged = true;
   }
 
   return typeNameChanged && typeName ? withTypeName(parsedType, typeName) : parsedType;
+}
+
+function getExportName(descriptor: ExportDescriptor): string {
+  return descriptor.parentNamespaces.length > 0
+    ? [...descriptor.parentNamespaces, descriptor.name].join('.')
+    : descriptor.name;
 }
 
 /**

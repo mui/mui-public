@@ -23,7 +23,8 @@
 														"kind": "object",
 														"typeName": {
 															"name": "Props",
-															"namespaces": ["BaseUIComponent1"]
+															"namespaces": ["BaseUIComponent1"],
+															"exportedAs": ["BaseUIComponent1.Props"]
 														},
 														"properties": [
 															{
@@ -32,7 +33,8 @@
 																	"kind": "intrinsic",
 																	"typeName": {
 																		"name": "Value",
-																		"namespaces": ["BaseUIComponent1"]
+																		"namespaces": ["BaseUIComponent1"],
+																		"exportedAs": ["BaseUIComponent1.Value"]
 																	},
 																	"intrinsic": "any"
 																},
@@ -53,7 +55,8 @@
 																								"kind": "intrinsic",
 																								"typeName": {
 																									"name": "Value",
-																									"namespaces": ["BaseUIComponent1"]
+																									"namespaces": ["BaseUIComponent1"],
+																									"exportedAs": ["BaseUIComponent1.Value"]
 																								},
 																								"intrinsic": "any"
 																							},
@@ -92,7 +95,8 @@
 																							"kind": "object",
 																							"typeName": {
 																								"name": "Actions",
-																								"namespaces": ["BaseUIComponent1"]
+																								"namespaces": ["BaseUIComponent1"],
+																								"exportedAs": ["BaseUIComponent1.Actions"]
 																							},
 																							"properties": [
 																								{
@@ -149,7 +153,8 @@
 																								"kind": "object",
 																								"typeName": {
 																									"name": "State",
-																									"namespaces": ["BaseUIComponent1"]
+																									"namespaces": ["BaseUIComponent1"],
+																									"exportedAs": ["BaseUIComponent1.State"]
 																								},
 																								"properties": [
 																									{
@@ -383,7 +388,8 @@
 																							"kind": "object",
 																							"typeName": {
 																								"name": "State",
-																								"namespaces": ["BaseUIComponent1"]
+																								"namespaces": ["BaseUIComponent1"],
+																								"exportedAs": ["BaseUIComponent1.State"]
 																							},
 																							"properties": [
 																								{
@@ -398,7 +404,8 @@
 																						},
 																						"equalToDefault": false
 																					}
-																				]
+																				],
+																				"exportedAs": ["ComponentRenderFn"]
 																			},
 																			"callSignatures": [
 																				{
@@ -522,7 +529,8 @@
 																								"kind": "object",
 																								"typeName": {
 																									"name": "State",
-																									"namespaces": ["BaseUIComponent1"]
+																									"namespaces": ["BaseUIComponent1"],
+																									"exportedAs": ["BaseUIComponent1.State"]
 																								},
 																								"properties": [
 																									{
@@ -635,7 +643,8 @@
 																				"kind": "object",
 																				"typeName": {
 																					"name": "State",
-																					"namespaces": ["BaseUIComponent1"]
+																					"namespaces": ["BaseUIComponent1"],
+																					"exportedAs": ["BaseUIComponent1.State"]
 																				},
 																				"properties": [
 																					{
@@ -673,7 +682,8 @@
 													"kind": "intrinsic",
 													"typeName": {
 														"name": "Value",
-														"namespaces": ["BaseUIComponent1"]
+														"namespaces": ["BaseUIComponent1"],
+														"exportedAs": ["BaseUIComponent1.Value"]
 													},
 													"intrinsic": "any"
 												},
@@ -694,7 +704,8 @@
 																				"kind": "intrinsic",
 																				"typeName": {
 																					"name": "Value",
-																					"namespaces": ["BaseUIComponent1"]
+																					"namespaces": ["BaseUIComponent1"],
+																					"exportedAs": ["BaseUIComponent1.Value"]
 																				},
 																				"intrinsic": "any"
 																			},
@@ -733,7 +744,8 @@
 																			"kind": "object",
 																			"typeName": {
 																				"name": "Actions",
-																				"namespaces": ["BaseUIComponent1"]
+																				"namespaces": ["BaseUIComponent1"],
+																				"exportedAs": ["BaseUIComponent1.Actions"]
 																			},
 																			"properties": [
 																				{
@@ -973,7 +985,8 @@
 																			"kind": "object",
 																			"typeName": {
 																				"name": "State",
-																				"namespaces": ["BaseUIComponent1"]
+																				"namespaces": ["BaseUIComponent1"],
+																				"exportedAs": ["BaseUIComponent1.State"]
 																			},
 																			"properties": [
 																				{
@@ -988,7 +1001,8 @@
 																		},
 																		"equalToDefault": false
 																	}
-																]
+																],
+																"exportedAs": ["ComponentRenderFn"]
 															},
 															"callSignatures": [
 																{
@@ -1112,7 +1126,8 @@
 																				"kind": "object",
 																				"typeName": {
 																					"name": "State",
-																					"namespaces": ["BaseUIComponent1"]
+																					"namespaces": ["BaseUIComponent1"],
+																					"exportedAs": ["BaseUIComponent1.State"]
 																				},
 																				"properties": [
 																					{
@@ -1241,7 +1256,8 @@
 																		"kind": "object",
 																		"typeName": {
 																			"name": "State",
-																			"namespaces": ["BaseUIComponent1"]
+																			"namespaces": ["BaseUIComponent1"],
+																			"exportedAs": ["BaseUIComponent1.State"]
 																		},
 																		"properties": [
 																			{
@@ -1279,7 +1295,8 @@
 											"kind": "intrinsic",
 											"typeName": {
 												"name": "Value",
-												"namespaces": ["BaseUIComponent1"]
+												"namespaces": ["BaseUIComponent1"],
+												"exportedAs": ["BaseUIComponent1.Value"]
 											},
 											"intrinsic": "any"
 										},
@@ -1300,7 +1317,8 @@
 																		"kind": "intrinsic",
 																		"typeName": {
 																			"name": "Value",
-																			"namespaces": ["BaseUIComponent1"]
+																			"namespaces": ["BaseUIComponent1"],
+																			"exportedAs": ["BaseUIComponent1.Value"]
 																		},
 																		"intrinsic": "any"
 																	},
@@ -1339,7 +1357,8 @@
 																	"kind": "object",
 																	"typeName": {
 																		"name": "Actions",
-																		"namespaces": ["BaseUIComponent1"]
+																		"namespaces": ["BaseUIComponent1"],
+																		"exportedAs": ["BaseUIComponent1.Actions"]
 																	},
 																	"properties": [
 																		{
@@ -1579,7 +1598,8 @@
 																	"kind": "object",
 																	"typeName": {
 																		"name": "State",
-																		"namespaces": ["BaseUIComponent1"]
+																		"namespaces": ["BaseUIComponent1"],
+																		"exportedAs": ["BaseUIComponent1.State"]
 																	},
 																	"properties": [
 																		{
@@ -1594,7 +1614,8 @@
 																},
 																"equalToDefault": false
 															}
-														]
+														],
+														"exportedAs": ["ComponentRenderFn"]
 													},
 													"callSignatures": [
 														{
@@ -1718,7 +1739,8 @@
 																		"kind": "object",
 																		"typeName": {
 																			"name": "State",
-																			"namespaces": ["BaseUIComponent1"]
+																			"namespaces": ["BaseUIComponent1"],
+																			"exportedAs": ["BaseUIComponent1.State"]
 																		},
 																		"properties": [
 																			{
@@ -1824,7 +1846,8 @@
 														"kind": "object",
 														"typeName": {
 															"name": "State",
-															"namespaces": ["BaseUIComponent1"]
+															"namespaces": ["BaseUIComponent1"],
+															"exportedAs": ["BaseUIComponent1.State"]
 														},
 														"properties": [
 															{
@@ -1862,7 +1885,8 @@
 							"kind": "intrinsic",
 							"typeName": {
 								"name": "Value",
-								"namespaces": ["BaseUIComponent1"]
+								"namespaces": ["BaseUIComponent1"],
+								"exportedAs": ["BaseUIComponent1.Value"]
 							},
 							"intrinsic": "any"
 						},
@@ -1883,7 +1907,8 @@
 														"kind": "intrinsic",
 														"typeName": {
 															"name": "Value",
-															"namespaces": ["BaseUIComponent1"]
+															"namespaces": ["BaseUIComponent1"],
+															"exportedAs": ["BaseUIComponent1.Value"]
 														},
 														"intrinsic": "any"
 													},
@@ -1922,7 +1947,8 @@
 													"kind": "object",
 													"typeName": {
 														"name": "Actions",
-														"namespaces": ["BaseUIComponent1"]
+														"namespaces": ["BaseUIComponent1"],
+														"exportedAs": ["BaseUIComponent1.Actions"]
 													},
 													"properties": [
 														{
@@ -2162,7 +2188,8 @@
 													"kind": "object",
 													"typeName": {
 														"name": "State",
-														"namespaces": ["BaseUIComponent1"]
+														"namespaces": ["BaseUIComponent1"],
+														"exportedAs": ["BaseUIComponent1.State"]
 													},
 													"properties": [
 														{
@@ -2177,7 +2204,8 @@
 												},
 												"equalToDefault": false
 											}
-										]
+										],
+										"exportedAs": ["ComponentRenderFn"]
 									},
 									"callSignatures": [
 										{
@@ -2301,7 +2329,8 @@
 														"kind": "object",
 														"typeName": {
 															"name": "State",
-															"namespaces": ["BaseUIComponent1"]
+															"namespaces": ["BaseUIComponent1"],
+															"exportedAs": ["BaseUIComponent1.State"]
 														},
 														"properties": [
 															{
@@ -2393,7 +2422,8 @@
 				"kind": "object",
 				"typeName": {
 					"name": "Props",
-					"namespaces": ["BaseUIComponent1"]
+					"namespaces": ["BaseUIComponent1"],
+					"exportedAs": ["BaseUIComponent1.Props"]
 				},
 				"properties": [
 					{
@@ -2402,7 +2432,8 @@
 							"kind": "intrinsic",
 							"typeName": {
 								"name": "Value",
-								"namespaces": ["BaseUIComponent1"]
+								"namespaces": ["BaseUIComponent1"],
+								"exportedAs": ["BaseUIComponent1.Value"]
 							},
 							"intrinsic": "any"
 						},
@@ -2423,7 +2454,8 @@
 														"kind": "intrinsic",
 														"typeName": {
 															"name": "Value",
-															"namespaces": ["BaseUIComponent1"]
+															"namespaces": ["BaseUIComponent1"],
+															"exportedAs": ["BaseUIComponent1.Value"]
 														},
 														"intrinsic": "any"
 													},
@@ -2462,7 +2494,8 @@
 													"kind": "object",
 													"typeName": {
 														"name": "Actions",
-														"namespaces": ["BaseUIComponent1"]
+														"namespaces": ["BaseUIComponent1"],
+														"exportedAs": ["BaseUIComponent1.Actions"]
 													},
 													"properties": [
 														{
@@ -2519,7 +2552,8 @@
 														"kind": "object",
 														"typeName": {
 															"name": "State",
-															"namespaces": ["BaseUIComponent1"]
+															"namespaces": ["BaseUIComponent1"],
+															"exportedAs": ["BaseUIComponent1.State"]
 														},
 														"properties": [
 															{
@@ -2753,7 +2787,8 @@
 													"kind": "object",
 													"typeName": {
 														"name": "State",
-														"namespaces": ["BaseUIComponent1"]
+														"namespaces": ["BaseUIComponent1"],
+														"exportedAs": ["BaseUIComponent1.State"]
 													},
 													"properties": [
 														{
@@ -2768,7 +2803,8 @@
 												},
 												"equalToDefault": false
 											}
-										]
+										],
+										"exportedAs": ["ComponentRenderFn"]
 									},
 									"callSignatures": [
 										{
@@ -2892,7 +2928,8 @@
 														"kind": "object",
 														"typeName": {
 															"name": "State",
-															"namespaces": ["BaseUIComponent1"]
+															"namespaces": ["BaseUIComponent1"],
+															"exportedAs": ["BaseUIComponent1.State"]
 														},
 														"properties": [
 															{
@@ -2989,7 +3026,8 @@
 				"kind": "object",
 				"typeName": {
 					"name": "State",
-					"namespaces": ["BaseUIComponent1"]
+					"namespaces": ["BaseUIComponent1"],
+					"exportedAs": ["BaseUIComponent1.State"]
 				},
 				"properties": [
 					{
@@ -3012,7 +3050,8 @@
 				"kind": "object",
 				"typeName": {
 					"name": "Actions",
-					"namespaces": ["BaseUIComponent1"]
+					"namespaces": ["BaseUIComponent1"],
+					"exportedAs": ["BaseUIComponent1.Actions"]
 				},
 				"properties": [
 					{
@@ -3043,7 +3082,8 @@
 				"kind": "intrinsic",
 				"typeName": {
 					"name": "Value",
-					"namespaces": ["BaseUIComponent1"]
+					"namespaces": ["BaseUIComponent1"],
+					"exportedAs": ["BaseUIComponent1.Value"]
 				},
 				"intrinsic": "any"
 			},
@@ -3092,7 +3132,8 @@
 														"kind": "object",
 														"typeName": {
 															"name": "Props",
-															"namespaces": ["BaseUIComponent2"]
+															"namespaces": ["BaseUIComponent2"],
+															"exportedAs": ["BaseUIComponent2.Props"]
 														},
 														"properties": [
 															{
@@ -3114,7 +3155,8 @@
 																								"kind": "object",
 																								"typeName": {
 																									"name": "State",
-																									"namespaces": ["BaseUIComponent2"]
+																									"namespaces": ["BaseUIComponent2"],
+																									"exportedAs": ["BaseUIComponent2.State"]
 																								},
 																								"properties": []
 																							},
@@ -3339,13 +3381,15 @@
 																							"kind": "object",
 																							"typeName": {
 																								"name": "State",
-																								"namespaces": ["BaseUIComponent2"]
+																								"namespaces": ["BaseUIComponent2"],
+																								"exportedAs": ["BaseUIComponent2.State"]
 																							},
 																							"properties": []
 																						},
 																						"equalToDefault": false
 																					}
-																				]
+																				],
+																				"exportedAs": ["ComponentRenderFn"]
 																			},
 																			"callSignatures": [
 																				{
@@ -3469,7 +3513,8 @@
 																								"kind": "object",
 																								"typeName": {
 																									"name": "State",
-																									"namespaces": ["BaseUIComponent2"]
+																									"namespaces": ["BaseUIComponent2"],
+																									"exportedAs": ["BaseUIComponent2.State"]
 																								},
 																								"properties": []
 																							},
@@ -3573,7 +3618,8 @@
 																				"kind": "object",
 																				"typeName": {
 																					"name": "State",
-																					"namespaces": ["BaseUIComponent2"]
+																					"namespaces": ["BaseUIComponent2"],
+																					"exportedAs": ["BaseUIComponent2.State"]
 																				},
 																				"properties": []
 																			},
@@ -3798,13 +3844,15 @@
 																			"kind": "object",
 																			"typeName": {
 																				"name": "State",
-																				"namespaces": ["BaseUIComponent2"]
+																				"namespaces": ["BaseUIComponent2"],
+																				"exportedAs": ["BaseUIComponent2.State"]
 																			},
 																			"properties": []
 																		},
 																		"equalToDefault": false
 																	}
-																]
+																],
+																"exportedAs": ["ComponentRenderFn"]
 															},
 															"callSignatures": [
 																{
@@ -3928,7 +3976,8 @@
 																				"kind": "object",
 																				"typeName": {
 																					"name": "State",
-																					"namespaces": ["BaseUIComponent2"]
+																					"namespaces": ["BaseUIComponent2"],
+																					"exportedAs": ["BaseUIComponent2.State"]
 																				},
 																				"properties": []
 																			},
@@ -4048,7 +4097,8 @@
 																		"kind": "object",
 																		"typeName": {
 																			"name": "State",
-																			"namespaces": ["BaseUIComponent2"]
+																			"namespaces": ["BaseUIComponent2"],
+																			"exportedAs": ["BaseUIComponent2.State"]
 																		},
 																		"properties": []
 																	},
@@ -4273,13 +4323,15 @@
 																	"kind": "object",
 																	"typeName": {
 																		"name": "State",
-																		"namespaces": ["BaseUIComponent2"]
+																		"namespaces": ["BaseUIComponent2"],
+																		"exportedAs": ["BaseUIComponent2.State"]
 																	},
 																	"properties": []
 																},
 																"equalToDefault": false
 															}
-														]
+														],
+														"exportedAs": ["ComponentRenderFn"]
 													},
 													"callSignatures": [
 														{
@@ -4403,7 +4455,8 @@
 																		"kind": "object",
 																		"typeName": {
 																			"name": "State",
-																			"namespaces": ["BaseUIComponent2"]
+																			"namespaces": ["BaseUIComponent2"],
+																			"exportedAs": ["BaseUIComponent2.State"]
 																		},
 																		"properties": []
 																	},
@@ -4500,7 +4553,8 @@
 														"kind": "object",
 														"typeName": {
 															"name": "State",
-															"namespaces": ["BaseUIComponent2"]
+															"namespaces": ["BaseUIComponent2"],
+															"exportedAs": ["BaseUIComponent2.State"]
 														},
 														"properties": []
 													},
@@ -4725,13 +4779,15 @@
 													"kind": "object",
 													"typeName": {
 														"name": "State",
-														"namespaces": ["BaseUIComponent2"]
+														"namespaces": ["BaseUIComponent2"],
+														"exportedAs": ["BaseUIComponent2.State"]
 													},
 													"properties": []
 												},
 												"equalToDefault": false
 											}
-										]
+										],
+										"exportedAs": ["ComponentRenderFn"]
 									},
 									"callSignatures": [
 										{
@@ -4855,7 +4911,8 @@
 														"kind": "object",
 														"typeName": {
 															"name": "State",
-															"namespaces": ["BaseUIComponent2"]
+															"namespaces": ["BaseUIComponent2"],
+															"exportedAs": ["BaseUIComponent2.State"]
 														},
 														"properties": []
 													},
@@ -4938,7 +4995,8 @@
 				"kind": "object",
 				"typeName": {
 					"name": "Props",
-					"namespaces": ["BaseUIComponent2"]
+					"namespaces": ["BaseUIComponent2"],
+					"exportedAs": ["BaseUIComponent2.Props"]
 				},
 				"properties": [
 					{
@@ -4960,7 +5018,8 @@
 														"kind": "object",
 														"typeName": {
 															"name": "State",
-															"namespaces": ["BaseUIComponent2"]
+															"namespaces": ["BaseUIComponent2"],
+															"exportedAs": ["BaseUIComponent2.State"]
 														},
 														"properties": []
 													},
@@ -5185,13 +5244,15 @@
 													"kind": "object",
 													"typeName": {
 														"name": "State",
-														"namespaces": ["BaseUIComponent2"]
+														"namespaces": ["BaseUIComponent2"],
+														"exportedAs": ["BaseUIComponent2.State"]
 													},
 													"properties": []
 												},
 												"equalToDefault": false
 											}
-										]
+										],
+										"exportedAs": ["ComponentRenderFn"]
 									},
 									"callSignatures": [
 										{
@@ -5315,7 +5376,8 @@
 														"kind": "object",
 														"typeName": {
 															"name": "State",
-															"namespaces": ["BaseUIComponent2"]
+															"namespaces": ["BaseUIComponent2"],
+															"exportedAs": ["BaseUIComponent2.State"]
 														},
 														"properties": []
 													},
@@ -5403,7 +5465,8 @@
 				"kind": "object",
 				"typeName": {
 					"name": "State",
-					"namespaces": ["BaseUIComponent2"]
+					"namespaces": ["BaseUIComponent2"],
+					"exportedAs": ["BaseUIComponent2.State"]
 				},
 				"properties": []
 			},
@@ -5432,7 +5495,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"exportedAs": ["ComponentRenderFn"]
 				},
 				"props": []
 			},

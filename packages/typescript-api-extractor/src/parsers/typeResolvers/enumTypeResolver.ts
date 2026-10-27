@@ -3,7 +3,7 @@ import type { ScopedParserContext } from '../../parserContext';
 import { EnumNode, EnumMember, IntrinsicNode } from '../../models';
 import type { AnyType } from '../../models';
 import { getDocumentationFromSymbol } from '../documentationParser';
-import { getTypeNamespaces } from '../common';
+import { getExportedAs, getTypeNamespaces } from '../common';
 import { ParserError } from '../../ParserError';
 import { TypeName } from '../../models/typeName';
 import type { TypeResolutionRequest, TypeResolutionSession } from '../typeResolutionTypes';
@@ -58,7 +58,12 @@ function buildEnumNodeFromSymbol(symbol: ts.Symbol, context: ScopedParserContext
       const namespaces = getTypeNamespaces(symbolType);
 
       return new EnumNode(
-        new TypeName(symbol.getName(), namespaces.length > 0 ? namespaces : undefined),
+        new TypeName(
+          symbol.getName(),
+          namespaces.length > 0 ? namespaces : undefined,
+          undefined,
+          getExportedAs(symbol, context),
+        ),
         members,
         getDocumentationFromSymbol(symbol, checker),
       );

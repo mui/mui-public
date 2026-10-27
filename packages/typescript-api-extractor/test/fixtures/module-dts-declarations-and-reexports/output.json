@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "processType"
+					"name": "processType",
+					"exportedAs": ["processType"]
 				},
 				"callSignatures": [
 					{
@@ -15,7 +16,8 @@
 								"type": {
 									"kind": "object",
 									"typeName": {
-										"name": "FormattedParameter"
+										"name": "FormattedParameter",
+										"exportedAs": ["FormattedParameter"]
 									},
 									"properties": [
 										{
@@ -60,7 +62,8 @@
 						"returnValueType": {
 							"kind": "object",
 							"typeName": {
-								"name": "FormattedProperty"
+								"name": "FormattedProperty",
+								"exportedAs": ["FormattedProperty"]
 							},
 							"properties": [
 								{
@@ -102,7 +105,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "wrapValue"
+					"name": "wrapValue",
+					"exportedAs": ["wrapValue"]
 				},
 				"callSignatures": [
 					{
@@ -128,7 +132,8 @@
 										},
 										"equalToDefault": false
 									}
-								]
+								],
+								"exportedAs": ["TypeContainer"]
 							},
 							"properties": [
 								{
@@ -198,7 +203,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "FormattedProperty"
+					"name": "FormattedProperty",
+					"exportedAs": ["FormattedProperty"]
 				},
 				"properties": [
 					{
@@ -237,7 +243,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "FormattedParameter"
+					"name": "FormattedParameter",
+					"exportedAs": ["FormattedParameter"]
 				},
 				"properties": [
 					{
@@ -293,7 +300,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"exportedAs": ["TypeContainer"]
 				},
 				"properties": [
 					{
@@ -389,7 +397,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "formatType"
+					"name": "formatType",
+					"exportedAs": ["formatType"]
 				},
 				"callSignatures": [
 					{
@@ -406,7 +415,8 @@
 						"returnValueType": {
 							"kind": "object",
 							"typeName": {
-								"name": "FormattedProperty"
+								"name": "FormattedProperty",
+								"exportedAs": ["FormattedProperty"]
 							},
 							"properties": [
 								{
@@ -448,7 +458,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "parseParameters"
+					"name": "parseParameters",
+					"exportedAs": ["parseParameters"]
 				},
 				"callSignatures": [
 					{
@@ -467,7 +478,8 @@
 							"elementType": {
 								"kind": "object",
 								"typeName": {
-									"name": "FormattedParameter"
+									"name": "FormattedParameter",
+									"exportedAs": ["FormattedParameter"]
 								},
 								"properties": [
 									{

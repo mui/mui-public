@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "referenceTypes"
+					"name": "referenceTypes",
+					"exportedAs": ["referenceTypes"]
 				},
 				"callSignatures": [
 					{
@@ -101,7 +102,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "inlineTypes"
+					"name": "inlineTypes",
+					"exportedAs": ["inlineTypes"]
 				},
 				"callSignatures": [
 					{

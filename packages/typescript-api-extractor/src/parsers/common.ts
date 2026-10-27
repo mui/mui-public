@@ -7,7 +7,7 @@ import {
   containsKeyofTypeOperatorOrAlias,
   substituteTypeParameterTypeNode,
 } from './typeResolvers/typeOperatorTypeNodes';
-import { getReferenceEntityName } from './typeResolvers/referencedTypeAlias';
+import { getReferenceEntityName, resolveImportAlias } from './typeResolvers/referencedTypeAlias';
 
 /**
  * Known TypeScript compiler-generated internal symbol names.
@@ -139,9 +139,22 @@ export function getFullNameWithSymbol(
       named.name,
       namespaces.length > 0 ? namespaces : undefined,
       typeArguments.length > 0 ? typeArguments : undefined,
+      getExportedAs(named.symbol, context),
     ),
     symbol: named.symbol,
   };
+}
+
+/**
+ * Returns the names under which the parsed module exports a symbol, following
+ * import aliases, or undefined when the module doesn't export it.
+ */
+export function getExportedAs(
+  symbol: ts.Symbol | undefined,
+  context: ScopedParserContext,
+): string[] | undefined {
+  const target = resolveImportAlias(symbol, context.checker);
+  return target ? context.exportNamesBySymbol.get(target) : undefined;
 }
 
 /**

@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "Colliding"
+					"name": "Colliding",
+					"exportedAs": ["Colliding"]
 				},
 				"types": [
 					{
@@ -198,7 +199,8 @@
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "AlphaEquiv"
+					"name": "AlphaEquiv",
+					"exportedAs": ["AlphaEquiv"]
 				},
 				"types": [
 					{

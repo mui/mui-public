@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "Fn"
+					"name": "Fn",
+					"exportedAs": ["Fn"]
 				},
 				"types": [
 					{
@@ -86,7 +87,8 @@
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "Outer"
+					"name": "Outer",
+					"exportedAs": ["Outer"]
 				},
 				"types": [
 					{

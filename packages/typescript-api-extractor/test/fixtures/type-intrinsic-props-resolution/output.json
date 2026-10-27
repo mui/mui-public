@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "IntrinsicPropsComponent"
+					"name": "IntrinsicPropsComponent",
+					"exportedAs": ["IntrinsicPropsComponent"]
 				},
 				"props": [
 					{

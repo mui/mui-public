@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "useNamed"
+					"name": "useNamed",
+					"exportedAs": ["useNamed"]
 				},
 				"callSignatures": [
 					{
@@ -15,7 +16,8 @@
 								"type": {
 									"kind": "object",
 									"typeName": {
-										"name": "__Named"
+										"name": "__Named",
+										"exportedAs": ["__Named"]
 									},
 									"properties": [
 										{
@@ -35,7 +37,8 @@
 						"returnValueType": {
 							"kind": "object",
 							"typeName": {
-								"name": "__Named"
+								"name": "__Named",
+								"exportedAs": ["__Named"]
 							},
 							"properties": [
 								{
@@ -60,7 +63,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "__Named"
+					"name": "__Named",
+					"exportedAs": ["__Named"]
 				},
 				"properties": [
 					{

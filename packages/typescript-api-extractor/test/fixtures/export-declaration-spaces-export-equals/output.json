@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "class",
 				"typeName": {
-					"name": "Service"
+					"name": "Service",
+					"exportedAs": ["Service", "TypeOnlyService"]
 				},
 				"constructSignatures": [
 					{
@@ -36,7 +37,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "Service"
+					"name": "Service",
+					"exportedAs": ["Service", "TypeOnlyService"]
 				},
 				"properties": [
 					{

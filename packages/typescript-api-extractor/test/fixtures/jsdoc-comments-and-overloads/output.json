@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "TestComponent"
+					"name": "TestComponent",
+					"exportedAs": ["TestComponent"]
 				},
 				"props": [
 					{
@@ -68,7 +69,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "testFunction"
+					"name": "testFunction",
+					"exportedAs": ["testFunction"]
 				},
 				"callSignatures": [
 					{

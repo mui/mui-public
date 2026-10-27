@@ -77,7 +77,7 @@ function buildClassNodeFromType(
 
   const fqn = getFullName(type, undefined, context);
   const typeName = fqn?.name
-    ? new TypeName(fqn.name, fqn.namespaces, fqn.typeArguments)
+    ? new TypeName(fqn.name, fqn.namespaces, fqn.typeArguments, fqn.exportedAs)
     : undefined;
 
   // Parse construct signatures

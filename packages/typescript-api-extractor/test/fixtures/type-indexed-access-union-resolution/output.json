@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "useConfig"
+					"name": "useConfig",
+					"exportedAs": ["useConfig"]
 				},
 				"callSignatures": [
 					{
@@ -52,7 +53,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "Props"
+					"name": "Props",
+					"exportedAs": ["Props"]
 				},
 				"properties": [
 					{

@@ -1,0 +1,183 @@
+{
+	"name": "test/fixtures/module-reexports-renamed-type-references/input",
+	"exports": [
+		{
+			"name": "ToggleState",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "State",
+					"exportedAs": ["ToggleState"]
+				},
+				"properties": [
+					{
+						"name": "on",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "boolean"
+						},
+						"optional": false
+					}
+				]
+			},
+			"reexportedFrom": "State",
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "ToggleHolder",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Holder",
+					"exportedAs": ["ToggleHolder"]
+				},
+				"properties": [
+					{
+						"name": "state",
+						"type": {
+							"kind": "object",
+							"typeName": {
+								"name": "State",
+								"exportedAs": ["ToggleState"]
+							},
+							"properties": [
+								{
+									"name": "on",
+									"type": {
+										"kind": "intrinsic",
+										"intrinsic": "boolean"
+									},
+									"optional": false
+								}
+							]
+						},
+						"optional": false
+					}
+				]
+			},
+			"reexportedFrom": "Holder",
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "SwitchState",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "State",
+					"exportedAs": ["SwitchState"]
+				},
+				"properties": [
+					{
+						"name": "checked",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "boolean"
+						},
+						"optional": false
+					}
+				]
+			},
+			"reexportedFrom": "State",
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "SwitchHolder",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Holder",
+					"exportedAs": ["SwitchHolder"]
+				},
+				"properties": [
+					{
+						"name": "state",
+						"type": {
+							"kind": "object",
+							"typeName": {
+								"name": "State",
+								"exportedAs": ["SwitchState"]
+							},
+							"properties": [
+								{
+									"name": "checked",
+									"type": {
+										"kind": "intrinsic",
+										"intrinsic": "boolean"
+									},
+									"optional": false
+								}
+							]
+						},
+						"optional": false
+					}
+				]
+			},
+			"reexportedFrom": "Holder",
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Container",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Container",
+					"exportedAs": ["Container"]
+				},
+				"properties": [
+					{
+						"name": "state",
+						"type": {
+							"kind": "object",
+							"typeName": {
+								"name": "State"
+							},
+							"properties": [
+								{
+									"name": "open",
+									"type": {
+										"kind": "intrinsic",
+										"intrinsic": "boolean"
+									},
+									"optional": false
+								}
+							]
+						},
+						"optional": false
+					},
+					{
+						"name": "toggle",
+						"type": {
+							"kind": "object",
+							"typeName": {
+								"name": "ImportedToggleState",
+								"exportedAs": ["ToggleState"]
+							},
+							"properties": [
+								{
+									"name": "on",
+									"type": {
+										"kind": "intrinsic",
+										"intrinsic": "boolean"
+									},
+									"optional": false
+								}
+							]
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

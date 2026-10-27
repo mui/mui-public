@@ -23,7 +23,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"exportedAs": ["Manager"]
 				},
 				"properties": [
 					{

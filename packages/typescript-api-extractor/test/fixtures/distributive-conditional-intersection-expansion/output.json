@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "EventDetailsHandlers"
+					"name": "EventDetailsHandlers",
+					"exportedAs": ["EventDetailsHandlers"]
 				},
 				"properties": [
 					{

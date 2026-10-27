@@ -55,6 +55,7 @@ function buildFunctionNodeFromType(
       (symbol?.valueDeclaration as FunctionDeclaration | undefined)?.name?.getText() ?? 'default',
       typeName.namespaces,
       typeName.typeArguments,
+      typeName.exportedAs,
     );
   }
 

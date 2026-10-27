@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "IntersectionOrderIndependent"
+					"name": "IntersectionOrderIndependent",
+					"exportedAs": ["IntersectionOrderIndependent"]
 				},
 				"types": [
 					{
@@ -92,7 +93,8 @@
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "IntersectionNotEquivalent"
+					"name": "IntersectionNotEquivalent",
+					"exportedAs": ["IntersectionNotEquivalent"]
 				},
 				"types": [
 					{

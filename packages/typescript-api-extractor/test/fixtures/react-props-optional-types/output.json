@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "OptionalPropsComponent"
+					"name": "OptionalPropsComponent",
+					"exportedAs": ["OptionalPropsComponent"]
 				},
 				"props": [
 					{

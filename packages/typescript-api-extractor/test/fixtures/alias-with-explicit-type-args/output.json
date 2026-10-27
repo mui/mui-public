@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "AliasDefaults"
+					"name": "AliasDefaults",
+					"exportedAs": ["AliasDefaults"]
 				},
 				"properties": [
 					{

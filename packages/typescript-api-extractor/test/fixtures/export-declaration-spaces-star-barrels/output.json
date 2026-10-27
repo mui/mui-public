@@ -6,7 +6,12 @@
 			"type": {
 				"typeName": {
 					"name": "BarrelEnum",
-					"namespaces": ["TypeOnlyBarrelNamespace"]
+					"namespaces": ["TypeOnlyBarrelNamespace"],
+					"exportedAs": [
+						"TypeOnlyBarrelNamespace.BarrelEnum",
+						"ValueBarrelNamespace.BarrelEnum",
+						"BarrelEnum"
+					]
 				},
 				"members": [
 					{
@@ -25,7 +30,12 @@
 			"type": {
 				"typeName": {
 					"name": "NamespaceEnum",
-					"namespaces": ["TypeOnlyBarrelNamespace"]
+					"namespaces": ["TypeOnlyBarrelNamespace"],
+					"exportedAs": [
+						"TypeOnlyBarrelNamespace.NamespaceEnum",
+						"ValueBarrelNamespace.NamespaceEnum",
+						"NamespaceEnum"
+					]
 				},
 				"members": [
 					{
@@ -45,7 +55,12 @@
 				"kind": "class",
 				"typeName": {
 					"name": "BarrelClass",
-					"namespaces": ["TypeOnlyBarrelNamespace"]
+					"namespaces": ["TypeOnlyBarrelNamespace"],
+					"exportedAs": [
+						"TypeOnlyBarrelNamespace.BarrelClass",
+						"ValueBarrelNamespace.BarrelClass",
+						"BarrelClass"
+					]
 				},
 				"constructSignatures": [
 					{
@@ -75,7 +90,12 @@
 			"type": {
 				"typeName": {
 					"name": "BarrelEnum",
-					"namespaces": ["ValueBarrelNamespace"]
+					"namespaces": ["ValueBarrelNamespace"],
+					"exportedAs": [
+						"TypeOnlyBarrelNamespace.BarrelEnum",
+						"ValueBarrelNamespace.BarrelEnum",
+						"BarrelEnum"
+					]
 				},
 				"members": [
 					{
@@ -94,7 +114,12 @@
 			"type": {
 				"typeName": {
 					"name": "NamespaceEnum",
-					"namespaces": ["ValueBarrelNamespace"]
+					"namespaces": ["ValueBarrelNamespace"],
+					"exportedAs": [
+						"TypeOnlyBarrelNamespace.NamespaceEnum",
+						"ValueBarrelNamespace.NamespaceEnum",
+						"NamespaceEnum"
+					]
 				},
 				"members": [
 					{
@@ -114,7 +139,8 @@
 				"kind": "function",
 				"typeName": {
 					"name": "barrelFunction",
-					"namespaces": ["ValueBarrelNamespace"]
+					"namespaces": ["ValueBarrelNamespace"],
+					"exportedAs": ["ValueBarrelNamespace.barrelFunction"]
 				},
 				"callSignatures": [
 					{
@@ -136,7 +162,12 @@
 				"kind": "class",
 				"typeName": {
 					"name": "BarrelClass",
-					"namespaces": ["ValueBarrelNamespace"]
+					"namespaces": ["ValueBarrelNamespace"],
+					"exportedAs": [
+						"TypeOnlyBarrelNamespace.BarrelClass",
+						"ValueBarrelNamespace.BarrelClass",
+						"BarrelClass"
+					]
 				},
 				"constructSignatures": [
 					{
@@ -165,7 +196,12 @@
 			"name": "BarrelEnum",
 			"type": {
 				"typeName": {
-					"name": "BarrelEnum"
+					"name": "BarrelEnum",
+					"exportedAs": [
+						"TypeOnlyBarrelNamespace.BarrelEnum",
+						"ValueBarrelNamespace.BarrelEnum",
+						"BarrelEnum"
+					]
 				},
 				"members": [
 					{
@@ -183,7 +219,12 @@
 			"name": "NamespaceEnum",
 			"type": {
 				"typeName": {
-					"name": "NamespaceEnum"
+					"name": "NamespaceEnum",
+					"exportedAs": [
+						"TypeOnlyBarrelNamespace.NamespaceEnum",
+						"ValueBarrelNamespace.NamespaceEnum",
+						"NamespaceEnum"
+					]
 				},
 				"members": [
 					{
@@ -202,7 +243,12 @@
 			"type": {
 				"kind": "class",
 				"typeName": {
-					"name": "BarrelClass"
+					"name": "BarrelClass",
+					"exportedAs": [
+						"TypeOnlyBarrelNamespace.BarrelClass",
+						"ValueBarrelNamespace.BarrelClass",
+						"BarrelClass"
+					]
 				},
 				"constructSignatures": [
 					{
@@ -232,7 +278,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "BarrelProps"
+					"name": "BarrelProps",
+					"exportedAs": ["BarrelProps"]
 				},
 				"properties": [
 					{
@@ -254,7 +301,8 @@
 			"type": {
 				"kind": "class",
 				"typeName": {
-					"name": "DualPathClass"
+					"name": "DualPathClass",
+					"exportedAs": ["DualPathClass"]
 				},
 				"constructSignatures": [
 					{
@@ -284,7 +332,8 @@
 			"type": {
 				"kind": "class",
 				"typeName": {
-					"name": "ReexportedBarrelClass"
+					"name": "ReexportedBarrelClass",
+					"exportedAs": ["ReexportedBarrelClass"]
 				},
 				"constructSignatures": [
 					{

@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "acceptsIndexSignatures"
+					"name": "acceptsIndexSignatures",
+					"exportedAs": ["acceptsIndexSignatures"]
 				},
 				"callSignatures": [
 					{
@@ -85,7 +86,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "returnsIndexSignature"
+					"name": "returnsIndexSignature",
+					"exportedAs": ["returnsIndexSignature"]
 				},
 				"callSignatures": [
 					{
@@ -114,7 +116,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "MyComponent"
+					"name": "MyComponent",
+					"exportedAs": ["MyComponent"]
 				},
 				"callSignatures": [
 					{
@@ -170,7 +173,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "StringIndexType"
+					"name": "StringIndexType",
+					"exportedAs": ["StringIndexType"]
 				},
 				"properties": [],
 				"indexSignature": {
@@ -191,7 +195,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "NumberIndexType"
+					"name": "NumberIndexType",
+					"exportedAs": ["NumberIndexType"]
 				},
 				"properties": [],
 				"indexSignature": {
@@ -212,7 +217,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "TypeWithCustomKeyName"
+					"name": "TypeWithCustomKeyName",
+					"exportedAs": ["TypeWithCustomKeyName"]
 				},
 				"properties": [],
 				"indexSignature": {
@@ -233,7 +239,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "TypeWithNestedCustomKey"
+					"name": "TypeWithNestedCustomKey",
+					"exportedAs": ["TypeWithNestedCustomKey"]
 				},
 				"properties": [],
 				"indexSignature": {
@@ -263,7 +270,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "SimpleIndex"
+					"name": "SimpleIndex",
+					"exportedAs": ["SimpleIndex"]
 				},
 				"properties": [],
 				"indexSignature": {
@@ -284,7 +292,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "VariantExtraFiles"
+					"name": "VariantExtraFiles",
+					"exportedAs": ["VariantExtraFiles"]
 				},
 				"properties": [],
 				"indexSignature": {
@@ -323,7 +332,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "OuterType"
+					"name": "OuterType",
+					"exportedAs": ["OuterType"]
 				},
 				"properties": [
 					{
@@ -353,7 +363,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "MixedType"
+					"name": "MixedType",
+					"exportedAs": ["MixedType"]
 				},
 				"properties": [
 					{
@@ -392,7 +403,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "IndexedInterface"
+					"name": "IndexedInterface",
+					"exportedAs": ["IndexedInterface"]
 				},
 				"properties": [],
 				"indexSignature": {
@@ -413,7 +425,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "HelperType"
+					"name": "HelperType",
+					"exportedAs": ["HelperType"]
 				},
 				"properties": [],
 				"indexSignature": {
@@ -452,7 +465,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "HelperType"
+					"name": "HelperType",
+					"exportedAs": ["HelperType"]
 				},
 				"properties": [],
 				"indexSignature": {
@@ -491,7 +505,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "MyInterface"
+					"name": "MyInterface",
+					"exportedAs": ["MyInterface"]
 				},
 				"properties": [
 					{
@@ -499,7 +514,8 @@
 						"type": {
 							"kind": "object",
 							"typeName": {
-								"name": "HelperType"
+								"name": "HelperType",
+								"exportedAs": ["HelperType"]
 							},
 							"properties": [],
 							"indexSignature": {

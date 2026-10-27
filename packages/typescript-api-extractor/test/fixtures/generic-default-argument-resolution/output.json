@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "defaultParam"
+					"name": "defaultParam",
+					"exportedAs": ["defaultParam"]
 				},
 				"callSignatures": [
 					{
@@ -57,7 +58,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "stringParam"
+					"name": "stringParam",
+					"exportedAs": ["stringParam"]
 				},
 				"callSignatures": [
 					{
@@ -108,7 +110,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "numberParam"
+					"name": "numberParam",
+					"exportedAs": ["numberParam"]
 				},
 				"callSignatures": [
 					{
@@ -159,7 +162,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "genericParam"
+					"name": "genericParam",
+					"exportedAs": ["genericParam"]
 				},
 				"callSignatures": [
 					{
@@ -216,7 +220,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "defaultPair"
+					"name": "defaultPair",
+					"exportedAs": ["defaultPair"]
 				},
 				"callSignatures": [
 					{
@@ -282,7 +287,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "stringPair"
+					"name": "stringPair",
+					"exportedAs": ["stringPair"]
 				},
 				"callSignatures": [
 					{
@@ -348,7 +354,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "numberPair"
+					"name": "numberPair",
+					"exportedAs": ["numberPair"]
 				},
 				"callSignatures": [
 					{
@@ -414,7 +421,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "partialStringPair"
+					"name": "partialStringPair",
+					"exportedAs": ["partialStringPair"]
 				},
 				"callSignatures": [
 					{
@@ -480,7 +488,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "partialNumberPair"
+					"name": "partialNumberPair",
+					"exportedAs": ["partialNumberPair"]
 				},
 				"callSignatures": [
 					{

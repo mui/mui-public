@@ -48,6 +48,36 @@ along their alias chain, so declarations merged onto an alias in any module of
 the chain count. A re-exported namespace import (`import * as N`; `export { N }`)
 is a namespace and a value.
 
+## Type Names
+
+A named type carries a `TypeName`:
+
+```typescript
+interface TypeName {
+  name: string;
+  namespaces?: string[];
+  typeArguments?: { type: TypeNode; equalToDefault: boolean }[];
+  exportedAs?: string[];
+}
+```
+
+`name` and `namespaces` are the name as declared or as written at the
+reference. `exportedAs` lists the names under which the parsed module exports
+that type, in export order, dotted for namespace members. The match is by
+symbol, following import aliases. A type re-exported under another name lists
+that name:
+
+```typescript
+// index.ts
+export type { State as ToggleState, Holder as ToggleHolder } from './toggle';
+export type { State as SwitchState, Holder as SwitchHolder } from './switch';
+```
+
+Here `ToggleHolder.state` is `{ name: 'State', exportedAs: ['ToggleState'] }`
+and `SwitchHolder.state` is `{ name: 'State', exportedAs: ['SwitchState'] }`. A
+type the module doesn't export has no `exportedAs`, even if an exported type
+shares its declared name. External types never carry it.
+
 An export keeps the value space only when some path to it crosses no type-only
 site (`import type`, `export type { X }`, `export type *`, `export type * as N`).
 Paths are followed through every alias, import, `export =`, and star export, and

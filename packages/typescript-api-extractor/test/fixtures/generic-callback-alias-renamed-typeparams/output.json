@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "AlphaEquivAlias"
+					"name": "AlphaEquivAlias",
+					"exportedAs": ["AlphaEquivAlias"]
 				},
 				"types": [
 					{
@@ -76,7 +77,8 @@
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "AlphaEquivAliasConstrained"
+					"name": "AlphaEquivAliasConstrained",
+					"exportedAs": ["AlphaEquivAliasConstrained"]
 				},
 				"types": [
 					{
@@ -166,7 +168,8 @@
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "NonEquivAliasDifferentConstraints"
+					"name": "NonEquivAliasDifferentConstraints",
+					"exportedAs": ["NonEquivAliasDifferentConstraints"]
 				},
 				"types": [
 					{

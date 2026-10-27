@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "OverloadedComponent"
+					"name": "OverloadedComponent",
+					"exportedAs": ["OverloadedComponent"]
 				},
 				"props": [
 					{

@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "Interface1"
+					"name": "Interface1",
+					"exportedAs": ["Interface1"]
 				},
 				"properties": [
 					{
@@ -36,7 +37,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "Interface2"
+					"name": "Interface2",
+					"exportedAs": ["Interface2", "Interface2Alias"]
 				},
 				"properties": [
 					{
@@ -58,7 +60,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "Interface2"
+					"name": "Interface2",
+					"exportedAs": ["Interface2", "Interface2Alias"]
 				},
 				"properties": [
 					{
@@ -80,7 +83,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "default"
+					"name": "default",
+					"exportedAs": ["default"]
 				},
 				"properties": [
 					{

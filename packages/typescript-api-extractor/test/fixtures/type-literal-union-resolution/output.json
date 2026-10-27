@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "acceptsLiteralUnionProps"
+					"name": "acceptsLiteralUnionProps",
+					"exportedAs": ["acceptsLiteralUnionProps"]
 				},
 				"callSignatures": [
 					{
@@ -274,7 +275,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "acceptsLiteralUnionParameters"
+					"name": "acceptsLiteralUnionParameters",
+					"exportedAs": ["acceptsLiteralUnionParameters"]
 				},
 				"callSignatures": [
 					{
@@ -480,7 +482,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "acceptsKeyofProp"
+					"name": "acceptsKeyofProp",
+					"exportedAs": ["acceptsKeyofProp"]
 				},
 				"callSignatures": [
 					{

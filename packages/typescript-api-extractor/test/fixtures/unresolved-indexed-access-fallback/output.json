@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "IndexedAccessFallback"
+					"name": "IndexedAccessFallback",
+					"exportedAs": ["IndexedAccessFallback"]
 				},
 				"callSignatures": [
 					{

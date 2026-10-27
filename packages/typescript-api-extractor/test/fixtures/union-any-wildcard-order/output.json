@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "OrderIndependent"
+					"name": "OrderIndependent",
+					"exportedAs": ["OrderIndependent"]
 				},
 				"types": [
 					{
@@ -54,7 +55,8 @@
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "AnyWildcardDedup"
+					"name": "AnyWildcardDedup",
+					"exportedAs": ["AnyWildcardDedup"]
 				},
 				"types": [
 					{
@@ -98,7 +100,8 @@
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "AnyWildcardDedupReversed"
+					"name": "AnyWildcardDedupReversed",
+					"exportedAs": ["AnyWildcardDedupReversed"]
 				},
 				"types": [
 					{
@@ -142,7 +145,8 @@
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "NotEquivalent"
+					"name": "NotEquivalent",
+					"exportedAs": ["NotEquivalent"]
 				},
 				"types": [
 					{

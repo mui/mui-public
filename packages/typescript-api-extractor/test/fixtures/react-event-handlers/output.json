@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "EventHandlersComponent"
+					"name": "EventHandlersComponent",
+					"exportedAs": ["EventHandlersComponent"]
 				},
 				"props": [
 					{

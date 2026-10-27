@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "acceptsInlineObjectTypes"
+					"name": "acceptsInlineObjectTypes",
+					"exportedAs": ["acceptsInlineObjectTypes"]
 				},
 				"callSignatures": [
 					{
@@ -74,7 +75,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "acceptsNamedObjectTypes"
+					"name": "acceptsNamedObjectTypes",
+					"exportedAs": ["acceptsNamedObjectTypes"]
 				},
 				"callSignatures": [
 					{
@@ -147,7 +149,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "acceptsObjectProps"
+					"name": "acceptsObjectProps",
+					"exportedAs": ["acceptsObjectProps"]
 				},
 				"callSignatures": [
 					{

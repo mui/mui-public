@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "localFunction"
+					"name": "localFunction",
+					"exportedAs": ["localFunction"]
 				},
 				"callSignatures": [
 					{
@@ -27,7 +28,8 @@
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "RootComponent"
+					"name": "RootComponent",
+					"exportedAs": ["Root", "Source.RootComponent"]
 				},
 				"props": [
 					{
@@ -76,7 +78,8 @@
 				"kind": "object",
 				"typeName": {
 					"name": "Props",
-					"namespaces": ["Root"]
+					"namespaces": ["Root"],
+					"exportedAs": ["Root.Props", "Source.RootComponent.Props"]
 				},
 				"properties": [
 					{
@@ -124,7 +127,8 @@
 				"kind": "union",
 				"typeName": {
 					"name": "State",
-					"namespaces": ["Root"]
+					"namespaces": ["Root"],
+					"exportedAs": ["Root.State", "Source.RootComponent.State"]
 				},
 				"types": [
 					{
@@ -150,7 +154,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "RootProps"
+					"name": "RootProps",
+					"exportedAs": ["RootProps", "Source.RootProps"]
 				},
 				"properties": [
 					{
@@ -197,7 +202,8 @@
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "RootState"
+					"name": "RootState",
+					"exportedAs": ["RootState", "Source.RootState"]
 				},
 				"types": [
 					{
@@ -224,7 +230,8 @@
 				"kind": "component",
 				"typeName": {
 					"name": "RootComponent",
-					"namespaces": ["Source"]
+					"namespaces": ["Source"],
+					"exportedAs": ["Root", "Source.RootComponent"]
 				},
 				"props": [
 					{
@@ -272,7 +279,8 @@
 				"kind": "object",
 				"typeName": {
 					"name": "Props",
-					"namespaces": ["Source", "RootComponent"]
+					"namespaces": ["Source", "RootComponent"],
+					"exportedAs": ["Root.Props", "Source.RootComponent.Props"]
 				},
 				"properties": [
 					{
@@ -320,7 +328,8 @@
 				"kind": "union",
 				"typeName": {
 					"name": "State",
-					"namespaces": ["Source", "RootComponent"]
+					"namespaces": ["Source", "RootComponent"],
+					"exportedAs": ["Root.State", "Source.RootComponent.State"]
 				},
 				"types": [
 					{
@@ -347,7 +356,8 @@
 				"kind": "object",
 				"typeName": {
 					"name": "RootProps",
-					"namespaces": ["Source"]
+					"namespaces": ["Source"],
+					"exportedAs": ["RootProps", "Source.RootProps"]
 				},
 				"properties": [
 					{
@@ -395,7 +405,8 @@
 				"kind": "union",
 				"typeName": {
 					"name": "RootState",
-					"namespaces": ["Source"]
+					"namespaces": ["Source"],
+					"exportedAs": ["RootState", "Source.RootState"]
 				},
 				"types": [
 					{

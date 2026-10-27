@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "UnionPropsComponent"
+					"name": "UnionPropsComponent",
+					"exportedAs": ["UnionPropsComponent"]
 				},
 				"props": [
 					{

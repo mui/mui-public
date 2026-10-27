@@ -30,7 +30,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"exportedAs": ["MapAlias"]
 				},
 				"properties": [],
 				"indexSignature": {
@@ -97,7 +98,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"exportedAs": ["MapAlias"]
 				},
 				"properties": [],
 				"indexSignature": {
@@ -153,7 +155,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"exportedAs": ["Wrapped"]
 				},
 				"properties": [],
 				"indexSignature": {

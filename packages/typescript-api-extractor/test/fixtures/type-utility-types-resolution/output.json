@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "acceptsPickedProps"
+					"name": "acceptsPickedProps",
+					"exportedAs": ["acceptsPickedProps"]
 				},
 				"callSignatures": [
 					{
@@ -127,7 +128,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "acceptsOmittedProps"
+					"name": "acceptsOmittedProps",
+					"exportedAs": ["acceptsOmittedProps"]
 				},
 				"callSignatures": [
 					{
@@ -239,7 +241,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "acceptsParameterTuple"
+					"name": "acceptsParameterTuple",
+					"exportedAs": ["acceptsParameterTuple"]
 				},
 				"callSignatures": [
 					{
@@ -365,7 +368,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "acceptsReturnType"
+					"name": "acceptsReturnType",
+					"exportedAs": ["acceptsReturnType"]
 				},
 				"callSignatures": [
 					{

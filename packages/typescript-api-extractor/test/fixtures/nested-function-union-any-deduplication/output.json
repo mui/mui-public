@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "CollapseViaAny"
+					"name": "CollapseViaAny",
+					"exportedAs": ["CollapseViaAny"]
 				},
 				"types": [
 					{
@@ -88,7 +89,8 @@
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "NestedUnionReorder"
+					"name": "NestedUnionReorder",
+					"exportedAs": ["NestedUnionReorder"]
 				},
 				"types": [
 					{
@@ -166,7 +168,8 @@
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "NotEquivalent"
+					"name": "NotEquivalent",
+					"exportedAs": ["NotEquivalent"]
 				},
 				"types": [
 					{

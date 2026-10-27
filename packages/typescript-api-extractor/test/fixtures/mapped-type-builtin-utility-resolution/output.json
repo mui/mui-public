@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "partialAlias"
+					"name": "partialAlias",
+					"exportedAs": ["partialAlias"]
 				},
 				"callSignatures": [
 					{
@@ -74,7 +75,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "requiredAlias"
+					"name": "requiredAlias",
+					"exportedAs": ["requiredAlias"]
 				},
 				"callSignatures": [
 					{
@@ -124,7 +126,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "inlinePartial"
+					"name": "inlinePartial",
+					"exportedAs": ["inlinePartial"]
 				},
 				"callSignatures": [
 					{
@@ -230,7 +233,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "inlineRequired"
+					"name": "inlineRequired",
+					"exportedAs": ["inlineRequired"]
 				},
 				"callSignatures": [
 					{

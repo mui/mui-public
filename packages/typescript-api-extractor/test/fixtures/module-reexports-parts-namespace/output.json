@@ -7,7 +7,8 @@
 				"kind": "component",
 				"typeName": {
 					"name": "Root",
-					"namespaces": ["Component"]
+					"namespaces": ["Component"],
+					"exportedAs": ["Component.Root"]
 				},
 				"props": [
 					{
@@ -76,7 +77,8 @@
 													"type": {
 														"kind": "object",
 														"typeName": {
-															"name": "ComponentRootChangeEventDetails"
+															"name": "ComponentRootChangeEventDetails",
+															"exportedAs": ["ComponentRootChangeEventDetails"]
 														},
 														"properties": [
 															{
@@ -84,7 +86,8 @@
 																"type": {
 																	"kind": "object",
 																	"typeName": {
-																		"name": "ComponentRootState"
+																		"name": "ComponentRootState",
+																		"exportedAs": ["ComponentRootState"]
 																	},
 																	"properties": [
 																		{
@@ -124,7 +127,8 @@
 																"type": {
 																	"kind": "object",
 																	"typeName": {
-																		"name": "ComponentRootState"
+																		"name": "ComponentRootState",
+																		"exportedAs": ["ComponentRootState"]
 																	},
 																	"properties": [
 																		{
@@ -192,7 +196,8 @@
 								{
 									"kind": "object",
 									"typeName": {
-										"name": "ComponentPartState"
+										"name": "ComponentPartState",
+										"exportedAs": ["ComponentPartState"]
 									},
 									"properties": [
 										{
@@ -250,7 +255,8 @@
 				"kind": "object",
 				"typeName": {
 					"name": "State",
-					"namespaces": ["Component", "Root"]
+					"namespaces": ["Component", "Root"],
+					"exportedAs": ["Component.Root.State"]
 				},
 				"properties": [
 					{
@@ -289,7 +295,8 @@
 				"kind": "object",
 				"typeName": {
 					"name": "Props",
-					"namespaces": ["Component", "Root"]
+					"namespaces": ["Component", "Root"],
+					"exportedAs": ["Component.Root.Props"]
 				},
 				"properties": [
 					{
@@ -358,7 +365,8 @@
 													"type": {
 														"kind": "object",
 														"typeName": {
-															"name": "ComponentRootChangeEventDetails"
+															"name": "ComponentRootChangeEventDetails",
+															"exportedAs": ["ComponentRootChangeEventDetails"]
 														},
 														"properties": [
 															{
@@ -366,7 +374,8 @@
 																"type": {
 																	"kind": "object",
 																	"typeName": {
-																		"name": "ComponentRootState"
+																		"name": "ComponentRootState",
+																		"exportedAs": ["ComponentRootState"]
 																	},
 																	"properties": [
 																		{
@@ -406,7 +415,8 @@
 																"type": {
 																	"kind": "object",
 																	"typeName": {
-																		"name": "ComponentRootState"
+																		"name": "ComponentRootState",
+																		"exportedAs": ["ComponentRootState"]
 																	},
 																	"properties": [
 																		{
@@ -474,7 +484,8 @@
 								{
 									"kind": "object",
 									"typeName": {
-										"name": "ComponentPartState"
+										"name": "ComponentPartState",
+										"exportedAs": ["ComponentPartState"]
 									},
 									"properties": [
 										{
@@ -527,7 +538,8 @@
 				"kind": "object",
 				"typeName": {
 					"name": "ChangeEventDetails",
-					"namespaces": ["Component", "Root"]
+					"namespaces": ["Component", "Root"],
+					"exportedAs": ["Component.Root.ChangeEventDetails"]
 				},
 				"properties": [
 					{
@@ -535,7 +547,8 @@
 						"type": {
 							"kind": "object",
 							"typeName": {
-								"name": "ComponentRootState"
+								"name": "ComponentRootState",
+								"exportedAs": ["ComponentRootState"]
 							},
 							"properties": [
 								{
@@ -575,7 +588,8 @@
 						"type": {
 							"kind": "object",
 							"typeName": {
-								"name": "ComponentRootState"
+								"name": "ComponentRootState",
+								"exportedAs": ["ComponentRootState"]
 							},
 							"properties": [
 								{
@@ -622,7 +636,8 @@
 				"kind": "component",
 				"typeName": {
 					"name": "Part",
-					"namespaces": ["Component"]
+					"namespaces": ["Component"],
+					"exportedAs": ["Component.Part"]
 				},
 				"props": [
 					{
@@ -694,7 +709,8 @@
 				"kind": "object",
 				"typeName": {
 					"name": "State",
-					"namespaces": ["Component", "Part"]
+					"namespaces": ["Component", "Part"],
+					"exportedAs": ["Component.Part.State"]
 				},
 				"properties": [
 					{
@@ -733,7 +749,8 @@
 				"kind": "object",
 				"typeName": {
 					"name": "Props",
-					"namespaces": ["Component", "Part"]
+					"namespaces": ["Component", "Part"],
+					"exportedAs": ["Component.Part.Props"]
 				},
 				"properties": [
 					{
@@ -800,7 +817,8 @@
 				"kind": "class",
 				"typeName": {
 					"name": "Handle",
-					"namespaces": ["Component"]
+					"namespaces": ["Component"],
+					"exportedAs": ["Component.Handle", "ComponentHandle"]
 				},
 				"constructSignatures": [
 					{
@@ -936,7 +954,8 @@
 				"kind": "function",
 				"typeName": {
 					"name": "createHandle",
-					"namespaces": ["Component"]
+					"namespaces": ["Component"],
+					"exportedAs": ["Component.createHandle"]
 				},
 				"callSignatures": [
 					{
@@ -957,7 +976,8 @@
 										},
 										"equalToDefault": false
 									}
-								]
+								],
+								"exportedAs": ["Component.Handle", "ComponentHandle"]
 							},
 							"properties": [
 								{
@@ -1044,7 +1064,8 @@
 			"type": {
 				"kind": "class",
 				"typeName": {
-					"name": "ComponentHandle"
+					"name": "ComponentHandle",
+					"exportedAs": ["Component.Handle", "ComponentHandle"]
 				},
 				"constructSignatures": [
 					{
@@ -1178,7 +1199,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "ComponentRootState"
+					"name": "ComponentRootState",
+					"exportedAs": ["ComponentRootState"]
 				},
 				"properties": [
 					{
@@ -1216,7 +1238,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "ComponentRootChangeEventDetails"
+					"name": "ComponentRootChangeEventDetails",
+					"exportedAs": ["ComponentRootChangeEventDetails"]
 				},
 				"properties": [
 					{
@@ -1224,7 +1247,8 @@
 						"type": {
 							"kind": "object",
 							"typeName": {
-								"name": "ComponentRootState"
+								"name": "ComponentRootState",
+								"exportedAs": ["ComponentRootState"]
 							},
 							"properties": [
 								{
@@ -1264,7 +1288,8 @@
 						"type": {
 							"kind": "object",
 							"typeName": {
-								"name": "ComponentRootState"
+								"name": "ComponentRootState",
+								"exportedAs": ["ComponentRootState"]
 							},
 							"properties": [
 								{
@@ -1310,7 +1335,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "ComponentRootProps"
+					"name": "ComponentRootProps",
+					"exportedAs": ["ComponentRootProps"]
 				},
 				"properties": [
 					{
@@ -1379,7 +1405,8 @@
 													"type": {
 														"kind": "object",
 														"typeName": {
-															"name": "ComponentRootChangeEventDetails"
+															"name": "ComponentRootChangeEventDetails",
+															"exportedAs": ["ComponentRootChangeEventDetails"]
 														},
 														"properties": [
 															{
@@ -1387,7 +1414,8 @@
 																"type": {
 																	"kind": "object",
 																	"typeName": {
-																		"name": "ComponentRootState"
+																		"name": "ComponentRootState",
+																		"exportedAs": ["ComponentRootState"]
 																	},
 																	"properties": [
 																		{
@@ -1427,7 +1455,8 @@
 																"type": {
 																	"kind": "object",
 																	"typeName": {
-																		"name": "ComponentRootState"
+																		"name": "ComponentRootState",
+																		"exportedAs": ["ComponentRootState"]
 																	},
 																	"properties": [
 																		{
@@ -1495,7 +1524,8 @@
 								{
 									"kind": "object",
 									"typeName": {
-										"name": "ComponentPartState"
+										"name": "ComponentPartState",
+										"exportedAs": ["ComponentPartState"]
 									},
 									"properties": [
 										{
@@ -1547,7 +1577,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "ComponentPartState"
+					"name": "ComponentPartState",
+					"exportedAs": ["ComponentPartState"]
 				},
 				"properties": [
 					{
@@ -1585,7 +1616,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "ComponentPartProps"
+					"name": "ComponentPartProps",
+					"exportedAs": ["ComponentPartProps"]
 				},
 				"properties": [
 					{

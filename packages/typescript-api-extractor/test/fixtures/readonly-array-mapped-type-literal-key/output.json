@@ -32,7 +32,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"exportedAs": ["DirectData"]
 				},
 				"elementType": {
 					"kind": "object",
@@ -75,7 +76,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"exportedAs": ["ParametricData"]
 				},
 				"elementType": {
 					"kind": "object",

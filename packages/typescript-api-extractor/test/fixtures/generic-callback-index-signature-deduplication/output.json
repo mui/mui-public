@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "Fn"
+					"name": "Fn",
+					"exportedAs": ["Fn"]
 				},
 				"types": [
 					{

@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "class",
 				"typeName": {
-					"name": "Container"
+					"name": "Container",
+					"exportedAs": ["Container"]
 				},
 				"constructSignatures": [
 					{
@@ -284,7 +285,8 @@
 			"type": {
 				"kind": "class",
 				"typeName": {
-					"name": "ParameterPropertyClass"
+					"name": "ParameterPropertyClass",
+					"exportedAs": ["ParameterPropertyClass"]
 				},
 				"constructSignatures": [
 					{
@@ -357,7 +359,8 @@
 			"type": {
 				"kind": "class",
 				"typeName": {
-					"name": "GetterOnlyClass"
+					"name": "GetterOnlyClass",
+					"exportedAs": ["GetterOnlyClass"]
 				},
 				"constructSignatures": [
 					{
@@ -409,7 +412,8 @@
 			"type": {
 				"kind": "class",
 				"typeName": {
-					"name": "OverloadedMethods"
+					"name": "OverloadedMethods",
+					"exportedAs": ["OverloadedMethods"]
 				},
 				"constructSignatures": [
 					{
@@ -539,7 +543,8 @@
 			"type": {
 				"kind": "class",
 				"typeName": {
-					"name": "FunctionPropertyClass"
+					"name": "FunctionPropertyClass",
+					"exportedAs": ["FunctionPropertyClass"]
 				},
 				"constructSignatures": [
 					{
@@ -634,7 +639,8 @@
 			"type": {
 				"kind": "class",
 				"typeName": {
-					"name": "StaticMembersClass"
+					"name": "StaticMembersClass",
+					"exportedAs": ["StaticMembersClass"]
 				},
 				"constructSignatures": [
 					{
@@ -703,7 +709,8 @@
 								"returnValueType": {
 									"kind": "object",
 									"typeName": {
-										"name": "StaticMembersClass"
+										"name": "StaticMembersClass",
+										"exportedAs": ["StaticMembersClass"]
 									},
 									"properties": [
 										{
@@ -738,7 +745,8 @@
 			"type": {
 				"kind": "class",
 				"typeName": {
-					"name": "VisibilityTagsClass"
+					"name": "VisibilityTagsClass",
+					"exportedAs": ["VisibilityTagsClass"]
 				},
 				"constructSignatures": [
 					{
@@ -800,7 +808,8 @@
 			"type": {
 				"kind": "class",
 				"typeName": {
-					"name": "EcmaPrivateClass"
+					"name": "EcmaPrivateClass",
+					"exportedAs": ["EcmaPrivateClass"]
 				},
 				"constructSignatures": [
 					{
@@ -856,7 +865,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "Constructable"
+					"name": "Constructable",
+					"exportedAs": ["Constructable"]
 				},
 				"properties": []
 			},
@@ -873,7 +883,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "ConstructableType"
+					"name": "ConstructableType",
+					"exportedAs": ["ConstructableType"]
 				},
 				"properties": []
 			},

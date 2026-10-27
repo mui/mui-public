@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "GenericFunctionComponent"
+					"name": "GenericFunctionComponent",
+					"exportedAs": ["GenericFunctionComponent"]
 				},
 				"props": [
 					{
@@ -34,7 +35,8 @@
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "NonGenericComponent"
+					"name": "NonGenericComponent",
+					"exportedAs": ["NonGenericComponent"]
 				},
 				"props": [
 					{

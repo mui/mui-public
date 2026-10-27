@@ -39,6 +39,12 @@ export interface ScopedParserContext extends ParserContext {
     callback: () => T,
     typeParameterTypeNodeSubstitutions?: Map<ts.Symbol, ts.TypeNode>,
   ): T;
+  /**
+   * The public names of every symbol the parsed module exports, keyed by the
+   * export's target symbol with import aliases resolved. Filled before any
+   * export's type is resolved; read through `getExportedAs`.
+   */
+  exportNamesBySymbol: Map<ts.Symbol, string[]>;
   /** Authored type arguments paired with the active semantic substitutions. */
   typeParameterTypeNodeSubstitutions?: Map<ts.Symbol, ts.TypeNode>;
   /**

@@ -30,7 +30,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"exportedAs": ["Inner"]
 				},
 				"properties": [],
 				"indexSignature": {
@@ -88,7 +89,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"exportedAs": ["Inner"]
 				},
 				"properties": [],
 				"indexSignature": {
@@ -146,7 +148,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"exportedAs": ["Middle"]
 				},
 				"properties": [],
 				"indexSignature": {
@@ -193,7 +196,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"exportedAs": ["Outer"]
 				},
 				"properties": [],
 				"indexSignature": {

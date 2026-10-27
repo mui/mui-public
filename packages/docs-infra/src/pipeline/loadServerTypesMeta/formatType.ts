@@ -717,6 +717,17 @@ export function getFullyQualifiedName(
     preserveTypeParameters,
   ); // Note: externalTypesCollector not threaded here since getFullyQualifiedName is name-only lookup
 
+  // The parser matched the type to the page's own exports by symbol, so this is exact,
+  // including for types the page re-exports under another name
+  const exportedName = getExportedName(typeName, typeNameMap);
+  if (exportedName) {
+    const typeArgsStart = nameWithTypeArgs.indexOf('<');
+    if (typeArgsStart !== -1) {
+      return exportedName + nameWithTypeArgs.slice(typeArgsStart);
+    }
+    return exportedName;
+  }
+
   // Construct the flat name (what parseExports would have created)
   const flatName =
     typeName.namespaces && typeName.namespaces.length > 0
@@ -797,6 +808,19 @@ export function getFullyQualifiedName(
 
   // Not in the map and no namespaces - it's an external type (React, HTMLElement, etc.)
   return nameWithTypeArgs;
+}
+
+/**
+ * Returns the name the page exports a type under, preferring a dotted name
+ * (`TimeFieldSectionToken` -> `TimeField.Section.Token`), or undefined when the
+ * page doesn't export it.
+ */
+function getExportedName(
+  typeName: tae.TypeName,
+  typeNameMap: Record<string, string>,
+): string | undefined {
+  const names = typeName.exportedAs?.map((name) => typeNameMap[name] ?? name);
+  return names?.find((name) => name.includes('.')) ?? names?.[0];
 }
 
 function createNameWithTypeArguments(

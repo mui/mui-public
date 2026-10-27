@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "listen"
+					"name": "listen",
+					"exportedAs": ["listen"]
 				},
 				"callSignatures": [
 					{
@@ -88,7 +89,8 @@
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "TrackMinimum"
+					"name": "TrackMinimum",
+					"exportedAs": ["TrackMinimum"]
 				},
 				"types": [
 					{
@@ -190,7 +192,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "Props"
+					"name": "Props",
+					"exportedAs": ["Props"]
 				},
 				"properties": [
 					{
@@ -221,7 +224,8 @@
 						"type": {
 							"kind": "union",
 							"typeName": {
-								"name": "TrackMinimum"
+								"name": "TrackMinimum",
+								"exportedAs": ["TrackMinimum"]
 							},
 							"types": [
 								{

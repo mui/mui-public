@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "Boundary"
+					"name": "Boundary",
+					"exportedAs": ["Boundary"]
 				},
 				"types": [
 					{

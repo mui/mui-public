@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "conditionalReturn"
+					"name": "conditionalReturn",
+					"exportedAs": ["conditionalReturn"]
 				},
 				"callSignatures": [
 					{
@@ -59,7 +60,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "ConditionalPropsComponent"
+					"name": "ConditionalPropsComponent",
+					"exportedAs": ["ConditionalPropsComponent"]
 				},
 				"callSignatures": [
 					{

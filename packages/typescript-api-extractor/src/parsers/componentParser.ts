@@ -176,7 +176,12 @@ function cloneTypeName(typeName: TypeName | undefined): TypeName | undefined {
     return undefined;
   }
 
-  return new TypeName(typeName.name, typeName.namespaces, typeName.typeArguments);
+  return new TypeName(
+    typeName.name,
+    typeName.namespaces,
+    typeName.typeArguments,
+    typeName.exportedAs,
+  );
 }
 
 function hasReactNodeLikeReturnType(type: FunctionNode) {

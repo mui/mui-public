@@ -25,7 +25,9 @@ substructures that are reused across multiple type classes.
 ## Entry Points
 
 - `src/parsers/moduleParser.ts` and `src/parsers/exportParser.ts` walk source files
-  and exported declarations.
+  and exported declarations. `parseModule` resolves the descriptors of every
+  export and records their public names by target symbol before it resolves any
+  type, so `TypeName.exportedAs` can be filled wherever a type is named.
 - `src/parsers/exportDescriptors.ts` normalizes export symbols into
   `ExportDescriptor` records before any output model nodes are built. It owns
   export-specifier targeting, namespace merging, re-export metadata, export type

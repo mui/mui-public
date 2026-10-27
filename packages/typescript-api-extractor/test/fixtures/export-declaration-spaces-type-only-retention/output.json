@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "directlyMergedFunction"
+					"name": "directlyMergedFunction",
+					"exportedAs": ["directlyMergedFunction"]
 				},
 				"callSignatures": [
 					{
@@ -50,7 +51,8 @@
 				"value": "\"nested\"",
 				"typeName": {
 					"name": "Nested",
-					"namespaces": ["chainedFunction"]
+					"namespaces": ["chainedFunction"],
+					"exportedAs": ["chainedFunction.Nested"]
 				}
 			},
 			"isValue": false,
@@ -63,7 +65,8 @@
 				"kind": "object",
 				"typeName": {
 					"name": "Member",
-					"namespaces": ["TypesNamespace"]
+					"namespaces": ["TypesNamespace"],
+					"exportedAs": ["TypesNamespace.Member"]
 				},
 				"properties": [
 					{

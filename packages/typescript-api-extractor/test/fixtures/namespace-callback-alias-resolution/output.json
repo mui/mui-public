@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "NamespacedCallbackComponent"
+					"name": "NamespacedCallbackComponent",
+					"exportedAs": ["NamespacedCallbackComponent"]
 				},
 				"props": [
 					{

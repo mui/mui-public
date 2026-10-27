@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "optionalParameters"
+					"name": "optionalParameters",
+					"exportedAs": ["optionalParameters"]
 				},
 				"callSignatures": [
 					{

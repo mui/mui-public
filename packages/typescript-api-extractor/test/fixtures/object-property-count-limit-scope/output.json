@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "ManyPropsComponent"
+					"name": "ManyPropsComponent",
+					"exportedAs": ["ManyPropsComponent"]
 				},
 				"props": [
 					{
@@ -952,7 +953,8 @@
 			"type": {
 				"kind": "intersection",
 				"typeName": {
-					"name": "ManyComponentProps"
+					"name": "ManyComponentProps",
+					"exportedAs": ["ManyComponentProps"]
 				},
 				"types": [
 					{

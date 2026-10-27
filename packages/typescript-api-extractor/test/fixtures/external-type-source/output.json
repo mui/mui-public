@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "SourceProps"
+					"name": "SourceProps",
+					"exportedAs": ["SourceProps"]
 				},
 				"properties": [
 					{
@@ -187,7 +188,8 @@
 						"type": {
 							"kind": "union",
 							"typeName": {
-								"name": "PackageRange"
+								"name": "PackageRange",
+								"exportedAs": ["PackageRange"]
 							},
 							"types": [
 								{

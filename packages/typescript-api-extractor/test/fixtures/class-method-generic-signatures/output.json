@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "class",
 				"typeName": {
-					"name": "Repository"
+					"name": "Repository",
+					"exportedAs": ["Repository"]
 				},
 				"constructSignatures": [
 					{
@@ -199,7 +200,8 @@
 														},
 														"equalToDefault": false
 													}
-												]
+												],
+												"exportedAs": ["Repository"]
 											},
 											"properties": []
 										},
@@ -237,7 +239,8 @@
 												},
 												"equalToDefault": false
 											}
-										]
+										],
+										"exportedAs": ["Repository"]
 									},
 									"properties": []
 								},

@@ -41,7 +41,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"exportedAs": ["Outer"]
 				},
 				"properties": [],
 				"indexSignature": {
@@ -123,7 +124,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"exportedAs": ["Outer"]
 				},
 				"properties": [],
 				"indexSignature": {

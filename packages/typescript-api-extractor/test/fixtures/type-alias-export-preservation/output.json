@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "processWithUnionAlias"
+					"name": "processWithUnionAlias",
+					"exportedAs": ["processWithUnionAlias"]
 				},
 				"callSignatures": [
 					{
@@ -15,7 +16,8 @@
 								"type": {
 									"kind": "union",
 									"typeName": {
-										"name": "UnionAlias"
+										"name": "UnionAlias",
+										"exportedAs": ["UnionAlias"]
 									},
 									"types": [
 										{
@@ -52,7 +54,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "processWithObjectAlias"
+					"name": "processWithObjectAlias",
+					"exportedAs": ["processWithObjectAlias"]
 				},
 				"callSignatures": [
 					{
@@ -61,7 +64,8 @@
 								"type": {
 									"kind": "object",
 									"typeName": {
-										"name": "ObjectAlias"
+										"name": "ObjectAlias",
+										"exportedAs": ["ObjectAlias"]
 									},
 									"properties": [
 										{
@@ -112,7 +116,8 @@
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "UnionAlias"
+					"name": "UnionAlias",
+					"exportedAs": ["UnionAlias"]
 				},
 				"types": [
 					{
@@ -138,7 +143,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "ObjectAlias"
+					"name": "ObjectAlias",
+					"exportedAs": ["ObjectAlias"]
 				},
 				"properties": [
 					{
@@ -177,7 +183,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"exportedAs": ["GenericAlias"]
 				},
 				"properties": [
 					{
@@ -226,7 +233,8 @@
 			"type": {
 				"kind": "intersection",
 				"typeName": {
-					"name": "ExtendedAlias"
+					"name": "ExtendedAlias",
+					"exportedAs": ["ExtendedAlias"]
 				},
 				"types": [
 					{

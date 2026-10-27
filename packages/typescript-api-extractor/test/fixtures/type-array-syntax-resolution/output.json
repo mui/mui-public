@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "acceptsArrayProps"
+					"name": "acceptsArrayProps",
+					"exportedAs": ["acceptsArrayProps"]
 				},
 				"callSignatures": [
 					{
@@ -102,7 +103,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "acceptsArrayParameters"
+					"name": "acceptsArrayParameters",
+					"exportedAs": ["acceptsArrayParameters"]
 				},
 				"callSignatures": [
 					{

@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "ExtendedProps"
+					"name": "ExtendedProps",
+					"exportedAs": ["ExtendedProps"]
 				},
 				"properties": [
 					{
@@ -41,7 +42,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "MultiExtendedProps"
+					"name": "MultiExtendedProps",
+					"exportedAs": ["MultiExtendedProps"]
 				},
 				"properties": [
 					{
@@ -87,7 +89,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "AlertDialogProps"
+					"name": "AlertDialogProps",
+					"exportedAs": ["AlertDialogProps"]
 				},
 				"properties": [
 					{
@@ -134,7 +137,8 @@
 				"kind": "object",
 				"typeName": {
 					"name": "Props",
-					"namespaces": ["Dialog"]
+					"namespaces": ["Dialog"],
+					"exportedAs": ["Dialog.Props"]
 				},
 				"properties": [
 					{

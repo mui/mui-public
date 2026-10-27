@@ -33,6 +33,7 @@ export function createParserContext(
     program,
     propertyDepth: 0,
     resolvedTypeCache: new Map(),
+    exportNamesBySymbol: new Map(),
     ...resolveParserOptions(parserOptions),
     runWithSymbolScope: (symbolName, callback) =>
       runWithStackEntryScope(parsedSymbolStack, symbolName, callback),

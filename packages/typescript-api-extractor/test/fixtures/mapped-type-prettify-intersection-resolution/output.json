@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "Comp"
+					"name": "Comp",
+					"exportedAs": ["Comp"]
 				},
 				"callSignatures": [
 					{
@@ -15,7 +16,8 @@
 								"type": {
 									"kind": "object",
 									"typeName": {
-										"name": "Props"
+										"name": "Props",
+										"exportedAs": ["Props"]
 									},
 									"properties": [
 										{
@@ -84,7 +86,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "Props"
+					"name": "Props",
+					"exportedAs": ["Props"]
 				},
 				"properties": [
 					{

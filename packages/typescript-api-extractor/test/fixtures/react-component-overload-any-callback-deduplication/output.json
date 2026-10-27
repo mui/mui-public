@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "GenericComponent"
+					"name": "GenericComponent",
+					"exportedAs": ["GenericComponent"]
 				},
 				"props": [
 					{

@@ -30,7 +30,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"exportedAs": ["MapAlias"]
 				},
 				"properties": [],
 				"indexSignature": {
@@ -94,7 +95,8 @@
 											},
 											"equalToDefault": false
 										}
-									]
+									],
+									"exportedAs": ["MapAlias"]
 								},
 								"properties": [],
 								"indexSignature": {
@@ -121,7 +123,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"exportedAs": ["Wrapped"]
 				},
 				"elementType": {
 					"kind": "object",
@@ -150,7 +153,8 @@
 								},
 								"equalToDefault": false
 							}
-						]
+						],
+						"exportedAs": ["MapAlias"]
 					},
 					"properties": [],
 					"indexSignature": {

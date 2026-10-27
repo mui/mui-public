@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "acceptsAliases"
+					"name": "acceptsAliases",
+					"exportedAs": ["acceptsAliases"]
 				},
 				"callSignatures": [
 					{
@@ -255,7 +256,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "AliasContainer"
+					"name": "AliasContainer",
+					"exportedAs": ["AliasContainer"]
 				},
 				"properties": [
 					{

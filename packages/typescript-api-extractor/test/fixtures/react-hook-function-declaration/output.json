@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "useHook"
+					"name": "useHook",
+					"exportedAs": ["useHook"]
 				},
 				"callSignatures": [
 					{

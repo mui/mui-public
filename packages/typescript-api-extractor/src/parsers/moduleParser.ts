@@ -3,7 +3,8 @@ import ts from 'typescript';
 import type { ExportNode } from '../models';
 import { ModuleNode } from '../models';
 import type { ScopedParserContext } from '../parserContext';
-import { parseExport } from './exportParser';
+import { createExportNodes, registerExportNames } from './exportParser';
+import { resolveExportDescriptors } from './exportDescriptors';
 import { applyExportTransforms } from './exportTransforms';
 import { ParserError } from '../ParserError';
 
@@ -22,11 +23,22 @@ export function parseModule(sourceFile: ts.SourceFile, context: ScopedParserCont
         throw new Error('Failed to get the source file symbol');
       }
 
-      let parsedModuleExports: ExportNode[] = [];
-      const exportedSymbols = checker.getExportsOfModule(sourceFileSymbol);
+      // Every export's public name is known before any type is resolved, so a
+      // reference to an exported type can carry the name the module gives it.
+      const descriptorsByExport = checker
+        .getExportsOfModule(sourceFileSymbol)
+        .map((exportedSymbol) =>
+          resolveExportDescriptors(exportedSymbol, context, { containerSymbol: sourceFileSymbol }),
+        );
+      for (const descriptors of descriptorsByExport) {
+        if (descriptors) {
+          registerExportNames(descriptors, context);
+        }
+      }
 
-      for (const exportedSymbol of exportedSymbols) {
-        const parsedExports = parseExport(exportedSymbol, context, [], sourceFileSymbol);
+      let parsedModuleExports: ExportNode[] = [];
+      for (const descriptors of descriptorsByExport) {
+        const parsedExports = descriptors ? createExportNodes(descriptors, context) : undefined;
         if (!parsedExports) {
           continue;
         }

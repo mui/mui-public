@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "class",
 				"typeName": {
-					"name": "ImportedClass"
+					"name": "ImportedClass",
+					"exportedAs": ["ImportedClass"]
 				},
 				"constructSignatures": [
 					{

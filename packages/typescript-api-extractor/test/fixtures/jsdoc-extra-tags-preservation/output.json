@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "documentedFunction"
+					"name": "documentedFunction",
+					"exportedAs": ["documentedFunction"]
 				},
 				"callSignatures": [
 					{

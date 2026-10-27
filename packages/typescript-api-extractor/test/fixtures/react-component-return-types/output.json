@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "NamespacedElement"
+					"name": "NamespacedElement",
+					"exportedAs": ["NamespacedElement"]
 				},
 				"props": [
 					{
@@ -37,7 +38,8 @@
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "BareElement"
+					"name": "BareElement",
+					"exportedAs": ["BareElement"]
 				},
 				"props": [
 					{
@@ -68,7 +70,8 @@
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "GenericElement"
+					"name": "GenericElement",
+					"exportedAs": ["GenericElement"]
 				},
 				"props": [
 					{
@@ -99,7 +102,8 @@
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "BareNode"
+					"name": "BareNode",
+					"exportedAs": ["BareNode"]
 				},
 				"props": [
 					{
@@ -130,7 +134,8 @@
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "NullableElement"
+					"name": "NullableElement",
+					"exportedAs": ["NullableElement"]
 				},
 				"props": [
 					{
@@ -161,7 +166,8 @@
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "InferredElement"
+					"name": "InferredElement",
+					"exportedAs": ["InferredElement"]
 				},
 				"props": [
 					{
@@ -192,7 +198,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "LocalElementType"
+					"name": "LocalElementType",
+					"exportedAs": ["LocalElementType"]
 				},
 				"callSignatures": [
 					{
@@ -256,7 +263,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "DomElementType"
+					"name": "DomElementType",
+					"exportedAs": ["DomElementType"]
 				},
 				"callSignatures": [
 					{

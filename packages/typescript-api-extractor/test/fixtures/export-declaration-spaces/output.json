@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "plainFunction"
+					"name": "plainFunction",
+					"exportedAs": ["plainFunction"]
 				},
 				"callSignatures": [
 					{
@@ -27,7 +28,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "expandoFunction"
+					"name": "expandoFunction",
+					"exportedAs": ["expandoFunction"]
 				},
 				"callSignatures": [
 					{
@@ -48,7 +50,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "fnWithNs"
+					"name": "fnWithNs",
+					"exportedAs": ["fnWithNs"]
 				},
 				"callSignatures": [
 					{
@@ -71,7 +74,8 @@
 				"value": "\"nested\"",
 				"typeName": {
 					"name": "Nested",
-					"namespaces": ["fnWithNs"]
+					"namespaces": ["fnWithNs"],
+					"exportedAs": ["fnWithNs.Nested"]
 				}
 			},
 			"isValue": false,
@@ -113,7 +117,8 @@
 			"type": {
 				"kind": "class",
 				"typeName": {
-					"name": "PlainClass"
+					"name": "PlainClass",
+					"exportedAs": ["PlainClass"]
 				},
 				"constructSignatures": [
 					{
@@ -142,7 +147,8 @@
 			"name": "PlainEnum",
 			"type": {
 				"typeName": {
-					"name": "PlainEnum"
+					"name": "PlainEnum",
+					"exportedAs": ["PlainEnum"]
 				},
 				"members": [
 					{
@@ -161,7 +167,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "PlainInterface"
+					"name": "PlainInterface",
+					"exportedAs": ["PlainInterface"]
 				},
 				"properties": [
 					{
@@ -183,7 +190,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "Merged"
+					"name": "Merged",
+					"exportedAs": ["Merged"]
 				},
 				"properties": [
 					{
@@ -205,7 +213,12 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "mergedTarget"
+					"name": "mergedTarget",
+					"exportedAs": [
+						"mergedTarget",
+						"TypeOnlyNamespace.mergedTarget",
+						"ValueNamespace.mergedTarget"
+					]
 				},
 				"callSignatures": [
 					{
@@ -238,7 +251,8 @@
 				"value": "\"nested\"",
 				"typeName": {
 					"name": "Nested",
-					"namespaces": ["TypesNamespace"]
+					"namespaces": ["TypesNamespace"],
+					"exportedAs": ["TypesNamespace.Nested"]
 				}
 			},
 			"isValue": false,
@@ -250,7 +264,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "nsFn"
+					"name": "nsFn",
+					"exportedAs": ["nsFn"]
 				},
 				"callSignatures": [
 					{
@@ -273,7 +288,8 @@
 				"value": "\"inner\"",
 				"typeName": {
 					"name": "inner",
-					"namespaces": ["nsFn"]
+					"namespaces": ["nsFn"],
+					"exportedAs": ["nsFn.inner"]
 				}
 			},
 			"isValue": false,
@@ -285,7 +301,12 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "typeOnlyImported"
+					"name": "typeOnlyImported",
+					"exportedAs": [
+						"typeOnlyImported",
+						"TypeOnlyNamespace.typeOnlyImported",
+						"ValueNamespace.typeOnlyImported"
+					]
 				},
 				"callSignatures": [
 					{
@@ -316,7 +337,12 @@
 			"type": {
 				"kind": "class",
 				"typeName": {
-					"name": "ReexportedClass"
+					"name": "ReexportedClass",
+					"exportedAs": [
+						"ReexportedClass",
+						"TypeOnlyNamespace.ReexportedClass",
+						"ValueNamespace.ReexportedClass"
+					]
 				},
 				"constructSignatures": [
 					{
@@ -357,7 +383,12 @@
 				"kind": "function",
 				"typeName": {
 					"name": "mergedTarget",
-					"namespaces": ["TypeOnlyNamespace"]
+					"namespaces": ["TypeOnlyNamespace"],
+					"exportedAs": [
+						"mergedTarget",
+						"TypeOnlyNamespace.mergedTarget",
+						"ValueNamespace.mergedTarget"
+					]
 				},
 				"callSignatures": [
 					{
@@ -379,7 +410,12 @@
 				"kind": "function",
 				"typeName": {
 					"name": "typeOnlyImported",
-					"namespaces": ["TypeOnlyNamespace"]
+					"namespaces": ["TypeOnlyNamespace"],
+					"exportedAs": [
+						"typeOnlyImported",
+						"TypeOnlyNamespace.typeOnlyImported",
+						"ValueNamespace.typeOnlyImported"
+					]
 				},
 				"callSignatures": [
 					{
@@ -402,7 +438,12 @@
 				"value": "\"reexported\"",
 				"typeName": {
 					"name": "ReexportedAlias",
-					"namespaces": ["TypeOnlyNamespace"]
+					"namespaces": ["TypeOnlyNamespace"],
+					"exportedAs": [
+						"ReexportedAlias",
+						"TypeOnlyNamespace.ReexportedAlias",
+						"ValueNamespace.ReexportedAlias"
+					]
 				}
 			},
 			"isValue": false,
@@ -416,7 +457,12 @@
 				"value": "\"reexported\"",
 				"typeName": {
 					"name": "reexportedValue",
-					"namespaces": ["TypeOnlyNamespace"]
+					"namespaces": ["TypeOnlyNamespace"],
+					"exportedAs": [
+						"reexportedValue",
+						"TypeOnlyNamespace.reexportedValue",
+						"ValueNamespace.reexportedValue"
+					]
 				}
 			},
 			"isValue": false,
@@ -429,7 +475,12 @@
 				"kind": "class",
 				"typeName": {
 					"name": "ReexportedClass",
-					"namespaces": ["TypeOnlyNamespace"]
+					"namespaces": ["TypeOnlyNamespace"],
+					"exportedAs": [
+						"ReexportedClass",
+						"TypeOnlyNamespace.ReexportedClass",
+						"ValueNamespace.ReexportedClass"
+					]
 				},
 				"constructSignatures": [
 					{
@@ -460,7 +511,12 @@
 				"kind": "function",
 				"typeName": {
 					"name": "mergedTarget",
-					"namespaces": ["ValueNamespace"]
+					"namespaces": ["ValueNamespace"],
+					"exportedAs": [
+						"mergedTarget",
+						"TypeOnlyNamespace.mergedTarget",
+						"ValueNamespace.mergedTarget"
+					]
 				},
 				"callSignatures": [
 					{
@@ -482,7 +538,12 @@
 				"kind": "function",
 				"typeName": {
 					"name": "typeOnlyImported",
-					"namespaces": ["ValueNamespace"]
+					"namespaces": ["ValueNamespace"],
+					"exportedAs": [
+						"typeOnlyImported",
+						"TypeOnlyNamespace.typeOnlyImported",
+						"ValueNamespace.typeOnlyImported"
+					]
 				},
 				"callSignatures": [
 					{
@@ -505,7 +566,12 @@
 				"value": "\"reexported\"",
 				"typeName": {
 					"name": "ReexportedAlias",
-					"namespaces": ["ValueNamespace"]
+					"namespaces": ["ValueNamespace"],
+					"exportedAs": [
+						"ReexportedAlias",
+						"TypeOnlyNamespace.ReexportedAlias",
+						"ValueNamespace.ReexportedAlias"
+					]
 				}
 			},
 			"isValue": false,
@@ -519,7 +585,12 @@
 				"value": "\"reexported\"",
 				"typeName": {
 					"name": "reexportedValue",
-					"namespaces": ["ValueNamespace"]
+					"namespaces": ["ValueNamespace"],
+					"exportedAs": [
+						"reexportedValue",
+						"TypeOnlyNamespace.reexportedValue",
+						"ValueNamespace.reexportedValue"
+					]
 				}
 			},
 			"isValue": true,
@@ -532,7 +603,12 @@
 				"kind": "class",
 				"typeName": {
 					"name": "ReexportedClass",
-					"namespaces": ["ValueNamespace"]
+					"namespaces": ["ValueNamespace"],
+					"exportedAs": [
+						"ReexportedClass",
+						"TypeOnlyNamespace.ReexportedClass",
+						"ValueNamespace.ReexportedClass"
+					]
 				},
 				"constructSignatures": [
 					{
@@ -562,7 +638,8 @@
 			"type": {
 				"kind": "class",
 				"typeName": {
-					"name": "default"
+					"name": "default",
+					"exportedAs": ["default"]
 				},
 				"constructSignatures": [
 					{
@@ -591,7 +668,8 @@
 			"name": "StarEnum",
 			"type": {
 				"typeName": {
-					"name": "StarEnum"
+					"name": "StarEnum",
+					"exportedAs": ["StarEnum"]
 				},
 				"members": [
 					{
@@ -609,7 +687,8 @@
 			"name": "DualStarEnum",
 			"type": {
 				"typeName": {
-					"name": "DualStarEnum"
+					"name": "DualStarEnum",
+					"exportedAs": ["DualStarEnum"]
 				},
 				"members": [
 					{

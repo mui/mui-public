@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "CallbackPropsComponent"
+					"name": "CallbackPropsComponent",
+					"exportedAs": ["CallbackPropsComponent"]
 				},
 				"props": [
 					{

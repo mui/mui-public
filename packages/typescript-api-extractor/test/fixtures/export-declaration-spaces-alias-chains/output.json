@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "mergedFunction"
+					"name": "mergedFunction",
+					"exportedAs": ["mergedFunction"]
 				},
 				"callSignatures": [
 					{
@@ -50,7 +51,8 @@
 				"value": "\"nested\"",
 				"typeName": {
 					"name": "Nested",
-					"namespaces": ["chainedFunction"]
+					"namespaces": ["chainedFunction"],
+					"exportedAs": ["chainedFunction.Nested"]
 				}
 			},
 			"isValue": false,

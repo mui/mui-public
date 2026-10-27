@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "recursiveObject"
+					"name": "recursiveObject",
+					"exportedAs": ["recursiveObject"]
 				},
 				"callSignatures": [
 					{
@@ -24,7 +25,8 @@
 												},
 												"equalToDefault": false
 											}
-										]
+										],
+										"exportedAs": ["TestObject1"]
 									},
 									"properties": [
 										{
@@ -41,7 +43,8 @@
 															},
 															"equalToDefault": false
 														}
-													]
+													],
+													"exportedAs": ["TestObject2"]
 												},
 												"properties": [
 													{
@@ -58,7 +61,8 @@
 																		},
 																		"equalToDefault": false
 																	}
-																]
+																],
+																"exportedAs": ["TestObject1"]
 															},
 															"properties": []
 														},
@@ -90,7 +94,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "testUnion"
+					"name": "testUnion",
+					"exportedAs": ["testUnion"]
 				},
 				"callSignatures": [
 					{
@@ -178,7 +183,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "testIntersection"
+					"name": "testIntersection",
+					"exportedAs": ["testIntersection"]
 				},
 				"callSignatures": [
 					{
@@ -267,7 +273,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "testArray"
+					"name": "testArray",
+					"exportedAs": ["testArray"]
 				},
 				"callSignatures": [
 					{
@@ -329,7 +336,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "testTuple"
+					"name": "testTuple",
+					"exportedAs": ["testTuple"]
 				},
 				"callSignatures": [
 					{
@@ -403,7 +411,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"exportedAs": ["TestObject1"]
 				},
 				"properties": [
 					{
@@ -420,7 +429,8 @@
 										},
 										"equalToDefault": false
 									}
-								]
+								],
+								"exportedAs": ["TestObject2"]
 							},
 							"properties": [
 								{
@@ -437,7 +447,8 @@
 													},
 													"equalToDefault": false
 												}
-											]
+											],
+											"exportedAs": ["TestObject1"]
 										},
 										"properties": [
 											{
@@ -454,7 +465,8 @@
 																},
 																"equalToDefault": false
 															}
-														]
+														],
+														"exportedAs": ["TestObject2"]
 													},
 													"properties": [
 														{
@@ -471,7 +483,8 @@
 																			},
 																			"equalToDefault": false
 																		}
-																	]
+																	],
+																	"exportedAs": ["TestObject1"]
 																},
 																"properties": []
 															},
@@ -509,7 +522,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"exportedAs": ["TestObject2"]
 				},
 				"properties": [
 					{
@@ -526,7 +540,8 @@
 										},
 										"equalToDefault": false
 									}
-								]
+								],
+								"exportedAs": ["TestObject1"]
 							},
 							"properties": [
 								{
@@ -543,7 +558,8 @@
 													},
 													"equalToDefault": false
 												}
-											]
+											],
+											"exportedAs": ["TestObject2"]
 										},
 										"properties": [
 											{
@@ -560,7 +576,8 @@
 																},
 																"equalToDefault": false
 															}
-														]
+														],
+														"exportedAs": ["TestObject1"]
 													},
 													"properties": []
 												},

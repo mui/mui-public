@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "class",
 				"typeName": {
-					"name": "Formatter"
+					"name": "Formatter",
+					"exportedAs": ["Formatter"]
 				},
 				"constructSignatures": [
 					{

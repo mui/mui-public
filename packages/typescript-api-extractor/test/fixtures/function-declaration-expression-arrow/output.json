@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "declaration"
+					"name": "declaration",
+					"exportedAs": ["declaration"]
 				},
 				"callSignatures": [
 					{

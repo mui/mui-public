@@ -22,7 +22,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"exportedAs": ["Rest"]
 				},
 				"types": [
 					{
@@ -53,7 +54,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"exportedAs": ["Wrap"]
 				},
 				"properties": []
 			},
@@ -92,7 +94,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"exportedAs": ["Wrap"]
 				},
 				"properties": [
 					{

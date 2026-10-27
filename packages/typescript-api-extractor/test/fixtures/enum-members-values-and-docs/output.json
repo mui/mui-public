@@ -5,7 +5,8 @@
 			"name": "Side",
 			"type": {
 				"typeName": {
-					"name": "Side"
+					"name": "Side",
+					"exportedAs": ["Side"]
 				},
 				"members": [
 					{
@@ -43,7 +44,8 @@
 			"name": "Flags",
 			"type": {
 				"typeName": {
-					"name": "Flags"
+					"name": "Flags",
+					"exportedAs": ["Flags"]
 				},
 				"members": [
 					{
@@ -77,7 +79,8 @@
 			"name": "DegenerateN",
 			"type": {
 				"typeName": {
-					"name": "DegenerateN"
+					"name": "DegenerateN",
+					"exportedAs": ["DegenerateN"]
 				},
 				"members": [
 					{
@@ -95,7 +98,8 @@
 			"name": "DegenerateS",
 			"type": {
 				"typeName": {
-					"name": "DegenerateS"
+					"name": "DegenerateS",
+					"exportedAs": ["DegenerateS"]
 				},
 				"members": [
 					{
