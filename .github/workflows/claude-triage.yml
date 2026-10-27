@@ -41,11 +41,11 @@ on:
       triage-model:
         description: Claude model used for triage.
         type: string
-        default: claude-sonnet-5-5
+        default: claude-opus-5-5
       fix-model:
         description: Claude model used for fixing.
         type: string
-        default: claude-sonnet-5-5
+        default: claude-opus-5-5
       triage-max-turns:
         description: Hard turn limit for the triage invocation.
         type: number
