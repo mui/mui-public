@@ -1,0 +1,452 @@
+import { median } from 'es-toolkit/math';
+import { calculateMean, calculateSampleStdDev } from '../stats';
+import { baseMetricName } from '../metricCore';
+import type {
+  BenchmarkRunReport,
+  RunBenchmark,
+  RunMetricAlarm,
+  RunMetricDefinition,
+} from './schema';
+
+/**
+ * The one analysis of a run report, shared by the runner's table, the pull request comment and the
+ * dashboard, so they cannot disagree about what a run found.
+ *
+ * Variants are compared on paired differences: each round measured every variant once, so the
+ * per-round difference cancels whatever the machine was doing during that round, and its
+ * confidence interval is far tighter than one computed from two independent sets of samples.
+ *
+ * Every interval is 99%, a fixed level, so a run's cost doesn't grow with how many benchmarks it
+ * holds. What keeps a run of unchanged code from alarming is mostly the alarm's bands, which the
+ * interval's near end has to reach.
+ */
+
+export interface Interval {
+  low: number;
+  high: number;
+}
+
+export interface SampleSummary {
+  count: number;
+  median: number;
+}
+
+/**
+ * Which way a resolved change went, given the metric's direction; `undetected` (shown as "no change
+ * detected") if it did not resolve; `unchanged` if every round measured the same on both sides, a
+ * render count, say.
+ */
+export type Change = 'better' | 'worse' | 'undetected' | 'unchanged';
+
+/** Whether a change raises its alarm. */
+export type Severity = 'error' | 'none';
+
+export interface MetricComparison {
+  /** The variant the difference is about. */
+  subject: string;
+  /** The variant it is measured against. */
+  against: string;
+  /**
+   * The alarm a change answers to: the metric's, with the benchmark's own merged over it, on a
+   * `baseline` benchmark; `null` where no change can raise one — a metric without an alarm, one the
+   * benchmark turned off, or a `compare()`, whose variants differ on purpose.
+   */
+  alarm: RunMetricAlarm | null;
+  /** `subject − against`, in the metric's unit: confidence interval of the mean difference. */
+  absolute: Interval;
+  /** The same, as a percentage of `against`'s mean. */
+  relative: Interval;
+  /**
+   * How much the difference varies from round to round: the standard deviation of the per-round
+   * differences, as a percentage of `against`'s mean. A property of the benchmark rather than of how
+   * long it sampled; 0 with fewer than 2 rounds.
+   */
+  noise: number;
+  /**
+   * The smallest change the run could still have missed: the interval's half-width, in the alarm's
+   * units — a fraction for a scalar metric, a count for a discrete one.
+   */
+  precision: number;
+  /**
+   * Whether more rounds could still change what the alarm says: settled once the interval lies
+   * wholly on one side of the alarm's `error` band on the worse side (of zero, without a band). An
+   * improvement can't alarm, so the better side never keeps a run going, and nothing does where
+   * nothing can alarm.
+   */
+  settled: boolean;
+  change: Change;
+  severity: Severity;
+  /**
+   * Whether the change is for the better by at least the alarm's `error` band, judged by the interval
+   * bound nearest zero, as `severity` is on the worse side; without a band, any confirmed change for
+   * the better. Always false where nothing can alarm.
+   */
+  improved: boolean;
+}
+
+export interface MetricAnalysis {
+  metric: string;
+  definition: RunMetricDefinition;
+  variants: Record<string, SampleSummary>;
+  comparisons: MetricComparison[];
+}
+
+export interface BenchmarkAnalysis {
+  benchmark: RunBenchmark;
+  /** Empty for a benchmark that failed. */
+  metrics: MetricAnalysis[];
+}
+
+/** The confidence level of every interval. */
+export const CONFIDENCE = 0.99;
+
+/**
+ * The `error` band of a scalar metric's alarm that sets none: a change has to be confidently 5%
+ * worse to alarm, and sampling settles against 5%. A discrete metric's alarm without a band alarms
+ * on any confirmed change in its count.
+ */
+export const DEFAULT_ERROR_BAND = 0.05;
+
+const LANCZOS = [
+  0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313,
+  -176.61502916214059, 12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6,
+  1.5056327351493116e-7,
+];
+
+/** ln Γ(x) for x > 0, by the Lanczos approximation. */
+function logGamma(x: number): number {
+  const shifted = x - 1;
+  let sum = LANCZOS[0];
+  for (let index = 1; index < LANCZOS.length; index += 1) {
+    sum += LANCZOS[index] / (shifted + index);
+  }
+  const base = shifted + 7.5;
+  return 0.5 * Math.log(2 * Math.PI) + (shifted + 0.5) * Math.log(base) - base + Math.log(sum);
+}
+
+/** The continued fraction of the incomplete beta function, by Lentz's method. */
+function betaContinuedFraction(x: number, a: number, b: number): number {
+  const tiny = 1e-300;
+  const guard = (value: number) => (Math.abs(value) < tiny ? tiny : value);
+  let numerator = 1;
+  let denominator = 1 / guard(1 - ((a + b) * x) / (a + 1));
+  let result = denominator;
+  for (let step = 1; step <= 300; step += 1) {
+    const twice = 2 * step;
+    const even = (step * (b - step) * x) / ((a + twice - 1) * (a + twice));
+    const odd = (-(a + step) * (a + b + step) * x) / ((a + twice) * (a + twice + 1));
+    let factor = 1;
+    for (const coefficient of [even, odd]) {
+      denominator = 1 / guard(1 + coefficient * denominator);
+      numerator = guard(1 + coefficient / numerator);
+      factor = denominator * numerator;
+      result *= factor;
+    }
+    if (Math.abs(factor - 1) < 1e-15) {
+      break;
+    }
+  }
+  return result;
+}
+
+/** The regularized incomplete beta function Iₓ(a, b). */
+function incompleteBeta(x: number, a: number, b: number): number {
+  if (x <= 0) {
+    return 0;
+  }
+  if (x >= 1) {
+    return 1;
+  }
+  const front = Math.exp(
+    logGamma(a + b) - logGamma(a) - logGamma(b) + a * Math.log(x) + b * Math.log(1 - x),
+  );
+  return x < (a + 1) / (a + b + 2)
+    ? (front * betaContinuedFraction(x, a, b)) / a
+    : 1 - (front * betaContinuedFraction(1 - x, b, a)) / b;
+}
+
+const criticalValues = new Map<string, number>();
+
+/** The two-sided critical value of Student's t at a confidence level, 99% by default. */
+export function tCritical(degreesOfFreedom: number, confidence = CONFIDENCE): number {
+  const key = `${degreesOfFreedom}:${confidence}`;
+  const cached = criticalValues.get(key);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const df = Math.max(degreesOfFreedom, 1);
+  // The chance of |t| beyond `bound`, which only falls as `bound` grows, so bisect on it.
+  const tail = (bound: number) => incompleteBeta(df / (df + bound * bound), df / 2, 0.5);
+  const alpha = 1 - confidence;
+  let low = 0;
+  let high = 1;
+  while (tail(high) > alpha) {
+    high *= 2;
+  }
+  for (let step = 0; step < 100; step += 1) {
+    const middle = (low + high) / 2;
+    if (tail(middle) > alpha) {
+      low = middle;
+    } else {
+      high = middle;
+    }
+  }
+  criticalValues.set(key, high);
+  return high;
+}
+
+/** The confidence interval of a mean from `count` values with standard deviation `stdDev`. */
+function intervalAround(mean: number, stdDev: number, count: number): Interval {
+  if (count < 2) {
+    return { low: mean, high: mean };
+  }
+  const halfWidth = (tCritical(count - 1) * stdDev) / Math.sqrt(count);
+  return { low: mean - halfWidth, high: mean + halfWidth };
+}
+
+function summarizeSamples(values: number[]): SampleSummary {
+  return { count: values.length, median: median(values) };
+}
+
+const DEFAULT_DEFINITION: RunMetricDefinition = { kind: 'scalar' };
+
+/** The key `record` holds for a metric: its own, else its base metric's for a `name#id` sub-series. */
+function keyOf(record: Record<string, unknown>, metric: string): string | undefined {
+  if (Object.hasOwn(record, metric)) {
+    return metric;
+  }
+  const base = baseMetricName(metric);
+  return Object.hasOwn(record, base) ? base : undefined;
+}
+
+/** A metric's definition; a `name#id` sub-series is defined by its base metric. */
+function definitionOf(
+  metrics: Record<string, RunMetricDefinition>,
+  metric: string,
+): RunMetricDefinition {
+  const key = keyOf(metrics, metric);
+  return key === undefined ? DEFAULT_DEFINITION : metrics[key];
+}
+
+/**
+ * The benchmark's own alarm for a metric, if it sets one: an alarm to merge over the metric's, or
+ * `false` when the metric never alarms in this benchmark. A sub-series follows its base metric.
+ */
+function alarmOverrideOf(
+  benchmark: RunBenchmark,
+  metric: string,
+): RunMetricAlarm | false | undefined {
+  const { alarms } = benchmark;
+  if (!alarms) {
+    return undefined;
+  }
+  const key = keyOf(alarms, metric);
+  return key === undefined ? undefined : alarms[key];
+}
+
+/**
+ * An interval in the unit the alarm bands use: a fraction for a scalar metric, which bands
+ * relatively, and a count for a discrete one.
+ */
+function inAlarmUnits(
+  comparison: Pick<MetricComparison, 'absolute' | 'relative'>,
+  definition: RunMetricDefinition,
+): Interval {
+  return definition.kind === 'discrete'
+    ? comparison.absolute
+    : { low: comparison.relative.low / 100, high: comparison.relative.high / 100 };
+}
+
+/** The per-round differences `subject − against`, over the rounds both have. */
+function differencesOf(subject: number[], against: number[]): number[] {
+  const rounds = Math.min(subject.length, against.length);
+  return Array.from({ length: rounds }, (_, round) => subject[round] - against[round]);
+}
+
+export interface CompareSamplesOptions {
+  /**
+   * The alarm a change answers to. Defaults to the metric's; `null` where no change can raise one,
+   * such as between the variants of a `compare()`, which differ on purpose.
+   */
+  alarm?: RunMetricAlarm | null;
+}
+
+export function compareSamples(
+  subject: { name: string; values: number[] },
+  against: { name: string; values: number[] },
+  definition: RunMetricDefinition,
+  { alarm: given = definition.alarm ?? null }: CompareSamplesOptions = {},
+): MetricComparison {
+  const alarm =
+    given && definition.kind === 'scalar' && given.error === undefined
+      ? { ...given, error: DEFAULT_ERROR_BAND }
+      : given;
+  const differences = differencesOf(subject.values, against.values);
+  const rounds = differences.length;
+  const mean = calculateMean(differences);
+  const stdDev = calculateSampleStdDev(differences, mean);
+  const absolute = intervalAround(mean, stdDev, rounds);
+  const reference = calculateMean(against.values.slice(0, rounds));
+  const relative = {
+    low: (absolute.low / reference) * 100,
+    high: (absolute.high / reference) * 100,
+  };
+  const noise = (stdDev / reference) * 100;
+  const banded = inAlarmUnits({ absolute, relative }, definition);
+  const precision = (banded.high - banded.low) / 2;
+  // Which way is worse: an increase, unless the alarm says higher is better. `worsening` is the
+  // interval in that orientation, so a positive bound is a change for the worse.
+  const worseSign = (alarm ?? definition.alarm)?.direction === 'higherIsBetter' ? -1 : 1;
+  const worsening = worseSign === 1 ? banded : { low: -banded.high, high: -banded.low };
+  // How far a change must go, either way, to count: the alarm's `error` band, judged against the
+  // interval bound nearest zero. Without a band, which only a discrete metric's alarm keeps, 0: a
+  // confirmed change's interval excludes zero, so any of them counts.
+  const edge = alarm?.error ?? 0;
+
+  let change: Change = 'undetected';
+  if (rounds > 0 && differences.every((difference) => difference === 0)) {
+    change = 'unchanged';
+  } else if (absolute.low > 0 || absolute.high < 0) {
+    change = (absolute.low > 0 ? 1 : -1) === worseSign ? 'worse' : 'better';
+  }
+
+  return {
+    subject: subject.name,
+    against: against.name,
+    alarm,
+    absolute,
+    relative,
+    noise,
+    precision,
+    // An improvement can't alarm, so only the worse side's edge keeps a run sampling.
+    settled: alarm === null || !(worsening.low < edge && edge < worsening.high),
+    change,
+    severity: alarm !== null && change === 'worse' && worsening.low >= edge ? 'error' : 'none',
+    improved: alarm !== null && change === 'better' && -worsening.high >= edge,
+  };
+}
+
+/** The pairs a benchmark's kind compares: the current build against the baseline, or every variant against the reference. */
+function pairsOf(benchmark: RunBenchmark): Array<{ subject: string; against: string }> {
+  const [reference, ...others] = benchmark.variants;
+  return benchmark.kind === 'baseline'
+    ? others.map((other) => ({ subject: reference, against: other }))
+    : others.map((other) => ({ subject: other, against: reference }));
+}
+
+export type MetricComparisons = Omit<MetricAnalysis, 'variants'>;
+
+interface PairedMetric {
+  metric: string;
+  definition: RunMetricDefinition;
+  /** The alarm its changes answer to here, or `null` where none can raise one. */
+  alarm: RunMetricAlarm | null;
+  pairs: Array<{
+    subject: { name: string; values: number[] };
+    against: { name: string; values: number[] };
+  }>;
+}
+
+/** Every metric a benchmark reported, with the pairs of variants its kind compares on it. */
+function pairedMetricsOf(
+  metrics: Record<string, RunMetricDefinition>,
+  benchmark: RunBenchmark,
+): PairedMetric[] {
+  const { samples } = benchmark;
+  const [reference] = benchmark.variants;
+  return Object.keys(samples?.[reference] ?? {}).map((metric) => {
+    const definition = definitionOf(metrics, metric);
+    const override = alarmOverrideOf(benchmark, metric);
+    let alarm: RunMetricAlarm | null = null;
+    if (benchmark.kind === 'baseline' && override !== false) {
+      alarm = override ? { ...definition.alarm, ...override } : (definition.alarm ?? null);
+    }
+    const sideOf = (name: string) => ({ name, values: samples?.[name]?.[metric] ?? [] });
+    return {
+      metric,
+      definition,
+      alarm,
+      pairs: pairsOf(benchmark).map(({ subject, against }) => ({
+        subject: sideOf(subject),
+        against: sideOf(against),
+      })),
+    };
+  });
+}
+
+/**
+ * Compares one benchmark's variants, its metrics described by `metrics` (a report's, or a run's so
+ * far). The comparisons alone, which is all deciding whether to keep sampling needs.
+ */
+export function compareBenchmark(
+  metrics: Record<string, RunMetricDefinition>,
+  benchmark: RunBenchmark,
+): { metrics: MetricComparisons[] } {
+  return {
+    metrics: pairedMetricsOf(metrics, benchmark).map(({ metric, definition, alarm, pairs }) => ({
+      metric,
+      definition,
+      comparisons: pairs.map(({ subject, against }) =>
+        compareSamples(subject, against, definition, { alarm }),
+      ),
+    })),
+  };
+}
+
+/** Analyses one benchmark: its comparisons, and a summary of each variant's samples. */
+export function analyzeBenchmark(
+  metrics: Record<string, RunMetricDefinition>,
+  benchmark: RunBenchmark,
+): BenchmarkAnalysis {
+  const { samples } = benchmark;
+  return {
+    benchmark,
+    metrics: compareBenchmark(metrics, benchmark).metrics.map((comparison) => ({
+      ...comparison,
+      variants: Object.fromEntries(
+        benchmark.variants.map((variant) => [
+          variant,
+          summarizeSamples(samples?.[variant]?.[comparison.metric] ?? []),
+        ]),
+      ),
+    })),
+  };
+}
+
+export function analyzeRun(report: BenchmarkRunReport): BenchmarkAnalysis[] {
+  return report.benchmarks.map((benchmark) => analyzeBenchmark(report.metrics, benchmark));
+}
+
+/** A comparison that can raise an alarm, with the benchmark and metric it belongs to. */
+export interface AlarmedChange {
+  benchmark: string;
+  metric: string;
+  comparison: MetricComparison;
+}
+
+/**
+ * Whether a change says something is wrong with the code under test: an alarmed metric's change
+ * for the worse, past its `error` band.
+ */
+export function isRegression(comparison: MetricComparison): boolean {
+  return comparison.severity !== 'none';
+}
+
+/**
+ * Whether a change is one for the better on an alarmed metric, past its `error` band: what the code
+ * under test sped up.
+ */
+export function isImprovement(comparison: MetricComparison): boolean {
+  return comparison.improved;
+}
+
+/** Every regression in a run, with the benchmark and metric it belongs to. */
+export function findRegressions(analyses: BenchmarkAnalysis[]): AlarmedChange[] {
+  return analyses.flatMap(({ benchmark, metrics }) =>
+    metrics.flatMap(({ metric, comparisons }) =>
+      comparisons
+        .filter(isRegression)
+        .map((comparison) => ({ benchmark: benchmark.name, metric, comparison })),
+    ),
+  );
+}

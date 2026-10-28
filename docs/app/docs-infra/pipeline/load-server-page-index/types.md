@@ -60,7 +60,7 @@ type ReturnValue = SitemapSectionData;
 ### extractPrefixAndTitle
 
 Extracts prefix and title from an import path
-e.g., "/path/to/app/docs-infra/components/page.mdx" -> { prefix: "/docs-infra/components/", title: "Docs Infra Components" }
+for example, "/path/to/app/docs-infra/components/page.mdx" -> { prefix: "/docs-infra/components/", title: "Docs Infra Components" }
 
 **Parameters:**
 
@@ -112,7 +112,7 @@ type ReturnValue = Promise<SitemapSectionData | null>;
 ### pathSegmentToTitle
 
 Converts a path segment to a title
-e.g., "docs-infra" -> "Docs Infra", "components" -> "Components"
+for example, "docs-infra" -> "Docs Infra", "components" -> "Components"
 
 **Parameters:**
 

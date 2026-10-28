@@ -1,4 +1,4 @@
-# Transform Typescript To Javascript
+# Transform TypeScript To JavaScript
 
 The `transformTypescriptToJavascript` utility transforms TypeScript/TSX code into JavaScript/JSX using [Sucrase](https://sucrase.io/), preserving formatting and automatically generating JavaScript variants for documentation and demos.
 
@@ -87,7 +87,7 @@ The collapsed empty lines render as `<span class="collapse" data-lines={n}>`
 placeholders that animate from the height of the wiped lines down to zero
 on first paint (see
 [Styling the collapsed-lines placeholder](../load-isomorphic-code-variant/page.mdx#styling-the-collapsed-lines-placeholder)).
-To keep that motion from displacing visible code on TS → JS switches,
+To keep that motion from displacing visible code on TypeScript → JS switches,
 make sure your `@focus` region **excludes** lines this transformer is
 likely to wipe (top-of-file `type`/`interface` declarations,
 `import type` statements, etc.) so they collapse inside a hidden frame.
@@ -137,7 +137,7 @@ const Button = ({ onClick, children }) => {
 ## When to Use
 
 - When implementing automatic TypeScript → JavaScript code generation
-- When building documentation that shows both TS and JS versions
+- When building documentation that shows both TypeScript and JavaScript versions
 - When creating demos that need to support both TypeScript and JavaScript users
 - As part of source transformers in [`CodeHighlighter`](../../components/code-highlighter/page.mdx)
 

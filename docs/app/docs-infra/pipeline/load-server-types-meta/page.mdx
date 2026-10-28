@@ -129,7 +129,7 @@ Loads `tsconfig.json` with support for `extends` inheritance. Results are cached
 Resolves variant paths to actual file system locations, handling three categories:
 
 - **Relative paths** — files within the project root, resolved via filesystem
-- **Path-mapped imports** — resolved through tsconfig `paths` configuration (e.g., `@base-ui/react/*`)
+- **Path-mapped imports** — resolved through tsconfig `paths` configuration (for example, `@base-ui/react/*`)
 - **External library imports** — resolved through Node.js module resolution. When `watchSourceDirectly` is enabled (auto-detected when tsconfig path aliases are used), follows `.d.ts.map` source maps to locate the original TypeScript source files instead of declaration files.
 
 ### 3. Process Types in Worker
@@ -138,7 +138,7 @@ Type extraction is offloaded to a dedicated worker thread. Inside the worker:
 
 - **Creates an optimized TypeScript program** using an in-memory `LanguageServiceHost` singleton that caches file contents and tracks versions for incremental updates
 - **Parses exports** using `typescript-api-extractor`'s `parseFromProgram`, which extracts components, hooks, functions, classes, type aliases, and interfaces with their full type trees
-- **Builds a type name map** from flat export names to their dotted equivalents (e.g., `AccordionRootState` → `Accordion.Root.State`), only when both the flat and dotted names exist as exports
+- **Builds a type name map** from flat export names to their dotted equivalents (for example, `AccordionRootState` → `Accordion.Root.State`), only when both the flat and dotted names exist as exports
 - **Folds constant namespaces** — the parser flattens `export * as Name from './module'` into one export per member; when the module holds nothing but literal constants, the members are collapsed back into a single [constant group](#constant-groups) named `Name`
 - **Collects dependencies** by walking the import graph from each entrypoint for HMR file watching
 - **Strips functions** from the result for serialization across the worker boundary (structured clone can't handle functions)
@@ -178,8 +178,8 @@ A group's name tells which component table it holds: the component's name with i
 
 Before formatting, builds a map from original type names to their canonical export names. This map is derived from two sources on the parsed exports:
 
-- **`reexportedFrom`** — when a component is re-exported under a new name (e.g., `AlertDialog.Trigger` re-exports `DialogTrigger`)
-- **`extendsTypes`** — when an interface extends another (e.g., `AlertDialog.Root.Props` extends `Dialog.Props`)
+- **`reexportedFrom`** — when a component is re-exported under a new name (for example, `AlertDialog.Trigger` re-exports `DialogTrigger`)
+- **`extendsTypes`** — when an interface extends another (for example, `AlertDialog.Root.Props` extends `Dialog.Props`)
 
 This map drives the type rewriting in the next step, ensuring that type references in documentation use the canonical namespaced names rather than internal names from the source library.
 
@@ -193,39 +193,39 @@ Converts raw TypeScript exports to formatted metadata based on their detected ca
 - **Classes** (`formatClassData`) — extracts constructor parameters, properties, and methods.
 - **Raw types** (`formatRawData`) — formats the type declaration as code. Enums and constant groups are declared as they are exported, with a member table for groups not matched to a component.
 
-Each formatter calls `rewriteTypeStringsDeep` at the end, which applies the type compatibility map from step 4 to normalize all type references. Rewrites use word-boundary matching to prevent partial replacements (e.g., `Dialog` won't match inside `AlertDialog`).
+Each formatter calls `rewriteTypeStringsDeep` at the end, which applies the type compatibility map from step 4 to normalize all type references. Rewrites use word-boundary matching to prevent partial replacements (for example, `Dialog` won't match inside `AlertDialog`).
 
-During formatting, `formatType` also collects **external types** — types referenced in props that aren't publicly exported from the component's module. This includes named union types (e.g., `Orientation = 'horizontal' | 'vertical'`), named function types, and external type references that resolve to unions or literals. Collection happens inline during type formatting rather than as a separate tree walk, so only types that actually appear in the formatted output are collected.
+During formatting, `formatType` also collects **external types** — types referenced in props that aren't publicly exported from the component's module. This includes named union types (for example, `Orientation = 'horizontal' | 'vertical'`), named function types, and external type references that resolve to unions or literals. Collection happens inline during type formatting rather than as a separate tree walk, so only types that actually appear in the formatted output are collected.
 
-> **Note**: When a hook or function has a single anonymous object parameter (e.g., `function useHook(params: { enabled: boolean })`), the object's fields are expanded into individual **properties** instead of being listed as a single **parameter**. This provides a cleaner documentation layout for options-style APIs.
+> **Note**: When a hook or function has a single anonymous object parameter (for example, `function useHook(params: { enabled: boolean })`), the object's fields are expanded into individual **properties** instead of being listed as a single **parameter**. This provides a cleaner documentation layout for options-style APIs.
 
 ### 6. Group by Component
 
-For single-variant exports with sub-components (e.g., `Accordion.Root`, `Accordion.Trigger`), groups types by component:
+For single-variant exports with subcomponents (for example, `Accordion.Root`, `Accordion.Trigger`), groups types by component:
 
 ```typescript
 // Before: { Default: { types: [Accordion.Root, Accordion.Trigger, ...] } }
 // After: { "Accordion.Root": { types: [...] }, "Accordion.Trigger": { types: [...] } }
 ```
 
-Grouping only activates when there are actual sub-components — 2-part names that are components, hooks, functions, or classes (not just raw type suffixes like `Button.Props`). Once active:
+Grouping only activates when there are actual subcomponents — 2-part names that are components, hooks, functions, or classes (not just raw type suffixes like `Button.Props`). Once active:
 
-- **3+ part names** (e.g., `Accordion.Root.State`): grouped under the first two parts (`Accordion.Root`)
-- **2-part component/hook/function/class** (e.g., `Accordion.Root`): becomes its own group
-- **2-part raw types** (e.g., `Toolbar.Orientation`): remain in the "Default" group
-- **1-part names** (e.g., `DirectionProvider`): remain in the "Default" group
+- **3+ part names** (for example, `Accordion.Root.State`): grouped under the first two parts (`Accordion.Root`)
+- **2-part component/hook/function/class** (for example, `Accordion.Root`): becomes its own group
+- **2-part raw types** (for example, `Toolbar.Orientation`): remain in the "Default" group
+- **1-part names** (for example, `DirectionProvider`): remain in the "Default" group
 
 ### 7. Deduplicate and Normalize
 
 Several normalization passes clean up the type list:
 
-- **Deduplication** — when the same type name appears multiple times (e.g., `DirectionProvider` exported from both `index.ts` and `DirectionProvider.tsx`), keeps one entry, preferring component/hook types over raw types
-- **Flat name filtering** — removes flat-named types when a namespaced version exists (e.g., removes `AccordionRootState` when `Accordion.Root.State` is present), since the type name map confirms they represent the same type
-- **Alias attachment** — adds flat names as lookup aliases on the remaining namespaced types (e.g., `Accordion.Root.State` gets alias `AccordionRootState`), so consumers can look up types by either name
+- **Deduplication** — when the same type name appears multiple times (for example, `DirectionProvider` exported from both `index.ts` and `DirectionProvider.tsx`), keeps one entry, preferring component/hook types over raw types
+- **Flat name filtering** — removes flat-named types when a namespaced version exists (for example, removes `AccordionRootState` when `Accordion.Root.State` is present), since the type name map confirms they represent the same type
+- **Alias attachment** — adds flat names as lookup aliases on the remaining namespaced types (for example, `Accordion.Root.State` gets alias `AccordionRootState`), so consumers can look up types by either name
 
 ### 8. Detect Re-exports
 
-Identifies raw type exports that only repeat a component's props and documents them as a link to it, e.g. `Button.Props` → marked as re-export of Button's props table.
+Identifies raw type exports that only repeat a component's props and documents them as a link to it, for example, `Button.Props` → marked as re-export of Button's props table.
 
 ### 9. Organize by Export
 
@@ -253,7 +253,7 @@ The worker manager uses a `Symbol.for()` key on the `process` object to ensure t
 
 ### Socket-Based IPC
 
-For multi-process environments (e.g., Next.js with multiple workers):
+For multi-process environments (for example, Next.js with multiple workers):
 
 - First worker acquires a lock and becomes the "server", holding the TypeScript language service
 - Other workers connect as "clients" via Unix domain socket (or named pipe on Windows)
@@ -282,5 +282,5 @@ import { TypesLoadServerTypesMeta } from './types';
 
 - [`loadServerTypes`](../load-server-types/page.mdx) — Full pipeline with syntax highlighting
 - [`syncTypes`](../sync-types/page.mdx) — Sync types.md file from metadata
-- [`loadPrecomputedTypes`](../load-precomputed-types/page.mdx) — Webpack/Turbopack loader that uses syncTypes
+- [`loadPrecomputedTypes`](../load-precomputed-types/page.mdx) — webpack/Turbopack loader that uses syncTypes
 - [`typescript-api-extractor`](https://github.com/michaldudak/typescript-api-extractor) — Underlying type extraction library

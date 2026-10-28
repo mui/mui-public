@@ -4,11 +4,12 @@ export interface ReactRecordingControls {
   /** Whether any active recording window closed without capturing a render. */
   readonly hadEmptyActiveWindow: boolean;
   /**
-   * Whether recording was active at `time` (a `performance.now()` timestamp). Paint entries are
+   * When the recording window around `time` (a `performance.now()` timestamp) began: `-Infinity`
+   * if recording was active from the start, `null` if it was paused at `time`. Paint entries are
    * observed asynchronously, so they are attributed by their `paintTime` rather than by the
    * recording state at the moment the observer callback happens to fire.
    */
-  activeAt(time: number): boolean;
+  activeSince(time: number): number | null;
   /** Note that a render was captured in the current window. Called by the harness from `onRender`. */
   markRendered(): void;
   /** Close the final window at the end of the iteration (validates it if recording is still active). */
@@ -33,7 +34,7 @@ export function createReactRecordingControls(initiallyActive: boolean): ReactRec
   let currentWindowHasRender = false;
   let emptyActiveWindow = false;
   // Transitions in chronological order. The implicit state before the first toggle is
-  // `initiallyActive`; `activeAt` replays this to attribute a paint to its render time.
+  // `initiallyActive`; `activeSince` replays this to attribute a paint to its window.
   const transitions: { time: number; active: boolean }[] = [];
 
   // Flag the window being closed if it was recording yet captured nothing.
@@ -50,15 +51,15 @@ export function createReactRecordingControls(initiallyActive: boolean): ReactRec
     get hadEmptyActiveWindow() {
       return emptyActiveWindow;
     },
-    activeAt(time) {
-      let result = initiallyActive;
+    activeSince(time) {
+      let since: number | null = initiallyActive ? -Infinity : null;
       for (const transition of transitions) {
         if (transition.time > time) {
           break;
         }
-        result = transition.active;
+        since = transition.active ? transition.time : null;
       }
-      return result;
+      return since;
     },
     markRendered() {
       currentWindowHasRender = true;

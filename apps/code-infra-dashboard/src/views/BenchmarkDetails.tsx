@@ -9,12 +9,21 @@ import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
-import { fetchCiReport } from '@/utils/fetchCiReport';
+import { fetchCiReport, isBenchmarkRunUpload } from '@/utils/fetchCiReport';
 import Heading from '../components/Heading';
 import ReportHeader from '../components/ReportHeader';
 import ErrorDisplay from '../components/ErrorDisplay';
 import { BenchmarkComparisonReportView } from '../components/BenchmarkComparisonReportView';
 import { useBaseSha } from '../hooks/useBaseSha';
+
+/**
+ * A commit's version 1 report, or null. This view compares version 1 reports; a version 2 report is
+ * read by `BenchmarkRunDetails`.
+ */
+async function fetchVersion1Report(repo: string, sha: string) {
+  const upload = await fetchCiReport(repo, sha, 'benchmark.json');
+  return upload && !isBenchmarkRunUpload(upload) ? upload : null;
+}
 
 interface InlinedBaseAlertProps {
   fetchedBaseSha: string;
@@ -59,7 +68,7 @@ export default function BenchmarkDetails() {
     error,
   } = useQuery({
     queryKey: ['benchmark-report', repo, sha],
-    queryFn: () => fetchCiReport(repo, sha!, 'benchmark.json'),
+    queryFn: () => fetchVersion1Report(repo, sha!),
     retry: 1,
     enabled: Boolean(sha),
   });
@@ -70,7 +79,7 @@ export default function BenchmarkDetails() {
     error: baseError,
   } = useQuery({
     queryKey: ['benchmark-report', repo, baseSha],
-    queryFn: () => fetchCiReport(repo, baseSha!, 'benchmark.json'),
+    queryFn: () => fetchVersion1Report(repo, baseSha!),
     retry: 1,
     enabled: Boolean(baseSha),
   });

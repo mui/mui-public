@@ -14,7 +14,7 @@ The `enhanceCodeTypes` plugin scans syntax-highlighted code for type names and c
 - **Platform-scoped anchor maps**: Accepts separate `js` and `css` anchor maps, resolving per code element based on language
 - **Type linking**: Converts matching type names to clickable links
 - **Dotted chain support**: Links chains like `Component.Root.Props` as a single anchor
-- **Custom component support**: Optionally emits custom elements (e.g., `TypeRef`) instead of `<a>` tags for interactive popovers
+- **Custom component support**: Optionally emits custom elements (for example, `TypeRef`) instead of `<a>` tags for interactive popovers
 - **Multiple class support**: Works with both `pl-c1` (constants) and `pl-en` (entity names/types)
 - **Nested structure handling**: Recursively processes frame/line spans in code blocks
 - **Case-sensitive matching**: Only links exact matches from the anchor map
@@ -114,8 +114,8 @@ This produces HAST elements with the custom tag name:
 The custom element receives three properties:
 
 - `href`: The link from the `linkMap`
-- `name`: The matched identifier text (e.g., `"Trigger"` or `"Accordion.Trigger"`)
-- `className`: The original syntax highlighting class (e.g., `"pl-en"`)
+- `name`: The matched identifier text (for example, `"Trigger"` or `"Accordion.Trigger"`)
+- `className`: The original syntax highlighting class (for example, `"pl-en"`)
 
 To resolve these custom HAST elements to React components, you must include the component in the `components` map passed to `hast-util-to-jsx-runtime`. This is typically done via the `components` option in [`abstractCreateTypes`](../../factories/abstract-create-types/page.mdx).
 
@@ -409,7 +409,7 @@ const processor = unified()
 The `linkProps` option accepts:
 
 - `'shallow'`: Handles only top-level properties of known owners
-- `'deep'`: Handles nested properties with dotted paths (e.g., `address.street-name`)
+- `'deep'`: Handles nested properties with dotted paths (for example, `address.street-name`)
 - `undefined` (default): No property handling (backward compatible)
 
 ### Owner Detection
@@ -496,7 +496,7 @@ For CSS code blocks, a linked property name becomes an owner and its subsequent 
 >;
 ```
 
-Numeric values (e.g., `8`, `1.5`) and CSS function calls (e.g., `var()`, `calc()`) are excluded from value linking. The owner context ends at `;`, `{`, or `}`, so consecutive declarations each resolve independently.
+Numeric values (for example, `8`, `1.5`) and CSS function calls (for example, `var()`, `calc()`) are excluded from value linking. The owner context ends at `;`, `{`, or `}`, so consecutive declarations each resolve independently.
 
 #### Deep Nesting
 
@@ -511,7 +511,7 @@ With `linkProps: 'deep'`, nested properties produce dotted paths:
 <span id="root.props:address.street-name" class="pl-v">streetName</span>: ... }
 ```
 
-Property names are converted to kebab-case in anchors (e.g., `streetName` → `street-name`, `onValueChange` → `on-value-change`).
+Property names are converted to kebab-case in anchors (for example, `streetName` → `street-name`, `onValueChange` → `on-value-change`).
 
 ### Property Anchor Format
 
@@ -577,9 +577,9 @@ The custom element receives:
 
 Where:
 
-- `id` / `href`: The computed property anchor (e.g., `id="root.props:label"`, `href="#root.props:label"`)
-- `name`: The owner identifier (e.g., `"Accordion.Root.Props"`)
-- `prop`: The kebab-case property path (e.g., `"label"` or `"on-value-change"`)
+- `id` / `href`: The computed property anchor (for example, `id="root.props:label"`, `href="#root.props:label"`)
+- `name`: The owner identifier (for example, `"Accordion.Root.Props"`)
+- `prop`: The kebab-case property path (for example, `"label"` or `"on-value-change"`)
 
 ### Implementation Details
 
@@ -589,7 +589,7 @@ The plugin uses a single-pass traversal with a stack-based state machine:
 2. **Entity tracking**: Remembers the last seen linkable name for pending ownership
 3. **Brace/paren tracking**: Counts `{` / `}` and `(` / `)` to know when owners start and end
 4. **Parameter indexing**: For function calls, tracks `,` at the top paren level to increment the parameter index
-5. **Owner stack**: Supports nested owners (e.g., a function call inside a type definition)
+5. **Owner stack**: Supports nested owners (for example, a function call inside a type definition)
 
 State is threaded across line boundaries within code blocks, so multi-line code snippets are handled correctly.
 
@@ -654,7 +654,7 @@ With anchor map `{ js: { Callback: '#callback' } }`:
 <span class="pl-k">void</span>
 ```
 
-When a named anchor is provided (e.g., `'Callback[0]': '#callback:details'`), the named value is used as the `id` instead.
+When a named anchor is provided (for example, `'Callback[0]': '#callback:details'`), the named value is used as the `id` instead.
 
 #### Type Annotation (Reference Site)
 
@@ -726,7 +726,7 @@ When combined with `linkProps: 'deep'`, callback properties inside type definiti
 >: <a href="#x" class="pl-en">X</a>) <span class="pl-k">=></span> <span class="pl-k">void</span>
 ```
 
-The parameter anchor (`opts:callback[0]`) chains the owner, the property path, and the positional index. When a named anchor is provided (e.g., `'Opts:callback[0]': '#opts:callback:details'`), the named value is used instead.
+The parameter anchor (`opts:callback[0]`) chains the owner, the property path, and the positional index. When a named anchor is provided (for example, `'Opts:callback[0]': '#opts:callback:details'`), the named value is used instead.
 
 ### Parameter Anchor Format
 
@@ -772,14 +772,14 @@ The custom element receives:
 
 Where:
 
-- `id` / `href`: The computed parameter anchor (e.g., `id="callback[0]"`, `href="#callback:details"`)
-- `name`: The owner identifier (e.g., `"Callback"`)
-- `param`: The parameter name as it appears in the code (e.g., `"details"`)
+- `id` / `href`: The computed parameter anchor (for example, `id="callback[0]"`, `href="#callback:details"`)
+- `name`: The owner identifier (for example, `"Callback"`)
+- `param`: The parameter name as it appears in the code (for example, `"details"`)
 
 ### Feature Gating
 
 - `linkParams` works independently of `linkProps` — you can enable one without the other
-- Parameter linking only applies to JS-family languages (`ts`, `tsx`, `js`, `jsx`), not CSS
+- Parameter linking only applies to JavaScript-family languages (`ts`, `tsx`, `js`, `jsx`), not CSS
 - Only `pl-v` spans (variable-class) inside function parentheses are treated as parameters
 
 ---
@@ -792,7 +792,7 @@ The plugin can link variable references (`pl-smi` spans) back to the type from t
 
 When `linkScope` is enabled, the plugin performs a single-pass scope analysis:
 
-1. **Declaration tracking**: When a variable or parameter is declared with a type annotation (e.g., `x: TypeA`), the plugin records a _scope binding_ for `x` in the current scope.
+1. **Declaration tracking**: When a variable or parameter is declared with a type annotation (for example, `x: TypeA`), the plugin records a _scope binding_ for `x` in the current scope.
 2. **Scope stack**: The plugin maintains a stack of lexical scopes. `{` pushes a new scope, `}` pops it. Function bodies push `kind: 'function'` scopes; bare blocks push `kind: 'block'` scopes.
 3. **Variable resolution**: When a `pl-smi` span (variable reference) is encountered, the plugin walks up the scope stack looking for a matching binding. If found, the span is replaced with a link.
 
@@ -981,13 +981,13 @@ The plugin conservatively excludes several patterns:
 - `linkScope` works independently of `linkParams` — scope-derived variable references link even when `linkParams` is `false` (parameter definitions stay unlinked, but their body references still resolve).
 - When both `linkScope` and `linkParams` are enabled, parameters are linked at their definition site (via `linkParams`) and their body references are also linked (via `linkScope`).
 - `linkScope` works with `linkProps` — destructured parameter properties can produce `'prop'` scope bindings that link to owner property anchors.
-- Scope linking only applies to JS-family languages (`ts`, `tsx`, `js`, `jsx`), not CSS.
+- Scope linking only applies to JavaScript-family languages (`ts`, `tsx`, `js`, `jsx`), not CSS.
 
 ---
 
 ## Advanced — Value Tracking
 
-The plugin can track the literal values of `const` declarations and annotate later variable references with those values. This enables downstream components to display resolved values (e.g., default values, configuration constants) directly in the documentation.
+The plugin can track the literal values of `const` declarations and annotate later variable references with those values. This enables downstream components to display resolved values (for example, default values, configuration constants) directly in the documentation.
 
 ### Value Capture
 
@@ -1199,8 +1199,8 @@ const processor = unified()
 
 The custom element receives:
 
-- `value`: The tracked literal value (e.g., `"'hello'"`, `"42"`, `"{ a: 'one' }"`)
-- `name`: The variable or expression name (e.g., `"x"`, `"obj.key"`)
+- `value`: The tracked literal value (for example, `"'hello'"`, `"42"`, `"{ a: 'one' }"`)
+- `name`: The variable or expression name (for example, `"x"`, `"obj.key"`)
 
 ```html
 <!-- Output with typeValueRefComponent: 'TypeValueRef' -->
@@ -1224,7 +1224,7 @@ The custom element receives:
 - `linkValues` requires `linkScope` to be enabled — without scope analysis, variable references cannot be resolved.
 - `linkArrays` works independently of `linkValues` — you can track arrays without tracking scalar values, and vice versa. However, array element variable resolution requires `linkValues` to be enabled for the referenced variables.
 - When a variable has both a type binding (from a type annotation) and a value binding, the type binding takes priority.
-- Value tracking only applies to JS-family languages (`ts`, `tsx`, `js`, `jsx`), not CSS.
+- Value tracking only applies to JavaScript-family languages (`ts`, `tsx`, `js`, `jsx`), not CSS.
 
 ---
 
@@ -1268,7 +1268,7 @@ When the plugin encounters an import statement, it:
 
 ### Supported Import Forms
 
-All standard JS/TS import forms and CSS `@import` are supported:
+All standard JavaScript/TypeScript import forms and CSS `@import` are supported:
 
 #### Named Imports
 
@@ -1395,7 +1395,7 @@ In addition to per-span `data-import` annotations, the plugin sets two summary a
   }
   ```
 
-  Only actually-imported exports appear in the `exports` array (not all available exports from the module entry). Entries are deduplicated by `slug`, so multiple local aliases of the same export (e.g. `import Foo from 'pkg'; import { default as Bar } from 'pkg'`) produce a single entry — the first alias encountered wins. Default imports use the local name as `title`, and side-effect or dynamic imports have an empty `exports` array.
+  Only actually-imported exports appear in the `exports` array (not all available exports from the module entry). Entries are deduplicated by `slug`, so multiple local aliases of the same export (for example, `import Foo from 'pkg'; import { default as Bar } from 'pkg'`) produce a single entry — the first alias encountered wins. Default imports use the local name as `title`, and side-effect or dynamic imports have an empty `exports` array.
 
 - **`data-imports-missing`** — a JSON array of module specifiers that were not found in `moduleLinkMap`:
 
@@ -1411,7 +1411,7 @@ Like `linkMap`, the `moduleLinkMap` is platform-scoped:
 
 - JS-family code elements (`ts`, `tsx`, `js`, `jsx`) resolve against `moduleLinkMap.js`
 - CSS-family code elements (`css`, `scss`, `less`, `sass`) resolve against `moduleLinkMap.css`
-- `@import` is only recognized in CSS-family code elements; JS `import` is only recognized in JS-family code elements
+- `@import` is only recognized in CSS-family code elements; JavaScript `import` is only recognized in JavaScript-family code elements
 
 ### Module Import Feature Interaction
 
@@ -1423,7 +1423,7 @@ Like `linkMap`, the `moduleLinkMap` is platform-scoped:
 
 ## Advanced — Export Parsing
 
-For JS-family code blocks (`ts`, `tsx`, `js`, `jsx`), the plugin automatically parses `export` statements and records metadata about each export.
+For JavaScript-family code blocks (`ts`, `tsx`, `js`, `jsx`), the plugin automatically parses `export` statements and records metadata about each export.
 
 ### Export `id` Anchors
 
@@ -1497,8 +1497,8 @@ The plugin sets a summary attribute on the `<code>` element:
 
   Each entry contains:
   - `name` — the exported name (or `"default"` for default exports, `"*"` for star re-exports). For CSS class exports, the plugin emits a single `"default"` export that models the generated CSS module object.
-  - `kind` — one of `'function'`, `'const'`, `'let'`, `'var'`, `'type'`, `'interface'`, `'class'`, `'enum'`, `'object'`, or `'unknown'`. Arrow function exports (`export const fn = () => {}`) are recorded as `'function'`. `'unknown'` is used when the declaration type cannot be determined (e.g., default expression exports, named export lists, re-exports).
-  - `type` — _(optional)_ the type annotation or inferred literal type for non-object `const`/`let`/`var` exports. When a type annotation is present (e.g., `export const x: MyType = ...`), the annotation name is used. Otherwise, simple literal values (strings, numbers, booleans) are captured. Omitted when the type cannot be determined (e.g., function call results).
+  - `kind` — one of `'function'`, `'const'`, `'let'`, `'var'`, `'type'`, `'interface'`, `'class'`, `'enum'`, `'object'`, or `'unknown'`. Arrow function exports (`export const fn = () => {}`) are recorded as `'function'`. `'unknown'` is used when the declaration type cannot be determined (for example, default expression exports, named export lists, re-exports).
+  - `type` — _(optional)_ the type annotation or inferred literal type for non-object `const`/`let`/`var` exports. When a type annotation is present (for example, `export const x: MyType = ...`), the annotation name is used. Otherwise, simple literal values (strings, numbers, booleans) are captured. Omitted when the type cannot be determined (for example, function call results).
   - `properties` — _(optional)_ a structured key/value map for `kind: 'object'` exports. CSS class exports use this to store selector literals, for example `{ button: '.button' }`.
   - `typeHref` — _(optional)_ the resolved href for the type annotation, when found in the `linkMap`. Omitted for literal types or when the type is not in the link map.
 

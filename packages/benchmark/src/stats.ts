@@ -7,6 +7,15 @@ export function calculateStdDev(values: number[], mean: number): number {
   return Math.sqrt(squaredDiffs.reduce((sum, v) => sum + v, 0) / values.length);
 }
 
+/** The sample standard deviation, which an interval estimated from the values needs; 0 for fewer than 2. */
+export function calculateSampleStdDev(values: number[], mean: number): number {
+  if (values.length < 2) {
+    return 0;
+  }
+  const squaredDiffs = values.map((v) => (v - mean) ** 2);
+  return Math.sqrt(squaredDiffs.reduce((sum, v) => sum + v, 0) / (values.length - 1));
+}
+
 export function quantile(sorted: number[], q: number): number {
   const pos = (sorted.length - 1) * q;
   const base = Math.floor(pos);

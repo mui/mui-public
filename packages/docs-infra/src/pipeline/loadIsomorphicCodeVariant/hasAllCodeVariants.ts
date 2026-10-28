@@ -29,7 +29,7 @@ function isSourceLoaded(code: { source?: VariantSource }, needsHighlight?: boole
  * Used primarily to determine when to show the full Content component instead of ContentLoading
  * fallback, ensuring a smooth user experience without rendering errors.
  *
- * @param variants - Array of variant names that must all be ready (e.g., ['javascript', 'typescript'])
+ * @param variants - Array of variant names that must all be ready (for example, `['javascript', 'typescript']`)
  * @param code - The code object containing variant data
  * @param needsHighlight - Whether all sources need to be syntax highlighted (hast nodes, not strings)
  * @returns True if all variants and their files are loaded and ready for full rendering

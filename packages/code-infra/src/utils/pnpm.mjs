@@ -12,6 +12,9 @@ import { parseDocument, isMap } from 'yaml';
 /** Canonical npm registry URL, in the form `getPublishRegistry` returns. */
 const NPMJS_REGISTRY = 'https://registry.npmjs.org/';
 
+/** Version that `publish-new-package` publishes to reserve the name of a new package. */
+export const PLACEHOLDER_VERSION = '0.0.1';
+
 /**
  * @typedef {Object} PrivatePackage
  * @property {string} [name] - Package name
@@ -189,6 +192,62 @@ function requiresTrustedPublisherBootstrap(registry) {
 }
 
 /**
+ * @typedef {Object} RegistryPackage
+ * @property {string} registry - Registry that the package publishes to
+ * @property {boolean} exists - Whether the package is on the registry
+ * @property {Record<string, string>} distTags - Dist-tags of the package
+ * @property {string[]} versions - Published versions of the package
+ */
+
+/**
+ * Read each package from its publish registry with `pnpm view`, so the lookup uses the
+ * same registry configuration and credentials as `pnpm publish`.
+ *
+ * @param {PublicPackage[]} packages - Packages to read
+ * @param {{ npmOnly?: boolean }} [options] - `npmOnly` reads only the packages that publish to npm.
+ *   Checks that only concern npm use it, so a missing credential for another registry does not block them.
+ * @returns {Promise<Map<string, RegistryPackage>>} By package name
+ */
+export async function getRegistryPackages(packages, { npmOnly = false } = {}) {
+  const entries = await Promise.all(
+    packages.map(async (pkg) => {
+      const registry = await getPublishRegistry(pkg.path);
+      if (npmOnly && registry !== NPMJS_REGISTRY) {
+        return null;
+      }
+      const { exitCode, stdout, stderr } = await $({
+        cwd: pkg.path,
+        reject: false,
+        // pnpm resolves its own `packageManager` version from `--registry`, which may not serve it.
+        env: { PNPM_CONFIG_PM_ON_FAIL: 'ignore' },
+      })`pnpm view ${pkg.name} dist-tags versions --json --registry ${registry}`;
+      let info;
+      try {
+        info = JSON.parse(stdout || '{}');
+      } catch {
+        info = {};
+      }
+      // Anything but a 404 tells nothing about whether the package exists. Treating it as
+      // "not published" would silently disable the checks, so fail loudly instead.
+      if (exitCode !== 0 && info.error?.code !== 'ERR_PNPM_FETCH_404') {
+        throw new Error(
+          `Failed to read ${pkg.name} from ${registry}: ${info.error?.message ?? stderr}`,
+        );
+      }
+      /** @type {RegistryPackage} */
+      const registryPackage = {
+        registry,
+        exists: exitCode === 0,
+        distTags: info['dist-tags'] ?? {},
+        versions: [info.versions ?? []].flat(),
+      };
+      return /** @type {const} */ ([pkg.name, registryPackage]);
+    }),
+  );
+  return new Map(entries.filter((entry) => entry !== null));
+}
+
+/**
  * Filter to the packages that must be published by hand before CI can take over.
  *
  * A brand new package has to be pushed once manually (see
@@ -197,41 +256,83 @@ function requiresTrustedPublisherBootstrap(registry) {
  * midway through. See {@link getPackageVersionInfo} for the version-level check.
  *
  * @param {PublicPackage[]} packages - Packages to check
- * @returns {Promise<PublicPackage[]>} The subset needing a manual first publish
+ * @param {Map<string, RegistryPackage>} registryPackages - Registry data from {@link getRegistryPackages}
+ * @returns {PublicPackage[]} The subset needing a manual first publish
  */
-export async function getPackagesNeedingManualPublish(packages) {
-  const results = await Promise.all(
-    packages.map(async (pkg) => {
-      const registry = await getPublishRegistry(pkg.path);
-      if (!requiresTrustedPublisherBootstrap(registry)) {
-        return false;
-      }
+export function getPackagesNeedingManualPublish(packages, registryPackages) {
+  return packages.filter((pkg) => {
+    const registryPackage = registryPackages.get(pkg.name);
+    return (
+      registryPackage !== undefined &&
+      !registryPackage.exists &&
+      requiresTrustedPublisherBootstrap(registryPackage.registry)
+    );
+  });
+}
 
-      // HEAD, because only the status matters — a packument runs to megabytes.
-      const res = await fetch(new URL(pkg.name, registry), { method: 'HEAD' });
-      if (res.status === 404) {
-        return true;
-      }
-      if (!res.ok) {
-        // Anything else (401, 5xx, a proxy hiccup) tells us nothing about
-        // whether the package exists. Treating it as "already published" would
-        // silently disable the check, so fail loudly instead.
-        throw new Error(
-          `Failed to check whether ${pkg.name} exists on ${registry}: HTTP ${res.status}`,
-        );
-      }
-      return false;
-    }),
-  );
+/**
+ * Why publishing `version` with `tag` would move the dist-tag to the wrong release line.
+ *
+ * @param {string} tag - Dist-tag to publish with
+ * @param {string} version - Version to publish
+ * @param {string} current - Version that the dist-tag points to on the registry
+ * @returns {string | null} The reason, or null when the publish is safe
+ */
+function getDistTagConflict(tag, version, current) {
+  if (semver.lt(version, current)) {
+    return `"${tag}" can only move to a newer version, but ${version} is lower than the current ${current}`;
+  }
+  // A tag that already points to a prerelease can move to the next one, for packages still in beta.
+  if (
+    (tag === 'latest' || tag.startsWith('latest-')) &&
+    semver.prerelease(version) &&
+    !semver.prerelease(current)
+  ) {
+    return `"${tag}" cannot point to a prerelease (${version})`;
+  }
+  if (tag.startsWith('latest-') && semver.major(version) !== semver.major(current)) {
+    return `"${tag}" cannot cross a major (${current} to ${version})`;
+  }
+  return null;
+}
 
-  return packages.filter((_pkg, index) => results[index]);
+/**
+ * @typedef {Object} DistTagConflict
+ * @property {PublicPackage} pkg - Package to publish
+ * @property {string} reason - Why the dist-tag would move to the wrong release line
+ */
+
+/**
+ * Find the packages whose publish with `tag` would move the dist-tag to the wrong release line.
+ *
+ * @param {PublicPackage[]} packages - Packages to publish
+ * @param {string} tag - Dist-tag to publish with
+ * @param {Map<string, RegistryPackage>} registryPackages - Registry data from {@link getRegistryPackages}
+ * @returns {DistTagConflict[]}
+ */
+export function getDistTagConflicts(packages, tag, registryPackages) {
+  return packages.flatMap((pkg) => {
+    const registryPackage = registryPackages.get(pkg.name);
+    // pnpm skips versions that are already published, such as unchanged packages on a legacy branch.
+    if (!registryPackage || registryPackage.versions.includes(pkg.version)) {
+      return [];
+    }
+    // A package that is not on the registry yet has no dist-tags to protect, and npm points
+    // `latest` at the first version, which is the placeholder for a new package.
+    const current = semver.valid(registryPackage.distTags[tag]);
+    if (!current || current === PLACEHOLDER_VERSION) {
+      return [];
+    }
+    const reason = getDistTagConflict(tag, pkg.version, current);
+    return reason ? [{ pkg, reason }] : [];
+  });
 }
 
 /**
  * Get package version info from registry.
  *
  * Resolves through `pnpm view`, which reports a lookup failure the same way it
- * reports a missing version. Use {@link getPackagesNeedingManualPublish} where
+ * reports a missing version. Use {@link getRegistryPackages} where
  * absence has to be told apart from an error.
  *
  * @param {string} packageName - Name of the package
