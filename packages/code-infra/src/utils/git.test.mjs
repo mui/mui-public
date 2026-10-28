@@ -219,7 +219,6 @@ it('finds older-major tags on their release branch and matches the full major', 
     await findLatestTaggedVersion({
       cwd: work.dir,
       majorVersion: '9',
-      remote: 'origin',
       fetchAll: false,
     }),
   ).toBe('v9.0.0');

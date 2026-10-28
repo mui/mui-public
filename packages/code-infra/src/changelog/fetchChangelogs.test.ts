@@ -486,3 +486,67 @@ it.each(['forward', 'reverse'])(
     expect(result.map((commit) => commit.prNumber).sort()).toEqual([1, 3]);
   },
 );
+
+it.each([
+  ['team-member', NO_CONTENT, 'team'],
+  ['community-member', NOT_FOUND, 'contributor'],
+] as const)(
+  'classifies title-suffix author %s and shares direct-author lookups',
+  async (login, status, association) => {
+    const membershipRequests: string[] = [];
+    const octokit = new Octokit({
+      request: {
+        fetch: async (input: Parameters<typeof fetch>[0]) => {
+          const url = new URL(input instanceof Request ? input.url : String(input));
+          if (url.pathname === `/orgs/mui/members/${login}`) {
+            membershipRequests.push(url.pathname);
+            return status === NO_CONTENT
+              ? new Response(null, { status })
+              : Response.json({ message: 'Not Found' }, { status });
+          }
+          let data;
+          if (url.pathname.includes('/compare/')) {
+            data = {
+              url: url.href,
+              total_commits: 3,
+              commits: [
+                { sha: 'backport', commit: { message: `Fix behavior (@${login}) (#1)` } },
+                { sha: 'direct', commit: { message: 'Direct change' }, author: { login } },
+                { sha: 'backport-2', commit: { message: `Fix another behavior (@${login}) (#2)` } },
+              ],
+            };
+          } else if (url.pathname.includes('/pulls/')) {
+            data = {
+              title: `Fix behavior (@${login})`,
+              body: '',
+              labels: [{ name: 'cherry-pick' }],
+              user: { login: 'github-actions[bot]' },
+              author_association: 'NONE',
+              html_url: url.href,
+              created_at: DATE,
+              merged_at: DATE,
+            };
+          } else {
+            throw new Error(`Unexpected request: ${url}`);
+          }
+          return Object.defineProperty(Response.json(data, { status: OK }), 'url', {
+            value: url.href,
+          });
+        },
+      },
+    });
+    const result = await fetchCommitsBetweenRefs({
+      octokit,
+      repo: 'test',
+      lastRelease: 'v0',
+      release: 'v1',
+    });
+    expect(result.map((commit) => commit.author)).toEqual([
+      { login, association },
+      { login, association },
+      { login, association },
+    ]);
+    expect(result[0].message).toBe('Fix behavior (#1)');
+    expect(membershipRequests).toHaveLength(1);
+  },
+);

@@ -46,6 +46,6 @@ Direct authors are classified using GitHub organization membership;
 if membership access is forbidden, generation warns and falls back to community credit.
 Rate-limit failures stop generation instead of changing contributor classification.
 
-Callbacks now receive `prNumber: number | null`: handle `null` in custom filters and
+Callbacks receive `prNumber: number | null`: handle `null` in custom filters and
 message callbacks. String message templates handle direct-commit links automatically.
 Package versions come from the checkout, so check out the release when generating historical notes.
