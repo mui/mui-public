@@ -381,9 +381,9 @@ jobs:
             return actionable=false without reopening the investigation.
             Return comment as concise reporter-facing Markdown: public component/API, reproduction
             availability when relevant, and any workaround. Start directly with the finding; no general
-            title or pleasantries. End with a separate "### Next steps" section containing concrete actions
-            for the reporter and/or maintainer, or only the specific unanswered questions needed
-            to proceed. Include this section even when an earlier step tells you to stop; if no
+            title or pleasantries. End with a separate "### Next steps" section containing the decisions or
+            information needed from the reporter and/or maintainer, or only the specific unanswered
+            questions needed to proceed. Include this section even when an earlier step tells you to stop; if no
             further action is needed, say so there. Put supporting context above this section.
             Keep fix strategy, internal paths/symbols, root-cause hypotheses, regression tests,
             and validation plans out of comment, including hidden HTML blocks. This includes
