@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { defineConfig } from 'eslint/config';
 import nPlugin from 'eslint-plugin-n';
+import { globbySync } from 'globby';
 import { EXTENSION_TEST_FILE, EXTENSION_TS } from './extensions.mjs';
 
 /**
@@ -12,23 +13,14 @@ import { EXTENSION_TEST_FILE, EXTENSION_TS } from './extensions.mjs';
  * @returns {string[]} Package directories, relative to `baseDirectory`.
  */
 function findPackageDirsWithEnginesNode(baseDirectory) {
-  return fs
-    .readdirSync(baseDirectory, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory() && entry.name.startsWith('packages'))
-    .flatMap((packagesDir) =>
-      fs
-        .readdirSync(path.join(baseDirectory, packagesDir.name), { withFileTypes: true })
-        .filter((entry) => entry.isDirectory())
-        .map((entry) => path.posix.join(packagesDir.name, entry.name)),
-    )
-    .filter((packageDir) => {
-      const packageJsonPath = path.join(baseDirectory, packageDir, 'package.json');
-      if (!fs.existsSync(packageJsonPath)) {
-        return false;
-      }
-      const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+  return globbySync('packages*/*/package.json', { cwd: baseDirectory })
+    .filter((packageJsonPath) => {
+      const packageJson = JSON.parse(
+        fs.readFileSync(path.join(baseDirectory, packageJsonPath), 'utf8'),
+      );
       return typeof packageJson.engines?.node === 'string';
-    });
+    })
+    .map((packageJsonPath) => path.posix.dirname(packageJsonPath));
 }
 
 /**
@@ -60,7 +52,17 @@ export function createNodeSupportConfig(baseDirectory) {
           'error',
           // Browser APIs that Node.js also exposes, behind an experimental flag. In packages that
           // combine Node.js tooling with browser code, these refer to the browser API.
-          { ignores: ['localStorage', 'sessionStorage', 'Storage', 'navigator', 'Navigator'] },
+          {
+            ignores: [
+              'localStorage',
+              'sessionStorage',
+              'Storage',
+              'navigator',
+              'Navigator',
+              'Worker',
+              'ErrorEvent',
+            ],
+          },
         ],
       },
     },
