@@ -339,7 +339,14 @@ it('renders title scopes and one flat list despite category overrides', async ()
   expect(result.sections[0].commits).toHaveLength(2);
 });
 
-it('renders direct commit links with the documented message template', async () => {
+it.each([
+  ['{{message}} (#[{{prNumber}}]({{prUrl}}) by @{{author}})', 'Direct change (LINK by @unknown)'],
+  ['{{ message }} (#{{ prNumber }}) by @{{ author }}', 'Direct change LINK by @unknown'],
+  ['{{message}} ([#{{ prNumber}}]({{ prUrl }}))', 'Direct change LINK'],
+  ['{{message}} [#{{prNumber }}]({{prUrl }})', 'Direct change LINK'],
+  ['{{message}} #{{ prNumber }}', 'Direct change LINK'],
+  ['{{message}} {{ prNumber }}', 'Direct change abcdef1'],
+])('renders direct commit references with template %s', async (changelogMessage, expected) => {
   const { cwd } = await repository();
   const octokit = new Octokit({
     request: {
@@ -368,14 +375,14 @@ it('renders direct commit links with the documented message template', async () 
     repo: 'test',
     config: {
       ...flatConfig,
-      format: { changelogMessage: '{{message}} (#[{{prNumber}}]({{prUrl}}) by @{{author}})' },
+      format: { changelogMessage },
     },
     octokit,
     lastRelease: 'v0',
     release: 'v1',
   });
   expect(result.markdown).toContain(
-    'Direct change ([abcdef1](https://github.com/mui/test/commit/abcdef123456) by @unknown)',
+    expected.replace('LINK', '[abcdef1](https://github.com/mui/test/commit/abcdef123456)'),
   );
 });
 

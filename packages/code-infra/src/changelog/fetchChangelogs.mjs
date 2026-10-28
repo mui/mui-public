@@ -108,7 +108,7 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
   }
 
   /** @type {Map<string, Promise<'team' | 'contributor'>>} */
-  const directAuthors = new Map();
+  const authorMemberships = new Map();
 
   /** @param {string} login @param {AbortSignal} signal @returns {Promise<'team' | 'contributor'>} */
   async function checkMembership(login, signal) {
@@ -130,6 +130,22 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
       }
       throw error;
     }
+  }
+
+  /** @param {string} login @param {AbortSignal} signal @returns {Promise<'team' | 'contributor'>} */
+  async function getMembershipAssociation(login, signal) {
+    if (login === org) {
+      return 'team';
+    }
+    if (login.endsWith('[bot]')) {
+      return 'contributor';
+    }
+    let association = authorMemberships.get(login);
+    if (!association) {
+      association = checkMembership(login, signal);
+      authorMemberships.set(login, association);
+    }
+    return association;
   }
 
   /**
@@ -226,7 +242,10 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
       }
     }
     if (details.author?.login.endsWith('[bot]') && originalLogin) {
-      details.author = { login: originalLogin, association: 'contributor' };
+      details.author = {
+        login: originalLogin,
+        association: await getMembershipAssociation(originalLogin, signal),
+      };
     }
 
     if (details.author?.login.endsWith('[bot]')) {
@@ -242,15 +261,7 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
   /** @param {Commits[number]} commit @param {AbortSignal} signal @returns {Promise<FetchedCommitDetails>} */
   async function directCommit(commit, signal) {
     const login = commit.author?.login;
-    let association = /** @type {'team' | 'contributor'} */ ('contributor');
-    if (login === org) {
-      association = 'team';
-    } else if (login && !login.endsWith('[bot]')) {
-      if (!directAuthors.has(login)) {
-        directAuthors.set(login, checkMembership(login, signal));
-      }
-      association = await /** @type {Promise<'team' | 'contributor'>} */ (directAuthors.get(login));
-    }
+    const association = login ? await getMembershipAssociation(login, signal) : 'contributor';
     return {
       sha: commit.sha,
       message: commit.commit.message,

@@ -311,6 +311,7 @@ function renderCommitMessage(commit, config) {
       : '{{flagPrefix}}{{message}} (#{{prNumber}})';
 
   if (commit.prNumber === null) {
+    template = template.replace(/\{\{\s*(\w+)\s*\}\}/g, '{{$1}}');
     template = template.replace(
       /\(\[?#\{\{prNumber\}\}\]?(?:\(\{\{prUrl\}\}\))?\)/g,
       '[{{sha}}]({{prUrl}})',
