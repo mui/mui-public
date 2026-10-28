@@ -24,11 +24,14 @@ This is stored in the `docs` top-level directory.
    > - **Commit SHA to release from:** the commit that contains the merged release on master. This commit is linked to the GitHub release.
    > - **Run in dry-run mode:** Used for debugging.
    > - **Create GitHub release:** Keep selected if you want a GitHub release to be automatically created from the changelog.
-   > - **npm dist tag to publish to** Use to publish legacy or canary versions.
+   > - **npm dist tag to publish to** Use to publish legacy or canary versions. The publish fails before it publishes anything when a dist-tag would move to a lower version. `latest` and `latest-*` also cannot move to a prerelease unless they already point to one, and `latest-*` cannot change its major.
 
 3. Click "Run workflow"
 4. Refresh the page to see the newly created workflow, and click it.
 5. The next screen shows "@username requested your review to deploy to npm-publish", click "Review deployments" and authorize your workflow run. **Never approve workflow runs you didn't initiaite.**
+
+> [!NOTE]
+> A CI dry run (`code-infra publish --ci --dry-run`) runs the same dist-tag check. On a branch that does not publish to `latest`, pass the dist-tag of the release to it, for example `--tag next` for prereleases or `--tag latest-v8` for a previous major.
 
 > [!IMPORTANT]
 > Go through the below steps if there is an error that says `The following packages are new and need to be published manually first` in the publish flow.

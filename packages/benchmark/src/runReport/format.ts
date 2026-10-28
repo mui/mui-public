@@ -43,14 +43,18 @@ export function formatPercent(interval: Interval): string {
   return `${signed(interval.low)} – ${signed(interval.high)}`;
 }
 
-/** The color a renderer draws the eye with; a `Severity` is one too. */
-export type Tone = 'error' | 'warning' | 'success' | 'none';
+/**
+ * The color a renderer draws the eye with; a `Severity` is one too. `faintSuccess` is `success`
+ * without the emphasis: it marks a change for the better that is too small to list.
+ */
+export type Tone = 'error' | 'warning' | 'success' | 'faintSuccess' | 'none';
 
 /**
  * The color a comparison draws the eye with: `error` for a regression that fails the check,
  * `warning` for any other change for the worse, `success` for an improvement — on an alarmed metric
- * only past its band, as the pull request comment lists them — and `none` otherwise. A `compare()`'s
- * variants have no band, so any of them confirmed better is one.
+ * only past its band, as the pull request comment lists them — `faintSuccess` for any other change
+ * for the better, and `none` otherwise. A `compare()`'s variants have no band, so any of them
+ * confirmed better is an improvement.
  */
 export function changeTone({ alarm, change, severity, improved }: MetricComparison): Tone {
   if (severity === 'error') {
@@ -59,7 +63,10 @@ export function changeTone({ alarm, change, severity, improved }: MetricComparis
   if (change === 'worse') {
     return 'warning';
   }
-  return improved || (alarm === null && change === 'better') ? 'success' : 'none';
+  if (change !== 'better') {
+    return 'none';
+  }
+  return improved || alarm === null ? 'success' : 'faintSuccess';
 }
 
 // Rounds past which the t-distribution is the normal one, for estimating how many a run needs.

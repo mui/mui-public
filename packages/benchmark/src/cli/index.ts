@@ -62,7 +62,7 @@ const runCommand: CommandModule<{}, Args> = {
         type: 'boolean',
         default: false,
         describe:
-          'Record instead of measuring: a performance trace around every sample, saved to open in DevTools. Writes no report',
+          'Also record a performance trace around every sample, for a fixed number of rounds, saved to open in DevTools. Tracing slows the code it records, so the report is only indicative',
       })
       .option('sample-size', {
         type: 'number',
@@ -98,7 +98,7 @@ const runCommand: CommandModule<{}, Args> = {
     process.on('SIGINT', onSignal);
     process.on('SIGTERM', onSignal);
     try {
-      await runBenchmarks({
+      const report = await runBenchmarks({
         harnessDir: process.cwd(),
         filters: argv.filters ?? [],
         baseline: argv.baseline,
@@ -113,6 +113,13 @@ const runCommand: CommandModule<{}, Args> = {
         },
         signal: stop.signal,
       });
+      // The report is written first, so the errors are readable and an upload can still report
+      // them; then the run fails, as a test runner fails on any failed test.
+      const failed = report.benchmarks.filter((benchmark) => benchmark.error !== undefined).length;
+      if (failed > 0) {
+        console.error(chalk.red(`\n${failed} of ${report.benchmarks.length} benchmarks failed.`));
+        process.exitCode = 1;
+      }
     } catch (error) {
       if (!stop.signal.aborted) {
         throw error;

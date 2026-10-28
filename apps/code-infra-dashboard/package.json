@@ -1,7 +1,7 @@
 {
   "private": true,
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1152.0",
+    "@aws-sdk/client-s3": "^3.1156.0",
     "@emotion/cache": "^11.14.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
@@ -16,17 +16,18 @@
     "@mui/x-tree-view-pro": "9.16.0",
     "@octokit/auth-app": "^8.3.1",
     "@octokit/rest": "^22.0.1",
-    "@tanstack/react-query": "^5.104.3",
+    "@tanstack/react-query": "^5.104.5",
     "dayjs": "^1.11.23",
     "diff": "^9.0.0",
     "etag": "^1.8.1",
-    "jose": "^6.2.12",
+    "jose": "^6.2.13",
     "mysql2": "^3.24.6",
-    "next": "16.3.8",
+    "next": "16.4.3",
     "pako": "^3.0.2",
     "qrcode": "^1.5.4",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
+    "sanitize-html": "^2.18.1",
     "semver": "^7.8.5",
     "ssh2": "^1.17.0",
     "zod": "^4.6.7"
@@ -38,9 +39,10 @@
     "@types/qrcode": "1.5.6",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
+    "@types/sanitize-html": "^2.16.2",
     "@types/semver": "7.8.0",
     "@types/ssh2": "1.15.6",
-    "baseline-browser-mapping": "2.11.29",
+    "baseline-browser-mapping": "2.11.31",
     "typescript": "7.0.2"
   },
   "scripts": {

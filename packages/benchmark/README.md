@@ -502,11 +502,12 @@ A benchmark's alarm is merged over the metric's, and a `name#id` sub-series foll
 
 ### The report
 
-The run writes `.benchmark/results/report.json` (or `--out`) and prints it as tables. In CI,
-`benchmark upload` sends that file to the dashboard, which renders the pull request comment's
-Performance section and the repository's history from it. A separate step, so a failed upload can be
-retried without measuring again; run it even when the run step fails (CircleCI's `when: always`), so
-the comment reports a run whose benchmarks all errored:
+The run writes `.benchmark/results/report.json` (or `--out`) and prints it as tables, then exits
+with 1 if any benchmark failed, as a test runner would. In CI, `benchmark upload` sends that file
+to the dashboard, which renders the pull request comment's Performance section and the
+repository's history from it. A separate step, so a failed upload can be retried without measuring
+again; run it even when the run step fails (CircleCI's `when: always`), so the comment reports the
+failed benchmarks:
 
 ```yaml
 - run:
@@ -587,10 +588,11 @@ variant's median and each comparison's interval, verdict and severity, plus the 
 long it all took — with everything else a run prints sent to stderr. `summarizeRun` from
 `@mui/internal-benchmark/runReport` produces the same from a report. `NO_COLOR` turns color off.
 
-`--profile` records instead of measuring: each sample runs in a freshly loaded page of its own, with
-a performance trace around it, saved under `.benchmark/traces/` to open in DevTools' Performance
-panel — 5 rounds unless `--sample-size` says otherwise. It writes no report: tracing slows the code
-it records.
+`--profile` runs the same way, for 5 rounds unless `--sample-size` says otherwise, and also records a
+performance trace around each sample, saved under `.benchmark/traces/` to open in DevTools'
+Performance panel. A "Benchmark" track there marks the garbage collection that precedes the case's
+run (`collect`) and the run itself (`run`). Tracing slows the code it records, so the report it
+writes is only indicative.
 
 `benchmark --help` lists the remaining options.
 

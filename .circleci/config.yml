@@ -129,8 +129,8 @@ jobs:
           command: pnpm test:benchmark --baseline "$(cat .benchmark-baseline-sha)"
       - run:
           name: Upload the benchmark report
-          # Also after a failed run that wrote its report, such as one where every benchmark errored,
-          # so the comment says what happened.
+          # Also after a failed run that wrote its report, such as one where a benchmark errored, so
+          # the comment says what happened.
           when: always
           command: pnpm test:benchmark upload
       - save_cache:
