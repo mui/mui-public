@@ -59,8 +59,9 @@ yarn add @mui/internal-docs-infra
       // Check dd/pre/code structure
       const npmCode = npmDl.children[0].children[0].children[0];
       expect(npmCode.data.hProperties.dataVariant).toBe('npm');
-      expect(npmCode.data.hProperties.className).toBe('language-shell'); // bash is normalized to shell
-      expect(npmCode.children[0].value).toBe('npm install @mui/internal-docs-infra');
+      expect(npmCode.data.hProperties.className).toEqual(['language-shell']); // bash is normalized to shell
+      // Source lives in `hChildren` (raw hast) so remark-rehype doesn't line-trim it.
+      expect(npmCode.data.hChildren[0].value).toBe('npm install @mui/internal-docs-infra');
 
       // Check other figures have correct variant data (no dt, so children[1] -> children[0])
       const pnpmCode = pnpmFigure.children[1].children[0].children[0].children[0];
@@ -232,7 +233,7 @@ const greeting = require('./greeting');
       const es6Code = es6Figure.children[1].children[0].children[0].children[0];
       const cjsCode = cjsFigure.children[1].children[0].children[0].children[0];
 
-      expect(es6Code.data.hProperties.className).toBe('language-javascript');
+      expect(es6Code.data.hProperties.className).toEqual(['language-javascript']);
       expect(es6Code.data.hProperties.dataVariant).toBe('es6');
       expect(cjsCode.data.hProperties.dataVariant).toBe('commonjs');
     });
@@ -319,9 +320,48 @@ console.log('test' as const)
       expect(codeNode.type).toBe('code');
 
       // Check that hProperties were added to the code node
-      expect(codeNode.data.hProperties.className).toBe('language-typescript'); // ts is normalized to typescript
+      expect(codeNode.data.hProperties.className).toEqual(['language-typescript']); // ts is normalized to typescript
       expect(codeNode.data.hProperties.dataTransform).toBe('true');
       expect(codeNode.value).toBe("console.log('test' as const)");
+    });
+
+    it('should turn a `collapseToEmpty` fence flag into data-collapse-to-empty', () => {
+      const markdown = `
+\`\`\`ts collapseToEmpty
+console.log('hidden until expanded')
+\`\`\`
+`;
+
+      const ast = astProcessor.runSync(astProcessor.parse(markdown)) as any;
+      const codeNode = ast.children.find((child: any) => child.type === 'code');
+
+      expect(codeNode.data.hProperties.dataCollapseToEmpty).toBe('true');
+    });
+
+    it('should support `collapseToEmpty=false` to opt a block out of a collapse-to-empty default', () => {
+      const markdown = `
+\`\`\`ts collapseToEmpty=false
+console.log('still collapses to its focus window')
+\`\`\`
+`;
+
+      const ast = astProcessor.runSync(astProcessor.parse(markdown)) as any;
+      const codeNode = ast.children.find((child: any) => child.type === 'code');
+
+      expect(codeNode.data.hProperties.dataCollapseToEmpty).toBe('false');
+    });
+
+    it('should turn an `initialExpanded` fence flag into data-initial-expanded', () => {
+      const markdown = `
+\`\`\`ts initialExpanded
+console.log('starts expanded')
+\`\`\`
+`;
+
+      const ast = astProcessor.runSync(astProcessor.parse(markdown)) as any;
+      const codeNode = ast.children.find((child: any) => child.type === 'code');
+
+      expect(codeNode.data.hProperties.dataInitialExpanded).toBe('true');
     });
   });
 
@@ -455,6 +495,39 @@ const test = 'hello';
       expect(result).not.toMatch(/<dl>/);
       expect(result).toMatch(/data-some-option="value"/);
       expect(result).toMatch(/data-another-flag="true"/);
+    });
+
+    it('should preserve leading indentation in code blocks with a filename', () => {
+      const markdown = `
+\`\`\`ts filename=index.ts
+export const value = factory({
+  name: 'Example',
+  slug: 'example',
+});
+\`\`\`
+`;
+
+      const result = e2eProcessor.processSync(markdown).toString();
+
+      // The dl/dt/dd structure builds a custom <pre><code>. The inner source must
+      // keep its per-line indentation rather than being collapsed by remark-rehype's
+      // line-trimming (which only spares the standard <code> handler).
+      expect(result).toContain("  name: 'Example',");
+      expect(result).toContain("  slug: 'example',");
+    });
+
+    it('should preserve leading indentation in variant code blocks with a filename', () => {
+      const markdown = `
+\`\`\`ts variant=esm filename=index.ts
+export const value = factory({
+  name: 'Example',
+});
+\`\`\`
+`;
+
+      const result = e2eProcessor.processSync(markdown).toString();
+
+      expect(result).toContain("  name: 'Example',");
     });
 
     it('should not duplicate variants when processing multiple groups', () => {

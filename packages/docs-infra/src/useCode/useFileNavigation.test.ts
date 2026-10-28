@@ -1,11 +1,27 @@
 /**
  * @vitest-environment jsdom
  */
+import * as React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useFileNavigation } from './useFileNavigation';
 import { Pre } from './Pre';
 import type { VariantCode } from '../CodeHighlighter/types';
+import type { TransformedFiles } from './useCodeUtils';
+import * as decodeHastSourceModule from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
+
+// Test wrapper that owns the controlled `selectedFileName` state so
+// each spec can call the hook with the same shape it uses for every
+// other prop. Production callers (e.g. `useCode`) own the state for
+// the same reason: it needs to be readable upstream of the hook.
+function useFileNavigationTest(
+  args: Omit<Parameters<typeof useFileNavigation>[0], 'selectedFileName' | 'setSelectedFileName'>,
+) {
+  const [selectedFileName, setSelectedFileName] = React.useState<string | undefined>(
+    args.selectedVariant?.fileName,
+  );
+  return useFileNavigation({ ...args, selectedFileName, setSelectedFileName });
+}
 
 // Mock the useUrlHashState hook to prevent browser API issues
 // JSDOM doesn't fully support hash change events, so we mock this to control hash values in tests
@@ -60,7 +76,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'Basic',
@@ -117,7 +133,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'Basic',
@@ -164,7 +180,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'Advanced Checkbox',
@@ -218,7 +234,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: '',
@@ -250,7 +266,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'Basic',
@@ -286,7 +302,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'Basic',
@@ -344,7 +360,7 @@ describe('useFileNavigation', () => {
 
       // Test Default variant - should NOT include variant name
       const { result: defaultResult } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'MyDemo',
@@ -369,7 +385,7 @@ describe('useFileNavigation', () => {
 
       // Test Styled variant - should include variant name
       const { result: styledResult } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'MyDemo',
@@ -394,7 +410,7 @@ describe('useFileNavigation', () => {
 
       // Test Tailwind variant - should include variant name
       const { result: tailwindResult } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'MyDemo',
@@ -431,7 +447,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'Basic',
@@ -470,7 +486,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'Basic',
@@ -502,7 +518,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'Basic',
@@ -530,7 +546,7 @@ describe('useFileNavigation', () => {
 
       const { result, rerender } = renderHook(
         ({ selectedVariantKey }) =>
-          useFileNavigation({
+          useFileNavigationTest({
             selectedVariant,
             transformedFiles: undefined,
             mainSlug: 'Basic',
@@ -554,8 +570,10 @@ describe('useFileNavigation', () => {
     });
 
     it('should remove hash when variant changes via dropdown with hash present', () => {
-      // Set initial hash
-      mockHashValue = 'basic:default:styles.css';
+      // Set initial hash. The Default variant omits its variant
+      // segment, so the file slug for `styles.css` on Default is
+      // `basic:styles.css` (not `basic:default:styles.css`).
+      mockHashValue = 'basic:styles.css';
 
       const selectedVariant = {
         fileName: 'checkbox-basic.tsx',
@@ -567,7 +585,7 @@ describe('useFileNavigation', () => {
 
       const { rerender } = renderHook(
         ({ selectedVariantKey }) =>
-          useFileNavigation({
+          useFileNavigationTest({
             selectedVariant,
             transformedFiles: undefined,
             mainSlug: 'Basic',
@@ -591,8 +609,9 @@ describe('useFileNavigation', () => {
     });
 
     it('should keep variant in hash when variant changes with fileHashMode=remove-filename', () => {
-      // Set initial hash with file
-      mockHashValue = 'basic:default:styles.css';
+      // Set initial hash with file. Default-variant slugs omit the
+      // variant segment, so `styles.css` lives at `basic:styles.css`.
+      mockHashValue = 'basic:styles.css';
 
       const selectedVariant = {
         fileName: 'checkbox-basic.tsx',
@@ -604,7 +623,7 @@ describe('useFileNavigation', () => {
 
       const { rerender } = renderHook(
         ({ selectedVariantKey }) =>
-          useFileNavigation({
+          useFileNavigationTest({
             selectedVariant,
             transformedFiles: undefined,
             mainSlug: 'Basic',
@@ -638,7 +657,7 @@ describe('useFileNavigation', () => {
 
       const { rerender } = renderHook(
         ({ selectedVariantKey, hashVariant }) =>
-          useFileNavigation({
+          useFileNavigationTest({
             selectedVariant,
             transformedFiles: undefined,
             mainSlug: 'Basic',
@@ -675,7 +694,7 @@ describe('useFileNavigation', () => {
       mockHashValue = '';
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'basic',
@@ -713,7 +732,7 @@ describe('useFileNavigation', () => {
 
       const { result, rerender } = renderHook(
         ({ selectedVariantKey }) =>
-          useFileNavigation({
+          useFileNavigationTest({
             selectedVariant,
             transformedFiles: undefined,
             mainSlug: 'Basic',
@@ -756,7 +775,7 @@ describe('useFileNavigation', () => {
 
       const { rerender } = renderHook(
         ({ selectedVariantKey }) =>
-          useFileNavigation({
+          useFileNavigationTest({
             selectedVariant,
             transformedFiles: undefined,
             mainSlug: 'Basic',
@@ -793,7 +812,7 @@ describe('useFileNavigation', () => {
 
       const { rerender } = renderHook(
         ({ selectedVariantKey }) =>
-          useFileNavigation({
+          useFileNavigationTest({
             selectedVariant,
             transformedFiles: undefined,
             mainSlug: 'Basic', // This demo is 'basic', hash is for 'different-demo'
@@ -830,7 +849,7 @@ describe('useFileNavigation', () => {
 
       const { rerender } = renderHook(
         ({ selectedVariantKey }) =>
-          useFileNavigation({
+          useFileNavigationTest({
             selectedVariant,
             transformedFiles: undefined,
             mainSlug: 'Basic',
@@ -867,7 +886,7 @@ describe('useFileNavigation', () => {
 
       const { rerender } = renderHook(
         ({ selectedVariantKey }) =>
-          useFileNavigation({
+          useFileNavigationTest({
             selectedVariant,
             transformedFiles: undefined,
             mainSlug: 'MyComplexDemo', // PascalCase mainSlug
@@ -904,7 +923,7 @@ describe('useFileNavigation', () => {
       mockHashValue = '';
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'test',
@@ -942,7 +961,7 @@ describe('useFileNavigation', () => {
 
       const { rerender } = renderHook(
         ({ selectedVariantKey }) =>
-          useFileNavigation({
+          useFileNavigationTest({
             selectedVariant,
             transformedFiles: undefined,
             mainSlug: 'CheckboxDemo', // Different demo than the hash
@@ -966,7 +985,7 @@ describe('useFileNavigation', () => {
 
       // Even if user selects a file, it should NOT create a hash (no hash for this demo exists)
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'CheckboxDemo',
@@ -997,7 +1016,7 @@ describe('useFileNavigation', () => {
 
       const { rerender } = renderHook(
         ({ selectedVariantKey }) =>
-          useFileNavigation({
+          useFileNavigationTest({
             selectedVariant,
             transformedFiles: undefined,
             mainSlug: '', // Empty mainSlug
@@ -1031,7 +1050,7 @@ describe('useFileNavigation', () => {
 
       const { rerender } = renderHook(
         ({ selectedVariantKey }) =>
-          useFileNavigation({
+          useFileNavigationTest({
             selectedVariant,
             transformedFiles: undefined,
             mainSlug: 'ComponentDemo',
@@ -1086,7 +1105,7 @@ describe('useFileNavigation', () => {
 
       const { result, rerender } = renderHook(
         ({ selectedVariantKey }) =>
-          useFileNavigation({
+          useFileNavigationTest({
             selectedVariant: effectiveCode[selectedVariantKey as keyof typeof effectiveCode],
             transformedFiles: undefined,
             mainSlug: 'checkbox',
@@ -1130,7 +1149,7 @@ describe('useFileNavigation', () => {
 
       const { result, rerender } = renderHook(
         ({ selectedVariantKey }) =>
-          useFileNavigation({
+          useFileNavigationTest({
             selectedVariant: effectiveCode[selectedVariantKey as keyof typeof effectiveCode],
             transformedFiles: undefined,
             mainSlug: 'button',
@@ -1176,7 +1195,7 @@ describe('useFileNavigation', () => {
       mockHashValue = 'component:utils.ts';
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant: effectiveCode.Default,
           transformedFiles: undefined,
           mainSlug: 'component',
@@ -1208,7 +1227,7 @@ describe('useFileNavigation', () => {
       mockHashValue = 'fallback:helper.js';
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'fallback',
@@ -1247,7 +1266,7 @@ describe('useFileNavigation', () => {
 
       const { result, rerender } = renderHook(
         ({ selectedVariantKey }) =>
-          useFileNavigation({
+          useFileNavigationTest({
             selectedVariant: effectiveCode[selectedVariantKey as keyof typeof effectiveCode],
             transformedFiles: undefined,
             mainSlug: 'card',
@@ -1290,7 +1309,7 @@ describe('useFileNavigation', () => {
       mockHashValue = 'test:nonexistent:missing-file.js';
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant: effectiveCode.Default,
           transformedFiles: undefined,
           mainSlug: 'test',
@@ -1329,7 +1348,7 @@ describe('useFileNavigation', () => {
 
       const { result, rerender } = renderHook(
         ({ selectedVariantKey }) =>
-          useFileNavigation({
+          useFileNavigationTest({
             selectedVariant: effectiveCode[selectedVariantKey as keyof typeof effectiveCode],
             transformedFiles: undefined, // No transformed files for simplicity
             mainSlug: 'component',
@@ -1373,7 +1392,7 @@ describe('useFileNavigation', () => {
       mockHashValue = 'widget:custom:custom-config.json';
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant: effectiveCode.Default,
           transformedFiles: undefined,
           mainSlug: 'widget',
@@ -1417,7 +1436,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant: defaultVariant,
           transformedFiles: undefined,
           mainSlug: 'Basic',
@@ -1478,7 +1497,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant: testingVariant,
           transformedFiles: undefined,
           mainSlug: 'Advanced Component Demo',
@@ -1531,7 +1550,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'Simple',
@@ -1564,7 +1583,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'Config',
@@ -1583,7 +1602,7 @@ describe('useFileNavigation', () => {
 
     it('should return empty array when no effectiveCode is provided', () => {
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant: null,
           transformedFiles: undefined,
           mainSlug: 'Test',
@@ -1608,7 +1627,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'Test',
@@ -1646,7 +1665,7 @@ describe('useFileNavigation', () => {
 
       const { result, rerender } = renderHook(
         ({ selectedVariantKey }) =>
-          useFileNavigation({
+          useFileNavigationTest({
             selectedVariant: selectedVariantKey === 'Default' ? defaultVariant : styledVariant,
             transformedFiles: undefined,
             mainSlug: 'Test',
@@ -1720,7 +1739,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant: specialVariant,
           transformedFiles: undefined,
           mainSlug: 'Demo',
@@ -1783,7 +1802,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: '',
@@ -1814,7 +1833,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result, rerender } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'Test',
@@ -1852,7 +1871,7 @@ describe('useFileNavigation', () => {
 
       const { result, rerender } = renderHook(
         ({ mainSlug }) =>
-          useFileNavigation({
+          useFileNavigationTest({
             selectedVariant,
             transformedFiles: undefined,
             mainSlug,
@@ -1895,7 +1914,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'test',
@@ -1924,7 +1943,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'test',
@@ -1978,7 +1997,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'test',
@@ -2030,7 +2049,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'test',
@@ -2117,7 +2136,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'test',
@@ -2174,7 +2193,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'test',
@@ -2216,7 +2235,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles,
           mainSlug: 'test',
@@ -2264,7 +2283,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'test',
@@ -2285,7 +2304,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result: result2 } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant: selectedVariantMultiline,
           transformedFiles: undefined,
           mainSlug: 'test',
@@ -2305,7 +2324,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result: result3 } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant: selectedVariantSingle,
           transformedFiles: undefined,
           mainSlug: 'test',
@@ -2325,7 +2344,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result: result4 } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant: selectedVariantEmpty,
           transformedFiles: undefined,
           mainSlug: 'test',
@@ -2366,7 +2385,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'test',
@@ -2410,7 +2429,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles,
           mainSlug: 'test',
@@ -2442,7 +2461,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'test',
@@ -2469,7 +2488,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'test',
@@ -2498,7 +2517,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'test',
@@ -2539,7 +2558,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles,
           mainSlug: 'test',
@@ -2557,7 +2576,7 @@ describe('useFileNavigation', () => {
       const selectedVariant: VariantCode | null = null;
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'test',
@@ -2577,7 +2596,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'test',
@@ -2611,7 +2630,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'test',
@@ -2648,7 +2667,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'test',
@@ -2708,7 +2727,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'test',
@@ -2739,7 +2758,7 @@ describe('useFileNavigation', () => {
       let callCount = 0;
       const { result } = renderHook(() => {
         callCount += 1;
-        return useFileNavigation({
+        return useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'test',
@@ -2797,7 +2816,7 @@ describe('useFileNavigation', () => {
       let callCount = 0;
       const { rerender } = renderHook(() => {
         callCount += 1;
-        return useFileNavigation({
+        return useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'test',
@@ -2835,7 +2854,7 @@ describe('useFileNavigation', () => {
       let callCount = 0;
       const { result } = renderHook(() => {
         callCount += 1;
-        return useFileNavigation({
+        return useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'test',
@@ -2872,7 +2891,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'test',
@@ -2903,7 +2922,7 @@ describe('useFileNavigation', () => {
       const emptyEnhancers: never[] = [];
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'test',
@@ -2945,7 +2964,7 @@ describe('useFileNavigation', () => {
       const enhancers = [mockEnhancer];
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'test',
@@ -2991,7 +3010,7 @@ describe('useFileNavigation', () => {
       const enhancers = [mockEnhancer];
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'test',
@@ -3040,7 +3059,7 @@ describe('useFileNavigation', () => {
       const enhancers = [mockEnhancer];
 
       renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'test',
@@ -3081,7 +3100,7 @@ describe('useFileNavigation', () => {
       mockHashValue = 'test:helper.ts';
 
       renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'test',
@@ -3117,7 +3136,7 @@ describe('useFileNavigation', () => {
       const enhancers = [mockEnhancer];
 
       renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'test',
@@ -3163,7 +3182,7 @@ describe('useFileNavigation', () => {
       const enhancers = [mockEnhancer];
 
       renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles,
           mainSlug: 'test',
@@ -3178,10 +3197,14 @@ describe('useFileNavigation', () => {
         expect(mockEnhancer).toHaveBeenCalled();
       });
 
-      // Enhancer should be called with the transformed HAST source and transformed filename
+      // Enhancer should be called with the transformed HAST source and
+      // transformed filename. Comments come from the transformed file
+      // entry (which is `undefined` here — the original variant's
+      // pre-transform map is intentionally NOT passed through, since
+      // those line numbers no longer align with the transformed source).
       expect(mockEnhancer).toHaveBeenCalledWith(
         transformedSource,
-        expect.anything(),
+        undefined,
         'test.js', // Should use transformed filename
       );
     });
@@ -3212,7 +3235,7 @@ describe('useFileNavigation', () => {
       const enhancers = [asyncEnhancer];
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'test',
@@ -3277,7 +3300,7 @@ describe('useFileNavigation', () => {
       const enhancers = [firstEnhancer, secondEnhancer];
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'test',
@@ -3322,7 +3345,7 @@ describe('useFileNavigation', () => {
       const enhancers = [mockEnhancer];
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'test',
@@ -3363,7 +3386,7 @@ describe('useFileNavigation', () => {
       const enhancers = [mockEnhancer];
 
       renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'test',
@@ -3387,7 +3410,7 @@ describe('useFileNavigation', () => {
       const enhancers = [mockEnhancer];
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant: null,
           transformedFiles: undefined,
           mainSlug: 'test',
@@ -3440,7 +3463,7 @@ describe('useFileNavigation', () => {
       const enhancers = [mockEnhancer];
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles,
           mainSlug: 'test',
@@ -3503,7 +3526,7 @@ describe('useFileNavigation', () => {
       const enhancers = [mockEnhancer];
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'test',
@@ -3544,7 +3567,7 @@ describe('useFileNavigation', () => {
       const enhancers = [mockEnhancer];
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'test',
@@ -3587,7 +3610,7 @@ describe('useFileNavigation', () => {
       const mockSetSource = vi.fn();
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'test',
@@ -3624,7 +3647,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'demo',
@@ -3645,7 +3668,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'demo',
@@ -3669,7 +3692,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'demo',
@@ -3697,7 +3720,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'demo',
@@ -3727,7 +3750,7 @@ describe('useFileNavigation', () => {
       };
 
       const { result } = renderHook(() =>
-        useFileNavigation({
+        useFileNavigationTest({
           selectedVariant,
           transformedFiles: undefined,
           mainSlug: 'demo',
@@ -3742,6 +3765,321 @@ describe('useFileNavigation', () => {
       });
 
       expect(result.current.selectedFileUrl).toBe('file:///src/lib/helper.ts');
+    });
+
+    it('returns the canonical variant url when a transformed entry file is selected', () => {
+      const selectedVariant: VariantCode = {
+        url: 'file:///src/lib/Component.tsx',
+        fileName: 'Component.tsx',
+        source: 'const a = 1;',
+      };
+
+      const transformedFiles = {
+        files: [
+          {
+            name: 'Component.js',
+            originalName: 'Component.tsx',
+            source: 'const a = 1;',
+          },
+        ],
+        filenameMap: { 'Component.tsx': 'Component.js' },
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigationTest({
+          selectedVariant,
+          transformedFiles,
+          selectedTransform: 'js',
+          mainSlug: 'demo',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: true,
+        }),
+      );
+
+      // Simulate the user clicking the transformed tab (the tab uses the
+      // post-transform name as its id).
+      act(() => {
+        result.current.selectFileName('Component.js');
+      });
+
+      expect(result.current.selectedFileUrl).toBe('file:///src/lib/Component.tsx');
+    });
+
+    it('resolves a transformed extra file back to its canonical url', () => {
+      const selectedVariant: VariantCode = {
+        url: 'file:///src/lib/index.ts',
+        fileName: 'index.ts',
+        source: 'export { Counter } from "./Counter";',
+        extraFiles: {
+          'Counter.tsx': { source: 'export const Counter = () => null;' },
+        },
+      };
+
+      const transformedFiles = {
+        files: [
+          {
+            name: 'index.js',
+            originalName: 'index.ts',
+            source: 'export { Counter } from "./Counter";',
+          },
+          {
+            name: 'Counter.js',
+            originalName: 'Counter.tsx',
+            source: 'export const Counter = () => null;',
+          },
+        ],
+        filenameMap: { 'index.ts': 'index.js', 'Counter.tsx': 'Counter.js' },
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigationTest({
+          selectedVariant,
+          transformedFiles,
+          selectedTransform: 'js',
+          mainSlug: 'demo',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: true,
+        }),
+      );
+
+      act(() => {
+        result.current.selectFileName('Counter.js');
+      });
+
+      expect(result.current.selectedFileUrl).toBe('file:///src/lib/Counter.tsx');
+    });
+  });
+
+  describe('selectedFileFallback (decode dictionary)', () => {
+    it('uses the variant fallback for a main file with no fileName (bare block)', () => {
+      // A bare markdown fence has no fileName, so its source can't be keyed in
+      // the per-file `fallbacks` map — the dictionary must come from the
+      // variant's own `fallback` field. (Source is a decodable `hastJson` here;
+      // the dictionary *resolution* is under test, independent of the encoding.)
+      const fallback = ['const a = 1;'];
+      const selectedVariant: VariantCode = {
+        source: { hastJson: '{"type":"root","children":[]}' },
+        fallback,
+        language: 'javascript',
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigationTest({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'Demo',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: true,
+        }),
+      );
+
+      expect(result.current.selectedFileFallback).toBe(fallback);
+      // The rendered main file forwards it to `Pre` as the decode dictionary.
+      expect((result.current.selectedFileComponent as React.ReactElement<any>).props.fallback).toBe(
+        fallback,
+      );
+    });
+
+    it('keys an extra file fallback by name from the fallbacks map', () => {
+      const mainFallback = ['main'];
+      const extraFallback = ['extra'];
+      const selectedVariant: VariantCode = {
+        fileName: 'index.js',
+        source: { hastJson: '{"type":"root","children":[]}' },
+        fallback: mainFallback,
+        extraFiles: {
+          'utils.js': { source: { hastJson: '{"type":"root","children":[]}' } },
+        },
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigationTest({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'Demo',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: true,
+          fallbacks: { 'index.js': mainFallback, 'utils.js': extraFallback },
+        }),
+      );
+
+      act(() => {
+        result.current.selectFileName('utils.js');
+      });
+
+      expect(result.current.selectedFileFallback).toBe(extraFallback);
+    });
+
+    it('resolves an extra file fallback from the variant when it was not hoisted', () => {
+      // With a ContentLoading component but `fallbackUsesExtraFiles` off, only
+      // the main file's fallback is hoisted into `fallbacks`; the extra file
+      // keeps its own `fallback` on the variant. The render must fall back to
+      // that so the extra file's `hastCompressed` source still decodes (instead
+      // of rendering null).
+      const extraFallback = ['extra dictionary'];
+      const selectedVariant: VariantCode = {
+        fileName: 'index.js',
+        source: { hastJson: '{"type":"root","children":[]}' },
+        extraFiles: {
+          'utils.js': {
+            source: { hastJson: '{"type":"root","children":[]}' },
+            fallback: extraFallback,
+          },
+        },
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigationTest({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'Demo',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: true,
+          // Only the main file was hoisted — the extra file is absent here.
+          fallbacks: { 'index.js': ['main dictionary'] },
+        }),
+      );
+
+      act(() => {
+        result.current.selectFileName('utils.js');
+      });
+
+      expect(result.current.selectedFileFallback).toBe(extraFallback);
+    });
+  });
+
+  describe('selectedFileLines line counting', () => {
+    it('uses the STORED variant count for a compressed pass-through file even when a transform is active', () => {
+      // A transform is active on the variant, but the selected file is a pass-through:
+      // its source is still the original compressed payload (not a transformed live
+      // tree). Its line count must come from the variant's stored count — never by
+      // decompressing the source just to read `root.data`.
+      const decodeSpy = vi.spyOn(decodeHastSourceModule, 'decodeHastSource');
+      // The payload's own count (99) differs from the stored variant count (7), so the
+      // returned value reveals which path produced it: stored (7) vs decoded (99).
+      const compressedSource = {
+        hastJson: JSON.stringify({ type: 'root', children: [], data: { totalLines: 99 } }),
+      };
+      const selectedVariant = {
+        fileName: 'a.tsx',
+        source: compressedSource,
+        totalLines: 7,
+        focusedLines: 7,
+      } as unknown as VariantCode;
+      const transformedFiles: TransformedFiles = {
+        files: [{ name: 'a.tsx', originalName: 'a.tsx', source: compressedSource }],
+        filenameMap: {},
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigationTest({
+          selectedVariant,
+          transformedFiles,
+          mainSlug: 'test',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: true,
+        }),
+      );
+
+      // Stored count (7), not the payload's 99 — and no decompression.
+      expect(result.current.selectedFileLines).toBe(7);
+      expect(decodeSpy).not.toHaveBeenCalled();
+      decodeSpy.mockRestore();
+    });
+  });
+
+  describe('source projection selection', () => {
+    // A transformed file's projection is precomputed against the untouched
+    // transform output, so it only describes the source until the reader edits.
+    // From the first keystroke the variant carries the live projection, and
+    // preferring the stale one collapses `validateProjection` in the editor —
+    // which drops back to the whole file and expands a collapsed preview.
+    const precomputed = { source: 'transformed', start: 10, end: 21 };
+    const live = { source: 'edited', start: 4, end: 10 };
+
+    const variant = {
+      fileName: 'Demo.tsx',
+      source: 'const before = edited;',
+      sourceProjection: live,
+      extraFiles: {
+        'helper.ts': { source: 'export const edited = 1;', sourceProjection: live },
+      },
+    };
+
+    const transformedFiles: TransformedFiles = {
+      files: [
+        {
+          name: 'Demo.jsx',
+          originalName: 'Demo.tsx',
+          source: 'const before = transformed;',
+          sourceProjection: precomputed,
+        },
+        {
+          name: 'helper.js',
+          originalName: 'helper.ts',
+          source: 'export const transformed = 1;',
+          sourceProjection: precomputed,
+        },
+      ],
+      filenameMap: { 'Demo.tsx': 'Demo.jsx', 'helper.ts': 'helper.js' },
+    };
+
+    function renderProjection(
+      args: Partial<Parameters<typeof useFileNavigationTest>[0]> = {},
+      selectedFileName?: string,
+    ) {
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant: variant,
+          transformedFiles,
+          mainSlug: 'Demo',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: true,
+          selectedFileName: selectedFileName ?? variant.fileName,
+          setSelectedFileName: vi.fn(),
+          ...args,
+        }),
+      );
+      return result;
+    }
+
+    it('prefers the transform projection while the source is pristine', () => {
+      expect(renderProjection().current.selectedFileSourceProjection).toBe(precomputed);
+    });
+
+    it('prefers the live projection once the reader has edited', () => {
+      expect(
+        renderProjection({ hasControlledEdits: true }).current.selectedFileSourceProjection,
+      ).toBe(live);
+    });
+
+    it('prefers the live projection for an edited extra file', () => {
+      expect(
+        renderProjection({ hasControlledEdits: true }, 'helper.ts').current
+          .selectedFileSourceProjection,
+      ).toBe(live);
+    });
+
+    it('falls back to the transform projection when the variant has none', () => {
+      expect(
+        renderProjection({
+          hasControlledEdits: true,
+          selectedVariant: { ...variant, sourceProjection: undefined },
+        }).current.selectedFileSourceProjection,
+      ).toBe(precomputed);
+    });
+
+    it('uses the variant projection when no transform is applied', () => {
+      expect(
+        renderProjection({ transformedFiles: undefined }).current.selectedFileSourceProjection,
+      ).toBe(live);
     });
   });
 });

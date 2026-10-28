@@ -452,6 +452,72 @@ describe('useSourceEnhancing', () => {
       // Should still show the new source, not the stale async result
       expect(textOf(result.current.enhancedSource)).toBe('sync-B');
     });
+
+    it('settles (clears isEnhancing) when an async enhancer rejects, instead of wedging', async () => {
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const source = makeHast('original');
+      const syncBefore: SourceEnhancer = () => makeHast('sync-before');
+      const rejectingEnhancer: SourceEnhancer = async () => {
+        await new Promise((resolve) => {
+          setTimeout(resolve, 5);
+        });
+        throw new Error('enhancer blew up');
+      };
+      const enhancers: SourceEnhancer[] = [syncBefore, rejectingEnhancer];
+
+      const { result } = renderHook(() =>
+        useSourceEnhancing({
+          source,
+          fileName: 'test.tsx',
+          comments: undefined,
+          sourceEnhancers: enhancers,
+        }),
+      );
+
+      // Sync part applied; the async enhancer is pending.
+      expect(textOf(result.current.enhancedSource)).toBe('sync-before');
+      expect(result.current.isEnhancing).toBe(true);
+
+      // The rejection must NOT leave `isEnhancing` true forever (which would lock the
+      // consumer at the un-enhanced phase until reload); it settles to the sync result.
+      await vi.waitFor(() => {
+        expect(result.current.isEnhancing).toBe(false);
+      });
+      expect(textOf(result.current.enhancedSource)).toBe('sync-before');
+      consoleError.mockRestore();
+    });
+
+    it('force-settles via the safety-net timeout when an async enhancer hangs', async () => {
+      vi.useFakeTimers();
+      try {
+        const source = makeHast('original');
+        const syncBefore: SourceEnhancer = () => makeHast('sync-before');
+        // Never resolves — without the timeout this would wedge `isEnhancing` forever.
+        const hangingEnhancer: SourceEnhancer = () => new Promise<HastRoot>(() => {});
+        const enhancers: SourceEnhancer[] = [syncBefore, hangingEnhancer];
+
+        const { result } = renderHook(() =>
+          useSourceEnhancing({
+            source,
+            fileName: 'test.tsx',
+            comments: undefined,
+            sourceEnhancers: enhancers,
+          }),
+        );
+
+        expect(result.current.isEnhancing).toBe(true);
+
+        // Advance past ENHANCER_TIMEOUT_MS (10s): the safety net force-settles.
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(10_000);
+        });
+
+        expect(result.current.isEnhancing).toBe(false);
+        expect(textOf(result.current.enhancedSource)).toBe('sync-before');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 
   describe('hastJson and hastGzip sources', () => {

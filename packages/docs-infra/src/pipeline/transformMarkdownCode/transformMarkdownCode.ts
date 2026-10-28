@@ -282,7 +282,7 @@ export const transformMarkdownCode: Plugin<[TransformMarkdownCodeOptions?]> = (o
 
           // Add normalized language as class
           if (langFromMeta) {
-            codeHProperties.className = `language-${normalizeLanguage(langFromMeta)}`;
+            codeHProperties.className = [`language-${normalizeLanguage(langFromMeta)}`];
           }
 
           // Add all props as data attributes (in camelCase)
@@ -313,13 +313,12 @@ export const transformMarkdownCode: Plugin<[TransformMarkdownCodeOptions?]> = (o
                   data: {
                     hName: 'code',
                     hProperties: codeHProperties,
+                    // Pass the source as raw hast via `hChildren` so remark-rehype
+                    // skips its mdast `text` handler, which line-trims (and would
+                    // strip the per-line indentation) on the way to hast.
+                    hChildren: [{ type: 'text', value: codeNode.value }],
                   },
-                  children: [
-                    {
-                      type: 'text',
-                      value: codeNode.value,
-                    },
-                  ],
+                  children: [],
                 },
               ],
             };
@@ -601,7 +600,7 @@ export const transformMarkdownCode: Plugin<[TransformMarkdownCodeOptions?]> = (o
 
                 // Add normalized language as class
                 if (block.actualLang) {
-                  codeHProperties.className = `language-${normalizeLanguage(block.actualLang)}`;
+                  codeHProperties.className = [`language-${normalizeLanguage(block.actualLang)}`];
                 }
 
                 // Add additional props as data attributes (in camelCase)
@@ -678,13 +677,11 @@ export const transformMarkdownCode: Plugin<[TransformMarkdownCodeOptions?]> = (o
                                     meta: `variant=${block.variant}${Object.entries(block.props)
                                       .map(([key, value]) => ` ${key}=${value}`)
                                       .join('')}`,
+                                    // Raw hast `hChildren` to keep per-line indentation;
+                                    // see the filename branch above.
+                                    hChildren: [{ type: 'text', value: block.node.value }],
                                   },
-                                  children: [
-                                    {
-                                      type: 'text',
-                                      value: block.node.value,
-                                    },
-                                  ],
+                                  children: [],
                                 },
                               ],
                             },
@@ -767,7 +764,7 @@ export const transformMarkdownCode: Plugin<[TransformMarkdownCodeOptions?]> = (o
 
             // Add normalized language as class
             if (block.actualLang) {
-              codeHProperties.className = `language-${normalizeLanguage(block.actualLang)}`;
+              codeHProperties.className = [`language-${normalizeLanguage(block.actualLang)}`];
             }
 
             // Add additional props as data attributes (in camelCase)
@@ -831,13 +828,11 @@ export const transformMarkdownCode: Plugin<[TransformMarkdownCodeOptions?]> = (o
                             meta: `variant=${block.variant}${Object.entries(block.props)
                               .map(([key, value]) => ` ${key}=${value}`)
                               .join('')}`,
+                            // Raw hast `hChildren` to keep per-line indentation;
+                            // see the filename branch above.
+                            hChildren: [{ type: 'text', value: block.node.value }],
                           },
-                          children: [
-                            {
-                              type: 'text',
-                              value: block.node.value,
-                            },
-                          ],
+                          children: [],
                         },
                       ],
                     },

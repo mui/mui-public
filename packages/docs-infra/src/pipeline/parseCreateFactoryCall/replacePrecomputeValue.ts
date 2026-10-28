@@ -15,7 +15,10 @@ export function replacePrecomputeValue(
   source: string,
   precomputeData: Record<string, any>,
   demoCallInfo?: ParsedCreateFactory,
-  options: { passPrecomputeAsIs?: boolean } = {},
+  options: {
+    passPrecomputeAsIs?: boolean;
+    additionalOptions?: Record<string, unknown>;
+  } = {},
 ): string {
   // If no demoCallInfo provided, return unchanged
   if (!demoCallInfo) {
@@ -50,6 +53,7 @@ export function replacePrecomputeValue(
   newOptions.precompute = passPrecomputeAsIs
     ? precomputeData
     : JSON.stringify(precomputeData, null, 2);
+  Object.assign(newOptions, options.additionalOptions);
 
   // Serialize all arguments using the standard function
   let args: any[];

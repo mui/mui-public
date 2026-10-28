@@ -2,7 +2,10 @@ import { describe, it, expect } from 'vitest';
 import type * as tae from 'typescript-api-extractor';
 import { formatType } from './formatType';
 import { formatProperties } from './format';
+import { formatExternalTypeDefinition } from './externalTypes';
 import type { ExternalTypeMeta, ExternalTypesCollector } from './externalTypes';
+import { parseTestSources } from './parseTestSources';
+import { isObjectType } from './typeGuards';
 
 /**
  * Creates an ExternalTypesCollector for use in tests.
@@ -674,4 +677,160 @@ describe('external types collection via formatType', () => {
     expect(collector.collected.has('Orientation')).toBe(true);
     expect(collector.collected.has('Side')).toBe(true);
   });
+
+  describe('preserved type operators', () => {
+    // Declared in the virtual library so they are external to the parsed source, and so
+    // the parser preserves `keyof` rather than expanding it away.
+    const LIB = [
+      'interface Config { size: string; color: string; }',
+      'interface Meta { id: string; }',
+      "type Tone = 'muted' | keyof Config;",
+      'type Formatter = (tone: keyof Config) => string;',
+    ].join('\n');
+
+    /**
+     * Formats a parsed type alias the way the External Types section does. Syntax-only
+     * output is the only mode that leaves an operator unresolved, which is what the
+     * authored-syntax fallback renders.
+     */
+    function defineFrom(source: string): string {
+      const [exportNode] = parseTestSources(
+        { 'types.ts': source },
+        { lib: LIB, parserOptions: { typeOperatorOutput: 'syntaxOnly' } },
+      );
+      return formatExternalTypeDefinition(exportNode.type);
+    }
+
+    /** Formats one required property and returns what it collected along the way. */
+    function collectFrom(propName: string): ExternalTypesCollector {
+      const source = `export interface Props {\n  tone: Tone;\n  format: Formatter;\n}`;
+      const [exportNode] = parseTestSources({ 'types.ts': source }, { lib: LIB });
+      if (!isObjectType(exportNode.type)) {
+        throw new Error(`expected an object export, received "${exportNode.type.kind}"`);
+      }
+      const property = exportNode.type.properties.find((prop) => prop.name === propName);
+      if (!property) {
+        throw new Error(`property "${propName}" not found`);
+      }
+      const collector = createCollector();
+      formatType(property.type, {
+        exportNames: [],
+        typeNameMap: {},
+        externalTypesCollector: collector,
+      });
+      return collector;
+    }
+
+    it('should collect a union whose members come from a keyof operator', () => {
+      const collector = collectFrom('tone');
+
+      expect(collector.collected.get('Tone')).toEqual({
+        name: 'Tone',
+        definition: "'muted' | 'size' | 'color'",
+      });
+    });
+
+    it('should render an operator over a type query as its authored syntax', () => {
+      const source =
+        'const palette = { red: 1, blue: 2 };\nexport type Keys = keyof typeof palette;';
+
+      expect(defineFrom(source)).toBe('keyof typeof palette');
+    });
+
+    it('should group a composite operand in the authored syntax', () => {
+      const source = 'export type Keys = keyof (Config | Meta);';
+
+      // This section always expands, so the operand shows its shapes rather than its
+      // names. `keyof` binds tighter than `|`, so ungrouped it would read as
+      // `(keyof { size: string; color: string }) | { id: string }`.
+      expect(defineFrom(source)).toBe('keyof ({ size: string; color: string } | { id: string })');
+    });
+
+    it('should expand a keyof operator inside an external function signature', () => {
+      const collector = collectFrom('format');
+
+      expect(collector.collected.get('Formatter')).toEqual({
+        name: 'Formatter',
+        definition: "(tone: 'size' | 'color') => string",
+      });
+    });
+  });
+
+  // The `${}` in these strings is template literal type syntax, not interpolation.
+  /* eslint-disable no-template-curly-in-string */
+  describe('template literals', () => {
+    /** Formats the first property of the parsed `Props` and returns what it collected. */
+    function collectFrom(sources: Record<string, string>, lib?: string): ExternalTypesCollector {
+      const exports = parseTestSources(sources, { lib });
+      const props = exports.find((exportNode) => exportNode.name === 'Props');
+      if (!props || !isObjectType(props.type)) {
+        throw new Error('expected an exported Props interface');
+      }
+      const collector = createCollector(exports);
+      formatType(props.type.properties[0].type, {
+        exportNames: [],
+        typeNameMap: {},
+        externalTypesCollector: collector,
+      });
+      return collector;
+    }
+
+    it('should collect a named template literal', () => {
+      const collector = collectFrom({
+        'types.ts':
+          "type Percentage = `${number}%`;\nexport interface Props {\n  value: number | Percentage | 'auto';\n}",
+      });
+
+      expect(collector.collected.get('Percentage')).toEqual({
+        name: 'Percentage',
+        definition: '`${number}%`',
+      });
+    });
+
+    it('should collect a union with template literal members', () => {
+      const collector = collectFrom({
+        'types.ts':
+          "type Size = 'auto' | `${number}px`;\nexport interface Props {\n  value: Size;\n}",
+      });
+
+      expect(collector.collected.get('Size')).toEqual({
+        name: 'Size',
+        definition: "'auto' | `${number}px`",
+      });
+    });
+
+    it('should skip a template literal that is an own export', () => {
+      const collector = collectFrom({
+        'types.ts':
+          'export type Percentage = `${number}%`;\nexport interface Props {\n  value: Percentage;\n}',
+      });
+
+      expect(collector.collected.size).toBe(0);
+    });
+
+    it('should not collect a template literal whose placeholder is not a simple intrinsic', () => {
+      // Declared in a package, so the placeholder is the external `Uppercase<string>` reference
+      // the pipeline sees.
+      const collector = collectFrom({
+        'types.ts':
+          "import type { Uppercase } from 'mapping';\ntype Shout = `${Uppercase<string>}!`;\nexport interface Props {\n  value: Shout;\n}",
+        'node_modules/mapping/index.d.ts': 'export type Uppercase<S extends string> = intrinsic;',
+      });
+
+      expect(collector.collected.size).toBe(0);
+    });
+
+    it('should render a template literal inside an external function signature', () => {
+      const collector = collectFrom(
+        { 'types.ts': 'export interface Props {\n  value: Listener;\n}' },
+        'type Listener = (event: `on${string}`) => void;',
+      );
+
+      expect(collector.collected.get('Listener')).toEqual({
+        name: 'Listener',
+        definition: '(event: `on${string}`) => void',
+      });
+    });
+  });
+  /* eslint-enable no-template-curly-in-string */
 });

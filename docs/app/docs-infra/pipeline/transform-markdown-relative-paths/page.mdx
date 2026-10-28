@@ -1,6 +1,6 @@
 # Transform Markdown Relative Paths
 
-The `transformMarkdownRelativePaths` plugin is a Remark plugin that automatically transforms relative markdown links to work seamlessly in both development environments (VSCode, GitHub) and production builds. It strips page file extensions and converts relative paths to absolute URLs.
+The `transformMarkdownRelativePaths` plugin is a Remark plugin that automatically transforms relative markdown links to work seamlessly in both development environments (VS Code, GitHub) and production builds. It strips page file extensions and converts relative paths to absolute URLs.
 
 ## Features
 
@@ -38,7 +38,7 @@ Always link to `page.mdx` files using relative paths for the best compatibility:
 
 2. **Maintain GitHub Compatibility**
    - All links work in GitHub's file browser
-   - VSCode navigation follows links correctly
+   - VS Code navigation follows links correctly
    - No broken links in raw markdown view
 
 3. **Keep Links Simple and Readable**
@@ -99,7 +99,7 @@ Learn about:
 
 Given this directory structure:
 
-```text
+```ascii
 docs/app/
 ├── components/
 │   ├── page.mdx
@@ -131,7 +131,7 @@ From `/components/input/page.mdx`:
 ### Why This Approach Works
 
 1. **GitHub Compatibility** - Links work when browsing the repository on GitHub
-2. **VSCode Navigation** - Click-to-navigate works in your editor
+2. **VS Code Navigation** - Click-to-navigate works in your editor
 3. **Build-time Optimization** - Plugin transforms links for production
 4. **SEO Friendly** - Clean URLs without file extensions in production
 

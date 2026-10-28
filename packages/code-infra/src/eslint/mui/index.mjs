@@ -13,6 +13,8 @@ import straightQuotes from './rules/straight-quotes.mjs';
 import addUndefToOptional from './rules/add-undef-to-optional.mjs';
 import flattenParentheses from './rules/flatten-parentheses.mjs';
 import noPresentationRole from './rules/no-presentation-role.mjs';
+import noFloatingCleanup from './rules/no-floating-cleanup.mjs';
+import noConstructorAssignedField from './rules/no-constructor-assigned-field.mjs';
 
 /** @type {import('eslint').ESLint.Plugin} */
 const muiPlugin = {
@@ -37,6 +39,8 @@ const muiPlugin = {
     'add-undef-to-optional': /** @type {any} */ (addUndefToOptional),
     'flatten-parentheses': /** @type {any} */ (flattenParentheses),
     'no-presentation-role': noPresentationRole,
+    'no-floating-cleanup': /** @type {any} */ (noFloatingCleanup),
+    'no-constructor-assigned-field': /** @type {any} */ (noConstructorAssignedField),
   },
 };
 

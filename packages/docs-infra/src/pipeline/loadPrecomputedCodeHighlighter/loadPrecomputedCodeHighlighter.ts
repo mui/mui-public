@@ -7,9 +7,14 @@ import { fileURLToPath, pathToFileURL } from 'url';
 import type { LoaderContext } from 'webpack';
 import { loadIsomorphicCodeVariant } from '../loadIsomorphicCodeVariant/loadIsomorphicCodeVariant';
 import { createParseSource } from '../parseSource';
-// TODO: re-enable following benchmarking
-// import { TypescriptToJavascriptTransformer } from '../transformTypescriptToJavascript';
-import type { SourceEnhancers, SourceTransformers, VariantCode } from '../../CodeHighlighter/types';
+import { TypescriptToJavascriptTransformer } from '../transformTypescriptToJavascript';
+import type {
+  Code,
+  HastRoot,
+  SourceEnhancers,
+  SourceTransformers,
+  VariantCode,
+} from '../../CodeHighlighter/types';
 import type { EnhanceCodeEmphasisOptions } from '../parseSource/calculateFrameRanges';
 import {
   createEnhanceCodeEmphasis,
@@ -22,6 +27,7 @@ import { replacePrecomputeValue } from '../parseCreateFactoryCall/replacePrecomp
 import { createLoadServerCodeSource } from '../loadServerCodeSource';
 import { getFileNameFromUrl, IGNORE_COMMENT_PREFIXES } from '../loaderUtils';
 import { createPerformanceLogger, logPerformance, performanceMeasure } from './performanceLogger';
+import { fallbackToHast } from '../../CodeHighlighter/fallbackFormat';
 
 /**
  * Extracts a string array from structured options data.
@@ -99,7 +105,74 @@ export type LoaderOptions = {
    * to be relative to each generated `client.ts`.
    */
   requireClient?: string;
+  /**
+   * Marker option consumed by `pnpm docs-infra validate` (not by this loader).
+   *
+   * When `true` on a demo `index.ts` rule, the validate command ensures every
+   * matched demo has a sibling `page.tsx` that renders the demo as the route's
+   * default export, so each demo is browsable on its own page.
+   *
+   * Existing `page.tsx`/`page.ts` files are never overwritten.
+   */
+  requirePage?: boolean;
+  /**
+   * When `true`, registers the `TypescriptToJavascriptTransformer` so that
+   * TypeScript variants also produce a JavaScript counterpart at build time.
+   *
+   * Defaults to `false` because the transform is comparatively expensive;
+   * enable it when the rendered demos need both TS and JS sources.
+   */
+  transformTypescriptToJavascript?: boolean;
+  /** Split complete highlighted source into a per-demo async chunk. */
+  deferPrecompute?: boolean;
 };
+
+function createFallbackSource({
+  fallback,
+  totalLines,
+  focusedLines,
+  collapsible,
+}: Pick<VariantCode, 'fallback' | 'totalLines' | 'focusedLines' | 'collapsible'>) {
+  const source = fallbackToHast(fallback ?? []);
+  source.data = { ...source.data, totalLines, focusedLines, collapsible } as HastRoot['data'];
+  return source;
+}
+
+export function createPrecomputeShell(code: Code): Code {
+  return Object.fromEntries(
+    Object.entries(code).map(([variantName, variant]) => {
+      if (!variant || typeof variant === 'string') {
+        return [variantName, variant];
+      }
+      const { sourceProjection, transforms, comments, extraFiles, ...shell } = variant;
+      const shellExtraFiles = extraFiles
+        ? Object.fromEntries(
+            Object.entries(extraFiles).map(([fileName, file]) => {
+              if (typeof file === 'string') {
+                return [fileName, file];
+              }
+              const {
+                source: extraSource,
+                sourceProjection: extraProjection,
+                transforms: extraTransforms,
+                comments: extraComments,
+                ...extraShell
+              } = file;
+              return [fileName, { ...extraShell, source: createFallbackSource(file) }];
+            }),
+          )
+        : undefined;
+      return [
+        variantName,
+        {
+          ...shell,
+          source: createFallbackSource(variant),
+          ...(shellExtraFiles ? { extraFiles: shellExtraFiles } : undefined),
+        },
+      ];
+    }),
+  );
+}
 
 const functionName = 'Load Precomputed Code Highlighter';
 
@@ -209,9 +282,9 @@ export async function loadPrecomputedCodeHighlighter(
     });
 
     // Setup source transformers for TypeScript to JavaScript conversion
-    // const sourceTransformers: SourceTransformers = [TypescriptToJavascriptTransformer];
-    // TODO: maybe we should have `loadPrecomputedCodeHighlighterWithJsToTs`
-    const sourceTransformers: SourceTransformers = [];
+    const sourceTransformers: SourceTransformers = options.transformTypescriptToJavascript
+      ? [TypescriptToJavascriptTransformer]
+      : [];
 
     // Setup source enhancers for post-parsing modifications
     const sourceEnhancers: SourceEnhancers = [createEnhanceCodeEmphasis(options.emphasisOptions)];
@@ -288,10 +361,21 @@ export async function loadPrecomputedCodeHighlighter(
 
     const variantResults = await Promise.all(variantPromises);
 
+    // Diagnostic: re-serialize each variant through JSON to sever any
+    // `SlicedString`/`ConsString` references that may pin large parent strings
+    // (e.g. raw source files) alive inside the precomputed hast tree. Enabled
+    // by `DEBUG_DOCS_INFRA_FLATTEN=1`. If memory usage drops noticeably with
+    // this on, the leak is SlicedString retention in variant data and we
+    // should flatten at the source instead.
+    const flattenVariants =
+      typeof process !== 'undefined' && process.env?.DEBUG_DOCS_INFRA_FLATTEN === '1';
+
     // Process results and collect dependencies
     for (const result of variantResults) {
       if (result) {
-        variantData[result.variantName] = result.variantData;
+        variantData[result.variantName] = flattenVariants
+          ? JSON.parse(JSON.stringify(result.variantData))
+          : result.variantData;
         result.dependencies.forEach((file: string) => {
           allDependencies.push(file);
         });
@@ -305,8 +389,28 @@ export async function loadPrecomputedCodeHighlighter(
       true,
     );
 
-    // Replace the factory function call with the actual precomputed data
-    const modifiedSource = replacePrecomputeValue(source, variantData, demoCall);
+    const deferredRequest = `./${path.basename(this.resourcePath)}?mui-deferred-precompute`;
+    const isDeferredRequest = this.resourceQuery === '?mui-deferred-precompute';
+    if (isDeferredRequest) {
+      callback(null, `export default ${JSON.stringify(variantData)};`);
+      return;
+    }
+
+    // Replace the factory function call with the actual precomputed data.
+    const modifiedSource = replacePrecomputeValue(
+      source,
+      options.deferPrecompute ? createPrecomputeShell(variantData) : variantData,
+      demoCall,
+      options.deferPrecompute
+        ? {
+            additionalOptions: {
+              loadPrecompute: `() => import(${JSON.stringify(
+                deferredRequest,
+              )}).then((module) => module.default)`,
+            },
+          }
+        : undefined,
+    );
 
     currentMark = performanceMeasure(
       currentMark,
@@ -328,6 +432,7 @@ export async function loadPrecomputedCodeHighlighter(
         logPerformance(entry, performanceNotableMs, performanceShowWrapperMeasures, relativePath),
       );
     observer?.disconnect();
+
     callback(null, modifiedSource);
   } catch (error) {
     // log any pending performance entries before completing

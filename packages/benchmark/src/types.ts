@@ -1,3 +1,5 @@
+import type { BenchmarkCdp } from './cdp';
+
 export interface RenderEvent {
   id: string;
   /**
@@ -14,16 +16,8 @@ export interface RenderEvent {
   startTime: number;
 }
 
-export interface BenchmarkMetric {
-  /** Metric name, e.g. "paint:bench", "paint:grid-header" */
-  name: string;
-  /** Measured value in ms */
-  value: number;
-}
-
 export interface IterationData {
   renders: RenderEvent[];
-  metrics: BenchmarkMetric[];
 }
 
 export interface InteractionContext {
@@ -33,4 +27,92 @@ export interface InteractionContext {
    * @param timeout - Timeout in ms. Default: 5000. Pass 0 or Infinity to rely on the test timeout.
    */
   waitForElementTiming: (identifier: string, timeout?: number) => Promise<void>;
+  /**
+   * Pause recording of the harness's React render/paint measurements. Custom metrics keep
+   * recording. Throws if recording is already paused.
+   */
+  pauseReactRecording: () => void;
+  /**
+   * Resume recording of the harness's React render/paint measurements. Throws if recording is
+   * already active.
+   */
+  resumeReactRecording: () => void;
+  /** The DevTools Protocol, for what the interaction sets up or reads from the browser itself. */
+  cdp: BenchmarkCdp;
+}
+
+// One benchmark case's lifecycle. The measurement loop creates one per iteration and drives it
+// automatically; the interactive profiling session creates one and drives it from buttons.
+export interface BenchmarkCaseRuntime {
+  mount: () => void;
+  /**
+   * Runs the case's interaction with the harness context. Absent when the case has no interaction —
+   * the profiling panel uses its presence to decide whether to show the "Run interaction" button.
+   */
+  interact?: () => Promise<void>;
+  unmount: () => void;
+  isMounted: () => boolean;
+}
+
+/**
+ * Whether a custom metric measures a continuous value or a discrete count.
+ * - `scalar` — continuous measurements (timings, sizes); alarm bands are relative fractions.
+ * - `discrete` — counts/events; alarm bands are absolute count deltas.
+ */
+export type MetricKind = 'scalar' | 'discrete';
+
+/** Which direction of change counts as a regression for a metric in alarm mode. */
+export type MetricDirection = 'lowerIsBetter' | 'higherIsBetter';
+
+export interface MetricAlarm {
+  /** Defaults to `lowerIsBetter`. */
+  direction?: MetricDirection;
+  /**
+   * Softer band, for version 1 reports only: a regression past `warn` (but within `error`) is
+   * flagged as a warning. Version 2 reports don't carry it.
+   * Scalar metrics: a relative fraction (`0.1` = 10%). Discrete metrics: an absolute count delta.
+   */
+  warn?: number;
+  /**
+   * Harder band: a regression past `error` is flagged as an error (the alarm). Without it, version 1
+   * reports use the dashboard's ±20% noise band (or warn only, with `warn` set); version 2 reports
+   * use 5% for a scalar metric and flag any confirmed change for the worse in a discrete one.
+   * Scalar metrics: a relative fraction (`0.25` = 25%). Discrete metrics: an absolute count delta.
+   */
+  error?: number;
+}
+
+export interface MetricConfig {
+  name: string;
+  /** Display formatting applied by the reporter and dashboard via `Intl.NumberFormat`. */
+  format?: Intl.NumberFormatOptions;
+  /**
+   * Regression judgment. Its presence opts the metric into alarming; when omitted the metric
+   * is informational (the diff is shown but never flagged).
+   */
+  alarm?: MetricAlarm;
+}
+
+/** Aggregated stats for a single metric sub-series, as they cross the browser→runner boundary. */
+export interface MetricSampleStats {
+  mean: number;
+  stdDev: number;
+  outliers: number;
+  /** Number of recorded samples (used to derive iteration counts; stripped from the report). */
+  count: number;
+}
+
+/** A custom metric's aggregated data attached to `task.meta`, keyed by metric name. */
+export interface MetricReport {
+  kind: MetricKind;
+  config: MetricConfig;
+  /** Aggregated stats keyed by sub-series id (`''` is the base series). */
+  series: Record<string, MetricSampleStats>;
+}
+
+/** Per-metric configuration hoisted to the top level of the report (keyed by metric name). */
+export interface MetricDefinition {
+  kind: MetricKind;
+  format?: Intl.NumberFormatOptions;
+  alarm?: MetricAlarm;
 }

@@ -77,11 +77,16 @@ export function useScrollAnchor<
     activeSessionCleanupRef.current = null;
 
     // Snapshot the scroll target at session start so a later ref change
-    // doesn't redirect compensation mid-flight.
-    const scrollTarget: HTMLElement | Window = scrollContainerRef.current ?? window;
+    // doesn't redirect compensation mid-flight. `scrollElement` is the attached
+    // container (if any); `scrollTarget` is what receives the user-interaction
+    // listeners (the container or the window).
+    const scrollElement: HTMLElement | null = scrollContainerRef.current;
+    const scrollTarget: HTMLElement | Window = scrollElement ?? window;
     const interactionTarget: EventTarget = scrollTarget;
 
-    const initialTop = anchor.getBoundingClientRect().top;
+    // Mutable so it can be re-baselined when an attached container can't yet
+    // absorb a delta (see below).
+    let initialTop = anchor.getBoundingClientRect().top;
     let active = true;
     let cleanupTimer: ReturnType<typeof setTimeout>;
 
@@ -94,8 +99,25 @@ export function useScrollAnchor<
         return;
       }
       const delta = anchor.getBoundingClientRect().top - initialTop;
-      if (Math.abs(delta) > 0.5) {
-        scrollTarget.scrollBy(0, delta);
+      if (Math.abs(delta) <= 0.5) {
+        return;
+      }
+      if (!scrollElement) {
+        window.scrollBy(0, delta);
+        return;
+      }
+      const before = scrollElement.scrollTop;
+      scrollElement.scrollBy(0, delta);
+      const remainder = delta - (scrollElement.scrollTop - before);
+      if (Math.abs(remainder) > 0.5) {
+        // The container couldn't absorb this part — it isn't scrollable yet
+        // (its content hasn't exceeded its `max-height`). Re-baseline instead
+        // of forcing the difference elsewhere: scrolling the page would shift
+        // the surrounding layout, and carrying the delta forward would snap the
+        // anchor back the instant the container becomes scrollable. Accepting
+        // the small drift now keeps the surrounding layout still and lets the
+        // container hold the anchor smoothly from here on.
+        initialTop += remainder;
       }
     });
 

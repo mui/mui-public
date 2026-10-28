@@ -4,25 +4,6 @@
 
 ## API Reference
 
-### convertCommentsToOneIndexed
-
-Convert comments from 0-based to 1-based line numbers.
-
-`parseImportsAndComments` emits 0-based line numbers, but the rest of the
-pipeline (HAST `dataLn`, source enhancers) uses 1-based lines.
-
-**Parameters:**
-
-| Parameter | Type                          | Default | Description |
-| :-------- | :---------------------------- | :------ | :---------- |
-| comments  | `SourceComments \| undefined` | -       | -           |
-
-**Return Value:**
-
-```tsx
-type ReturnValue = SourceComments | undefined;
-```
-
 ### DirectoryReader
 
 **Parameters:**
@@ -147,9 +128,9 @@ Gets the language name from a file extension.
 
 **Parameters:**
 
-| Parameter | Type     | Default | Description                               |
-| :-------- | :------- | :------ | :---------------------------------------- |
-| extension | `string` | -       | The file extension (e.g., '.tsx', '.css') |
+| Parameter | Type     | Default | Description                                      |
+| :-------- | :------- | :------ | :----------------------------------------------- |
+| extension | `string` | -       | The file extension (for example, '.tsx', '.css') |
 
 **Return Value:**
 
@@ -171,7 +152,29 @@ Checks if a file path or import path represents a JavaScript/TypeScript module
 
 **Return Value:**
 
-true if it's a JS/TS module, false otherwise
+true if it's a JavaScript or TypeScript module, false otherwise
+
+```tsx
+type ReturnValue = boolean;
+```
+
+### isRouteGroup
+
+Whether a single path segment is a Next.js route group: a directory name wrapped in
+parentheses (for example, `(overview)`). Route groups organize files without appearing in the public
+URL. This is the one shared definition used by page grouping, parent-index resolution, and
+path-to-URL resolution.
+
+Because it tests a whole segment, a segment that merely contains parentheses (for example,
+`(draft)notes`) is not a route group and is kept.
+
+**Parameters:**
+
+| Parameter | Type     | Default | Description |
+| :-------- | :------- | :------ | :---------- |
+| segment   | `string` | -       | -           |
+
+**Return Value:**
 
 ```tsx
 type ReturnValue = boolean;
@@ -180,7 +183,7 @@ type ReturnValue = boolean;
 ### normalizeLanguage
 
 Normalizes a language name to its canonical form.
-This handles aliases like 'js' -> 'javascript', 'ts' -> 'typescript'.
+This handles aliases like `'js'` -> `'javascript'`, `'ts'` -> `'typescript'`.
 
 **Parameters:**
 
@@ -217,6 +220,8 @@ relative imports are resolved via WHATWG `URL`, which means demos can be
 parsed straight out of remote sources without first being mapped onto a
 placeholder `file://` URL.
 
+Parsing is fully synchronous — no I/O, no `await`.
+
 **Parameters:**
 
 | Parameter | Type                                                                        | Default | Description                                                                                                       |
@@ -227,10 +232,10 @@ placeholder `file://` URL.
 
 **Return Value:**
 
-Promise resolving to parsed import data, optionally including processed code and collected comments
+Parsed import data, optionally including processed code and collected comments
 
 ```tsx
-type ReturnValue = Promise<ImportsAndComments>;
+type ReturnValue = ImportsAndComments;
 ```
 
 ### portablePathToFileUrl
@@ -257,7 +262,7 @@ type ReturnValue = string;
 ### processRelativeImports
 
 Processes imports based on the specified storage mode, automatically handling
-source rewriting when needed (e.g., for 'flat' mode). Works for both JavaScript and simple file types.
+source rewriting when needed (for example, for 'flat' mode). Works for both JavaScript and simple file types.
 
 **Parameters:**
 
@@ -435,6 +440,45 @@ The source code with import statements rewritten to const declarations
 type ReturnValue = string;
 ```
 
+### routeGroupName
+
+The name inside a route-group segment (for example, `(overview)` -> `overview`), or `undefined` when the
+segment is not a whole route group. Uses the same whole-segment rule as [`isRouteGroup`](#isroutegroup), so
+callers get one definition of the parenthesis convention instead of re-deriving it. Useful for
+mapping a route group back to a section (for example, resolving a section's default landing page).
+
+**Parameters:**
+
+| Parameter | Type     | Default | Description |
+| :-------- | :------- | :------ | :---------- |
+| segment   | `string` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = string | undefined;
+```
+
+### stripRouteGroupSegments
+
+Removes whole Next.js route-group segments (`(group)`) from a `/`-separated path or URL, since
+they do not appear in the public URL, keeping every other segment intact. It splits on `/` and
+filters whole segments with [`isRouteGroup`](#isroutegroup), so a folder that merely contains parentheses
+(for example, `(draft)notes`) stays in the path. This is the one whole-segment rule the grouped index,
+rendered links, and search URL resolution all share.
+
+**Parameters:**
+
+| Parameter | Type     | Default | Description |
+| :-------- | :------- | :------ | :---------- |
+| pathOrUrl | `string` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = string;
+```
+
 ## Additional Types
 
 ### DirectoryEntry
@@ -508,7 +552,11 @@ type ImportsAndComments = {
   externals: Record<string, ExternalImport>;
   /** The processed code with comments removed (if comment processing was requested) */
   code?: string;
-  /** Map of line numbers to arrays of comment content (if comment processing was requested) */
+  /**
+   * Map of 1-indexed output line numbers (in `code`, after comment removal) to arrays of
+   * comment content (if comment processing was requested). 1-indexed is the canonical
+   * `Code` convention, matching the HAST `dataLn` gutter the enhancers read.
+   */
   comments?: Record<number, string[]>;
 };
 ```
@@ -524,7 +572,7 @@ type JAVASCRIPT_MODULE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mdx', '.d.t
 ### languageAliasMap
 
 Maps language aliases to canonical language names.
-Used to normalize short language names (e.g., from className like 'language-js')
+Used to normalize short language names (for example, from className like 'language-js')
 to their full names.
 
 ```typescript

@@ -2,8 +2,8 @@ import 'server-only';
 import {
   createTypesFactory,
   createMultipleTypesFactory,
-  type AbstractCreateTypesOptions,
 } from '@mui/internal-docs-infra/abstractCreateTypes';
+import type { AbstractCreateTypesOptions } from '@mui/internal-docs-infra/abstractCreateTypes';
 import { mdxComponents } from '@/mdx-components';
 import { PreInline } from '@/components/PreInline';
 import { TypesTable } from './TypesTable';

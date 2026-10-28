@@ -16,9 +16,11 @@ import {
   performanceMeasure,
 } from '../pipeline/loadPrecomputedCodeHighlighter/performanceLogger';
 import { terminateWorkerManager } from '../pipeline/loadServerTypesMeta/workerManager';
+import { DEFAULT_CACHE_DIR } from '../pipeline/cacheUtils';
 import { extractDocsInfraOptionsFromNextConfig } from './loadNextConfig';
 import { ensureDemoClients } from './ensureDemoClients';
-import type { ValidateTask, ValidateResult } from './validateWorker';
+import { ensureDemoPages } from './ensureDemoPages';
+import type { ShutdownResult, ShutdownTask, ValidateTask, ValidateResult } from './validateWorker';
 
 type Args = {
   paths?: string[];
@@ -32,6 +34,57 @@ type Args = {
 const completeMessage = (message: string) => `✓ ${chalk.green(message)}`;
 
 const functionName = 'Run Validate';
+
+export async function shutdownWorker(worker: Worker, timeoutMs: number = 5000): Promise<void> {
+  if (worker.threadId === -1) {
+    return;
+  }
+
+  await new Promise<void>((resolve) => {
+    let handleMessage: (result: ValidateResult | ShutdownResult) => void;
+    let settled = false;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+
+    const finish = () => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+      worker.off('message', handleMessage);
+      worker.off('error', finish);
+      worker.off('exit', finish);
+      resolve();
+    };
+
+    handleMessage = (result: ValidateResult | ShutdownResult) => {
+      if (result.type === 'shutdown') {
+        finish();
+      }
+    };
+
+    timeout = setTimeout(finish, timeoutMs);
+    worker.on('message', handleMessage);
+    worker.once('error', finish);
+    worker.once('exit', finish);
+
+    // The worker may have exited between the initial check and listener setup.
+    if (worker.threadId === -1) {
+      finish();
+      return;
+    }
+
+    worker.postMessage({ type: 'shutdown' } satisfies ShutdownTask);
+  });
+
+  await worker.terminate();
+}
+
+export async function shutdownWorkers(workers: Worker[]): Promise<void> {
+  await Promise.all(workers.map((worker) => shutdownWorker(worker)));
+}
 
 /**
  * Recursively find all files matching a specific name in a directory
@@ -116,12 +169,16 @@ const runValidate: CommandModule<{}, Args> = {
     const {
       ordering,
       descriptionReplacements,
+      inheritedExternalProps,
       useVisibleDescription = false,
-      socketDir: configSocketDir,
+      cacheDir: configCacheDir,
       demoClientRequirements = [],
+      demoPageRequirements = [],
     } = await extractDocsInfraOptionsFromNextConfig(cwd);
 
-    const socketDir = configSocketDir ? path.resolve(cwd, configSocketDir) : undefined;
+    // Use the same page-index cache directory that the sitemap loader reads at build time.
+    // The index validation pass writes cache entries even when committed indexes are current.
+    const cacheDir = configCacheDir ?? DEFAULT_CACHE_DIR;
 
     // If neither flag is set, run both. If one is set, run only that one.
     const runIndexes = !typesOnly || indexesOnly;
@@ -168,7 +225,10 @@ const runValidate: CommandModule<{}, Args> = {
     let taskIdCounter = 0;
 
     for (const worker of workers) {
-      worker.on('message', (result: ValidateResult) => {
+      worker.on('message', (result: ValidateResult | ShutdownResult) => {
+        if (result.type === 'shutdown') {
+          return;
+        }
         const resolve = pendingResults.get(result.taskId);
         if (resolve) {
           pendingResults.delete(result.taskId);
@@ -216,13 +276,15 @@ const runValidate: CommandModule<{}, Args> = {
     let indexesMark = currentMark;
     let typesMark = currentMark;
     let clientsMark = currentMark;
+    let pagesMark = currentMark;
     let ranClients = false;
+    let ranPages = false;
 
     try {
       // === Validate page.mdx index files ===
       if (runIndexes) {
-        const markerDir = '.next/cache/docs-infra/index-updates';
-        const markerDirPath = path.join(cwd, markerDir);
+        const markerDir = path.posix.join(cacheDir, 'index-updates');
+        const markerDirPath = path.resolve(cwd, markerDir);
 
         try {
           await rm(markerDirPath, { recursive: true, force: true });
@@ -263,6 +325,7 @@ const runValidate: CommandModule<{}, Args> = {
           onlyUpdateIndexes: true,
           markerDir,
           useVisibleDescription,
+          cacheDir,
         };
 
         const indexResults = await Promise.all(
@@ -312,8 +375,8 @@ const runValidate: CommandModule<{}, Args> = {
       // === Validate types.ts files ===
       if (runTypes) {
         // Use same marker directory structure for index updates from types
-        const typesMarkerDir = '.next/cache/docs-infra/types-index-updates';
-        const typesMarkerDirPath = path.join(cwd, typesMarkerDir);
+        const typesMarkerDir = path.posix.join(cacheDir, 'types-index-updates');
+        const typesMarkerDirPath = path.resolve(cwd, typesMarkerDir);
 
         try {
           await rm(typesMarkerDirPath, { recursive: true, force: true });
@@ -344,10 +407,12 @@ const runValidate: CommandModule<{}, Args> = {
                 updateParentIndex: {
                   baseDir: cwd,
                   markerDir: typesMarkerDir,
+                  cacheDir,
                 },
                 ordering,
                 descriptionReplacements,
-                socketDir,
+                inheritedExternalProps,
+                cacheDir,
               },
             });
           }),
@@ -437,12 +502,53 @@ const runValidate: CommandModule<{}, Args> = {
         );
         currentMark = clientsMark;
       }
+
+      // === Ensure demo page.tsx files for patterns that opted in ===
+      if (runIndexes && demoPageRequirements.length > 0) {
+        ranPages = true;
+
+        const demoPageResult = await ensureDemoPages({
+          baseDir: cwd,
+          requirements: demoPageRequirements,
+        });
+
+        const patternCount = demoPageRequirements.length;
+        console.log(
+          chalk.cyan(
+            `\nEnsured demo page.tsx wiring for ${demoPageResult.demoCount} demo${
+              demoPageResult.demoCount === 1 ? '' : 's'
+            } across ${patternCount} pattern${patternCount === 1 ? '' : 's'}`,
+          ),
+        );
+
+        for (const { filePath, message } of demoPageResult.errors) {
+          console.error(chalk.red(`  ✗ ${filePath}: ${message}`));
+          hasErrors = true;
+        }
+
+        if (demoPageResult.updatedFiles.length > 0) {
+          console.log(chalk.yellow('\nCreated demo page files:'));
+          for (const relativePath of demoPageResult.updatedFiles) {
+            console.log(chalk.gray(`  ${relativePath}`));
+            updatedFilePaths.push(relativePath);
+          }
+          totalUpdatedFiles += demoPageResult.updatedFiles.length;
+        }
+
+        pagesMark = performanceMeasure(
+          currentMark,
+          { mark: 'Validated Demo Pages', measure: 'Validating Demo Pages' },
+          [functionName],
+          true,
+        );
+        currentMark = pagesMark;
+      }
     } finally {
-      // Terminate worker pool
-      await Promise.all(workers.map((w) => w.terminate()));
+      // Let each validation worker release its types-server election lock before exit.
+      await shutdownWorkers(workers);
 
       // Terminate the types meta worker manager to allow the process to exit
-      terminateWorkerManager();
+      await terminateWorkerManager();
     }
 
     if (observer) {
@@ -490,6 +596,19 @@ const runValidate: CommandModule<{}, Args> = {
           clientsMark,
         ).duration / 1000;
       timingParts.push(`clients: ${clientsDuration.toFixed(2)}s`);
+    }
+    if (ranPages) {
+      // Pages run after clients, but clients are optional (requireDemoPage and
+      // requireDemoClient are independent). When clients didn't run, clientsMark
+      // is still the start mark, so measure from typesMark instead — mirroring how
+      // the types breakdown falls back to startMark when indexes didn't run.
+      const pagesDuration =
+        performance.measure(
+          nameMark(functionName, 'Demo Pages Duration', []),
+          ranClients ? clientsMark : typesMark,
+          pagesMark,
+        ).duration / 1000;
+      timingParts.push(`pages: ${pagesDuration.toFixed(2)}s`);
     }
 
     const timingBreakdown = timingParts.length > 0 ? ` [${timingParts.join(', ')}]` : '';

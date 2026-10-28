@@ -43,7 +43,7 @@ p {
 export function MultiFileEditor() {
   return (
     // @focus-start
-    <CodeController>
+    <CodeController url={initialCode.Default.url}>
       <CodeHighlighter
         url={initialCode.Default.url}
         Content={MultiFileContent}

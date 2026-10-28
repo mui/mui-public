@@ -25,22 +25,14 @@ export default function ReportHeader({ repo, sha, baseSha, prNumber, baseRef }: 
       )}
       <Typography variant="body2" color="text.secondary">
         Commit{' '}
-        <Link
-          href={`https://github.com/${repo}/commit/${sha}`}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
+        <Link href={`https://github.com/${repo}/commit/${sha}`} target="_blank">
           {sha.substring(0, 7)}
         </Link>
         {baseSha && (
           <React.Fragment>
             {' — comparing against '}
             {baseRef && `${baseRef} (`}
-            <Link
-              href={`https://github.com/${repo}/commit/${baseSha}`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <Link href={`https://github.com/${repo}/commit/${baseSha}`} target="_blank">
               {baseSha.substring(0, 7)}
             </Link>
             {baseRef && ')'}

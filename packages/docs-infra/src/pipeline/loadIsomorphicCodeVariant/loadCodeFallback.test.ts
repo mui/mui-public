@@ -1954,7 +1954,11 @@ describe('loadCodeFallback', () => {
         variantCode,
         expect.objectContaining({
           disableTransforms: true,
+          // Deferred: the source stays a plain string (`disableParsing`) so the
+          // client still re-highlights it, but the loading fallback is framed
+          // in-loader (`framePlainFallback`) — plain-text gutters + enhancers.
           disableParsing: true,
+          framePlainFallback: true,
           sourceParser: expect.any(Promise),
           loadSource: mockLoadSource,
           loadVariantMeta: mockLoadVariantMeta,
@@ -2158,7 +2162,11 @@ describe('loadCodeFallback', () => {
         'http://example.com/typescript', // URL string, not VariantCode object
         expect.objectContaining({
           disableTransforms: true,
+          // Deferred: the source stays a plain string (`disableParsing`) so the
+          // client still re-highlights it, but the loading fallback is framed
+          // in-loader (`framePlainFallback`) — plain-text gutters + enhancers.
           disableParsing: true,
+          framePlainFallback: true,
           sourceParser: expect.any(Promise),
           loadSource: mockLoadSource,
           loadVariantMeta: mockLoadVariantMeta,

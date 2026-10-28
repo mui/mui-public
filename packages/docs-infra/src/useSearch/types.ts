@@ -1,4 +1,4 @@
-import { type ElapsedTime, type Orama, type Result, type SearchParams } from '@orama/orama';
+import type { ElapsedTime, Orama, Result, SearchParams } from '@orama/orama';
 import type {
   Sitemap,
   SitemapPage,
@@ -109,7 +109,7 @@ export interface UseSearchOptions {
   tolerance?: number;
   /** Maximum number of search results */
   limit?: number;
-  /** Enable stemming and stopwords (uses English by default) */
+  /** Enable stemming (uses English by default) */
   enableStemming?: boolean;
   /** Boost values for different result types and fields */
   boost?: Partial<Record<string, number>>;

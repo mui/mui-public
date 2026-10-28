@@ -1,6 +1,5 @@
-// TODO: change back to 'eslint/config' once https://github.com/eslint/rewrite/issues/425 is fixed
-import { defineConfig } from '@eslint/config-helpers';
-import { EXTENSION_DTS } from '../extensions.mjs';
+import { defineConfig } from 'eslint/config';
+import { EXTENSION_DTS, EXTENSION_TS_ONLY } from '../extensions.mjs';
 
 const restrictedMethods = ['setTimeout', 'setInterval', 'clearTimeout', 'clearInterval'];
 
@@ -185,6 +184,14 @@ const typescriptOverrides = {
   // TypeScript equivalents of ESLint rules
   'default-param-last': 'off',
   '@typescript-eslint/default-param-last': 'error',
+  '@typescript-eslint/ban-ts-comment': [
+    'error',
+    {
+      'ts-expect-error': 'allow-with-description',
+      'ts-ignore': true,
+      minimumDescriptionLength: 10,
+    },
+  ],
   'no-array-constructor': 'off',
   '@typescript-eslint/no-array-constructor': 'error',
   '@typescript-eslint/triple-slash-reference': 'off',
@@ -464,9 +471,9 @@ export function createCoreConfig(options = {}) {
         'react/state-in-constructor': 'off',
         // stylistic opinion. For conditional assignment we want it outside, otherwise as static
         'react/static-property-placement': 'off',
-        // noopener is enough
-        // https://github.com/jsx-eslint/eslint-plugin-react/blob/master/docs/rules/jsx-no-target-blank.md#rule-options
-        'react/jsx-no-target-blank': ['error', { allowReferrer: true }],
+        // This rule is outdated, rel are no longer needed for security on target="_blank" links.
+        // See https://github.com/mui/material-ui/pull/40447 for more details.
+        'react/jsx-no-target-blank': 'off',
 
         'no-restricted-syntax': [
           'error',
@@ -528,14 +535,22 @@ export function createCoreConfig(options = {}) {
               '@typescript-eslint/consistent-type-imports': [
                 'error',
                 {
-                  fixStyle: 'inline-type-imports',
+                  fixStyle: 'separate-type-imports',
                 },
               ],
+              'import/consistent-type-specifier-style': ['error', 'prefer-top-level'],
             }
           : {}),
         // Prevent the use of `e` as a shorthand for `event`, `error`, etc.
         'id-denylist': ['error', 'e'],
         '@typescript-eslint/return-await': 'off',
+      },
+    },
+    {
+      name: 'mui-base/ts',
+      files: [`**/*${EXTENSION_TS_ONLY}`],
+      rules: {
+        'mui/no-constructor-assigned-field': 'error',
       },
     },
     {

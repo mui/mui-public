@@ -3,23 +3,29 @@ import { pathToFileURL } from 'node:url';
 import { toKebabCase } from '../loaderUtils/toKebabCase';
 import { nameMark, performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { highlightTypes } from './highlightTypes';
-import {
-  highlightTypesMeta,
-  type HighlightedTypesMeta,
-  type HighlightedComponentTypeMeta,
-  type HighlightedHookTypeMeta,
-  type HighlightedFunctionTypeMeta,
-  type HighlightedClassTypeMeta,
-  type HighlightedMethod,
-  type HighlightedRawTypeMeta,
-  type HighlightedEnumMemberMeta,
-  type HighlightedProperty,
-  type HighlightedParameter,
-  type HighlightedClassProperty,
+import { highlightTypesMeta } from './highlightTypesMeta';
+import type {
+  HighlightedTypesMeta,
+  HighlightedComponentTypeMeta,
+  HighlightedHookTypeMeta,
+  HighlightedFunctionTypeMeta,
+  HighlightedClassTypeMeta,
+  HighlightedMethod,
+  HighlightedRawTypeMeta,
+  HighlightedEnumMemberMeta,
+  HighlightedProperty,
+  HighlightedParameter,
+  HighlightedClassProperty,
 } from './highlightTypesMeta';
-import { syncTypes, type SyncTypesOptions } from '../syncTypes';
-import { loadServerTypesText, type TypesSourceData } from '../loadServerTypesText';
+import { syncTypes } from '../syncTypes';
+import type { SyncTypesOptions } from '../syncTypes';
+import { loadServerTypesText } from '../loadServerTypesText';
+import type { TypesSourceData } from '../loadServerTypesText';
+import { resolveTypesCacheKey } from '../loadServerTypesText/resolveTypesCacheKey';
+import { CACHE_SCHEMA_VERSION, withFileCache } from '../cacheUtils';
+import type { FileCacheRef } from '../cacheUtils';
 import type { FormattedProperty, TypesMeta } from '../loadServerTypesMeta';
+import type { FormatInlineTypeOptions } from '../loadServerTypesMeta/format';
 import type { ExportData } from '../../abstractCreateTypes';
 import type { TypesOutputFormat } from './hastTypeUtils';
 import type { TransformHtmlCodeBlockOptions } from '../transformHtmlCodeBlock/transformHtmlCodeBlock';
@@ -44,6 +50,9 @@ export type {
 } from './hastTypeUtils';
 
 const functionName = 'Load Server Types';
+
+/** Cache namespace for the enhanced (highlighted) loadServerTypes result. */
+const TYPES_ENHANCED_CACHE_NAMESPACE = 'types-enhanced';
 
 export interface LoadServerTypesOptions extends SyncTypesOptions {
   /**
@@ -126,25 +135,85 @@ export async function loadServerTypes(
     sync = false,
     output = 'hast',
     codeBlockEmphasisOptions,
+    cacheDir,
   } = options;
 
   // Derive relative path for logging
   const relativePath = path.relative(rootContext, typesMarkdownPath);
 
-  let currentMark = nameMark(functionName, 'Start Loading', [relativePath]);
-  performance.mark(currentMark);
+  const startMark = nameMark(functionName, 'Start Loading', [relativePath]);
+  performance.mark(startMark);
 
   // Either sync types from source or load from existing markdown
   const syncResult: TypesSourceData = sync
     ? await syncTypes(options)
-    : await loadServerTypesText(pathToFileURL(typesMarkdownPath).href, options.ordering);
+    : await loadServerTypesText(pathToFileURL(typesMarkdownPath).href, options.ordering, {
+        cacheDir,
+        rootContext,
+      });
 
-  currentMark = performanceMeasure(
-    currentMark,
+  performanceMeasure(
+    startMark,
     { mark: 'types loaded', measure: sync ? 'type syncing' : 'types.md loading' },
     [functionName, relativePath],
   );
 
+  // The enhanced (highlighted) result is cached keyed by the loaded types plus the options that
+  // affect the output, so a hit skips highlightTypes/highlightTypesMeta. `allDependencies` (the
+  // webpack watch list) and the transient `updated` flag are excluded from both the hash and the
+  // cached value: allDependencies is re-attached fresh from syncResult below. `syncResult` is hashed
+  // before the slug mutation in enhanceTypes (slugs are derived deterministically, part of the cache).
+  const cacheRef: FileCacheRef | undefined = cacheDir
+    ? {
+        cacheDir,
+        namespace: TYPES_ENHANCED_CACHE_NAMESPACE,
+        cacheKey: resolveTypesCacheKey(typesMarkdownPath, rootContext),
+      }
+    : undefined;
+
+  const enhanced = await withFileCache({
+    ref: cacheRef,
+    readOrigin: () => syncResult,
+    getCacheContent: (source) =>
+      JSON.stringify({
+        // The cached value is hast, whose shape can change between releases — see
+        // CACHE_SCHEMA_VERSION. Dropping this lets a warm cache serve the old shape.
+        cacheSchemaVersion: CACHE_SCHEMA_VERSION,
+        // Exclude allDependencies (re-attached fresh below) so a dep-list change does not needlessly
+        // invalidate the cached highlighting, and the transient `updated` flag for hash stability.
+        source: { ...source, allDependencies: undefined, updated: undefined },
+        output,
+        formattingOptions: formattingOptions ?? null,
+        codeBlockEmphasisOptions: codeBlockEmphasisOptions ?? null,
+      }),
+    processor: (source) =>
+      enhanceTypes(source, { output, formattingOptions, codeBlockEmphasisOptions, relativePath }),
+  });
+
+  // allDependencies is the webpack watch list — always take it FRESH from syncResult, never a
+  // possibly-stale cached value, so a cache hit can't omit a newly-added source file (missed rebuild).
+  return { ...enhanced, allDependencies: syncResult.allDependencies };
+}
+
+/**
+ * Applies syntax highlighting/enhancement to the loaded types and builds the anchor map. Extracted
+ * so loadServerTypes can cache it via withFileCache. Returns everything except `allDependencies`
+ * (the watch list), which loadServerTypes re-attaches fresh so a cache hit never serves a stale one.
+ */
+async function enhanceTypes(
+  syncResult: TypesSourceData,
+  {
+    output,
+    formattingOptions,
+    codeBlockEmphasisOptions,
+    relativePath,
+  }: {
+    output: TypesOutputFormat;
+    formattingOptions?: FormatInlineTypeOptions;
+    codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions;
+    relativePath: string;
+  },
+): Promise<Omit<LoadServerTypesResult, 'allDependencies'>> {
   // Compute slugs for all types
   // Determine the common component prefix from the first dotted name (e.g., "Accordion")
   let componentPrefix = '';
@@ -163,7 +232,7 @@ export async function loadServerTypes(
         return parts.slice(1).join('.').toLowerCase();
       }
       // No prefix match, use the full name
-      return name.replace(/\./g, '.').toLowerCase();
+      return name.toLowerCase();
     }
     // Non-dotted name: use as-is
     return name.toLowerCase();
@@ -303,7 +372,7 @@ export async function loadServerTypes(
     end: highlightEnd,
   });
 
-  currentMark = nameMark(functionName, 'types highlighted and enhanced', [relativePath]);
+  const currentMark = nameMark(functionName, 'types highlighted and enhanced', [relativePath]);
 
   // Use variantTypeNames directly from syncResult
   const { variantTypeNames } = syncResult;
@@ -385,7 +454,6 @@ export async function loadServerTypes(
     additionalTypes,
     variantOnlyAdditionalTypes,
     variantTypeNames,
-    allDependencies: syncResult.allDependencies,
     typeNameMap: syncResult.typeNameMap,
     anchorMap: { js: anchorMap },
   };

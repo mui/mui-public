@@ -12,7 +12,7 @@ Get default MDX options for docs-infra
 
 | Parameter      | Type                  | Default | Description |
 | :------------- | :-------------------- | :------ | :---------- |
-| customOptions? | `DocsInfraMdxOptions` | -       | -           |
+| customOptions? | `DocsInfraMdxOptions` | `{}`    | -           |
 
 **Return Value:**
 
@@ -44,7 +44,7 @@ Use getDocsInfraMdxOptions() with createMDX for MDX integration.
 
 | Parameter | Type                   | Default | Description |
 | :-------- | :--------------------- | :------ | :---------- |
-| options?  | `WithDocsInfraOptions` | -       | -           |
+| options?  | `WithDocsInfraOptions` | `{}`    | -           |
 
 **Return Value:**
 
@@ -99,6 +99,12 @@ type DocsInfraMdxOptions = {
    * Passed to `transformHtmlCodeBlock` in the default rehype plugin list.
    */
   codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions;
+  /**
+   * Directory rooting docs-infra's build caches and index markers. Indexes synced from MDX store
+   * the page-index cache under `{cacheDir}/pages-index-v2/` and markers under `{cacheDir}/index-updates/`.
+   * @default '.next/cache/docs-infra'
+   */
+  cacheDir?: string;
 };
 ```
 
@@ -166,6 +172,17 @@ type WithDocsInfraOptions = {
    * Existing `client.ts` files are never overwritten.
    */
   requireDemoClient?: string;
+  /**
+   * When `true`, `pnpm docs-infra validate` ensures every demo `index.ts` matched by a
+   * `loadPrecomputedCodeHighlighter` demo rule has a sibling `page.tsx` that renders
+   * the demo as the route's default export, so each demo is browsable on its own page.
+   *
+   * The demo's export name is read from the `create*` factory call in `index.ts`, so the
+   * generated page imports the exact export (e.g. `import { DemoButton } from '.';`).
+   *
+   * Existing `page.tsx`/`page.ts` files are never overwritten.
+   */
+  requireDemoPage?: boolean;
   /** Performance logging options */
   performance?: { logging: boolean; notableMs?: number; showWrapperMeasures?: boolean };
   /**
@@ -201,6 +218,14 @@ type WithDocsInfraOptions = {
    */
   codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions;
   /**
+   * When `true`, the demo loaders register the `TypescriptToJavascriptTransformer`
+   * so that TypeScript variants also produce a JavaScript counterpart at build time.
+   *
+   * Defaults to `false` because the transform is comparatively expensive;
+   * enable it when the rendered demos should expose both TS and JS sources.
+   */
+  transformTypescriptToJavascript?: boolean;
+  /**
    * Name of the index file to update when syncing types metadata to parent indexes.
    * The types loader will call syncPageIndex to update the parent directory's index
    * with props, dataAttributes, and cssVariables extracted from component types.
@@ -234,5 +259,34 @@ type WithDocsInfraOptions = {
    * ```
    */
   descriptionReplacements?: DescriptionReplacement[];
+  /**
+   * Props to re-include in component docs when they are inherited from these
+   * externally declared types, keyed by the declaring type's name. Type
+   * extraction normally drops props that are only declared inside
+   * `node_modules` (which keeps native DOM attributes out of the docs); this
+   * option re-adds the configured props when a component's props type extends
+   * one of the listed types from an installed package.
+   *
+   * Entries can also pin the package the type must come from, to disambiguate
+   * same-named types from different packages.
+   * @example
+   * ```js
+   * { BaseUIComponentProps: ['className', 'render', 'style'] }
+   * ```
+   * @example
+   * ```js
+   * { BaseUIComponentProps: { from: '@base-ui/react', props: ['className', 'render', 'style'] } }
+   * ```
+   */
+  inheritedExternalProps?: InheritedExternalPropsConfig;
+  /**
+   * Directory rooting docs-infra's build caches and coordination state — relocate it (or point it
+   * at a persistent cache) and everything under it moves together: the sha256-validated JSON caches
+   * (`pages-index-v2`, `types-text`, `types-enhanced`) and the index marker directories
+   * (`index-updates`, `types-index-updates`). The IPC socket used to coordinate the type workers
+   * lives outside the project, in the system temp directory, and is unaffected by this option.
+   * @default '.next/cache/docs-infra'
+   */
+  cacheDir?: string;
 };
 ````

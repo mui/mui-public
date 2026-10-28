@@ -13,7 +13,7 @@ const parseSource = await createParseSource();
 // Parse and highlight JavaScript code
 const highlighted = parseSource('const x = 42;', 'example.js');
 
-// Use the HAST tree for rendering (e.g., with hastToReact)
+// Use the HAST tree for rendering (e.g., with hastToJsx)
 ```
 
 The parser automatically:
@@ -84,6 +84,10 @@ const result = parseSource('Some content', 'file.xyz');
 const readme = parseSource('# README', 'README');
 ```
 
+The plain-text path is also exported directly as `parsePlainText(source)` for
+callers that want the same un-highlighted HAST shape without going through
+language detection.
+
 ---
 
 ## Advanced Usage
@@ -108,13 +112,13 @@ function highlightCode(code: string, fileName: string) {
 
 ```tsx
 import { createParseSource } from '@mui/internal-docs-infra/pipeline/parseSource';
-import { hastToReact } from '@mui/internal-docs-infra/hastUtils';
+import { hastToJsx } from '@mui/internal-docs-infra/pipeline/hastUtils';
 
 const parseSource = await createParseSource();
 
 function HighlightedCode({ code, fileName }: { code: string; fileName: string }) {
   const hast = parseSource(code, fileName);
-  const jsx = hastToReact(hast);
+  const jsx = hastToJsx(hast);
 
   return <pre>{jsx}</pre>;
 }
@@ -124,7 +128,7 @@ function HighlightedCode({ code, fileName }: { code: string; fileName: string })
 
 ## How It Works
 
-1. **Initialization**: `createParseSource()` creates a Starry Night instance with grammar definitions
+1. **Initialization**: `createParseSource()` creates a Starry Night instance with all grammar definitions (loaded as a code-split chunk). Pass `initialScopes` (possibly `[]`) to create a lean instance that registers grammars on demand via `registerGrammars` — the per-language path used by [`CodeProviderLazy`](../../components/code-provider/page.mdx#per-language-grammar-loading)
 2. **Language Detection**: File extension is extracted and mapped to a grammar
 3. **Syntax Highlighting**: Starry Night processes the source code and generates HAST nodes with `pl-*` classes
 4. **Syntax Extensions**: Adds fine-grained `di-*` classes (numbers, booleans, nullish, attributes) without removing existing classes
@@ -147,16 +151,24 @@ During parsing, `parseSource` extends the highlighted tree with **additive** `di
 | `di-this` | Self-reference keyword                  | `this`, `super`                                    |
 | `di-bt`   | Built-in type keyword                   | `string`, `number`, `boolean`, `void`, `never`     |
 | `di-jsx`  | JSX component element                   | `Button` in `<Button />`, `</Button>`              |
+| `di-jv`   | JSX expression variable                 | `age` in `<Select value={age} />`                  |
 | `di-ak`   | Attribute key                           | `className` in `<div className="x">`               |
 | `di-ae`   | Attribute equals                        | `=` in `<div className="x">`                       |
 | `di-av`   | Attribute value                         | `"x"` in `<div className="x">`                     |
+| `di-pu`   | Symbolic punctuation                    | `=`, `=>`, `&&`, `\|\|`, `...`, `+`                |
+| `di-op`   | Object property name                    | `height` in `{ height: 400 }`                      |
+| `di-ps`   | Object property string                  | `'aria-label'` in `{ 'aria-label': 'x' }`          |
+| `di-te`   | Template interpolation region           | `` `Hi ${user.name}` `` (the `${user.name}` slice) |
+| `di-td`   | Template interpolation delimiter        | `${` and `}` in `` `${value}` ``                   |
 | `di-da`   | CSS data attribute selector             | `data-active` in `[data-active]{:css}`             |
 | `di-cp`   | CSS property name                       | `color` in `div { color: red }{:css}`              |
 | `di-cv`   | CSS property value                      | `flex` in `div { display: flex }{:css}`            |
 | `di-ht`   | HTML tag wrapper (inline only)          | `<div>`, `</span>` (wraps brackets + tag name)     |
 | `di-jt`   | JSX component tag wrapper (inline only) | `<Box>`, `</Stack>` (wraps brackets + tag name)    |
 
-`di-this` applies to JS/TS family grammars (`.js`, `.ts`, `.tsx`, `.jsx`, `.mdx`). `di-bt` applies to TS family grammars only (`.ts`, `.tsx`, `.jsx`, `.mdx`) — plain JS is excluded because `string`, `number`, etc. are valid variable names. `di-jsx` only applies to JSX grammars (`.tsx`, `.jsx`, `.mdx`). `di-ak`, `di-ae`, `di-av` only apply to HTML/JSX/MDX grammars. `di-da`, `di-cp`, and `di-cv` only apply to CSS. `di-ht` and `di-jt` are added by `enhanceCodeInline` (not `parseSource`) as wrapper spans around tag brackets and the inner `pl-ent` or `pl-c1` span.
+`di-this` applies to JavaScript/TypeScript family grammars (`.js`, `.ts`, `.tsx`, `.jsx`, `.mdx`). `di-bt` applies to TypeScript family grammars only (`.ts`, `.tsx`, `.jsx`, `.mdx`) — plain JavaScript is excluded because `string`, `number`, etc. are valid variable names. `di-jsx` and `di-jv` only apply to JavaScriptX grammars (`.tsx`, `.jsx`, `.mdx`); `di-jv` is added to identifier spans (`pl-smi`, `pl-v`) appearing inside JavaScriptX expression braces (`{...}`), including spread arguments, arrow-function parameters, and `pl-c1` member-access property names (for example, `name` in `{row.name}`). Object property keys inside JavaScriptX expressions also receive `di-jv` in addition to `di-op`. `di-ak`, `di-ae`, `di-av` only apply to HTML/JSX/MDX grammars. `di-pu` applies to all grammars and tags `pl-k` operator tokens whose text is purely symbolic (it is not added to word keywords like `const` or `if`). `di-op` applies to JavaScript-family grammars and tags both bare-identifier object keys (for example, `height` in `{ height: 400 }`) and string keys (for example, `'aria-label'`); string keys additionally receive `di-ps`. `di-da`, `di-cp`, and `di-cv` only apply to CSS. `di-ht` and `di-jt` are added by `enhanceCodeInline` (not `parseSource`) as wrapper spans around tag brackets and the inner `pl-ent` or `pl-c1` span.
+
+`di-te` and `di-td` apply to JavaScript-family grammars and handle template-literal interpolations (`` `...${expr}...` ``). Starry Night tokenizes the whole backtick string as a single `pl-s` span, so without these classes the `${`/`}` delimiters and any bare punctuation inside the expression (for example, `.` in `${a.b}`) inherit the string color. `parseSource` wraps each `${ ... }` slice in a `di-te` span so the interpolated expression resets from the string color, and wraps the `${` and `}` glyphs themselves in `di-td` spans. Inner `pl-*` tokens (and additive `di-*` classes such as `di-num` on `${42}`) still apply on top of the reset. Only backtick template literals are processed — a `${...}` sequence inside a regular `"`/`'` string is inert text and is left untouched. Because a multi-line template literal is tokenized as one `pl-s` span per line, an interpolation that spans several lines is wrapped with a separate `di-te` slice on each line (mirroring how the string itself continues across lines).
 
 Existing `pl-*` classes are never removed — `<span class="pl-c1">42</span>` becomes `<span class="pl-c1 di-num">42</span>`.
 
@@ -166,16 +178,18 @@ Existing `pl-*` classes are never removed — `<span class="pl-c1">42</span>` be
 
 The parser supports languages based on file extensions:
 
-| Language   | Extensions                    |
-| :--------- | :---------------------------- |
-| JavaScript | `.js`, `.mjs`, `.cjs`, `.jsx` |
-| TypeScript | `.ts`, `.tsx`                 |
-| CSS        | `.css`                        |
-| HTML       | `.html`, `.htm`               |
-| JSON       | `.json`                       |
-| And more   | Via Starry Night grammars     |
+| Language   | Extensions    |
+| :--------- | :------------ |
+| JavaScript | `.js`, `.jsx` |
+| TypeScript | `.ts`, `.tsx` |
+| CSS        | `.css`        |
+| HTML       | `.html`       |
+| JSON       | `.json`       |
+| Markdown   | `.md`, `.mdx` |
+| Shell      | `.sh`         |
+| YAML       | `.yaml`       |
 
-See `grammars.ts` for the complete list of supported languages.
+`.jsx` is highlighted with the TypeScript JSX grammar. The full extension-to-grammar mapping lives in `grammarMaps.ts` (exported as `extensionMap`); unlisted extensions fall back to plain text.
 
 ---
 
@@ -243,6 +257,12 @@ import { TypesParseSource, TypesParseSourceAdditional } from './types';
 
 [See Types](./types.md#getGrammarFromLanguage)
 
+### `registerGrammars`
+
+<TypesParseSource.registerGrammars />
+
+[See Types](./types.md#registerGrammars)
+
 ## Additional Types
 
 <TypesParseSourceAdditional />
@@ -254,3 +274,8 @@ import { TypesParseSource, TypesParseSourceAdditional } from './types';
 - [`hastUtils`](../hast-utils/page.mdx) - For converting HAST to React JSX
 - [`CodeHighlighter`](../../components/code-highlighter/page.mdx) - Uses parseSource for syntax highlighting
 - [`loadPrecomputedCodeHighlighter`](../load-precomputed-code-highlighter/page.mdx) - Build-time optimization using parseSource
+
+export const metadata =
+  /** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */ ({
+    keywords: ['starry night', 'syntax highlighting', 'grammars', 'HAST', 'TextMate'],
+  });

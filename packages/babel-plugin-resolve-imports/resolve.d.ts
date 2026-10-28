@@ -1,5 +1,5 @@
-declare module 'resolve/sync' {
-  import { type Opts } from 'resolve';
+declare module 'resolve/sync.js' {
+  import type { Opts } from 'resolve';
 
   function resolve(id: string, options?: Opts): string;
   export = resolve;

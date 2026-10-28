@@ -1041,7 +1041,7 @@ Re-export of [Root](#root) props.
                         },
                         {
                           "type": "text",
-                          "value": " props.",
+                          "value": " props.",
                         },
                       ],
                       "properties": {},
@@ -1619,6 +1619,38 @@ type ReturnValue = number;
         }
       `);
     });
+
+    it('should not double-unescape HTML entities in inline code', async () => {
+      // `&amp;lt;` must decode to `&lt;` (single unescape), not `<`.
+      const markdown = `### Button
+
+**Button Props:**
+
+| Prop | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| name | \`&amp;lt;T&amp;gt;\` | - | - |
+`;
+
+      const result = await parseTypesMarkdown(markdown);
+      const componentMeta = (result.exports.Button.type as { data: ComponentTypeMeta }).data;
+      expect(componentMeta.props.name.typeText).toBe('&lt;T&gt;');
+    });
+
+    it('should not double-unescape double-encoded HTML entities in inline code', async () => {
+      // `&amp;amp;lt;` must decode to `&amp;lt;` (single unescape of &amp;), not `&lt;` or `<`.
+      const markdown = `### Button
+
+**Button Props:**
+
+| Prop | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| name | \`&amp;amp;lt;T&amp;amp;gt;\` | - | - |
+`;
+
+      const result = await parseTypesMarkdown(markdown);
+      const componentMeta = (result.exports.Button.type as { data: ComponentTypeMeta }).data;
+      expect(componentMeta.props.name.typeText).toBe('&amp;lt;T&amp;gt;');
+    });
   });
 
   describe('typeNameMap parsing', () => {
@@ -1651,6 +1683,28 @@ type ReturnValue = number;
           "AccordionTriggerState": "Accordion.Trigger.State",
         }
       `);
+    });
+
+    it('should parse canonical types from a wrapped list item', async () => {
+      const markdown = `# Button API
+
+## API Reference
+
+### Button
+
+## Canonical Types
+
+- \`Button.State\`:
+  \`ButtonState\`,
+  \`LegacyButtonState\`
+`;
+
+      const result = await parseTypesMarkdown(markdown);
+
+      expect(result.typeNameMap).toEqual({
+        ButtonState: 'Button.State',
+        LegacyButtonState: 'Button.State',
+      });
     });
 
     it('should return empty typeNameMap when not present', async () => {
@@ -1767,6 +1821,31 @@ type ReturnValue = number;
       // Tailwind variant should have both Button and IconButton
       expect(result.variantTypeNames.Tailwind).toHaveLength(2);
       expect(result.variantTypeNames.Tailwind).toEqual(['Button', 'IconButton']);
+    });
+
+    it('should parse export groups from wrapped list items', async () => {
+      const markdown = `# Components API
+
+## API Reference
+
+### Button
+
+### Checkbox
+
+## Export Groups
+
+- \`Default\`:
+  \`Button\`,
+  \`Checkbox\`
+- \`Button\`
+`;
+
+      const result = await parseTypesMarkdown(markdown);
+
+      expect(result.variantTypeNames).toEqual({
+        Default: ['Button', 'Checkbox'],
+        Button: ['Button'],
+      });
     });
 
     it('should parse variantTypeNameMapKeys and include in variantTypeNameMaps', async () => {

@@ -5,7 +5,8 @@
  */
 
 import type { VariantCode } from '../CodeHighlighter/types';
-import { exportVariant, type ExportConfig } from './exportVariant';
+import { exportVariant } from './exportVariant';
+import type { ExportConfig } from './exportVariant';
 
 /**
  * Export a VariantCode as a Create React App template

@@ -54,7 +54,7 @@ When rendered inside a [`TypesDataProvider`](../use-type/page.mdx), `useTypes` a
 - **[`useType(name)`](../use-type/page.mdx)**: Look up a single type's processed metadata by name
 - **Interactive type references**: Build `TypeRef` components that show type popovers in code blocks
 
-Types are registered under their namespaced name (e.g., `Accordion.Item.ChangeEventDetails`) and also under any aliases (e.g., the flat export name `AccordionItemChangeEventDetails`). Both names resolve to the same type data, making lookups work regardless of which naming convention is used.
+Types are registered under their namespaced name (for example, `Accordion.Item.ChangeEventDetails`) and also under any aliases (for example, the flat export name `AccordionItemChangeEventDetails`). Both names resolve to the same type data, making lookups work regardless of which naming convention is used.
 
 The registration is additive and deduplicates — if the same type data is registered again, no state update occurs.
 
@@ -81,6 +81,18 @@ This demo shows how to display data attributes defined in a component using the 
 <DemoUseTypesDataAttr />
 
 [See Demo](./demos/data-attr/)
+
+---
+
+import { DemoUseTypesDataAttrEsm } from './demos/data-attr-esm';
+
+<DemoUseTypesDataAttrEsm.Title />
+
+This demo shows the same data attributes declared as named constants rather than an enum. Both forms produce identical documentation.
+
+<DemoUseTypesDataAttrEsm />
+
+[See Demo](./demos/data-attr-esm/)
 
 ---
 
@@ -156,7 +168,7 @@ This demo shows how to document TypeScript classes with constructors, methods, a
 
 ### How Inherited Type Rewriting Works
 
-When you re-export components from a base namespace (e.g., `Dialog` → `AlertDialog`), the type system automatically rewrites type references to use the canonical namespace. This is powered by two mechanisms:
+When you re-export components from a base namespace (for example, `Dialog` → `AlertDialog`), the type system automatically rewrites type references to use the canonical namespace. This is powered by two mechanisms:
 
 1. **`extendsTypes`**: When an interface extends another type, a mapping is created:
 

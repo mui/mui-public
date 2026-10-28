@@ -13,13 +13,88 @@ Key features include:
 - **URL-aware file navigation** with automatic hash management
 - **Automatic name and slug generation** from URLs when not provided
 - **Multi-file code management** with seamless file switching
-- **Transform support** for code modifications (e.g., JS ↔ TS conversion)
+- **Transform support** for code modifications (for example, JS ↔ TS conversion)
 - **Clipboard integration** with copy functionality
 - **Source editing capabilities** for interactive code editing
 
+## Editing behavior
+
+### Collapsed and expanded editing
+
+Some demos only show a few lines of a file when collapsed. Editing that collapsed view
+works the same as editing the full file: the hook writes your change back into the right
+place in the complete file before handing it to the controller. Blank lines shown around
+the snippet can be edited too. If the visible lines cannot be mapped to one continuous
+range of the file, the collapsed view shows the complete file instead.
+
+Expanding shows the complete file right away, with no resize or fade animation. Collapsing
+goes back to the short view. Every file stays available in both views, including
+JavaScript, TypeScript, CSS, and CSS Modules.
+
+Set `resetOnExpand: true` to discard all edits when the demo expands. This resets every
+variant and file but keeps the selected variant, file, and transform. It applies however
+the demo was expanded: a toolbar button, keyboard navigation, or a link to the source.
+
+### Editor interaction
+
+The editor is a single tab stop. Press <kbd>Enter</kbd> to start editing, <kbd>Escape</kbd>
+to leave the editor, and <kbd>Tab</kbd> to indent. Clicking or tapping starts editing
+directly. Read-only blocks never load the editor.
+
+Starting to edit a live demo switches it to the live preview immediately, even before the
+first change. It stays on the live preview until the demo unmounts; resetting the source
+does not switch back to the bundled component.
+
+### Selected file metadata
+
+The hook exposes details about the selected file so controls do not need to inspect the
+rendered code:
+
+- `selectedFileHasFocusProjection`: the collapsed view shows a snippet of the file.
+- `selectedFileCollapsible`: the collapsed and expanded views differ.
+- `selectedFileFocusedLines` and `selectedFileLines`: line counts of the snippet and the full file.
+- `selectedFileOriginalName`: the filename in the repository. `selectedFileName` is the displayed name, which a transform may change.
+- `hasControlledEdits`: the controller holds edited source.
+
+### Source actions
+
+`actionSource` picks which source `copy`, `copyMarkdown`, and the export actions from
+`useDemo` use:
+
+- `'current'` (default): the edited source, matching the existing playground behavior.
+- `'initial'`: the repository source, ignoring edits. The selected variant and transform
+  still apply.
+
+Use `'initial'` when copy and export should stay stable while the reader experiments:
+
+```tsx
+const code = useCode(props, { actionSource: 'initial' });
+```
+
+### Controlled transforms
+
+Pass `selectedTransform` with `onSelectedTransformChange` to store the transform choice
+yourself, for example in a preference store. The URL still wins on first load, but the
+hook's own local storage no longer overrides your value. Selecting a transform calls your
+handler; the display updates when your value changes.
+
+```tsx
+const code = useCode(props, {
+  selectedTransform: codeVariant === 'js' ? 'js' : null,
+  onSelectedTransformChange: (transform) => setCodeVariant(transform === 'js' ? 'js' : 'ts'),
+});
+```
+
+Uncontrolled consumers can keep using `initialTransform` and the stored preference.
+
+### Switching transforms and variants
+
+Switching keeps the current code on screen until the new one is ready, then swaps once
+without an animation.
+
 ## Architecture
 
-The hook is built using a modular architecture with six specialized sub-hooks:
+The hook is built using a modular architecture with seven specialized sub-hooks:
 
 - **useVariantSelection**: Manages code variant selection and related data
 - **useTransformManagement**: Handles code transforms and their application
@@ -27,16 +102,16 @@ The hook is built using a modular architecture with six specialized sub-hooks:
 - **useUIState**: Controls UI state like expansion
 - **useCopyFunctionality**: Handles clipboard operations
 - **useSourceEditing**: Manages source code editing capabilities
+- **useSourceEnhancing**: Applies enhancer functions to parsed HAST sources
 
 ## Basic Usage
 
 ```tsx
-import { useCode } from '@mui/internal-docs-infra';
+import { useCode } from '@mui/internal-docs-infra/useCode';
 import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
 
 function CodeContent(props: ContentProps<{}>) {
   const code = useCode(props, {
-    defaultOpen: true,
     initialVariant: 'TypeScript',
   });
 
@@ -45,7 +120,10 @@ function CodeContent(props: ContentProps<{}>) {
       <h3>{code.userProps.name}</h3>
       <div>
         Current: {code.selectedVariant}
-        <select value={code.selectedVariant} onChange={(e) => code.selectVariant(e.target.value)}>
+        <select
+          value={code.selectedVariant}
+          onChange={(event) => code.selectVariant(event.target.value)}
+        >
           {code.variants.map((variant) => (
             <option key={variant} value={variant}>
               {variant}
@@ -77,7 +155,78 @@ function CodeContent(props: ContentProps<{}>) {
 }
 ```
 
-When the code is rendered through a controller that supplies a `setSource` handler (see [`CodeControllerContext`](../../components/code-controller-context/page.mdx)), the `<Pre>` rendered by `code.selectedFile` adds a keyboard focus trap so that <kbd>Tab</kbd> through the page doesn't get caught by contentEditable's indent behavior. See [Editable Code Focus Trap](../../components/code-controller-context/page.mdx#editable-code-focus-trap) for the interaction details and the CSS hooks you can style.
+When the code is rendered through a controller that supplies a `setSource` handler (see [`CodeControllerContext`](../../components/code-controller-context/page.mdx)), the editor uses an explicit keyboard engagement step so normal page tab navigation is preserved. See [Editable Code Interaction](../../components/code-controller-context/page.mdx#editable-code-interaction) for the interaction details.
+
+### Live editing is loaded on demand
+
+The live editor and asynchronous highlighting support are loaded **on demand**, so read-only code blocks never ship the editor. An editable block loads it once editing activates: an eager [`CodeProvider`](../../components/code-provider/page.mdx) can bundle it for zero-latency editing, while [`CodeProviderLazy`](../../components/code-provider/page.mdx) fetches it once per page. Until the editor resolves, the block stays selectable, read-only text.
+
+Use the `editActivation` prop — set on [`CodeHighlighter`](../../components/code-highlighter/page.mdx) or, more commonly, on a demo created with the [demo factory](../../components/code-highlighter/page.mdx#demo-factory-pattern) — to defer the load until the reader actually engages the code:
+
+- `'eager'` (default) — load the editor as soon as the block is editable, and let `CodeHighlighter` speculatively preload it on first render.
+- `'interaction'` — warm the editor on hover (`pointerenter`) and commit on focus or pointer down. The speculative preload is suppressed, so a block the reader never engages stays plain text and fetches nothing.
+
+```tsx
+// Editing activates only once the reader hovers, focuses, or clicks the code.
+<CodeHighlighter editActivation="interaction" {...props} />
+```
+
+A related nicety — **boundary auto-expand**: in a collapsed
+[collapsible block](../use-code-window/page.mdx), the caret respects the
+collapsed-frame boundaries while editing, and moving past them (for example, pressing <kbd>↓</kbd>
+on the last visible line) automatically expands the block instead of stranding the
+caret in hidden lines.
+
+### Turning editing on and off
+
+An editable block — one rendered through a controller that supplies `setCode` — is editable
+from the start by default. To start it **read-only** and let the reader opt in, use the
+`editable` / `setEditable` pair `useCode` returns to wire up a button:
+
+```tsx
+function CodeBlock(props) {
+  const code = useCode(props);
+
+  return (
+    <div>
+      {code.setEditable && (
+        <button type="button" onClick={() => code.setEditable(!code.editable)}>
+          {code.editable ? 'View' : 'Edit'}
+        </button>
+      )}
+      {code.selectedFile}
+    </div>
+  );
+}
+```
+
+- **`editable`** — whether edit mode is on right now. While it's `false` the block stays
+  read-only and the live-editing engine isn't even warmed.
+- **`setEditable(next)`** — flips edit mode. It is `undefined` when the block can't be
+  edited at all (no controller, or a hard `disabled`), so the button only renders where a
+  toggle is meaningful.
+- Turning editing **on** hands off to [`editActivation`](#live-editing-is-loaded-on-demand)
+  (the engine loads eagerly or on the next interaction); turning it **off** keeps the
+  reader's edits — use `reset()` to discard them.
+
+Start a block read-only with **`initialDisabled`** (a truthy value starts it read-only),
+resolved exactly like `initialExpanded` — instance prop → demo `meta` → factory default:
+
+- **All demos** — in the [`createDemoFactory`](../../components/code-highlighter/page.mdx#demo-factory-pattern)
+  call, to start every demo from that factory read-only:
+  ```ts
+  const createDemo = createDemoFactory({ initialDisabled: true /* …other options */ });
+  ```
+- **Per demo** — in the `createDemo` call's `meta` (overrides the factory default; pass
+  `false` to opt a demo back in):
+  ```ts
+  export const meta = { initialDisabled: true };
+  ```
+- **Per render** — as a prop on a rendered demo: `<Demo initialDisabled />`.
+
+With none set, blocks stay editable. `initialDisabled` is distinct from `disabled`:
+`disabled` turns editing off **permanently** (no toggle), while `initialDisabled` only sets
+the **initial** state of a still-toggleable block.
 
 ## Types
 
@@ -88,6 +237,69 @@ import { TypesUseCode } from './types';
 [See Types](./types.md)
 
 ## Advanced Usage
+
+### Refreshing loaded data
+
+`useCode` (and `useDemo`) return a `refresh()` callback for re-fetching a block's
+source on the client — useful when the underlying code can change (live data, a
+just-saved file, a "reload" control):
+
+```tsx
+const { refresh, files, selectedFile } = useCode(contentProps);
+
+// e.g. a reload button
+<button type="button" onClick={() => refresh()}>
+  Reload
+</button>;
+```
+
+`refresh()` re-runs the **full** variant loader (`loadIsomorphicCodeVariant`),
+not the stripped initial-fallback loader, so every variant, transform, and extra
+file comes back fresh. It is **stale-while-revalidate**: the current highlighted
+output stays on screen until the new tree is ready (via the same deferred-highlight
+gate used for the first load), so there is no flash of unhighlighted or empty
+content. The per-file pre-parsed HAST cache is invalidated so the refreshed source
+re-highlights rather than reusing stale spans.
+
+It is a no-op when there is nothing to re-fetch — a block with no `url`, or one
+rendered without a [`CodeProvider`](../../components/code-provider/page.mdx). On
+the server `refresh` is `undefined`; it only does work on the client.
+
+### Copying Code — Plain Text and Markdown
+
+`useCode` returns two clipboard callbacks:
+
+- **`copy`** — copies the **selected file's** plain text.
+- **`copyMarkdown`** — copies the **entire variant** as a Markdown snippet: the
+  block's name as a heading, then one fenced code block per file with the
+  filename rendered as a comment in each language's syntax. Ready to paste into
+  an issue, a chat message, or an LLM prompt.
+
+```tsx
+function CopyControls(props) {
+  const code = useCode(props);
+
+  return (
+    <div>
+      <button onClick={code.copy}>Copy file</button>
+      <button onClick={code.copyMarkdown}>Copy as Markdown</button>
+      {code.selectedFile}
+    </div>
+  );
+}
+```
+
+Both are wired through [`useCopier`](../use-copier/page.mdx); pass the `copy`
+option (`UseCopierOpts`) to configure success-state timing and callbacks for
+both. Compressed sources are decoded back to text on demand, so neither copy
+forces an early decompression of the block.
+
+> [!NOTE]
+> For lists and standalone chunks, the lower-level
+> [`CoordinatedLazy`](../../components/coordinated-lazy/page.mdx) /
+> [`useStream`](../use-stream/page.mdx) primitives expose the same `refresh()`
+> plus an opt-in `revalidateOnIdle` that automatically revalidates once the
+> browser goes idle after the initial load.
 
 ### URL Management and File Navigation
 
@@ -138,13 +350,13 @@ Controls what happens to the URL hash when users interact with file tabs or swit
 - **`'remove-hash'` (default)**: Complete hash removal on interaction
   - Reads URL hash on mount to select the initial file/variant
   - Completely removes the hash when user clicks a file tab
-  - Removes the hash when user manually switches variants (e.g., via dropdown)
+  - Removes the hash when user manually switches variants (for example, via dropdown)
   - **Use case**: Demos that support deep linking but clean up URLs after user engagement
 
 - **`'remove-filename'`**: Keep variant in hash on interaction
   - Reads URL hash on mount to select the initial file/variant
-  - Simplifies hash to just variant when user clicks a file tab (e.g., `#demo:variant:file.tsx` → `#demo:variant`)
-  - For "Default" variant, simplifies to just the demo slug (e.g., `#demo:file.tsx` → `#demo`)
+  - Simplifies hash to just variant when user clicks a file tab (for example, `#demo:variant:file.tsx` → `#demo:variant`)
+  - For "Default" variant, simplifies to just the demo slug (for example, `#demo:file.tsx` → `#demo`)
   - Preserves variant selection in URL even after user interaction
   - **Use case**: Demos where variant selection should remain visible in URL
 
@@ -284,7 +496,7 @@ function TransformSelector(props) {
       {code.availableTransforms.length > 0 && (
         <select
           value={code.selectedTransform || ''}
-          onChange={(e) => code.selectTransform(e.target.value || null)}
+          onChange={(event) => code.selectTransform(event.target.value || null)}
         >
           <option value="">No Transform</option>
           {code.availableTransforms.map((transform) => (
@@ -364,8 +576,8 @@ function CodeWithTabs(props) {
               <a
                 key={file.name}
                 href={`#${file.slug}`}
-                onClick={(e) => {
-                  e.preventDefault();
+                onClick={(event) => {
+                  event.preventDefault();
                   code.selectFileName(file.name);
                 }}
                 className={`${styles.tab} ${
@@ -489,8 +701,8 @@ These variant-only hashes select the main file of that variant.
 
 - **File Tab Clicks**: Hash behavior controlled by `fileHashMode` option
   - `'remove-hash'`: Removes entire hash
-  - `'remove-filename'`: Keeps variant in hash (e.g., `#demo:variant`)
-- **Variant Changes** (e.g., dropdown): Hash behavior controlled by `fileHashMode` option
+  - `'remove-filename'`: Keeps variant in hash (for example, `#demo:variant`)
+- **Variant Changes** (for example, dropdown): Hash behavior controlled by `fileHashMode` option
   - `'remove-hash'`: Removes entire hash
   - `'remove-filename'`: Updates hash to reflect new variant
 
@@ -534,7 +746,7 @@ Manages file selection and navigation within code variants. Features:
 - Hash removal behavior controlled by `fileHashMode`
 - Cross-variant file navigation
 - Detection of user-initiated vs. hash-driven variant changes
-- Derivation of `selectedFileUrl` by resolving the selected file's name (or its `relativeUrl`) against the variant's `url`. Available on the `useCode` result so consumers can link back to the source file (e.g., for an "Edit on GitHub" link).
+- Derivation of `selectedFileUrl` by resolving the selected file's name (or its `relativeUrl`) against the variant's `url`. Available on the `useCode` result so consumers can link back to the source file (for example, for an "Edit on GitHub" link).
 
 The hook generates slugs for all files across all variants, with special handling for the "Default" variant (which omits the variant name from the hash).
 
@@ -552,7 +764,7 @@ Manages source code editing capabilities when available.
 
 ### useSourceEnhancing
 
-Applies enhancer functions to parsed HAST sources asynchronously. Enhancers run in order after parsing and can modify the syntax tree (e.g., adding annotations, highlighting specific lines, injecting comments).
+Applies enhancer functions to parsed HAST sources asynchronously. Enhancers run in order after parsing and can modify the syntax tree (for example, adding annotations, highlighting specific lines, injecting comments).
 
 ## Source Enhancers
 
@@ -655,7 +867,7 @@ const commentHighlighter: SourceEnhancer = (root, comments, fileName) => {
 
   // Use comments to add highlighting or annotations
   // comments structure: Record<number, string[]>
-  // where key is line number, value is array of comments on that line
+  // where key is the 1-indexed line number, value is array of comments on that line
   return processCommentsIntoHighlights(root, comments);
 };
 ```
@@ -700,13 +912,13 @@ function MyCodeContent(props) {
 **When to use build-time enhancers:**
 
 - Static enhancements (line highlighting, syntax annotations)
-- Comment-driven enhancements (e.g., `// @highlight`)
+- Comment-driven enhancements (for example, `// @highlight`)
 - Any transformation that doesn't depend on client state
 
 **When to use server-time enhancers:**
 
 - Custom enhancer logic not available as a built-in configuration
-- Enhancements that need access to server-side data (e.g., database lookups)
+- Enhancements that need access to server-side data (for example, database lookups)
 - Dynamic routes where build-time precomputation isn't possible
 
 **When to use client-time enhancers:**
@@ -739,18 +951,18 @@ This constraint is why comments extracted with `notableCommentsPrefix` are remov
 
 **Use enhancers for:**
 
-- Adding `data-*` attributes (e.g., `data-hl` for line highlighting)
+- Adding `data-*` attributes (for example, `data-hl` for line highlighting)
 - Wrapping tokens in additional `<span>` elements
 - Adding CSS class names to existing elements
 - Injecting metadata into the HAST properties
 
 **Use transformers for:**
 
-- Creating **alternative representations** of the code (e.g., TypeScript → JavaScript)
+- Creating **alternative representations** of the code (for example, TypeScript → JavaScript)
 - Generating optional variants users can switch between
 
 > [!NOTE]
-> **Transformers are for alternatives, not modifications.** Transformers create additional views of the code that users can toggle between—they should not be used to alter the default version. If you need to modify the source itself (e.g., fixing formatting, removing debug code), do that in a linter or build step _before_ the code reaches `CodeHighlighter`.
+> **Transformers are for alternatives, not modifications.** Transformers create additional views of the code that users can toggle between—they should not be used to alter the default version. If you need to modify the source itself (for example, fixing formatting, removing debug code), do that in a linter or build step _before_ the code reaches `CodeHighlighter`.
 
 See the [Code Highlighter transforms documentation](../../components/code-highlighter/page.mdx#code-transformed) for details on using transformers.
 
@@ -840,7 +1052,7 @@ function SafeCodeInterface(props) {
   const code = useCode(props);
 
   if (!code.selectedFile) {
-    return <div>Loading code...</div>;
+    return <div>Loading code…</div>;
   }
 
   return <div>{code.selectedFile}</div>;
@@ -851,11 +1063,15 @@ function SafeCodeInterface(props) {
 
 ```tsx
 const code = useCode(props, {
-  defaultOpen: true, // Start expanded
   initialVariant: 'TypeScript', // Pre-select variant
   initialTransform: 'js', // Pre-apply transform
 });
 ```
+
+Whether the block starts expanded is **not** a `useCode` option — it's
+`initialExpanded`, set on `contentProps` (via `<CodeHighlighter initialExpanded />`,
+`createDemo(..., { initialExpanded: true })`, or `<Demo initialExpanded />`). It
+lives there rather than in `useCode` opts so the loading fallback honors it too.
 
 ## Performance Considerations
 
@@ -879,6 +1095,18 @@ Errors are logged to the console and the hook gracefully degrades functionality 
 
 - **[useDemo](../use-demo/page.mdx)**: For managing component rendering alongside code display - use this when you need both code and component functionality
 - **[CodeHighlighter](../../components/code-highlighter/page.mdx)**: The main component this hook is designed to work with
+
+export const metadata =
+  /** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */ ({
+    keywords: [
+      'file navigation',
+      'deep linking',
+      'URL hash',
+      'transforms',
+      'source enhancers',
+      'copy code',
+    ],
+  });
 
 ## Troubleshooting
 

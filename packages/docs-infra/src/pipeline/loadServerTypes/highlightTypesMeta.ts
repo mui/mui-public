@@ -10,20 +10,18 @@
 
 import type { Root as HastRoot } from 'hast';
 import { unified } from 'unified';
-import {
-  transformHtmlCodeBlock,
-  type TransformHtmlCodeBlockOptions,
-} from '../transformHtmlCodeBlock/transformHtmlCodeBlock';
+import { transformHtmlCodeBlock } from '../transformHtmlCodeBlock/transformHtmlCodeBlock';
+import type { TransformHtmlCodeBlockOptions } from '../transformHtmlCodeBlock/transformHtmlCodeBlock';
 import transformHtmlCodeInline from '../transformHtmlCodeInline';
-import {
-  type TypesMeta,
-  type ComponentTypeMeta,
-  type HookTypeMeta,
-  type FunctionTypeMeta,
-  type ClassTypeMeta,
-  type RawTypeMeta,
-  type FormattedProperty,
-  type FormattedParameter,
+import type {
+  TypesMeta,
+  ComponentTypeMeta,
+  HookTypeMeta,
+  FunctionTypeMeta,
+  ClassTypeMeta,
+  RawTypeMeta,
+  FormattedProperty,
+  FormattedParameter,
 } from '../loadServerTypesMeta';
 import { prettyFormat, parseMarkdownToHast } from '../loadServerTypesMeta/format';
 import type {
@@ -37,8 +35,8 @@ import {
   wrapInlineTypeInPre,
   DEFAULT_UNION_PRINT_WIDTH,
   DEFAULT_TYPE_PRINT_WIDTH,
-  type FormatInlineTypeOptions,
 } from './typeHighlighting';
+import type { FormatInlineTypeOptions } from './typeHighlighting';
 import {
   getShortTypeFromHast,
   shouldShowDetailedTypeFromHast,
@@ -46,9 +44,11 @@ import {
   collectTypeReferences,
   getHastTextContent,
   resolveSerializer,
-  type SerializedHastRoot,
-  type SerializedHastCompressed,
-  type TypesOutputFormat,
+} from './hastTypeUtils';
+import type {
+  SerializedHastRoot,
+  SerializedHastCompressed,
+  TypesOutputFormat,
 } from './hastTypeUtils';
 import { extractTypeProps as extractTypePropsFromCode } from './extractTypeProps';
 
@@ -1355,12 +1355,10 @@ async function highlightRawTypeMeta(
 
   // Enhance enum members if present
   const highlightedEnumMembers = data.enumMembers
-    ? data.enumMembers.map(
-        (member): HighlightedEnumMemberMeta => ({
-          ...member,
-          ...(member.description && { description: s(member.description) }),
-        }),
-      )
+    ? data.enumMembers.map((member): HighlightedEnumMemberMeta => ({
+        ...member,
+        ...(member.description && { description: s(member.description) }),
+      }))
     : undefined;
 
   // Destructure `properties` out of data to avoid spreading FormattedProperty

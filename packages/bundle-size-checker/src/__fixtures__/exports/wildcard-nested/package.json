@@ -1,0 +1,6 @@
+{
+  "name": "wildcard-nested",
+  "exports": {
+    "./*": "./lib/*.js"
+  }
+}

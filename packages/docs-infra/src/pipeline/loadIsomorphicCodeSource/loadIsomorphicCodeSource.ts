@@ -1,6 +1,7 @@
 import type { LoadSource, Externals } from '../../CodeHighlighter/types';
 import { parseImportsAndComments } from '../loaderUtils';
-import { processRelativeImports, type StoreAtMode } from '../loaderUtils/processRelativeImports';
+import { processRelativeImports } from '../loaderUtils/processRelativeImports';
+import type { StoreAtMode } from '../loaderUtils/processRelativeImports';
 import { isJavaScriptModule } from '../loaderUtils/resolveModulePath';
 
 /**
@@ -109,7 +110,7 @@ export function createLoadIsomorphicCodeSource(
       externals,
       comments,
       code: processedCode,
-    } = await parseImportsAndComments(source, url, {
+    } = parseImportsAndComments(source, url, {
       removeCommentsWithPrefix,
       notableCommentsPrefix,
     });

@@ -10,7 +10,7 @@
 
 ## Validate
 
-The `validate` command ensures that committed files match the expected output. It processes all `page.mdx` files to verify parent indexes are up-to-date, all `types.ts` files to ensure generated `types.md` documentation is current, and — when `withDocsInfra` is configured with a `requireDemoClient` value — ensures every demo `index.ts` has a sibling `client.ts` wired through `ClientProvider`.
+The `validate` command ensures that committed files match the expected output. It processes all `page.mdx` files to verify parent indexes are up-to-date, all `types.ts` files to ensure generated `types.md` documentation is current, and — when `withDocsInfra` is configured with `requireDemoClient` or `requireDemoPage` — ensures every demo `index.ts` has a sibling `client.ts` wired through `ClientProvider` and/or a sibling `page.tsx` that renders the demo as its own route.
 
 <details>
 
@@ -30,6 +30,7 @@ The `validate` command ensures that committed files match the expected output. I
     - Index Validation
     - Types Validation
     - Demo Client Validation
+    - Demo Page Validation
     - CI Mode
   - Output
     - When All Files Are Current

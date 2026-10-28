@@ -1,5 +1,4 @@
-// TODO: change back to 'eslint/config' once https://github.com/eslint/rewrite/issues/425 is fixed
-import { defineConfig } from '@eslint/config-helpers';
+import { defineConfig } from 'eslint/config';
 import json from '@eslint/json';
 
 /**
@@ -10,7 +9,8 @@ export function createJsonConfig() {
     {
       name: 'JSON files',
       files: ['**/*.json'],
-      ignores: ['package-lock.json'],
+      // package.json is linted by eslint-plugin-package-json, whose rules need the jsonc-eslint-parser AST.
+      ignores: ['package-lock.json', '**/package.json'],
       plugins: { json },
       language: 'json/json',
       extends: [json.configs.recommended],

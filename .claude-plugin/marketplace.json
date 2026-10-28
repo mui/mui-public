@@ -1,0 +1,16 @@
+{
+  "name": "mui-public",
+  "description": "Agent skills maintained by the MUI code infra team.",
+  "owner": {
+    "name": "MUI",
+    "url": "https://github.com/mui"
+  },
+  "plugins": [
+    {
+      "name": "code-infra",
+      "source": "./skills",
+      "skills": ["./"],
+      "description": "Agent skills for working in MUI repositories, shipped from the skills/ directory."
+    }
+  ]
+}

@@ -50,12 +50,12 @@ Adds or replaces precompute data in createDemo function calls.
 
 **Parameters:**
 
-| Parameter      | Type                               | Default | Description                                                                  |
-| :------------- | :--------------------------------- | :------ | :--------------------------------------------------------------------------- |
-| source         | `string`                           | -       | The source code string containing createDemo calls                           |
-| precomputeData | `Record<string, any>`              | -       | The data object to inject                                                    |
-| demoCallInfo?  | `ParsedCreateFactory`              | -       | Information about the parsed demo call structure from parseCreateFactoryCall |
-| options?       | `{ passPrecomputeAsIs?: boolean }` | -       | Optional configuration                                                       |
+| Parameter      | Type                                                                            | Default | Description                                                                  |
+| :------------- | :------------------------------------------------------------------------------ | :------ | :--------------------------------------------------------------------------- |
+| source         | `string`                                                                        | -       | The source code string containing createDemo calls                           |
+| precomputeData | `Record<string, any>`                                                           | -       | The data object to inject                                                    |
+| demoCallInfo?  | `ParsedCreateFactory`                                                           | -       | Information about the parsed demo call structure from parseCreateFactoryCall |
+| options?       | `{ passPrecomputeAsIs?: boolean; additionalOptions?: Record<string, unknown> }` | -       | Optional configuration                                                       |
 
 **Return Value:**
 
@@ -89,10 +89,7 @@ type ParsedCreateFactory = {
   argumentsEndIndex: number;
   structuredUrl: string;
   structuredVariants:
-    | string
-    | (string | any[] | Record<string, any>)[]
-    | Record<string, string>
-    | undefined;
+    string | (string | any[] | Record<string, any>)[] | Record<string, string> | undefined;
   structuredOptions?: Record<string, any>;
   hasGenerics: boolean;
   structuredGenerics?: Record<string, any>;
@@ -107,7 +104,19 @@ Parse options for create\* factory call parsing
 
 ```typescript
 type ParseOptions = {
+  /**
+   * Only extract metadata (url + options), skipping variant-import resolution.
+   * Treats the call as `create*(url, options?)`. Implies .
+   */
   metadataOnly?: boolean;
+  /**
+   * The factory has no variants argument: its call shape is `create*(url, options?)`
+   * (e.g. `createStream`), so the argument after `url` is the options
+   * object rather than variants. Use this (with `replacePrecomputeValue`) to build
+   * a precompute loader for a no-variants factory. Unlike `metadataOnly`, variant
+   * resolution is simply not applicable rather than intentionally skipped.
+   */
+  noVariants?: boolean;
   allowExternalVariants?: boolean;
   allowMultipleFactories?: boolean;
 };

@@ -1,5 +1,4 @@
-import { expect } from 'chai';
-import { vi } from 'vitest';
+import { vi, describe, beforeEach, afterEach, it, expect } from 'vitest';
 
 import setupVitest from './setupVitest.js';
 

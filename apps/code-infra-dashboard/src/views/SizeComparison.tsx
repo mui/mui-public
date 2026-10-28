@@ -16,7 +16,8 @@ import TableRow from '@mui/material/TableRow';
 import Alert from '@mui/material/Alert';
 import styled from '@emotion/styled';
 import { fetchCiReport } from '@/utils/fetchCiReport';
-import { calculateSizeDiff, type Size } from '@/lib/bundleSize/calculateSizeDiff';
+import { calculateSizeDiff } from '@/lib/bundleSize/calculateSizeDiff';
+import type { Size } from '@/lib/bundleSize/calculateSizeDiff';
 import Heading from '../components/Heading';
 import ReportHeader from '../components/ReportHeader';
 import SizeChangeDisplay, {
@@ -163,7 +164,7 @@ export default function SizeComparison() {
         {(isHeadLoading || isBaseLoading) && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <CircularProgress size={16} />
-            <Typography>Loading size comparison data...</Typography>
+            <Typography>Loading size comparison data…</Typography>
           </Box>
         )}
 

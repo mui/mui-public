@@ -8,7 +8,8 @@
  * On Windows, this uses named pipes (which Node.js net module supports transparently).
  */
 
-import { createServer, type Server, type Socket } from 'node:net';
+import { createServer } from 'node:net';
+import type { Server, Socket } from 'node:net';
 import { unlink, stat } from 'node:fs/promises';
 import { getSocketPath, ensureSocketDir } from './socketClient';
 import type { WorkerRequest, WorkerResponse } from './worker';
@@ -43,13 +44,13 @@ async function fileExists(path: string): Promise<boolean> {
  * Socket server that handles requests from other workers
  */
 export class SocketServer {
-  private server: Server;
+  declare private server: Server;
 
-  private socketPath: string;
+  declare private socketPath: string;
 
   private connections = new Set<Socket>();
 
-  private requestHandler: (request: WorkerRequest) => Promise<WorkerResponse>;
+  declare private requestHandler: (request: WorkerRequest) => Promise<WorkerResponse>;
 
   /**
    * Request queue to serialize processTypes calls.
@@ -73,24 +74,13 @@ export class SocketServer {
    */
   static async create(
     requestHandler: (request: WorkerRequest) => Promise<WorkerResponse>,
-    socketDir?: string,
   ): Promise<SocketServer> {
-    const socketPath = getSocketPath(socketDir);
+    // Throws here if the path is too long for the platform's socket limit
+    const socketPath = getSocketPath();
 
     // Ensure the directory exists (only needed for Unix sockets)
     if (!isWindows) {
-      // Unix domain sockets have a max path length (sun_path field in sockaddr_un):
-      // Linux: 108 bytes, macOS/BSD: 104 bytes
-      const maxSocketPath = process.platform === 'darwin' ? 104 : 108;
-      if (Buffer.byteLength(socketPath) >= maxSocketPath) {
-        throw new Error(
-          `Socket path exceeds the maximum length of ${maxSocketPath} bytes ` +
-            `for this platform (${Buffer.byteLength(socketPath)} bytes): ${socketPath}. ` +
-            `Use a shorter socketDir path or avoid deeply nesting your project directory.`,
-        );
-      }
-
-      await ensureSocketDir(socketDir);
+      await ensureSocketDir();
 
       // Clean up existing socket file if it exists (might be stale from previous build)
       if (await fileExists(socketPath)) {

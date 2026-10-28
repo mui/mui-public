@@ -1,3 +1,5 @@
+import { formatMaterialUiDocPath } from '@/lib/ciReports/formatMaterialUiDocPath';
+
 export const DASHBOARD_ORIGIN =
   process.env.DASHBOARD_ORIGIN ||
   process.env.RENDER_EXTERNAL_URL ||
@@ -9,6 +11,8 @@ export const LABEL_PR_OUT_OF_DATE = 'PR: out-of-date';
 export const LABEL_PR_NEEDS_REVISION = 'PR: needs revision';
 export const LABEL_ON_HOLD = 'on hold';
 export const LABEL_DOCS_FEEDBACK = 'support: docs-feedback';
+export const LABEL_SUPPORT_UNKNOWN = 'support: unknown';
+export const LABEL_SUPPORT_PRIORITY = 'support: priority';
 
 export interface Repository {
   owner: string;
@@ -68,26 +72,7 @@ export const repositories = new Map<string, Repository>(
           benchmark: true,
           netlifyDocs: {
             siteId: 'material-ui',
-            formatDocPath: (filePath) => {
-              if (!filePath.startsWith('docs/data/') || !filePath.endsWith('.md')) {
-                return null;
-              }
-              let url = filePath.replace('docs/data', '').replace(/\.md$/, '');
-              // Deduplicate trailing segment (e.g. /button/button → /button)
-              const fragments = url.split('/').reverse();
-              if (fragments[0] === fragments[1]) {
-                url = fragments.slice(1).reverse().join('/');
-              }
-              if (url.startsWith('/material')) {
-                url = url
-                  .replace('/material', '/material-ui')
-                  .replace(
-                    /(guides|customization|getting-started|discover-more|experimental-api|migration|integrations)/,
-                    'material-ui/$1',
-                  );
-              }
-              return url;
-            },
+            formatDocPath: formatMaterialUiDocPath,
           },
         },
       },
@@ -100,8 +85,11 @@ export const repositories = new Map<string, Repository>(
         ossInsightId: '260240241',
         packages: [
           '@mui/x-charts',
+          '@mui/x-charts-premium',
           '@mui/x-charts-pro',
           '@mui/x-charts-vendor',
+          '@mui/x-chat',
+          '@mui/x-chat-headless',
           '@mui/x-codemod',
           '@mui/x-data-grid',
           '@mui/x-data-grid-generator',
@@ -112,6 +100,8 @@ export const repositories = new Map<string, Repository>(
           '@mui/x-internal-gestures',
           '@mui/x-internals',
           '@mui/x-license',
+          '@mui/x-scheduler',
+          '@mui/x-scheduler-premium',
           '@mui/x-telemetry',
           '@mui/x-tree-view',
           '@mui/x-tree-view-pro',
@@ -123,12 +113,15 @@ export const repositories = new Map<string, Repository>(
           netlifyDocs: {
             siteId: 'material-ui-x',
             formatDocPath: (filePath) => {
-              if (!filePath.startsWith('docs/data/') || !filePath.endsWith('.md')) {
+              if (
+                !filePath.startsWith('docs/data/') ||
+                !/\.(md|mdx|jsx?|tsx?|json)$/.test(filePath)
+              ) {
                 return null;
               }
               return filePath
                 .replace('docs/data', 'x')
-                .replace(/\/[^/]+\.md$/, '/')
+                .replace(/\/[^/]+$/, '/')
                 .replace('data-grid/', 'react-data-grid/')
                 .replace('date-pickers/', 'react-date-pickers/')
                 .replace('charts/', 'react-charts/')
@@ -168,6 +161,18 @@ export const repositories = new Map<string, Repository>(
         name: 'base-ui-mosaic',
         displayName: 'Base UI Mosaic',
         description: 'Mosaic layout components for Base UI',
+        isPublic: false,
+        packages: [],
+        prComment: {
+          bundleSize: true,
+          benchmark: true,
+        },
+      },
+      {
+        owner: 'mui',
+        name: 'base-ui-plus',
+        displayName: 'Base UI Plus',
+        description: 'More Base UI components',
         isPublic: false,
         packages: [],
         prComment: {

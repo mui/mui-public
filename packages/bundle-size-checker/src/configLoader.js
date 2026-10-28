@@ -2,12 +2,12 @@
  * Utility to load the bundle-size-checker configuration
  */
 
-import fs from 'node:fs/promises';
 import path from 'node:path';
 import envCi from 'env-ci';
 import * as module from 'node:module';
 import * as url from 'node:url';
 import micromatch from 'micromatch';
+import { findExportedPaths } from './findExportedPaths.js';
 
 /**
  * @typedef {import('./types.js').BundleSizeCheckerConfigObject} BundleSizeCheckerConfigObject
@@ -102,36 +102,6 @@ export function applyUploadConfigDefaults(uploadConfig, ciInfo) {
   }
 
   return result;
-}
-
-/**
- * @param {{ [s: string]: any; } | ArrayLike<any>} exportsObj
- * @returns {string[]} Array of export paths
- */
-function findExports(exportsObj) {
-  const paths = [];
-  for (const [key, value] of Object.entries(exportsObj)) {
-    // ignore null values
-    if (!value) {
-      continue;
-    }
-    if (key.startsWith('.')) {
-      paths.push(key);
-    } else {
-      paths.push(...findExports(value));
-    }
-  }
-  return paths;
-}
-
-/**
- * @param {import("fs").PathLike | fs.FileHandle} pkgJson
- * @returns {Promise<string[]>}
- */
-async function findExportedPaths(pkgJson) {
-  const pkgContent = await fs.readFile(pkgJson, 'utf8');
-  const { exports = {} } = JSON.parse(pkgContent);
-  return findExports(exports);
 }
 
 /**

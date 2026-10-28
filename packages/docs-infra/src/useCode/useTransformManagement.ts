@@ -1,8 +1,24 @@
 import * as React from 'react';
 import type { Code, VariantCode } from '../CodeHighlighter/types';
-import { getAvailableTransforms, createTransformedFiles } from './useCodeUtils';
-import { type CodeHighlighterContextType } from '../CodeHighlighter/CodeHighlighterContext';
+import { decodeHastSource } from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
+import { frameFallbackFromSpans } from '../pipeline/hastUtils';
+import { getApplicableTransforms, getAvailableTransforms } from './useCodeUtils';
+import type { CreateTransformedFiles, TransformRuntimeDeps } from './TransformEngine';
+import {
+  peekTransformEngine,
+  preloadTransformEngine,
+  resetTransformEngineCache,
+} from './transformEngineCache';
+import type { CodeHighlighterContextType } from '../CodeHighlighter/CodeHighlighterContext';
+import { useCodeContext } from '../CodeProvider/CodeContext';
 import { usePreference } from '../usePreference';
+
+const transformRuntimeDeps: TransformRuntimeDeps = {
+  decode: decodeHastSource,
+  frameFallbackFromSpans,
+};
+
+export { preloadTransformEngine, resetTransformEngineCache };
 
 interface UseTransformManagementProps {
   context?: CodeHighlighterContextType;
@@ -10,18 +26,26 @@ interface UseTransformManagementProps {
   selectedVariantKey: string;
   selectedVariant: VariantCode | null;
   initialTransform?: string;
+  selectedTransform?: string | null;
+  onSelectedTransformChange?: (transform: string | null) => void;
 }
 
 export interface UseTransformManagementResult {
   availableTransforms: string[];
   selectedTransform: string | null;
-  transformedFiles: ReturnType<typeof createTransformedFiles>;
+  transformedFiles: ReturnType<CreateTransformedFiles>;
   selectTransform: (transformName: string | null) => void;
 }
 
+type AppliedTransform = {
+  variant: VariantCode | null;
+  transform: string | null;
+  result: ReturnType<CreateTransformedFiles>;
+};
+
 /**
- * Hook for managing code transforms and their application
- * Uses the useLocalStorage hook for local storage persistence of transform preferences
+ * Applies transforms immediately when the engine and highlighted source are
+ * ready, retaining the previous result only while either dependency is cold.
  */
 export function useTransformManagement({
   context,
@@ -29,68 +53,153 @@ export function useTransformManagement({
   selectedVariantKey,
   selectedVariant,
   initialTransform,
+  selectedTransform: controlledTransform,
+  onSelectedTransformChange,
 }: UseTransformManagementProps): UseTransformManagementResult {
-  // Transform state - get available transforms from context or from the effective code data
   const availableTransforms = React.useMemo(() => {
-    // First try to get from context
-    if (context?.availableTransforms && context.availableTransforms.length > 0) {
+    if (context?.availableTransforms?.length) {
       return context.availableTransforms;
     }
-
-    // Otherwise, get from the effective code data using the utility function
     return getAvailableTransforms(effectiveCode, selectedVariantKey);
   }, [context?.availableTransforms, effectiveCode, selectedVariantKey]);
 
-  // Use localStorage hook for transform persistence - this is our single source of truth
+  const contextAvailableTransforms = context?.availableTransforms;
+  const applicableFromCode = React.useMemo(
+    () => getApplicableTransforms(effectiveCode, selectedVariantKey),
+    [effectiveCode, selectedVariantKey],
+  );
+  const applicableTransforms = React.useMemo(() => {
+    if (applicableFromCode.length === 0 && contextAvailableTransforms?.length) {
+      return contextAvailableTransforms;
+    }
+    return applicableFromCode;
+  }, [applicableFromCode, contextAvailableTransforms]);
+
   const [storedValue, setStoredValue] = usePreference(
     'transform',
-    availableTransforms.length === 1 ? availableTransforms[0] : availableTransforms,
-    () => {
-      // Don't use initialTransform as the fallback - localStorage should always take precedence
-      // We'll handle the initial transform separately below
+    applicableTransforms.length === 1 ? applicableTransforms[0] : applicableTransforms,
+    () => null,
+  );
+  const resolveTransform = React.useCallback(
+    (value: string | null): string | null => {
+      if (value !== null) {
+        return value !== '' && applicableTransforms.includes(value) ? value : null;
+      }
+      return initialTransform && applicableTransforms.includes(initialTransform)
+        ? initialTransform
+        : null;
+    },
+    [applicableTransforms, initialTransform],
+  );
+  let resolvedTransform: string | null;
+  if (controlledTransform !== undefined) {
+    resolvedTransform =
+      controlledTransform && applicableTransforms.includes(controlledTransform)
+        ? controlledTransform
+        : null;
+  } else {
+    resolvedTransform = resolveTransform(storedValue);
+  }
+  const [uncontrolledTransform, setUncontrolledTransform] = React.useState(resolvedTransform);
+  const [lastResolvedTransform, setLastResolvedTransform] = React.useState(resolvedTransform);
+  if (controlledTransform === undefined && lastResolvedTransform !== resolvedTransform) {
+    setLastResolvedTransform(resolvedTransform);
+    setUncontrolledTransform(resolvedTransform);
+  }
+  const selectedTransform =
+    controlledTransform === undefined ? uncontrolledTransform : resolvedTransform;
+
+  const { transformEngineLoader } = useCodeContext();
+  const [transformEngine, setTransformEngine] = React.useState<CreateTransformedFiles | null>(
+    () => peekTransformEngine() ?? null,
+  );
+
+  React.useEffect(() => {
+    if (transformEngine || applicableTransforms.length === 0) {
+      return undefined;
+    }
+    const warm = peekTransformEngine();
+    if (warm) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- adopts a cache warmed after render
+      setTransformEngine(() => warm);
+      return undefined;
+    }
+    let cancelled = false;
+    (async () => {
+      await preloadTransformEngine(transformEngineLoader);
+      if (!cancelled) {
+        const loaded = peekTransformEngine();
+        if (loaded) {
+          setTransformEngine(() => loaded);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [transformEngine, applicableTransforms.length, transformEngineLoader]);
+
+  const transformApplicable =
+    selectedTransform === null || applicableFromCode.includes(selectedTransform);
+  const canApply =
+    !context?.deferHighlight &&
+    (selectedTransform === null || transformEngine !== null) &&
+    transformApplicable;
+  const nextApplied = React.useMemo<AppliedTransform | null>(() => {
+    if (!canApply) {
       return null;
-    },
-  );
-
-  // Handle validation manually - empty string means "no transform selected"
-  const selectedTransform = React.useMemo(() => {
-    // If we have a stored value (including empty string), use it
-    if (storedValue !== null) {
-      if (storedValue === '') {
-        return null;
-      }
-      // Validate the stored value
-      if (!availableTransforms.includes(storedValue)) {
-        return null;
-      }
-      return storedValue;
     }
+    return {
+      variant: selectedVariant,
+      transform: selectedTransform,
+      result:
+        selectedTransform && transformEngine
+          ? transformEngine(
+              selectedVariant,
+              selectedTransform,
+              transformRuntimeDeps,
+              context?.fallbacks,
+            )
+          : undefined,
+    };
+  }, [canApply, selectedVariant, selectedTransform, transformEngine, context?.fallbacks]);
+  const [lastApplied, setLastApplied] = React.useState<AppliedTransform | null>(nextApplied);
+  if (
+    nextApplied &&
+    (lastApplied?.variant !== nextApplied.variant ||
+      lastApplied.transform !== nextApplied.transform ||
+      lastApplied.result !== nextApplied.result)
+  ) {
+    setLastApplied(nextApplied);
+  }
+  const transformedFiles = transformApplicable ? (nextApplied ?? lastApplied)?.result : undefined;
 
-    // If no stored value and we have an initial transform, use it (but don't store it yet)
-    if (initialTransform && availableTransforms.includes(initialTransform)) {
-      return initialTransform;
-    }
-
-    return null;
-  }, [storedValue, availableTransforms, initialTransform]);
-
-  const setSelectedTransformAsUser = React.useCallback(
+  const selectTransform = React.useCallback(
     (value: string | null) => {
-      const valueToStore = value === null ? '' : value;
-      setStoredValue(valueToStore);
+      const next = value === null || applicableTransforms.includes(value) ? value : null;
+      if (next === selectedTransform) {
+        return;
+      }
+      if (controlledTransform !== undefined) {
+        onSelectedTransformChange?.(next);
+      } else {
+        setUncontrolledTransform(next);
+        setStoredValue(next ?? '');
+      }
     },
-    [setStoredValue],
+    [
+      applicableTransforms,
+      selectedTransform,
+      controlledTransform,
+      onSelectedTransformChange,
+      setStoredValue,
+    ],
   );
-
-  // Memoize all transformed files based on selectedTransform
-  const transformedFiles = React.useMemo(() => {
-    return createTransformedFiles(selectedVariant, selectedTransform);
-  }, [selectedVariant, selectedTransform]);
 
   return {
     availableTransforms,
     selectedTransform,
     transformedFiles,
-    selectTransform: setSelectedTransformAsUser,
+    selectTransform,
   };
 }

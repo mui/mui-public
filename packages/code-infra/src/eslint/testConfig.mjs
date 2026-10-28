@@ -1,9 +1,6 @@
-import mochaPlugin from 'eslint-plugin-mocha';
 import vitestPlugin from '@vitest/eslint-plugin';
 import testingLibrary from 'eslint-plugin-testing-library';
-// TODO: change back to 'eslint/config' once https://github.com/eslint/rewrite/issues/425 is fixed
-import { defineConfig } from '@eslint/config-helpers';
-import globals from 'globals';
+import { defineConfig } from 'eslint/config';
 import * as tseslint from 'typescript-eslint';
 import { EXTENSION_TS } from './extensions.mjs';
 
@@ -24,7 +21,6 @@ export const baseSpecRules = {
     '@typescript-eslint/no-unused-expressions': 'off',
     '@typescript-eslint/no-unused-vars': 'off',
     '@typescript-eslint/no-use-before-define': 'off',
-    '@typescript-eslint/ban-ts-comment': 'off',
 
     'import/prefer-default-export': 'off',
 
@@ -45,16 +41,11 @@ export const baseSpecRules = {
 };
 
 /**
- * @param {Object} [options]
- * @param {boolean} [options.useMocha]
- * @param {boolean} [options.useVitest]
  * @returns {import('eslint').Linter.Config[]}
  */
-export function createTestConfig(options = {}) {
-  const { useMocha = true, useVitest = false } = options;
+export function createTestConfig() {
   return defineConfig(
-    useMocha ? mochaPlugin.configs.recommended : {},
-    useVitest ? vitestPlugin.configs.recommended : {},
+    vitestPlugin.configs.recommended,
     testingLibrary.configs['flat/dom'],
     testingLibrary.configs['flat/react'],
     {
@@ -64,7 +55,6 @@ export function createTestConfig(options = {}) {
         parserOptions: {
           ecmaVersion: 7,
         },
-        globals: globals.mocha,
       },
       rules: {
         'compat/compat': 'off',
@@ -72,6 +62,7 @@ export function createTestConfig(options = {}) {
         'import/named': 'off',
         'mui/disallow-active-element-as-key-event-target': 'error',
         'mui/consistent-production-guard': 'off',
+        'mui/no-constructor-assigned-field': 'off',
 
         // disable eslint-plugin-jsx-a11y
         // tests are not driven by assistive technology
@@ -96,31 +87,10 @@ export function createTestConfig(options = {}) {
         'react/no-unused-prop-types': 'off',
         // Part of the migration away from airbnb config. Turned of initially.
         '@typescript-eslint/no-empty-function': 'off',
-        '@typescript-eslint/ban-ts-comment': 'off',
         'testing-library/no-node-access': 'off',
         '@typescript-eslint/no-non-null-asserted-optional-chain': 'off',
         // end migration
-        ...(useMocha
-          ? {
-              'mocha/consistent-spacing-between-blocks': 'off',
-
-              // upgraded level from recommended
-              'mocha/no-pending-tests': 'error',
-
-              // no rationale provided in /recommended
-              'mocha/no-mocha-arrows': 'off',
-              // definitely a useful rule but too many false positives
-              // due to `describeConformance`
-              // "If you're using dynamically generated tests, you should disable this rule.""
-              'mocha/no-setup-in-describe': 'off',
-              // `beforeEach` for a single case is optimized for change
-              // when we add a test we don't have to refactor the existing
-              // test to `beforeEach`.
-              // `beforeEach`+`afterEach` also means that the `beforeEach`
-              // is cleaned up in `afterEach` if the test causes a crash
-              'mocha/no-hooks-for-single-case': 'off',
-            }
-          : {}),
+        'vitest/prefer-importing-vitest-globals': 'error',
       },
     },
   );

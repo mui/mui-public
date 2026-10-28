@@ -17,6 +17,8 @@ import type {
 } from '../CodeHighlighter/types';
 import type { ParseSourceAsync } from './createParseSourceWorkerClient';
 import type { PreParsedCacheEntry } from '../CodeHighlighter/CodeHighlighterContext';
+import type { CodeEditorLoader } from '../useCode/codeEditorCache';
+import type { CreateTransformedFiles } from '../useCode/TransformEngine';
 
 // Type definitions for the heavy functions we're moving to context
 export type LoadFallbackCodeFn = (
@@ -43,18 +45,27 @@ export type ParseControlledCodeFn = (
 
 export type ComputeHastDeltasFn = (parsedCode: Code, parseSource: ParseSource) => Promise<Code>;
 
-export type GetAvailableTransformsFn = (
-  parsedCode: Code | undefined,
-  variantName: string,
-) => string[];
+// Lazy accessors for the heaviest functions. Each returns the function via a
+// dynamic import (deduped per page by `PreloadProvider`), so the function's
+// module - and its heavy transitive deps (e.g. jsondiffpatch) - stays out of
+// the initial client bundle. The accessor's *presence* (always defined when a
+// CodeProvider is mounted) is the synchronously-known "is provisioned" signal
+// that gates loading, replacing the previous "is the resolved fn present" check.
+export type LoadFallbackCodeLoader = () => Promise<LoadFallbackCodeFn>;
+export type LoadVariantLoader = () => Promise<LoadVariantFn>;
+export type ComputeHastDeltasLoader = () => Promise<ComputeHastDeltasFn>;
+export type TransformEngineLoader = () => Promise<CreateTransformedFiles>;
 
 /**
  * Context interface for code processing functions.
  * Provides heavy functions via context that can't be serialized across the server-client boundary.
  */
 export interface CodeContext {
-  /** Async parser promise for initial loading */
-  sourceParser?: Promise<ParseSource>;
+  /**
+   * Loads the client-side source parser. The first call starts the (possibly
+   * dynamic-import backed) load; later calls return the same promise.
+   */
+  loadSourceParser?: () => Promise<ParseSource>;
   /** Sync parser available after initial load completes */
   parseSource?: ParseSource;
   /**
@@ -65,7 +76,11 @@ export interface CodeContext {
   parseSourceAsync?: ParseSourceAsync;
   /** Source transformers for code transformation (e.g., TypeScript to JavaScript) */
   sourceTransformers?: SourceTransformers;
-  /** Source enhancers for modifying parsed HAST */
+  /**
+   * Explicit source enhancers for modifying parsed HAST. When omitted, the
+   * provider supplies the default emphasis enhancer (`enhanceCodeEmphasis`)
+   * eagerly, since it powers the synchronous live-editing re-enhancement path.
+   */
   sourceEnhancers?: SourceEnhancers;
   /** Function to load raw source code and dependencies */
   loadSource?: LoadSource;
@@ -73,18 +88,35 @@ export interface CodeContext {
   loadVariantMeta?: LoadVariantMeta;
   /** Function to load code metadata from a URL */
   loadCodeMeta?: LoadCodeMeta;
-  /** Heavy function: Loads fallback code with all variants and files */
-  loadCodeFallback?: LoadFallbackCodeFn;
-  /** Heavy function: Loads a specific code variant with its dependencies */
-  loadIsomorphicCodeVariant?: LoadVariantFn;
-  /** Heavy function: Parses code strings into HAST nodes */
+  /** Heavy function: Parses code strings into HAST nodes (kept eager - small, on the sync parse path) */
   parseCode?: ParseCodeFn;
-  /** Heavy function: Parses controlled code for editable demos */
+  /** Heavy function: Parses controlled code for editable demos (kept eager - sync parse path) */
   parseControlledCode?: ParseControlledCodeFn;
-  /** Heavy function: Computes HAST deltas for code transformations */
-  computeHastDeltas?: ComputeHastDeltasFn;
-  /** Heavy function: Gets available transform keys for a variant */
-  getAvailableTransforms?: GetAvailableTransformsFn;
+  /**
+   * Lazily creates the live-editing worker (off-main-thread highlighter) and
+   * registers the given grammar scopes into it, so a read-only page never spins
+   * up the worker. Called by `CodeHighlighter` on the editable signal with the
+   * block's scopes. No-op during SSR or where `Worker` is unavailable.
+   */
+  ensureParseSourceWorker?: (scopes: string[]) => Promise<void>;
+
+  // Lazy accessors for the heaviest functions (dynamic-import-backed, deduped).
+  /** Lazily loads the fallback-code loader (transitively pulls the variant loader). */
+  loadCodeFallbackLoader?: LoadFallbackCodeLoader;
+  /** Lazily loads the variant loader. */
+  loadIsomorphicCodeVariantLoader?: LoadVariantLoader;
+  /** Lazily loads the transform-delta computer (pulls jsondiffpatch). */
+  computeHastDeltasLoader?: ComputeHastDeltasLoader;
+  /**
+   * Lazily loads the client-side transform applier (`createTransformedFiles` —
+   * the `applyCodeTransform` path, which pulls `jsondiffpatch`). `useTransformManagement`
+   * consumes it (warm-cached so transform swaps stay synchronous once loaded);
+   * `CodeHighlighter` preloads it when it detects a block has transforms, so a
+   * block without transforms never pulls this chunk.
+   */
+  transformEngineLoader?: TransformEngineLoader;
+  /** Lazily loads the textarea editor. Read-only blocks never call this loader. */
+  codeEditorLoader?: CodeEditorLoader;
 }
 
 export const CodeContext = React.createContext<CodeContext>({});
@@ -94,3 +126,19 @@ export const useCodeContext = () => {
 
   return context;
 };
+
+/** Starts loading the source parser when a mounted consumer needs it. */
+export function useDemandSourceParser(
+  loadSourceParser: (() => Promise<ParseSource>) | undefined,
+  enabled: boolean,
+) {
+  React.useEffect(() => {
+    if (!enabled || !loadSourceParser) {
+      return;
+    }
+
+    void loadSourceParser().catch(() => {
+      // The provider reports failures and the current fallback remains visible.
+    });
+  }, [enabled, loadSourceParser]);
+}

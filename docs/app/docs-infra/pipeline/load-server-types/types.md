@@ -282,9 +282,9 @@ type HighlightedRawTypeMeta = {
    * When set, indicates this should be rendered as a link to the component.
    */
   reExportOf?: ReExportInfo;
-  /** For DataAttributes types, the component name this type belongs to. */
+  /** For constant groups holding a component's data attributes, that component's name. */
   dataAttributesOf?: string;
-  /** For CssVars types, the component name this type belongs to. */
+  /** For constant groups holding a component's CSS variables, that component's name. */
   cssVarsOf?: string;
 };
 ```
@@ -350,11 +350,6 @@ type LoadServerTypesOptions = {
   watchSourceDirectly?: boolean;
   /** Options for formatting types in tables */
   formattingOptions?: FormatInlineTypeOptions;
-  /**
-   * Directory path for socket and lock files used for IPC between workers.
-   * Useful for Windows where the default temp directory may not support Unix domain sockets.
-   */
-  socketDir?: string;
   /** Enable performance logging */
   performanceLogging?: boolean;
   /**
@@ -369,6 +364,7 @@ type LoadServerTypesOptions = {
     onlyUpdateIndexes?: boolean;
     markerDir?: string;
     errorIfOutOfDate?: boolean;
+    cacheDir?: string;
     indexFileName?: string;
   };
   /**
@@ -391,6 +387,18 @@ type LoadServerTypesOptions = {
    * Each entry has a `pattern` (regex string) and `replacement` string.
    */
   descriptionReplacements?: DescriptionReplacement[];
+  /**
+   * Props to re-include when inherited from these externally declared types,
+   * keyed by the declaring type's name.
+   */
+  inheritedExternalProps?: InheritedExternalPropsConfig;
+  /**
+   * Directory for the sha256-validated JSON cache of the types pipeline. When set, after
+   * writing types.md syncTypes pre-populates `{cacheDir}/types-text/{route}.json` with the
+   * parsed `TypesSourceData`, leaving it warm for the next cold `loadServerTypesText` read.
+   * @default undefined (disabled)
+   */
+  cacheDir?: string;
 };
 ```
 

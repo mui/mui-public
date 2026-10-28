@@ -1,7 +1,32 @@
-.extraFiles {
+/*
+ * Only the initial variant's main file is visible; the rest is kept in the
+ * DOM so search crawlers can index every file/variant the demo ships.
+ * The visible filename is rendered by the surrounding CodeBlockHeader / Tabs.
+ */
+
+.variants,
+.variants figure,
+.variants dl,
+.variants dd {
+  margin: 0;
+  padding: 0;
+}
+
+.variants > figure:first-of-type > dl > dd:first-of-type {
+  padding: 10px 0;
+}
+
+.variants > figure > figcaption,
+.variants > figure > dl > dt {
   display: none;
 }
 
-.extraVariants {
+/* Hide extra files inside the initial variant (keep only the first dd). */
+.variants > figure:first-of-type > dl > dd ~ dd {
+  display: none;
+}
+
+/* Hide every variant beyond the initial one. */
+.variants > figure ~ figure {
   display: none;
 }

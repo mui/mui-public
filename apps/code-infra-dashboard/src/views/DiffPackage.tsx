@@ -16,8 +16,10 @@ import { useFilteredItems, PLACEHOLDER } from '../hooks/useFilteredItems';
 import { scrollToHash } from '../utils/dom';
 import Heading from '../components/Heading';
 import FileDiff from '../components/FileDiff';
-import FileExplorer, { type ChangeType } from '../components/FileExplorer';
-import { type PackageContents, usePackageContent } from '../lib/npmPackage';
+import FileExplorer from '../components/FileExplorer';
+import type { ChangeType } from '../components/FileExplorer';
+import { usePackageContent } from '../lib/npmPackage';
+import type { PackageContents } from '../lib/npmPackage';
 
 const DiffContent = React.memo(function DiffContent({
   pkg1,
@@ -174,6 +176,17 @@ export default function DiffPackage() {
   const [package1Input, setPackage1Input] = React.useState(searchParams.get('package1') || '');
   const [package2Input, setPackage2Input] = React.useState(searchParams.get('package2') || '');
 
+  // Sync input fields with URL parameters when they change. Re-seed the editable
+  // inputs during render whenever the searchParams reference changes (back/forward,
+  // shared link, programmatic router change, or after Compare). This is the
+  // documented "adjusting state during render when an input changes" pattern.
+  const [previousSearchParams, setPreviousSearchParams] = React.useState(searchParams);
+  if (previousSearchParams !== searchParams) {
+    setPreviousSearchParams(searchParams);
+    setPackage1Input(searchParams.get('package1') || '');
+    setPackage2Input(searchParams.get('package2') || '');
+  }
+
   const package1Spec = searchParams.get('package1');
   const package2Spec = searchParams.get('package2');
 
@@ -200,12 +213,6 @@ export default function DiffPackage() {
     params.set('package2', pkg2Spec);
     router.replace(`${pathname}?${params.toString()}`);
   });
-
-  // Sync input fields with URL parameters when they change
-  React.useEffect(() => {
-    setPackage1Input(searchParams.get('package1') || '');
-    setPackage2Input(searchParams.get('package2') || '');
-  }, [searchParams]);
 
   return (
     <Box sx={{ mt: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>

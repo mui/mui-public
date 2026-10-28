@@ -7,12 +7,20 @@
 ### createParseSource
 
 Initializes Starry Night and returns a configured `parseSource` function.
-This only needs to be called once per application. The Starry Night instance
-is stored globally for reuse across calls.
+Only needs to be called once per application; the instance is stored globally
+for reuse across calls.
 
-The grammar definitions are loaded via dynamic `import('./grammars')` so the
-(heavy) TextMate JSON payload is split into its own bundler chunk and only
-fetched when syntax highlighting is actually needed.
+With no `initialScopes`, loads ALL grammars via the (lazy) `./grammars` barrel
+— the eager `CodeProvider` / Node / build-time behavior, so the heavy TextMate
+JSON is split into its own chunk but fully available. Pass `initialScopes`
+(possibly `[]`) to create a lean instance that registers grammars on demand
+via [`registerGrammars`](#registergrammars) — the `CodeProviderLazy` per-language path.
+
+**Parameters:**
+
+| Parameter      | Type       | Default | Description |
+| :------------- | :--------- | :------ | :---------- |
+| initialScopes? | `string[]` | -       | -           |
 
 **Return Value:**
 
@@ -28,9 +36,9 @@ Gets the grammar scope from a language name.
 
 **Parameters:**
 
-| Parameter | Type     | Default | Description                                          |
-| :-------- | :------- | :------ | :--------------------------------------------------- |
-| language  | `string` | -       | The language name (e.g., 'tsx', 'css', 'typescript') |
+| Parameter | Type     | Default | Description                                                 |
+| :-------- | :------- | :------ | :---------------------------------------------------------- |
+| language  | `string` | -       | The language name (for example, 'tsx', 'css', 'typescript') |
 
 **Return Value:**
 
@@ -38,6 +46,34 @@ The grammar scope or undefined if not recognized
 
 ```tsx
 type ReturnValue = string | undefined;
+```
+
+### parsePlainText
+
+Parses source into a line-guttered HAST **without** syntax highlighting — the
+raw text wrapped in the same `.line`/`.frame` structure `parseSource` produces,
+just no starry-night tokenization. It is a `ParseSource` so it can be dropped
+into the loader in place of the highlighting parser.
+
+Used for the deferred (un-highlighted) fallback: the enhancer pipeline needs the
+line/frame structure to compute focus windows and truncation, but the syntax
+colors are exactly the part being deferred — so we skip them. Cheap (no grammar,
+no `getInstance`); the frames it produces collapse back to text via `buildRootFallback`.
+
+Takes only `source` (it ignores file name / language since it never highlights) but
+stays structurally assignable to `ParseSource`, so it drops into the loader in place
+of the highlighting parser.
+
+**Parameters:**
+
+| Parameter | Type     | Default | Description |
+| :-------- | :------- | :------ | :---------- |
+| source    | `string` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = HastRoot;
 ```
 
 ### parseSource
@@ -58,6 +94,48 @@ HAST Root node containing highlighted code structure with line gutters
 
 ```tsx
 type ReturnValue = HastRoot;
+```
+
+### registerAllGrammars
+
+**Return Value:**
+
+```tsx
+type ReturnValue = Promise<void>;
+```
+
+### registerGrammars
+
+Registers the grammars for the given scopes (and their dependencies) on the
+global Starry Night instance, loading the per-scope chunks on demand.
+Idempotent and deduped. Fails open: a chunk that fails to load leaves its
+scope as plain text rather than rejecting the batch.
+
+This is the heavy implementation (it can create the engine instance). Client
+code should call the light facade `ensureGrammars` from `./grammarCache`
+instead, so the engine stays out of the client bundle until a block needs it.
+
+**Parameters:**
+
+| Parameter | Type       | Default | Description |
+| :-------- | :--------- | :------ | :---------- |
+| scopes    | `string[]` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = Promise<void>;
+```
+
+### resetStarryNight
+
+Clears the global Starry Night singleton and registration state. Intended for
+tests exercising lazy registration from a known-empty registry.
+
+**Return Value:**
+
+```tsx
+type ReturnValue = void;
 ```
 
 ## Additional Types

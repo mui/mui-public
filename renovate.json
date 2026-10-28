@@ -1,25 +1,22 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["github>mui/mui-public//renovate/default"],
+  "extends": ["github>mui/mui-public//renovate/experimental"],
   "schedule": "* 5-9 * * 7",
   "lockFileMaintenance": {
-    "schedule": "* 0-4 3 * *"
+    "description": "Match the schedule above. Lock file maintenance defaults to its own Monday window, which would open the group PR a second time outside the weekly one.",
+    "schedule": "* 5-9 * * 7"
   },
   "packageRules": [
     {
-      "matchPackageNames": ["https://github.com/mui/mui-public"],
+      "description": "This repository loads its own orb from master on purpose, so never pin it to a digest.",
+      "matchDepNames": ["code-infra-orb"],
       "enabled": false
     },
     {
-      "matchDepNames": ["code-infra-gh-actions"],
-      "enabled": true
-    },
-    {
-      "description": "Skip major @mui/* updates in apps/tools-public — Toolpad Studio constrains peer deps and these PRs always fail.",
-      "matchFileNames": ["apps/tools-public/package.json"],
-      "matchPackageNames": ["@mui/*"],
-      "matchUpdateTypes": ["major"],
-      "enabled": false
+      "description": "Override :pinDevDependencies for packages that are used as both a dev and non-dev dependency, so they are not pinned.",
+      "matchSourceUrls": ["https://github.com/vercel/next.js", "https://github.com/react/react"],
+      "matchDepTypes": ["devDependencies"],
+      "rangeStrategy": "bump"
     }
   ]
 }

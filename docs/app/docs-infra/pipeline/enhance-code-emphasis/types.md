@@ -6,15 +6,25 @@
 
 ### createEnhanceCodeEmphasis
 
-Creates a source enhancer that adds emphasis to code lines based on `@highlight` comments
-and restructures frames around highlighted regions.
+Creates a source enhancer that renders `@highlight` as visual emphasis and
+uses `@focus` to select the collapsed preview.
 
-Supports five patterns:
+Supports six patterns:
 
-1. **Single line emphasis** - emphasizes the line containing the comment:
-   ```jsx
-   <h1>Heading 1</h1> {/*
-   ```
+1. **Single line emphasis** - `@highlight` emphasizes its line.
+2. **Multiline emphasis** - `@highlight-start` and `@highlight-end`
+   emphasize the lines between them.
+3. **Multiline with description** - add a quoted description after
+   `@highlight-start`.
+4. **Text highlight** - `@highlight-text "Heading 1"` emphasizes matching text.
+5. **Focused highlight** - combine `@highlight` with `@focus` to emphasize a line
+   and select it for the collapsed preview.
+6. **Focus only** - `@focus-start` and `@focus-end` select preview lines
+   without emphasizing them.
+
+Frames are restructured with `data-frame-type` attributes for focused and highlighted
+regions. A highlight nested inside a focus frame receives line-level `data-hl` so both
+layers remain visible. Set `emitFrameIndent` to add the shared indent level to region frames.
 
 **Parameters:**
 
@@ -32,8 +42,9 @@ type ReturnValue = SourceEnhancer;
 
 ### enhanceCodeEmphasis
 
-Default source enhancer that adds emphasis to code lines based on `@highlight` comments.
-Uses no padding frames by default. Use `createEnhanceCodeEmphasis` for configurable padding.
+Default source enhancer that renders `@highlight` emphasis and uses `@focus`
+to select the collapsed preview. Uses no padding frames by default. Use
+`createEnhanceCodeEmphasis` for configurable padding.
 
 **Parameters:**
 
@@ -74,7 +85,7 @@ type EmphasisMeta = {
   strong?: boolean;
   /** For text highlighting: the specific texts to highlight within the line */
   highlightTexts?: string[];
-  /** Whether this line's region is the focused region (for padding) */
+  /** Whether this line's region selects the collapsed preview */
   focus?: boolean;
   /** Whether the line itself should receive data-hl. True for highlight directives and false for focus-only directives. */
   lineHighlight: boolean;
@@ -100,8 +111,8 @@ Options for the enhance code emphasis factory.
 ```typescript
 type EnhanceCodeEmphasisOptions = {
   /**
-   * Maximum number of padding lines above and below the focused highlight region.
-   * Padding frames provide surrounding context for the highlighted code.
+   * Maximum number of padding lines above and below the focused region.
+   * Padding frames provide surrounding context for the previewed code.
    * Set to 0 or omit to disable padding frames.
    */
   paddingFrameMaxSize?: number;
@@ -116,6 +127,21 @@ type EnhanceCodeEmphasisOptions = {
    */
   focusFramesMaxSize?: number;
   /**
+   * How to handle a focused region that exceeds `focusFramesMaxSize`.
+   *
+   * - `'truncate'` (default) — keep the first `focusFramesMaxSize` lines visible
+   *   as a window and hide the overflow.
+   * - `'hide'` — produce no visible-window frame at all: the block collapses to
+   *   nothing (`focusedLines === 0`) while staying `collapsible`, so the collapsed
+   *   state is empty and expanding reveals the whole source.
+   *
+   * Applies to explicit `@focus` / `@focus-start` regions and to the automatic
+   * preview from line 1 when the source exceeds `focusFramesMaxSize`.
+   * Regions that fit within `focusFramesMaxSize` are unaffected.
+   * @default 'truncate'
+   */
+  oversizedFocus?: 'truncate' | 'hide';
+  /**
    * When `true`, throws an error if a `@highlight-text` match has to be
    * fragmented across element boundaries (producing `data-hl-part` spans).
    * Wrapping multiple complete elements in a single `data-hl` span is still
@@ -128,6 +154,11 @@ type EnhanceCodeEmphasisOptions = {
    * use this to visually shift collapsible regions horizontally when
    * surrounding context lines are hidden. Off by default since most demos
    * don't need it and it bloats the rendered HTML.
+   *
+   * Indent and padding are alternatives for conveying surrounding context.
+   * Combining this with the `paddingFrameMaxSize` option throws (configure one
+   * or the other); a per-region `@padding` directive in the source is allowed
+   * and ignored while this is set.
    * @default false
    */
   emitFrameIndent?: boolean;
@@ -163,7 +194,7 @@ type FrameRange = {
     | 'focus-unfocused'
     | 'padding-bottom'
     | 'comment';
-  /** Index of the highlighted region this frame belongs to. Present on region-type frames. */
+  /** Index of the emphasis region this frame belongs to. Present on region-type frames. */
   regionIndex?: number;
   /**
    * Present on frames created by splitting an oversized region via `focusFramesMaxSize`.
@@ -171,14 +202,16 @@ type FrameRange = {
    * - `'hidden'`  — the overflow portion hidden when collapsed.
    */
   truncated?: 'visible' | 'hidden';
+  /** Marks the frame an explicit `@focus` selects for the collapsed preview. */
+  focusTarget?: boolean;
 };
 ```
 
 ### MIN_COMMENT_PREFIX
 
-Modifier token used inside `@highlight` / `@focus` comments
-to override focus max size for that directive.
-Example:
+Modifier token used inside focused `@highlight` / `@focus` comments
+to override the maximum size for that focus region.
+Example: combine `@highlight`, `@focus`, and `@min 6`.
 
 ```typescript
 type MIN_COMMENT_PREFIX = '@min';
@@ -186,9 +219,9 @@ type MIN_COMMENT_PREFIX = '@min';
 
 ### PADDING_COMMENT_PREFIX
 
-Modifier token used inside `@highlight` / `@focus` comments
-to override padding for that directive.
-Example:
+Modifier token used inside focused `@highlight` / `@focus` comments
+to override padding for that focus region.
+Example: combine `@highlight`, `@focus`, and `@padding 2`.
 
 ```typescript
 type PADDING_COMMENT_PREFIX = '@padding';

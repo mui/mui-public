@@ -27,9 +27,9 @@ const FileContent = React.memo(function FileContent({
         ) : (
           <Link
             variant="subtitle2"
-            fontFamily="monospace"
             color="text.secondary"
             href={`#${fileId}`}
+            sx={{ fontFamily: 'monospace' }}
           >
             {filePath}
           </Link>

@@ -10,22 +10,12 @@ import {
   CodeBlockHeader,
   CodeBlockHeaderLabel,
 } from '../../../../../docs-infra/components/code-highlighter/demos/CodeBlockHeader';
+import { CodeSource } from '../../../../../docs-infra/components/code-highlighter/demos/CodeSource';
 import styles from './CodeContent.module.css';
-
-import '../../../../../docs-infra/components/code-highlighter/demos/syntax.css';
 
 export function CodeContent(props: ContentProps<{}>) {
   // @focus-start @padding 1
   const code = useCode(props, { preClassName: styles.codeBlock });
-
-  const selectedFileSlug = React.useMemo(
-    () =>
-      code.allFilesSlugs.find(
-        (entry) =>
-          entry.fileName === code.selectedFileName && entry.variantName === code.selectedVariant,
-      )?.slug,
-    [code.allFilesSlugs, code.selectedFileName, code.selectedVariant],
-  );
 
   return (
     <div>
@@ -41,7 +31,7 @@ export function CodeContent(props: ContentProps<{}>) {
               onCopy={code.copy}
               fileUrl={code.selectedFileUrl}
               fileName={code.selectedFileName}
-              fileSlug={selectedFileSlug}
+              fileSlug={code.selectedFileSlug}
             />
           }
         >
@@ -49,7 +39,7 @@ export function CodeContent(props: ContentProps<{}>) {
             <CodeBlockHeaderLabel>{code.selectedFileName}</CodeBlockHeaderLabel>
           ) : null}
         </CodeBlockHeader>
-        <div className={styles.code}>{code.selectedFile}</div>
+        <CodeSource className={styles.code}>{code.selectedFile}</CodeSource>
       </div>
     </div>
   );

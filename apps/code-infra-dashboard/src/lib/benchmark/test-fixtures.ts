@@ -1,4 +1,5 @@
 import type { BenchmarkReport, BenchmarkReportEntry } from './types';
+import type { BenchmarkComparisonInput } from './compareBenchmarkReports';
 
 export function makeEntry(totalDuration: number, renderCount: number = 1): BenchmarkReportEntry {
   const perRender = renderCount > 0 ? totalDuration / renderCount : 0;
@@ -19,20 +20,20 @@ export function makeEntry(totalDuration: number, renderCount: number = 1): Bench
   };
 }
 
-export function makeReport(entries: Record<string, number>): BenchmarkReport {
+export function makeReport(entries: Record<string, number>): BenchmarkComparisonInput {
   const report: BenchmarkReport = {};
   for (const [name, totalDuration] of Object.entries(entries)) {
     report[name] = makeEntry(totalDuration);
   }
-  return report;
+  return { report };
 }
 
 export function makeReportFromConfig(
   entries: Record<string, { duration: number; renders: number }>,
-): BenchmarkReport {
+): BenchmarkComparisonInput {
   const report: BenchmarkReport = {};
   for (const [name, { duration, renders }] of Object.entries(entries)) {
     report[name] = makeEntry(duration, renders);
   }
-  return report;
+  return { report };
 }

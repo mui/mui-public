@@ -4,6 +4,20 @@
 
 ## API Reference
 
+### preloadCodeEditor
+
+**Parameters:**
+
+| Parameter | Type               | Default | Description |
+| :-------- | :----------------- | :------ | :---------- |
+| loader?   | `CodeEditorLoader` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = Promise<void>;
+```
+
 ### useCode
 
 **useCode Parameters:**
@@ -29,6 +43,12 @@ type ReturnValue = Partial<Components> | undefined;
 
 ## Additional Types
 
+### ActionSource
+
+```typescript
+type ActionSource = 'current' | 'initial';
+```
+
 ### CodeComponentsContext
 
 ```typescript
@@ -40,7 +60,6 @@ type CodeComponentsContext = React.Context<Partial<Components> | undefined>;
 ```typescript
 type UseCodeOpts = {
   preClassName?: string;
-  defaultOpen?: boolean;
   copy?: UseCopierOpts;
   githubUrlPrefix?: string;
   initialVariant?: string;
@@ -66,6 +85,34 @@ type UseCodeOpts = {
   sourceEnhancers?: SourceEnhancer[];
   /** Disables editing of the code block even when a CodeControllerContext is present. */
   disabled?: boolean;
+  /**
+   * Called when the code block is asked to expand its collapsed window — most
+   * importantly from the editor itself, when the caret navigates past the
+   * visible region (e.g. `ArrowUp` at the top of a collapsed block). Fires
+   * synchronously, *before* the expansion re-renders, so a host can capture the
+   * still-collapsed layout and engage a scroll anchor (e.g. `useCodeWindow`'s
+   * `anchorScroll('expand')`) — matching the timing of a click on the expand
+   * toggle. Without this, keyboard-driven expansion would jump the viewport
+   * instead of smoothly anchoring it.
+   */
+  onExpand?: () => void;
+  /**
+   * Discards all controller-owned edits before a collapsed focused source is
+   * expanded. The selected variant, file, and transform are preserved.
+   */
+  resetOnExpand?: boolean;
+  /**
+   * Selects whether copy and export actions use controlled source or the
+   * initial repository source. Defaults to `'current'`.
+   */
+  actionSource?: ActionSource;
+  /**
+   * Controls the selected transform. When supplied, internal stored transform
+   * preferences do not override this value.
+   */
+  selectedTransform?: string | null;
+  /** Called when a transform is selected in controlled mode. */
+  onSelectedTransformChange?: (transform: string | null) => void;
 };
 ```
 
@@ -79,6 +126,14 @@ type UseCodeResult<T extends {} = {}> = {
   files: { name: string; slug?: string; component: React.ReactNode }[];
   selectedFile: React.ReactNode;
   selectedFileLines: number;
+  /** Number of source lines shown by the collapsed editor. */
+  selectedFileFocusedLines: number;
+  /** Whether the selected file has distinct collapsed and complete views. */
+  selectedFileCollapsible: boolean;
+  /** Whether collapsed editing uses a contiguous focused projection. */
+  selectedFileHasFocusProjection: boolean;
+  /** Canonical repository filename before a transform renames the display. */
+  selectedFileOriginalName: string | undefined;
   selectedFileName: string | undefined;
   /**
    * URL of the currently selected file, derived from the selected variant's
@@ -86,6 +141,13 @@ type UseCodeResult<T extends {} = {}> = {
    * the variant has no `url` or the URL cannot be resolved.
    */
   selectedFileUrl: string | undefined;
+  /**
+   * Slug for the currently selected file. Always derived from the canonical
+   * (original) file name — transforms are a view preference and do not
+   * produce separate slugs. Useful for building permalinks (for example, `#${slug}`)
+   * that survive transform changes.
+   */
+  selectedFileSlug: string | undefined;
   selectFileName: (fileName: string) => void;
   allFilesSlugs: { fileName: string; slug: string; variantName: string }[];
   expanded: boolean;
@@ -100,6 +162,24 @@ type UseCodeResult<T extends {} = {}> = {
   availableTransforms: string[];
   selectedTransform: string | null | undefined;
   selectTransform: (transformName: string | null) => void;
+  /** Whether the surrounding controller currently owns edited source. */
+  hasControlledEdits: boolean;
+  /**
+   * Whether edit mode is currently on. `true` by default; starts `false` when the block
+   * opts in via `initialDisabled` — per demo through the `createDemo` `meta`, or across a
+   * factory's demos through `createDemoFactory`. While `false` the block renders
+   * read-only and the live-editing engine is not even warmed; flip it with
+   * `setEditable`. Independent of `editActivation`, which governs *when* the engine
+   * loads once editing is on, and of `disabled`, which turns editing off permanently.
+   */
+  editable: boolean;
+  /**
+   * Turns edit mode on or off. `undefined` when the block can't be edited at all — no
+   * `CodeControllerContext` with `setCode` in scope, or editing is hard-`disabled` — so
+   * a toggle button can render only when this is defined. Toggling off keeps the
+   * reader's edits (use `reset` to discard them).
+   */
+  setEditable?: (editable: boolean) => void;
   /**
    * Replace the source of the currently selected file (or `fileName` when
    * provided) in the controlled code. Internal hooks may pass additional
@@ -115,6 +195,14 @@ type UseCodeResult<T extends {} = {}> = {
    * is in scope and editing is not disabled.
    */
   reset?: () => void;
+  /**
+   * Re-fetches the block's data on the client by re-running the full variant
+   * loader, then swaps in the fresh result while keeping the current highlighted
+   * output visible until the new tree lands (stale-while-revalidate). Invalidates
+   * the pre-parsed HAST cache. `undefined` (or a no-op) for a block with no `url`
+   * to re-fetch from, or with no `CodeProvider` in scope.
+   */
+  refresh?: () => void;
   userProps: UserProps<T>;
 };
 ```

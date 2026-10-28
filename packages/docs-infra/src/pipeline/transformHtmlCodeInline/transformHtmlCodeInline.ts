@@ -1,15 +1,29 @@
-import { createStarryNight } from '@wooorm/starry-night';
 import type { Root as HastRoot, Element } from 'hast';
 import { visit } from 'unist-util-visit';
-import { grammars } from '../parseSource/grammars';
-import { extensionMap } from '../parseSource/grammarMaps';
+import { getStarryNightInstance } from '../parseSource/parseSource';
+import { getGrammarFromLanguage } from '../parseSource/grammarMaps';
 import { extendSyntaxTokens } from '../parseSource/extendSyntaxTokens';
+import { getLanguageCapabilitiesFromScope } from '../parseSource/languageCapabilities';
 import { getHastTextContent } from '../hastUtils';
 import { removePrefixFromHighlightedNodes } from './removePrefixFromHighlightedNodes';
+import { removeSuffixFromHighlightedNodes } from './removeSuffixFromHighlightedNodes';
 
-type StarryNight = Awaited<ReturnType<typeof createStarryNight>>;
+function getGrammarScope(node: Element): string | undefined {
+  const className = node.properties?.className;
+  if (!Array.isArray(className)) {
+    return undefined;
+  }
 
-const STARRY_NIGHT_KEY = '__docs_infra_starry_night_instance__';
+  const languageClass = className.find(
+    (classNameValue) =>
+      typeof classNameValue === 'string' && classNameValue.startsWith('language-'),
+  );
+  if (typeof languageClass !== 'string') {
+    return undefined;
+  }
+
+  return getGrammarFromLanguage(languageClass.replace('language-', ''));
+}
 
 /**
  * Options for the transformHtmlCodeInline plugin.
@@ -22,17 +36,6 @@ export interface TransformHtmlCodeInlineOptions {
    * @default false
    */
   includePreElements?: boolean;
-}
-
-/**
- * Ensures Starry Night is initialized and returns the instance.
- * Uses a global singleton for efficiency across multiple plugin invocations.
- */
-async function getStarryNight(): Promise<StarryNight> {
-  if (!(globalThis as any)[STARRY_NIGHT_KEY]) {
-    (globalThis as any)[STARRY_NIGHT_KEY] = await createStarryNight(grammars);
-  }
-  return (globalThis as any)[STARRY_NIGHT_KEY];
 }
 
 /**
@@ -49,7 +52,7 @@ export default function transformHtmlCodeInline(options: TransformHtmlCodeInline
   const { includePreElements = false } = options;
 
   return async (tree: HastRoot) => {
-    const starryNight = await getStarryNight();
+    const starryNight = await getStarryNightInstance();
 
     visit(tree, 'element', (node: Element, _index, parent) => {
       // Only process code elements (inline code or code blocks without special handling)
@@ -83,47 +86,35 @@ export default function transformHtmlCodeInline(options: TransformHtmlCodeInline
           : undefined;
 
       // Temporarily prepend the prefix for proper syntax highlighting
-      const sourceToHighlight = highlightingPrefix ? `${highlightingPrefix}${source}` : source;
+      let sourceToHighlight = highlightingPrefix ? `${highlightingPrefix}${source}` : source;
 
-      // Determine language from className (e.g., 'language-ts')
-      const className = node.properties?.className;
-      let fileType: string | undefined;
-
-      if (Array.isArray(className)) {
-        const langClass = className.find((c) => typeof c === 'string' && c.startsWith('language-'));
-        if (langClass && typeof langClass === 'string') {
-          const lang = langClass.replace('language-', '');
-          // Map common language names to file extensions
-          const langToExt: Record<string, string> = {
-            ts: '.ts',
-            typescript: '.ts',
-            js: '.js',
-            javascript: '.js',
-            jsx: '.jsx',
-            tsx: '.tsx',
-            css: '.css',
-            html: '.html',
-            json: '.json',
-            md: '.md',
-            markdown: '.md',
-            sh: '.sh',
-            shell: '.sh',
-            bash: '.sh',
-            yaml: '.yaml',
-            yml: '.yaml',
-          };
-          fileType = langToExt[lang] || `.${lang}`;
-        }
-      }
+      // Inline JS-family snippets that look like a bare object literal (e.g. `{ height: 400 }`)
+      // are tokenized by starry-night as a block statement with labeled statements, which makes
+      // the keys appear as `pl-en` (entity name) tokens rather than property names. Wrap them
+      // in `(...)` so the snippet parses as an expression and `extendSyntaxTokens` can split
+      // out the keys via `splitObjectKeys`. The wrapping characters are stripped after highlighting.
+      let objectWrap = false;
 
       // Skip if no language specified or unsupported type
-      if (!fileType || !extensionMap[fileType]) {
+      const grammarScope = getGrammarScope(node);
+      if (!grammarScope) {
         return;
       }
 
+      if (
+        !highlightingPrefix &&
+        getLanguageCapabilitiesFromScope(grammarScope).semantics === 'js'
+      ) {
+        const trimmed = sourceToHighlight.trim();
+        if (trimmed.length >= 2 && trimmed.startsWith('{') && trimmed.endsWith('}')) {
+          sourceToHighlight = `(${sourceToHighlight})`;
+          objectWrap = true;
+        }
+      }
+
       // Apply syntax highlighting
-      const highlighted = starryNight.highlight(sourceToHighlight, extensionMap[fileType]);
-      extendSyntaxTokens(highlighted, extensionMap[fileType]);
+      const highlighted = starryNight.highlight(sourceToHighlight, grammarScope);
+      extendSyntaxTokens(highlighted, grammarScope);
 
       // Replace the code element's children with the highlighted nodes
       if (highlighted.type === 'root' && highlighted.children) {
@@ -132,6 +123,10 @@ export default function transformHtmlCodeInline(options: TransformHtmlCodeInline
         // If we added a prefix for highlighting, remove it from the output
         if (highlightingPrefix && node.children.length > 0) {
           removePrefixFromHighlightedNodes(node.children, highlightingPrefix.length);
+        }
+        if (objectWrap && node.children.length > 0) {
+          removePrefixFromHighlightedNodes(node.children, 1);
+          removeSuffixFromHighlightedNodes(node.children, 1);
         }
       }
 

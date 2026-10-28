@@ -22,11 +22,7 @@ export default function RepositoryPRs() {
     <React.Fragment>
       <Heading level={2}>
         Recent pull requests for{' '}
-        <Link
-          href={`https://github.com/${owner}/${repo}`}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
+        <Link href={`https://github.com/${owner}/${repo}`} target="_blank">
           {owner}/{repo}
         </Link>
       </Heading>

@@ -12,7 +12,6 @@ This function handles:
 
 - Loading TypeScript configuration
 - Resolving library source files and variants
-- Finding meta files (DataAttributes, CssVars)
 - Processing types via worker thread
 - Formatting component, hook, function, and raw types
 - Collecting external types referenced in props/params
@@ -255,11 +254,6 @@ type LoadServerTypesMetaOptions = {
   /** Options for formatting types in tables */
   formattingOptions?: FormatInlineTypeOptions;
   /**
-   * Directory path for socket and lock files used for IPC between workers.
-   * Useful for Windows where the default temp directory may not support Unix domain sockets.
-   */
-  socketDir?: string;
-  /**
    * Optional regex pattern string to filter which external types to include.
    * External types are named union types (like `Orientation = 'horizontal' | 'vertical'`)
    * that are referenced in props but not exported from the component's module.
@@ -279,6 +273,13 @@ type LoadServerTypesMetaOptions = {
    * Each entry has a `pattern` (regex string) and `replacement` string.
    */
   descriptionReplacements?: DescriptionReplacement[];
+  /**
+   * Props to re-include when inherited from these externally declared types,
+   * keyed by the declaring type's name. The parser normally drops props that are
+   * only declared inside `node_modules`; this re-adds the configured ones.
+   * @example { BaseUIComponentProps: ['className', 'render', 'style'] }
+   */
+  inheritedExternalProps?: InheritedExternalPropsConfig;
 };
 ```
 
@@ -348,9 +349,9 @@ type RawTypeMeta = {
    * When set, indicates this should be rendered as a link to the component.
    */
   reExportOf?: ReExportInfo;
-  /** For DataAttributes types, the component name this type belongs to. */
+  /** For constant groups holding a component's data attributes, that component's name. */
   dataAttributesOf?: string;
-  /** For CssVars types, the component name this type belongs to. */
+  /** For constant groups holding a component's CSS variables, that component's name. */
   cssVarsOf?: string;
   /**
    * For object types, the individual properties with their types and descriptions.
@@ -369,7 +370,7 @@ type ReExportInfo = {
   /** Anchor slug for linking (e.g., "#trigger") */
   slug: string;
   /** What kind of type this re-exports */
-  suffix: 'props' | 'css-variables' | 'data-attributes';
+  suffix: 'props';
 };
 ```
 

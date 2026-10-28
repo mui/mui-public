@@ -1,9 +1,9 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { pluginTester } from 'babel-plugin-tester';
-import plugin from './index';
+import plugin from './index.js';
 
-const fixturePath = path.resolve(__dirname, './__fixtures__');
+const fixturePath = path.resolve(import.meta.dirname, './__fixtures__');
 
 /**
  * Reads the output fixture and normalizes line endings

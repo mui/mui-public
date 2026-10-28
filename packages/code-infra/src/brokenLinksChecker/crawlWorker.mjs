@@ -1,6 +1,6 @@
 import { workerData, parentPort } from 'node:worker_threads';
 import { parse } from 'node-html-parser';
-import contentType from 'content-type';
+import { parse as parseContentType } from 'content-type';
 import { HtmlValidate, StaticConfigLoader, staticResolver } from 'html-validate';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
@@ -111,7 +111,7 @@ let type = 'text/html';
 
 if (contentTypeHeader) {
   try {
-    const parsed = contentType.parse(contentTypeHeader);
+    const parsed = parseContentType(contentTypeHeader);
     type = parsed.type;
   } catch {
     // invalid content-type, default to text/html
@@ -162,9 +162,14 @@ if (pageData.status < 200 || pageData.status >= 400) {
 
   // HTML validation. Every entry whose path matches contributes to the
   // page's config: each is registered as a synthetic preset and the page's
-  // root config `extends` them in order. html-validate's own resolution then
-  // merges them, so callers can layer path-specific overrides on top of a
-  // baseline entry without re-stating the baseline rules.
+  // root config `extends` `mui:recommended` first, then the matched presets
+  // in order. When override configs do not specify their own `extends`,
+  // they behave as pure rule patches layered on top of `mui:recommended`,
+  // so a later entry can only change the rules it names directly. Override
+  // configs are passed through as-is, though, so an entry that declares its
+  // own `extends` can still pull in additional presets (including
+  // `mui:recommended`) and affect earlier downgrades. html-validate merges
+  // `extends` left to right.
   /** @type {{ pageUrl: string, results: import('html-validate').Result[] } | null} */
   let htmlValidateResults = null;
   if (type === 'text/html' && options.htmlValidate.length > 0) {
@@ -184,7 +189,30 @@ if (pageData.status < 200 || pageData.status >= 400) {
             rules: {
               // TODO: Enable when subresource integrity is adopted across projects
               'require-sri': 'off',
+              // Components that portal their content (menus, selects, listboxes,
+              // etc.) wire up aria-controls/aria-labelledby targets only after
+              // client hydration, so those targets are absent from the
+              // statically rendered HTML. Disable rather than report false
+              // positives.
+              'no-missing-references': 'off',
             },
+            elements: [
+              'html5',
+              {
+                form: {
+                  attributes: {
+                    // React renders `action="javascript:throw new Error(...)"` on
+                    // a <form> with a function action during SSR (a sentinel that
+                    // throws if the form is submitted before hydration wires up
+                    // the real handler). Permit that value while keeping the
+                    // default check (`^\s*\S+\s*$`) for every other action value.
+                    action: {
+                      enum: ['/^\\s*\\S+\\s*$/', '/^\\s*javascript:throw new Error\\(/'],
+                    },
+                  },
+                },
+              },
+            ],
           },
           ...overridePresets,
         },
@@ -192,7 +220,7 @@ if (pageData.status < 200 || pageData.status >= 400) {
 
       const htmlValidator = new HtmlValidate(
         new StaticConfigLoader([muiHtmlValidateResolver], {
-          extends: Object.keys(overridePresets),
+          extends: ['mui:recommended', ...Object.keys(overridePresets)],
         }),
       );
 

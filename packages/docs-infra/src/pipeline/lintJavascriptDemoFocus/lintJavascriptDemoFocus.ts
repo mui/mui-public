@@ -1,6 +1,7 @@
 import type { Rule } from 'eslint';
 import type { ExportDefaultDeclaration, ExportNamedDeclaration, Node } from 'estree';
 import type { TSESTree } from '@typescript-eslint/utils';
+import { hasFocusDirective } from '../enhanceCodeEmphasis/emphasisCommentUtils';
 
 type FunctionLikeNode = ExportDefaultDeclaration['declaration'] | Node;
 
@@ -183,7 +184,7 @@ export const lintJavascriptDemoFocus = {
           wrapReturn: {
             type: 'boolean',
             description:
-              'When true, bare return statements without parentheses are wrapped in return (...) and the highlight comment is placed inside the parentheses.',
+              'When true, bare return statements without parentheses are wrapped in return (...) and the focus comment is placed inside the parentheses.',
           },
         },
         additionalProperties: false,
@@ -195,21 +196,14 @@ export const lintJavascriptDemoFocus = {
 
     const options = (context.options[0] ?? {}) as { wrapReturn?: boolean };
 
-    // Skip files that already have @focus or @highlight directives in comments —
-    // those files already declare a focus region (a @highlight implicitly defines
-    // one), so the auto-fixer should not add additional markers.
-    // @highlight-text is excluded because it only marks inline text within a line
-    // and does not on its own define a focus region.
-    // We check actual parsed comments (not raw source text) to avoid false
-    // negatives from tokens appearing in string literals or identifiers.
-    // The regex matches @focus, @focus-start, @focus-end, @highlight,
-    // @highlight-start, and @highlight-end as standalone tokens (not as
-    // substrings of other words or prose).
-    const focusDirectivePattern =
-      /(?:^|\s)@(?:focus(?:-(?:start|end))?|highlight(?:-(?:start|end))?)(?:\s|$)/;
-    const hasFocusComment = sourceCode.getAllComments().some((comment) => {
-      return focusDirectivePattern.test(comment.value);
-    });
+    // Skip files that already have @focus directives in comments. Highlight
+    // directives are independent visual annotations and do not define which
+    // lines belong to the focused preview.
+    // We check parsed comments (not raw source text), require the directive at
+    // the start of a focus/highlight comment, and ignore quoted descriptions.
+    const hasFocusComment = sourceCode
+      .getAllComments()
+      .some((comment) => hasFocusDirective(comment.value));
 
     if (hasFocusComment) {
       return {};
@@ -352,7 +346,10 @@ function reportPreview(
         const hasParens = hasReturnParens(sourceCode, returnStatement);
 
         if (hasParens) {
-          // Already `return (...)` — just insert the comment inside
+          // Already `return (...)` — just insert the comment inside. The focus
+          // sits one level deeper than the function body, so `@padding 2` keeps
+          // the `return (` line and the function signature/closing brace visible
+          // as context when collapsed.
           const lineStartOffset = sourceCode.getIndexFromLoc({
             line: firstNode.loc.start.line,
             column: 0,
@@ -360,7 +357,7 @@ function reportPreview(
           if (isSingleLine) {
             return fixer.insertTextBeforeRange(
               [lineStartOffset, lineStartOffset],
-              `${indentation}// @focus\n`,
+              `${indentation}// @focus @padding 2\n`,
             );
           }
           const lastLineStartOffset = sourceCode.getIndexFromLoc({
@@ -372,7 +369,7 @@ function reportPreview(
           return [
             fixer.insertTextBeforeRange(
               [lineStartOffset, lineStartOffset],
-              `${indentation}// @focus-start\n`,
+              `${indentation}// @focus-start @padding 2\n`,
             ),
             fixer.insertTextAfterRange(
               [lastLineStartOffset, lastLineStartOffset + lastLine.length],
@@ -391,7 +388,7 @@ function reportPreview(
           return [
             fixer.replaceTextRange(
               [returnKeywordEnd, firstNode.range[0]],
-              ` (\n${innerIndentation}// @focus\n${innerIndentation}`,
+              ` (\n${innerIndentation}// @focus @padding 2\n${innerIndentation}`,
             ),
             fixer.insertTextAfterRange(lastNode.range, `\n${returnIndentation})`),
           ];
@@ -399,7 +396,7 @@ function reportPreview(
         return [
           fixer.replaceTextRange(
             [returnKeywordEnd, firstNode.range[0]],
-            ` (\n${innerIndentation}// @focus-start\n${innerIndentation}`,
+            ` (\n${innerIndentation}// @focus-start @padding 2\n${innerIndentation}`,
           ),
           fixer.insertTextAfterRange(
             lastNode.range,
@@ -420,7 +417,7 @@ function reportPreview(
             return [
               fixer.replaceTextRange(
                 [arrowToken.range[1], firstNode.range[0]],
-                ` (\n${innerIndentation}// @focus\n${innerIndentation}`,
+                ` (\n${innerIndentation}// @focus @padding 2\n${innerIndentation}`,
               ),
               fixer.insertTextAfterRange(lastNode.range, `\n${arrowIndentation})`),
             ];
@@ -428,7 +425,7 @@ function reportPreview(
           return [
             fixer.replaceTextRange(
               [arrowToken.range[1], firstNode.range[0]],
-              ` (\n${innerIndentation}// @focus-start\n${innerIndentation}`,
+              ` (\n${innerIndentation}// @focus-start @padding 2\n${innerIndentation}`,
             ),
             fixer.insertTextAfterRange(
               lastNode.range,

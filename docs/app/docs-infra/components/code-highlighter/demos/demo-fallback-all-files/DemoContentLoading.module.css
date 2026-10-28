@@ -1,3 +1,28 @@
-.extraFiles {
+/*
+ * Only the main file is visible; extra files stay in the DOM (matching the
+ * `<section><figure><dl>…</dl></figure></section>` shape that
+ * `transformHtmlCodeBlock` parses) so search crawlers can index them and the
+ * enclosing <section> acts as a clear demo boundary on pages with multiple
+ * code blocks. The visible filename is rendered by the surrounding
+ * CodeBlockHeader / Tabs.
+ */
+
+.files,
+.files figure,
+.files dl,
+.files dd {
+  margin: 0;
+  padding: 0;
+}
+
+.files > figure > dl > dd:first-of-type {
+  padding: 10px 0;
+}
+
+.files > figure > dl > dt {
+  display: none;
+}
+
+.files > figure > dl > dd ~ dd {
   display: none;
 }

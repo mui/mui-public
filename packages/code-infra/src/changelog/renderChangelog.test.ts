@@ -24,6 +24,8 @@ function createCommit(
       components: [],
       flags: [],
     },
+    prTitle: `PR Title ${prNumber}`,
+    prBody: `PR Body ${prNumber}`,
   };
 }
 

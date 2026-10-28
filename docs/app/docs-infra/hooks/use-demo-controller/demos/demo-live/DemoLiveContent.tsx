@@ -1,0 +1,94 @@
+'use client';
+
+import * as React from 'react';
+import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
+import { useDemo } from '@mui/internal-docs-infra/useDemo';
+import { Tabs } from '@/components/Tabs';
+import { DemoError } from '@/components/DemoError';
+import { CodeActionsMenu } from '../../../../components/code-highlighter/demos/CodeActionsMenu';
+import {
+  CodeBlockHeader,
+  CodeBlockHeaderLabel,
+} from '../../../../components/code-highlighter/demos/CodeBlockHeader';
+import { CodeSource } from '../../../../components/code-highlighter/demos/CodeSource';
+import { DemoVariantBar } from '../../../../components/code-highlighter/demos/DemoVariantBar';
+import styles from './DemoLiveContent.module.css';
+
+const variantNames: Record<string, string | undefined> = {
+  CssModules: 'CSS Modules',
+};
+
+export function DemoLiveContent(props: ContentProps<object>) {
+  // @focus-start @padding 1
+  const demo = useDemo(props, {
+    preClassName: styles.codeBlock,
+  });
+
+  const hasJsTransform = demo.availableTransforms.includes('js');
+  const isJsSelected = demo.selectedTransform === 'js';
+
+  const toggleJs = (enabled: boolean) => demo.selectTransform(enabled ? 'js' : null);
+
+  const tabs = React.useMemo(
+    () => demo.files.map(({ name, slug }) => ({ id: name, name, slug })),
+    [demo.files],
+  );
+  const variants = React.useMemo(
+    () =>
+      demo.variants.map((variant) => ({ value: variant, label: variantNames[variant] || variant })),
+    [demo.variants],
+  );
+
+  const hasTabs = tabs.length > 1;
+
+  return (
+    <div>
+      {demo.allFilesSlugs.map(({ slug }) => (
+        <span key={slug} id={slug} className={styles.fileRefs} />
+      ))}
+      <div className={styles.container}>
+        <div className={styles.demoSection}>
+          <DemoVariantBar
+            variants={variants}
+            selectedVariant={demo.selectedVariant}
+            onVariantChange={demo.selectVariant}
+          />
+          <div className={styles.demoSurface}>
+            <DemoError error={demo.error} />
+            {demo.component}
+          </div>
+        </div>
+        <div className={styles.codeSection}>
+          <CodeBlockHeader
+            menu={
+              <CodeActionsMenu
+                inline={!hasTabs}
+                onCopy={demo.copy}
+                onCopyMarkdown={hasTabs ? demo.copyMarkdown : undefined}
+                fileUrl={demo.selectedFileUrl}
+                fileName={demo.selectedFileName}
+                fileSlug={demo.selectedFileSlug}
+                onReset={demo.reset}
+                jsTransform={
+                  hasJsTransform ? { enabled: isJsSelected, onToggle: toggleJs } : undefined
+                }
+              />
+            }
+          >
+            {hasTabs ? (
+              <Tabs
+                tabs={tabs}
+                selectedTabId={demo.selectedFileName}
+                onTabSelect={demo.selectFileName}
+              />
+            ) : (
+              <CodeBlockHeaderLabel>{demo.selectedFileName}</CodeBlockHeaderLabel>
+            )}
+          </CodeBlockHeader>
+          <CodeSource className={styles.code}>{demo.selectedFile}</CodeSource>
+        </div>
+      </div>
+    </div>
+  );
+  // @focus-end
+}

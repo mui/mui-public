@@ -280,6 +280,25 @@ export class ErrorCodeHighlighterClientMissingData extends ErrorCodeHighlighterC
   }
 }
 
+export class ErrorCodeHighlighterClientMissingFallbackHoist extends ErrorCodeHighlighterClientValidation {
+  constructor() {
+    super(
+      `Missing fallback data - A ContentLoading component was provided but did not hoist fallback data. ` +
+        `Make sure your ContentLoading component calls \`useCodeFallback(props)\` and passes the component props.`,
+    );
+  }
+}
+
+export class ErrorCodeHighlighterClientDynamicContentRequiresFallback extends ErrorCodeHighlighterClientValidation {
+  constructor() {
+    super(
+      `Dynamic content requires a ContentLoading - The Content component loads asynchronously ` +
+        `(e.g. via \`LazyContent\`), but no \`ContentLoading\` was provided to show while it loads, ` +
+        `so the slot would flash empty. Provide a \`ContentLoading\` component, or render the content synchronously.`,
+    );
+  }
+}
+
 // === CONSOLE ERROR CLASSES ===
 
 // Server console errors

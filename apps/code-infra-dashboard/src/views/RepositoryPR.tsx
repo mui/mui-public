@@ -118,7 +118,6 @@ export default function RepositoryPR() {
             href={prInfo?.html_url}
             disabled={!prInfo}
             target="_blank"
-            rel="noopener noreferrer"
             startIcon={<GitHubIcon />}
             size="small"
           >
@@ -165,7 +164,6 @@ export default function RepositoryPR() {
                       size="small"
                       component={Link}
                       href={`https://www.npmjs.com/package/${packageName}`}
-                      rel="noopener noreferrer"
                     >
                       NPM
                     </Button>
@@ -181,7 +179,6 @@ export default function RepositoryPR() {
                       component={Link}
                       href={getPkgPrNewUrl(owner, repo, packageName, prInfo?.head.sha ?? '')}
                       disabled={!prInfo}
-                      rel="noopener noreferrer"
                     >
                       pkg.pr.new
                     </Button>

@@ -144,7 +144,7 @@ async function handler(argv: Args) {
       image,
       'npx',
       '--yes',
-      'playwright',
+      `playwright@${argv['playwright-version']}`,
       'run-server',
       '--port',
       String(port),

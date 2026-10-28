@@ -20,6 +20,7 @@ import { loadServerTypes } from '../loadServerTypes';
 import type { SyncPageIndexBaseOptions } from '../transformMarkdownMetadata/types';
 import { rewriteImportsToNull } from '../loaderUtils/rewriteImports';
 import type { OrderingConfig } from '../loadServerTypesText/order';
+import type { InheritedExternalPropsConfig } from '../loadServerTypesMeta/inheritedExternalProps';
 import type { TransformHtmlCodeBlockOptions } from '../transformHtmlCodeBlock/transformHtmlCodeBlock';
 
 export type LoaderOptions = {
@@ -36,12 +37,6 @@ export type LoaderOptions = {
   };
   /** Options for formatting types in tables */
   formatting?: FormatInlineTypeOptions;
-  /**
-   * Directory path for socket and lock files used for IPC between workers.
-   * Useful for Windows where the default temp directory may not support Unix domain sockets.
-   * @example '.next/docs-infra'
-   */
-  socketDir?: string;
   /**
    * Options for updating the parent index page with component metadata.
    * When provided, will call syncPageIndex to update the parent directory's page.mdx
@@ -73,8 +68,19 @@ export type LoaderOptions = {
    * Each entry has a `pattern` (regex string) and `replacement` string.
    */
   descriptionReplacements?: DescriptionReplacement[];
+  /**
+   * Props to re-include when inherited from these externally declared types,
+   * keyed by the declaring type's name.
+   */
+  inheritedExternalProps?: InheritedExternalPropsConfig;
   /** Options for code blocks highlighted inside generated type metadata */
   codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions;
+  /**
+   * Directory for the sha256-validated JSON cache of the types pipeline. When set, the
+   * parsed types.md (`types-text`) and the enhanced/highlighted result (`types-enhanced`)
+   * are cached under it, keyed by content hash.
+   */
+  cacheDir?: string;
 };
 
 const functionName = 'Load Precomputed Types';
@@ -141,9 +147,6 @@ export async function loadPrecomputedTypes(
       return;
     }
 
-    // Resolve socket directory from loader options
-    const socketDir = options.socketDir ? path.resolve(rootContext, options.socketDir) : undefined;
-
     // Convert types.ts path to types.md path
     const typesMarkdownPath = this.resourcePath.replace(/\.tsx?$/, '.md');
 
@@ -159,6 +162,9 @@ export async function loadPrecomputedTypes(
               ? path.resolve(rootContext, options.updateParentIndex.baseDir)
               : rootContext,
             indexFileName: options.updateParentIndex.indexFileName,
+            // Forward cacheDir so the types-driven parent-index update also warms the
+            // pages-index cache (otherwise only the MDX path / on-miss reader populate it).
+            cacheDir: options.updateParentIndex.cacheDir,
           }
         : undefined;
 
@@ -169,13 +175,14 @@ export async function loadPrecomputedTypes(
       variants: typesMetaCall.variants,
       watchSourceDirectly: Boolean(typesMetaCall.structuredOptions?.watchSourceDirectly),
       formattingOptions: options.formatting,
-      socketDir,
       performanceLogging: options.performance?.logging,
       updateParentIndex,
       externalTypesPattern: options.externalTypesPattern,
       ordering: options.ordering,
       descriptionReplacements: options.descriptionReplacements,
+      inheritedExternalProps: options.inheritedExternalProps,
       codeBlockEmphasisOptions: options.codeBlockEmphasisOptions,
+      cacheDir: options.cacheDir,
       sync: true,
       output: 'hastCompressed',
     });

@@ -6,6 +6,7 @@ import { useType } from '@mui/internal-docs-infra/useType';
 import type { TypeRefProps } from '@mui/internal-docs-infra/useType';
 import { TypesTable } from '@/app/docs-infra/hooks/use-types/demos/TypesTable';
 import { PopoverArrow } from '@/components/PopoverArrow/PopoverArrow';
+import { getHrefTargetId, useCurrentTypesTableId } from '@/components/TypesTableContext';
 import styles from './TypeRef.module.css';
 
 const EMPTY_SET = new Set<string>();
@@ -22,12 +23,23 @@ const ActiveTypeRefContext = React.createContext<ReadonlySet<string>>(EMPTY_SET)
  */
 export function TypeRef({ href, name, className, children }: TypeRefProps) {
   const activeTypeNames = React.useContext(ActiveTypeRefContext);
+  const currentTypesTableId = useCurrentTypesTableId();
   const typeData = useType(name);
   const aliases = typeData?.meta.aliases;
+  const targetId = getHrefTargetId(href);
+  const isCurrentTypesTableLink = Boolean(currentTypesTableId && targetId === currentTypesTableId);
   const nextActiveTypeNames = React.useMemo(
     () => new Set([...activeTypeNames, name, ...(aliases ?? [])]),
     [activeTypeNames, name, aliases],
   );
+
+  if (isCurrentTypesTableLink) {
+    return (
+      <a href={href} className={[className, styles.fallback].filter(Boolean).join(' ')}>
+        {children}
+      </a>
+    );
+  }
 
   // Render a plain span for circular type references (direct or through intermediaries)
   if (activeTypeNames.has(name)) {
@@ -52,17 +64,21 @@ export function TypeRef({ href, name, className, children }: TypeRefProps) {
         <Popover.Positioner sideOffset={8}>
           <Popover.Popup className={styles.popup}>
             <PopoverArrow />
-            <div className={styles.header}>
-              <a href={href} className={styles.link}>
-                Go to full documentation
-              </a>
-              <Popover.Close aria-label="Close" className={styles.close}>
-                &times;
-              </Popover.Close>
+            <div className={styles.content}>
+              <div className={styles.scrollArea}>
+                <div className={styles.header}>
+                  <a href={href} className={styles.link}>
+                    Go to full documentation
+                  </a>
+                  <Popover.Close aria-label="Close" className={styles.close}>
+                    &times;
+                  </Popover.Close>
+                </div>
+                <ActiveTypeRefContext.Provider value={nextActiveTypeNames}>
+                  <TypesTable type={typeData.meta} additionalTypes={[]} />
+                </ActiveTypeRefContext.Provider>
+              </div>
             </div>
-            <ActiveTypeRefContext.Provider value={nextActiveTypeNames}>
-              <TypesTable type={typeData.meta} additionalTypes={[]} />
-            </ActiveTypeRefContext.Provider>
           </Popover.Popup>
         </Popover.Positioner>
       </Popover.Portal>

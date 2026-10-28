@@ -4,12 +4,12 @@ import * as React from 'react';
 import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { useDemo } from '@mui/internal-docs-infra/useDemo';
 import { Tabs } from '@/components/Tabs';
+import { DemoError } from '@/components/DemoError';
 import { CodeActionsMenu } from './CodeActionsMenu';
 import { CodeBlockHeader, CodeBlockHeaderLabel } from './CodeBlockHeader';
+import { CodeSource } from './CodeSource';
 import { DemoVariantBar } from './DemoVariantBar';
 import styles from './DemoContent.module.css';
-
-import './syntax.css';
 
 const variantNames: Record<string, string | undefined> = {
   CssModules: 'CSS Modules',
@@ -17,17 +17,14 @@ const variantNames: Record<string, string | undefined> = {
 
 export function DemoContent(props: ContentProps<object>) {
   // @focus-start
-  const demo = useDemo(props, { preClassName: styles.codeBlock });
+  const demo = useDemo(props, {
+    preClassName: styles.codeBlock,
+  });
 
   const hasJsTransform = demo.availableTransforms.includes('js');
   const isJsSelected = demo.selectedTransform === 'js';
 
-  const toggleJs = React.useCallback(
-    (enabled: boolean) => {
-      demo.selectTransform(enabled ? 'js' : null);
-    },
-    [demo],
-  );
+  const toggleJs = (enabled: boolean) => demo.selectTransform(enabled ? 'js' : null);
 
   const tabs = React.useMemo(
     () => demo.files.map(({ name, slug }) => ({ id: name, name, slug })),
@@ -41,15 +38,6 @@ export function DemoContent(props: ContentProps<object>) {
 
   const hasTabs = tabs.length > 1;
 
-  const selectedFileSlug = React.useMemo(
-    () =>
-      demo.allFilesSlugs.find(
-        (entry) =>
-          entry.fileName === demo.selectedFileName && entry.variantName === demo.selectedVariant,
-      )?.slug,
-    [demo.allFilesSlugs, demo.selectedFileName, demo.selectedVariant],
-  );
-
   return (
     <div>
       {demo.allFilesSlugs.map(({ slug }) => (
@@ -62,7 +50,10 @@ export function DemoContent(props: ContentProps<object>) {
             selectedVariant={demo.selectedVariant}
             onVariantChange={demo.selectVariant}
           />
-          <div className={styles.demoSurface}>{demo.component}</div>
+          <div className={styles.demoSurface}>
+            <DemoError error={demo.error} />
+            {demo.component}
+          </div>
         </div>
         <div className={styles.codeSection}>
           <CodeBlockHeader
@@ -73,7 +64,7 @@ export function DemoContent(props: ContentProps<object>) {
                 onCopyMarkdown={hasTabs ? demo.copyMarkdown : undefined}
                 fileUrl={demo.selectedFileUrl}
                 fileName={demo.selectedFileName}
-                fileSlug={selectedFileSlug}
+                fileSlug={demo.selectedFileSlug}
                 jsTransform={
                   hasJsTransform ? { enabled: isJsSelected, onToggle: toggleJs } : undefined
                 }
@@ -90,7 +81,7 @@ export function DemoContent(props: ContentProps<object>) {
               <CodeBlockHeaderLabel>{demo.selectedFileName}</CodeBlockHeaderLabel>
             )}
           </CodeBlockHeader>
-          <div className={styles.code}>{demo.selectedFile}</div>
+          <CodeSource className={styles.code}>{demo.selectedFile}</CodeSource>
         </div>
       </div>
     </div>

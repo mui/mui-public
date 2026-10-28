@@ -1,11 +1,11 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   getAvailableTransforms,
-  createTransformedFiles,
-  applyTransformToSource,
+  getApplicableTransforms,
+  shouldHighlightForRender,
 } from './useCodeUtils';
 import { extractNameAndSlugFromUrl } from '../pipeline/loaderUtils';
-import type { Code, VariantCode, ContentProps } from '../CodeHighlighter/types';
+import type { Code, ContentProps } from '../CodeHighlighter/types';
 
 describe('useCodeUtils', () => {
   describe('getAvailableTransforms', () => {
@@ -21,20 +21,17 @@ describe('useCodeUtils', () => {
       expect(result).toEqual([]);
     });
 
-    it('should return transforms with deltas from main variant', () => {
+    it('should return transforms from main variant manifest', () => {
+      // After the embed split, variant-level `transforms` is a manifest.
+      // The producer (`splitTransformsForEmbed`) marks entries with a real
+      // embedded delta as `hasDelta: true`; `getAvailableTransforms` uses
+      // that flag to decide which transforms surface in the UI toggle.
       const effectiveCode: Code = {
         Default: {
           source: 'const x = 1;',
           fileName: 'test.js',
           transforms: {
-            'js-to-ts': {
-              delta: { 0: ['const x: number = 1;'] },
-              fileName: 'test.ts',
-            },
-            'no-delta': {
-              delta: {}, // Empty delta - should not be included
-              fileName: 'test.renamed.js',
-            },
+            'js-to-ts': { fileName: 'test.ts', hasDelta: true },
           },
         },
       };
@@ -92,353 +89,57 @@ describe('useCodeUtils', () => {
       const result = getAvailableTransforms(effectiveCode, 'Default');
       expect(result).toEqual(['main-transform', 'extra-transform']);
     });
-  });
 
-  describe('applyTransformToSource', () => {
-    it('should return original source when no transforms provided', () => {
-      const result = applyTransformToSource('const x = 1;', 'test.js', undefined, 'nonexistent');
-
-      expect(result).toEqual({
-        transformedSource: 'const x = 1;',
-        transformedName: 'test.js',
-      });
-    });
-
-    it('should return original source when transform has no delta', () => {
-      const transforms = {
-        'rename-only': {
-          delta: {}, // Empty delta
-          fileName: 'renamed.js',
+    it('skips rename-only manifest entries (hasDelta: false)', () => {
+      // The transform toggle is bound to `getAvailableTransforms`, so
+      // rename-only entries (no real source delta) must stay invisible
+      // — there's nothing for the user to toggle between.
+      const effectiveCode: Code = {
+        Default: {
+          source: 'const x = 1;',
+          fileName: 'test.ts',
+          transforms: {
+            javascript: { fileName: 'test.js', hasDelta: false },
+          },
         },
       };
 
-      const result = applyTransformToSource('const x = 1;', 'test.js', transforms, 'rename-only');
-
-      expect(result).toEqual({
-        transformedSource: 'const x = 1;',
-        transformedName: 'test.js',
-      });
+      const result = getAvailableTransforms(effectiveCode, 'Default');
+      expect(result).toEqual([]);
     });
   });
 
-  describe('createTransformedFiles', () => {
-    it('should return undefined when no variant provided', () => {
-      const result = createTransformedFiles(null, 'some-transform');
-      expect(result).toBeUndefined();
-    });
-
-    it('should return undefined when no transform selected', () => {
-      const variant: VariantCode = {
-        source: 'const x = 1;',
-        fileName: 'test.js',
+  describe('getApplicableTransforms', () => {
+    it('includes both delta-bearing and rename-only entries', () => {
+      // `getApplicableTransforms` is the resolution set used to decide
+      // whether a stored preference (or `initialTransform`) should apply.
+      // It must surface rename-only entries too so a preference like
+      // 'javascript' can still apply the rename even when the toggle
+      // is hidden.
+      const effectiveCode: Code = {
+        Default: {
+          source: 'const x = 1;',
+          fileName: 'test.ts',
+          transforms: {
+            javascript: { fileName: 'test.js', hasDelta: false },
+            typed: { delta: { 0: ['const x: number = 1;'] }, fileName: 'test.ts' },
+          },
+        },
       };
 
-      const result = createTransformedFiles(variant, null);
-      expect(result).toBeUndefined();
+      const result = getApplicableTransforms(effectiveCode, 'Default');
+      expect(result).toEqual(['javascript', 'typed']);
     });
 
-    it('should return empty files when no fileName and no extraFiles with transforms', () => {
-      const variant: VariantCode = {
-        source: 'const x = 1;',
-        // No fileName and no extraFiles with meaningful transforms
+    it('returns an empty array when no transforms are defined', () => {
+      const effectiveCode: Code = {
+        Default: {
+          source: 'const x = 1;',
+          fileName: 'test.js',
+        },
       };
 
-      const result = createTransformedFiles(variant, 'some-transform');
-      expect(result).toEqual({ files: [], filenameMap: {} });
-    });
-
-    it('should transform main file with transforms', () => {
-      const variant: VariantCode = {
-        source: 'const x = 1;',
-        fileName: 'test.js',
-        transforms: {
-          'js-to-ts': {
-            delta: { 0: ['const x: number = 1;'] },
-            fileName: 'test.ts',
-          },
-        },
-      } as any;
-
-      const result = createTransformedFiles(variant, 'js-to-ts');
-
-      expect(result).toBeDefined();
-      expect(result!.files).toHaveLength(1);
-      expect(result!.files[0].name).toBe('test.ts');
-      expect(result!.files[0].source).toBeDefined();
-    });
-
-    it('should return files from extraFiles when main file has no transform delta', () => {
-      const variant: VariantCode = {
-        source: 'const x = 1;',
-        fileName: 'test.js',
-        transforms: {
-          'js-to-ts': {
-            delta: {}, // Empty delta - main file has no meaningful transform
-            fileName: 'test.ts',
-          },
-        },
-        extraFiles: {
-          'utils.js': {
-            source: 'export const util = () => {};',
-            transforms: {
-              'js-to-ts': {
-                delta: { 0: ['export const util = (): void => {};'] },
-                fileName: 'utils.ts',
-              },
-            },
-          },
-        },
-      } as any;
-
-      const result = createTransformedFiles(variant, 'js-to-ts');
-
-      expect(result).toBeDefined();
-      expect(result!.files).toHaveLength(2);
-      // Both files should be included - main file untransformed, utils.js transformed
-      expect(result!.files.map((f) => f.name)).toEqual(['test.js', 'utils.ts']);
-      expect(result!.files.map((f) => f.originalName)).toEqual(['test.js', 'utils.js']);
-      expect(result!.filenameMap).toEqual({
-        'test.js': 'test.js', // Untransformed
-        'utils.js': 'utils.ts', // Transformed
-      });
-    });
-
-    it('should return files from extraFiles when main file has no fileName', () => {
-      const variant: VariantCode = {
-        source: 'const x = 1;',
-        // No fileName for main file
-        extraFiles: {
-          'config.js': {
-            source: 'module.exports = {};',
-            transforms: {
-              'js-to-ts': {
-                delta: { 0: ['export default {};'] },
-                fileName: 'config.ts',
-              },
-            },
-          },
-          'helper.js': {
-            source: 'function help() {}',
-            transforms: {
-              'js-to-ts': {
-                delta: { 0: ['function help(): void {}'] },
-                fileName: 'helper.ts',
-              },
-            },
-          },
-        },
-      } as any;
-
-      const result = createTransformedFiles(variant, 'js-to-ts');
-
-      expect(result).toBeDefined();
-      expect(result!.files).toHaveLength(2);
-      expect(result!.files.map((f) => f.name)).toEqual(['config.ts', 'helper.ts']);
-      expect(result!.files.map((f) => f.originalName)).toEqual(['config.js', 'helper.js']);
-      expect(result!.filenameMap).toEqual({
-        'config.js': 'config.ts',
-        'helper.js': 'helper.ts',
-      });
-    });
-
-    it('should include all files when at least one has meaningful transform deltas', () => {
-      const variant: VariantCode = {
-        source: 'const x = 1;',
-        fileName: 'test.js',
-        transforms: {
-          'js-to-ts': {
-            delta: { 0: ['const x: number = 1;'] },
-            fileName: 'test.ts',
-          },
-        },
-        extraFiles: {
-          'utils.js': {
-            source: 'export const util = () => {};',
-            transforms: {
-              'js-to-ts': {
-                delta: { 0: ['export const util = (): void => {};'] },
-                fileName: 'utils.ts',
-              },
-            },
-          },
-          'config.js': {
-            source: 'module.exports = {};',
-            transforms: {
-              'js-to-ts': {
-                delta: {}, // Empty delta - should still be included but untransformed
-                fileName: 'config.ts',
-              },
-            },
-          },
-          'readme.md': 'Simple string file', // No transforms - should still be included
-        },
-      } as any;
-
-      const result = createTransformedFiles(variant, 'js-to-ts');
-
-      expect(result).toBeDefined();
-      expect(result!.files).toHaveLength(4);
-      expect(result!.files.map((f) => f.name)).toEqual([
-        'test.ts',
-        'utils.ts',
-        'config.js',
-        'readme.md',
-      ]);
-      expect(result!.files.map((f) => f.originalName)).toEqual([
-        'test.js',
-        'utils.js',
-        'config.js',
-        'readme.md',
-      ]);
-      expect(result!.filenameMap).toEqual({
-        'test.js': 'test.ts', // Transformed
-        'utils.js': 'utils.ts', // Transformed
-        'config.js': 'config.js', // Untransformed (empty delta)
-        'readme.md': 'readme.md', // Untransformed (no transforms)
-      });
-    });
-
-    it('should return empty when no files have meaningful transform deltas', () => {
-      const variant: VariantCode = {
-        source: 'const x = 1;',
-        fileName: 'test.js',
-        transforms: {
-          'js-to-ts': {
-            delta: {}, // Empty delta
-            fileName: 'test.ts',
-          },
-        },
-        extraFiles: {
-          'config.js': {
-            source: 'module.exports = {};',
-            transforms: {
-              'js-to-ts': {
-                delta: {}, // Empty delta
-                fileName: 'config.ts',
-              },
-            },
-          },
-          'readme.md': 'Simple string file', // No transforms
-        },
-      } as any;
-
-      const result = createTransformedFiles(variant, 'js-to-ts');
-
-      expect(result).toEqual({ files: [], filenameMap: {} });
-    });
-
-    it('should handle mixed scenarios with main file and extraFiles transforms', () => {
-      const variant: VariantCode = {
-        source: 'const x = 1;',
-        fileName: 'test.js',
-        transforms: {
-          'js-to-ts': {
-            delta: {}, // Main file has no meaningful delta
-            fileName: 'test.ts',
-          },
-          'add-strict': {
-            delta: { 0: ['"use strict"; const x = 1;'] }, // But has delta for different transform
-            fileName: 'test.js',
-          },
-        },
-        extraFiles: {
-          'utils.js': {
-            source: 'export const util = () => {};',
-            transforms: {
-              'js-to-ts': {
-                delta: { 0: ['export const util = (): void => {};'] },
-                fileName: 'utils.ts',
-              },
-            },
-          },
-          'types.js': {
-            source: 'export const types = {};',
-            transforms: {
-              'different-transform': {
-                delta: { 0: ['export const types: {} = {};'] },
-                fileName: 'types.ts',
-              },
-            },
-          },
-        },
-      } as any;
-
-      // Test with 'js-to-ts' transform - utils.js should be transformed, main file should be untransformed
-      const result1 = createTransformedFiles(variant, 'js-to-ts');
-      expect(result1).toBeDefined();
-      expect(result1!.files).toHaveLength(3); // All files included
-      expect(result1!.files.map((f) => f.name)).toEqual(['test.js', 'utils.ts', 'types.js']);
-      expect(result1!.filenameMap).toEqual({
-        'test.js': 'test.js', // Untransformed (empty delta)
-        'utils.js': 'utils.ts', // Transformed
-        'types.js': 'types.js', // Untransformed (no transform for this key)
-      });
-
-      // Test with 'add-strict' transform - only main file should be transformed
-      const result2 = createTransformedFiles(variant, 'add-strict');
-      expect(result2).toBeDefined();
-      expect(result2!.files).toHaveLength(3); // All files included
-      expect(result2!.files.map((f) => f.name)).toEqual(['test.js', 'utils.js', 'types.js']);
-      expect(result2!.filenameMap).toEqual({
-        'test.js': 'test.js', // Transformed (but same name)
-        'utils.js': 'utils.js', // Untransformed (no transform for this key)
-        'types.js': 'types.js', // Untransformed (no transform for this key)
-      });
-
-      // Test with 'different-transform' - only types.js should be transformed
-      const result3 = createTransformedFiles(variant, 'different-transform');
-      expect(result3).toBeDefined();
-      expect(result3!.files).toHaveLength(3); // All files included
-      expect(result3!.files.map((f) => f.name)).toEqual(['test.js', 'utils.js', 'types.ts']);
-      expect(result3!.filenameMap).toEqual({
-        'test.js': 'test.js', // Untransformed (no transform for this key)
-        'utils.js': 'utils.js', // Untransformed (no transform for this key)
-        'types.js': 'types.ts', // Transformed
-      });
-    });
-
-    it('should handle filename conflicts by skipping conflicting files', () => {
-      const variant: VariantCode = {
-        source: 'const x = 1;',
-        fileName: 'test.js',
-        transforms: {
-          'js-to-ts': {
-            delta: { 0: ['const x: number = 1;'] },
-            fileName: 'utils.ts', // This will conflict with extraFile
-          },
-        },
-        extraFiles: {
-          'utils.js': {
-            source: 'export const util = () => {};',
-            transforms: {
-              'js-to-ts': {
-                delta: { 0: ['export const util = (): void => {};'] },
-                fileName: 'utils.ts', // Same name as main file transform
-              },
-            },
-          },
-        },
-      } as any;
-
-      // Mock console.warn to verify warning is logged
-      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
-      const result = createTransformedFiles(variant, 'js-to-ts');
-
-      expect(result).toBeDefined();
-      expect(result!.files).toHaveLength(1);
-      // Main file should be included (processed first)
-      expect(result!.files[0].name).toBe('utils.ts');
-      expect(result!.files[0].originalName).toBe('test.js');
-
-      // Warning should be logged for the conflicting extraFile
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining(
-          'Transform conflict: utils.js would transform to utils.ts but that name is already taken',
-        ),
-      );
-
-      consoleSpy.mockRestore();
+      expect(getApplicableTransforms(effectiveCode, 'Default')).toEqual([]);
     });
   });
 
@@ -609,6 +310,50 @@ describe('useCodeUtils', () => {
         name: 'Content Demo',
         slug: 'content-demo',
       });
+    });
+  });
+
+  describe('shouldHighlightForRender', () => {
+    it('returns true when no gate is set', () => {
+      expect(
+        shouldHighlightForRender({
+          deferHighlight: false,
+        }),
+      ).toBe(true);
+    });
+
+    it('returns false while the pipeline asks to defer highlighting', () => {
+      // `deferHighlight` always wins: the incoming tree's parse /
+      // transform is still in flight, so there are no spans to paint.
+      expect(
+        shouldHighlightForRender({
+          deferHighlight: true,
+        }),
+      ).toBe(false);
+    });
+
+    it('returns false while highlightReady is false even when no parse is in flight', () => {
+      // Regression: when `highlightAfter` is `'hydration' | 'idle' | 'visible'`
+      // and the trigger hasn't fired yet, the published `code` still
+      // contains precomputed HAST (left over from SSR). Without
+      // consulting `highlightReady`, `<Pre>` would render that HAST
+      // as highlighted spans on the first paint — defeating the whole
+      // point of the deferred-highlighting trigger.
+      expect(
+        shouldHighlightForRender({
+          deferHighlight: false,
+          highlightReady: false,
+        }),
+      ).toBe(false);
+    });
+
+    it('returns true once highlightReady flips to true and the defer gate is clear', () => {
+      expect(
+        shouldHighlightForRender({
+          deferHighlight: false,
+          highlightReady: true,
+        }),
+      ).toBe(true);
     });
   });
 });

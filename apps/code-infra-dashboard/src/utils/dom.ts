@@ -5,6 +5,14 @@ export function escapeHtmlId(str: string): string {
     .replace(/^-|-$/g, '');
 }
 
+export function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 export function scrollToHash(): void {
   const { hash } = window.location;
   if (hash) {

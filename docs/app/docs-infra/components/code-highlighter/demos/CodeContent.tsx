@@ -6,9 +6,8 @@ import { useCode } from '@mui/internal-docs-infra/useCode';
 import { Tabs } from '@/components/Tabs';
 import { CodeActionsMenu } from './CodeActionsMenu';
 import { CodeBlockHeader, CodeBlockHeaderLabel } from './CodeBlockHeader';
+import { CodeSource } from './CodeSource';
 import styles from './CodeContent.module.css';
-
-import './syntax.css';
 
 const variantNames: Record<string, string | undefined> = {
   CssModules: 'CSS Modules',
@@ -16,20 +15,17 @@ const variantNames: Record<string, string | undefined> = {
 
 export function CodeContent(props: ContentProps<object>) {
   // @focus-start
-  const code = useCode(props, { preClassName: styles.codeBlock });
+  const code = useCode(props, {
+    preClassName: styles.codeBlock,
+  });
 
   const hasJsTransform = code.availableTransforms.includes('js');
   const isJsSelected = code.selectedTransform === 'js';
 
-  const toggleJs = React.useCallback(
-    (enabled: boolean) => {
-      code.selectTransform(enabled ? 'js' : null);
-    },
-    [code],
-  );
+  const toggleJs = (enabled: boolean) => code.selectTransform(enabled ? 'js' : null);
 
   const tabs = React.useMemo(
-    () => code.files.map(({ name }) => ({ id: name, name })),
+    () => code.files.map(({ name, slug }) => ({ id: name, name, slug })),
     [code.files],
   );
   const variants = React.useMemo(
@@ -39,15 +35,6 @@ export function CodeContent(props: ContentProps<object>) {
   );
 
   const hasTabs = tabs.length > 1;
-
-  const selectedFileSlug = React.useMemo(
-    () =>
-      code.allFilesSlugs.find(
-        (entry) =>
-          entry.fileName === code.selectedFileName && entry.variantName === code.selectedVariant,
-      )?.slug,
-    [code.allFilesSlugs, code.selectedFileName, code.selectedVariant],
-  );
 
   return (
     <div>
@@ -64,7 +51,7 @@ export function CodeContent(props: ContentProps<object>) {
               onCopyMarkdown={hasTabs ? code.copyMarkdown : undefined}
               fileUrl={code.selectedFileUrl}
               fileName={code.selectedFileName}
-              fileSlug={selectedFileSlug}
+              fileSlug={code.selectedFileSlug}
               jsTransform={
                 hasJsTransform ? { enabled: isJsSelected, onToggle: toggleJs } : undefined
               }
@@ -90,7 +77,7 @@ export function CodeContent(props: ContentProps<object>) {
             <CodeBlockHeaderLabel>{code.selectedFileName}</CodeBlockHeaderLabel>
           )}
         </CodeBlockHeader>
-        <div className={styles.code}>{code.selectedFile}</div>
+        <CodeSource className={styles.code}>{code.selectedFile}</CodeSource>
       </div>
     </div>
   );

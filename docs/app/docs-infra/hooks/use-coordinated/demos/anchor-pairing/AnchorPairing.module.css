@@ -1,0 +1,253 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #d0cdd7;
+  border-radius: 8px;
+  background-color: #f7f5f9;
+}
+
+.modePicker {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.modeLegend {
+  display: none;
+}
+
+.modeOption {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid #d0cdd7;
+  background-color: #ffffff;
+  font-family: var(--font-code);
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.modeOption[data-active='true'] {
+  color: #ffffff;
+}
+
+.modeOption[data-active='true'][data-quality='bad'] {
+  background-color: color(display-p3 0.78 0.24 0.26);
+  border-color: color(display-p3 0.78 0.24 0.26);
+}
+
+.modeOption[data-active='true'][data-quality='good'] {
+  background-color: color(display-p3 0.16 0.55 0.36);
+  border-color: color(display-p3 0.16 0.55 0.36);
+}
+
+.modeBadge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background-color: rgb(0 0 0 / 0.08);
+}
+
+.modeOption[data-quality='bad'] .modeBadge {
+  background-color: color(display-p3 0.78 0.24 0.26 / 0.14);
+  color: color(display-p3 0.6 0.16 0.18);
+}
+
+.modeOption[data-quality='good'] .modeBadge {
+  background-color: color(display-p3 0.16 0.55 0.36 / 0.16);
+  color: color(display-p3 0.1 0.4 0.24);
+}
+
+.modeOption[data-active='true'] .modeBadge {
+  background-color: rgb(255 255 255 / 0.22);
+  color: #ffffff;
+}
+
+.modeOption input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.hint {
+  margin: 0;
+  padding: 8px 12px;
+  border-left: 3px solid #d0cdd7;
+  background-color: #faf9fc;
+  font-size: 13px;
+  color: #4a4a4a;
+  line-height: 1.5;
+}
+
+.hint[data-quality='bad'] {
+  border-left-color: color(display-p3 0.78 0.24 0.26);
+  background-color: color(display-p3 0.78 0.24 0.26 / 0.06);
+}
+
+.hint[data-quality='good'] {
+  border-left-color: color(display-p3 0.16 0.55 0.36);
+  background-color: color(display-p3 0.16 0.55 0.36 / 0.06);
+}
+
+/* A fixed-height scrollable viewport stands in for the page so the
+ * scroll-anchoring effect is visible inside the docs flow. */
+.viewport {
+  position: relative;
+  height: 360px;
+  overflow: auto;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.intro {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.scrollHint {
+  display: inline-block;
+  padding: 6px 10px;
+  background: #f7f5f9;
+  border: 1px dashed #d0cdd7;
+  border-radius: 6px;
+}
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.card {
+  position: relative;
+  padding: 10px 12px;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  background: white;
+}
+
+.card[data-loading] {
+  background: #fffbea;
+  border-color: #ffe69c;
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.cardTitle {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #374151;
+}
+
+.cardBadge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  background: #fff3cd;
+  color: #664d03;
+  border: 1px solid #ffe69c;
+  /* Always render so toggling "Loading…" never reflows the header. */
+  visibility: hidden;
+}
+
+.cardBadge[data-visible] {
+  visibility: visible;
+}
+
+.cardMeta {
+  font-size: 12px;
+  color: #6b7280;
+  margin: 4px 0;
+}
+
+.cardPending {
+  margin-left: 6px;
+  color: #b45309;
+  font-family: var(--font-code);
+  /* Reserve inline space so the pending arrow appearing during
+   * coordination doesn't reflow the meta line. */
+  visibility: hidden;
+}
+
+.cardPending[data-visible] {
+  visibility: visible;
+}
+
+.cardLines {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.buttonRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 2px solid color(display-p3 0.523 0.318 0.751);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.08);
+}
+
+.buttonRowLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: color(display-p3 0.42 0.24 0.62);
+  margin-right: 4px;
+}
+
+.detailButton {
+  padding: 4px 10px;
+  font-size: 12px;
+  border: 1px solid #d0d7de;
+  background: white;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: var(--font-code);
+}
+
+.detailButtonSelected {
+  background: #0969da;
+  color: white;
+  border-color: #0969da;
+}
+
+.outro {
+  font-size: 12px;
+  color: #6b7280;
+  padding: 12px 0 0;
+  border-top: 1px dashed #e5e7eb;
+}

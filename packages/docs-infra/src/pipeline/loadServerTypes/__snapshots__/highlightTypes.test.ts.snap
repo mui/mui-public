@@ -56,6 +56,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
                 "properties": {
                   "className": [
                     "pl-k",
+                    "di-pu",
                   ],
                 },
                 "tagName": "span",
@@ -86,15 +87,27 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
               },
             ],
             "properties": {
-              "className": "line",
+              "className": [
+                "line",
+              ],
               "dataLn": 1,
             },
             "tagName": "span",
             "type": "element",
           },
         ],
+        "data": {
+          "fallback": [
+            {
+              "type": "text",
+              "value": "const { getRootProps } = useButton();",
+            },
+          ],
+        },
         "properties": {
-          "className": "frame",
+          "className": [
+            "frame",
+          ],
           "dataFrameType": "focus",
           "dataLined": "",
         },
@@ -106,6 +119,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
       "appliedEnhancers": [
         "enhanceCodeEmphasis",
       ],
+      "focusedLines": 1,
       "totalLines": 1,
     },
     "type": "root",
@@ -156,7 +170,9 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
               },
             ],
             "properties": {
-              "className": "line",
+              "className": [
+                "line",
+              ],
               "dataLn": 1,
             },
             "tagName": "span",
@@ -198,6 +214,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
                 "properties": {
                   "className": [
                     "pl-k",
+                    "di-pu",
                   ],
                 },
                 "tagName": "span",
@@ -229,7 +246,9 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
               },
             ],
             "properties": {
-              "className": "line",
+              "className": [
+                "line",
+              ],
               "dataLn": 2,
             },
             "tagName": "span",
@@ -248,15 +267,29 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
               },
             ],
             "properties": {
-              "className": "line",
+              "className": [
+                "line",
+              ],
               "dataLn": 3,
             },
             "tagName": "span",
             "type": "element",
           },
         ],
+        "data": {
+          "fallback": [
+            {
+              "type": "text",
+              "value": "interface UseButtonOptions {
+  disabled?: boolean;
+}",
+            },
+          ],
+        },
         "properties": {
-          "className": "frame",
+          "className": [
+            "frame",
+          ],
           "dataFrameType": "focus",
           "dataLined": "",
         },
@@ -268,6 +301,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
       "appliedEnhancers": [
         "enhanceCodeEmphasis",
       ],
+      "focusedLines": 3,
       "totalLines": 3,
     },
     "type": "root",
@@ -345,6 +379,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
               "properties": {
                 "className": [
                   "pl-k",
+                  "di-pu",
                 ],
               },
               "tagName": "span",
@@ -375,7 +410,9 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
             },
           ],
           "properties": {
-            "className": "line",
+            "className": [
+              "line",
+            ],
             "dataLn": 1,
           },
           "tagName": "span",
@@ -440,6 +477,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
               "properties": {
                 "className": [
                   "pl-k",
+                  "di-pu",
                 ],
               },
               "tagName": "span",
@@ -474,6 +512,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
               "properties": {
                 "className": [
                   "pl-k",
+                  "di-pu",
                 ],
               },
               "tagName": "span",
@@ -504,7 +543,9 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
             },
           ],
           "properties": {
-            "className": "line",
+            "className": [
+              "line",
+            ],
             "dataLn": 2,
           },
           "tagName": "span",
@@ -584,6 +625,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
               "properties": {
                 "className": [
                   "pl-k",
+                  "di-pu",
                 ],
               },
               "tagName": "span",
@@ -599,6 +641,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
               "properties": {
                 "className": [
                   "pl-smi",
+                  "di-jv",
                 ],
               },
               "tagName": "span",
@@ -693,7 +736,9 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
             },
           ],
           "properties": {
-            "className": "line",
+            "className": [
+              "line",
+            ],
             "dataLn": 3,
           },
           "tagName": "span",
@@ -712,15 +757,30 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
             },
           ],
           "properties": {
-            "className": "line",
+            "className": [
+              "line",
+            ],
             "dataLn": 4,
           },
           "tagName": "span",
           "type": "element",
         },
       ],
+      "data": {
+        "fallback": [
+          {
+            "type": "text",
+            "value": "function Button(props: ButtonProps) {
+  const { children, ...rest } = props;
+  return <button {...rest}>{children}</button>;
+}",
+          },
+        ],
+      },
       "properties": {
-        "className": "frame",
+        "className": [
+          "frame",
+        ],
         "dataFrameType": "focus",
         "dataLined": "",
       },
@@ -732,6 +792,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
     "appliedEnhancers": [
       "enhanceCodeEmphasis",
     ],
+    "focusedLines": 4,
     "totalLines": 4,
   },
   "type": "root",
@@ -766,7 +827,9 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
             },
           ],
           "properties": {
-            "className": "line",
+            "className": [
+              "line",
+            ],
             "dataLn": 1,
           },
           "tagName": "span",
@@ -844,7 +907,9 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
             },
           ],
           "properties": {
-            "className": "line",
+            "className": [
+              "line",
+            ],
             "dataLn": 2,
           },
           "tagName": "span",
@@ -863,15 +928,29 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
             },
           ],
           "properties": {
-            "className": "line",
+            "className": [
+              "line",
+            ],
             "dataLn": 3,
           },
           "tagName": "span",
           "type": "element",
         },
       ],
+      "data": {
+        "fallback": [
+          {
+            "type": "text",
+            "value": ".button {
+  background: var(--button-bg);
+}",
+          },
+        ],
+      },
       "properties": {
-        "className": "frame",
+        "className": [
+          "frame",
+        ],
         "dataFrameType": "focus",
         "dataLined": "",
       },
@@ -883,6 +962,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
     "appliedEnhancers": [
       "enhanceCodeEmphasis",
     ],
+    "focusedLines": 3,
     "totalLines": 3,
   },
   "type": "root",
@@ -922,7 +1002,9 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
             },
           ],
           "properties": {
-            "className": "line",
+            "className": [
+              "line",
+            ],
             "dataLn": 1,
           },
           "tagName": "span",
@@ -981,7 +1063,9 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
             },
           ],
           "properties": {
-            "className": "line",
+            "className": [
+              "line",
+            ],
             "dataLn": 2,
           },
           "tagName": "span",
@@ -1020,15 +1104,29 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
             },
           ],
           "properties": {
-            "className": "line",
+            "className": [
+              "line",
+            ],
             "dataLn": 3,
           },
           "tagName": "span",
           "type": "element",
         },
       ],
+      "data": {
+        "fallback": [
+          {
+            "type": "text",
+            "value": "<Dialog>
+  <DialogTitle>Hello</DialogTitle>
+</Dialog>",
+          },
+        ],
+      },
       "properties": {
-        "className": "frame",
+        "className": [
+          "frame",
+        ],
         "dataFrameType": "focus",
         "dataLined": "",
       },
@@ -1040,6 +1138,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
     "appliedEnhancers": [
       "enhanceCodeEmphasis",
     ],
+    "focusedLines": 3,
     "totalLines": 3,
   },
   "type": "root",
@@ -1101,6 +1200,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
               "properties": {
                 "className": [
                   "pl-k",
+                  "di-pu",
                 ],
               },
               "tagName": "span",
@@ -1169,6 +1269,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
               "properties": {
                 "className": [
                   "pl-k",
+                  "di-pu",
                 ],
               },
               "tagName": "span",
@@ -1229,15 +1330,27 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
             },
           ],
           "properties": {
-            "className": "line",
+            "className": [
+              "line",
+            ],
             "dataLn": 1,
           },
           "tagName": "span",
           "type": "element",
         },
       ],
+      "data": {
+        "fallback": [
+          {
+            "type": "text",
+            "value": "type ButtonVariant = "primary" | "secondary";",
+          },
+        ],
+      },
       "properties": {
-        "className": "frame",
+        "className": [
+          "frame",
+        ],
         "dataFrameType": "focus",
         "dataLined": "",
       },
@@ -1249,6 +1362,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
     "appliedEnhancers": [
       "enhanceCodeEmphasis",
     ],
+    "focusedLines": 1,
     "totalLines": 1,
   },
   "type": "root",

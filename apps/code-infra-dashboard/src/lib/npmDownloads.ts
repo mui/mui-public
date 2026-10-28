@@ -1,4 +1,5 @@
-import dayjs, { type Dayjs } from 'dayjs';
+import dayjs from 'dayjs';
+import type { Dayjs } from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import { fetchJson } from '../utils/http';
 
@@ -48,7 +49,14 @@ export const DOWNLOADS_PRESETS: DownloadsPreset[] = [
   },
   {
     name: 'MUI X',
-    packages: ['@mui/x-data-grid', '@mui/x-date-pickers', '@mui/x-charts-pro', '@mui/x-tree-view'],
+    packages: [
+      '@mui/x-data-grid',
+      '@mui/x-date-pickers',
+      '@mui/x-charts-pro',
+      '@mui/x-tree-view',
+      '@mui/x-chat',
+      '@mui/x-scheduler',
+    ],
   },
   {
     name: 'React UI Libraries',

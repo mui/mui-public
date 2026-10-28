@@ -1,9 +1,9 @@
 import { includeIgnoreFile, fixupConfigRules } from '@eslint/compat';
 import eslintJs from '@eslint/js';
-// TODO: change back to 'eslint/config' once https://github.com/eslint/rewrite/issues/425 is fixed
-import { defineConfig } from '@eslint/config-helpers';
+import { defineConfig } from 'eslint/config';
 import prettier from 'eslint-config-prettier/flat';
 import compatPlugin from 'eslint-plugin-compat';
+import nPlugin from 'eslint-plugin-n';
 import importPlugin from 'eslint-plugin-import';
 import jsxA11yPlugin from 'eslint-plugin-jsx-a11y';
 import reactPlugin from 'eslint-plugin-react';
@@ -18,6 +18,8 @@ import { createCoreConfig } from './mui/config.mjs';
 import muiPlugin from './mui/index.mjs';
 import { EXTENSION_TS } from './extensions.mjs';
 import { createJsonConfig } from './jsonConfig.mjs';
+import { createNodeSupportConfig } from './nodeSupportConfig.mjs';
+import { createPackageJsonConfig } from './packageJsonConfig.mjs';
 
 /**
  * @param {string} filePath
@@ -35,15 +37,15 @@ function includeIgnoreIfExists(filePath, description) {
  * @param {boolean} [params.enableReactCompiler] - Whether to enable React Compiler.
  * @param {boolean} [params.consistentTypeImports] - Whether to enforce consistent type imports.
  * @param {boolean} [params.materialUi] - Whether to enable Material UI specific rules (mui/material-ui-*).
- * @param {boolean} [params.markdown] - Whether to enable markdown/MDX linting via `eslint-plugin-mdx`. Opt-in so dependents can adopt on their own schedule.
  * @param {string} [params.baseDirectory] - The base directory for the configuration.
+ * @param {boolean} [params.markdown] - @deprecated Markdown/MDX linting is enabled by default; this option no longer needs to be passed. To skip markdown linting, use eslint ignore patterns for the relevant files.
  * @returns {import('eslint').Linter.Config[]}
  */
 export function createBaseConfig({
   enableReactCompiler = false,
   consistentTypeImports = false,
   materialUi = false,
-  markdown = false,
+  markdown = true,
   baseDirectory = process.cwd(),
 } = {}) {
   return defineConfig([
@@ -59,6 +61,9 @@ export function createBaseConfig({
       },
       plugins: {
         mui: muiPlugin,
+        // Registered once for all files, so consumers can enable `n/*` rules without registering
+        // a second, possibly different, instance of the plugin.
+        n: nPlugin,
       },
       settings: {
         react: {
@@ -74,6 +79,8 @@ export function createBaseConfig({
     includeIgnoreIfExists(path.join(baseDirectory, '.gitignore'), `Ignore rules from .gitignore`),
     includeIgnoreIfExists(path.join(baseDirectory, '.lintignore'), `Ignore rules from .lintignore`),
     createJsonConfig(),
+    createNodeSupportConfig(baseDirectory),
+    createPackageJsonConfig(),
     prettier,
     // Markdown + MDX linting via eslint-plugin-mdx. Severities for markdown
     // quality checks live in the project's `.remarkrc` (see
@@ -139,6 +146,14 @@ export function createBaseConfig({
             'no-useless-assignment': 'off',
             // Disallows unused vars without explicit init (use @typescript-eslint/no-unused-vars instead)
             'no-unassigned-vars': 'off',
+          },
+        },
+        // @TODO: Remove this once @typescript-eslint/no-shadow supports wrapped functions
+        //   See https://github.com/eslint/eslint/pull/20982 (once merged also needs port to `typescript-eslint`)
+        {
+          name: 'Disabled tseslint-plugins',
+          rules: {
+            '@typescript-eslint/no-shadow': 'off',
           },
         },
       ]),

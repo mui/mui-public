@@ -1,6 +1,6 @@
 # Load Precomputed Types
 
-The precomputed types loader is a Webpack/Turbopack loader that automatically generates comprehensive type documentation for your TypeScript components at build time. Write your components in TypeScript, and the loader extracts props, methods, and type signatures—ready to display in your documentation.
+The precomputed types loader is a webpack/Turbopack loader that automatically generates comprehensive type documentation for your TypeScript components at build time. Write your components in TypeScript, and the loader extracts props, methods, and type signatures—ready to display in your documentation.
 
 > [!TIP]
 > For the high-level rationale behind this pattern see the [Built Factories Pattern](../../patterns/built-factories/).
@@ -14,7 +14,7 @@ The loader processes `types.ts` files that use the `createTypes` factory pattern
 
 ### Key Features
 
-- **Webpack/Turbopack integration**: Works as a standard loader in your build pipeline
+- **webpack/Turbopack integration**: Works as a standard loader in your build pipeline
 - **Automatic precomputation**: Type analysis happens during compilation for zero runtime overhead
 - **Dependency tracking**: Tracks all source files and updates when types change
 - **Performance logging**: Optional detailed timing measurements for debugging
@@ -121,7 +121,7 @@ const nextConfig = {
 
 The loader processes `types.ts` files that contain `createTypes` factory functions:
 
-```text
+```ascii
 app/
 ├── components/
 │   ├── button/
@@ -160,7 +160,6 @@ config.module.rules.push({
       options: {
         performance: { logging: true, notableMs: 100 },
         formatting: { shortTypeUnionPrintWidth: 50, defaultValueUnionPrintWidth: 40 },
-        socketDir: '.next/docs-infra',
         codeBlockEmphasisOptions: { paddingFrameMaxSize: 12, focusFramesMaxSize: 40 },
         // Strip "Documentation: <url>" suffixes from descriptions
         descriptionReplacements: [

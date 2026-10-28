@@ -100,8 +100,8 @@ function processFlatMode(
       finalNames.set(paths[0], candidateName);
     } else {
       // Conflict detected, find optimal minimal distinguishing paths for all files
-      const conflictingFiles = paths.map(
-        (resolvedPath) => fileMapping.find((f) => f.resolvedPath === resolvedPath)!,
+      const conflictingFiles = paths.map((resolvedPath) =>
+        fileMapping.find((f) => f.resolvedPath === resolvedPath)!,
       );
 
       // Check if we can resolve conflicts by treating some files differently
@@ -484,7 +484,7 @@ function processJsImports(
 
 /**
  * Processes imports based on the specified storage mode, automatically handling
- * source rewriting when needed (e.g., for 'flat' mode). Works for both JavaScript and simple file types.
+ * source rewriting when needed (for example, for 'flat' mode). Works for both JavaScript and simple file types.
  *
  * @param source - The original source code
  * @param importResult - The result from parseImports

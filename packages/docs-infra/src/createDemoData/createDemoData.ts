@@ -1,11 +1,6 @@
 import type * as React from 'react';
 import { extractNameAndSlugFromUrl } from '../pipeline/loaderUtils';
-import {
-  type CreateDemoDataMeta,
-  type DemoData,
-  type DemoGlobalData,
-  type DemoGlobalProvider,
-} from './types';
+import type { CreateDemoDataMeta, DemoData, DemoGlobalData, DemoGlobalProvider } from './types';
 
 /**
  * Creates demo data for displaying code examples with syntax highlighting.
@@ -48,6 +43,7 @@ export function createDemoDataWithVariants<
     slug,
     displayName,
     precompute,
+    loadPrecompute: meta?.loadPrecompute,
     url,
     components: variants,
   };

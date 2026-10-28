@@ -25,7 +25,9 @@ type ParseResponse =
   | { type: 'parse'; id: number; ok: true; hast: HastRoot }
   | { type: 'parse'; id: number; ok: false; error: string }
   | { type: 'init-ack' }
-  | { type: 'init-error'; error: string };
+  | { type: 'init-error'; error: string }
+  | { type: 'register-ack' }
+  | { type: 'register-error'; error: string };
 
 type Pending = {
   resolve: (hast: HastRoot) => void;
@@ -43,6 +45,12 @@ export interface ParseSourceWorkerClient {
    */
   init(grammars: Grammar[]): Promise<void>;
   /**
+   * Add more grammars to an already-initialized worker (the per-language path:
+   * a block becomes editable in a language the worker wasn't initialized with).
+   * Resolves on the worker's `register-ack`. Call after `init()`.
+   */
+  register(grammars: Grammar[]): Promise<void>;
+  /**
    * Async syntax-highlighter that runs inside the worker. Returns the same
    * HAST shape as the sync `parseSource`. If `signal` aborts before the
    * worker responds, the in-flight request is dropped and the promise
@@ -58,6 +66,12 @@ export interface ParseSourceWorkerClient {
  *
  * Each client owns exactly one underlying `Worker`. Concurrent in-flight
  * requests are demuxed by a monotonically increasing `id`.
+ *
+ * If the worker dies unexpectedly (a load/parse failure, or a message that fails
+ * to deserialize), every in-flight parse request and pending `init`/`register`
+ * handshake is rejected and the client latches `dead`, so a crash surfaces as a
+ * rejected promise (which the consumer already handles like an abort, falling back
+ * to the synchronous highlighter) rather than a request that hangs forever.
  */
 export function createParseSourceWorkerClient(): ParseSourceWorkerClient {
   // Module workers are required (the worker uses `import` statements). On
@@ -77,11 +91,56 @@ export function createParseSourceWorkerClient(): ParseSourceWorkerClient {
   const pending = new Map<number, Pending>();
   let nextId = 1;
   let initPromise: Promise<void> | null = null;
+  // Latched once the worker dies or is terminated, so later calls reject immediately
+  // rather than hanging on a worker that will never respond.
+  let dead = false;
+  // Reject callbacks for in-flight `init()`/`register()` handshakes, so a worker
+  // crash can fail them too (they listen on their own one-shot listeners, not
+  // `pending`). Each clears itself on settle.
+  const handshakeRejecters = new Set<(reason: unknown) => void>();
+
+  // Reject + forget every in-flight parse request with `reason`, detaching abort
+  // listeners first. Shared by `terminate()` (intentional) and the fatal-error path.
+  const rejectAllPending = (reason: unknown) => {
+    for (const entry of pending.values()) {
+      if (entry.signal && entry.onAbort) {
+        entry.signal.removeEventListener('abort', entry.onAbort);
+      }
+      entry.reject(reason);
+    }
+    pending.clear();
+  };
+
+  // The worker died unexpectedly — a load/parse failure, or a message that could not
+  // be deserialized. (A parse that merely fails is reported as an `ok: false`
+  // response, so it never reaches here.) Reject everything in flight — parse requests
+  // AND pending `init`/`register` handshakes — and latch `dead`; the consumer treats
+  // the rejection like an abort and falls back to the synchronous highlighter.
+  // Idempotent. (Unlike a crash, a deliberate `terminate()` leaves handshakes alone:
+  // the component is unmounting, so a still-pending `init` is simply abandoned.)
+  const handleFatal = (error: Error) => {
+    if (dead) {
+      return;
+    }
+    dead = true;
+    worker.terminate();
+    rejectAllPending(error);
+    for (const reject of [...handshakeRejecters]) {
+      reject(error);
+    }
+    handshakeRejecters.clear();
+  };
 
   worker.addEventListener('message', (event: MessageEvent<ParseResponse>) => {
     const data = event.data;
-    if (data.type === 'init-ack' || data.type === 'init-error') {
-      // `init()` listens for these directly via its own one-shot listener.
+    if (
+      data.type === 'init-ack' ||
+      data.type === 'init-error' ||
+      data.type === 'register-ack' ||
+      data.type === 'register-error'
+    ) {
+      // `init()` / `register()` listen for these directly via their own
+      // one-shot listeners.
       return;
     }
     if (data.type === 'parse') {
@@ -101,35 +160,79 @@ export function createParseSourceWorkerClient(): ParseSourceWorkerClient {
       }
     }
   });
+  worker.addEventListener('error', (event: ErrorEvent) => {
+    handleFatal(new Error(event.message || 'Parse worker errored'));
+  });
+  worker.addEventListener('messageerror', () => {
+    handleFatal(new Error('Parse worker received an undeserializable message'));
+  });
 
   function init(grammars: Grammar[]): Promise<void> {
     if (initPromise) {
       return initPromise;
     }
+    if (dead) {
+      return Promise.reject(new Error('Parse worker is no longer available'));
+    }
     initPromise = new Promise<void>((resolve, reject) => {
-      const onMessage = (event: MessageEvent<ParseResponse>) => {
+      const settle = () => {
+        handshakeRejecters.delete(reject);
+        worker.removeEventListener('message', onMessage);
+      };
+      function onMessage(event: MessageEvent<ParseResponse>) {
         if (event.data.type === 'init-ack') {
-          worker.removeEventListener('message', onMessage);
+          settle();
           resolve();
         } else if (event.data.type === 'init-error') {
-          worker.removeEventListener('message', onMessage);
+          settle();
           reject(new Error(event.data.error));
         }
-      };
+      }
+      handshakeRejecters.add(reject);
       worker.addEventListener('message', onMessage);
       worker.postMessage({ type: 'init', grammars });
     });
     return initPromise;
   }
 
+  function register(grammars: Grammar[]): Promise<void> {
+    if (dead) {
+      return Promise.reject(new Error('Parse worker is no longer available'));
+    }
+    return new Promise<void>((resolve, reject) => {
+      const settle = () => {
+        handshakeRejecters.delete(reject);
+        worker.removeEventListener('message', onMessage);
+      };
+      function onMessage(event: MessageEvent<ParseResponse>) {
+        if (event.data.type === 'register-ack') {
+          settle();
+          resolve();
+        } else if (event.data.type === 'register-error') {
+          settle();
+          reject(new Error(event.data.error));
+        }
+      }
+      handshakeRejecters.add(reject);
+      worker.addEventListener('message', onMessage);
+      worker.postMessage({ type: 'register', grammars });
+    });
+  }
+
   const parseSourceAsync: ParseSourceAsync = async (source, fileName, language, signal) => {
     if (!initPromise) {
       throw new Error('parseSourceAsync called before init(). Call client.init(grammars) first.');
+    }
+    if (dead) {
+      throw new Error('Parse worker is no longer available');
     }
     if (signal?.aborted) {
       throw signal.reason;
     }
     await initPromise;
+    if (dead) {
+      throw new Error('Parse worker is no longer available');
+    }
     if (signal?.aborted) {
       throw signal.reason;
     }
@@ -162,15 +265,10 @@ export function createParseSourceWorkerClient(): ParseSourceWorkerClient {
   };
 
   function terminate(): void {
+    dead = true;
     worker.terminate();
-    for (const entry of pending.values()) {
-      if (entry.signal && entry.onAbort) {
-        entry.signal.removeEventListener('abort', entry.onAbort);
-      }
-      entry.reject(new Error('Worker terminated'));
-    }
-    pending.clear();
+    rejectAllPending(new Error('Worker terminated'));
   }
 
-  return { init, parseSourceAsync, terminate };
+  return { init, register, parseSourceAsync, terminate };
 }

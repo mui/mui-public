@@ -1,18 +1,17 @@
 import { unified } from 'unified';
 import type { Root as HastRoot } from 'hast';
 import transformHtmlCodeInline from '../transformHtmlCodeInline';
-import {
-  transformHtmlCodeBlock,
-  type TransformHtmlCodeBlockOptions,
-} from '../transformHtmlCodeBlock/transformHtmlCodeBlock';
-import {
-  type ComponentTypeMeta,
-  type HookTypeMeta,
-  type FunctionTypeMeta,
-  type TypesMeta,
+import { transformHtmlCodeBlock } from '../transformHtmlCodeBlock/transformHtmlCodeBlock';
+import type { TransformHtmlCodeBlockOptions } from '../transformHtmlCodeBlock/transformHtmlCodeBlock';
+import type {
+  ComponentTypeMeta,
+  HookTypeMeta,
+  FunctionTypeMeta,
+  TypesMeta,
 } from '../loadServerTypesMeta';
 import { formatInlineTypeAsHast } from './typeHighlighting';
-import { resolveSerializer, type TypesOutputFormat } from './hastTypeUtils';
+import { resolveSerializer } from './hastTypeUtils';
+import type { TypesOutputFormat } from './hastTypeUtils';
 
 /**
  * Result of the highlightTypes function.

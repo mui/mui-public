@@ -31,7 +31,7 @@ type lintJavascriptDemoFocus = {
         properties: {
           wrapReturn: {
             type: 'boolean';
-            description: 'When true, bare return statements without parentheses are wrapped in return (...) and the highlight comment is placed inside the parentheses.';
+            description: 'When true, bare return statements without parentheses are wrapped in return (...) and the focus comment is placed inside the parentheses.';
           };
         };
         additionalProperties: false;

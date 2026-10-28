@@ -2,15 +2,38 @@ name: Publish preparation
 
 description: Common setup steps for publishing MUI packages (after checkout)
 
+inputs:
+  node-version:
+    description: 'Node.js version to set up.'
+    required: true
+  scope-alias:
+    description: >
+      An npm scope mapping written as "@from:@to". The publishable workspace
+      packages in the source scope are renamed before they are built, so they
+      publish under the target scope while dependents keep importing the
+      original name. The rename lands in the source tree, so everything
+      downstream of it — git tags, GitHub release titles — carries the target
+      scope too.
+    required: false
+    default: ''
+
 runs:
   using: composite
   steps:
+    # Composite actions don't enforce required inputs, so an omitted version would
+    # otherwise fall through to whatever Node the runner happens to ship.
+    - name: Check inputs
+      if: inputs.node-version == ''
+      shell: bash
+      run: |
+        echo "::error::publish-prepare requires a node-version input."
+        exit 1
     - name: Set up pnpm
-      uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+      uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
     - name: Setup Node.js
-      uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+      uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
       with:
-        node-version: 22.19.0
+        node-version: ${{ inputs.node-version }}
         # https://github.com/actions/setup-node/blob/main/docs/advanced-usage.md#caching-packages-dependencies
         cache: 'pnpm'
         registry-url: 'https://registry.npmjs.org'
@@ -22,6 +45,22 @@ runs:
     - name: Install dependencies
       shell: bash
       run: pnpm install --frozen-lockfile
+    # Between install and build: install needs the committed names to match the
+    # lockfile, and the build has to emit the renamed ones.
+    - name: Rename npm scope
+      if: inputs.scope-alias != ''
+      shell: bash
+      env:
+        SCOPE_ALIAS: ${{ inputs.scope-alias }}
+      run: pnpm code-infra rename-scope "$SCOPE_ALIAS"
+    # The rename changes workspace package names and points dependents at
+    # workspace: aliases, so neither the lockfile nor the workspace state matches
+    # the manifests any more. pnpm verifies both before every run and exec, and on
+    # CI that check installs with a frozen lockfile, so resync it here instead.
+    - name: Sync the lockfile after the rename
+      if: inputs.scope-alias != ''
+      shell: bash
+      run: pnpm install --no-frozen-lockfile
     - name: Build packages
       shell: bash
       run: pnpm run release:build

@@ -4,24 +4,22 @@ import type { Code, ParseSource } from '../../CodeHighlighter/types';
 import { parseCode } from './parseCode';
 
 // Mock parse function that returns proper HAST Root nodes
-const mockParseSource: ParseSource = vi.fn(
-  (_source: string, _fileName: string): Root => ({
-    type: 'root',
-    children: [
-      {
-        type: 'element',
-        tagName: 'pre',
-        properties: {},
-        children: [
-          {
-            type: 'text',
-            value: _source,
-          },
-        ],
-      },
-    ],
-  }),
-);
+const mockParseSource: ParseSource = vi.fn((_source: string, _fileName: string): Root => ({
+  type: 'root',
+  children: [
+    {
+      type: 'element',
+      tagName: 'pre',
+      properties: {},
+      children: [
+        {
+          type: 'text',
+          value: _source,
+        },
+      ],
+    },
+  ],
+}));
 
 const createMockHastRoot = (content: string): Root => ({
   type: 'root',

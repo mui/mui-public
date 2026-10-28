@@ -9,6 +9,7 @@ import { transformMarkdownMetadata } from '../pipeline/transformMarkdownMetadata
 import { parseCreateFactoryCall } from '../pipeline/parseCreateFactoryCall/parseCreateFactoryCall';
 import { syncTypes } from '../pipeline/syncTypes/syncTypes';
 import type { SyncTypesOptions } from '../pipeline/syncTypes/syncTypes';
+import { terminateWorkerManager } from '../pipeline/loadServerTypesMeta/workerManager';
 
 interface IndexTask {
   type: 'index';
@@ -22,6 +23,7 @@ interface IndexTask {
     onlyUpdateIndexes: boolean;
     markerDir: string;
     useVisibleDescription: boolean;
+    cacheDir?: string;
   };
 }
 
@@ -32,6 +34,10 @@ interface TypesTask {
   perf?: boolean;
   syncTypesOptions: Omit<SyncTypesOptions, 'typesMarkdownPath' | 'rootContext' | 'variants'>;
   rootContext: string;
+}
+
+export interface ShutdownTask {
+  type: 'shutdown';
 }
 
 interface SerializedPerfEntry {
@@ -57,6 +63,10 @@ interface TypesResult {
   error?: string;
 }
 
+export interface ShutdownResult {
+  type: 'shutdown';
+}
+
 export type ValidateTask = IndexTask | TypesTask;
 export type ValidateResult = IndexResult | TypesResult;
 
@@ -74,9 +84,12 @@ if (parentPort) {
   // cannot clear measures belonging to a concurrent in-flight task.
   let taskQueue: Promise<void> = Promise.resolve();
 
-  parentPort.on('message', (task: ValidateTask) => {
+  parentPort.on('message', (task: ValidateTask | ShutdownTask) => {
     taskQueue = taskQueue.then(async () => {
-      if (task.type === 'index') {
+      if (task.type === 'shutdown') {
+        await terminateWorkerManager();
+        parentPort!.postMessage({ type: 'shutdown' } satisfies ShutdownResult);
+      } else if (task.type === 'index') {
         try {
           const processor = unified()
             .use(remarkParse)
@@ -135,7 +148,8 @@ if (parentPort) {
               : task.syncTypesOptions.updateParentIndex,
             ordering: task.syncTypesOptions.ordering,
             descriptionReplacements: task.syncTypesOptions.descriptionReplacements,
-            socketDir: task.syncTypesOptions.socketDir,
+            inheritedExternalProps: task.syncTypesOptions.inheritedExternalProps,
+            cacheDir: task.syncTypesOptions.cacheDir,
           });
 
           parentPort!.postMessage({

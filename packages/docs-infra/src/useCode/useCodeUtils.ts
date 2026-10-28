@@ -1,10 +1,22 @@
-import { applyCodeTransform } from '../pipeline/loadIsomorphicCodeVariant/applyCodeTransform';
-import type { VariantSource, VariantCode, Code, Transforms } from '../CodeHighlighter/types';
+import type {
+  VariantSource,
+  Code,
+  Transforms,
+  SourceComments,
+  EditableSourceProjection,
+} from '../CodeHighlighter/types';
 
-interface TransformedFile {
+export interface TransformedFile {
   name: string;
   originalName: string;
   source: VariantSource;
+  sourceProjection?: EditableSourceProjection;
+  /**
+   * Comments map shifted onto the transformed source's line numbering.
+   * Set only when the variant supplied a `comments` map for this file;
+   * entries whose source line was wiped by the transform are dropped.
+   */
+  comments?: SourceComments;
 }
 
 export interface TransformedFiles {
@@ -14,60 +26,80 @@ export interface TransformedFiles {
 
 /**
  * Pure function to get available transforms from effective code data.
- * Only includes transforms that have actual deltas (file changes), not just filename changes.
+ *
+ * Variant-level `transforms` is a manifest produced by `splitTransformsForEmbed`
+ * (or by the legacy `Transforms` shape with deltas, for back-compat). Only
+ * entries that produced a real source delta are reported here — rename-only
+ * entries (manifest entries with `hasDelta: false`, kept around so the
+ * runtime can still apply the rename based on user preference) are filtered
+ * out so the transform toggle stays hidden when nothing meaningful changes.
  *
  * @param effectiveCode - The effective code object containing all variants
  * @param selectedVariantKey - The currently selected variant key
- * @returns Array of available transform keys that have deltas
+ * @returns Array of available transform keys (toggle-visible only)
  */
 export function getAvailableTransforms(effectiveCode: Code, selectedVariantKey: string): string[] {
+  return collectTransformKeys(effectiveCode, selectedVariantKey, { onlyWithDelta: true });
+}
+
+/**
+ * Like `getAvailableTransforms` but also includes rename-only entries
+ * (manifest entries with `hasDelta: false`). Used by the transform
+ * resolution path so a stored preference can still apply a rename even
+ * when its toggle is hidden because no actual delta exists.
+ *
+ * @param effectiveCode - The effective code object containing all variants
+ * @param selectedVariantKey - The currently selected variant key
+ * @returns Array of all applicable transform keys
+ */
+export function getApplicableTransforms(effectiveCode: Code, selectedVariantKey: string): string[] {
+  return collectTransformKeys(effectiveCode, selectedVariantKey, { onlyWithDelta: false });
+}
+
+function collectTransformKeys(
+  effectiveCode: Code,
+  selectedVariantKey: string,
+  { onlyWithDelta }: { onlyWithDelta: boolean },
+): string[] {
   const transforms = new Set<string>();
 
-  if (effectiveCode && selectedVariantKey) {
-    const variantCode = effectiveCode[selectedVariantKey];
-    if (variantCode && typeof variantCode === 'object') {
-      // Check main variant transforms
-      if ('transforms' in variantCode && variantCode.transforms) {
-        Object.keys(variantCode.transforms).forEach((transformKey) => {
-          const transformData = variantCode.transforms![transformKey];
-          // Only include transforms that have actual deltas (file changes)
-          // Check if delta exists and is not empty
-          if (transformData && typeof transformData === 'object' && 'delta' in transformData) {
-            const delta = transformData.delta;
-            // Check if delta has meaningful content (not just an empty object)
-            const hasContent = delta && typeof delta === 'object' && Object.keys(delta).length > 0;
-            if (hasContent) {
-              transforms.add(transformKey);
-            }
-          }
-        });
-      }
+  if (!effectiveCode || !selectedVariantKey) {
+    return [];
+  }
 
-      // Check extraFiles for transforms with deltas
-      if ('extraFiles' in variantCode && variantCode.extraFiles) {
-        Object.values(variantCode.extraFiles).forEach((fileData) => {
-          if (
-            fileData &&
-            typeof fileData === 'object' &&
-            'transforms' in fileData &&
-            fileData.transforms
-          ) {
-            Object.keys(fileData.transforms).forEach((transformKey) => {
-              const transformData = fileData.transforms![transformKey];
-              // Only include transforms that have actual deltas (file changes)
-              // Check if delta exists and is not empty
-              if (transformData && typeof transformData === 'object' && 'delta' in transformData) {
-                const delta = transformData.delta;
-                // Check if delta has meaningful content (not just an empty object)
-                const hasContent =
-                  delta && typeof delta === 'object' && Object.keys(delta).length > 0;
-                if (hasContent) {
-                  transforms.add(transformKey);
-                }
-              }
-            });
-          }
-        });
+  const variantCode = effectiveCode[selectedVariantKey];
+  if (!variantCode || typeof variantCode !== 'object') {
+    return [];
+  }
+
+  const add = (entries: Transforms | undefined) => {
+    if (!entries) {
+      return;
+    }
+    for (const [transformKey, entry] of Object.entries(entries)) {
+      if (!entry) {
+        continue;
+      }
+      if (!onlyWithDelta) {
+        transforms.add(transformKey);
+        continue;
+      }
+      const inlineDelta =
+        !!entry.delta && typeof entry.delta === 'object' && Object.keys(entry.delta).length > 0;
+      if (entry.hasDelta || inlineDelta) {
+        transforms.add(transformKey);
+      }
+    }
+  };
+
+  if ('transforms' in variantCode) {
+    add(variantCode.transforms);
+  }
+
+  if ('extraFiles' in variantCode && variantCode.extraFiles) {
+    for (const fileData of Object.values(variantCode.extraFiles)) {
+      if (fileData && typeof fileData === 'object' && 'transforms' in fileData) {
+        add(fileData.transforms);
       }
     }
   }
@@ -76,179 +108,31 @@ export function getAvailableTransforms(effectiveCode: Code, selectedVariantKey: 
 }
 
 /**
- * Pure helper function to apply transform to a source file.
+ * Decide whether the rendered `<Pre>` should emit highlighted spans on
+ * this render. Two gates compose:
  *
- * @param source - The source code to transform
- * @param fileName - The filename for the source
- * @param transforms - Available transforms for this source
- * @param selectedTransform - The transform to apply
- * @returns Object with transformed source and name
+ * 1. `highlightReady` — the render-side readiness gate published by
+ *    `CodeHighlighterClient`. `false` while the highlight trigger
+ *    (`hydration` / `idle` / `visible`) hasn't fired yet *or* the
+ *    sync `parseCode` pass hasn't resolved. The precomputed HAST on
+ *    the published `code` would render highlighted spans on first
+ *    paint otherwise — defeating the deferred trigger. Treated as
+ *    `true` when undefined so legacy/test consumers without a
+ *    surrounding context default to rendering highlighted.
+ * 2. `deferHighlight` — the narrower pipeline-level signal published
+ *    while the incoming variant's parse / transform deltas are still
+ *    in flight. Always wins: if the tree isn't ready, highlighting
+ *    can't happen.
  */
-export function applyTransformToSource(
-  source: VariantSource,
-  fileName: string,
-  transforms: Transforms | undefined,
-  selectedTransform: string,
-): { transformedSource: VariantSource; transformedName: string } {
-  if (!transforms?.[selectedTransform]) {
-    return { transformedSource: source, transformedName: fileName };
+export function shouldHighlightForRender(args: {
+  deferHighlight: boolean | undefined;
+  highlightReady?: boolean | undefined;
+}): boolean {
+  if (args.deferHighlight) {
+    return false;
   }
-
-  try {
-    // Get transform data
-    const transformData = transforms[selectedTransform];
-    if (!transformData || typeof transformData !== 'object' || !('delta' in transformData)) {
-      return { transformedSource: source, transformedName: fileName };
-    }
-
-    // Check if delta has meaningful content
-    const delta = transformData.delta;
-    const hasContent = delta && typeof delta === 'object' && Object.keys(delta).length > 0;
-    if (!hasContent) {
-      return { transformedSource: source, transformedName: fileName };
-    }
-
-    // Apply transform
-    const result = applyCodeTransform(source, transforms, selectedTransform);
-    const transformedName = transformData.fileName || fileName;
-
-    return { transformedSource: result, transformedName };
-  } catch (error) {
-    console.error(`Transform failed for ${fileName}:`, error);
-    return { transformedSource: source, transformedName: fileName };
+  if (args.highlightReady === false) {
+    return false;
   }
-}
-
-/**
- * Pure function to create transformed files from a variant and selected transform.
- *
- * @param selectedVariant - The currently selected variant
- * @param selectedTransform - The transform to apply
- * @returns Object with transformed files and filename mapping, or undefined if no transform
- */
-export function createTransformedFiles(
-  selectedVariant: VariantCode | null,
-  selectedTransform: string | null,
-): TransformedFiles | undefined {
-  // Only create transformed files when there's actually a transform selected
-  if (!selectedVariant || !selectedTransform) {
-    return undefined;
-  }
-
-  const files: TransformedFile[] = [];
-  const filenameMap: { [originalName: string]: string } = {};
-
-  // First, check if any file has a meaningful transform delta for the selected transform
-  const variantTransforms =
-    'transforms' in selectedVariant ? selectedVariant.transforms : undefined;
-
-  let hasAnyMeaningfulTransform = false;
-
-  // Check main file for meaningful transform
-  if (selectedVariant.fileName && variantTransforms?.[selectedTransform]?.delta) {
-    const delta = variantTransforms[selectedTransform].delta;
-    if (delta && Object.keys(delta).length > 0) {
-      hasAnyMeaningfulTransform = true;
-    }
-  }
-
-  // Check extraFiles for meaningful transforms
-  if (!hasAnyMeaningfulTransform && selectedVariant.extraFiles) {
-    Object.values(selectedVariant.extraFiles).forEach((fileData) => {
-      if (fileData && typeof fileData === 'object' && 'transforms' in fileData) {
-        const transformData = fileData.transforms?.[selectedTransform];
-        if (transformData?.delta && Object.keys(transformData.delta).length > 0) {
-          hasAnyMeaningfulTransform = true;
-        }
-      }
-    });
-  }
-
-  // If no file has a meaningful transform, return empty result
-  if (!hasAnyMeaningfulTransform) {
-    return { files: [], filenameMap: {} };
-  }
-
-  // Process main file if we have a fileName and source
-  if (selectedVariant.fileName && selectedVariant.source) {
-    const { transformedSource: mainSource, transformedName: mainName } = applyTransformToSource(
-      selectedVariant.source,
-      selectedVariant.fileName,
-      variantTransforms,
-      selectedTransform,
-    );
-
-    const fileName = selectedVariant.fileName;
-    filenameMap[fileName] = mainName;
-    files.push({
-      name: mainName,
-      originalName: fileName,
-      source: mainSource,
-    });
-  }
-
-  // Process extra files
-  if (selectedVariant.extraFiles) {
-    Object.entries(selectedVariant.extraFiles).forEach(([extraFileName, fileData]) => {
-      let source: VariantSource | undefined;
-      let transforms: Transforms | undefined;
-
-      // Handle different extraFile structures
-      if (typeof fileData === 'string') {
-        source = fileData;
-        transforms = undefined; // Don't inherit variant transforms for simple string files
-      } else if (fileData && typeof fileData === 'object' && 'source' in fileData) {
-        source = fileData.source;
-        transforms = fileData.transforms; // Only use explicit transforms for this file
-      } else {
-        return; // Skip invalid entries
-      }
-
-      // Skip if source is undefined
-      if (!source) {
-        return;
-      }
-
-      // Apply transforms if available, otherwise use original source
-      let transformedSource = source;
-      let transformedName = extraFileName;
-
-      if (transforms?.[selectedTransform]) {
-        try {
-          const transformData = transforms[selectedTransform];
-          if (transformData && typeof transformData === 'object' && 'delta' in transformData) {
-            // Only apply transform if there's a meaningful delta
-            const hasTransformDelta =
-              transformData.delta && Object.keys(transformData.delta).length > 0;
-            if (hasTransformDelta) {
-              transformedSource = applyCodeTransform(source, transforms, selectedTransform);
-              transformedName = transformData.fileName || extraFileName;
-            }
-          }
-        } catch (error) {
-          console.error(`Transform failed for ${extraFileName}:`, error);
-          // Continue with original source if transform fails
-        }
-      }
-
-      // Only update filenameMap and add to files if this doesn't conflict with existing files
-      // If a file already exists with the target name, skip this transformation to preserve original files
-      const existingFile = files.find((f) => f.name === transformedName);
-      if (!existingFile) {
-        filenameMap[extraFileName] = transformedName;
-        files.push({
-          name: transformedName,
-          originalName: extraFileName,
-          source: transformedSource,
-        });
-      } else {
-        // If there's a conflict, skip this file with a warning
-        console.warn(
-          `Transform conflict: ${extraFileName} would transform to ${transformedName} but that name is already taken. Skipping this file.`,
-        );
-      }
-    });
-  }
-
-  return { files, filenameMap };
+  return true;
 }

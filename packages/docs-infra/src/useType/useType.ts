@@ -1,7 +1,8 @@
 'use client';
 
 import type * as React from 'react';
-import { useTypesDataContext, type TypeData } from './TypesDataContext';
+import { useTypesDataContext } from './TypesDataContext';
+import type { TypeData } from './TypesDataContext';
 
 /**
  * Props passed to the custom `typeRefComponent` element.
@@ -24,7 +25,7 @@ export interface TypeRefProps {
  * - No `TypesDataProvider` is present in the tree
  * - The type name has not been registered
  *
- * @param name - The type name to look up (e.g., "Root", "Trigger", "AccordionTrigger")
+ * @param name - The type name to look up (for example, "Root", "Trigger", "AccordionTrigger")
  */
 export function useType(name: string): TypeData | undefined {
   const context = useTypesDataContext();

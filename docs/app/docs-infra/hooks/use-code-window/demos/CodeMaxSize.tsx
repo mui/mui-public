@@ -6,7 +6,7 @@ import type { Code as CodeType } from '@mui/internal-docs-infra/CodeHighlighter/
 import { createParseSource } from '@mui/internal-docs-infra/pipeline/parseSource';
 import { createEnhanceCodeEmphasis } from '@mui/internal-docs-infra/pipeline/enhanceCodeEmphasis';
 
-import { CollapsibleContent } from './CollapsibleContent';
+import { CollapsibleCodeContent } from './CollapsibleCodeContent';
 
 const sourceParser = createParseSource();
 const sourceEnhancers = [createEnhanceCodeEmphasis({ focusFramesMaxSize: 6 })];
@@ -14,15 +14,15 @@ const sourceEnhancers = [createEnhanceCodeEmphasis({ focusFramesMaxSize: 6 })];
 /**
  * A server component that renders a collapsible code block with focusFramesMaxSize.
  *
- * Uses `focusFramesMaxSize: 6` so highlighted regions longer than 6 lines
- * are split into a focused window from the start with unfocused overflow below.
+ * Uses `focusFramesMaxSize: 6` so focused regions longer than 6 lines are split
+ * into a visible window from the start with unfocused overflow below.
  */
 export function CodeMaxSize({ code }: { code: CodeType }) {
   return (
     // @focus-start
     <CodeHighlighter
       code={code}
-      Content={CollapsibleContent}
+      Content={CollapsibleCodeContent}
       sourceParser={sourceParser}
       sourceEnhancers={sourceEnhancers}
     />

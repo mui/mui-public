@@ -1,0 +1,110 @@
+.container {
+  margin: 10px 0;
+  border: 1px solid #d0cdd7;
+  border-radius: 8px;
+}
+
+.demoSection {
+  position: relative;
+}
+
+.demoSurface {
+  padding: 24px;
+  position: relative;
+}
+
+.codeSection {
+  border-top: 1px solid #d0cdd7;
+}
+
+.header {
+  border-bottom: 1px solid #d0cdd7;
+  height: 48px;
+  position: relative;
+}
+
+.headerContainer {
+  position: absolute;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.headerContainer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 1px;
+  margin: -1px;
+  background-color: #d0cdd7;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 8px;
+  height: 48px;
+}
+
+.tabContainer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: -1px;
+  padding-bottom: 2px;
+  overflow-x: auto;
+}
+
+.switchContainer {
+  display: flex;
+}
+
+.resetButton {
+  appearance: none;
+  border: 1px solid #d0cdd7;
+  background: transparent;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  color: inherit;
+  cursor: pointer;
+}
+
+.resetButton:hover {
+  background: #f4f2f7;
+}
+
+.resetButton:focus-visible {
+  outline: 2px solid #6f5bff;
+  outline-offset: 2px;
+}
+
+.switchContainerHidden {
+  display: none;
+}
+
+.code {
+  padding: 10px 0;
+}
+
+/* Frame / line styling and the editable focus-trap + "Press Enter" prompt
+   overlay now live in the shared `CodeSource` component; this block keeps only
+   the pre's resting padding (passed to `useCode` as `preClassName`). */
+.codeBlock {
+  padding: 6px 0;
+}
+
+/* Invisible in-flow anchor so native fragment links can scroll to a file slug
+   and clear the sticky header — pure CSS, no scroll script. A `display: none`
+   anchor has no layout box, so the browser cannot scroll to it. */
+.fileRefs {
+  display: block;
+  height: 0;
+  scroll-margin-top: 16px;
+}

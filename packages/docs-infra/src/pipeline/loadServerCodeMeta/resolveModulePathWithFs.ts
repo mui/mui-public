@@ -8,10 +8,12 @@ import {
   resolveModulePaths,
   resolveImportResult,
   resolveVariantPaths,
-  type DirectoryEntry,
-  type DirectoryReader,
-  type ResolveModulePathOptions,
-  type TypeAwareResolveResult,
+} from '../loaderUtils/resolveModulePath';
+import type {
+  DirectoryEntry,
+  DirectoryReader,
+  ResolveModulePathOptions,
+  TypeAwareResolveResult,
 } from '../loaderUtils/resolveModulePath';
 
 /**

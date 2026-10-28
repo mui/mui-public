@@ -88,6 +88,32 @@ type ComponentPartState = {
 
 ## Additional Types
 
+### ComponentPartDataAttributes
+
+Data attributes of [Part](#part).
+
+```typescript
+enum ComponentPartDataAttributes {
+  /** Present when the component has a title. */
+  title = 'data-title',
+  /** Present when the component is disabled. */
+  disabled = 'data-disabled',
+}
+```
+
+### ComponentRootDataAttributes
+
+Data attributes of [Root](#root).
+
+```typescript
+enum ComponentRootDataAttributes {
+  /** Present when the component has a title. */
+  title = 'data-title',
+  /** Present when the component is disabled. */
+  disabled = 'data-disabled',
+}
+```
+
 ### InputType
 
 ```typescript
@@ -119,7 +145,7 @@ type InputType =
 
 - `Component.Root`: `Component.Root`, `Component.Root.State`, `Component.Root.Props`, `Component.Root.ChangeEventDetails`
 - `Component.Part`: `Component.Part`, `Component.Part.State`, `Component.Part.Props`
-- `Default`: `ComponentRootState`, `ComponentRootChangeEventDetails`, `ComponentRootProps`, `ComponentPartState`, `ComponentPartProps`, `InputType`
+- `Default`: `ComponentRootDataAttributes`, `ComponentPartDataAttributes`, `ComponentRootState`, `ComponentRootChangeEventDetails`, `ComponentRootProps`, `ComponentPartState`, `ComponentPartProps`, `InputType`
 
 ## Canonical Types
 

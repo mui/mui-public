@@ -1,6 +1,6 @@
 {
   "name": "@mui/internal-babel-plugin-resolve-imports",
-  "version": "2.0.5",
+  "version": "3.0.0",
   "author": "MUI Team",
   "description": "Babel plugin that resolves import specifiers to their actual output file.",
   "license": "MIT",
@@ -14,25 +14,33 @@
     "directory": "packages/babel-plugin-resolve-imports"
   },
   "scripts": {
-    "typescript": "tsgo -noEmit"
+    "typescript": "tsc -noEmit"
   },
   "dependencies": {
-    "resolve": "^1.22.12"
+    "resolve": "^1.22.13"
   },
   "devDependencies": {
-    "@babel/core": "7.29.0",
-    "@babel/plugin-syntax-typescript": "7.28.6",
-    "@babel/preset-typescript": "7.28.5",
-    "@types/babel__core": "7.20.5",
+    "@babel/core": "8.0.7",
+    "@babel/plugin-syntax-typescript": "8.0.3",
+    "@babel/preset-typescript": "8.0.7",
     "@types/chai": "5.2.3",
-    "@types/node": "22.19.0",
+    "@types/node": "22.20.5",
     "@types/resolve": "1.20.6",
     "babel-plugin-tester": "12.0.0"
   },
   "peerDependencies": {
-    "@babel/core": "7"
+    "@babel/core": "^8.0.0"
   },
   "publishConfig": {
     "access": "public"
+  },
+  "type": "module",
+  "files": [
+    "index.js",
+    "resolve.d.ts",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22.12.0"
   }
 }

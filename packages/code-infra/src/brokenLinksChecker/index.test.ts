@@ -4,10 +4,13 @@ import { describe, expect, it } from 'vitest';
 
 import {
   crawl,
-  type BrokenLinkIssue,
-  type HtmlValidateIssue,
-  type Issue,
-  type Link,
+  // eslint-disable-next-line import/extensions
+} from './index.mjs';
+import type {
+  BrokenLinkIssue,
+  HtmlValidateIssue,
+  Issue,
+  Link,
   // eslint-disable-next-line import/extensions
 } from './index.mjs';
 
@@ -64,12 +67,18 @@ describe('Broken Links Checker', () => {
       ],
       // Exercise the array form with union semantics: every matching entry
       // contributes to the page's config. The baseline entry (no `path`)
-      // turns off `no-raw-characters` everywhere; the path-specific entry
-      // turns off `no-dup-id` only on /invalid-html.html. Both rules are
+      // turns off `no-dup-id` everywhere; the path-specific entry turns off
+      // `no-raw-characters` only on /invalid-html.html. Both rules are
       // silenced on that page because the configs are merged, not replaced.
+      //
+      // This also guards against the path-specific entry clobbering the
+      // baseline: the path entry only names `no-raw-characters`, so it must
+      // not re-introduce the recommended ruleset and re-enable the
+      // `no-dup-id` that the baseline silenced (which /invalid-html.html
+      // violates). If it did, that page would report `no-dup-id` below.
       htmlValidate: [
-        { config: { rules: { 'no-raw-characters': 'off' } } },
-        { path: '/invalid-html.html', config: { rules: { 'no-dup-id': 'off' } } },
+        { config: { rules: { 'no-dup-id': 'off' } } },
+        { path: '/invalid-html.html', config: { rules: { 'no-raw-characters': 'off' } } },
       ],
     });
 
@@ -277,9 +286,10 @@ describe('Broken Links Checker', () => {
     expect(result.pages.get('/')?.contentType).toBe('text/html');
 
     // Test htmlValidate union semantics: invalid-html.html has both a duplicate
-    // ID (no-dup-id) and a raw `&` (no-raw-characters). The path-specific
-    // entry silences no-dup-id; the baseline entry silences no-raw-characters.
-    // Under union semantics both apply, so the page reports zero issues.
+    // ID (no-dup-id) and a raw `&` (no-raw-characters). The baseline entry
+    // silences no-dup-id; the path-specific entry silences no-raw-characters.
+    // Under union semantics both apply, so the page reports zero issues — and
+    // the path-specific entry must not clobber the baseline's no-dup-id.
     const htmlValidateIssues = result.issues.filter(
       (issue): issue is HtmlValidateIssue => issue.type === 'html-validate',
     );
@@ -287,5 +297,27 @@ describe('Broken Links Checker', () => {
       (issue) => issue.pageUrl === '/invalid-html.html',
     );
     expect(invalidHtmlIssues).toEqual([]);
+  }, 30000);
+
+  it('applies mui:recommended defaults so SSR patterns validate without overrides', async () => {
+    const port = await getPort();
+    const host = `http://localhost:${port}`;
+
+    // Validate with recommended rules only (no caller-supplied overrides), so
+    // this exercises the mui:recommended baseline in isolation. The fixture page
+    // relies on two defaults: `no-missing-references` is off (portaled targets
+    // are absent from static HTML) and the `<form>` action enum permits React's
+    // SSR sentinel value `javascript:throw new Error(...)`. Neither should report.
+    const result = await crawl({
+      startCommand: `${servePath} ${fixtureDir} -p ${port}`,
+      host,
+      seedUrls: ['/recommended-defaults.html'],
+      htmlValidate: true,
+    });
+
+    const htmlValidateIssues = result.issues.filter(
+      (issue): issue is HtmlValidateIssue => issue.type === 'html-validate',
+    );
+    expect(htmlValidateIssues).toEqual([]);
   }, 30000);
 });

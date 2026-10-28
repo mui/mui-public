@@ -1,0 +1,23 @@
+import { test, expect } from '@playwright/test';
+import { appRoute } from '@/appRoute';
+
+// The standalone demo route, derived from this file's location under `app`.
+const route = appRoute(import.meta.url);
+
+test('lazy-content loads the widget on demand', async ({ page }) => {
+  const pageErrors: Error[] = [];
+  page.on('pageerror', (error) => pageErrors.push(error));
+
+  await page.goto(route);
+  const demo = page.locator('.demo').first();
+
+  // The widget chunk is fetched only after the user asks for it.
+  await demo.getByRole('button', { name: 'Load the widget' }).click();
+
+  // The loaded widget renders interactive reaction buttons that exist only at
+  // runtime — the demo's source panel shows that code as text, not real buttons.
+  await expect(demo.getByRole('button', { name: '👍' })).toBeVisible({ timeout: 15000 });
+
+  // A working demo mounts and renders its content without throwing.
+  expect(pageErrors, 'the demo should mount without uncaught errors').toEqual([]);
+});

@@ -22,19 +22,20 @@ type ReturnValue = VariantCode;
 
 ### applyCodeTransform
 
-Applies a specific transform to a variant source and returns the transformed source
+Convenience wrapper around [`applyCodeTransformWithComments`](#applycodetransformwithcomments) for
+callers that don't need the shifted comments map. Returns the transformed
+`VariantSource` directly.
 
 **Parameters:**
 
-| Parameter    | Type            | Default | Description                                                         |
-| :----------- | :-------------- | :------ | :------------------------------------------------------------------ |
-| source       | `VariantSource` | -       | The original variant source (string, HastNodes, or hastJson object) |
-| transforms   | `Transforms`    | -       | Object containing all available transforms                          |
-| transformKey | `string`        | -       | The key of the specific transform to apply                          |
+| Parameter    | Type             | Default | Description |
+| :----------- | :--------------- | :------ | :---------- |
+| source       | `VariantSource`  | -       | -           |
+| transforms   | `Transforms`     | -       | -           |
+| transformKey | `string`         | -       | -           |
+| fallback?    | `FallbackNode[]` | -       | -           |
 
 **Return Value:**
-
-The transformed variant source in the same format as the input
 
 ```tsx
 type ReturnValue = VariantSource;
@@ -42,23 +43,71 @@ type ReturnValue = VariantSource;
 
 ### applyCodeTransforms
 
-Applies multiple transforms to a variant source in sequence
+Convenience wrapper around [`applyCodeTransformsWithComments`](#applycodetransformswithcomments) for
+callers that don't need the shifted comments map. Returns the transformed
+`VariantSource` directly.
 
 **Parameters:**
 
-| Parameter     | Type            | Default | Description                                |
-| :------------ | :-------------- | :------ | :----------------------------------------- |
-| source        | `VariantSource` | -       | The original variant source                |
-| transforms    | `Transforms`    | -       | Object containing all available transforms |
-| transformKeys | `string[]`      | -       | Array of transform keys to apply in order  |
+| Parameter     | Type             | Default | Description |
+| :------------ | :--------------- | :------ | :---------- |
+| source        | `VariantSource`  | -       | -           |
+| transforms    | `Transforms`     | -       | -           |
+| transformKeys | `string[]`       | -       | -           |
+| fallback?     | `FallbackNode[]` | -       | -           |
 
 **Return Value:**
-
-The transformed variant source in the same format as the input
 
 ```tsx
 type ReturnValue = VariantSource;
 ```
+
+### applyCodeTransformsWithComments
+
+Applies multiple transforms to a variant source in sequence, shifting
+comments through each hop. See `applyCodeTransformsWithCommentsCore`;
+this wrapper binds the built-in `decodeHastSource`.
+
+**Parameters:**
+
+| Parameter     | Type             | Default | Description |
+| :------------ | :--------------- | :------ | :---------- |
+| source        | `VariantSource`  | -       | -           |
+| transforms    | `Transforms`     | -       | -           |
+| transformKeys | `string[]`       | -       | -           |
+| comments?     | `SourceComments` | -       | -           |
+| fallback?     | `FallbackNode[]` | -       | -           |
+
+**Return Value:**
+
+| Property   | Type                          | Description |
+| :--------- | :---------------------------- | :---------- |
+| `source`   | `VariantSource`               | -           |
+| `comments` | `SourceComments \| undefined` | -           |
+
+### applyCodeTransformWithComments
+
+Applies a specific transform to a variant source and returns the transformed
+source plus a remapped copy of the supplied `comments` map. See
+`applyCodeTransformWithCommentsCore` for the full contract; this wrapper
+binds the built-in `decodeHastSource`.
+
+**Parameters:**
+
+| Parameter    | Type             | Default | Description |
+| :----------- | :--------------- | :------ | :---------- |
+| source       | `VariantSource`  | -       | -           |
+| transforms   | `Transforms`     | -       | -           |
+| transformKey | `string`         | -       | -           |
+| comments?    | `SourceComments` | -       | -           |
+| fallback?    | `FallbackNode[]` | -       | -           |
+
+**Return Value:**
+
+| Property   | Type                          | Description |
+| :--------- | :---------------------------- | :---------- |
+| `source`   | `VariantSource`               | -           |
+| `comments` | `SourceComments \| undefined` | -           |
 
 ### enhanceCode
 
@@ -143,11 +192,11 @@ fallback, ensuring a smooth user experience without rendering errors.
 
 **Parameters:**
 
-| Parameter       | Type       | Default | Description                                                                         |
-| :-------------- | :--------- | :------ | :---------------------------------------------------------------------------------- |
-| variants        | `string[]` | -       | Array of variant names that must all be ready (e.g., \['javascript', 'typescript']) |
-| code            | `Code`     | -       | The code object containing variant data                                             |
-| needsHighlight? | `boolean`  | -       | Whether all sources need to be syntax highlighted (hast nodes, not strings)         |
+| Parameter       | Type       | Default | Description                                                                                 |
+| :-------------- | :--------- | :------ | :------------------------------------------------------------------------------------------ |
+| variants        | `string[]` | -       | Array of variant names that must all be ready (for example, `['javascript', 'typescript']`) |
+| code            | `Code`     | -       | The code object containing variant data                                                     |
+| needsHighlight? | `boolean`  | -       | Whether all sources need to be syntax highlighted (hast nodes, not strings)                 |
 
 **Return Value:**
 
@@ -235,19 +284,19 @@ This function operates **synchronously** and only validates existing data - it n
 any loading operations. This design is crucial for performance and rendering strategies:
 
 - **Synchronous validation** allows immediate decisions about rendering paths without async overhead
-- **Enables build-time optimization**: When code is precomputed (e.g., via build-time processing),
+- **Enables build-time optimization**: When code is precomputed (for example, via build-time processing),
   this function can immediately return `initialData`, avoiding async components entirely
 - **Separates concerns**: Data validation is separate from data loading, making the codebase
   more predictable and easier to reason about
 
 When `initialData: false` is returned, the calling component is responsible for initiating
-asynchronous loading operations (e.g., `loadCodeFallback`, `CodeInitialSourceLoader`).
+asynchronous loading operations (for example, `loadCodeFallback`, `CodeInitialSourceLoader`).
 
 **Parameters:**
 
 | Parameter         | Type       | Default | Description                                                                                                                                                                                                                                            |
 | :---------------- | :--------- | :------ | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| variants          | `string[]` | -       | Array of all available variant names for this code block (e.g., \['javascript', 'typescript'])                                                                                                                                                         |
+| variants          | `string[]` | -       | Array of all available variant names for this code block (for example, `['javascript', 'typescript']`)                                                                                                                                                 |
 | variant           | `string`   | -       | The specific variant we want to display (must exist in variants array)                                                                                                                                                                                 |
 | code?             | `Code`     | -       | The code object containing all variant data (may be undefined if not loaded)                                                                                                                                                                           |
 | fileName?         | `string`   | -       | Optional specific file to display. Resolution logic: When it matches `variantCode.fileName`, uses the main variant sourceWhen it doesn't match, looks for the file in `variantCode.extraFiles`When undefined, defaults to the main file of the variant |

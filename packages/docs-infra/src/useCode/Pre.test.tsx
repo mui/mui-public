@@ -3,12 +3,22 @@
  */
 import * as React from 'react';
 // eslint-disable-next-line testing-library/no-manual-cleanup -- root vitest config does not set `globals: true`, so RTL's auto `afterEach(cleanup)` is a no-op here.
-import { render, screen, waitFor, cleanup } from '@testing-library/react';
+import { render, screen, waitFor, cleanup, fireEvent } from '@testing-library/react';
 import { beforeAll, describe, expect, it, vi, afterEach } from 'vitest';
-import type { HastRoot, ParseSource, SourceComments } from '../CodeHighlighter/types';
+import type {
+  HastRoot,
+  ParseSource,
+  SourceComments,
+  VariantSource,
+} from '../CodeHighlighter/types';
+import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
+import * as fallbackFormatModule from '../CodeHighlighter/fallbackFormat';
+import * as decodeHastSourceModule from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
+import * as hastUtilsModule from '../pipeline/hastUtils';
 import { createParseSource } from '../pipeline/parseSource';
-import { enhanceCodeEmphasis } from '../pipeline/enhanceCodeEmphasis';
+import { createEnhanceCodeEmphasis, enhanceCodeEmphasis } from '../pipeline/enhanceCodeEmphasis';
 import { Pre } from './Pre';
+import { CodeContext } from '../CodeProvider/CodeContext';
 
 const FILE_NAME = 'CheckboxBasic.tsx';
 
@@ -27,7 +37,7 @@ const INITIAL_SOURCE = [
 ].join('\n');
 
 const HIGHLIGHT_COMMENTS: SourceComments = {
-  7: ['@highlight-start'],
+  7: ['@highlight-start @focus'],
   8: ['@highlight-end'],
 };
 
@@ -144,70 +154,16 @@ function createHighlightedSource(source: string): HastRoot {
   return enhanceCodeEmphasis(root, HIGHLIGHT_COMMENTS, FILE_NAME) as HastRoot;
 }
 
-function placeCaret(element: HTMLElement, offset: number) {
-  element.focus();
-  const selection = window.getSelection()!;
-  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
-  let current = 0;
-  let node = walker.nextNode();
-
-  while (node) {
-    const length = node.textContent?.length ?? 0;
-    if (current + length >= offset) {
-      const range = document.createRange();
-      range.setStart(node, offset - current);
-      range.collapse(true);
-      selection.removeAllRanges();
-      selection.addRange(range);
-      return;
-    }
-
-    current += length;
-    node = walker.nextNode();
-  }
-}
-
-function insertPlaintextCharacter(element: HTMLElement, key: string) {
-  element.dispatchEvent(
-    new KeyboardEvent('keydown', {
-      key,
-      code: `Key${key.toUpperCase()}`,
-      bubbles: true,
-      cancelable: true,
-    }),
+const getFrameTypes = (container: HTMLElement) =>
+  Array.from(container.querySelectorAll('span.frame'), (frame) =>
+    frame.getAttribute('data-frame-type'),
   );
 
-  const selection = window.getSelection()!;
-  const range = selection.getRangeAt(0);
-  range.deleteContents();
-  const textNode = document.createTextNode(key);
-  range.insertNode(textNode);
-  range.setStartAfter(textNode);
-  range.collapse(true);
-  selection.removeAllRanges();
-  selection.addRange(range);
-
-  element.dispatchEvent(
-    new KeyboardEvent('keyup', {
-      key,
-      code: `Key${key.toUpperCase()}`,
-      bubbles: true,
-      cancelable: true,
-    }),
-  );
-}
-
-function EditablePreview() {
-  const [source, setSource] = React.useState(INITIAL_SOURCE);
-  const highlightedSource = React.useMemo(() => createHighlightedSource(source), [source]);
+function ReadOnlyPreview() {
+  const highlightedSource = React.useMemo(() => createHighlightedSource(INITIAL_SOURCE), []);
 
   return (
-    <Pre
-      fileName={FILE_NAME}
-      language="tsx"
-      setSource={(nextSource) => setSource(nextSource)}
-      shouldHighlight
-    >
+    <Pre fileName={FILE_NAME} language="tsx" shouldHighlight>
       {highlightedSource}
     </Pre>
   );
@@ -228,35 +184,22 @@ describe('Pre', () => {
     resizeObserverInstances = null;
   });
 
-  it('keeps the </p> line and following </div> line separate after rerender', async () => {
-    render(<EditablePreview />);
-    const pre = screen.getByText('Type Whatever You Want Below', { exact: false }).closest('pre');
+  it('forwards the authored focus target marker to the rendered frame', () => {
+    const root = parseSource('const before = 1;\nconst value = 2;\nconst after = 3;', FILE_NAME);
+    const enhanced = createEnhanceCodeEmphasis({ paddingFrameMaxSize: 1 })(
+      root,
+      { 2: ['@focus'] },
+      FILE_NAME,
+    ) as HastRoot;
 
-    expect(pre).not.toBeNull();
+    const { container } = render(
+      <Pre fileName={FILE_NAME} language="tsx" shouldHighlight>
+        {enhanced}
+      </Pre>,
+    );
 
-    const lines = INITIAL_SOURCE.split('\n');
-    let offset = 0;
-    for (let i = 0; i < 7; i += 1) {
-      offset += lines[i].length + 1;
-    }
-    offset += lines[7].length;
-
-    placeCaret(pre!, offset);
-    insertPlaintextCharacter(pre!, 'x');
-
-    await waitFor(() => {
-      const currentPre = screen
-        .getByText('Type Whatever You Want Below', { exact: false })
-        .closest('pre');
-      const highlightedLine = currentPre?.querySelector('[data-ln="8"]');
-      const nextLine = currentPre?.querySelector('[data-ln="9"]');
-
-      expect(highlightedLine).not.toBeNull();
-      expect(nextLine).not.toBeNull();
-      expect((highlightedLine as HTMLElement).textContent).toContain('</p>x');
-      expect((highlightedLine as HTMLElement).textContent).not.toContain('</div>');
-      expect((nextLine as HTMLElement).textContent).toBe('    </div>');
-    });
+    // eslint-disable-next-line testing-library/no-container -- verifies the documented frame styling hook.
+    expect(container.querySelector('.frame[data-frame-focus-target]')).not.toBeNull();
   });
 
   it('does not hydrate frames whose intersection rect has zero area (CSS-collapsed)', async () => {
@@ -276,7 +219,7 @@ describe('Pre', () => {
       return { x: 0, y: 0, top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 };
     };
 
-    const { container } = render(<EditablePreview />);
+    const { container } = render(<ReadOnlyPreview />);
     // Inspecting internal frame elements (`.frame` / `data-frame-type`),
     // not user-facing roles, so reach in via the container.
     // eslint-disable-next-line testing-library/no-container
@@ -322,13 +265,13 @@ describe('Pre', () => {
     const removeSpy = vi.spyOn(document, 'removeEventListener');
 
     try {
-      const { unmount: unmountFirst } = render(<EditablePreview />);
+      const { unmount: unmountFirst } = render(<ReadOnlyPreview />);
       const toggleAddsAfterFirst = addSpy.mock.calls.filter(
         ([eventName]) => eventName === 'toggle',
       );
       expect(toggleAddsAfterFirst).toHaveLength(1);
 
-      const { unmount: unmountSecond } = render(<EditablePreview />);
+      const { unmount: unmountSecond } = render(<ReadOnlyPreview />);
       // Mounting a second `<Pre>` must reuse the existing capture-phase
       // listener rather than installing a per-instance one.
       const toggleAddsAfterSecond = addSpy.mock.calls.filter(
@@ -360,7 +303,7 @@ describe('Pre', () => {
     observeCalls = [];
     unobserveCalls = [];
 
-    const { container } = render(<EditablePreview />);
+    const { container } = render(<ReadOnlyPreview />);
     // eslint-disable-next-line testing-library/no-container
     const pre = container.querySelector('pre');
     expect(pre).not.toBeNull();
@@ -397,5 +340,274 @@ describe('Pre', () => {
       expect(unobserveCalls).toContain(frame);
       expect(observeCalls).toContain(frame);
     });
+  });
+
+  it('does not load the editor for a read-only block', () => {
+    const codeEditorLoader = vi.fn(() => import('./CodeEditor'));
+
+    render(
+      <CodeContext.Provider value={{ codeEditorLoader }}>
+        <Pre fileName="App.tsx">{'const value = 1;'}</Pre>
+      </CodeContext.Provider>,
+    );
+
+    expect(codeEditorLoader).not.toHaveBeenCalled();
+    expect(screen.queryByRole('textbox')).toBeNull();
+  });
+
+  it('defers an interaction editor load until pointer engagement', async () => {
+    const codeEditorLoader = vi.fn(() => import('./CodeEditor'));
+    const sourceToString = vi.spyOn(hastUtilsModule, 'stringOrHastToString');
+    const { container } = render(
+      <CodeContext.Provider value={{ codeEditorLoader }}>
+        <Pre fileName="App.tsx" setSource={() => {}} editActivation="interaction">
+          {'const value = 1;'}
+        </Pre>
+      </CodeContext.Provider>,
+    );
+
+    expect(codeEditorLoader).not.toHaveBeenCalled();
+    expect(sourceToString).not.toHaveBeenCalled();
+    // eslint-disable-next-line testing-library/no-container -- the read-only fallback is intentionally hidden from roles after engagement
+    fireEvent.pointerDown(container.querySelector('pre')!);
+
+    await waitFor(() => expect(codeEditorLoader).toHaveBeenCalledTimes(1));
+    expect(sourceToString).toHaveBeenCalledTimes(1);
+    expect(await screen.findByRole('textbox')).toBeInstanceOf(HTMLTextAreaElement);
+  });
+
+  describe('collapseToEmpty', () => {
+    function ForcedHarness({
+      collapseToEmpty,
+      expanded,
+    }: {
+      collapseToEmpty?: boolean;
+      expanded?: boolean;
+    }) {
+      const highlightedSource = React.useMemo(() => createHighlightedSource(INITIAL_SOURCE), []);
+      return (
+        <Pre
+          fileName={FILE_NAME}
+          language="tsx"
+          shouldHighlight
+          collapseToEmpty={collapseToEmpty}
+          expanded={expanded}
+        >
+          {highlightedSource}
+        </Pre>
+      );
+    }
+
+    it('keeps the highlighted frame and a non-zero focused count when not forced', () => {
+      // Control: lines 7-8 are highlighted and focused, so a `highlighted` frame
+      // exists and the block reports a non-empty focused window.
+      const { container } = render(<ForcedHarness />);
+      // eslint-disable-next-line testing-library/no-container
+      const highlighted = container.querySelectorAll('span.frame[data-frame-type="highlighted"]');
+      expect(highlighted.length).toBeGreaterThan(0);
+      // eslint-disable-next-line testing-library/no-container
+      const code = container.querySelector('code')!;
+      expect(code.getAttribute('data-focused-lines')).not.toBe('0');
+    });
+
+    it('demotes focus/highlighted frames, forces collapsible, and reports 0 focused lines', () => {
+      const { container } = render(<ForcedHarness collapseToEmpty />);
+      /* eslint-disable testing-library/no-container -- inspecting internal `.frame` elements / `data-frame-type`, which Testing Library queries don't expose. */
+      const countFramesOfType = (type: string) =>
+        container.querySelectorAll(`span.frame[data-frame-type="${type}"]`).length;
+
+      // No collapsed-visible frame type remains in the rendered output.
+      for (const type of ['highlighted', 'focus', 'padding-top', 'padding-bottom']) {
+        expect(countFramesOfType(type)).toBe(0);
+      }
+      // Padding frames resolve to normal under collapse-to-empty, but normal frames
+      // must render with no `data-frame-type` attribute.
+      expect(countFramesOfType('normal')).toBe(0);
+      // The highlighted frame is demoted to its hidden variant.
+      expect(countFramesOfType('highlighted-unfocused')).toBeGreaterThan(0);
+
+      // The block is forced collapsible so it can still be expanded.
+      expect(container.querySelector('code')!.hasAttribute('data-collapsible')).toBe(true);
+
+      // The collapsed window is empty.
+      expect(container.querySelector('code')!.getAttribute('data-focused-lines')).toBe('0');
+      /* eslint-enable testing-library/no-container */
+    });
+
+    it('keeps demoted frame attributes stable when expanded changes', () => {
+      const { container, rerender } = render(<ForcedHarness collapseToEmpty />);
+      const collapsedFrameTypes = getFrameTypes(container);
+
+      rerender(<ForcedHarness collapseToEmpty expanded />);
+
+      expect(getFrameTypes(container)).toEqual(collapsedFrameTypes);
+      /* eslint-disable testing-library/no-container -- inspecting internal `.frame` elements / `data-frame-type`, which Testing Library queries don't expose. */
+      expect(container.querySelectorAll('span.frame[data-frame-type="highlighted"]')).toHaveLength(
+        0,
+      );
+      expect(container.querySelectorAll('span.frame[data-frame-type="focus"]')).toHaveLength(0);
+      /* eslint-enable testing-library/no-container */
+    });
+  });
+
+  describe('deferred string fallbacks', () => {
+    it('uses fallback metadata to mark a string source collapsible before HAST exists', () => {
+      const fallback: FallbackNode[] = [
+        ['span', 'frame', { dataFrameType: 'focus' }, 'const visible = true;'],
+        ['span', 'frame', {}, '\nconst hidden = true;'],
+      ];
+
+      const { container } = render(
+        <Pre
+          fileName={FILE_NAME}
+          language="tsx"
+          fallback={fallback}
+          fallbackLineCounts={{ totalLines: 40, focusedLines: 12, collapsible: true }}
+        >
+          {'const visible = true;\nconst hidden = true;'}
+        </Pre>,
+      );
+
+      // eslint-disable-next-line testing-library/no-container
+      const code = container.querySelector('code')!;
+      expect(code.hasAttribute('data-collapsible')).toBe(true);
+      expect(code.getAttribute('data-total-lines')).toBe('40');
+      expect(code.getAttribute('data-focused-lines')).toBe('12');
+    });
+
+    it('demotes string fallback frames when collapseToEmpty is active', () => {
+      const fallback: FallbackNode[] = [
+        ['span', 'frame', { dataFrameType: 'focus' }, 'const visible = true;'],
+        ['span', 'frame', {}, '\nconst hidden = true;'],
+      ];
+      const text = 'const visible = true;\nconst hidden = true;';
+
+      const { container, rerender } = render(
+        <Pre
+          fileName={FILE_NAME}
+          language="tsx"
+          fallback={fallback}
+          fallbackLineCounts={{ totalLines: 40, focusedLines: 12, collapsible: true }}
+          collapseToEmpty
+        >
+          {text}
+        </Pre>,
+      );
+
+      /* eslint-disable testing-library/no-container -- inspecting internal fallback frame attributes. */
+      expect(container.querySelectorAll('span.frame[data-frame-type="focus"]')).toHaveLength(0);
+      expect(
+        container.querySelectorAll('span.frame[data-frame-type="focus-unfocused"]'),
+      ).toHaveLength(1);
+      const code = container.querySelector('code')!;
+      expect(code.hasAttribute('data-collapsible')).toBe(true);
+      expect(code.getAttribute('data-focused-lines')).toBe('0');
+
+      const collapsedFrameTypes = getFrameTypes(container);
+      rerender(
+        <Pre
+          fileName={FILE_NAME}
+          language="tsx"
+          fallback={fallback}
+          fallbackLineCounts={{ totalLines: 40, focusedLines: 12, collapsible: true }}
+          collapseToEmpty
+          expanded
+        >
+          {text}
+        </Pre>,
+      );
+
+      expect(getFrameTypes(container)).toEqual(collapsedFrameTypes);
+      expect(container.querySelectorAll('span.frame[data-frame-type="focus"]')).toHaveLength(0);
+      expect(
+        container.querySelectorAll('span.frame[data-frame-type="focus-unfocused"]'),
+      ).toHaveLength(1);
+      /* eslint-enable testing-library/no-container */
+    });
+  });
+});
+
+describe('Pre decode latch (highlightAfter: init)', () => {
+  // A live HAST source that decodes to `DECODED`, paired with a fallback that
+  // renders `FALLBACK`, so we can tell which one painted and in what order.
+  const decodedSource = {
+    type: 'root',
+    children: [{ type: 'text', value: 'DECODED' }],
+  } as unknown as VariantSource;
+  // The plain fallback (every non-init mode, and `init` under collapse-to-empty) — a frame
+  // whose only child is a text string.
+  const plainFallback: FallbackNode[] = [['span', 'frame', { dataFrameType: 'focus' }, 'FALLBACK']];
+  // The promoted highlighted-visible fallback `highlightAfter: 'init'` ships — the frame keeps
+  // nested token spans, so `fallbackIsHighlighted` is true and the latch engages.
+  const highlightedFallback: FallbackNode[] = [
+    ['span', 'frame', { dataFrameType: 'focus' }, [['span', 'pl-k', 'FALLBACK']]],
+  ];
+  const counts = { totalLines: 1, focusedLines: 1, collapsible: false };
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    cleanup();
+  });
+
+  it('renders the fallback first and defers the decompressing decode (init, highlighted fallback)', () => {
+    const decodeSpy = vi.spyOn(decodeHastSourceModule, 'decodeHastSource');
+    const fallbackSpy = vi.spyOn(fallbackFormatModule, 'fallbackToHast');
+    render(
+      <Pre shouldHighlight fallback={highlightedFallback} fallbackLineCounts={counts}>
+        {decodedSource}
+      </Pre>,
+    );
+    // The fallback render runs before the decode: the highlighted fallback paints
+    // first, then the decode lands on a later (post-effect) render.
+    expect(fallbackSpy.mock.invocationCallOrder[0]).toBeLessThan(
+      decodeSpy.mock.invocationCallOrder[0],
+    );
+    // The decode does eventually run and the full tree replaces the fallback.
+    expect(screen.getByText('DECODED')).toBeTruthy();
+  });
+
+  it('decodes on mount (no flash) when shouldHighlight is true but the fallback is PLAIN', () => {
+    // The late-mounted `highlightAfter: 'hydration'` case: `shouldHighlight` is true on the
+    // first render, but the fallback was never promoted, so it is plain. Deferring would
+    // paint plain then flash highlighted — so the latch must NOT engage; decode on mount.
+    const decodeSpy = vi.spyOn(decodeHastSourceModule, 'decodeHastSource');
+    const fallbackSpy = vi.spyOn(fallbackFormatModule, 'fallbackToHast');
+    render(
+      <Pre shouldHighlight fallback={plainFallback} fallbackLineCounts={counts}>
+        {decodedSource}
+      </Pre>,
+    );
+    expect(decodeSpy.mock.invocationCallOrder[0]).toBeLessThan(
+      fallbackSpy.mock.invocationCallOrder[0],
+    );
+    expect(screen.getByText('DECODED')).toBeTruthy();
+  });
+
+  it('decodes on the first render when not init (shouldHighlight false)', () => {
+    const decodeSpy = vi.spyOn(decodeHastSourceModule, 'decodeHastSource');
+    const fallbackSpy = vi.spyOn(fallbackFormatModule, 'fallbackToHast');
+    render(
+      <Pre fallback={plainFallback} fallbackLineCounts={counts}>
+        {decodedSource}
+      </Pre>,
+    );
+    // No latch: the decode runs during the first render, before the fallback memo.
+    expect(decodeSpy.mock.invocationCallOrder[0]).toBeLessThan(
+      fallbackSpy.mock.invocationCallOrder[0],
+    );
+    expect(screen.getByText('DECODED')).toBeTruthy();
+  });
+
+  it('does not defer when there is no fallback to paint first', () => {
+    const decodeSpy = vi.spyOn(decodeHastSourceModule, 'decodeHastSource');
+    render(
+      <Pre shouldHighlight fallbackLineCounts={counts}>
+        {decodedSource}
+      </Pre>,
+    );
+    // `shouldHighlight` is true but there is no `fallback`, so deferring would
+    // blank the first paint — decode on mount instead.
+    expect(decodeSpy).toHaveBeenCalled();
+    expect(screen.getByText('DECODED')).toBeTruthy();
   });
 });

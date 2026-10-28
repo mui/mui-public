@@ -88,6 +88,13 @@ export function isLiteralType(type: unknown): type is tae.LiteralNode {
 }
 
 /**
+ * Type guard to check if a type node is a template literal.
+ */
+export function isTemplateLiteralType(type: unknown): type is tae.TemplateLiteralNode {
+  return hasKind(type, 'templateLiteral');
+}
+
+/**
  * Type guard to check if a type node is an enum type.
  */
 export function isEnumType(type: unknown): type is tae.EnumNode {
@@ -113,6 +120,22 @@ export function isTypeParameterType(type: unknown): type is tae.TypeParameterNod
  */
 export function isComponentType(type: unknown): type is tae.ComponentNode {
   return hasKind(type, 'component');
+}
+
+/**
+ * Type guard to check if a type node is a preserved type operator, such as `keyof T`.
+ * The operand is carried in `type` and the checker result in `resolvedType`.
+ */
+export function isTypeOperatorType(type: unknown): type is tae.TypeOperatorNode {
+  return hasKind(type, 'typeOperator');
+}
+
+/**
+ * Type guard to check if a type node is a preserved type query, such as `typeof value`.
+ * Type queries carry only the authored expression, never a resolved value shape.
+ */
+export function isTypeQueryType(type: unknown): type is tae.TypeQueryNode {
+  return hasKind(type, 'typeQuery');
 }
 
 /**

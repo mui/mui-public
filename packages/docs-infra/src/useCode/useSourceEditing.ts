@@ -1,23 +1,45 @@
 import * as React from 'react';
 import type { Root as HastRoot } from 'hast';
-import type { Position } from './useEditable';
+// `stringOrHastToString` is already part of the always-loaded `useCode` shell
+// (via `useCopyFunctionality`/`Pre`). Passing it into the lazy source-state module
+// keeps that chunk from statically pulling it (and `hastDecompress`).
+import { stringOrHastToString, frameFallbackFromSpans } from '../pipeline/hastUtils';
+// Same story for the transform-apply deps (already in the shell via
+// `useTransformManagement`): injected so seeded controlled code can
+// materialize line deltas for its transform manifest.
+import { decodeHastSource } from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
+import type { Position } from './SourceEditingEngine';
 import type {
   Code,
-  CollapseMap,
   ControlledCode,
-  ControlledVariantExtraFiles,
-  SourceComments,
+  ControlledVariantCode,
+  EditableSourceProjection,
   VariantCode,
 } from '../CodeHighlighter/types';
 import type { CodeHighlighterContextType } from '../CodeHighlighter/CodeHighlighterContext';
-import { stringOrHastToString } from '../pipeline/hastUtils';
+import { preParsedCacheKey } from '../CodeHighlighter/parseControlledCode';
+import {
+  peekSourceEditingEngine,
+  loadSourceEditingEngine,
+  preloadSourceEditingEngine as preloadSourceEditingEngineCached,
+  resetSourceEditingEngineCache as resetSourceEditingEngineCacheCached,
+} from './sourceEditingEngineCache';
+import type { SourceEditingEngineModule } from './sourceEditingEngineCache';
 
 export type { Position };
 
+const transformRuntimeDeps = { decode: decodeHastSource, frameFallbackFromSpans };
+
+/** Warms source-state normalization so the next edit applies synchronously. */
+export const preloadSourceEditingEngine = preloadSourceEditingEngineCached;
+
+/** Clears the source-state helper cache. Intended for cold-path tests. */
+export const resetSourceEditingEngineCache = resetSourceEditingEngineCacheCached;
+
 /**
- * Internal `setSource` shape used by the editing pipeline. The 3rd and 4th
- * arguments (caret position, pre-parsed HAST) are wired between sibling
- * hooks (`useEditable` → `Pre` → `useSourceEditing`) and are NOT part of
+ * Internal `setSource` shape used by the editing pipeline. Arguments after the
+ * filename carry selection, parsed HAST, and projection state between the editor,
+ * `Pre`, and `useSourceEditing`; they are NOT part of
  * the public `useCode` contract — host code should treat `setSource` as
  * `(source, fileName?) => void`.
  */
@@ -26,6 +48,7 @@ export type SetSource = (
   fileName?: string,
   position?: Position,
   preParsed?: HastRoot,
+  sourceProjection?: EditableSourceProjection,
 ) => void;
 
 interface UseSourceEditingProps {
@@ -37,262 +60,18 @@ interface UseSourceEditingProps {
 }
 
 export interface UseSourceEditingResult {
+  /** Seeds the controller with complete repository source before the first edit. */
+  activate?: () => void;
   setSource?: SetSource;
   /**
    * Clears the entire controlled code state back to `undefined`, discarding
    * user edits across **all variants and files** owned by the surrounding
    * `CodeControllerContext` (not just the currently selected file or
-   * variant), and falling back to the original code provided to the
-   * `CodeHighlighter`. Only available when a `CodeControllerContext` with
-   * `setCode` is in scope and editing is not disabled.
+   * variant). Once activated, it reseeds the original complete source so the
+   * live runtime remains active. Only available when a `CodeControllerContext`
+   * with `setCode` is in scope and editing is not disabled.
    */
   reset?: () => void;
-}
-
-interface ShiftResult {
-  comments: SourceComments | undefined;
-  collapseMap: CollapseMap | undefined;
-}
-
-/**
- * Counts the number of lines in a string and records which 1-indexed lines are
- * empty/whitespace-only, in a single pass, without allocating a line array.
- * `emptyLines` is omitted when no blank lines were found to keep the common
- * case allocation-free.
- */
-function analyzeSource(source: string): { totalLines: number; emptyLines?: number[] } {
-  let totalLines = 1;
-  let emptyLines: number[] | undefined;
-  let lineStart = 0;
-  const len = source.length;
-  for (let i = 0; i <= len; i += 1) {
-    if (i === len || source.charCodeAt(i) === 0x0a /* \n */) {
-      let isEmpty = true;
-      for (let j = lineStart; j < i; j += 1) {
-        const ch = source.charCodeAt(j);
-        // 0x20=space, 0x09=tab, 0x0D=CR, 0x0B=VT, 0x0C=FF
-        if (ch !== 0x20 && ch !== 0x09 && ch !== 0x0d && ch !== 0x0b && ch !== 0x0c) {
-          isEmpty = false;
-          break;
-        }
-      }
-      if (isEmpty) {
-        if (!emptyLines) {
-          emptyLines = [];
-        }
-        emptyLines.push(totalLines);
-      }
-      if (i < len) {
-        totalLines += 1;
-        lineStart = i + 1;
-      }
-    }
-  }
-  return emptyLines ? { totalLines, emptyLines } : { totalLines };
-}
-
-/**
- * Shifts 1-indexed comment line numbers after a source edit.
- * Accepts a precomputed `lineDelta` (positive = lines added, negative = lines deleted)
- * and the cursor `position` (0-indexed in the new text) to determine which
- * comments move and by how much.
- *
- * When lines are deleted, comments from the deleted range are collapsed
- * onto the edit line and recorded in a collapseMap so they can be restored
- * if the deletion is undone (lines re-added at the same position).
- *
- * Empty/whitespace-only deleted lines are special: since they had no real
- * content that "shifted upward" into editLine, their comments are pushed
- * to editLine + 1 (like `-end` boundary markers) so the highlighted region
- * shrinks instead of shifting onto the previous line.
- */
-function shiftComments(
-  comments: SourceComments | undefined,
-  lineDelta: number,
-  position: Position,
-  existingCollapseMap: CollapseMap | undefined,
-  oldEmptyLines?: number[],
-): ShiftResult {
-  if (!comments || Object.keys(comments).length === 0) {
-    return { comments, collapseMap: existingCollapseMap };
-  }
-
-  if (lineDelta === 0) {
-    return { comments, collapseMap: existingCollapseMap };
-  }
-
-  // position.line is 0-indexed in the new text.
-  // lineDelta is positive for insertions and negative for deletions.
-  // Convert to the 1-indexed line in old text that the cursor was on:
-  // For additions (lineDelta > 0):
-  //   - Forward typing: position is the POST-edit cursor (extent === 0).
-  //     Cursor moved down by lineDelta, so old line = position.line - lineDelta.
-  //   - Undo of a multi-line delete: the saved position has extent > 0 and
-  //     points to the SELECTION-START in the redone text — i.e. where the
-  //     re-inserted lines begin. The "edit line" is that line itself; the
-  //     new lines come AFTER it.
-  // For deletions (lineDelta < 0): cursor stayed where it was, old line = position.line.
-  const isUndoOfMultiLineDelete = lineDelta > 0 && position.extent > 0;
-  const editLine = isUndoOfMultiLineDelete
-    ? position.line + 1
-    : position.line - Math.max(0, lineDelta) + 1; // 1-indexed
-
-  const shifted: SourceComments = {};
-  let collapseMap: CollapseMap = existingCollapseMap ? { ...existingCollapseMap } : {};
-  const newCollapsed: Array<{ offset: number; comments: string[] }> = [];
-
-  // Build a list of comment strings to exclude from the edit line after restore.
-  // Uses an array (not Set) to correctly handle duplicate comment strings
-  // across separate collapsed entries.
-  let restoredComments: string[] | undefined;
-
-  // On expansion, check if we can restore previously collapsed comments
-  if (lineDelta > 0 && collapseMap[editLine]) {
-    const entries = collapseMap[editLine];
-    const restored: Array<{ offset: number; comments: string[] }> = [];
-    const remaining: Array<{ offset: number; comments: string[] }> = [];
-
-    for (const entry of entries) {
-      if (entry.offset <= lineDelta) {
-        restored.push(entry);
-      } else {
-        remaining.push(entry);
-      }
-    }
-
-    // Place restored comments at their original offsets from the edit line
-    restoredComments = [];
-    for (const entry of restored) {
-      const restoredLine = editLine + entry.offset;
-      shifted[restoredLine] = [...(shifted[restoredLine] ?? []), ...entry.comments];
-      restoredComments.push(...entry.comments);
-    }
-
-    if (remaining.length > 0) {
-      collapseMap[editLine] = remaining;
-    } else {
-      delete collapseMap[editLine];
-    }
-  }
-
-  // O(1) lookup against the precomputed empty-line set from the old source.
-  const oldEmptyLineSet =
-    oldEmptyLines && oldEmptyLines.length > 0 ? new Set(oldEmptyLines) : undefined;
-
-  for (const [lineStr, commentArr] of Object.entries(comments)) {
-    const line = Number(lineStr);
-    if (line <= editLine) {
-      // Before or at the edit line — unchanged.
-      // If this is the edit line and we restored comments from it, filter them out.
-      let arr = commentArr;
-      if (line === editLine && restoredComments) {
-        const remaining = [...commentArr];
-        for (const c of restoredComments) {
-          const idx = remaining.indexOf(c);
-          if (idx !== -1) {
-            remaining.splice(idx, 1);
-          }
-        }
-        arr = remaining;
-      }
-      if (arr.length > 0) {
-        shifted[line] = [...(shifted[line] ?? []), ...arr];
-      }
-    } else if (lineDelta < 0 && line <= editLine - lineDelta) {
-      // Within the deleted range — collapse comments onto the edit line.
-      // Boundary comments (ending with '-end') go to editLine + 1 instead,
-      // so range-end markers stay at the first line after the highlighted range.
-      // Boundary comments are NOT tracked in collapseMap — they shift normally
-      // on subsequent edits so the range naturally expands/contracts.
-      //
-      // Empty/whitespace-only deleted lines also push their regular comments
-      // to editLine + 1: nothing actually shifted upward into editLine, so the
-      // highlighted region should shrink rather than expand onto the line above.
-      const wasEmptyLine = oldEmptyLineSet?.has(line) ?? false;
-      const regular = commentArr.filter((c) => !c.endsWith('-end'));
-      const boundary = commentArr.filter((c) => c.endsWith('-end'));
-
-      if (regular.length > 0) {
-        if (wasEmptyLine) {
-          const target = editLine + 1;
-          shifted[target] = [...(shifted[target] ?? []), ...regular];
-        } else {
-          shifted[editLine] = [...(shifted[editLine] ?? []), ...regular];
-          newCollapsed.push({ offset: line - editLine, comments: regular });
-        }
-      }
-      if (boundary.length > 0) {
-        const boundaryTarget = editLine + 1;
-        shifted[boundaryTarget] = [...(shifted[boundaryTarget] ?? []), ...boundary];
-      }
-    } else {
-      // After the edit — shift
-      const newLine = line + lineDelta;
-      shifted[newLine] = [...(shifted[newLine] ?? []), ...commentArr];
-    }
-  }
-
-  // Also shift existing collapse map entries that are after the edit line
-  const shiftedCollapseMap: CollapseMap = {};
-  for (const [lineStr, entries] of Object.entries(collapseMap)) {
-    const line = Number(lineStr);
-    if (line <= editLine) {
-      shiftedCollapseMap[line] = entries;
-    } else {
-      shiftedCollapseMap[line + lineDelta] = entries;
-    }
-  }
-  collapseMap = shiftedCollapseMap;
-
-  if (newCollapsed.length > 0) {
-    collapseMap[editLine] = [...(collapseMap[editLine] ?? []), ...newCollapsed];
-  }
-
-  const finalCollapseMap = Object.keys(collapseMap).length > 0 ? collapseMap : undefined;
-
-  return { comments: shifted, collapseMap: finalCollapseMap };
-}
-
-/**
- * Converts Code to ControlledCode, normalizing sources and extraFiles entries.
- * VariantSource can be HAST nodes; ControlledCode requires plain strings.
- * VariantExtraFiles allows plain string entries; ControlledVariantExtraFiles
- * requires `{ source }` objects. Without this normalization, parseControlledCode
- * reads `.source` on a string and gets `undefined`, dropping file content.
- */
-function toControlledCode(code: Code): ControlledCode {
-  const result: ControlledCode = {};
-  for (const [key, variant] of Object.entries(code)) {
-    if (!variant || typeof variant === 'string') {
-      continue;
-    }
-    const source = variant.source != null ? stringOrHastToString(variant.source) : variant.source;
-
-    let extraFiles: ControlledVariantExtraFiles | undefined;
-    if (variant.extraFiles) {
-      extraFiles = {};
-      for (const [fileName, entry] of Object.entries(variant.extraFiles)) {
-        if (typeof entry === 'string') {
-          extraFiles[fileName] = { source: entry, ...analyzeSource(entry) };
-        } else {
-          const extraSource = entry.source != null ? stringOrHastToString(entry.source) : null;
-          extraFiles[fileName] = {
-            source: extraSource,
-            ...(entry.comments ? { comments: entry.comments } : {}),
-            ...(extraSource != null ? analyzeSource(extraSource) : {}),
-          };
-        }
-      }
-    }
-
-    result[key] = {
-      ...variant,
-      source,
-      ...(source != null ? analyzeSource(source) : {}),
-      ...(extraFiles ? { extraFiles } : {}),
-    } as ControlledCode[string];
-  }
-  return result;
 }
 
 /**
@@ -310,15 +89,64 @@ export function useSourceEditing({
   disabled,
 }: UseSourceEditingProps): UseSourceEditingResult {
   const contextSetCode = context?.setCode;
+  // Monotonic token bumped by every `setSource`/`reset`. A cold first edit defers
+  // its commit until the engine chunk resolves; if a later edit or a `reset`
+  // happens before then, the stale deferred commit must NOT run (it would re-apply
+  // a superseded edit and, after a reset, reverse it). The deferred callback
+  // captures the token at schedule time and bails if it changed.
+  const editTokenRef = React.useRef(0);
+  const resetTokenRef = React.useRef(0);
+  const hasEditedRef = React.useRef(false);
+  const activatedRef = React.useRef(false);
+  const initialCodeRef = React.useRef<ControlledCode | null>(null);
+
+  const activate = React.useCallback(() => {
+    if (!contextSetCode) {
+      return;
+    }
+    activatedRef.current = true;
+    const resetToken = resetTokenRef.current;
+    const applySeed = (engine: SourceEditingEngineModule) => {
+      if (resetTokenRef.current !== resetToken) {
+        return;
+      }
+      initialCodeRef.current ??= engine.toControlledCode(
+        effectiveCode,
+        selectedVariantKey,
+        context?.fallbacks,
+        stringOrHastToString,
+        transformRuntimeDeps,
+      );
+      contextSetCode((currentCode) => currentCode ?? initialCodeRef.current);
+    };
+    const warmEngine = peekSourceEditingEngine();
+    if (warmEngine) {
+      applySeed(warmEngine);
+    } else {
+      Promise.resolve(loadSourceEditingEngine())
+        .then(applySeed)
+        .catch(() => {});
+    }
+  }, [contextSetCode, effectiveCode, selectedVariantKey, context?.fallbacks]);
+  const activateRef = React.useRef(activate);
+  React.useLayoutEffect(() => {
+    activateRef.current = activate;
+  }, [activate]);
 
   const setSource = React.useCallback<SetSource>(
-    (source, fileName, position, preParsed) => {
+    (source, fileName, position, preParsed, sourceProjection) => {
       if (!contextSetCode) {
         console.warn(
           'setCode is not available in the current context. Ensure you are using CodeControllerContext.',
         );
         return;
       }
+
+      // Mark this edit as the latest; a deferred (cold) commit checks this.
+      editTokenRef.current += 1;
+      const editToken = editTokenRef.current;
+      const resetToken = resetTokenRef.current;
+      const isFirstEdit = !hasEditedRef.current;
 
       // Stash any pre-computed parse result against the resolved file name
       // BEFORE the controlled-code update commits, so that the synchronous
@@ -330,89 +158,206 @@ export function useSourceEditing({
       const resolvedFileName = fileName ?? selectedVariant?.fileName;
       const preParsedCache = context?.preParsedCache;
       if (preParsed !== undefined && preParsedCache && resolvedFileName) {
-        preParsedCache.set(resolvedFileName, {
+        preParsedCache.set(preParsedCacheKey(selectedVariantKey, resolvedFileName), {
           source,
           hast: preParsed,
         });
       }
 
-      contextSetCode((currentCode: ControlledCode | undefined) => {
-        const newCode: ControlledCode = currentCode
-          ? { ...currentCode }
-          : toControlledCode(effectiveCode);
+      const applyUpdate = (engine: SourceEditingEngineModule) => {
+        hasEditedRef.current = true;
+        const applyEdit = (currentCode: ControlledCode | null | undefined): ControlledCode => {
+          const newCode: ControlledCode = currentCode
+            ? { ...currentCode }
+            : engine.toControlledCode(
+                effectiveCode,
+                selectedVariantKey,
+                context?.fallbacks,
+                stringOrHastToString,
+                transformRuntimeDeps,
+              );
 
-        const variant = newCode[selectedVariantKey];
-        if (!variant) {
-          return newCode;
-        }
-
-        const effectiveFileName = fileName ?? selectedVariant?.fileName;
-        const isMainFile = effectiveFileName === selectedVariant?.fileName;
-
-        if (isMainFile) {
-          if (source === variant.source) {
-            return currentCode ?? newCode;
+          const variant = newCode[selectedVariantKey];
+          if (!variant) {
+            return newCode;
           }
-          const { totalLines: newLineCount, emptyLines: newEmptyLines } = analyzeSource(source);
-          const oldLineCount =
-            variant.totalLines ??
-            (variant.source != null ? analyzeSource(variant.source).totalLines : 0);
-          const { comments: shiftedComments, collapseMap: newCollapseMap } = position
-            ? shiftComments(
-                variant.comments,
-                newLineCount - oldLineCount,
-                position,
-                variant.collapseMap,
-                variant.emptyLines,
-              )
-            : { comments: undefined, collapseMap: undefined };
-          newCode[selectedVariantKey] = {
-            ...variant,
-            source,
-            totalLines: newLineCount,
-            emptyLines: newEmptyLines,
-            comments: shiftedComments,
-            collapseMap: newCollapseMap,
+
+          const effectiveFileName = fileName ?? selectedVariant?.fileName;
+          const isMainFile = effectiveFileName === selectedVariant?.fileName;
+
+          // Recompute the edited file's comment/window state for `source`.
+          // `shiftComments` shifts the comment map by the line delta relative to
+          // the edit position; on undo/redo the `position.history` flag tells it
+          // to reverse the edit (re-inserting deleted lines after the pre-edit
+          // caret), and its `collapseMap` restores comments that a deletion
+          // collapsed — so undo/redo is reversed from existing state, with no
+          // per-edit snapshots kept. `entry` is the file being edited (main
+          // variant or an extra file); both expose the same
+          // source/comments/collapseMap/totalLines/emptyLines shape.
+          const deriveFileState = (
+            entry:
+              | Pick<
+                  ControlledVariantCode,
+                  | 'source'
+                  | 'comments'
+                  | 'collapseMap'
+                  | 'totalLines'
+                  | 'emptyLines'
+                  | 'focusedLines'
+                  | 'collapsible'
+                  | 'sourceProjection'
+                >
+              | undefined,
+            nextSource: string,
+          ) => {
+            // `analyzeSource` treats a final newline as a line terminator, so it
+            // does not introduce a false line delta.
+            const { totalLines, emptyLines } = engine.analyzeSource(nextSource);
+            if (!position) {
+              return { comments: undefined, collapseMap: undefined, totalLines, emptyLines };
+            }
+            const oldLineCount =
+              entry?.totalLines ??
+              (entry?.source != null ? engine.analyzeSource(entry.source).totalLines : 0);
+            const { comments, collapseMap } = engine.shiftComments(
+              entry?.comments,
+              totalLines - oldLineCount,
+              position,
+              entry?.collapseMap,
+              entry?.emptyLines,
+            );
+            return { comments, collapseMap, totalLines, emptyLines };
           };
-        } else if (effectiveFileName) {
-          const extraEntry = variant.extraFiles?.[effectiveFileName];
-          if (source === extraEntry?.source) {
-            return currentCode ?? newCode;
-          }
-          const { totalLines: newLineCount, emptyLines: newEmptyLines } = analyzeSource(source);
-          const oldLineCount =
-            extraEntry?.totalLines ??
-            (extraEntry?.source != null ? analyzeSource(extraEntry.source).totalLines : 0);
-          const { comments: shiftedComments, collapseMap: newCollapseMap } = position
-            ? shiftComments(
-                extraEntry?.comments,
-                newLineCount - oldLineCount,
-                position,
-                extraEntry?.collapseMap,
-                extraEntry?.emptyLines,
-              )
-            : { comments: undefined, collapseMap: undefined };
-          newCode[selectedVariantKey] = {
-            ...variant,
-            extraFiles: {
-              ...variant.extraFiles,
-              [effectiveFileName]: {
-                ...extraEntry,
-                source,
-                totalLines: newLineCount,
-                emptyLines: newEmptyLines,
-                comments: shiftedComments,
-                collapseMap: newCollapseMap,
+
+          const deriveProjectionState = (
+            entry:
+              | Pick<ControlledVariantCode, 'focusedLines' | 'collapsible' | 'sourceProjection'>
+              | undefined,
+            totalLines: number,
+          ) => {
+            if (sourceProjection) {
+              return {
+                focusedLines: engine.analyzeSource(sourceProjection.source).totalLines,
+                collapsible: sourceProjection.start > 0 || sourceProjection.end < source.length,
+              };
+            }
+            return entry?.sourceProjection ||
+              entry?.focusedLines !== undefined ||
+              entry?.collapsible
+              ? { focusedLines: totalLines, collapsible: false }
+              : {};
+          };
+
+          if (isMainFile) {
+            if (source === variant.source) {
+              return currentCode ?? newCode;
+            }
+            const { totalLines, emptyLines, comments, collapseMap } = deriveFileState(
+              variant,
+              source,
+            );
+            newCode[selectedVariantKey] = {
+              ...variant,
+              source,
+              totalLines,
+              ...deriveProjectionState(variant, totalLines),
+              emptyLines,
+              comments,
+              collapseMap,
+              sourceProjection,
+            };
+          } else if (effectiveFileName) {
+            const extraEntry = variant.extraFiles?.[effectiveFileName];
+            if (source === extraEntry?.source) {
+              return currentCode ?? newCode;
+            }
+            const { totalLines, emptyLines, comments, collapseMap } = deriveFileState(
+              extraEntry,
+              source,
+            );
+            newCode[selectedVariantKey] = {
+              ...variant,
+              extraFiles: {
+                ...variant.extraFiles,
+                [effectiveFileName]: {
+                  ...extraEntry,
+                  source,
+                  totalLines,
+                  ...deriveProjectionState(extraEntry, totalLines),
+                  emptyLines,
+                  comments,
+                  collapseMap,
+                  sourceProjection,
+                },
               },
-            },
-          };
-        }
+            };
+          }
 
-        return newCode;
-      });
+          const editedVariant = newCode[selectedVariantKey];
+          if (editedVariant) {
+            if (isFirstEdit) {
+              // FIRST edit (precomputed → controlled): carry the pre-edit build
+              // inputs so the runner renders the ORIGINAL as a baseline before this
+              // (possibly broken) edit, then swaps to it (see `useVariantBuilds`).
+              newCode[selectedVariantKey] = {
+                ...editedVariant,
+                original: { source: variant.source, extraFiles: variant.extraFiles },
+              };
+            } else if (editedVariant.original) {
+              // Subsequent edit: the baseline already rendered — drop `original` so
+              // it doesn't linger in (and bloat) the controlled state.
+              const stripped = { ...editedVariant };
+              delete stripped.original;
+              newCode[selectedVariantKey] = stripped;
+            }
+          }
+
+          return newCode;
+        };
+
+        // A SINGLE update carries the edited code to the controller — which the
+        // editor reflects immediately (no seed/handoff dance). On the FIRST edit
+        // `applyEdit` tags it with `.original`, so the runner renders the original
+        // as a baseline before swapping to this edit (see `useVariantBuilds`).
+        contextSetCode(applyEdit);
+      };
+
+      // Apply synchronously from the warm cache (the common case — the warm
+      // effect below loads the engine as soon as the block is editable). On a
+      // cold first edit, defer this one update until the chunk resolves; later
+      // edits are synchronous.
+      const warmEngine = peekSourceEditingEngine();
+      if (warmEngine) {
+        applyUpdate(warmEngine);
+      } else {
+        Promise.resolve(loadSourceEditingEngine())
+          .then((loaded) => {
+            // Bail if a later edit or a reset superseded this one while loading.
+            if (editTokenRef.current === editToken && resetTokenRef.current === resetToken) {
+              applyUpdate(loaded);
+            }
+          })
+          .catch(() => {});
+      }
     },
-    [contextSetCode, selectedVariantKey, effectiveCode, selectedVariant, context?.preParsedCache],
+    [
+      contextSetCode,
+      selectedVariantKey,
+      effectiveCode,
+      selectedVariant,
+      context?.preParsedCache,
+      context?.fallbacks,
+    ],
   );
+
+  // Warm the edit-time runtime as soon as the block is editable, so the first
+  // edit applies synchronously (no flash). Read-only blocks never load it.
+  React.useEffect(() => {
+    if (peekSourceEditingEngine() || !contextSetCode || disabled) {
+      return;
+    }
+    preloadSourceEditingEngineCached().catch(() => {});
+  }, [contextSetCode, disabled]);
 
   const reset = React.useCallback(() => {
     if (!contextSetCode) {
@@ -421,13 +366,26 @@ export function useSourceEditing({
       );
       return;
     }
-    contextSetCode(undefined);
-  }, [contextSetCode]);
+    // Supersede any pending cold edit so it can't re-apply after this reset.
+    editTokenRef.current += 1;
+    resetTokenRef.current += 1;
+    hasEditedRef.current = false;
+    // Evict any pre-parsed HAST so the original re-parses fresh on the next render
+    // (matches `refresh()`); a stale entry keyed by (variant, fileName) would otherwise
+    // survive the reset and the source viewer could reuse it for the rebuilt original.
+    context?.preParsedCache?.clear();
+    // Back to an empty controlled state, so the next edit re-tags `.original`.
+    contextSetCode(null);
+    if (activatedRef.current) {
+      activateRef.current();
+    }
+  }, [contextSetCode, context?.preParsedCache]);
 
   const isEditable = !disabled && Boolean(contextSetCode) && Boolean(selectedVariant);
   const canReset = !disabled && Boolean(contextSetCode);
 
   return {
+    activate: isEditable ? activate : undefined,
     setSource: isEditable ? setSource : undefined,
     reset: canReset ? reset : undefined,
   };

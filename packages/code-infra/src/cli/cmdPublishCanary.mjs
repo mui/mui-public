@@ -93,7 +93,11 @@ async function fetchCommitsForPackage({ packagePath }) {
   return results;
 }
 
-const AUTHOR_EXCLUDE_LIST = ['renovate[bot]', 'dependabot[bot]'];
+const AUTHOR_EXCLUDE_LIST = new Set([
+  'renovate[bot]',
+  'dependabot[bot]',
+  'code-infra-renovate[bot]',
+]);
 
 /**
  * @param {string} message
@@ -144,7 +148,7 @@ async function prepareChangelogsFromGitCli(packagesToPublish, allPackages, canar
         // Exclude commits authored by bots
         .filter(
           // We want to allow commits from copilot or other AI tools, so only filter known bots
-          (commit) => !AUTHOR_EXCLUDE_LIST.includes(commit.author),
+          (commit) => !AUTHOR_EXCLUDE_LIST.has(commit.author),
         )
         .map((commit) => `- ${cleanupCommitMessage(commit.message)} by ${commit.author}`);
 

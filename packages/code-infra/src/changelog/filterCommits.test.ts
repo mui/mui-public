@@ -16,6 +16,8 @@ function createCommit(overrides: Partial<FetchedCommitDetails> = {}): FetchedCom
     },
     createdAt: '2025-01-01T00:00:00Z',
     mergedAt: '2025-01-01T00:00:00Z',
+    prTitle: 'Test PR Title',
+    prBody: 'Test PR Body',
     ...overrides,
   };
 }

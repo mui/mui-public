@@ -5,38 +5,37 @@ import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter/type
 import { useDemo } from '@mui/internal-docs-infra/useDemo';
 import { useCodeWindow } from '@mui/internal-docs-infra/useCodeWindow';
 import { Tabs } from '@/components/Tabs';
+import { DemoError } from '@/components/DemoError';
 import { CodeActionsMenu } from '../../../components/code-highlighter/demos/CodeActionsMenu';
 import { CodeBlockHeader } from '../../../components/code-highlighter/demos/CodeBlockHeader';
+import { CodeSource } from '../../../components/code-highlighter/demos/CodeSource';
 import styles from './CollapsibleDemoContent.module.css';
-
-import '@wooorm/starry-night/style/light';
 
 export function CollapsibleDemoContent(props: ContentProps<object>) {
   // @focus-start @padding 1
-  const demo = useDemo(props, { preClassName: styles.codeBlock });
+  const demo = useDemo(props, {
+    preClassName: styles.codeBlock,
+  });
+
+  const hasJsTransform = demo.availableTransforms.includes('js');
+  const isJsSelected = demo.selectedTransform === 'js';
+
+  const id = React.useId();
+  const checkboxId = `${id}-expand`;
+  const { containerRef, toggleRef, anchorScroll } = useCodeWindow<HTMLLabelElement>();
+
+  const toggleJs = (enabled: boolean) => demo.selectTransform(enabled ? 'js' : null);
 
   const tabs = React.useMemo(
     () => demo.files.map(({ name, slug }) => ({ id: name, name, slug })),
     [demo.files],
   );
 
-  const id = React.useId();
-  const checkboxId = `${id}-expand`;
-  const { containerRef, toggleRef, anchorScroll } = useCodeWindow<HTMLLabelElement>();
   const blurPointerFocus = React.useCallback((event: React.FocusEvent<HTMLInputElement>) => {
     if (!event.currentTarget.matches(':focus-visible')) {
       event.currentTarget.blur();
     }
   }, []);
-
-  const selectedFileSlug = React.useMemo(
-    () =>
-      demo.allFilesSlugs.find(
-        (entry) =>
-          entry.fileName === demo.selectedFileName && entry.variantName === demo.selectedVariant,
-      )?.slug,
-    [demo.allFilesSlugs, demo.selectedFileName, demo.selectedVariant],
-  );
 
   return (
     <div>
@@ -44,7 +43,10 @@ export function CollapsibleDemoContent(props: ContentProps<object>) {
         <span key={slug} id={slug} className={styles.fileRefs} />
       ))}
       <div className={styles.container}>
-        <div className={styles.demoSection}>{demo.component}</div>
+        <div className={styles.demoSection}>
+          <DemoError error={demo.error} />
+          {demo.component}
+        </div>
         <div ref={containerRef} className={styles.codeSection}>
           <CodeBlockHeader
             menu={
@@ -53,7 +55,10 @@ export function CollapsibleDemoContent(props: ContentProps<object>) {
                 onCopyMarkdown={demo.copyMarkdown}
                 fileUrl={demo.selectedFileUrl}
                 fileName={demo.selectedFileName}
-                fileSlug={selectedFileSlug}
+                fileSlug={demo.selectedFileSlug}
+                jsTransform={
+                  hasJsTransform ? { enabled: isJsSelected, onToggle: toggleJs } : undefined
+                }
               />
             }
           >
@@ -63,7 +68,7 @@ export function CollapsibleDemoContent(props: ContentProps<object>) {
               onTabSelect={demo.selectFileName}
             />
           </CodeBlockHeader>
-          <div className={styles.code}>{demo.selectedFile}</div>
+          <CodeSource className={styles.code}>{demo.selectedFile}</CodeSource>
           {/* Visually hidden checkbox provides no-JS toggle state via CSS :checked */}
           <input
             type="checkbox"

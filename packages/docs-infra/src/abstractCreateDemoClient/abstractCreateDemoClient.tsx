@@ -58,18 +58,17 @@ export function abstractCreateDemoClient<C extends DefaultController>(
   const externals = precomputedExternals || {};
   const context = { externals };
   const { DemoController } = options;
+  const Controller = DemoController as React.ComponentType<{
+    children: React.ReactNode;
+    url: string;
+  }>;
 
   function ClientProvider({ children }: { children: React.ReactNode }) {
-    if (controllerProps != null) {
-      return (
-        <CodeExternalsContext.Provider value={context}>
-          {React.createElement(DemoController, Object.assign({}, controllerProps, { children }))}
-        </CodeExternalsContext.Provider>
-      );
-    }
     return (
       <CodeExternalsContext.Provider value={context}>
-        {React.createElement(DemoController, Object.assign({}, { children }))}
+        <Controller {...controllerProps} url={url}>
+          {children}
+        </Controller>
       </CodeExternalsContext.Provider>
     );
   }

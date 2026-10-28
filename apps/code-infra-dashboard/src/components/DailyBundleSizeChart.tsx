@@ -7,7 +7,8 @@ import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import { LineChart } from '@mui/x-charts-pro/LineChart';
 import { byteSizeFormatter } from './SizeChangeDisplay';
-import { useMasterCommits, type GitHubCommit } from '../hooks/useMasterCommits';
+import { useMasterCommits } from '../hooks/useMasterCommits';
+import type { GitHubCommit } from '../hooks/useMasterCommits';
 import { useCiReports } from '../hooks/useCiReports';
 import ErrorDisplay from './ErrorDisplay';
 import { CHART_COLORS } from './chartColors';
@@ -39,6 +40,7 @@ interface DailyBundleSizeChartProps {
 }
 
 type SizeType = 'gzip' | 'parsed';
+const MIN_AUTO_Y_AXIS_RANGE = 1024;
 
 interface ChartData {
   dates: Date[];
@@ -101,11 +103,14 @@ export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps
     return Array.from(bundleNames).sort();
   }, [dailyData]);
 
-  // Initialize selected bundles with top-level packages when data loads
-  React.useEffect(() => {
-    const topLevelBundles = allBundles.filter(isPackageTopLevel);
-    setSelectedBundles(topLevelBundles);
-  }, [allBundles]);
+  // Re-seed the selected bundles with the top-level packages whenever the available
+  // bundle set changes, tracked by comparing the previous `allBundles` reference during
+  // render so the reset lands in the same commit.
+  const [prevAllBundles, setPrevAllBundles] = React.useState<string[] | null>(null);
+  if (prevAllBundles !== allBundles) {
+    setPrevAllBundles(allBundles);
+    setSelectedBundles(allBundles.filter(isPackageTopLevel));
+  }
 
   const chartData = transformDataForChart(dailyData, sizeType, allBundles);
 
@@ -139,7 +144,7 @@ export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps
               filterSelectedOptions
               size="small"
               renderInput={(params) => (
-                <TextField {...params} placeholder="Search and select bundles..." />
+                <TextField {...params} placeholder="Search and select bundles…" />
               )}
               sx={{ mb: 1 }}
             />
@@ -215,7 +220,17 @@ export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps
               ]}
               yAxis={[
                 {
-                  ...(yAxisStartAtZero && { min: 0 }),
+                  domainLimit: (minValue, maxValue) => {
+                    const dataMin = yAxisStartAtZero ? 0 : Number(minValue);
+                    const dataMax = Number(maxValue);
+                    const deficit = Math.max(0, MIN_AUTO_Y_AXIS_RANGE - (dataMax - dataMin));
+                    const padBelow = yAxisStartAtZero ? 0 : deficit / 2;
+                    const padAbove = deficit - padBelow;
+                    return {
+                      min: Math.max(0, Math.floor((dataMin - padBelow) / 1024) * 1024),
+                      max: Math.ceil((dataMax + padAbove) / 1024) * 1024,
+                    };
+                  },
                   width: 60,
                   valueFormatter: (value: number) => byteSizeFormatter.format(value),
                 },

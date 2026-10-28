@@ -12,6 +12,7 @@ const defaultUpdateParentIndex = {
   markerDir: '.next/cache/docs-infra/types-index-updates',
   onlyUpdateIndexes: true,
   errorIfOutOfDate: Boolean(process.env.CI),
+  cacheDir: '.next/cache/docs-infra',
 };
 
 describe('withDocsInfra', () => {
@@ -102,7 +103,7 @@ describe('withDocsInfra', () => {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
               options: {
                 performance: {},
-                socketDir: '.next/docs-infra',
+                cacheDir: '.next/cache/docs-infra',
                 updateParentIndex: defaultUpdateParentIndex,
               },
             },
@@ -112,7 +113,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedSitemap',
-              options: { performance: {} },
+              options: { performance: {}, cacheDir: '.next/cache/docs-infra' },
             },
           ],
         },
@@ -159,7 +160,7 @@ describe('withDocsInfra', () => {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
               options: {
                 performance: {},
-                socketDir: '.next/docs-infra',
+                cacheDir: '.next/cache/docs-infra',
                 updateParentIndex: defaultUpdateParentIndex,
               },
             },
@@ -169,7 +170,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedSitemap',
-              options: { performance: {} },
+              options: { performance: {}, cacheDir: '.next/cache/docs-infra' },
             },
           ],
         },
@@ -233,7 +234,7 @@ describe('withDocsInfra', () => {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
               options: {
                 performance: {},
-                socketDir: '.next/docs-infra',
+                cacheDir: '.next/cache/docs-infra',
                 updateParentIndex: defaultUpdateParentIndex,
               },
             },
@@ -243,7 +244,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedSitemap',
-              options: { performance: {} },
+              options: { performance: {}, cacheDir: '.next/cache/docs-infra' },
             },
           ],
         },
@@ -300,7 +301,7 @@ describe('withDocsInfra', () => {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
               options: {
                 performance: {},
-                socketDir: '.next/docs-infra',
+                cacheDir: '.next/cache/docs-infra',
                 updateParentIndex: defaultUpdateParentIndex,
               },
             },
@@ -310,7 +311,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedSitemap',
-              options: { performance: {} },
+              options: { performance: {}, cacheDir: '.next/cache/docs-infra' },
             },
           ],
         },
@@ -377,7 +378,7 @@ describe('withDocsInfra', () => {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
             options: {
               performance: {},
-              socketDir: '.next/docs-infra',
+              cacheDir: '.next/cache/docs-infra',
               updateParentIndex: defaultUpdateParentIndex,
             },
           },
@@ -389,7 +390,7 @@ describe('withDocsInfra', () => {
           mockDefaultLoaders.babel,
           {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedSitemap',
-            options: { performance: {} },
+            options: { performance: {}, cacheDir: '.next/cache/docs-infra' },
           },
         ],
       });
@@ -601,7 +602,7 @@ describe('withDocsInfra', () => {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
               options: {
                 performance: {},
-                socketDir: '.next/docs-infra',
+                cacheDir: '.next/cache/docs-infra',
                 updateParentIndex: defaultUpdateParentIndex,
               },
             },
@@ -611,7 +612,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedSitemap',
-              options: { performance: {} },
+              options: { performance: {}, cacheDir: '.next/cache/docs-infra' },
             },
           ],
         },
@@ -725,7 +726,7 @@ describe('withDocsInfra', () => {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
               options: {
                 performance: performanceOptions,
-                socketDir: '.next/docs-infra',
+                cacheDir: '.next/cache/docs-infra',
                 updateParentIndex: defaultUpdateParentIndex,
               },
             },
@@ -735,7 +736,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedSitemap',
-              options: { performance: performanceOptions },
+              options: { performance: performanceOptions, cacheDir: '.next/cache/docs-infra' },
             },
           ],
         },
@@ -805,7 +806,7 @@ describe('withDocsInfra', () => {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
             options: {
               performance: performanceOptions,
-              socketDir: '.next/docs-infra',
+              cacheDir: '.next/cache/docs-infra',
               updateParentIndex: defaultUpdateParentIndex,
             },
           },
@@ -956,7 +957,7 @@ describe('withDocsInfra', () => {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
             options: {
               performance: {},
-              socketDir: '.next/docs-infra',
+              cacheDir: '.next/cache/docs-infra',
               updateParentIndex: defaultUpdateParentIndex,
               codeBlockEmphasisOptions,
             },
@@ -1005,13 +1006,97 @@ describe('withDocsInfra', () => {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
             options: {
               performance: {},
-              socketDir: '.next/docs-infra',
+              cacheDir: '.next/cache/docs-infra',
               updateParentIndex: defaultUpdateParentIndex,
               codeBlockEmphasisOptions,
             },
           },
         ],
       });
+    });
+  });
+
+  describe('demo page generation', () => {
+    const mockWebpackOptions = {
+      buildId: 'test-build',
+      dev: false,
+      isServer: false,
+      config: {},
+      defaultLoaders: {
+        babel: {
+          test: /\.(js|jsx|ts|tsx)$/,
+          use: 'babel-loader',
+        },
+      },
+      dir: '/tmp',
+      totalPages: 10,
+    } as unknown as WebpackConfigContext;
+
+    it('marks the turbopack demo index rule with requirePage when requireDemoPage is set', () => {
+      const plugin = withDocsInfra({ requireDemoPage: true });
+      const result = plugin({});
+
+      expect(result.turbopack?.rules?.['./app/**/demos/*/index.ts']).toEqual({
+        loaders: [
+          {
+            loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+            options: {
+              performance: {},
+              output: 'hastCompressed',
+              requirePage: true,
+            },
+          },
+        ],
+      });
+    });
+
+    it('marks the webpack demo index rule with requirePage when requireDemoPage is set', () => {
+      const plugin = withDocsInfra({ requireDemoPage: true });
+      const result = plugin({});
+
+      const webpackResult = result.webpack!({ module: { rules: [] } }, mockWebpackOptions);
+
+      expect(webpackResult.module?.rules).toContainEqual({
+        test: new RegExp('[/\\\\]demos[/\\\\][^/\\\\]+[/\\\\]index\\.ts$'),
+        use: [
+          mockWebpackOptions.defaultLoaders.babel,
+          {
+            loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+            options: {
+              performance: {},
+              output: 'hastCompressed',
+              requirePage: true,
+            },
+          },
+        ],
+      });
+    });
+
+    it('does not mark the demo-data rule with requirePage', () => {
+      const plugin = withDocsInfra({ requireDemoPage: true });
+      const result = plugin({});
+
+      expect(result.turbopack?.rules?.['./demo-data/*/index.ts']).toEqual({
+        loaders: [
+          {
+            loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+            options: {
+              performance: {},
+              output: 'hastCompressed',
+            },
+          },
+        ],
+      });
+    });
+
+    it('omits requirePage from demo loader options by default', () => {
+      const plugin = withDocsInfra();
+      const result = plugin({});
+
+      const options = (
+        result.turbopack?.rules?.['./app/**/demos/*/index.ts'] as { loaders: { options: object }[] }
+      ).loaders[0].options;
+      expect(options).not.toHaveProperty('requirePage');
     });
   });
 
@@ -1075,7 +1160,7 @@ describe('withDocsInfra', () => {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
             options: {
               performance: {},
-              socketDir: '.next/docs-infra',
+              cacheDir: '.next/cache/docs-infra',
               updateParentIndex: defaultUpdateParentIndex,
               ordering,
             },
@@ -1117,9 +1202,10 @@ describe('getDocsInfraMdxOptions', () => {
             include: ['app', 'src/app'],
             exclude: [],
             baseDir: process.cwd(),
+            cacheDir: '.next/cache/docs-infra',
+            markerDir: '.next/cache/docs-infra/index-updates',
+            errorIfOutOfDate: false,
           },
-          markerPath: '.next/cache/docs-infra/index-updates',
-          errorIfIndexOutOfDate: false,
         },
       ],
       ['@mui/internal-docs-infra/pipeline/transformMarkdownRelativePaths'],
@@ -1151,9 +1237,10 @@ describe('getDocsInfraMdxOptions', () => {
             include: ['app', 'src/app'],
             exclude: [],
             baseDir: process.cwd(),
+            cacheDir: '.next/cache/docs-infra',
+            markerDir: '.next/cache/docs-infra/index-updates',
+            errorIfOutOfDate: false,
           },
-          markerPath: '.next/cache/docs-infra/index-updates',
-          errorIfIndexOutOfDate: false,
         },
       ],
       ['@mui/internal-docs-infra/pipeline/transformMarkdownRelativePaths'],

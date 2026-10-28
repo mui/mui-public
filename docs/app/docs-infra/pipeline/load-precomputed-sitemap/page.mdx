@@ -1,6 +1,6 @@
 # Load Precomputed Sitemap
 
-The precomputed sitemap loader is a Webpack/Turbopack loader that processes markdown files at build time to create optimized search indexes and navigation data. It extracts metadata from documentation pages and generates structured sitemap data with Orama search schema.
+The precomputed sitemap loader is a webpack/Turbopack loader that processes markdown files at build time to create optimized search indexes and navigation data. It extracts metadata from documentation pages and generates structured sitemap data with Orama search schema.
 
 > [!TIP]
 > For documentation on the `createSitemap` factory function, see [`createSitemap`](../../factories/create-sitemap/page.mdx).
@@ -74,7 +74,7 @@ const nextConfig = {
 
 The loader expects a sitemap index file that imports markdown pages:
 
-```text
+```ascii
 app/
 ├── sitemap/
 │   └── index.ts              # Factory file (processed by loader)
@@ -203,7 +203,7 @@ The loader generates a structured data format:
             "slug": "code-highlighter",
             "path": "./code-highlighter/page.mdx",
             "title": "Code Highlighter",
-            "description": "Component for displaying code...",
+            "description": "Component for displaying code…",
             "keywords": ["code", "syntax", "highlighting"],
             "sections": {
               "features": {
@@ -330,7 +330,7 @@ The loader includes performance tracking for optimization:
 ### Build-Time Optimization
 
 - **Parallel processing**: Reads and parses multiple markdown files simultaneously
-- **Dependency caching**: Webpack/Turbopack cache based on file contents
+- **Dependency caching**: webpack/Turbopack cache based on file contents
 - **Incremental builds**: Only reprocesses changed markdown files
 
 ### Bundle Size Reduction

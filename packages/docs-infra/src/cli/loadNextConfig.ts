@@ -3,9 +3,11 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createJiti } from 'jiti';
 import type { DescriptionReplacement } from '../pipeline/loadServerTypesMeta/format';
+import type { InheritedExternalPropsConfig } from '../pipeline/loadServerTypesMeta/inheritedExternalProps';
 import type { OrderingConfig } from '../pipeline/loadServerTypesText/order';
 
 const TYPES_LOADER = '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes';
+const SITEMAP_LOADER = '@mui/internal-docs-infra/pipeline/loadPrecomputedSitemap';
 const CODE_HIGHLIGHTER_LOADER = '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter';
 const TRANSFORM_METADATA_PLUGIN = '@mui/internal-docs-infra/pipeline/transformMarkdownMetadata';
 const TRANSFORM_METADATA_PLUGIN_FUNCTION_NAME = 'transformMarkdownMetadata';
@@ -21,13 +23,27 @@ export interface DemoClientRequirement {
   requireClient: string;
 }
 
+export interface DemoPageRequirement {
+  /**
+   * Either a Turbopack-style glob pattern (e.g. `./app/**\/demos/*\/index.ts`)
+   * or a webpack-style RegExp used as the rule's `test`. Globs are extracted
+   * from `turbopack.rules`; RegExps are extracted from `webpack` rules.
+   */
+  pattern: string | RegExp;
+}
+
 export type ExtractedNextConfigOptions = {
   ordering?: OrderingConfig;
   descriptionReplacements?: DescriptionReplacement[];
+  /** Props to re-include when inherited from these externally declared types. */
+  inheritedExternalProps?: InheritedExternalPropsConfig;
   useVisibleDescription?: boolean;
-  socketDir?: string;
+  /** Page-index cache directory configured on the sitemap loader. */
+  cacheDir?: string;
   /** Demo index patterns that opted into automatic `client.ts` generation. */
   demoClientRequirements?: DemoClientRequirement[];
+  /** Demo index patterns that opted into automatic `page.tsx` generation. */
+  demoPageRequirements?: DemoPageRequirement[];
 };
 
 /**
@@ -66,7 +82,7 @@ function extractUseVisibleDescriptionFromRemarkPlugins(
 }
 
 /**
- * Extracts docs-infra options (ordering, descriptionReplacements, socketDir,
+ * Extracts docs-infra options (ordering, descriptionReplacements,
  * useVisibleDescription) from loader options in a single pass.
  */
 function extractOptionsFromLoaderEntries(
@@ -89,11 +105,19 @@ function extractOptionsFromLoaderEntries(
         .descriptionReplacements as DescriptionReplacement[];
     }
     if (
-      !result.socketDir &&
+      !result.inheritedExternalProps &&
       loader.loader === TYPES_LOADER &&
-      typeof loader.options?.socketDir === 'string'
+      loader.options?.inheritedExternalProps
     ) {
-      result.socketDir = loader.options.socketDir;
+      result.inheritedExternalProps = loader.options
+        .inheritedExternalProps as InheritedExternalPropsConfig;
+    }
+    if (
+      !result.cacheDir &&
+      loader.loader === SITEMAP_LOADER &&
+      typeof loader.options?.cacheDir === 'string'
+    ) {
+      result.cacheDir = loader.options.cacheDir;
     }
     if (result.useVisibleDescription === undefined && loader.options?.remarkPlugins) {
       const extracted = extractUseVisibleDescriptionFromRemarkPlugins(loader.options.remarkPlugins);
@@ -107,9 +131,11 @@ function extractOptionsFromLoaderEntries(
 
 /**
  * Searches turbopack rules for docs-infra options (ordering,
- * descriptionReplacements, socketDir, useVisibleDescription).
+ * descriptionReplacements, useVisibleDescription, cacheDir).
+ *
+ * Exported for tests.
  */
-function extractOptionsFromTurbopack(config: any): ExtractedNextConfigOptions {
+export function extractOptionsFromTurbopack(config: any): ExtractedNextConfigOptions {
   const rules = config?.turbopack?.rules;
   if (!rules) {
     return {};
@@ -123,8 +149,9 @@ function extractOptionsFromTurbopack(config: any): ExtractedNextConfigOptions {
     const extracted = extractOptionsFromLoaderEntries(loaders);
     merged.ordering ??= extracted.ordering;
     merged.descriptionReplacements ??= extracted.descriptionReplacements;
+    merged.inheritedExternalProps ??= extracted.inheritedExternalProps;
     merged.useVisibleDescription ??= extracted.useVisibleDescription;
-    merged.socketDir ??= extracted.socketDir;
+    merged.cacheDir ??= extracted.cacheDir;
   }
   return merged;
 }
@@ -202,7 +229,7 @@ function callWebpackSafely(config: any): any {
 
 /**
  * Calls the webpack function with a minimal config and extracts docs-infra
- * options (ordering, descriptionReplacements, socketDir, useVisibleDescription)
+ * options (ordering, descriptionReplacements, useVisibleDescription)
  * from the resulting rules.
  */
 function extractOptionsFromWebpackResult(result: any): ExtractedNextConfigOptions {
@@ -212,8 +239,9 @@ function extractOptionsFromWebpackResult(result: any): ExtractedNextConfigOption
     const extracted = extractOptionsFromLoaderEntries(useEntries);
     merged.ordering ??= extracted.ordering;
     merged.descriptionReplacements ??= extracted.descriptionReplacements;
+    merged.inheritedExternalProps ??= extracted.inheritedExternalProps;
     merged.useVisibleDescription ??= extracted.useVisibleDescription;
-    merged.socketDir ??= extracted.socketDir;
+    merged.cacheDir ??= extracted.cacheDir;
   }
   return merged;
 }
@@ -277,6 +305,57 @@ function extractDemoClientRequirementsFromWebpackResult(result: any): DemoClient
   return requirements;
 }
 
+/**
+ * Walks Turbopack rules to collect demo patterns that opted into automatic
+ * `page.tsx` generation via the `requirePage` option.
+ *
+ * Exported for tests.
+ */
+export function extractDemoPageRequirementsFromTurbopack(config: any): DemoPageRequirement[] {
+  const rules = config?.turbopack?.rules;
+  if (!rules || typeof rules !== 'object') {
+    return [];
+  }
+  const requirements: DemoPageRequirement[] = [];
+  for (const [pattern, rule] of Object.entries(rules)) {
+    const loaders = (rule as any)?.loaders;
+    if (!Array.isArray(loaders)) {
+      continue;
+    }
+    for (const loader of loaders) {
+      if (loader?.loader === CODE_HIGHLIGHTER_LOADER && loader?.options?.requirePage === true) {
+        requirements.push({ pattern });
+        break;
+      }
+    }
+  }
+  return requirements;
+}
+
+/**
+ * Walks webpack rules to collect demo `test` regexes that opted into automatic
+ * `page.tsx` generation via the `requirePage` option. Mirrors the Turbopack
+ * extractor but uses the rule's RegExp `test` as the pattern.
+ *
+ * Exported for tests.
+ */
+export function extractDemoPageRequirementsFromWebpackResult(result: any): DemoPageRequirement[] {
+  const requirements: DemoPageRequirement[] = [];
+  for (const rule of result?.module?.rules ?? []) {
+    if (!(rule?.test instanceof RegExp)) {
+      continue;
+    }
+    const useEntries = Array.isArray(rule.use) ? rule.use : [];
+    for (const loader of useEntries) {
+      if (loader?.loader === CODE_HIGHLIGHTER_LOADER && loader?.options?.requirePage === true) {
+        requirements.push({ pattern: rule.test });
+        break;
+      }
+    }
+  }
+  return requirements;
+}
+
 export async function extractDocsInfraOptionsFromNextConfig(
   dir: string,
 ): Promise<ExtractedNextConfigOptions> {
@@ -321,12 +400,28 @@ export async function extractDocsInfraOptionsFromNextConfig(
       ]),
     ).values(),
   ];
+  const turbopackDemoPageRequirements = extractDemoPageRequirementsFromTurbopack(config);
+  const webpackDemoPageRequirements = webpackResult
+    ? extractDemoPageRequirementsFromWebpackResult(webpackResult)
+    : [];
+  const demoPageRequirements = [
+    ...new Map(
+      [...turbopackDemoPageRequirements, ...webpackDemoPageRequirements].map((requirement) => [
+        typeof requirement.pattern === 'string'
+          ? requirement.pattern
+          : requirement.pattern.toString(),
+        requirement,
+      ]),
+    ).values(),
+  ];
   return {
     ordering: turbopack.ordering ?? webpack.ordering,
     descriptionReplacements: turbopack.descriptionReplacements ?? webpack.descriptionReplacements,
+    inheritedExternalProps: turbopack.inheritedExternalProps ?? webpack.inheritedExternalProps,
     useVisibleDescription: turbopack.useVisibleDescription ?? webpack.useVisibleDescription,
-    socketDir: turbopack.socketDir ?? webpack.socketDir,
+    cacheDir: turbopack.cacheDir ?? webpack.cacheDir,
     demoClientRequirements: demoClientRequirements.length > 0 ? demoClientRequirements : undefined,
+    demoPageRequirements: demoPageRequirements.length > 0 ? demoPageRequirements : undefined,
   };
 }
 

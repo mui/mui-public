@@ -11,7 +11,9 @@ parameters:
 
 default-job: &default-job
   working_directory: /tmp/mui
-  executor: code-infra/mui-node
+  executor:
+    name: code-infra/mui-node
+    node-version: '22.23.4'
   resource_class: medium
 
 default-context: &default-context
@@ -37,6 +39,7 @@ jobs:
           command: pnpm docs:lib
       - code-infra/eslint
       - code-infra/stylelint
+      - code-infra/valelint
   docs_validate:
     <<: *default-job
     steps:
@@ -45,12 +48,17 @@ jobs:
       - run:
           name: Build docs-infra package
           command: pnpm docs:lib
-      - code-infra/install-deps
       - run:
           name: Validate the documentation files
           command: pnpm docs:validate
   test_static:
     <<: *default-job
+    # The `medium` executor (4 GB) OOM-kills Node's default heap during the
+    # `pnpm dedupe --check` and `pnpm typescript` steps. Raise the old-space
+    # limit job-wide (the dedupe step comes from the orb, so it can't take a
+    # step-level override here), leaving headroom for the OS and non-heap memory.
+    environment:
+      NODE_OPTIONS: --max-old-space-size=3072
     steps:
       - checkout
       - code-infra/install-deps
@@ -58,7 +66,12 @@ jobs:
       - run:
           # make sure the netlify ignore command has the correct dependencies
           name: '`pnpm update-netlify-ignore` changes committed?'
-          command: pnpm code-infra netlify-ignore @apps/code-infra-dashboard --check
+          command: pnpm code-infra netlify-ignore ./apps/code-infra-dashboard --check
+      - run:
+          # A package that publishes from `build/` is linked there, not at its source, so a consumer
+          # of one sees no types at all until it is built.
+          name: Build packages
+          command: pnpm release:build
       - run:
           name: Tests TypeScript
           command: pnpm typescript
@@ -67,6 +80,11 @@ jobs:
     steps:
       - checkout
       - code-infra/install-deps
+      - run:
+          # A package that publishes from `build/` is linked there, not at its source, so an import
+          # from one fails to resolve until it is built.
+          name: Build packages
+          command: pnpm release:build
       - run:
           name: 'Run tests'
           command: pnpm test
@@ -81,10 +99,13 @@ jobs:
       - code-infra/upload-size-snapshot
 
   test_benchmark:
+    <<: *default-job
     executor:
       name: code-infra/mui-node-browser
-      playwright-img-version: 'v1.59.1-noble'
-    resource_class: medium
+      playwright-img-version: 'v1.64.1-noble'
+    # 2 vCPUs starve V8's background compilers, which makes the same code's speed vary from sample to
+    # sample; see the benchmark package's README.
+    resource_class: medium+
     steps:
       - checkout
       - code-infra/install-deps
@@ -92,15 +113,66 @@ jobs:
           name: Build packages
           command: pnpm release:build
       - run:
-          name: Run benchmarks
-          environment:
-            BENCHMARK_UPLOAD: 'true'
-          command: pnpm -F ./test/performance benchmark
-
-  test_browser:
+          name: Resolve the baseline commit
+          command: |
+            set -e
+            BASE_SHA=$(pnpm code-infra baseline --base-branch master)
+            echo "Baseline commit: $BASE_SHA"
+            echo "$BASE_SHA" > .benchmark-baseline-sha
+      - restore_cache:
+          name: Restore the packed-baseline cache
+          keys:
+            - benchmark-run-cache-v1-{{ checksum ".benchmark-baseline-sha" }}
+      - run:
+          name: Run the benchmark smoke test
+          no_output_timeout: 30m
+          command: pnpm test:benchmark --baseline "$(cat .benchmark-baseline-sha)"
+      - run:
+          name: Upload the benchmark report
+          # Also after a failed run that wrote its report, such as one where a benchmark errored, so
+          # the comment says what happened.
+          when: always
+          command: pnpm test:benchmark upload
+      - save_cache:
+          name: Save the packed-baseline cache
+          key: benchmark-run-cache-v1-{{ checksum ".benchmark-baseline-sha" }}
+          paths:
+            - test/benchmark/.benchmark/packed
+  # The commit against itself: any regression it reports is a false alarm, so over many nights the
+  # job's failure rate is the benchmarks' false-alarm rate. An alarm needs a change confidently past
+  # its error band, so expect close to 0%; a rate that climbs means noise or bias in a benchmark.
+  benchmark_aa:
+    <<: *default-job
     executor:
       name: code-infra/mui-node-browser
-      playwright-img-version: 'v1.59.1-noble'
+      playwright-img-version: 'v1.64.1-noble'
+    resource_class: medium+
+    steps:
+      - checkout
+      - code-infra/install-deps
+      - run:
+          name: Build packages
+          command: pnpm release:build
+      - run:
+          name: Benchmark the commit against itself
+          no_output_timeout: 30m
+          command: pnpm --silent -F ./test/benchmark benchmark --baseline HEAD --reporter json > aa.json
+      - store_artifacts:
+          path: aa.json
+      - run:
+          name: Fail on a false alarm
+          command: |
+            node -e "
+              const { regressions } = JSON.parse(require('fs').readFileSync('aa.json', 'utf8'));
+              for (const { benchmark, metric } of regressions) console.error('False alarm: ' + benchmark + ' · ' + metric);
+              process.exit(regressions.length > 0 ? 1 : 0);
+            "
+
+  test_browser:
+    <<: *default-job
+    executor:
+      name: code-infra/mui-node-browser
+      playwright-img-version: 'v1.64.1-noble'
     # `medium` (4 GB) intermittently OOM-kills the Playwright server when
     # all three browsers (chromium/firefox/webkit) are driving tests at
     # once. `medium+` (6 GB) gives enough headroom without paying for
@@ -138,4 +210,11 @@ workflows:
       - test_benchmark:
           <<: *default-context
       - test_browser:
+          <<: *default-context
+  # Started nightly on master by a scheduled pipeline that sets `workflow` to `benchmark-aa`.
+  benchmark-aa:
+    when:
+      equal: [benchmark-aa, << pipeline.parameters.workflow >>]
+    jobs:
+      - benchmark_aa:
           <<: *default-context

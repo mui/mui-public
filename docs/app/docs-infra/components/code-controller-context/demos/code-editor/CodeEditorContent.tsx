@@ -8,30 +8,17 @@ import {
   CodeBlockHeader,
   CodeBlockHeaderLabel,
 } from '../../../code-highlighter/demos/CodeBlockHeader';
+import { CodeSource } from '../../../code-highlighter/demos/CodeSource';
 import styles from './CodeEditorContent.module.css';
 
-import '../../../code-highlighter/demos/syntax.css';
-
 export function CodeEditorContent(props: ContentProps<object>) {
-  const code = useCode(props, { preClassName: styles.codeBlock });
+  const code = useCode(props, {
+    preClassName: styles.codeBlock,
+  });
 
   const hasJsTransform = code.availableTransforms.includes('js');
   const isJsSelected = code.selectedTransform === 'js';
-  const toggleJs = React.useCallback(
-    (enabled: boolean) => {
-      code.selectTransform(enabled ? 'js' : null);
-    },
-    [code],
-  );
-
-  const selectedFileSlug = React.useMemo(
-    () =>
-      code.allFilesSlugs.find(
-        (entry) =>
-          entry.fileName === code.selectedFileName && entry.variantName === code.selectedVariant,
-      )?.slug,
-    [code.allFilesSlugs, code.selectedFileName, code.selectedVariant],
-  );
+  const toggleJs = (enabled: boolean) => code.selectTransform(enabled ? 'js' : null);
 
   return (
     <div>
@@ -47,7 +34,7 @@ export function CodeEditorContent(props: ContentProps<object>) {
               onCopy={code.copy}
               fileUrl={code.selectedFileUrl}
               fileName={code.selectedFileName}
-              fileSlug={selectedFileSlug}
+              fileSlug={code.selectedFileSlug}
               onReset={code.reset}
               jsTransform={
                 hasJsTransform ? { enabled: isJsSelected, onToggle: toggleJs } : undefined
@@ -57,7 +44,7 @@ export function CodeEditorContent(props: ContentProps<object>) {
         >
           <CodeBlockHeaderLabel>{code.selectedFileName}</CodeBlockHeaderLabel>
         </CodeBlockHeader>
-        <div className={styles.code}>{code.selectedFile}</div>
+        <CodeSource className={styles.code}>{code.selectedFile}</CodeSource>
       </div>
     </div>
   );

@@ -8,10 +8,8 @@ import path from 'path';
 // eslint-disable-next-line n/prefer-node-protocol
 import { fileURLToPath, pathToFileURL } from 'url';
 
-import {
-  parseCreateFactoryCall,
-  type ParsedCreateFactory,
-} from '../parseCreateFactoryCall/parseCreateFactoryCall';
+import { parseCreateFactoryCall } from '../parseCreateFactoryCall/parseCreateFactoryCall';
+import type { ParsedCreateFactory } from '../parseCreateFactoryCall/parseCreateFactoryCall';
 import { generateResolvedExternals } from './generateResolvedExternals';
 import { loadIsomorphicCodeVariant } from '../loadIsomorphicCodeVariant/loadIsomorphicCodeVariant';
 import { createLoadServerCodeSource } from '../loadServerCodeSource';

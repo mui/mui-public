@@ -7,6 +7,7 @@ The `hastUtils` module provides utilities for converting between HAST (Hypertext
 - Converts HAST nodes to React JSX elements
 - Extracts plain text from HAST trees
 - Handles serialized HAST JSON format
+- Dictionary-based DEFLATE compression for serialized HAST (the `hastCompressed` format)
 - Used in code highlighting and markdown processing pipelines
 
 ## Usage
@@ -31,6 +32,60 @@ const plainText = stringOrHastToString(hastNodeOrString);
 // Convert to JSX with optional highlighting
 const jsx = stringOrHastToJsx(hastNodeOrString, true);
 ```
+
+## Compression
+
+The module also implements the `hastCompressed` serialization format — the
+mechanism behind the small precomputed payloads that `CodeHighlighter` ships
+(the `output: 'hastCompressed'` option of the
+[loaders](../load-isomorphic-code-variant/page.mdx#output-formats)):
+
+```ts
+import { compressHast, decompressHast } from '@mui/internal-docs-infra/pipeline/hastUtils';
+
+const compressed = compressHast(JSON.stringify(hastRoot), plainText); // base64
+const json = decompressHast(compressed, plainText);
+```
+
+### The dictionary trick
+
+JSON-serialized HAST is extremely repetitive — and its text nodes repeat the
+code's plain text, which the page has already shipped as the loading fallback.
+The compressor exploits both:
+
+1. `buildDictionary(textContent)` prepends the block's **plain text** to a
+   static ~3&nbsp;KB dictionary (`HAST_DICTIONARY`) of byte sequences common in
+   highlighted HAST JSON (`{"type":"element","tagName":"span",...`). DEFLATE
+   back-references can then point into the dictionary instead of repeating the
+   bytes, so a highlighted tree compresses to a fraction of its size — the
+   fallback the page already rendered does double duty as the dictionary.
+2. `compressHast(json, textContent)` deflates at maximum level with that
+   dictionary and embeds a 4-byte checksum (`CHECKSUM_BYTES`) of the dictionary
+   in the payload.
+3. `decompressHast(base64, textContent)` rebuilds the same dictionary on the
+   client and verifies the checksum first — if the supplied `textContent`
+   differs from the one used at compression time, it throws
+   `HastDictionaryMismatchError` instead of silently producing corrupt output.
+
+Omitting `textContent` uses only the static dictionary and skips the checksum.
+Both directions have async variants (`compressHastAsync` /
+`decompressHastAsync`) that keep large payloads off the main thread, and
+string-payload equivalents (`compressString` / `decompressString` and their
+async forms) for non-HAST content. The maximum dictionary window is
+`MAX_DICTIONARY_SIZE` (32&nbsp;KiB — DEFLATE only reads the last 32&nbsp;KiB).
+
+> [!WARNING]
+> The static `HAST_DICTIONARY` is embedded in both the server build and the
+> client bundle and must stay byte-compatible across them: entries are
+> **prepend-only** (DEFLATE back-references reach into the dictionary from its
+> end, so the existing tail must stay byte-identical for older payloads to
+> decode). The checksum turns any drift on the text path into a loud
+> `HastDictionaryMismatchError` rather than silent corruption.
+
+Two related helpers support the fallback pipeline: `stripHighlightingSpans`
+removes highlighting spans from a tree (producing the plain-text-equivalent
+structure fallbacks are built from), and `frameFallbackFromSpans` converts a
+list of spans into the compact frame-based fallback format.
 
 ## API
 

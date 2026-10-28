@@ -118,8 +118,8 @@ describe('moveAndTransformDeclarations', () => {
       createFile(path.join(inputDir, 'index.d.ts'), 'export const test: string;'),
     ]);
 
-    /** @type {{type: BundleType; dir: string}[]} */
-    const bundles = [{ type: 'esm', dir: 'esm' }];
+    /** @type {BundleType[]} */
+    const bundles = ['esm'];
 
     // Mock babel transformAsync to avoid actual babel transformations
     vi.doMock('@babel/core', () => ({
@@ -130,18 +130,17 @@ describe('moveAndTransformDeclarations', () => {
       inputDir,
       buildDir,
       bundles,
-      isFlat: false,
       packageType: 'module',
     });
 
     // Verify file exists in the correct location
-    const dtsFile = path.join(buildDir, 'esm', 'index.d.ts');
+    const dtsFile = path.join(buildDir, 'index.d.ts');
     const stat = await fs.stat(dtsFile).catch(() => null);
     expect(stat).not.toBeNull();
     expect(stat?.isFile()).toBe(true);
   });
 
-  it('preserves original path file when not flat build', async () => {
+  it('preserves original path file for a single esm bundle', async () => {
     const cwd = await makeTempDir();
     const inputDir = path.join(cwd, 'input');
     const buildDir = path.join(cwd, 'build');
@@ -151,19 +150,18 @@ describe('moveAndTransformDeclarations', () => {
       createFile(path.join(inputDir, 'index.d.ts'), 'export const test: string;'),
     ]);
 
-    /** @type {{type: BundleType; dir: string}[]} */
-    const bundles = [{ type: 'esm', dir: 'esm' }];
+    /** @type {BundleType[]} */
+    const bundles = ['esm'];
 
     await moveAndTransformDeclarations({
       inputDir,
       buildDir,
       bundles,
-      isFlat: false,
       packageType: 'module',
     });
 
-    // For single bundle non-flat builds, files are copied to bundle dir
-    const dtsFile = path.join(buildDir, 'esm', 'index.d.ts');
+    // Files are copied to the build root
+    const dtsFile = path.join(buildDir, 'index.d.ts');
     const stat = await fs.stat(dtsFile).catch(() => null);
     expect(stat?.isFile()).toBe(true);
   });
@@ -189,8 +187,8 @@ describe('moveAndTransformDeclarations', () => {
     const content = 'export const normalized: boolean;';
     await Promise.all([createFile(path.join(inputDir, 'test.d.ts'), content)]);
 
-    /** @type {{type: BundleType; dir: string}[]} */
-    const bundles = [{ type: 'esm', dir: 'esm' }];
+    /** @type {BundleType[]} */
+    const bundles = ['esm'];
 
     // Mock babel transformAsync to capture filename
     const transformMock = vi.fn(async (code) => ({ code }));
@@ -202,12 +200,11 @@ describe('moveAndTransformDeclarations', () => {
       inputDir,
       buildDir,
       bundles,
-      isFlat: false,
       packageType: 'module',
     });
 
     // Verify the file was read correctly by checking it exists
-    const dtsFile = path.join(buildDir, 'esm', 'test.d.ts');
+    const dtsFile = path.join(buildDir, 'test.d.ts');
     const stat = await fs.stat(dtsFile).catch(() => null);
     expect(stat?.isFile()).toBe(true);
   });
@@ -220,20 +217,19 @@ describe('moveAndTransformDeclarations', () => {
     const content = 'export const flat: string;';
     await Promise.all([createFile(path.join(inputDir, 'index.d.ts'), content)]);
 
-    /** @type {{type: BundleType; dir: string}[]} */
+    /** @type {BundleType[]} */
     // ESM + module packageType keeps .d.ts extension in flat builds
-    const bundles = [{ type: 'esm', dir: 'esm' }];
+    const bundles = ['esm'];
 
     await moveAndTransformDeclarations({
       inputDir,
       buildDir,
       bundles,
-      isFlat: true,
       packageType: 'module',
     });
 
     // Since extension doesn't change (.d.ts -> .d.ts), file should remain
-    const outputFile = path.join(buildDir, 'esm', 'index.d.ts');
+    const outputFile = path.join(buildDir, 'index.d.ts');
     const outputStat = await fs.stat(outputFile).catch(() => null);
     expect(outputStat?.isFile()).toBe(true);
   });
@@ -245,26 +241,25 @@ describe('moveAndTransformDeclarations', () => {
 
     const content = 'export const transformed: string;';
     await Promise.all([createFile(path.join(inputDir, 'index.d.ts'), content)]);
-    /** @type {{type: BundleType; dir: string}[]} */
+    /** @type {BundleType[]} */
 
     // CJS bundle with module packageType creates .d.cts
-    const bundles = [{ type: 'cjs', dir: 'cjs' }];
+    const bundles = ['cjs'];
 
     await moveAndTransformDeclarations({
       inputDir,
       buildDir,
       bundles,
-      isFlat: true,
       packageType: 'module',
     });
 
     // Transformed file with new extension should exist
-    const outputFile = path.join(buildDir, 'cjs', 'index.d.cts');
+    const outputFile = path.join(buildDir, 'index.d.cts');
     const outputStat = await fs.stat(outputFile).catch(() => null);
     expect(outputStat?.isFile()).toBe(true);
 
     // Original .d.ts should be removed
-    const originalFile = path.join(buildDir, 'cjs', 'index.d.ts');
+    const originalFile = path.join(buildDir, 'index.d.ts');
     const originalStat = await fs.stat(originalFile).catch(() => null);
     expect(originalStat).toBeNull();
   });
@@ -291,26 +286,25 @@ describe('moveAndTransformDeclarations', () => {
 
     const content = 'export const component: string;';
     await Promise.all([createFile(path.join(inputDir, 'component.d.ts'), content)]);
-    /** @type {{type: BundleType; dir: string}[]} */
+    /** @type {BundleType[]} */
 
     // ESM + commonjs packageType creates .d.mts
-    const bundles = [{ type: 'esm', dir: 'esm' }];
+    const bundles = ['esm'];
 
     await moveAndTransformDeclarations({
       inputDir,
       buildDir,
       bundles,
-      isFlat: true,
       packageType: 'commonjs',
     });
 
     // The .d.mts file should exist
-    const transformedFile = path.join(buildDir, 'esm', 'component.d.mts');
+    const transformedFile = path.join(buildDir, 'component.d.mts');
     const transformedStat = await fs.stat(transformedFile).catch(() => null);
     expect(transformedStat?.isFile()).toBe(true);
 
     // Original .d.ts should be removed because extension changed
-    const originalFile = path.join(buildDir, 'esm', 'component.d.ts');
+    const originalFile = path.join(buildDir, 'component.d.ts');
     const originalStat = await fs.stat(originalFile).catch(() => null);
     expect(originalStat).toBeNull();
   });
@@ -323,35 +317,25 @@ describe('moveAndTransformDeclarations', () => {
     const content = 'export const multi: string;';
     await Promise.all([createFile(path.join(inputDir, 'index.d.ts'), content)]);
 
-    // Multiple bundles: files are copied to buildDir, not directly to bundle dirs
-    /** @type {{type: BundleType; dir: string}[]} */
-    const bundles = [
-      { type: 'esm', dir: 'esm' },
-      { type: 'cjs', dir: 'cjs' },
-    ];
+    /** @type {BundleType[]} */
+    const bundles = ['esm', 'cjs'];
 
     await moveAndTransformDeclarations({
       inputDir,
       buildDir,
       bundles,
-      isFlat: true,
       packageType: 'module',
     });
 
-    // Each bundle gets its own transformed copy
-    // ESM with module packageType keeps .d.ts
-    const esmFile = path.join(buildDir, 'esm', 'index.d.ts');
+    // Each bundle writes its own transformed copy to the build root.
+    // ESM with module packageType keeps .d.ts (and is the original, so it stays)
+    const esmFile = path.join(buildDir, 'index.d.ts');
     const esmStat = await fs.stat(esmFile).catch(() => null);
     expect(esmStat?.isFile()).toBe(true);
 
     // CJS with module packageType gets .d.cts
-    const cjsFile = path.join(buildDir, 'cjs', 'index.d.cts');
+    const cjsFile = path.join(buildDir, 'index.d.cts');
     const cjsStat = await fs.stat(cjsFile).catch(() => null);
     expect(cjsStat?.isFile()).toBe(true);
-
-    // Original in buildDir should be removed in flat mode since writesToOriginalPath is false
-    const originalFile = path.join(buildDir, 'index.d.ts');
-    const originalStat = await fs.stat(originalFile).catch(() => null);
-    expect(originalStat).toBeNull();
   });
 });

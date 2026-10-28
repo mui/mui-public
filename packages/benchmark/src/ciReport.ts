@@ -1,6 +1,9 @@
 import { execa } from 'execa';
 import { z } from 'zod/v4';
 import envCi from 'env-ci';
+import { ciReportUploadSchema } from './ciReportUploadSchema';
+
+export { ciReportUploadSchema } from './ciReportUploadSchema';
 
 interface CiInfo {
   isCi: boolean;
@@ -15,31 +18,21 @@ interface CiInfo {
 interface GitInfo {
   commitSha: string;
   branch: string;
+  /** When the commit was made, in milliseconds. */
+  commitTimestamp: number;
 }
 
 async function getGitInfo(): Promise<GitInfo> {
-  const [commit, branch] = await Promise.all([
+  const [commit, branch, commitTime] = await Promise.all([
     execa('git', ['rev-parse', 'HEAD']),
     execa('git', ['branch', '--show-current']),
+    execa('git', ['log', '-1', '--format=%ct', 'HEAD']),
   ]);
-  return { commitSha: commit.stdout, branch: branch.stdout };
-}
-
-/**
- * Creates a CI report upload schema for a specific report type.
- * Common fields (commitSha, repo, branch, prNumber) are shared across all report types.
- */
-function ciReportUploadSchema(type: string, version: number, reportSchema: z.ZodType) {
-  return z.object({
-    version: z.literal(version),
-    timestamp: z.number(),
-    commitSha: z.string().regex(/^[0-9a-f]{40}$/, 'Must be a 40-character hex string'),
-    repo: z.string().includes('/', 'Must be in owner/repo format'),
-    reportType: z.literal(type),
-    prNumber: z.number().int().positive().optional(),
-    branch: z.string(),
-    report: reportSchema,
-  });
+  return {
+    commitSha: commit.stdout,
+    branch: branch.stdout,
+    commitTimestamp: Number(commitTime.stdout) * 1000,
+  };
 }
 
 const renderStatsSchema = z.object({
@@ -66,7 +59,27 @@ const benchmarkReportEntrySchema = z.object({
 
 const benchmarkReportSchema = z.record(z.string(), benchmarkReportEntrySchema);
 
-const benchmarkBaseUploadSchema = ciReportUploadSchema('benchmark', 1, benchmarkReportSchema);
+const metricDefinitionSchema = z.object({
+  kind: z.enum(['scalar', 'discrete']),
+  format: z.custom<Intl.NumberFormatOptions>().optional(),
+  alarm: z
+    .object({
+      direction: z.enum(['lowerIsBetter', 'higherIsBetter']).optional(),
+      warn: z.number().min(0).optional(),
+      error: z.number().min(0).optional(),
+    })
+    .optional(),
+});
+
+const benchmarkBaseUploadSchema = ciReportUploadSchema(
+  'benchmark',
+  1,
+  benchmarkReportSchema,
+).extend({
+  // Per-metric config for custom metrics, hoisted to the top level (keyed by metric name) so
+  // it is stored once rather than duplicated in every report entry. Optional and additive.
+  metricDefinitions: z.record(z.string(), metricDefinitionSchema).optional(),
+});
 
 export const benchmarkUploadSchema = benchmarkBaseUploadSchema.extend({
   base: benchmarkBaseUploadSchema.optional(),
@@ -74,6 +87,7 @@ export const benchmarkUploadSchema = benchmarkBaseUploadSchema.extend({
 
 export type RenderStats = z.infer<typeof renderStatsSchema>;
 export type MetricStats = z.infer<typeof metricStatsSchema>;
+export type BenchmarkMetricDefinition = z.infer<typeof metricDefinitionSchema>;
 export type BenchmarkReportEntry = z.infer<typeof benchmarkReportEntrySchema>;
 export type BenchmarkReport = z.infer<typeof benchmarkReportSchema>;
 export type BenchmarkBaseUpload = z.infer<typeof benchmarkBaseUploadSchema>;
@@ -92,5 +106,6 @@ export async function getCiMetadata() {
       (ciInfo.isPr ? ciInfo.prBranch : ciInfo.branch) ||
       '',
     commitSha: gitInfo.commitSha,
+    commitTimestamp: gitInfo.commitTimestamp,
   };
 }

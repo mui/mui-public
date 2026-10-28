@@ -51,9 +51,11 @@ export function BenchViewer({
   // reset benchmarks when reopening
   React.useEffect(() => {
     if (open) {
+      /* eslint-disable react-hooks/set-state-in-effect -- reset prior-run state before scheduling a fresh idle-timed measurement */
       setMetrics([]);
       setBenchShown(false);
       setWaitingForTTI(false);
+      /* eslint-enable react-hooks/set-state-in-effect */
       // request idle callback
       window.requestIdleCallback(() => {
         setBenchShown(true);

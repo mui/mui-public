@@ -11,12 +11,16 @@ import Box from '@mui/material/Box';
 import NextLink from 'next/link';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import GitHubIcon from '@mui/icons-material/GitHub';
+import ThumbsUpDownIcon from '@mui/icons-material/ThumbsUpDown';
 import BuildIcon from '@mui/icons-material/Build';
 import CompareIcon from '@mui/icons-material/Compare';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import DownloadIcon from '@mui/icons-material/Download';
 import FindInPageIcon from '@mui/icons-material/FindInPage';
 import SpeedIcon from '@mui/icons-material/Speed';
+import PeopleIcon from '@mui/icons-material/People';
+import StorageIcon from '@mui/icons-material/Storage';
+import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 import Link from '@mui/material/Link';
 import CardActionArea from '@mui/material/CardActionArea';
 import Heading from '../components/Heading';
@@ -73,6 +77,30 @@ const tools: Tool[] = [
     icon: <GitHubIcon />,
     path: '/github-triage',
   },
+  {
+    name: 'GitHub reactions',
+    description: 'List every emoji reaction on a public GitHub issue or pull request.',
+    icon: <ThumbsUpDownIcon />,
+    path: '/reactions',
+  },
+  {
+    name: 'mui.com/about',
+    description: 'The team.',
+    icon: <PeopleIcon />,
+    path: '/mui-about',
+  },
+  {
+    name: 'Query OSS Insight',
+    description: 'Run arbitrary SQL against the OSS Insight playground for a GitHub repository.',
+    icon: <StorageIcon />,
+    path: '/query-oss-insight',
+  },
+  {
+    name: 'Validate support key',
+    description: 'Let a customer prove their support plan to upgrade a GitHub issue to priority.',
+    icon: <VerifiedUserIcon />,
+    path: '/validate-support',
+  },
 ];
 
 export default function Landing() {
@@ -118,7 +146,6 @@ export default function Landing() {
                   size="small"
                   component={Link}
                   href={`https://github.com/${repo.owner}/${repo.name}`}
-                  rel="noopener noreferrer"
                   startIcon={<GitHubIcon />}
                 >
                   GitHub
@@ -127,7 +154,6 @@ export default function Landing() {
                   size="small"
                   component={Link}
                   href={`https://app.circleci.com/pipelines/github/${repo.owner}/${repo.name}`}
-                  rel="noopener noreferrer"
                   startIcon={<BuildIcon />}
                 >
                   CircleCI

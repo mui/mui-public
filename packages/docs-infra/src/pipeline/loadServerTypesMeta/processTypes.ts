@@ -1,72 +1,31 @@
 import type { CompilerOptions } from 'typescript';
 // eslint-disable-next-line n/prefer-node-protocol
 import { fileURLToPath } from 'url';
-import {
-  type ExportNode,
-  parseFromProgram,
-  type ParserOptions,
-  type TypeName,
-  type AnyType,
-} from 'typescript-api-extractor';
+import { parseFromProgram } from 'typescript-api-extractor';
+import type { ExportNode, TypeName, AnyType } from 'typescript-api-extractor';
 import ts from 'typescript';
 import { createOptimizedProgram } from './createOptimizedProgram';
-import { PerformanceTracker, type PerformanceLog } from './performanceTracking';
+import { augmentComponentsWithInheritedProps } from './inheritedExternalProps';
+import type { InheritedExternalPropsConfig } from './inheritedExternalProps';
+import { findConstantNamespaces, foldConstantNamespaces } from './constantGroups';
+import { PARSER_OPTIONS } from './constants';
+import { extractJSDocText, isJSDocNodeArray } from './extractJSDocText';
+import { PerformanceTracker } from './performanceTracking';
+import type { PerformanceLog } from './performanceTracking';
 import { nameMark } from '../loadPrecomputedCodeHighlighter/performanceLogger';
-
-/**
- * Extracts text content from a JSDoc description array.
- * typescript-api-extractor returns description as an array of JSDoc nodes
- * when the comment contains @link tags.
- */
-function extractJSDocText(nodes: unknown[]): string {
-  return nodes
-    .map((node) => {
-      if (typeof node === 'object' && node !== null) {
-        // Regular text nodes have a 'text' property with content
-        if ('text' in node) {
-          const text = (node as { text?: unknown }).text;
-          if (typeof text === 'string' && text) {
-            return text;
-          }
-        }
-        // JSDocLink nodes (kind 325) have the symbol name in name.escapedText
-        // Convert {@link symbolName} to [`symbolName`](#symbolName) markdown link
-        if ('name' in node) {
-          const name = (node as { name?: { escapedText?: string } }).name;
-          if (name && typeof name.escapedText === 'string') {
-            return `[\`${name.escapedText}\`](#${name.escapedText.toLowerCase()})`;
-          }
-        }
-      }
-      return '';
-    })
-    .join('');
-}
-
-/**
- * Checks if an array looks like JSDoc description nodes from typescript-api-extractor.
- * These have properties like 'pos', 'end', 'kind', 'text' from the TypeScript AST.
- */
-function isJSDocNodeArray(value: unknown[]): boolean {
-  if (value.length === 0) {
-    return false;
-  }
-  const first = value[0];
-  return (
-    typeof first === 'object' &&
-    first !== null &&
-    'pos' in first &&
-    'end' in first &&
-    'kind' in first
-  );
-}
 
 /**
  * Strips functions from objects so they can cross the worker boundary.
  * Structured clone can't handle functions but handles everything else fine.
- * Also normalizes typescript-api-extractor JSDoc description arrays to strings.
+ * Also normalizes typescript-api-extractor JSDoc description arrays to strings,
+ * resolving `{@link}` references against `documentedNames` so only symbols with
+ * a heading on the page become anchor links.
  */
-function stripFunctions<T>(value: T, visited = new WeakMap<object, unknown>()): T {
+function stripFunctions<T>(
+  value: T,
+  documentedNames?: Set<string>,
+  visited = new WeakMap<object, unknown>(),
+): T {
   // Primitives, null, undefined - return as-is
   if (value === null || value === undefined || typeof value !== 'object') {
     return value;
@@ -81,13 +40,13 @@ function stripFunctions<T>(value: T, visited = new WeakMap<object, unknown>()): 
   if (Array.isArray(value)) {
     // Normalize JSDoc description arrays to strings
     if (isJSDocNodeArray(value)) {
-      return extractJSDocText(value) as T;
+      return extractJSDocText(value, documentedNames) as T;
     }
     const result: unknown[] = [];
     visited.set(value, result);
     for (const item of value) {
       if (typeof item !== 'function') {
-        result.push(stripFunctions(item, visited));
+        result.push(stripFunctions(item, documentedNames, visited));
       }
     }
     return result as T;
@@ -99,10 +58,45 @@ function stripFunctions<T>(value: T, visited = new WeakMap<object, unknown>()): 
   for (const key of Object.keys(value)) {
     const propValue = (value as Record<string, unknown>)[key];
     if (typeof propValue !== 'function') {
-      result[key] = stripFunctions(propValue, visited);
+      result[key] = stripFunctions(propValue, documentedNames, visited);
     }
   }
   return result as T;
+}
+
+/**
+ * Collects every symbol name documented on this page - all exports and resolved
+ * types across all variants. `{@link}` references are linked only when they hit
+ * this set, since those are the names that get a heading (and thus an anchor).
+ */
+function collectDocumentedNames(variantData: Record<string, VariantResult>): Set<string> {
+  const names = new Set<string>();
+  const addName = (name: string | undefined) => {
+    if (!name) {
+      return;
+    }
+    names.add(name);
+    // Namespaced exports (e.g. "Menu.Root") are also referenced by their flat
+    // ("MenuRoot") and leaf ("Root") forms in {@link} comments.
+    if (name.includes('.')) {
+      names.add(name.replaceAll('.', ''));
+      names.add(name.slice(name.lastIndexOf('.') + 1));
+    }
+  };
+
+  for (const variant of Object.values(variantData)) {
+    for (const node of variant.exports) {
+      addName(node.name);
+    }
+    if (variant.typeNameMap) {
+      for (const [flatName, dottedName] of Object.entries(variant.typeNameMap)) {
+        addName(flatName);
+        addName(dottedName);
+      }
+    }
+  }
+
+  return names;
 }
 
 /**
@@ -288,7 +282,8 @@ function extractNamespaces(exports: ExportNode[]): string[] {
 // Worker returns raw export nodes and metadata for formatting in main thread
 export interface VariantResult {
   exports: ExportNode[];
-  allTypes: ExportNode[]; // All exports including internal types for reference resolution
+  /** Names of the exports folded from namespaces of constants (see `findConstantNamespaces`) */
+  constantNamespaces: string[];
   namespaces: string[];
   typeNameMap?: Record<string, string>; // Maps flat type names to dotted names (serializable across worker boundary)
 }
@@ -297,10 +292,6 @@ export interface WorkerRequest {
   requestId?: number; // Added by worker manager for request tracking
   projectPath: string;
   compilerOptions: CompilerOptions;
-  /** All files for the TypeScript program (entrypoints + meta files) */
-  allEntrypoints: string[];
-  /** Meta files (DataAttributes, CssVars) - not entrypoints, just additional type info */
-  metaFiles: string[];
   /** Map serialized as array of [variantName, fileUrl] tuples where fileUrl uses file:// protocol */
   resolvedVariantMap: Array<[string, string]>;
   /** Dependency paths (filesystem paths, not URLs) */
@@ -308,6 +299,11 @@ export interface WorkerRequest {
   /** Root context directory path (must end with /) */
   rootContextDir: string;
   relativePath: string;
+  /**
+   * Props to re-include when inherited from these externally declared types,
+   * keyed by the declaring type's name.
+   */
+  inheritedExternalProps?: InheritedExternalPropsConfig;
 }
 
 export interface WorkerResponse {
@@ -318,9 +314,6 @@ export interface WorkerResponse {
   allDependencies?: string[];
   performanceLogs?: PerformanceLog[];
   error?: string;
-  debug?: {
-    metaFilesCount?: number;
-  };
 }
 
 /**
@@ -340,7 +333,7 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
     const program = createOptimizedProgram(
       request.projectPath,
       request.compilerOptions,
-      request.allEntrypoints,
+      request.resolvedVariantMap.map(([, fileUrl]) => fileURLToPath(fileUrl)),
       {},
       tracker,
       functionName,
@@ -355,13 +348,6 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
       programWrapperStart,
       programWrapperEnd,
     );
-
-    const internalTypesCache: Record<string, ExportNode[]> = {};
-    const parserOptions: ParserOptions = {
-      includeExternalTypes: false,
-      shouldInclude: ({ depth }) => depth <= 15,
-      shouldResolveObject: ({ propertyCount, depth }) => propertyCount <= 50 && depth <= 15,
-    };
 
     // Process variants in parallel
     const resolvedVariantMap = new Map(request.resolvedVariantMap);
@@ -390,7 +376,21 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
 
           // Use parseFromProgram directly - it now handles namespace exports,
           // type aliases, and re-exports properly
-          const { exports } = parseFromProgram(entrypoint, program, parserOptions);
+          const parsed = parseFromProgram(entrypoint, program, PARSER_OPTIONS);
+
+          // Modules of constants exported as a namespace (`export * as ButtonDataAttributes`)
+          // arrive flattened into one export per member; document each as a single group.
+          const constantNamespaces = findConstantNamespaces(entrypoint, program);
+          const exports = foldConstantNamespaces(parsed.exports, constantNamespaces);
+
+          // Re-add configured props that the parser dropped because they are
+          // inherited from an externally declared type in node_modules
+          augmentComponentsWithInheritedProps(
+            exports,
+            program,
+            sourceFile,
+            request.inheritedExternalProps,
+          );
 
           // Extract namespaces from the exports (e.g., "Menu" from "Menu.Root")
           const namespaces = extractNamespaces(exports);
@@ -418,38 +418,7 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
             new Set(),
           );
 
-          const dependencies = [
-            ...request.dependencies,
-            entrypoint,
-            ...request.metaFiles,
-            ...entrypointDependencies,
-          ];
-
-          // Parse meta files (DataAttributes, CssVars) for additional type information
-          const allInternalTypes = request.metaFiles.map((file) => {
-            if (internalTypesCache[file]) {
-              return internalTypesCache[file];
-            }
-
-            // Ensure the file is loaded in the program first
-            // This is important for meta files (DataAttributes, CssVars) that aren't imported
-            const fileSourceFile = program.getSourceFile(file);
-            if (!fileSourceFile) {
-              console.warn(`[processTypes] ${variantName} - Could not load source file: ${file}`);
-              return [];
-            }
-
-            const { exports: internalExport } = parseFromProgram(file, program, parserOptions);
-
-            internalTypesCache[file] = internalExport;
-            return internalExport;
-          });
-
-          const internalTypes = allInternalTypes.reduce((acc, cur) => {
-            acc.push(...cur);
-            return acc;
-          }, []);
-          const allTypes = [...exports, ...internalTypes];
+          const dependencies = [...request.dependencies, entrypoint, ...entrypointDependencies];
 
           const parseEnd = tracker.mark(
             nameMark(functionName, `Variant ${variantName} Parsed`, [request.relativePath]),
@@ -473,16 +442,13 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
             variantName,
             variantData: {
               exports,
-              allTypes,
+              constantNamespaces: Array.from(constantNamespaces.keys()),
               namespaces,
               // Convert Map to Record for serialization across worker boundary
               typeNameMap:
                 mergedTypeNameMap.size > 0 ? Object.fromEntries(mergedTypeNameMap) : undefined,
             },
             dependencies,
-            debug: {
-              metaFilesCount: request.metaFiles.length,
-            },
           };
         } catch (error) {
           throw new Error(
@@ -494,10 +460,9 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
 
     const variantResults = await Promise.all(variantPromises);
 
-    // Process results and collect dependencies and debug info
+    // Process results and collect dependencies
     const variantData: Record<string, VariantResult> = {};
     const allDependencies: string[] = [];
-    const debugInfo: Record<string, { metaFilesCount: number }> = {};
 
     for (const result of variantResults) {
       if (result) {
@@ -505,21 +470,18 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
         result.dependencies.forEach((file: string) => {
           allDependencies.push(file);
         });
-        if (result.debug) {
-          debugInfo[result.variantName] = result.debug;
-        }
       }
     }
 
     // Strip functions so data can cross worker boundary (structured clone can't handle functions)
-    const serializedVariantData = stripFunctions(variantData);
+    const documentedNames = collectDocumentedNames(variantData);
+    const serializedVariantData = stripFunctions(variantData, documentedNames);
 
     return {
       success: true,
       variantData: serializedVariantData,
       allDependencies,
       performanceLogs: tracker.getLogs(),
-      debug: Object.keys(debugInfo).length > 0 ? debugInfo[Object.keys(debugInfo)[0]] : undefined,
     };
   } catch (error) {
     return {

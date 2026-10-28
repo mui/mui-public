@@ -130,9 +130,7 @@ const factory = await parseCreateFactoryCall(source, 'file:///src/demo.ts');
 const updated = replacePrecomputeValue(
   source,
   {
-    Default: {
-      /* …precomputed payload… */
-    },
+    Default: {/* …precomputed payload… */},
   },
   factory!,
 );

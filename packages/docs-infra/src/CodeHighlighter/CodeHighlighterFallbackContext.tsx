@@ -1,9 +1,23 @@
 'use client';
 import * as React from 'react';
-import { type ContentLoadingVariant } from './types';
+import type { Fallbacks, ContentLoadingVariant } from './types';
 
-export interface CodeHighlighterFallbackContext extends ContentLoadingVariant {
+export interface CodeHighlighterFallbackContext {
   extraVariants?: Record<string, ContentLoadingVariant>;
+  /** Whether the loading fallback may begin loading independently lazy content. */
+  canLoadContent?: boolean;
+  /**
+   * Callback used by `useCodeFallback` to hoist fallback data
+   * back to `CodeHighlighterClient` so it can derive text dictionaries
+   * for decompressing `hastCompressed` payloads.
+   */
+  setFallbackHasts?: (variantName: string, hasts: Fallbacks) => void;
+  /**
+   * Callback invoked by `useCodeFallback` in an effect to signal that
+   * the hook was used. Allows the parent to detect when a ContentLoading
+   * component forgets to call the hook.
+   */
+  onHookCalled?: () => void;
 }
 
 export const CodeHighlighterFallbackContext = React.createContext<
@@ -19,5 +33,3 @@ export function useCodeHighlighterFallbackContext() {
   }
   return context;
 }
-
-// TODO: rename to ContentMinimal

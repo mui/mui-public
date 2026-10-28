@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Recommended defaults</title>
+  </head>
+  <body>
+    <h1>Recommended defaults</h1>
+
+    <!-- no-missing-references is off by default: this aria-labelledby points at
+         an id that only exists after client hydration, so it must not report. -->
+    <button aria-labelledby="not-here">Menu</button>
+
+    <!-- The default mui:recommended form action enum permits React's SSR
+         sentinel value, so this must not report an invalid attribute value. -->
+    <form action="javascript:throw new Error('not hydrated')">
+      <button type="submit">Submit</button>
+    </form>
+  </body>
+</html>

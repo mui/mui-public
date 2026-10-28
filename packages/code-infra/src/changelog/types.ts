@@ -13,6 +13,8 @@ export interface FetchedCommitDetails {
   } | null;
   mergedAt: string | null;
   createdAt: string | null;
+  prTitle: string;
+  prBody: string;
 }
 
 /**

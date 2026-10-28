@@ -25,10 +25,24 @@ export function decompressHast(base64: string, textContent?: string): string {
 
   if (textContent != null) {
     verifyChecksum(raw, dictionary);
-    return strFromU8(inflateSync(raw.subarray(CHECKSUM_BYTES), { dictionary }));
   }
 
-  return strFromU8(inflateSync(raw, { dictionary }));
+  try {
+    const deflated = textContent != null ? raw.subarray(CHECKSUM_BYTES) : raw;
+    return strFromU8(inflateSync(deflated, { dictionary }));
+  } catch (error) {
+    // A raw inflate failure (e.g. fflate's "unexpected EOF") is almost always a
+    // payload that was compressed with a fallback dictionary being decoded
+    // without one — the checksum prefix is then read as deflate data. Surface
+    // that cause instead of the cryptic `{code:0}` the raw error stringifies to.
+    throw new Error(
+      `Failed to decompress payload${
+        textContent == null
+          ? ' — if it was compressed with a fallback dictionary, that dictionary must be provided'
+          : ''
+      }: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
 }
 
 /**

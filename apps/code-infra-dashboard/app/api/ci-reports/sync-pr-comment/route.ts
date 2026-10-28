@@ -1,4 +1,5 @@
-import { type NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { z } from 'zod/v4';
 import { verifyOidcToken } from '@/lib/ciReports/oidcAuth';
 import { findAssociatedPr } from '@/lib/ciReports/findAssociatedPr';
@@ -13,12 +14,10 @@ import type { ReportResult } from '@/lib/ciReports/types';
 import { fetchParentCommits } from '@/utils/fetchCiReportWithFallback';
 import { getOctokit } from '@/lib/github';
 import { DASHBOARD_ORIGIN, repositories } from '@/constants';
+import { repoSchema } from '@/lib/ciReports/schemas';
 
 const syncPrCommentSchema = z.object({
-  repo: z
-    .string()
-    .regex(/^[^/]+\/[^/]+$/, 'Must be in owner/repo format')
-    .optional(),
+  repo: repoSchema.optional(),
 });
 
 export async function POST(request: NextRequest) {

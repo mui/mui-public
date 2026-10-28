@@ -13,15 +13,16 @@ import {
   getFileNameFromUrl,
   resolveImportResult,
   resolveModulePath,
-  type DirectoryReader,
 } from '@mui/internal-docs-infra/pipeline/loaderUtils';
+import type { DirectoryReader } from '@mui/internal-docs-infra/pipeline/loaderUtils';
 import { createLoadIsomorphicCodeSource } from '@mui/internal-docs-infra/pipeline/loadIsomorphicCodeSource';
 import {
   enhanceCodeEmphasis,
   EMPHASIS_COMMENT_PREFIX,
   FOCUS_COMMENT_PREFIX,
 } from '@mui/internal-docs-infra/pipeline/enhanceCodeEmphasis';
-import { buildGitHubUrl, createGitHubCache, parseGitHubUrl, type GitHubCache } from '../github';
+import { buildGitHubUrl, createGitHubCache, parseGitHubUrl } from '../github';
+import type { GitHubCache } from '../github';
 
 const NOTABLE_COMMENTS_PREFIX = [EMPHASIS_COMMENT_PREFIX, FOCUS_COMMENT_PREFIX];
 const REMOVE_COMMENTS_WITH_PREFIX = [

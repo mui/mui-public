@@ -11,7 +11,7 @@
 | Parameter    | Type                            | Default | Description                                                                                        |
 | :----------- | :------------------------------ | :------ | :------------------------------------------------------------------------------------------------- |
 | key          | `string \| null`                | -       | localStorage key. If null, persistence is disabled and&#xA;the hook behaves like regular useState. |
-| initializer? | `string \| Initializer \| null` | -       | Initial value or function returning initial value                                                  |
+| initializer? | `string \| Initializer \| null` | `null`  | Initial value or function returning initial value                                                  |
 
 **Return Value:**
 

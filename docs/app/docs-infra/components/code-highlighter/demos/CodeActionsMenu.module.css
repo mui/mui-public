@@ -59,6 +59,10 @@
   opacity: 0.6;
 }
 
+.menuPositioner {
+  z-index: 1000;
+}
+
 .menuPopup {
   box-sizing: border-box;
   min-width: 160px;

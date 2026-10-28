@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { organizeTypesByExport, type BaseTypeMeta } from './organizeTypesByExport';
+import { organizeTypesByExport } from './organizeTypesByExport';
+import type { BaseTypeMeta } from './organizeTypesByExport';
 
 /**
  * Helper to create a component type meta

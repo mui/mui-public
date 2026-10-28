@@ -1,4 +1,5 @@
-import ts, { type CompilerOptions } from 'typescript';
+import ts from 'typescript';
+import type { CompilerOptions } from 'typescript';
 // eslint-disable-next-line n/prefer-node-protocol
 import fs from 'fs';
 // eslint-disable-next-line n/prefer-node-protocol
@@ -49,9 +50,9 @@ class InMemoryLanguageServiceHost implements ts.LanguageServiceHost {
    */
   private projectVersion = 0;
 
-  private options: ts.CompilerOptions;
+  declare private options: ts.CompilerOptions;
 
-  private projectPath: string;
+  declare private projectPath: string;
 
   private getVersionCallCount = 0;
 

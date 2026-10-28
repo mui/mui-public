@@ -1,4 +1,4 @@
-import { type BaseExpression, type Expression } from 'estree';
+import type { BaseExpression, Expression } from 'estree';
 
 export * from 'estree';
 

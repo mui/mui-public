@@ -8,9 +8,12 @@ import {
   isArrayType,
   isFunctionType,
   isLiteralType,
+  isTemplateLiteralType,
   isEnumType,
   isTupleType,
   isTypeParameterType,
+  isTypeOperatorType,
+  isTypeQueryType,
 } from './typeGuards';
 
 describe('type guard helpers', () => {
@@ -62,6 +65,16 @@ describe('type guard helpers', () => {
     expect(isFunctionType(literalType)).toBe(false);
   });
 
+  it('should identify template literal types', () => {
+    const templateLiteralType = {
+      kind: 'templateLiteral',
+      texts: ['', 'px'],
+      types: [{ kind: 'intrinsic', intrinsic: 'number' }],
+    };
+    expect(isTemplateLiteralType(templateLiteralType)).toBe(true);
+    expect(isLiteralType(templateLiteralType)).toBe(false);
+  });
+
   it('should identify enum types', () => {
     const enumType = { kind: 'enum', members: [] };
     expect(isEnumType(enumType)).toBe(true);
@@ -78,5 +91,21 @@ describe('type guard helpers', () => {
     const typeParamType = { kind: 'typeParameter', name: 'T' };
     expect(isTypeParameterType(typeParamType)).toBe(true);
     expect(isIntrinsicType(typeParamType)).toBe(false);
+  });
+
+  it('should identify type operator types', () => {
+    const typeOperatorType = {
+      kind: 'typeOperator',
+      operator: 'keyof',
+      type: { kind: 'external', typeName: { name: 'Config' } },
+    };
+    expect(isTypeOperatorType(typeOperatorType)).toBe(true);
+    expect(isTypeQueryType(typeOperatorType)).toBe(false);
+  });
+
+  it('should identify type query types', () => {
+    const typeQueryType = { kind: 'typeQuery', expressionName: 'value' };
+    expect(isTypeQueryType(typeQueryType)).toBe(true);
+    expect(isTypeOperatorType(typeQueryType)).toBe(false);
   });
 });

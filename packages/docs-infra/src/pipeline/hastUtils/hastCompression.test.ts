@@ -260,7 +260,7 @@ describe('hastCompression', () => {
       const withoutDict = encode(deflateSync(strToU8(rawJson), { level: 9 }));
 
       expect(rawJson).toContain('"dataFrameType":"comment"');
-      expect(rawJson).toContain('"className":"frame"');
+      expect(rawJson).toContain('"className":["frame"]');
       expect(rawJson).toContain('"value":"React"');
       expect(rawJson).toContain('"value":"JSX"');
       expect(withDict.length).toBeLessThan(withoutDict.length);
@@ -280,7 +280,7 @@ describe('hastCompression', () => {
       const withoutDict = encode(deflateSync(strToU8(rawJson), { level: 9 }));
 
       expect(rawJson).toContain('"dataFrameType":"comment"');
-      expect(rawJson).toContain('"className":"frame"');
+      expect(rawJson).toContain('"className":["frame"]');
       expect(rawJson).toContain('"value":"Dispatch"');
       expect(rawJson).toContain('"value":"SetStateAction"');
       expect(withDict.length).toBeLessThan(withoutDict.length);
@@ -347,6 +347,28 @@ describe('hastCompression', () => {
       const raw = decode(compressed);
       const decompressed = strFromU8(inflateSync(raw, { dictionary: prependedDict }));
       expect(decompressed).toBe(SAMPLE_HAST_JSON);
+    });
+
+    it('produces corrupted output when new entries are appended (additions must be prepended, not appended)', () => {
+      const compressed = compressHast(SAMPLE_HAST_JSON);
+
+      // Appending shifts the dictionary *tail* — the region DEFLATE back-references
+      // reach into first — so an existing payload's references resolve to the wrong
+      // bytes. This is the counterpart to the prepend test above and the reason new
+      // `HAST_DICTIONARY` entries must be added at the START, never the middle or end.
+      const extraEntries = 'SomeNewComponent,anotherProp,data-extra';
+      const appendedDict = new Uint8Array(HAST_DICTIONARY.length + extraEntries.length);
+      appendedDict.set(HAST_DICTIONARY, 0);
+      appendedDict.set(strToU8(extraEntries), HAST_DICTIONARY.length);
+
+      const raw = decode(compressed);
+      let output: string;
+      try {
+        output = strFromU8(inflateSync(raw, { dictionary: appendedDict }));
+      } catch {
+        return; // throwing is also acceptable — the payload is unusable either way
+      }
+      expect(output).not.toBe(SAMPLE_HAST_JSON);
     });
 
     it('fails to decompress when dictionary entries are removed', () => {
@@ -461,6 +483,13 @@ describe('hastCompression', () => {
           return; // Throwing is the expected path
         }
         expect(result).not.toBe(SAMPLE_HAST_JSON);
+      });
+
+      it('throws a descriptive dictionary error (not a raw fflate code) when compressed with a dictionary but decompressed without', () => {
+        const compressed = compressHast(SAMPLE_HAST_JSON, TEXT_CONTENT);
+        // Previously this surfaced as `{"code":0}` once stringified; now it names
+        // the missing fallback dictionary as the likely cause.
+        expect(() => decompressHast(compressed)).toThrow(/fallback dictionary/i);
       });
 
       it('rejects when textContent differs', async () => {

@@ -9,26 +9,49 @@ import { globby } from 'globby';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { getOutExtension, mapConcurrently } from '../utils/build.mjs';
+import { mapAsync } from 'es-toolkit/array';
+import { getOutExtension } from '../utils/build.mjs';
 
 const $$ = $({ stdio: 'inherit' });
 
 /**
- * Checks if tsgo CLI is available in the workspace's node_modules.
- * @param {string} cwd - The current working directory to start searching from.
- * @returns {Promise<string | null>} - The path to tsgo if found, null otherwise.
+ * Finds a CLI shim in a directory's node_modules/.bin.
+ * @param {string} dir
+ * @param {string} name
+ * @returns {Promise<string | null>}
  */
-async function findTsgo(cwd) {
-  const workspaceDir = await findWorkspaceDir(cwd);
-  if (!workspaceDir) {
-    return null;
-  }
-  const tsgoPath = path.join(workspaceDir, 'node_modules', '.bin', 'tsgo');
-  const exists = await fs.stat(tsgoPath).then(
+async function findBin(dir, name) {
+  const binPath = path.join(dir, 'node_modules', '.bin', name);
+  const exists = await fs.stat(binPath).then(
     (stat) => stat.isFile(),
     () => false,
   );
-  return exists ? tsgoPath : null;
+  return exists ? binPath : null;
+}
+
+/**
+ * Resolves the native/JS TypeScript CLI pair from the workspace root's
+ * `node_modules/.bin`: tsgo/tsc when the legacy `tsgo` shim exists, tsc/tsc6
+ * otherwise, with bare `tsc` from PATH as the JS fallback.
+ *
+ * @param {string} cwd
+ * @returns {Promise<{ native: string | null, js: string }>}
+ */
+async function findTscPair(cwd) {
+  const workspaceDir = await findWorkspaceDir(cwd);
+  if (!workspaceDir) {
+    return { native: null, js: 'tsc' };
+  }
+
+  const [tsgo, tsc, tsc6] = await Promise.all([
+    findBin(workspaceDir, 'tsgo'),
+    findBin(workspaceDir, 'tsc'),
+    findBin(workspaceDir, 'tsc6'),
+  ]);
+  if (tsgo) {
+    return { native: tsgo, js: 'tsc' };
+  }
+  return { native: tsc, js: tsc6 ?? 'tsc' };
 }
 
 /**
@@ -36,44 +59,38 @@ async function findTsgo(cwd) {
  * @param {string} tsconfig - The path to the tsconfig.json file.
  * @param {string} outDir - The output directory for the declaration files.
  * @param {Object} options
- * @param {boolean} [options.useTsgo] - Whether to use typescript native (tsgo).
+ * @param {boolean} [options.useTsgo] - Whether to use the native TypeScript compiler.
  */
 export async function emitDeclarations(tsconfig, outDir, options) {
   const { useTsgo = false } = options ?? {};
   const tsconfigDir = path.dirname(tsconfig);
   const rootDir = path.resolve(tsconfigDir, './src');
 
-  const tsgoPath = useTsgo ? await findTsgo(tsconfigDir) : null;
+  const pair = await findTscPair(tsconfigDir);
+  const tsgoPath = useTsgo ? pair.native : null;
   if (useTsgo && !tsgoPath) {
     throw new Error(
-      '--tsgo flag was passed or MUI_USE_TSGO environment was set but no tsgo cli was found. Either remove the flag to use tsc or install the native package "@typescript/native-preview" at the workspace level to use tsgo.',
+      '--tsgo flag was passed but no native TypeScript cli was found. Either remove the flag to use the JS compiler or install TypeScript 7 at the workspace root, as "typescript@^7" or under an alias such as "@typescript/native".',
     );
   }
 
-  if (tsgoPath) {
-    console.log('Using tsgo for declaration emit');
-    await $$`${tsgoPath}
-      -p ${tsconfig}
-      --rootDir ${rootDir}
-      --outDir ${outDir}
-      --declaration
-      --emitDeclarationOnly
-      --noEmit false
-      --composite false
-      --incremental false
-      --declarationMap false`;
-  } else {
-    await $$`tsc
-      -p ${tsconfig}
-      --rootDir ${rootDir}
-      --outDir ${outDir}
-      --declaration
-      --emitDeclarationOnly
-      --noEmit false
-      --composite false
-      --incremental false
-      --declarationMap false`;
-  }
+  const tscPath = tsgoPath ?? pair.js;
+  console.log(
+    tsgoPath
+      ? `Using ts-native for declaration emit: ${tscPath}`
+      : `Using ${tscPath} for declaration emit`,
+  );
+
+  await $$`${tscPath}
+    -p ${tsconfig}
+    --rootDir ${rootDir}
+    --outDir ${outDir}
+    --declaration
+    --emitDeclarationOnly
+    --noEmit false
+    --composite false
+    --incremental false
+    --declarationMap false`;
 }
 
 /**
@@ -111,71 +128,56 @@ export async function copyDeclarations(sourceDirectory, destinationDirectory, op
  * @param {Object} param0
  * @param {string} param0.inputDir
  * @param {string} param0.buildDir
- * @param {{type: import('../utils/build.mjs').BundleType, dir: string}[]} param0.bundles
- * @param {boolean} [param0.isFlat]
+ * @param {import('../utils/build.mjs').BundleType[]} param0.bundles
  * @param {'module' | 'commonjs'} [param0.packageType]
  * @returns
  */
-export async function moveAndTransformDeclarations({
-  inputDir,
-  buildDir,
-  bundles,
-  isFlat,
-  packageType,
-}) {
-  // Directly copy to the bundle directory if there's only one bundle, mainly for esm, since
-  // the js files are inside 'esm' folder. resolve-imports plugin needs d.ts to be alongside js files to
-  // resolve paths correctly.
-  const toCopyDir = bundles.length === 1 ? path.join(buildDir, bundles[0].dir) : buildDir;
-  await fs.cp(inputDir, toCopyDir, {
+export async function moveAndTransformDeclarations({ inputDir, buildDir, bundles, packageType }) {
+  // d.ts files sit alongside the js files in the build root so the resolve-imports
+  // plugin can resolve paths correctly.
+  await fs.cp(inputDir, buildDir, {
     recursive: true,
     force: false,
   });
 
-  const dtsFiles = await globby('**/*.d.ts', { absolute: true, cwd: toCopyDir });
+  const dtsFiles = await globby('**/*.d.ts', { absolute: true, cwd: buildDir });
   if (dtsFiles.length === 0) {
-    console.log(`No d.ts files found in ${toCopyDir}. Skipping transformation.`);
+    console.log(`No d.ts files found in ${buildDir}. Skipping transformation.`);
     return;
   }
 
-  await mapConcurrently(
+  await mapAsync(
     dtsFiles,
     async (dtsFile) => {
       // Normalize to native separators to make path comparisons reliable on Windows
       const nativeDtsFile = path.normalize(dtsFile);
       const content = await fs.readFile(nativeDtsFile, 'utf8');
-      const relativePath = path.relative(toCopyDir, nativeDtsFile);
+      const relativePath = path.relative(buildDir, nativeDtsFile);
 
-      const writesToOriginalPath =
-        isFlat &&
-        bundles.some((bundle) => {
-          const newFileExtension = getOutExtension(bundle.type, {
-            isFlat,
+      const writesToOriginalPath = bundles.some((bundle) => {
+        const newFileExtension = getOutExtension(bundle, {
+          isType: true,
+          packageType,
+        });
+        const outFileRelative = relativePath.replace(/\.d\.ts$/, newFileExtension);
+        const outFilePath = path.join(buildDir, outFileRelative);
+        // Ensure both paths are normalized before comparison (fixes Windows posix vs win32 separators)
+        return path.resolve(outFilePath) === path.resolve(nativeDtsFile);
+      });
+
+      await Promise.all(
+        bundles.map(async (bundle) => {
+          const importExtension = getOutExtension(bundle, {
+            packageType,
+          });
+          const newFileExtension = getOutExtension(bundle, {
             isType: true,
             packageType,
           });
           const outFileRelative = relativePath.replace(/\.d\.ts$/, newFileExtension);
-          const outFilePath = path.join(buildDir, bundle.dir, outFileRelative);
-          // Ensure both paths are normalized before comparison (fixes Windows posix vs win32 separators)
-          return path.resolve(outFilePath) === path.resolve(nativeDtsFile);
-        });
+          const outFilePath = path.join(buildDir, outFileRelative);
 
-      await Promise.all(
-        bundles.map(async (bundle) => {
-          const importExtension = getOutExtension(bundle.type, {
-            isFlat,
-            packageType,
-          });
-          const newFileExtension = getOutExtension(bundle.type, {
-            isFlat,
-            isType: true,
-            packageType,
-          });
-          const outFileRelative = isFlat
-            ? relativePath.replace(/\.d\.ts$/, newFileExtension)
-            : relativePath;
-          const outFilePath = path.join(buildDir, bundle.dir, outFileRelative);
-
+          /** @type {import('@babel/core').PluginItem[]} */
           const babelPlugins = [
             [pluginTypescriptSyntax, { dts: true }],
             [pluginResolveImports, { outExtension: importExtension }],
@@ -194,11 +196,11 @@ export async function moveAndTransformDeclarations({
           }
         }),
       );
-      if (isFlat && !writesToOriginalPath) {
+      if (!writesToOriginalPath) {
         await fs.unlink(nativeDtsFile);
       }
     },
-    30,
+    { concurrency: 30 },
   );
 }
 
@@ -208,14 +210,13 @@ export async function moveAndTransformDeclarations({
  * After copying, babel transformations are applied to the copied files because they need to be alongside the actual js files for proper resolution.
  *
  * @param {Object} param0
- * @param {boolean} [param0.isFlat = false] - Whether to place generated declaration files in a flattened directory.
  * @param {boolean} [param0.verbose = false] - Whether to log additional information while generating and moving declaration files.
- * @param {{type: import('../utils/build.mjs').BundleType, dir: string}[]} param0.bundles - The bundles to create declarations for.
+ * @param {import('../utils/build.mjs').BundleType[]} param0.bundles - The bundles to create declarations for.
  * @param {string} param0.srcDir - The source directory.
  * @param {string} param0.buildDir - The build directory.
  * @param {string} param0.cwd - The current working directory.
  * @param {boolean} param0.skipTsc - Whether to skip running TypeScript compiler (tsc) for building types.
- * @param {boolean} [param0.useTsgo=false] - Whether to build types using typescript native (tsgo).
+ * @param {boolean} [param0.useTsgo=false] - Whether to build types using the native TypeScript compiler.
  * @param {'module' | 'commonjs'} [param0.packageType] - The package.json type field.
  */
 export async function createTypes({
@@ -225,7 +226,6 @@ export async function createTypes({
   cwd,
   skipTsc,
   useTsgo = false,
-  isFlat = false,
   packageType,
   verbose,
 }) {
@@ -253,7 +253,6 @@ export async function createTypes({
       inputDir: tmpDir,
       buildDir,
       bundles,
-      isFlat,
       packageType,
     });
   } finally {

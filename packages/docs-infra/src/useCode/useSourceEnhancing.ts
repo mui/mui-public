@@ -2,53 +2,45 @@
 
 import * as React from 'react';
 import type { Root as HastRoot } from 'hast';
-import { decompressHast } from '../pipeline/hastUtils';
+import { decodeHastSource } from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
 import type { SourceEnhancers, SourceComments, VariantSource } from '../CodeHighlighter/types';
+import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
 import {
   recordEnhancerApplied,
   shouldSkipEnhancer,
 } from '../pipeline/loadIsomorphicCodeVariant/runSourceEnhancers';
 
-/**
- * Type guard to check if a source value is a HAST root node.
- * Used to determine if the source can be enhanced.
- */
-function isHastRoot(source: unknown): source is HastRoot {
-  if (typeof source !== 'object' || source === null) {
-    return false;
-  }
-  return 'type' in source && (source as HastRoot).type === 'root';
-}
+// Safety-net deadline (ms) for the async enhancer pass. A client-side enhancer that
+// REJECTS or HANGS would otherwise leave `asyncWork` non-null forever — keeping
+// `isEnhancing` true and locking the consumer (`<Pre>` via `useFileNavigation`) at its
+// un-enhanced 'base' phase until a full page reload. On failure/timeout we settle to the
+// already sync-enhanced result so the phase advances.
+const ENHANCER_TIMEOUT_MS = 10_000;
 
 /**
- * Resolves a VariantSource to a HastRoot if possible.
- * Handles decompression of compressed HAST and parsing of JSON HAST.
+ * Resolves a `VariantSource` to a HAST root that is safe to mutate.
  *
- * @param source - The source to resolve (can be HAST, hastJson, hastCompressed, or string)
- * @returns The resolved HastRoot or null if the source cannot be resolved
+ * Uses the shared `decodeHastSource` cache to amortize decompression and
+ * `JSON.parse` across other consumers (`Pre`, `useFileNavigation`,
+ * `sourceLineCounts`), then `structuredClone`s the result because the
+ * enhancer pipeline mutates `root.data` via `recordEnhancerApplied`.
+ * Returns `null` for string or unrecognized sources.
+ *
+ * The variant `fallback` is forwarded to `decodeHastSource` so the compressed
+ * payload is decompressed with the matching DEFLATE dictionary and each frame's
+ * `data.fallback` is restored — enhancers then keep that per-frame fallback in
+ * sync as they mutate the tree.
  */
-function resolveHastRoot(source: VariantSource | undefined): HastRoot | null {
-  if (!source) {
+function resolveHastRoot(
+  source: VariantSource | undefined,
+  fallback?: FallbackNode[],
+): HastRoot | null {
+  if (!source || typeof source === 'string') {
     return null;
   }
 
-  if (typeof source === 'string') {
-    return null; // String sources need parsing first
-  }
-
-  if ('hastJson' in source) {
-    return JSON.parse(source.hastJson) as HastRoot;
-  }
-
-  if ('hastCompressed' in source) {
-    return JSON.parse(decompressHast(source.hastCompressed)) as HastRoot;
-  }
-
-  if (isHastRoot(source)) {
-    return source;
-  }
-
-  return null;
+  const cached = decodeHastSource(source, fallback);
+  return cached ? (structuredClone(cached) as HastRoot) : null;
 }
 
 /**
@@ -136,6 +128,8 @@ export interface UseSourceEnhancingProps {
   comments: SourceComments | undefined;
   /** Array of enhancer functions to apply */
   sourceEnhancers?: SourceEnhancers;
+  /** Fallback data for deriving the DEFLATE decompression dictionary */
+  fallback?: FallbackNode[];
 }
 
 export interface UseSourceEnhancingResult {
@@ -201,11 +195,12 @@ function computeEnhanceState(
   comments: SourceComments | undefined,
   fileName: string | undefined,
   sourceEnhancers: SourceEnhancers | undefined,
+  fallback: FallbackNode[] | undefined,
 ): EnhanceState {
   if (!source || !sourceEnhancers || sourceEnhancers.length === 0) {
     return { enhancedSource: source ?? null, asyncWork: null };
   }
-  const resolved = resolveHastRoot(source);
+  const resolved = resolveHastRoot(source, fallback);
   if (!resolved) {
     return { enhancedSource: source ?? null, asyncWork: null };
   }
@@ -226,6 +221,7 @@ export function useSourceEnhancing({
   fileName,
   comments,
   sourceEnhancers,
+  fallback,
 }: UseSourceEnhancingProps): UseSourceEnhancingResult {
   // Track previous values to detect changes
   const [prevSource, setPrevSource] = React.useState(source);
@@ -234,7 +230,7 @@ export function useSourceEnhancing({
   const [prevFileName, setPrevFileName] = React.useState(fileName);
 
   const [state, setState] = React.useState<EnhanceState>(() =>
-    computeEnhanceState(source, comments, fileName, sourceEnhancers),
+    computeEnhanceState(source, comments, fileName, sourceEnhancers, fallback),
   );
 
   const hasChanged =
@@ -257,7 +253,7 @@ export function useSourceEnhancing({
     if (fileName !== prevFileName) {
       setPrevFileName(fileName);
     }
-    setState(computeEnhanceState(source, comments, fileName, sourceEnhancers));
+    setState(computeEnhanceState(source, comments, fileName, sourceEnhancers, fallback));
   }
 
   // Continue from the first async enhancer without re-running sync ones
@@ -271,20 +267,41 @@ export function useSourceEnhancing({
     const name = fileName || 'unknown';
     let cancelled = false;
 
-    async function continueEnhancing() {
-      const asyncResult = await firstAsyncPromise;
-      if (cancelled) {
-        return;
-      }
-      const final = await applyEnhancersFrom(
-        asyncResult,
-        comments,
-        name,
-        enhancers,
-        asyncStartIndex + 1,
-      );
+    // Clear `asyncWork` (keeping whatever enhanced source we already have) so
+    // `isEnhancing` drops and the consumer's phase advances. Used by the failure and
+    // timeout paths below — without it a rejected/hung enhancer wedges 'base' forever.
+    const settleWithCurrent = () => {
       if (!cancelled) {
-        setState({ enhancedSource: final, asyncWork: null });
+        setState((previous) => ({ enhancedSource: previous.enhancedSource, asyncWork: null }));
+      }
+    };
+
+    // Safety net for a hung enhancer (a promise that never settles): force-settle after
+    // the deadline so the un-enhanced phase isn't locked until a reload.
+    const timer = setTimeout(settleWithCurrent, ENHANCER_TIMEOUT_MS);
+
+    async function continueEnhancing() {
+      try {
+        const asyncResult = await firstAsyncPromise;
+        if (cancelled) {
+          return;
+        }
+        const final = await applyEnhancersFrom(
+          asyncResult,
+          comments,
+          name,
+          enhancers,
+          asyncStartIndex + 1,
+        );
+        if (!cancelled) {
+          setState({ enhancedSource: final, asyncWork: null });
+        }
+      } catch (error) {
+        // A rejected async enhancer must not strand `asyncWork` non-null forever.
+        console.error('Async source enhancer failed; settling with the current result.', error);
+        settleWithCurrent();
+      } finally {
+        clearTimeout(timer);
       }
     }
 
@@ -292,6 +309,7 @@ export function useSourceEnhancing({
 
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
   }, [state.asyncWork, sourceEnhancers, fileName, comments]);
 

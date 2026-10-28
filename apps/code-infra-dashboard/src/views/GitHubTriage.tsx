@@ -10,8 +10,8 @@ import {
   DataGridPremium,
   useGridApiRef,
   useKeepGroupedColumnsHidden,
-  type GridColDef,
 } from '@mui/x-data-grid-premium';
+import type { GridColDef } from '@mui/x-data-grid-premium';
 import { useSearchParamsState } from '../hooks/useSearchParamsState';
 import { useTriageData } from '../hooks/useTriageData';
 import { TRIAGE_VIEWS, getTriageView } from '../lib/triage/views';
@@ -26,7 +26,7 @@ const TITLE_COLUMN: GridColDef<TriageRow> = {
   flex: 1,
   minWidth: 200,
   renderCell: (params) => (
-    <Link href={params.row.url} target="_blank" rel="noopener noreferrer" underline="hover">
+    <Link href={params.row.url} target="_blank" underline="hover">
       {params.value}
     </Link>
   ),
@@ -112,7 +112,7 @@ export default function GitHubTriage() {
         {activeView.notionUrl ? (
           <React.Fragment>
             {' - '}
-            <Link href={activeView.notionUrl} target="_blank" rel="noopener noreferrer">
+            <Link href={activeView.notionUrl} target="_blank">
               Notion
             </Link>
           </React.Fragment>

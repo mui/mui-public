@@ -1,315 +1,41 @@
 'use client';
 
 import * as React from 'react';
-import { toText } from 'hast-util-to-text';
-import { type ElementContent } from 'hast';
-import { useEditable, type Position } from './useEditable';
+import type { ElementContent, RootContent } from 'hast';
 import type { SetSource } from './useSourceEditing';
-import type { HastRoot, VariantSource } from '../CodeHighlighter/types';
+import type { EditableSourceProjection, VariantSource } from '../CodeHighlighter/types';
+import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
+import { fallbackToHast, fallbackIsHighlighted } from '../CodeHighlighter/fallbackFormat';
 import { useCodeContext } from '../CodeProvider/CodeContext';
-import { hastToJsx, decompressHast } from '../pipeline/hastUtils';
+import { hastToJsx, frameFallbackFromSpans, stringOrHastToString } from '../pipeline/hastUtils';
+import { stripHighlightingSpans } from '../pipeline/hastUtils/stripHighlightingSpans';
+import { decodeHastSource } from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
+import {
+  resolveCollapsedFrameType,
+  getInitialVisibleFrames,
+} from '../pipeline/parseSource/frameVisibility';
+import { isFrameSpan } from '../pipeline/parseSource/isFrameSpan';
+import { getSourceLineCounts } from './sourceLineCounts';
+import type { SourceLineCounts } from './sourceLineCounts';
+import { subscribeToggleNudge } from './subscribeToggleNudge';
+import { CodeEditorLazy } from './CodeEditorLazy';
 
 const hastChildrenCache = new WeakMap<ElementContent[], React.ReactNode>();
-const textChildrenCache = new WeakMap<ElementContent[], string>();
+const fallbackHastCache = new WeakMap<ElementContent[], React.ReactNode>();
 
-// Document-level subscriber registry for `<details>` toggle events. Each
-// `<Pre>` would otherwise install its own capture-phase listener; on docs
-// pages with many code blocks that's N listeners all firing on every
-// toggle anywhere in the document. A single shared listener fans out to
-// the relevant subscribers instead.
-//
-// Subscribers register their `<pre>` element so the dispatcher can do a
-// single `target.contains(pre)` ancestry check per subscriber and skip
-// the nudge entirely for unrelated toggles — no JS-side work runs in
-// `<Pre>` instances whose subtree the toggle didn't touch.
-//
-// The value is a Set rather than a single function so the registry
-// tolerates the (unlikely but possible) case where two `<Pre>` instances
-// transiently share the same DOM node — e.g. a fast unmount/remount
-// where the next mount's setup runs before the prior mount's cleanup.
-// Without the set the second subscribe would silently overwrite the
-// first nudge and a single unsubscribe would orphan the other instance.
-type ToggleNudge = () => void;
-const toggleSubscribers = new Map<HTMLElement, Set<ToggleNudge>>();
-let toggleListenerAttached = false;
-let sharedToggleListener: ((event: Event) => void) | null = null;
-
-// Reconcile the document-level capture listener with the current
-// subscriber set. Idempotent: callable from any code path (including
-// test teardowns that want to defensively assert no leaked listener)
-// without risk of leaving the document in a half-attached state.
-function syncToggleListener(): void {
-  if (typeof document === 'undefined') {
-    if (toggleSubscribers.size === 0) {
-      sharedToggleListener = null;
-      toggleListenerAttached = false;
-    }
-    return;
-  }
-  if (toggleSubscribers.size === 0) {
-    if (toggleListenerAttached && sharedToggleListener) {
-      document.removeEventListener('toggle', sharedToggleListener, true);
-    }
-    sharedToggleListener = null;
-    toggleListenerAttached = false;
-    return;
-  }
-  if (!toggleListenerAttached || !sharedToggleListener) {
-    sharedToggleListener = (event) => {
-      const target = event.target;
-      if (!(target instanceof Node)) {
-        return;
-      }
-      // Snapshot before iterating: a nudge may synchronously trigger an
-      // unmount that mutates `toggleSubscribers` mid-dispatch. Iterating
-      // a snapshot keeps dispatch order independent of subscriber
-      // mutations and matches the snapshot pattern used by
-      // `sweepDetachedFrames` / `nudgeFrameObserver`.
-      Array.from(toggleSubscribers).forEach(([preNode, nudges]) => {
-        // Centralized ancestry filter: only nudge subscribers whose `<pre>`
-        // is a descendant of the toggled element. Done here (rather than
-        // in each subscriber) so unrelated toggles short-circuit before
-        // any subscriber-side work runs.
-        if (!target.contains(preNode)) {
-          return;
-        }
-        Array.from(nudges).forEach((nudge) => nudge());
-      });
-    };
-    document.addEventListener('toggle', sharedToggleListener, true);
-    toggleListenerAttached = true;
-  }
+function resolveFrameTypeAttribute(
+  frameType: string | undefined,
+  collapseToEmpty: boolean,
+): string | undefined {
+  const resolved = resolveCollapsedFrameType(frameType, collapseToEmpty);
+  return resolved && resolved !== 'normal' ? resolved : undefined;
 }
 
-function subscribeToggleNudge(preNode: HTMLElement, nudge: ToggleNudge): () => void {
-  // Defensive SSR no-op: there is no `document` to attach a listener to,
-  // and module state in Node persists across requests — leaking a
-  // subscriber here would also leak the closure it captures. `useEffect`
-  // already won't run on the server, but make the contract explicit so
-  // any future non-effect caller can't strand entries in the registry.
-  if (typeof document === 'undefined') {
-    return () => {};
-  }
-  let nudges = toggleSubscribers.get(preNode);
-  if (!nudges) {
-    nudges = new Set();
-    toggleSubscribers.set(preNode, nudges);
-  }
-  nudges.add(nudge);
-  syncToggleListener();
-  return () => {
-    const existing = toggleSubscribers.get(preNode);
-    if (existing) {
-      existing.delete(nudge);
-      if (existing.size === 0) {
-        toggleSubscribers.delete(preNode);
-      }
-    }
-    syncToggleListener();
-  };
-}
-
-const INITIAL_VISIBLE_FRAME_TYPES = new Set([
-  'highlighted',
-  'focus',
-  'padding-top',
-  'padding-bottom',
-]);
-
-function getInitialVisibleFrames(hast: HastRoot | null): { [key: number]: boolean } {
-  if (!hast) {
-    return { 0: true };
-  }
-
-  const visibleFrames: { [key: number]: boolean } = {};
-  let frameIndex = 0;
-  let hasVisibleEmphasisFrame = false;
-
-  hast.children.forEach((child) => {
-    if (child.type !== 'element' || child.properties.className !== 'frame') {
-      return;
-    }
-
-    const frameType = child.properties.dataFrameType;
-    if (typeof frameType === 'string' && INITIAL_VISIBLE_FRAME_TYPES.has(frameType)) {
-      visibleFrames[frameIndex] = true;
-      hasVisibleEmphasisFrame = true;
-    }
-
-    frameIndex += 1;
-  });
-
-  if (!hasVisibleEmphasisFrame && frameIndex > 0) {
-    visibleFrames[0] = true;
-  }
-
-  return visibleFrames;
-}
-
-/**
- * Bounds describing the visible region of a collapsible code block in its
- * collapsed state. Used to constrain caret movement in `useEditable` and to
- * trigger expansion when the user navigates past the boundaries.
- */
-type CollapsedBounds = {
-  /**
-   * Smallest column the visible region exposes on indented lines (derived
-   * from the minimum `data-frame-indent` across collapsed-visible region
-   * frames). `undefined` when no visible region frame is indented.
-   */
-  minColumn: number | undefined;
-  /** First row of the visible region. */
-  minRow: number;
-  /** Last row of the visible region. */
-  maxRow: number;
-};
-
-/**
- * Counts newlines in a hast subtree and reports whether the tree's text
- * content ends with a newline. Walks text nodes directly instead of
- * materializing the subtree into a string — avoids the O(N) allocation
- * `hast-util-to-text` performs per call, which adds up across hundreds of
- * frames in large code blocks.
- *
- * Returns `[newlineCount, endsWithNewline]`. `endsWithNewline` is `false`
- * for an empty subtree (matches the previous `text.endsWith('\n')` check
- * on an empty string).
- */
-function countFrameNewlines(node: ElementContent | HastRoot): [number, boolean] {
-  let count = 0;
-  let endsWithNewline = false;
-  let sawText = false;
-
-  const walk = (current: { type: string; value?: unknown; children?: unknown }): void => {
-    if (current.type === 'text') {
-      const value = current.value as string;
-      if (value.length === 0) {
-        return;
-      }
-      sawText = true;
-      for (let i = 0; i < value.length; i += 1) {
-        if (value.charCodeAt(i) === 10 /* \n */) {
-          count += 1;
-        }
-      }
-      endsWithNewline = value.charCodeAt(value.length - 1) === 10;
-      return;
-    }
-    if (Array.isArray(current.children)) {
-      const children = current.children;
-      for (let i = 0; i < children.length; i += 1) {
-        walk(children[i]);
-      }
-    }
-  };
-
-  walk(node);
-  return [count, sawText && endsWithNewline];
-}
-
-/**
- * Counts newlines in a hast subtree without tracking the trailing-newline
- * flag. Used for hidden frames that precede the visible-when-collapsed
- * region: we only need to advance the running row offset, not figure out
- * how the frame's last line aligns.
- */
-function countFrameNewlinesOnly(node: ElementContent | HastRoot): number {
-  let count = 0;
-
-  const walk = (current: { type: string; value?: unknown; children?: unknown }): void => {
-    if (current.type === 'text') {
-      const value = current.value as string;
-      for (let i = 0; i < value.length; i += 1) {
-        if (value.charCodeAt(i) === 10 /* \n */) {
-          count += 1;
-        }
-      }
-      return;
-    }
-    if (Array.isArray(current.children)) {
-      const children = current.children;
-      for (let i = 0; i < children.length; i += 1) {
-        walk(children[i]);
-      }
-    }
-  };
-
-  walk(node);
-  return count;
-}
-
-/**
- * When the code block is collapsible, returns the row range of the
- * collapsed-visible frames (the same set used by `getInitialVisibleFrames`)
- * along with the minimum indent column. Returns `undefined` when the block
- * isn't collapsible or no frame is visible-when-collapsed.
- *
- * `data-frame-indent` is encoded as `leadingSpaces / indentation`, so the
- * column count is `indent * indentation`.
- */
-function computeCollapsedBounds(
-  hast: HastRoot | null,
-  indentation: number,
-): CollapsedBounds | undefined {
-  if (!hast || hast.data?.collapsible !== true) {
-    return undefined;
-  }
-
-  let minIndent: number | undefined;
-  let minRow: number | undefined;
-  let maxRow: number | undefined;
-  let row = 0;
-
-  for (const child of hast.children) {
-    if (child.type !== 'element' || child.properties.className !== 'frame') {
-      continue;
-    }
-    const frameType = child.properties.dataFrameType;
-    const indent = child.properties.dataFrameIndent;
-    const isVisibleWhenCollapsed =
-      typeof frameType === 'string' && INITIAL_VISIBLE_FRAME_TYPES.has(frameType);
-
-    if (!isVisibleWhenCollapsed) {
-      // Once we've passed the visible region, hidden frames can't change
-      // any output — bail out entirely.
-      if (maxRow !== undefined) {
-        break;
-      }
-      // Hidden frames before the visible region only need their row count
-      // to keep `row` accurate for the next visible frame's `minRow`. We
-      // don't need `endsWithNewline` (only consumed by visible frames for
-      // `maxRow` arithmetic) or any indent metadata, so do the cheap
-      // newline-only walk.
-      row += countFrameNewlinesOnly(child);
-      continue;
-    }
-
-    const [newlines, endsWithNewline] = countFrameNewlines(child);
-    const lastContentRow = endsWithNewline ? row + Math.max(0, newlines - 1) : row + newlines;
-
-    if (minRow === undefined) {
-      minRow = row;
-    }
-    maxRow = lastContentRow;
-    if (typeof indent === 'number' && (minIndent === undefined || indent < minIndent)) {
-      minIndent = indent;
-    }
-
-    row += newlines;
-  }
-
-  if (minRow === undefined || maxRow === undefined) {
-    return undefined;
-  }
-
-  return {
-    minColumn: minIndent !== undefined && minIndent > 0 ? minIndent * indentation : undefined,
-    minRow,
-    maxRow,
-  };
-}
-
-function renderCode(hastChildren: ElementContent[], renderHast?: boolean, text?: string) {
+function renderCode(
+  hastChildren: ElementContent[],
+  renderHast?: boolean,
+  fallback?: ElementContent[],
+) {
   if (renderHast) {
     let jsx = hastChildrenCache.get(hastChildren);
     if (!jsx) {
@@ -319,38 +45,77 @@ function renderCode(hastChildren: ElementContent[], renderHast?: boolean, text?:
     return jsx;
   }
 
-  if (text !== undefined) {
-    return text;
+  // Server-rendered / pre-hydration fallback: drop highlighting spans but
+  // keep frame + collapse placeholders + link structure so the rendered
+  // block matches the height of the fully-highlighted version. This avoids
+  // a layout shift when a frame swaps from fallback to highlighted on
+  // intersection.
+  //
+  // Prefer a precomputed fallback (set on `frame.data.fallback` by
+  // `addLineGutters` for multi-frame splits) — usually a single text node —
+  // so the renderer skips the per-frame `stripHighlightingSpans` walk.
+  if (fallback) {
+    let jsx = fallbackHastCache.get(fallback);
+    if (!jsx) {
+      jsx = hastToJsx({ type: 'root', children: fallback });
+      fallbackHastCache.set(fallback, jsx);
+    }
+    return jsx;
   }
 
-  let txt = textChildrenCache.get(hastChildren);
-  if (!txt) {
-    txt = toText({ type: 'root', children: hastChildren }, { whitespace: 'pre' });
-    textChildrenCache.set(hastChildren, txt);
+  let jsx = fallbackHastCache.get(hastChildren);
+  if (!jsx) {
+    jsx = hastToJsx({ type: 'root', children: frameFallbackFromSpans(hastChildren) });
+    fallbackHastCache.set(hastChildren, jsx);
   }
-  return txt;
+  return jsx;
+}
+
+function renderFallbackChild(child: RootContent) {
+  // Same fallback path as `renderCode` but for top-level non-frame children
+  // (e.g. text whitespace between frames). Caching is keyed by the parent
+  // children array in `renderFrames` via React reconciliation; the
+  // structural cost here is bounded by hast size.
+  const stripped = stripHighlightingSpans({ type: 'root', children: [child] });
+  return hastToJsx(stripped);
 }
 
 export function Pre({
   children,
   className,
   fileName,
+  displayFileName,
   language,
   ref,
   setSource,
   shouldHighlight,
   hydrateMargin = '200px 0px 200px 0px',
+  fallback,
+  fallbackLineCounts,
   expanded = false,
-  expand,
+  collapseToEmpty = false,
+  editActivation,
+  onActivate,
+  onBoundary,
+  editable = true,
+  sourceProjection,
 }: {
   children: VariantSource;
   className?: string;
   fileName?: string;
+  displayFileName?: string;
   language?: string;
   ref?: React.Ref<HTMLPreElement>;
   setSource?: SetSource;
   shouldHighlight?: boolean;
   hydrateMargin?: string;
+  fallback?: FallbackNode[];
+  /**
+   * Authoritative line metadata for a string source's framed fallback. Deferred
+   * string sources do not have decoded HAST yet, but their loader-built fallback
+   * already knows whether the collapsed window hides lines.
+   */
+  fallbackLineCounts?: SourceLineCounts | null;
   /**
    * Whether the host has expanded the (collapsible) code block. When `true`,
    * collapsed-state behaviors such as `minColumn` are disabled so the caret
@@ -358,98 +123,118 @@ export function Pre({
    */
   expanded?: boolean;
   /**
-   * Called when the user attempts to navigate the caret past the visible
-   * region of a collapsed code block (e.g. `ArrowUp` on the first visible
-   * row, `ArrowDown` on the last). Typically wired to the host's
-   * `expand()` action.
+   * Render-time "collapse to empty": collapse the block to an *empty* window so the
+   * whole block is hidden until expanded. Demotes every collapsed-visible frame
+   * type to its hidden equivalent (`focus`→`focus-unfocused`,
+   * `highlighted`→`highlighted-unfocused`, `padding-*`→`normal`), forces the
+   * block collapsible, and reports `0` focused lines. Orthogonal to `expanded`
+   * — it only changes what the *collapsed* state shows, not whether the block
+   * starts expanded. The precomputed HAST is never mutated.
    */
-  expand?: () => void;
+  collapseToEmpty?: boolean;
+  /**
+   * Controls when the textarea editor loads for an editable block: `'eager'`
+   * (default) loads it as soon as the block is editable; `'interaction'` defers
+   * the load until the user hovers/focuses/clicks the `<pre>`. Ignored when the
+   * block is not editable.
+   */
+  editActivation?: 'eager' | 'interaction';
+  /**
+   * Fired once when the block first engages for editing. `CodeHighlighter` uses
+   * it to warm the live-editing runtime, grammars, and worker.
+   */
+  onActivate?: () => void;
+  /** Expands a collapsed focused source when caret navigation crosses its boundary. */
+  onBoundary?: () => void;
+  /**
+   * Whether edit mode is on. When `false` the block stays read-only, so the editor
+   * is not loaded and `onActivate` is not called.
+   * Defaults to `true`; the host drives it from the `editable` toggle `useCode` returns.
+   */
+  editable?: boolean;
+  /** Contiguous source shown by the collapsed textarea editor. */
+  sourceProjection?: EditableSourceProjection;
 }): React.ReactNode {
+  // Defer the decompressing `decodeHastSource` to a post-paint render ONLY when the
+  // first-paint `.fallback` is ALREADY highlighted — i.e. the promoted highlighted-visible
+  // fallback the server ships for `highlightAfter: 'init'`. Then paint that highlighted
+  // fallback first (no decompression on the critical path) and swap in the full decoded
+  // tree after. When the fallback is plain — every other mode, including a late-mounted
+  // `'hydration'` block where `shouldHighlight` is also true on the first render — decode
+  // on mount instead, so we never flash plain → highlighted.
+  const [deferInitialDecode] = React.useState(
+    () =>
+      shouldHighlight === true &&
+      !!fallback &&
+      fallbackIsHighlighted(fallback) &&
+      typeof children !== 'string',
+  );
+  const [decodeAllowed, setDecodeAllowed] = React.useState(!deferInitialDecode);
+  React.useEffect(() => {
+    if (deferInitialDecode) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional post-paint latch: flip after the first paint so the highlighted fallback shows before the decompressing decode runs
+      setDecodeAllowed(true);
+    }
+  }, [deferInitialDecode]);
+
+  // The variant `fallback` is forwarded to `decodeHastSource` so the
+  // `hastCompressed` payload is decompressed with the matching DEFLATE
+  // dictionary and each frame's `data.fallback` is restored. The decoded
+  // tree stays shared (read-only), since `Pre` only reads it.
   const hast = React.useMemo(() => {
-    if (typeof children === 'string') {
+    if (!children || typeof children === 'string' || !decodeAllowed) {
       return null;
     }
-
-    if ('hastJson' in children) {
-      return JSON.parse(children.hastJson) as HastRoot;
-    }
-
-    if ('hastCompressed' in children) {
-      return JSON.parse(decompressHast(children.hastCompressed)) as HastRoot;
-    }
-
-    return children;
-  }, [children]);
+    return decodeHastSource(children, fallback);
+  }, [children, fallback, decodeAllowed]);
 
   const preRef = React.useRef<HTMLPreElement>(null);
-
-  // useEditable uses ref.current in its effect deps. On first render it's null
-  // (set later by the callback ref), so the deps change on the next render,
-  // causing contentEditable to flash and the cursor to be lost. Delaying
-  // enablement by one synchronous re-render ensures the ref is already set
-  // when useEditable first activates, keeping deps stable afterward.
-  const [editableReady, setEditableReady] = React.useState(false);
-  React.useLayoutEffect(() => {
-    setEditableReady(true);
-  }, []);
-
-  const onEditableChange = React.useCallback(
-    (text: string, position: Position, preParsed?: HastRoot) => {
-      setSource?.(text, fileName, position, preParsed);
-    },
-    [setSource, fileName],
-  );
-
-  // Worker-backed async parser exposed by `CodeProvider`. When present we
-  // hand it to `useEditable` as `preParse` so highlighting moves off the
-  // main thread during live typing. The resolved HAST is forwarded into
-  // `setSource` (4th arg) where the host can stash it in a per-file cache
-  // so the synchronous `parseControlledCode` pass can reuse it.
-  const { parseSourceAsync } = useCodeContext();
-  const preParse = React.useMemo(() => {
-    if (!setSource || !parseSourceAsync || !fileName) {
-      return undefined;
-    }
-    return (text: string, _position: Position, signal: AbortSignal) =>
-      parseSourceAsync(text, fileName, language, signal);
-  }, [setSource, parseSourceAsync, fileName, language]);
+  const { codeEditorLoader } = useCodeContext();
 
   const [visibleFrames, setVisibleFrames] = React.useState<{ [key: number]: boolean }>(() =>
-    getInitialVisibleFrames(hast),
+    getInitialVisibleFrames(hast, collapseToEmpty),
   );
 
-  // When the code block is collapsible AND currently collapsed, derive the
-  // visible region's row range and minimum indent column so that:
-  //   - the caret never lands in the clipped indent gutter (`minColumn`),
-  //   - arrow-key navigation past the visible region is blocked, optionally
-  //     calling `expand` so the host can reveal the hidden content.
-  // See `computeCollapsedBounds` above.
+  // Re-seed `visibleFrames` whenever the parsed tree identity changes
+  // (e.g. a transform swap such as JS↔TS, where the host keeps `<Pre>`
+  // mounted — see `getPreRenderKey` in `useFileNavigation`). Without
+  // this, frame indices computed from a prior tree leak into the new
+  // one: any emphasis frames that should be visible on first render of
+  // the new tree would stay un-hydrated until the IntersectionObserver
+  // corrects them (or indefinitely in environments without IO).
   //
-  // `data-frame-indent` is encoded as `leadingSpaces / 2`, matching the
-  // hardcoded `indentation: 2` below.
-  const indentation = 2;
-  const collapsedBounds = React.useMemo(
-    () => (expanded ? undefined : computeCollapsedBounds(hast, indentation)),
-    [hast, expanded],
-  );
-
-  useEditable(preRef, onEditableChange, {
-    indentation,
-    disabled: !setSource || !editableReady,
-    minColumn: collapsedBounds?.minColumn,
-    minRow: collapsedBounds?.minRow,
-    maxRow: collapsedBounds?.maxRow,
-    onBoundary: collapsedBounds && expand ? expand : undefined,
-    // The HAST emitted for highlighted code separates `.line` spans with
-    // whitespace text nodes (newlines) that are direct children of `.frame`.
-    // Without this, clicks or arrow navigation could land the caret in
-    // those gap nodes \u2014 visually invisible (collapsed via line-height: 0)
-    // but still real text positions in contentEditable. `.line` matches
-    // every selectable row. Only set when the highlighter has actually
-    // produced `.line` elements.
-    caretSelector: shouldHighlight ? '.line' : undefined,
-    preParse,
-  });
+  // We *union* the new initial-visible set onto whatever is currently
+  // visible rather than replacing outright. Replacing would drop frames
+  // hydrated by IO/editing in the prior tree before IO has a chance to
+  // re-run, causing a visible flash. Stale indices that no longer map
+  // to a frame in the new tree are harmless — the render loop skips
+  // them, and IO prunes them on the next pass.
+  //
+  // Runs in `useLayoutEffect` so the merged state commits before paint,
+  // keeping the update outside the render phase while still avoiding a
+  // visible flash of un-hydrated emphasis frames.
+  React.useLayoutEffect(() => {
+    // Next state unions the new initial-visible set onto `prev` rather than
+    // replacing it (see 564-597): replacing would drop frames already
+    // hydrated by IO/editing on the prior tree, causing the visible flash this
+    // guards against. Depends on both a prop (`hast`) and prior state, so it
+    // can't be derived during render.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setVisibleFrames((prev) => {
+      const initial = getInitialVisibleFrames(hast, collapseToEmpty);
+      let merged: { [key: number]: boolean } | undefined;
+      Object.keys(initial).forEach((key) => {
+        const index = Number(key);
+        if (prev[index] !== true) {
+          if (!merged) {
+            merged = { ...prev };
+          }
+          merged[index] = true;
+        }
+      });
+      return merged || prev;
+    });
+  }, [hast, collapseToEmpty]);
 
   const observer = React.useRef<IntersectionObserver | null>(null);
   const observedFrames = React.useRef<Set<Element>>(new Set());
@@ -720,20 +505,27 @@ export function Pre({
         return null;
       }
 
-      if (child.properties.className === 'frame') {
-        const isVisible = Boolean(visibleFrames[frameIndex]);
+      if (isFrameSpan(child)) {
+        const currentFrameIndex = frameIndex;
+        const isVisible = Boolean(visibleFrames[currentFrameIndex]);
         const shouldRenderHast = shouldHighlight && isVisible;
 
         frameIndex += 1;
+
+        let frameFocusTarget: string | undefined;
+        if (child.properties.dataFrameFocusTarget != null) {
+          frameFocusTarget = '';
+        }
 
         return (
           <span
             key={index}
             className="frame"
             data-lined={shouldRenderHast ? '' : undefined}
-            data-frame-type={
-              child.properties.dataFrameType ? String(child.properties.dataFrameType) : undefined
-            }
+            data-frame-type={resolveFrameTypeAttribute(
+              child.properties.dataFrameType ? String(child.properties.dataFrameType) : undefined,
+              collapseToEmpty,
+            )}
             data-frame-indent={
               child.properties.dataFrameIndent != null
                 ? String(child.properties.dataFrameIndent)
@@ -749,46 +541,56 @@ export function Pre({
                 ? String(child.properties.dataFrameDescription)
                 : undefined
             }
+            data-frame-focus-target={frameFocusTarget}
             ref={observeFrame}
           >
-            {renderCode(
-              child.children,
-              shouldRenderHast,
-              child.properties?.dataAsString ? String(child.properties?.dataAsString) : undefined,
-            )}
+            {renderCode(child.children, shouldRenderHast, child.data?.fallback)}
           </span>
         );
       }
 
       return (
         <React.Fragment key={index}>
-          {shouldHighlight ? hastToJsx(child) : toText(child, { whitespace: 'pre' })}
+          {shouldHighlight ? hastToJsx(child) : renderFallbackChild(child)}
         </React.Fragment>
       );
     });
-  }, [hast, observeFrame, shouldHighlight, visibleFrames]);
+  }, [hast, observeFrame, shouldHighlight, visibleFrames, collapseToEmpty]);
 
-  const hasCollapsibleFrames = hast?.data?.collapsible === true;
+  const hasCollapsibleFrames =
+    (hast ? getSourceLineCounts(hast).collapsible : fallbackLineCounts?.collapsible === true) ||
+    collapseToEmpty;
 
-  const isEditable = Boolean(setSource);
+  // Expose the source line counts so consumers / CSS can reason about the
+  // collapsed window size — most notably the collapse-to-nothing case
+  // (`focusedLines === 0`) produced by `oversizedFocus: 'hide'`, where the
+  // block is collapsible but the collapsed window is empty. Counts come from
+  // the parsed `hast` when available. Deferred string sources use the metadata
+  // that travelled with their framed fallback; without it, they fall back to the
+  // raw string count and remain non-collapsible.
+  const { totalLines: sourceTotalLines, focusedLines: rawFocusedLines } = hast
+    ? getSourceLineCounts(hast)
+    : (fallbackLineCounts ?? getSourceLineCounts(children));
+  // Collapse-to-empty empties the collapsed window, so the focused-line count is 0
+  // regardless of the precomputed value.
+  const sourceFocusedLines = collapseToEmpty ? 0 : rawFocusedLines;
 
-  // Focus-trap state for editable code blocks. When the user tabs into the
-  // wrapper (keyboard-only, gated by `:focus-visible`), an overlay prompts
-  // them to press Enter before contentEditable Tab-indentation kicks in.
-  // Mouse clicks land directly on the `<pre>` (skipping the wrapper as a
-  // focus stop) so editing still engages immediately for pointer users.
-  // Escape from the engaged `<pre>` returns focus to the wrapper, restoring
-  // normal Tab navigation through the page.
-  //
-  // The prompt-visibility flag is tracked imperatively via a ref + DOM data
-  // attribute rather than React state on purpose: a re-render triggered by
-  // focus movement (e.g. blur on Tab-out, or focusing the wrapper from
-  // Escape) would re-run useEditable's per-render Selection restore, and
-  // Chrome pulls focus back into a contentEditable when the document
-  // Selection is mutated inside it — yanking focus back to the editable
-  // mid-tab and trapping keyboard users. Imperative attribute updates avoid
-  // that whole round trip; consumer styles already react to
-  // `data-editable-prompt`.
+  const isEditable = Boolean(setSource) && editable;
+  const [editorRequested, setEditorRequested] = React.useState(
+    () => editActivation !== 'interaction',
+  );
+  const fullSource = React.useMemo(
+    () =>
+      isEditable && editorRequested
+        ? stringOrHastToString(hast ?? children, hast ? undefined : fallback)
+        : '',
+    [isEditable, editorRequested, hast, children, fallback],
+  );
+  const focusEditorRef = React.useRef(false);
+  const activatedRef = React.useRef(false);
+
+  // The wrapper is the only page Tab stop. Enter moves focus into the textarea;
+  // Escape returns it here so normal page navigation resumes.
   const wrapperRef = React.useRef<HTMLDivElement>(null);
   const overlayRef = React.useRef<HTMLDivElement>(null);
   const overlayId = React.useId();
@@ -845,49 +647,118 @@ export function Pre({
     [setPromptVisible],
   );
 
-  const handleWrapperKeyDown = React.useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.target !== event.currentTarget) {
+  const handleEditorActivate = React.useCallback(() => {
+    if (!activatedRef.current) {
+      activatedRef.current = true;
+      onActivate?.();
+    }
+  }, [onActivate]);
+
+  const requestEditorFocus = React.useCallback(() => {
+    setPromptVisible(false);
+    const textarea = wrapperRef.current?.querySelector('textarea');
+    if (textarea) {
+      textarea.focus();
+      handleEditorActivate();
       return;
     }
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      preRef.current?.focus();
-    }
-  }, []);
+    focusEditorRef.current = true;
+    setEditorRequested(true);
+  }, [handleEditorActivate, setPromptVisible]);
 
-  const handlePreKeyDown = React.useCallback(
-    (event: React.KeyboardEvent<HTMLPreElement>) => {
-      if (event.key === 'Escape') {
+  const handleWrapperKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.target === event.currentTarget && event.key === 'Enter') {
         event.preventDefault();
-        // Show the prompt explicitly: programmatic `.focus()` doesn't
-        // reliably trigger `:focus-visible` across browsers (Chrome in
-        // particular often treats it as non-visible focus), so the
-        // `onFocus` branch would no-op here. Since we know this came from
-        // a keyboard Escape, force the overlay back on.
-        setPromptVisible(true);
-        // Returning focus to the wrapper restores the page's Tab order.
-        wrapperRef.current?.focus();
+        requestEditorFocus();
       }
     },
-    [setPromptVisible],
+    [requestEditorFocus],
   );
 
+  const handlePointerDown = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (event.target instanceof Element && event.target.closest('textarea')) {
+        return;
+      }
+      event.preventDefault();
+      requestEditorFocus();
+    },
+    [requestEditorFocus],
+  );
+
+  const handleEditorReady = React.useCallback(
+    (textarea: HTMLTextAreaElement) => {
+      if (focusEditorRef.current) {
+        focusEditorRef.current = false;
+        textarea.focus();
+        handleEditorActivate();
+      }
+    },
+    [handleEditorActivate],
+  );
+
+  const handleEditorExit = React.useCallback(() => {
+    setPromptVisible(true);
+    wrapperRef.current?.focus();
+  }, [setPromptVisible]);
+
+  // A plain-string source hasn't been highlighted yet (deferred mode). Render it
+  // FRAMED — the compact `fallback` (the loader's windowed plain-text frames) when one
+  // travelled with it, otherwise a single-frame wrap — so the `<code>` is never bare
+  // text. The highlighted tree swaps in via `frames` once parsing completes.
+  // The fallback render, used whenever the decoded `hast` isn't in hand: a string
+  // source (highlighted on the client after hydration) or an object source whose
+  // decode is deferred off the first paint (`deferInitialDecode`). For `init` the
+  // server-built `fallback` already carries the initially-visible frames
+  // highlighted, so this first paint is highlighted with no decompression.
+  const framedFallback = React.useMemo(() => {
+    const frameNodes: FallbackNode[] | null =
+      fallback ??
+      (typeof children === 'string'
+        ? [['span', 'frame', { dataFrameType: 'focus' }, children]]
+        : null);
+    if (!frameNodes) {
+      return null;
+    }
+    const root = fallbackToHast(frameNodes);
+    if (collapseToEmpty) {
+      for (const child of root.children) {
+        if (child.type !== 'element' || !isFrameSpan(child)) {
+          continue;
+        }
+        const frameType =
+          typeof child.properties.dataFrameType === 'string'
+            ? child.properties.dataFrameType
+            : undefined;
+        const resolved = resolveFrameTypeAttribute(frameType, true);
+        if (resolved === frameType) {
+          continue;
+        }
+        if (!resolved) {
+          delete child.properties.dataFrameType;
+        } else {
+          child.properties.dataFrameType = resolved;
+        }
+      }
+    }
+    return hastToJsx(root);
+  }, [children, collapseToEmpty, fallback]);
+
   const preElement = (
-    // The <pre> is made interactive by contentEditable (set imperatively by
-    // useEditable). jsx-a11y can't see that, so disable its rule here.
-    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <pre
       ref={bindPre}
       className={className}
       spellCheck={false}
       tabIndex={isEditable ? -1 : undefined}
-      onKeyDown={isEditable ? handlePreKeyDown : undefined}
     >
       <code
         className={language ? `language-${language}` : undefined}
         data-collapsible={hasCollapsibleFrames ? '' : undefined}
+        data-total-lines={sourceTotalLines}
+        data-focused-lines={sourceFocusedLines}
       >
-        {typeof children === 'string' ? children : frames}
+        {hast ? frames : framedFallback}
       </code>
     </pre>
   );
@@ -899,7 +770,7 @@ export function Pre({
   return (
     // Intentional focus trap: the wrapper is a keyboard-only stop in the
     // tab order so we can prompt the user ("Press Enter to start editing")
-    // before contentEditable's Tab-indents-instead-of-moving-focus behavior
+    // before the textarea's Tab-indents-instead-of-moving-focus behavior
     // takes over. role="group" + aria-label give it an accessible name.
     /* eslint-disable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */
     <div
@@ -912,9 +783,29 @@ export function Pre({
       onFocus={handleWrapperFocus}
       onBlur={handleWrapperBlur}
       onKeyDown={handleWrapperKeyDown}
+      onPointerDown={handlePointerDown}
     >
       {/* eslint-enable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */}
-      {preElement}
+      {editorRequested ? (
+        <CodeEditorLazy
+          loader={codeEditorLoader}
+          fallback={preElement}
+          source={fullSource}
+          sourceProjection={sourceProjection}
+          expanded={expanded}
+          fileName={fileName}
+          displayFileName={displayFileName}
+          language={language}
+          className={className}
+          setSource={setSource!}
+          onActivate={handleEditorActivate}
+          onBoundary={onBoundary}
+          onExit={handleEditorExit}
+          onReady={handleEditorReady}
+        />
+      ) : (
+        preElement
+      )}
       {/* The overlay stays mounted so consumer styles can animate it in/out
           based on the wrapper's `data-editable-prompt` attribute. The
           `hidden` attribute is the default state — overrideable with

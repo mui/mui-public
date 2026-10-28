@@ -20,7 +20,7 @@ function greet(name) {
 export function CodeEditor() {
   return (
     // @focus-start
-    <CodeController>
+    <CodeController url={initialCode.Default.url}>
       <CodeHighlighter
         url={initialCode.Default.url}
         Content={CodeEditorContent}

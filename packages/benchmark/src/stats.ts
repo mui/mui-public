@@ -7,6 +7,15 @@ export function calculateStdDev(values: number[], mean: number): number {
   return Math.sqrt(squaredDiffs.reduce((sum, v) => sum + v, 0) / values.length);
 }
 
+/** The sample standard deviation, which an interval estimated from the values needs; 0 for fewer than 2. */
+export function calculateSampleStdDev(values: number[], mean: number): number {
+  if (values.length < 2) {
+    return 0;
+  }
+  const squaredDiffs = values.map((v) => (v - mean) ** 2);
+  return Math.sqrt(squaredDiffs.reduce((sum, v) => sum + v, 0) / (values.length - 1));
+}
+
 export function quantile(sorted: number[], q: number): number {
   const pos = (sorted.length - 1) * q;
   const base = Math.floor(pos);
@@ -26,4 +35,25 @@ export function quantile(sorted: number[], q: number): number {
 export function isOutlier(value: number, q1: number, q3: number): boolean {
   const iqr = q3 - q1;
   return value < q1 - 1.5 * iqr || value > q3 + 1.5 * iqr;
+}
+
+/**
+ * Aggregates a series of samples into a mean, standard deviation, and outlier count using
+ * IQR-based outlier removal. Falls back to the raw values when filtering would remove
+ * everything. This is the shared aggregation core for custom metrics.
+ */
+export function aggregateSamples(values: number[]): {
+  mean: number;
+  stdDev: number;
+  outliers: number;
+} {
+  const sorted = values.toSorted((first, second) => first - second);
+  const q1 = quantile(sorted, 0.25);
+  const q3 = quantile(sorted, 0.75);
+  const filtered = values.filter((value) => !isOutlier(value, q1, q3));
+  const used = filtered.length > 0 ? filtered : values;
+
+  const mean = calculateMean(used);
+  const stdDev = calculateStdDev(used, mean);
+  return { mean, stdDev, outliers: values.length - used.length };
 }

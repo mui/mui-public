@@ -6,24 +6,14 @@ import { useCode } from '@mui/internal-docs-infra/useCode';
 import { useCodeWindow } from '@mui/internal-docs-infra/useCodeWindow';
 import { CodeActionsMenu } from '../../../components/code-highlighter/demos/CodeActionsMenu';
 import { CodeBlockHeader } from '../../../components/code-highlighter/demos/CodeBlockHeader';
+import { CodeSource } from '../../../components/code-highlighter/demos/CodeSource';
 import styles from './IndentContent.module.css';
-
-import '../../../components/code-highlighter/demos/syntax.css';
 
 export function IndentContent(props: ContentProps<object>) {
   // @focus-start @padding 1
   const code = useCode(props, { preClassName: styles.codeBlock });
   const [expanded, setExpanded] = React.useState(false);
   const { containerRef, anchorScroll } = useCodeWindow();
-
-  const selectedFileSlug = React.useMemo(
-    () =>
-      code.allFilesSlugs.find(
-        (entry) =>
-          entry.fileName === code.selectedFileName && entry.variantName === code.selectedVariant,
-      )?.slug,
-    [code.allFilesSlugs, code.selectedFileName, code.selectedVariant],
-  );
 
   return (
     <div>
@@ -39,13 +29,13 @@ export function IndentContent(props: ContentProps<object>) {
               onCopy={code.copy}
               fileUrl={code.selectedFileUrl}
               fileName={code.selectedFileName}
-              fileSlug={selectedFileSlug}
+              fileSlug={code.selectedFileSlug}
             />
           }
         />
-        <div className={`${styles.code} ${expanded ? styles.expanded : ''}`}>
+        <CodeSource className={`${styles.code} ${expanded ? styles.expanded : ''}`}>
           {code.selectedFile}
-        </div>
+        </CodeSource>
         <button
           type="button"
           className={styles.toggle}

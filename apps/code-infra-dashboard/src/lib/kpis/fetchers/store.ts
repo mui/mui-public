@@ -1,57 +1,12 @@
 import { unstable_cache } from 'next/cache';
 import type { RowDataPacket } from 'mysql2';
 import type { KpiResult } from '../types';
-import { getEnvOrError, successResult } from './utils';
+import { queryStoreDatabase } from '../../storeDatabase';
+import { errorResult, successResult } from './utils';
 
-// This fetcher requires server-only dependencies (mysql2, ssh2-promise)
-// They will be dynamically imported to avoid bundling issues
-
-async function fetchOverdueRatioInternal(): Promise<KpiResult> {
-  const password = getEnvOrError('STORE_PRODUCTION_READ_PASSWORD');
-  if (typeof password !== 'string') {
-    return password;
-  }
-
-  const sshKey = getEnvOrError('BASTION_SSH_KEY');
-  if (typeof sshKey !== 'string') {
-    return sshKey;
-  }
-
-  const {
-    BASTION_HOST,
-    BASTION_USERNAME,
-    STORE_PRODUCTION_READ_HOST,
-    STORE_PRODUCTION_READ_USERNAME,
-    STORE_PRODUCTION_READ_DATABASE,
-  } = process.env;
-
-  // Dynamic imports for server-only modules
-  const [{ default: SSH2Promise }, mysql] = await Promise.all([
-    import('ssh2-promise'),
-    import('mysql2/promise'),
-  ]);
-
-  const ssh = new SSH2Promise({
-    host: BASTION_HOST,
-    port: 22,
-    username: BASTION_USERNAME,
-    privateKey: sshKey.replace(/\\n/g, '\n'),
-  });
-
-  const tunnel = await ssh.addTunnel({
-    remoteAddr: STORE_PRODUCTION_READ_HOST,
-    remotePort: 3306,
-  });
-
-  const connection = await mysql.createConnection({
-    host: 'localhost',
-    port: tunnel.localPort,
-    user: STORE_PRODUCTION_READ_USERNAME,
-    password,
-    database: STORE_PRODUCTION_READ_DATABASE,
-  });
-
-  const [rows] = await connection.execute<RowDataPacket[]>(`
+async function queryOverdueRatio(): Promise<KpiResult> {
+  const rows = await queryStoreDatabase(async (connection) => {
+    const [result] = await connection.execute<RowDataPacket[]>(`
 SELECT
 overdue.total / order_30.total AS ratio
 FROM
@@ -115,9 +70,8 @@ FROM
     AND post.post_parent = '0'
 ) AS order_30
   `);
-
-  await connection.end();
-  await ssh.close();
+    return result;
+  });
 
   const ratio = rows[0]?.ratio;
   if (ratio == null) {
@@ -127,6 +81,17 @@ FROM
   const percentage = Math.round(ratio * 10000) / 100;
 
   return successResult(percentage, 'Based on last 30 days invoices');
+}
+
+async function fetchOverdueRatioInternal(): Promise<KpiResult> {
+  try {
+    return await queryOverdueRatio();
+  } catch (error) {
+    // An unconfigured environment belongs on the KPI card, not on the page as a throw.
+    // queryStoreDatabase already names the variable it is missing, so let it say so
+    // rather than keeping a second copy of the same check here.
+    return errorResult(error instanceof Error ? error.message : String(error));
+  }
 }
 
 // Wrap with unstable_cache for 1-hour revalidation since this doesn't use fetch()

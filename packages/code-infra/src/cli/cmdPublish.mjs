@@ -19,16 +19,26 @@ import * as semver from 'semver';
 
 import { persistentAuthStrategy } from '../utils/github.mjs';
 import {
+  getDistTagConflicts,
+  getPackagesNeedingManualPublish,
+  getRegistryPackages,
+  getReleaseVersion,
   getWorkspacePackages,
   publishPackages,
   validatePublishDependencies,
 } from '../utils/pnpm.mjs';
-import { getCurrentGitSha, getRepositoryInfo } from '../utils/git.mjs';
+import { getCurrentGitSha, getRepositoryInfo, remoteGitTagExists } from '../utils/git.mjs';
 
 const isCI = envCI().isCi;
 
 function getOctokit() {
-  return new Octokit({ authStrategy: isCI ? createActionAuth : persistentAuthStrategy });
+  const octokit = new Octokit({
+    authStrategy: isCI ? createActionAuth : persistentAuthStrategy,
+  });
+  octokit.hook.before('request', (requestOptions) => {
+    requestOptions.headers['x-github-api-version'] = '2026-03-10';
+  });
+  return octokit;
 }
 
 /**
@@ -40,16 +50,6 @@ function getOctokit() {
  * @property {string} [sha] Git SHA to use for the GitHub release workflow (local only)
  * @property {string[]} [filter] Same as filtering packages with --filter in pnpm. Only publish packages matching the filter. See https://pnpm.io/filtering.
  */
-
-/**
- * Get the version to release from the root package.json
- * @returns {Promise<string | null>} Version string
- */
-async function getReleaseVersion() {
-  const result = await $`pnpm pkg get version`;
-  const version = JSON.parse(result.stdout.trim());
-  return semver.valid(version);
-}
 
 /**
  * Parse changelog to extract content for a specific version
@@ -140,8 +140,19 @@ async function checkGitHubReleaseExists(owner, repo, version) {
  */
 async function createGitTag(version, dryRun = false) {
   const tagName = `v${version}`;
+  // The CI smoke-test runs with a read-only token that can't push. It sets this
+  // so we tolerate the push failure explicitly, instead of assuming any dry-run
+  // permission error is expected.
+  const isPublishTest = process.env.IS_PUBLISH_TEST === 'true';
 
   try {
+    // Skip if the tag already exists locally. Tag creation is local and fails if it exists.
+    const { stdout: existingTag } = await $`git tag -l ${tagName}`;
+    if (existingTag.trim()) {
+      console.log(`🏷️  Git tag ${tagName} already exists, skipping`);
+      return;
+    }
+
     await $({
       env: {
         ...process.env,
@@ -149,10 +160,28 @@ async function createGitTag(version, dryRun = false) {
         GIT_COMMITTER_EMAIL: 'code-infra@mui.com',
       },
     })`git tag -a ${tagName} -m ${`Version ${version}`}`;
-    const pushArgs = dryRun ? ['--dry-run'] : [];
-    await $({ stdio: 'inherit' })`git push origin ${tagName} ${pushArgs}`;
 
-    console.log(`🏷️  Created and pushed git tag ${tagName}${dryRun ? ' (dry-run)' : ''}`);
+    if (dryRun) {
+      // `git push --dry-run` still authenticates and needs push access. When the token
+      // can push, validate it for real; when it can't, only tolerate the failure if this
+      // is an explicit publish smoke-test and the error is a genuine permission denial.
+      try {
+        // Don't inherit stdio so stderr is captured and matchable below.
+        await $`git push origin ${tagName} --dry-run`;
+        console.log(`🏷️  Created git tag ${tagName} (dry-run)`);
+      } catch (/** @type {any} */ pushError) {
+        const message = pushError.stderr || pushError.message || '';
+        if (isPublishTest && /permission|403|denied/i.test(message)) {
+          console.log(`🏷️  Created git tag ${tagName} (dry-run, no push permission, skipped push)`);
+          return;
+        }
+        throw pushError;
+      }
+      return;
+    }
+    await $({ stdio: 'inherit' })`git push origin ${tagName}`;
+
+    console.log(`🏷️  Created and pushed git tag ${tagName}`);
   } catch (/** @type {any} */ error) {
     throw new Error(`Failed to create git tag: ${error.message}`);
   }
@@ -295,9 +324,9 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     // Get all packages
     console.log('🔍 Discovering all workspace packages...');
 
-    const allPackages = await getWorkspacePackages({ publicOnly: true, filter });
+    const filteredPackages = await getWorkspacePackages({ publicOnly: true, filter });
 
-    if (allPackages.length === 0) {
+    if (filteredPackages.length === 0) {
       console.log(
         `⚠️  No publishable packages found in workspace${filter.length > 0 ? ` matching filter "${filter.join(', ')}"` : ''}`,
       );
@@ -307,7 +336,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     if (filter.length > 0) {
       console.log('🔍 Validating workspace dependencies for filtered packages...');
 
-      const { issues } = await validatePublishDependencies(allPackages);
+      const { issues } = await validatePublishDependencies(filteredPackages);
 
       if (issues.length > 0) {
         throw new Error(
@@ -337,20 +366,33 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       githubReleaseData = await validateGitHubRelease(version);
     }
 
-    const newPackages = await getWorkspacePackages({ nonPublishedOnly: true });
+    const registryPackages = await getRegistryPackages(filteredPackages);
+    const newPackages = getPackagesNeedingManualPublish(filteredPackages, registryPackages);
 
     if (newPackages.length > 0) {
+      const newPackageNames = newPackages.map((pkg) => pkg.name).join(', ');
       throw new Error(
-        `The following packages are new and need to be published manually first: ${newPackages.join(
-          ', ',
-        )}. Read more about it here: https://github.com/mui/mui-public/blob/master/packages/code-infra/README.md#adding-and-publishing-new-packages`,
+        `The following packages are new and need to be published to npm manually first: ${newPackageNames}. Read more about it here: https://github.com/mui/mui-public/blob/master/packages/code-infra/README.md#adding-and-publishing-new-packages`,
+      );
+    }
+
+    const distTagConflicts = getDistTagConflicts(filteredPackages, tag, registryPackages);
+    if (distTagConflicts.length > 0) {
+      throw new Error(
+        `Publishing with the "${tag}" dist-tag would move it to the wrong release line:
+${distTagConflicts.map(({ pkg, reason }) => `  * ${pkg.name}: ${reason}`).join('\n')}
+Publish a previous major with its "latest-vX" dist-tag and a prerelease of the next major with "next". On a release branch, also make that dist-tag the "dist-tag" default of the publish workflow. If the dist-tag on npm is outdated, fix it with "npm dist-tag" first.`,
       );
     }
 
     // Publish to npm (pnpm handles duplicate checking automatically)
     // No git checks, we'll do our own
     console.log('\n📦 Publishing packages to npm...');
-    const publishedPackages = await publishToNpm(allPackages, { dryRun, noGitChecks: true, tag });
+    const publishedPackages = await publishToNpm(filteredPackages, {
+      dryRun,
+      noGitChecks: true,
+      tag,
+    });
 
     if (publishedPackages.length === 0) {
       console.log('ℹ️  No packages were published (all may already be up to date on npm)');
@@ -362,7 +404,13 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       console.log(`✅ Published ${pkg.name}@${pkg.version}`);
     });
 
-    await createGitTag(version, dryRun);
+    // Tag the root version when it's new. Arbitrary package publishes that don't
+    // bump the root version don't create a new tag, so skip in that case.
+    if (await remoteGitTagExists(`v${version}`)) {
+      console.log(`ℹ️  Git tag v${version} already exists, skipping tag creation.`);
+    } else {
+      await createGitTag(version, dryRun);
+    }
 
     // Create GitHub release or git tag after successful npm publishing
     if (githubRelease && githubReleaseData) {
@@ -390,11 +438,15 @@ const PUBLISH_WORKFLOW_ID = `.github/${WORKFLOW_PATH}`;
  */
 async function triggerLocalGithubPublishWorkflow(opts) {
   console.log(`🔍 Checking if there are new packages to publish in the workspace...`);
-  const newPackages = await getWorkspacePackages({ nonPublishedOnly: true });
+  const packages = await getWorkspacePackages({ publicOnly: true });
+  const newPackages = getPackagesNeedingManualPublish(
+    packages,
+    await getRegistryPackages(packages, { npmOnly: true }),
+  );
   if (newPackages.length) {
     console.warn(
       `⚠️  Found new packages that should be published to npm first before triggering a release:
-  * ${newPackages.map((pkg) => pkg.name).join('  * ')}
+${newPackages.map((pkg) => `  * ${pkg.name}`).join('\n')}
 Please run the command "${chalk.bold('pnpm code-infra publish-new-package')}" first to publish and configure npm.`,
     );
     return;
@@ -466,6 +518,8 @@ async function determineGitSha(octokit, repoInfo) {
     await octokit.search.issuesAndPullRequests({
       advanced_search: 'true',
       q: `is:pr is:merged label:release repo:${repoInfo.owner}/${repoInfo.repo}`,
+      sort: 'created',
+      order: 'desc',
       per_page: 1,
     })
   ).data.items;
@@ -478,29 +532,33 @@ async function determineGitSha(octokit, repoInfo) {
     `🫆  Found the latest merged release PR: ${chalk.bold(pulls[0].title)} (${pulls[0].html_url})`,
   );
 
-  const commits = (
-    await octokit.search.commits({
-      q: `repo:${repoInfo.owner}/${repoInfo.repo} author:${pulls[0].user?.login} [release]`,
-      per_page: 100,
-    })
-  ).data.items;
-
-  if (!commits.length) {
-    console.error(
-      `❌🚨 Could not find any commits associated with the release PR: ${pulls[0].html_url}`,
-    );
+  const pull = (await octokit.pulls.get({ ...repoInfo, pull_number: pulls[0].number })).data;
+  const mergeCommitSha = pull.merge_commit_sha;
+  if (!mergeCommitSha) {
+    console.error(`❌🚨 Could not determine the merge commit of ${pulls[0].html_url}.`);
     return undefined;
   }
-  const relevantData = commits.map((commit) => ({
+
+  // Recent commits on the PR's target branch, to allow releasing from a different commit.
+  const commits = (
+    await octokit.repos.listCommits({ ...repoInfo, sha: pull.base.ref, per_page: 20 })
+  ).data;
+
+  const toChoice = (/** @type {(typeof commits)[number]} */ commit) => ({
     value: commit.sha,
     name: `(${commit.sha.slice(0, 7)}) ${commit.commit.message.split('\n')[0]} by ${commit.author?.login ?? 'no author'} on ${new Date(commit.commit.committer?.date ?? '').toISOString()}`,
-    desciption: commit.commit.message,
-  }));
+    description: commit.commit.message,
+  });
+  const choices = commits.map(toChoice);
+  if (!choices.some((choice) => choice.value === mergeCommitSha)) {
+    const mergeCommit = (await octokit.repos.getCommit({ ...repoInfo, ref: mergeCommitSha })).data;
+    choices.unshift(toChoice(mergeCommit));
+  }
 
   const result = await select({
     message: 'Select the commit to release from:',
-    choices: relevantData,
-    default: relevantData[0].value,
+    choices,
+    default: mergeCommitSha,
     pageSize: 10,
   });
   return result;

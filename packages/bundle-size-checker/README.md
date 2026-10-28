@@ -66,7 +66,9 @@ export default defineConfig(async () => {
         importedNames: ['Button'],
         // When externals is not specified, peer dependencies will be automatically excluded
       },
-      // Expand a package into one entry per export from its package.json
+      // Expand a package into one entry per export from its package.json.
+      // Wildcard subpath exports (e.g. `"./*"`) are expanded against the files
+      // present in the installed package directory.
       { id: '@mui/material', expand: true },
       // Expand with glob exclusions (matched against the export subpath, e.g. `styles/colors`)
       {

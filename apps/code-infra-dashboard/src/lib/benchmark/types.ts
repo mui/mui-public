@@ -31,6 +31,23 @@ export interface BenchmarkReportEntry {
 
 export type BenchmarkReport = Record<string, BenchmarkReportEntry>;
 
+export type MetricDirection = 'lowerIsBetter' | 'higherIsBetter';
+
+export interface MetricAlarm {
+  direction?: MetricDirection;
+  /** Softer band (relative fraction for scalar, absolute count delta for discrete). */
+  warn?: number;
+  /** Harder band; defaults to the global noise band only when both `warn` and `error` are omitted. */
+  error?: number;
+}
+
+/** Per-metric config for custom metrics, hoisted to the top level of the report (keyed by name). */
+export interface MetricDefinition {
+  kind: 'scalar' | 'discrete';
+  format?: Intl.NumberFormatOptions;
+  alarm?: MetricAlarm;
+}
+
 export interface BenchmarkBaseUpload {
   version: 1;
   timestamp: number;
@@ -38,8 +55,10 @@ export interface BenchmarkBaseUpload {
   repo: string;
   reportType: 'benchmark';
   prNumber?: number;
-  branch: string;
+  /** The branch a same-org build ran on; absent for a fork or a ref that isn't a branch. */
+  branch?: string;
   report: BenchmarkReport;
+  metricDefinitions?: Record<string, MetricDefinition>;
 }
 
 export interface BenchmarkUpload extends BenchmarkBaseUpload {

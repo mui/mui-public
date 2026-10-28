@@ -1,0 +1,86 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Experimental grouping strategy. Only mui-public extends this, so the strategy can be observed for a few cycles before it is folded into renovate/default.json.",
+  "extends": ["github>mui/mui-public//renovate/default"],
+  "lockFileMaintenance": {
+    "enabled": true
+  },
+  "vulnerabilityAlerts": {
+    "description": "Keep security fixes on their own branch so they are never blocked behind an unrelated group PR.",
+    "groupName": null
+  },
+  "packageRules": [
+    // Collapsing every non-major update into one group per package manager also turns each family
+    // group in the default preset (eslint, babel monorepo, Vite & Vitest, ...) into a majors-only
+    // group, because those rules are unscoped by update type and these ones are applied after.
+    {
+      "groupName": "npm non-major",
+      "description": "All npm patch/minor updates in a single PR, together with the lockfile refresh. @mui/* is excluded because it is unscheduled and exempt from the minimum release age, which a weekly group would take away from it; @types/node because it has to move with the Node version pinned across CI and Netlify.",
+      "matchManagers": ["npm"],
+      "matchUpdateTypes": ["minor", "patch", "bump"],
+      "matchPackageNames": ["!@mui/*", "!@types/node"]
+    },
+    {
+      "groupName": "GitHub Actions non-major",
+      "description": "Most action updates arrive as digest updates because of helpers:pinGitHubActionDigests. Matching the action depType leaves uses-with alone, so actions/setup-node's Node version stays in the node group.",
+      "matchManagers": ["github-actions"],
+      "matchDepTypes": ["action"],
+      "matchUpdateTypes": ["minor", "patch", "digest", "pin", "bump"],
+      "reviewers": ["team:infra"]
+    },
+    {
+      "groupName": "CI images & tooling non-major",
+      "description": "The Playwright image stays with the npm packages it has to match, Node stays in the cross-manager node group, and the code-infra orb stays with the MUI infra packages it is released alongside.",
+      "matchManagers": ["circleci", "custom.regex", "dockerfile", "docker-compose", "nvm"],
+      "matchUpdateTypes": ["minor", "patch", "digest", "pin", "bump"],
+      "matchPackageNames": [
+        "!mcr.microsoft.com/playwright",
+        "!node",
+        "!https://github.com/mui/mui-public"
+      ],
+      "reviewers": ["team:infra"]
+    },
+    {
+      "groupName": "npm non-major",
+      "description": "The Playwright Docker image has to match the npm package exactly or the browser tests break, and the npm package is in the group above. Pull the image in after it rather than leaving it with the other CI images, so the two can never land in separate PRs. Majors are left alone and stay in the playwright monorepo group.",
+      "matchPackageNames": ["mcr.microsoft.com/playwright"],
+      "matchUpdateTypes": ["minor", "patch", "digest", "pin", "bump"]
+    },
+    {
+      "groupName": "npm non-major",
+      "description": "Refresh the lockfile inside the group PR rather than on a branch of its own. This has to be a package rule: the lockFileMaintenance config block resets groupName to null, and package rules are the only thing applied after it. It deliberately leaves the schedule alone, which the consuming repository lines up with its own window.",
+      "matchUpdateTypes": ["lockFileMaintenance"]
+    },
+    // Linters and formatters keep their own PR at every update type, because their releases tend to
+    // come with new rules that need code changes, and the Prettier group reformats the whole
+    // repository from a postUpgradeTask. Neither is reviewable buried in a group of forty bumps.
+    // These repeat the matchers from the default preset because a group cannot be matched on, only
+    // assigned; folding this preset in replaces the repetition with ordering.
+    {
+      "groupName": "eslint",
+      "extends": ["monorepo:eslint", "monorepo:typescript-eslint"]
+    },
+    {
+      "groupName": "eslint",
+      "matchPackageNames": [
+        "eslint-plugin-*",
+        "*/eslint-plugin-*",
+        "@vitest/eslint-plugin",
+        "!@next/eslint-plugin-next"
+      ]
+    },
+    {
+      "groupName": "eslint",
+      "matchSourceUrls": ["https://github.com/eslint/*"]
+    },
+    {
+      "groupName": "eslint",
+      "matchSourceUrls": ["https://github.com/import-js/eslint-plugin-import"]
+    },
+    {
+      "groupName": "Prettier",
+      "description": "Last, so that eslint-config-prettier lands here rather than in the eslint group, matching the order in the default preset.",
+      "matchPackageNames": ["prettier", "pretty-quick", "eslint-config-prettier"]
+    }
+  ]
+}

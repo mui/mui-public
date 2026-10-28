@@ -1,5 +1,6 @@
 import * as React from 'react';
-import { initialMessages, olderHistory, type ChatMessage } from './messages';
+import { initialMessages, olderHistory } from './messages';
+import type { ChatMessage } from './messages';
 
 const STREAM_INTERVAL = 700;
 

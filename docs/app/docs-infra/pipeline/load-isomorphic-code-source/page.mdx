@@ -66,19 +66,7 @@ resolveImports?: (imports: IsomorphicImports) => Promise<Map<string, string>>;
 
 When omitted, JavaScript modules are processed without a resolver: import URLs are kept as-is for `extraDependencies` and no rewriting happens. CSS files always skip this step because [`parseImportsAndComments`](../loader-utils/page.mdx#parseimportsandcomments) already resolves `@import` and `url()` paths.
 
-The `IsomorphicImports` shape mirrors what `parseImportsAndComments` produces after name flattening, so resolvers can inspect each import's named bindings, type-only flag, and source positions:
-
-```ts
-type IsomorphicImports = Record<
-  string,
-  {
-    url: string;
-    names: string[];
-    includeTypeDefs?: true;
-    positions: Array<{ start: number; end: number }>;
-  }
->;
-```
+The [`IsomorphicImports`](#isomorphicimports) shape mirrors what `parseImportsAndComments` produces after name flattening, so resolvers can inspect each import's `url`, named bindings (`names`), type-only flag (`includeTypeDefs`), and source `positions` — see the [Types](#types) section for the full definition.
 
 ## Import Storage Modes
 
@@ -138,26 +126,39 @@ import { Button } from '../components/Button';
 }
 ```
 
+### Choosing a mode
+
+`storeAt` decides the file-tree shape every downstream consumer sees:
+
+- **`'flat'`** — best for display and in-browser editing: each variant reads as a
+  single folder and imports are rewritten to match. This is what the demo
+  pipeline uses by default.
+- **`'canonical'`** — preserves the real directory structure (including
+  `index.*` resolution), so consumers that rebuild a file tree —
+  [`flattenCodeVariant`](../load-isomorphic-code-variant/page.mdx#flattening-for-file-systems)
+  and the
+  [StackBlitz / CodeSandbox exports](../../hooks/use-demo/page.mdx#open-in-stackblitz-or-codesandbox)
+  built on it — reproduce the project as it exists on disk.
+- **`'import'`** — keys mirror the authored import specifiers (with extensions
+  added but without `index.*` resolution); useful when the displayed file list
+  should match the import statements.
+
 ## Return Value
 
+The returned function satisfies the [`LoadSource`](#return-value) contract:
+
 ```ts
-interface LoadSourceResult {
-  source: string; // Processed source code (may have rewritten imports)
-  extraFiles?: Record<string, string>; // Map of import paths to URLs
-  extraDependencies?: string[]; // Array of URLs for recursive loading
-  externals?: Externals; // External npm package dependencies
-  comments?: Record<number, string[]>; // Comments by line number (for sourceEnhancers)
-}
-
-// Externals type
-type Externals = Record<string, ExternalImportItem[]>;
-
-interface ExternalImportItem {
-  name: string; // Import name (e.g., 'Button', 'default')
-  type: 'named' | 'default' | 'namespace'; // Import type
-  isType?: boolean; // Whether this is a TypeScript type-only import
-}
+const result = await loadSource('https://example.com/Demo.tsx');
+// {
+//   source: string — processed source code (may have rewritten imports)
+//   extraFiles?: Record<string, string> — import path → URL for recursive loading
+//   extraDependencies?: string[] — URLs for recursive loading
+//   externals?: Externals — external npm package dependencies
+//   comments?: Record<number, string[]> — 1-indexed line → comments (for sourceEnhancers)
+// }
 ```
+
+`Externals` maps each module specifier to its import bindings (`name`, `type: 'named' | 'default' | 'namespace'`, `isType`) — see [`Externals`](../../components/code-highlighter#externals) in the CodeHighlighter types.
 
 > [!IMPORTANT]
 > The values in `extraFiles` are URLs, not source code. This allows [`loadIsomorphicCodeVariant`](../load-isomorphic-code-variant/page.mdx) to recursively load each dependency by calling `loadSource` again with the URL. Whatever URL scheme `fetchSource` and `resolveImports` produce must be one this same loader can later fetch.
@@ -183,7 +184,9 @@ const loadSource = createLoadIsomorphicCodeSource({
 
 const result = await loadSource('https://example.com/example.ts');
 // result.source: "// User-visible comment\nconst x = 1;"
-// result.comments: { 0: ['@internal This is an implementation detail'] }
+// result.comments: { 1: ['@internal This is an implementation detail'] }
+// Keys are 1-indexed line numbers in the stripped source — the comment attaches
+// to the line that follows it (here, the "User-visible comment" line).
 // Note: "User-visible comment" is NOT collected because it doesn't match removeCommentsWithPrefix
 ```
 
@@ -211,7 +214,8 @@ const loadSource = createLoadIsomorphicCodeSource({
 
 const result = await loadSource('https://example.com/example.ts');
 // result.source: "const x = 1;"
-// result.comments: { 0: ['@highlight Important line'] }
+// result.comments: { 1: ['@highlight Important line'] }
+// The comment attaches to `const x = 1;` — line 1 of the stripped source.
 // Note: @internal is stripped but NOT collected (not in notableCommentsPrefix)
 ```
 
@@ -320,7 +324,7 @@ import { TypesLoadIsomorphicCodeSource } from './types';
 
 <TypesLoadIsomorphicCodeSource />
 
-[See Types](./types.md#createLoadIsomorphicCodeSource)
+[See Types](./types.md)
 
 ## Related
 
@@ -329,3 +333,8 @@ import { TypesLoadIsomorphicCodeSource } from './types';
 - [`parseImportsAndComments`](../loader-utils/page.mdx#parseimportsandcomments) - Underlying parser used to extract imports and comments
 - [`processRelativeImports`](../loader-utils/page.mdx#processrelativeimports) - Applies the `storeAt` mode and rewrites import statements
 - [`resolveImportResult`](../loader-utils/page.mdx#resolveimportresult) - Reference resolver used by `loadServerCodeSource`
+
+export const metadata =
+  /** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */ ({
+    keywords: ['loadSource', 'fetchSource', 'resolveImports', 'storeAt', 'import parsing'],
+  });

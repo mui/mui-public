@@ -1,7 +1,22 @@
-.extraFiles {
-  display: none;
+/*
+ * Single-file fallback. The `<section><figure><dl>…</dl></figure></section>`
+ * shape matches what `transformHtmlCodeBlock` parses (and lets crawlers index
+ * the file/source), while the visible filename is rendered by the surrounding
+ * CodeBlockHeader / Tabs — so the `<dt>` is hidden.
+ */
+
+.files,
+.files figure,
+.files dl,
+.files dd {
+  margin: 0;
+  padding: 0;
 }
 
-.extraVariants {
+.files > figure > dl > dd:first-of-type {
+  padding: 10px 0;
+}
+
+.files > figure > dl > dt {
   display: none;
 }

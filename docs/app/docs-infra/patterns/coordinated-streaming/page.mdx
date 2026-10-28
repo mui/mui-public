@@ -1,0 +1,168 @@
+# Coordinated Streaming
+
+**Purpose**: Swap deferred content in without layout-shift cascades, and stream large content progressively — coordinated across every block on the page.
+
+**Core Strategy**: A reusable fallback↔content swap (`CoordinatedLazy`) registers with a page-wide settle gate so blocks settle together; a `Chunk` layer composes on top to split content into independently-loaded, streamable pieces.
+
+This pattern sits on top of two others: [Props Context Layering](../props-context-layering/page.mdx) governs _how_ data crosses the server→client boundary, and [Prop Compression](../prop-compression/page.mdx) governs _how small_ it is. Coordinated Streaming governs _when_ the deferred content swaps in.
+
+---
+
+## The Problem
+
+Deferred content — syntax highlighting, a chart, a large data table — arrives after first paint. Handled naively, each block swaps from its placeholder to its full content whenever its own work happens to finish. On a page of many blocks that produces a **cascade** of layout shifts as content pops in at staggered idle times, and a later page-wide change (toggling a code variant, say) can land while blocks are still mid-swap.
+
+Two more problems compound it:
+
+- **Large content blocks first paint.** A detailed chart or a long file can't all arrive at once without delaying what the user sees.
+- **Serial helper loading.** If the full content needs a heavy helper (a transform function, a parser), discovering that only _after_ the content component mounts costs an extra network roundtrip before anything can render.
+
+---
+
+## The Swap: `CoordinatedLazy`
+
+`CoordinatedLazy` owns a state-driven fallback↔content swap. The server pre-renders **both** the loading placeholder and the content; the client shows the placeholder, then swaps to content once it is `ready`.
+
+```tsx
+'use client';
+
+function MyBlock({ ready, data }) {
+  return <CoordinatedLazy ready={ready} fallback={<Loading />} content={<Content data={data} />} />;
+}
+```
+
+Four behaviors make the swap robust and reusable:
+
+- **Force-mount-once** — even when the content is precomputed, the placeholder mounts for one commit so its hoist hook can run. (This is the trick the code highlighter uses to recover its decompression dictionary from the fallback.)
+- **Hoist up / content-context down** — the placeholder hoists data with `useCoordinatedFallback`; the swap collects it and hands it to the content via `useCoordinatedContent`. So the full content reuses what the placeholder already fetched.
+- **Nested suppression** — an inner instance rendered inside an outer one's still-showing fallback stays in its own fallback, collapsing a "fallback → content → fallback → content" flicker into a single transition.
+- **Defer** — hold the swap while real work is still in flight even though `ready` is true.
+
+A **codeblock frame is the simplest instance** of this swap: its plain-text fallback → highlighted HAST is exactly a loading→full transition, and a multi-frame file is serial chunking of one source.
+
+---
+
+## Coordinating the Swap
+
+Each swap registers with a **settle gate** — `createSettleGate()`, the shared "all sources settled" primitive. A source registers on mount and settles when it reaches its stable layout; the gate opens once every source has settled, and opens **once** (a late arrival adopts the open state rather than re-closing it).
+
+A single page-global instance, `pageSettleGate`, is what every `CoordinatedLazy` swap and the page-wide `layoutShiftGate` register with. That lets [`useCoordinated`](../../hooks/use-coordinated/page.mdx) hold a page-wide transform/variant change until the initial swaps have all landed — so the page settles as one update instead of a cascade.
+
+---
+
+## Self-loading pieces & streaming
+
+`createCoordinatedLazy()` builds a self-loading component that loads one piece's data and swaps via `CoordinatedLazy`. Its data `source` is a **discriminated union** on `mode`, so each loading strategy is strongly typed:
+
+```tsx
+const ChartChunk = createCoordinatedLazy({
+  ChunkContent,
+  ChunkLoading,
+  source: {
+    mode: 'stream', // push chunks over time and yield — progressive reveal
+    async *stream(chunks, options, signal) {
+      for (const url of options.urls) {
+        chunks.push(await fetchPoints(url, signal));
+        yield;
+      }
+    },
+  },
+});
+```
+
+| `source.mode` | Loads                                                         |
+| :------------ | :------------------------------------------------------------ |
+| `data`        | one value directly (optionally a quick `initial` first)       |
+| `urls`        | a list of chunk URLs, then each URL's data                    |
+| `stream`      | pushes chunks into an array and `yield`s — progressive reveal |
+
+Three hooks complete the picture:
+
+- `useChunk()` loads a single chunk's data (props-context-layering: it uses preloaded data when present, and only fetches otherwise).
+- `useStream()` streams the _list_ on the client, accumulating snapshots into state.
+- `useStreamController()` scopes a group of chunks so the page can tell when they have **all** loaded — via a known count, or a last-chunk flag when the count is unknown.
+
+On the server, each chunk is its own async component under a per-chunk Suspense boundary, so React flushes them as they resolve. The same streaming generator drives the client (incremental `setState`) and the server (awaited to completion).
+
+---
+
+## Speculative Preload
+
+When the placeholder hoists its data, `CoordinatedLazy` fires a `preload(hoisted)` callback. Use it to start dynamic `import()`s of the heavy helpers the data implies — **in parallel** with loading the full content, rather than the content mounting and then requesting them serially:
+
+```tsx
+const preload = usePreload();
+
+<CoordinatedLazy
+  ready={ready}
+  fallback={<Loading />}
+  content={<Content />}
+  preload={(hoisted) => {
+    if (hoisted.needsTransform) {
+      preload('transform', () => import('./transform'));
+    }
+  }}
+/>;
+```
+
+`PreloadProvider` / `usePreload` dedup those imports across every instance on the page, so a shared helper is fetched once no matter how many chunks need it. This collapses the otherwise-serial chain `Content (lazy) → helper (lazy)` into a single parallel step.
+
+---
+
+## Passing Data from Fallback to Content
+
+The hoist channel is what makes "quick now, detailed later" work without re-fetching. The placeholder paints a cheap version and hoists it; the full content reads it back via `useCoordinatedContent` and refines it. Two concrete uses:
+
+- **Decompression dictionary** — the code highlighter's plain-text fallback doubles as the DEFLATE dictionary the compressed highlighted payload decodes against (see [Prop Compression](../prop-compression/page.mdx)).
+- **Low-resolution preview** — a chart ships a low-resolution line as its `initial` data, then streams the detailed line, decoded against the initial as a baseline.
+
+---
+
+## Progressive Hydration & Compression
+
+Viewed end to end, the hoist channel is a **three-stage pipeline** where each stage's output is the next stage's input — and, crucially, the next stage's **decompression dictionary**. The page is useful at every stage rather than only at the last, which is what makes it _progressive_: each stage hydrates a richer version of the same content.
+
+```ascii
+  over the wire          on the client - no extra round trips
+  ------------           ------------------------------------
+  gzip / brotli   -->    1. minimal content, in the HTML
+  (HTTP layer)                 placeholder text, a low-res line, plain
+                               source - what a crawler or no-JS sees
+                                   |
+                                   v   rendered as the placeholder, then
+                                       the coordinated swap mounts...
+                          2. the full Content component
+                                   |
+                                   v   reads the minimal content back as
+                                       a preset dictionary (hoist channel)
+                          3. decode a compressed delta prop -->
+                               enhanced content: highlighted HAST, the
+                               detailed line - entirely on the client
+```
+
+Stage 1 is just the platform's own HTTP compression of the HTML response. Stages 2 and 3 are what this pattern adds: the minimal content the browser **already** decompressed is rendered, then **reused as the dictionary** for a compact delta that decodes to the enhanced content. It is the same fallback→content hoist described above, viewed as compression rather than data-passing — `compressString`/`decompressString` (DEFLATE with a preset dictionary) decode the delta against the minimal content with no second payload.
+
+**A shared dictionary with no round trips.** Shipping a compressed delta that only makes sense against a dictionary is normally an HTTP problem, and a hard one: shared-dictionary transport (custom Brotli/ZStd dictionaries, `Compression-Dictionary` negotiation) is powerful but awkward to deploy — it needs server negotiation, a separately-fetched or prior-response dictionary, careful versioning, and broad client support. Within a single page this pattern sidesteps all of it: the "dictionary" is simply the minimal content already in the DOM, and the delta is a prop that decodes against it on the client. No negotiation, no extra request.
+
+What it buys:
+
+- **Smaller HTML, faster parse.** Only the minimal content is in the markup; the enhanced payload travels as a compact delta, so the browser parses less before first paint.
+- **Faster hydration.** The client decodes the delta locally instead of parsing a large inline payload.
+- **Crawler-friendly.** A crawler that only wants the textual content gets exactly the minimal representation, without paying to parse the enhanced, interactive payload it would discard anyway.
+
+What it does **not** solve: cross-page compression. Each page's dictionary is its own in-page content, so a returning visitor cannot reuse a dictionary from a prior page — that is precisely what HTTP shared dictionaries are for, and the two are complementary. The win here is purely within a page: initial hydration and HTTP parse times, especially for content-only consumers.
+
+---
+
+## When to Use
+
+Reach for Coordinated Streaming when a page has **multiple deferred blocks** that would otherwise shift independently, or when a **single block is large enough** that progressive reveal beats waiting for all of it. For a lone, small, instantly-available block, a plain `Suspense` boundary is simpler — the coordination machinery earns its keep only when there is something to coordinate.
+
+---
+
+## Related
+
+- [Props Context Layering](../props-context-layering/page.mdx) — how data crosses the server→client boundary
+- [Prop Compression](../prop-compression/page.mdx) — how the deferred payload stays small
+- [Use Coordinated](../../hooks/use-coordinated/page.mdx) — coordinating a state change across the settled page
+- [Architecture](../../overview/architecture/page.mdx) — where this fits in the runtime

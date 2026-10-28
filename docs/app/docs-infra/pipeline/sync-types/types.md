@@ -50,11 +50,6 @@ type SyncTypesOptions = {
   watchSourceDirectly?: boolean;
   /** Options for formatting types in tables */
   formattingOptions?: FormatInlineTypeOptions;
-  /**
-   * Directory path for socket and lock files used for IPC between workers.
-   * Useful for Windows where the default temp directory may not support Unix domain sockets.
-   */
-  socketDir?: string;
   /** Enable performance logging */
   performanceLogging?: boolean;
   /**
@@ -69,6 +64,7 @@ type SyncTypesOptions = {
     onlyUpdateIndexes?: boolean;
     markerDir?: string;
     errorIfOutOfDate?: boolean;
+    cacheDir?: string;
     indexFileName?: string;
   };
   /**
@@ -91,5 +87,17 @@ type SyncTypesOptions = {
    * Each entry has a `pattern` (regex string) and `replacement` string.
    */
   descriptionReplacements?: DescriptionReplacement[];
+  /**
+   * Props to re-include when inherited from these externally declared types,
+   * keyed by the declaring type's name.
+   */
+  inheritedExternalProps?: InheritedExternalPropsConfig;
+  /**
+   * Directory for the sha256-validated JSON cache of the types pipeline. When set, after
+   * writing types.md syncTypes pre-populates `{cacheDir}/types-text/{route}.json` with the
+   * parsed `TypesSourceData`, leaving it warm for the next cold `loadServerTypesText` read.
+   * @default undefined (disabled)
+   */
+  cacheDir?: string;
 };
 ```

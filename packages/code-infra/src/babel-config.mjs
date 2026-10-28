@@ -1,3 +1,4 @@
+import pluginReactPureAnnotations from '@babel/plugin-transform-react-pure-annotations';
 import pluginTransformRuntime from '@babel/plugin-transform-runtime';
 import presetEnv from '@babel/preset-env';
 import presetReact from '@babel/preset-react';
@@ -7,8 +8,11 @@ import pluginResolveImports from '@mui/internal-babel-plugin-resolve-imports';
 import pluginOptimizeClsx from 'babel-plugin-optimize-clsx';
 import pluginReactCompiler from 'babel-plugin-react-compiler';
 import pluginTransformImportMeta from 'babel-plugin-transform-import-meta';
-import pluginTransformInlineEnvVars from 'babel-plugin-transform-inline-environment-variables';
 import pluginRemovePropTypes from 'babel-plugin-transform-react-remove-prop-types';
+import pluginTransformInlineEnvVars from './babelPluginInlineEnvironmentVariables.mjs';
+
+// Plain TypeScript, ie. files that can't contain JSX.
+const TS_WITHOUT_JSX = /\.[cm]?ts$/;
 
 /**
  * @typedef {'annotation' | 'syntax' | 'infer' | 'all'} ReactCompilationMode
@@ -26,7 +30,7 @@ import pluginRemovePropTypes from 'babel-plugin-transform-react-remove-prop-type
  * @param {string} [param0.reactCompilerReactVersion]
  * @param {ReactCompilationMode} [param0.reactCompilerMode]
  * @param {{ allowedCallees?: Record<string, string[]> }} [param0.displayName] - Options for the display name plugin.
- * @returns {import('@babel/core').TransformOptions} The base Babel configuration.
+ * @returns {import('@babel/core').InputOptions} The base Babel configuration.
  */
 export function getBaseConfig({
   debug = false,
@@ -44,22 +48,19 @@ export function getBaseConfig({
    * @type {import('@babel/preset-env').Options}
    */
   const presetEnvOptions = {
-    bugfixes: true,
     debug,
     modules: bundle === 'esm' ? false : 'commonjs',
     // @TODO
     browserslistEnv: bundle === 'esm' ? 'stable' : 'node',
   };
   /**
-   * @type {import('@babel/core').TransformOptions["plugins"]}
+   * @type {import('@babel/core').PluginItem[]}
    */
   const plugins = [
     [
       pluginTransformRuntime,
       {
         version: runtimeVersion,
-        regenerator: false,
-        useESModules: bundle === 'esm',
       },
       '@babel/plugin-transform-runtime',
     ],
@@ -143,12 +144,31 @@ export function getBaseConfig({
     presets: [
       [presetEnv, presetEnvOptions],
       [
-        presetReact,
-        { runtime: 'automatic', useBuiltIns: bundle === 'esm', useSpread: bundle === 'esm' },
+        presetTypescript,
+        {
+          // Babel 8 defaults this to `true`, which keeps `import { type A } from 'x'` as a
+          // side-effect `import 'x'`. Restore full elision so type-only imports don't create
+          // runtime module cycles.
+          onlyRemoveTypeImports: false,
+        },
       ],
-      [presetTypescript],
     ],
     plugins,
+    overrides: [
+      {
+        // Babel 8 keeps the JSX parser on for every file the React preset touches, which
+        // misparses generic arrows like `<T = unknown>(x) => x` in plain `.ts` files.
+        exclude: TS_WITHOUT_JSX,
+        presets: [[presetReact, { runtime: 'automatic' }]],
+      },
+      {
+        // The React preset is off for those files, so re-add the one part of it they still
+        // need: `/*#__PURE__*/` on `React.createContext()` and friends, without which
+        // bundlers keep every unused context.
+        include: TS_WITHOUT_JSX,
+        plugins: [pluginReactPureAnnotations],
+      },
+    ],
   };
 }
 
@@ -161,7 +181,7 @@ export function getBaseConfig({
 
 /**
  * @param {import('@babel/core').ConfigAPI | Options} api
- * @returns {import('@babel/core').TransformOptions}
+ * @returns {import('@babel/core').InputOptions}
  */
 export default function getBabelConfig(api) {
   /** @type {'esm' | 'cjs'} */
@@ -183,7 +203,8 @@ export default function getBabelConfig(api) {
     debug: process.env.MUI_BUILD_VERBOSE === 'true',
     bundle,
     outExtension: process.env.MUI_OUT_FILE_EXTENSION || null,
-    // any package needs to declare 7.25.0 as a runtime dependency. default is ^7.0.0
+    // Lower bound of @babel/runtime a consumer must ship; `code-infra build` reads the real
+    // version off the package's dependencies instead. Runtime 7 and 8 both satisfy this.
     runtimeVersion: process.env.MUI_BABEL_RUNTIME_VERSION || '^7.25.0',
     optimizeClsx: process.env.MUI_OPTIMIZE_CLSX === 'true',
     removePropTypes: process.env.MUI_REMOVE_PROP_TYPES === 'true',

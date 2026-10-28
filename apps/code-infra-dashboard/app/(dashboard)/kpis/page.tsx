@@ -6,7 +6,8 @@ import Grid from '@mui/material/Grid';
 import Heading from '@/components/Heading';
 import KpiCard from '@/components/KpiCard';
 import LinkCardActionArea from '@/components/LinkCardActionArea';
-import { kpiRegistry, toKpiInfo, type KpiConfig } from '@/lib/kpis';
+import { kpiRegistry, toKpiInfo } from '@/lib/kpis';
+import type { KpiConfig } from '@/lib/kpis';
 
 export const revalidate = 3600; // 1 hour ISR
 

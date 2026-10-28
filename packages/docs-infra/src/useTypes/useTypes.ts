@@ -2,7 +2,8 @@
 
 import * as React from 'react';
 import type { EnhancedProperty, EnhancedTypesMeta } from '../abstractCreateTypes/typesToJsx';
-import { useTypesDataContext, type TypeData, type TypePropData } from '../useType/TypesDataContext';
+import { useTypesDataContext } from '../useType/TypesDataContext';
+import type { TypeData, TypePropData } from '../useType/TypesDataContext';
 import { toKebabCase } from '../pipeline/loaderUtils/toKebabCase';
 
 export type TypesTableProps<T extends {}> = T & {

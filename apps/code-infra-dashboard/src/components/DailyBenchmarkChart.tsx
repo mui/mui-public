@@ -10,9 +10,11 @@ import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import { BarChartPro } from '@mui/x-charts-pro/BarChartPro';
 import { useXScale, useDrawingArea } from '@mui/x-charts-pro/hooks';
-import type { BenchmarkReport } from '@/lib/benchmark/types';
+import type { BenchmarkReport, MetricDefinition } from '@/lib/benchmark/types';
 import { formatMs } from '@/utils/formatters';
-import { useMasterCommits, type GitHubCommit } from '../hooks/useMasterCommits';
+import { isBenchmarkRunUpload } from '@/utils/fetchCiReport';
+import { useMasterCommits } from '../hooks/useMasterCommits';
+import type { GitHubCommit } from '../hooks/useMasterCommits';
 import { useCiReports } from '../hooks/useCiReports';
 import { useSearchParamsState } from '../hooks/useSearchParamsState';
 import ErrorDisplay from './ErrorDisplay';
@@ -81,6 +83,7 @@ interface CommitReportData {
   timestamp: number;
   commit: GitHubCommit;
   report: BenchmarkReport | null;
+  metricDefinitions?: Record<string, MetricDefinition>;
 }
 
 function collectBenchmarkNames(chartData: CommitReportData[]): string[] {
@@ -122,11 +125,17 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
 
   const chartData: CommitReportData[] = React.useMemo(
     () =>
-      commits.map(({ timestamp, commit }) => ({
-        timestamp,
-        commit,
-        report: reports[commit.sha]?.report ?? null,
-      })),
+      commits.map(({ timestamp, commit }) => {
+        // This chart reads version 1 reports; `BenchmarkRunHistory` draws version 2.
+        const upload = reports[commit.sha];
+        const version1 = upload && !isBenchmarkRunUpload(upload) ? upload : undefined;
+        return {
+          timestamp,
+          commit,
+          report: version1?.report ?? null,
+          metricDefinitions: version1?.metricDefinitions,
+        };
+      }),
     [commits, reports],
   );
 
@@ -154,7 +163,7 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
         return entry.totalDuration;
       }
       if (chartMode === 'paint') {
-        return entry.metrics['paint:default']?.mean ?? null;
+        return entry.metrics['bench:paint']?.mean ?? null;
       }
       return entry.renders.length;
     },
@@ -300,8 +309,10 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
       return null;
     }
     return {
-      value: reportData.report,
-      base: baselineData?.report ?? null,
+      value: { report: reportData.report, metricDefinitions: reportData.metricDefinitions },
+      base: baselineData?.report
+        ? { report: baselineData.report, metricDefinitions: baselineData.metricDefinitions }
+        : null,
       valueCommit: reportData.commit,
       baseCommit: baselineData?.commit ?? null,
     };
@@ -333,7 +344,7 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
               filterSelectedOptions
               size="small"
               renderInput={(inputParams) => (
-                <TextField {...inputParams} placeholder="Search and select benchmarks..." />
+                <TextField {...inputParams} placeholder="Search and select benchmarks…" />
               )}
               sx={{ mb: 1 }}
             />

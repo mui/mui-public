@@ -6,7 +6,13 @@ import {
   isUnionType,
   isObjectType,
   isLiteralType,
+  isTemplateLiteralType,
+  isTypeOperatorType,
+  isTypeQueryType,
 } from './typeGuards';
+import { isBuiltInTypeName } from './builtInTypes';
+import { groupType, UNION_OR_INTERSECTION } from './precedence';
+import { formatTemplateLiteral } from './templateLiteral';
 
 /**
  * Metadata for an external type discovered during formatting.
@@ -34,22 +40,6 @@ export interface ExternalTypesCollector {
   pattern?: RegExp;
   /** Map of original export names to dotted display names, used to identify renamed own types */
   typeNameMap?: Record<string, string>;
-}
-
-/**
- * Built-in type namespaces that should not be collected as external types.
- */
-const BUILT_IN_NAMESPACES = ['React', 'JSX', 'HTML', 'CSS', 'SVG', 'Omit', 'Pick', 'Partial'];
-
-/**
- * Checks if a type name belongs to a built-in namespace that should be skipped
- * during external type collection.
- */
-export function isBuiltInTypeName(typeName: tae.TypeName): boolean {
-  const name = typeName.name || '';
-  return BUILT_IN_NAMESPACES.some(
-    (ns) => name.startsWith(ns) || (typeName.namespaces?.includes(ns) ?? false),
-  );
 }
 
 /**
@@ -89,6 +79,25 @@ export function isOwnTypeName(typeName: string, collector: ExternalTypesCollecto
 }
 
 /**
+ * Members of a union, with preserved type operators replaced by the keys they resolve to.
+ *
+ * `'muted' | keyof Config` reads as a plain literal union to someone reading the docs, and
+ * it reached this module as one until the parser started preserving the operator.
+ *
+ * `maybeCollectExternalUnion` needs this to decide whether every member is a literal. When
+ * formatting, the operator branch below would produce the same text on its own; flattening
+ * first is what lets `uniq` dedupe a key against a sibling listed next to the operator.
+ */
+function resolvedUnionMembers(type: tae.UnionNode): tae.AnyType[] {
+  return type.types.flatMap((member) => {
+    if (!isTypeOperatorType(member) || member.resolvedType === undefined) {
+      return member;
+    }
+    return isUnionType(member.resolvedType) ? member.resolvedType.types : member.resolvedType;
+  });
+}
+
+/**
  * Formats an external type definition as a simple type string.
  * This produces a concise representation suitable for documentation.
  * Note: This function always expands types - it's used for showing the full
@@ -97,8 +106,22 @@ export function isOwnTypeName(typeName: string, collector: ExternalTypesCollecto
 export function formatExternalTypeDefinition(type: tae.AnyType): string {
   if (isUnionType(type)) {
     // Always expand union types - don't use typeName since we want the full definition
-    const members = type.types.map((t) => formatExternalTypeDefinition(t));
+    const members = resolvedUnionMembers(type).map((t) => formatExternalTypeDefinition(t));
     return uniq(members).join(' | ');
+  }
+
+  if (isTypeOperatorType(type)) {
+    // This section shows full definitions, so an operator is worth more as the keys it
+    // stands for than as its authored syntax.
+    if (type.resolvedType !== undefined) {
+      return formatExternalTypeDefinition(type.resolvedType);
+    }
+    // `keyof` binds tighter than both composers, so a composite operand has to be grouped.
+    return `${type.operator} ${groupType(formatExternalTypeDefinition(type.type), UNION_OR_INTERSECTION)}`;
+  }
+
+  if (isTypeQueryType(type)) {
+    return `typeof ${type.expressionName}`;
   }
 
   if (isLiteralType(type)) {
@@ -110,6 +133,10 @@ export function formatExternalTypeDefinition(type: tae.AnyType): string {
       return `'${unquoted}'`;
     }
     return String(value);
+  }
+
+  if (isTemplateLiteralType(type)) {
+    return formatTemplateLiteral(type, formatExternalTypeDefinition);
   }
 
   if (isIntrinsicType(type)) {
@@ -155,10 +182,25 @@ export function formatFunctionSignature(type: tae.FunctionNode): string {
 }
 
 /**
+ * Whether a type is a literal, a simple intrinsic (string, number, boolean), or a template
+ * literal whose placeholders are all simple intrinsics.
+ */
+function isLiteralLike(type: tae.AnyType): boolean {
+  if (isTemplateLiteralType(type)) {
+    return type.types.every(isLiteralLike);
+  }
+  return (
+    isLiteralType(type) ||
+    (isIntrinsicType(type) && ['string', 'number', 'boolean'].includes(type.intrinsic))
+  );
+}
+
+/**
  * Attempts to collect a named union type as an external type during formatting.
  * Only collects if:
  * - The type has a name
- * - ALL members are literals or simple intrinsics (string, number, boolean)
+ * - ALL members are literals, simple intrinsics (string, number, boolean), or template literals
+ *   whose placeholders are simple intrinsics
  * - The type is not in allExports (not an own type)
  * - The type is not a built-in namespace
  * - The optional pattern filter matches
@@ -193,13 +235,56 @@ export function maybeCollectExternalUnion(
   }
 
   // Only collect if ALL members are literals
-  const allMembersAreLiterals = type.types.every(
-    (t) =>
-      isLiteralType(t) ||
-      (isIntrinsicType(t) && ['string', 'number', 'boolean'].includes(t.intrinsic)),
-  );
+  const allMembersAreLiterals = resolvedUnionMembers(type).every(isLiteralLike);
 
   if (allMembersAreLiterals) {
+    collector.collected.set(typeName, {
+      name: typeName,
+      definition: formatExternalTypeDefinition(type),
+    });
+  }
+}
+
+/**
+ * Attempts to collect a named template literal type as an external type during formatting.
+ * Only collects if:
+ * - The type has a name
+ * - ALL placeholders are simple intrinsics (string, number, boolean)
+ * - The type is not in allExports (not an own type)
+ * - The type is not a built-in namespace
+ * - The optional pattern filter matches
+ */
+export function maybeCollectExternalTemplateLiteral(
+  type: tae.TemplateLiteralNode,
+  collector: ExternalTypesCollector,
+): void {
+  const typeName = type.typeName?.name;
+  if (!typeName) {
+    return;
+  }
+
+  // Already collected
+  if (collector.collected.has(typeName)) {
+    return;
+  }
+
+  // Pattern filter
+  if (collector.pattern && !collector.pattern.test(typeName)) {
+    return;
+  }
+
+  // Built-in type
+  if (isBuiltInTypeName(type.typeName!)) {
+    return;
+  }
+
+  // Own type (in exports or typeNameMap)
+  if (isOwnTypeName(typeName, collector)) {
+    return;
+  }
+
+  // Only collect if ALL placeholders are simple intrinsics, as unions require of their members
+  if (isLiteralLike(type)) {
     collector.collected.set(typeName, {
       name: typeName,
       definition: formatExternalTypeDefinition(type),

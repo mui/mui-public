@@ -1,0 +1,6 @@
+{
+  "name": "wildcard-no-target",
+  "exports": {
+    "./*": "./index.js"
+  }
+}

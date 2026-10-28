@@ -34,12 +34,6 @@ type LoaderOptions = {
   /** Options for formatting types in tables */
   formatting?: FormatInlineTypeOptions;
   /**
-   * Directory path for socket and lock files used for IPC between workers.
-   * Useful for Windows where the default temp directory may not support Unix domain sockets.
-   * @example '.next/docs-infra'
-   */
-  socketDir?: string;
-  /**
    * Options for updating the parent index page with component metadata.
    * When provided, will call syncPageIndex to update the parent directory's page.mdx
    * with props, dataAttributes, and cssVariables extracted from the component types.
@@ -49,6 +43,7 @@ type LoaderOptions = {
     onlyUpdateIndexes?: boolean;
     markerDir?: string;
     errorIfOutOfDate?: boolean;
+    cacheDir?: string;
     indexFileName?: string;
   };
   /**
@@ -70,7 +65,18 @@ type LoaderOptions = {
    * Each entry has a `pattern` (regex string) and `replacement` string.
    */
   descriptionReplacements?: DescriptionReplacement[];
+  /**
+   * Props to re-include when inherited from these externally declared types,
+   * keyed by the declaring type's name.
+   */
+  inheritedExternalProps?: InheritedExternalPropsConfig;
   /** Options for code blocks highlighted inside generated type metadata */
   codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions;
+  /**
+   * Directory for the sha256-validated JSON cache of the types pipeline. When set, the
+   * parsed types.md (`types-text`) and the enhanced/highlighted result (`types-enhanced`)
+   * are cached under it, keyed by content hash.
+   */
+  cacheDir?: string;
 };
 ```

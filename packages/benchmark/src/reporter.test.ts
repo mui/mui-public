@@ -1,5 +1,6 @@
 import * as os from 'node:os';
 import * as path from 'node:path';
+import * as fs from 'node:fs/promises';
 import { describe, it, expect, vi } from 'vitest';
 import type { TestCase } from 'vitest/node';
 import type { RenderEvent, IterationData } from './types';
@@ -15,8 +16,8 @@ function event(
   return { id, phase, startTime, actualDuration };
 }
 
-function iteration(renders: RenderEvent[], metrics: IterationData['metrics'] = []): IterationData {
-  return { renders, metrics };
+function iteration(renders: RenderEvent[]): IterationData {
+  return { renders };
 }
 
 describe('generateReportFromIterations', () => {
@@ -125,42 +126,7 @@ describe('generateReportFromIterations', () => {
     expect(report.renders[0].outliers).toBe(1);
   });
 
-  it('aggregates metrics across iterations', () => {
-    const iterations = [
-      iteration(
-        [event('App', 'mount', 0, 10)],
-        [
-          { name: 'paint:bench', value: 60 },
-          { name: 'paint:grid', value: 55 },
-        ],
-      ),
-      iteration(
-        [event('App', 'mount', 0, 10)],
-        [
-          { name: 'paint:bench', value: 64 },
-          { name: 'paint:grid', value: 57 },
-        ],
-      ),
-      iteration(
-        [event('App', 'mount', 0, 10)],
-        [
-          { name: 'paint:bench', value: 62 },
-          { name: 'paint:grid', value: 56 },
-        ],
-      ),
-    ];
-    const report = generateReportFromIterations(iterations);
-
-    expect(report.metrics).toHaveProperty('paint:bench');
-    expect(report.metrics).toHaveProperty('paint:grid');
-    expect(report.metrics['paint:bench'].mean).toBeCloseTo(62, 0);
-    expect(report.metrics['paint:grid'].mean).toBeCloseTo(56, 0);
-    expect(report.metrics['paint:bench'].stdDev).toBeGreaterThanOrEqual(0);
-    expect(report.metrics['paint:grid'].stdDev).toBeGreaterThanOrEqual(0);
-    expect(report.metrics['paint:bench'].outliers).toBe(0);
-  });
-
-  it('returns empty metrics when no metrics are present', () => {
+  it('does not aggregate metrics from iterations (paint flows through benchmarkMetrics)', () => {
     const iterations = [
       iteration([event('App', 'mount', 0, 10)]),
       iteration([event('App', 'mount', 0, 12)]),
@@ -168,25 +134,6 @@ describe('generateReportFromIterations', () => {
     const report = generateReportFromIterations(iterations);
 
     expect(report.metrics).toEqual({});
-  });
-
-  it('handles multiple metric identifiers with different counts', () => {
-    const iterations = [
-      iteration(
-        [event('App', 'mount', 0, 10)],
-        [
-          { name: 'paint:bench', value: 60 },
-          { name: 'paint:header', value: 50 },
-        ],
-      ),
-      iteration([event('App', 'mount', 0, 10)], [{ name: 'paint:bench', value: 64 }]),
-    ];
-    const report = generateReportFromIterations(iterations);
-
-    expect(report.metrics['paint:bench'].mean).toBeCloseTo(62, 0);
-    // paint:header only has 1 data point
-    expect(report.metrics['paint:header'].mean).toBe(50);
-    expect(report.metrics['paint:header'].stdDev).toBe(0);
   });
 });
 
@@ -319,6 +266,185 @@ describe('BenchmarkReporter', () => {
       const output = consoleSpy.mock.calls.map((call) => call[0]).join('\n');
 
       expect(output).toContain('my benchmark');
+
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe('custom metrics', () => {
+    it('merges aggregated custom metrics into the report and hoists definitions', async () => {
+      const outputPath = path.join(os.tmpdir(), `benchmark-custom-metrics-${process.pid}.json`);
+      const reporter = new BenchmarkReporter({ outputPath });
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      reporter.onTestCaseResult(
+        mockTestCase({
+          fullName: 'custom only',
+          meta: {
+            benchmarkName: 'custom only',
+            benchmarkMetrics: {
+              fib_duration: {
+                kind: 'scalar',
+                config: {
+                  name: 'fib_duration',
+                  format: { maximumFractionDigits: 3 },
+                  alarm: { direction: 'lowerIsBetter', warn: 0.1, error: 0.25 },
+                },
+                series: { '': { mean: 1.5, stdDev: 0.1, outliers: 0, count: 50 } },
+              },
+              fib_phase: {
+                kind: 'scalar',
+                config: { name: 'fib_phase' },
+                series: {
+                  small: { mean: 0.2, stdDev: 0.01, outliers: 0, count: 50 },
+                  large: { mean: 3.4, stdDev: 0.2, outliers: 1, count: 50 },
+                },
+              },
+            },
+          },
+          state: 'passed',
+        }),
+      );
+
+      await reporter.onTestRunEnd();
+      const written = JSON.parse(await fs.readFile(outputPath, 'utf8'));
+
+      // Metric-only test still produces an entry; iteration count derived from samples.
+      expect(written.report['custom only'].iterations).toBe(50);
+      expect(written.report['custom only'].renders).toEqual([]);
+
+      // Base series keyed by name; sub-series keyed `name#id`.
+      expect(written.report['custom only'].metrics).toMatchObject({
+        fib_duration: { mean: 1.5, stdDev: 0.1, outliers: 0 },
+        'fib_phase#small': { mean: 0.2 },
+        'fib_phase#large': { mean: 3.4, outliers: 1 },
+      });
+
+      // The sample count must not leak into the per-entry metric stats.
+      expect(written.report['custom only'].metrics.fib_duration).not.toHaveProperty('count');
+
+      // Config is hoisted once, keyed by metric name.
+      expect(written.metricDefinitions).toMatchObject({
+        fib_duration: {
+          kind: 'scalar',
+          alarm: { direction: 'lowerIsBetter', warn: 0.1, error: 0.25 },
+        },
+        fib_phase: { kind: 'scalar' },
+      });
+
+      await fs.rm(outputPath, { force: true });
+      consoleSpy.mockRestore();
+    });
+
+    it('merges custom metrics alongside React render iterations', () => {
+      const reporter = new BenchmarkReporter({
+        outputPath: path.join(os.tmpdir(), `benchmark-combined-${process.pid}.json`),
+      });
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      reporter.onTestCaseResult(
+        mockTestCase({
+          fullName: 'combined',
+          meta: {
+            benchmarkName: 'combined',
+            benchmarkIterations: [
+              iteration([event('App', 'mount', 0, 10)]),
+              iteration([event('App', 'mount', 0, 12)]),
+            ],
+            benchmarkMetrics: {
+              clicks: {
+                kind: 'discrete',
+                config: { name: 'clicks', format: { maximumFractionDigits: 0 } },
+                series: { '': { mean: 3, stdDev: 0, outliers: 0, count: 2 } },
+              },
+            },
+          },
+          state: 'passed',
+        }),
+      );
+
+      const output = consoleSpy.mock.calls.map((call) => call[0]).join('\n');
+      // Both the React render table and the custom metric are printed.
+      expect(output).toContain('combined');
+      expect(output).toContain('clicks');
+
+      consoleSpy.mockRestore();
+    });
+
+    function metricCase(testName: string, metricName: string, alarm: unknown) {
+      return mockTestCase({
+        fullName: testName,
+        meta: {
+          benchmarkName: testName,
+          benchmarkMetrics: {
+            [metricName]: {
+              kind: 'scalar',
+              config: { name: metricName, alarm },
+              series: { '': { mean: 1, stdDev: 0, outliers: 0, count: 1 } },
+            },
+          },
+        },
+        state: 'passed',
+      });
+    }
+
+    it('allows reusing a metric name across benchmarks with identical config', () => {
+      const reporter = new BenchmarkReporter({
+        outputPath: path.join(os.tmpdir(), `benchmark-reuse-${process.pid}.json`),
+      });
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      reporter.onTestCaseResult(metricCase('a', 'shared', { error: 0.2 }));
+      expect(() =>
+        reporter.onTestCaseResult(metricCase('b', 'shared', { error: 0.2 })),
+      ).not.toThrow();
+
+      consoleSpy.mockRestore();
+    });
+
+    it('throws when a metric name is reused with conflicting config across benchmarks', () => {
+      const reporter = new BenchmarkReporter({
+        outputPath: path.join(os.tmpdir(), `benchmark-conflict-${process.pid}.json`),
+      });
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      reporter.onTestCaseResult(metricCase('a', 'shared', { error: 0.2 }));
+      expect(() => reporter.onTestCaseResult(metricCase('b', 'shared', { error: 0.9 }))).toThrow(
+        /conflicting/,
+      );
+
+      consoleSpy.mockRestore();
+    });
+
+    it('does not flag the same config written with a different key order', () => {
+      const reporter = new BenchmarkReporter({
+        outputPath: path.join(os.tmpdir(), `benchmark-order-${process.pid}.json`),
+      });
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      reporter.onTestCaseResult(
+        metricCase('a', 'shared', { direction: 'lowerIsBetter', error: 0.2 }),
+      );
+      expect(() =>
+        reporter.onTestCaseResult(
+          metricCase('b', 'shared', { error: 0.2, direction: 'lowerIsBetter' }),
+        ),
+      ).not.toThrow();
+
+      consoleSpy.mockRestore();
+    });
+
+    it('resets between runs so an edited config does not conflict on watch reload', () => {
+      const reporter = new BenchmarkReporter({
+        outputPath: path.join(os.tmpdir(), `benchmark-reload-${process.pid}.json`),
+      });
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      reporter.onTestCaseResult(metricCase('a', 'shared', { error: 0.2 }));
+      reporter.onTestRunStart(); // simulate a watch re-run
+      expect(() =>
+        reporter.onTestCaseResult(metricCase('a', 'shared', { error: 0.9 })),
+      ).not.toThrow();
 
       consoleSpy.mockRestore();
     });

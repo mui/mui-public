@@ -1,6 +1,6 @@
 import nextjs from '@next/eslint-plugin-next';
-// TODO: change back to 'eslint/config' once https://github.com/eslint/rewrite/issues/425 is fixed
-import { defineConfig } from '@eslint/config-helpers';
+import { defineConfig } from 'eslint/config';
+import { EXTENSION_TS } from './extensions.mjs';
 
 /**
  * @returns {import('eslint').Linter.Config[]}
@@ -19,17 +19,35 @@ export function createDocsConfig() {
     ? nextjsAlias.flatConfig.recommended
     : nextjsAlias.configs.recommended;
 
-  return defineConfig(recommendedConfig, {
-    settings: {
-      next: {
-        rootDir: 'docs',
+  return defineConfig(
+    recommendedConfig,
+    {
+      settings: {
+        next: {
+          rootDir: 'docs',
+        },
+      },
+      files: [`**/*${EXTENSION_TS}`],
+      rules: {
+        'compat/compat': 'off',
+        'jsx-a11y/anchor-is-valid': 'off',
+        'no-irregular-whitespace': ['error', { skipJSXText: true, skipStrings: true }],
       },
     },
-    files: ['**/*.js', '**/*.mjs', '**/*.jsx', '**/*.ts', '**/*.tsx'],
-    rules: {
-      'compat/compat': 'off',
-      'jsx-a11y/anchor-is-valid': 'off',
-      'no-irregular-whitespace': ['error', { skipJSXText: true, skipStrings: true }],
+    {
+      // Build configuration and maintenance scripts aren't documentation examples
+      // and are often intentionally outside the docs TypeScript project.
+      files: [`**/*${EXTENSION_TS}`],
+      ignores: ['**/*.config.*', '**/scripts/**'],
+      languageOptions: {
+        parserOptions: {
+          projectService: true,
+          tsconfigRootDir: process.cwd(),
+        },
+      },
+      rules: {
+        '@typescript-eslint/no-deprecated': 'error',
+      },
     },
-  });
+  );
 }

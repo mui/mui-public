@@ -1,5 +1,6 @@
 import { getOctokit } from '@/lib/github';
-import { fetchCiReport, type CiReportName, type CiReportTypes } from './fetchCiReport';
+import { fetchCiReport } from './fetchCiReport';
+import type { CiReportName, CiReportTypes } from './fetchCiReport';
 
 /**
  * Fetches a CI report from S3, trying each candidate SHA in order.

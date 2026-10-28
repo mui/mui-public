@@ -1,8 +1,11 @@
 import { describe, it, expect } from 'vitest';
+import * as React from 'react';
+import * as ReactDOMServer from 'react-dom/server';
 import type { Root as HastRoot } from 'hast';
 import { compressHast } from '../pipeline/hastUtils';
 import type { HighlightedTypesMeta } from '../pipeline/loadServerTypes';
-import { typeToJsx, additionalTypesToJsx, type TypesJsxOptions } from './typesToJsx';
+import { typeToJsx, additionalTypesToJsx } from './typesToJsx';
+import type { TypesJsxOptions } from './typesToJsx';
 
 /** Minimal options satisfying the required TypePre field. */
 const defaultOptions: TypesJsxOptions = {
@@ -199,6 +202,47 @@ function createHighlightedFunction(
     },
   } as unknown as HighlightedTypesMeta;
 }
+
+/**
+ * Helper to create a HighlightedClassTypeMeta for testing.
+ */
+function createHighlightedClass(
+  name: string,
+  options: {
+    methods?: Record<string, { returnValue?: HastRoot; parameters?: HighlightedParameterMock[] }>;
+    properties?: Record<string, { type: HastRoot; shortType?: HastRoot }>;
+    constructorParameters?: HighlightedParameterMock[];
+  } = {},
+): HighlightedTypesMeta {
+  const methods = Object.fromEntries(
+    Object.entries(options.methods ?? {}).map(([methodName, method]) => [
+      methodName,
+      {
+        name: methodName,
+        parameters: method.parameters ?? [],
+        returnValue: method.returnValue ?? createHastRoot('void'),
+      },
+    ]),
+  );
+
+  return {
+    type: 'class',
+    name,
+    data: {
+      name,
+      constructorParameters: options.constructorParameters ?? [],
+      properties: options.properties ?? {},
+      methods,
+    },
+  } as unknown as HighlightedTypesMeta;
+}
+
+type HighlightedParameterMock = {
+  name: string;
+  type: HastRoot;
+  required?: boolean;
+  shortType?: HastRoot;
+};
 
 /**
  * Compress a HAST root to a { hastCompressed: string } wrapper for testing.
@@ -606,6 +650,48 @@ describe('typesToJsx', () => {
       }
     });
 
+    it('hands TypeCode uncompressed hastJson on the client (no DEFLATE compress) when deferred', () => {
+      // On a client render there is no server→client wire to shrink, so the deferred
+      // path must NOT DEFLATE-compress the HAST only for TypeCode to decompress it right
+      // back. With `window` present it ships `hastJson` (read directly by TypeCode), not
+      // a `hastCompressed` payload.
+      const host = globalThis as { window?: unknown };
+      const previousWindow = host.window;
+      host.window = {}; // simulate a browser (client) render
+      try {
+        const component = createHighlightedComponent('Button', {
+          props: {
+            disabled: {
+              type: createHastRoot('boolean'),
+              detailedType: createHighlightedCodeBlock('boolean'),
+            },
+          },
+        });
+        const result = typeToJsx({ type: component, additionalTypes: [] }, undefined, {
+          ...defaultOptions,
+          highlightAt: 'idle',
+        });
+
+        expect(result.type?.type).toBe('component');
+        if (result.type?.type === 'component') {
+          // The deferred `detailedType` is the <pre> wrapper; its child is the TypeCode
+          // client element — read its payload props.
+          const detailedType = result.type.data.props.disabled.detailedType as {
+            props: { children: { props: { hastJson?: string; hastCompressed?: string } } };
+          };
+          const typeCodeProps = detailedType.props.children.props;
+          expect(typeCodeProps.hastJson).toBeDefined();
+          expect(typeCodeProps.hastCompressed).toBeUndefined();
+        }
+      } finally {
+        if (previousWindow === undefined) {
+          delete host.window;
+        } else {
+          host.window = previousWindow;
+        }
+      }
+    });
+
     it('should produce deferred output for raw formattedCode with highlightAt hydration', () => {
       const raw = createHighlightedRaw('MyType', {
         formattedCode: createHighlightedCodeBlock('type MyType = {}'),
@@ -728,6 +814,88 @@ describe('typesToJsx', () => {
       expect(result[0].type).toBe('component');
       expect(result[1].type).toBe('hook');
       expect(result[2].type).toBe('raw');
+    });
+  });
+
+  describe('ShortTypePre', () => {
+    // Distinguishable `pre`/`code` slots so static markup reveals which one was used.
+    function TypePre({ children }: { children: React.ReactNode }) {
+      return React.createElement('pre', { 'data-pre': 'type' }, children);
+    }
+    function ShortTypePre({ children }: { children: React.ReactNode }) {
+      return React.createElement('pre', { 'data-pre': 'short' }, children);
+    }
+    function ShortTypeCode({ children }: { children?: React.ReactNode }) {
+      return React.createElement('code', { 'data-code': 'short' }, children);
+    }
+    // Render to static HTML so we can inspect which `pre`/`code` slot each field used.
+    // Inlined at each assertion because testing-library's render-result-naming rule
+    // rejects binding the output to a descriptive local name.
+    function staticMarkup(node: React.ReactNode): string {
+      return ReactDOMServer.renderToStaticMarkup(node as React.ReactElement);
+    }
+
+    it('renders class method return values with ShortTypePre when ShortTypeCode is set', () => {
+      const cls = createHighlightedClass('Store', {
+        methods: {
+          getSnapshot: { returnValue: createHighlightedCodeBlock('State') },
+        },
+      });
+      const result = typeToJsx({ type: cls, additionalTypes: [] }, undefined, {
+        TypePre,
+        ShortTypePre,
+        ShortTypeCode,
+      });
+
+      expect(result.type?.type).toBe('class');
+      if (result.type?.type === 'class') {
+        const returnValue = result.type.data.methods.getSnapshot.returnValue;
+        expect(staticMarkup(returnValue)).toContain('data-pre="short"');
+        expect(staticMarkup(returnValue)).toContain('data-code="short"');
+        expect(staticMarkup(returnValue)).not.toContain('data-pre="type"');
+      }
+    });
+
+    it('falls back to TypePre for short types when ShortTypePre is not provided', () => {
+      const cls = createHighlightedClass('Store', {
+        methods: {
+          getSnapshot: { returnValue: createHighlightedCodeBlock('State') },
+        },
+      });
+      const result = typeToJsx({ type: cls, additionalTypes: [] }, undefined, {
+        TypePre,
+        ShortTypeCode,
+      });
+
+      expect(result.type?.type).toBe('class');
+      if (result.type?.type === 'class') {
+        const returnValue = result.type.data.methods.getSnapshot.returnValue;
+        expect(staticMarkup(returnValue)).toContain('data-pre="type"');
+        expect(staticMarkup(returnValue)).not.toContain('data-pre="short"');
+      }
+    });
+
+    it('renders class property shortType with ShortTypePre', () => {
+      const cls = createHighlightedClass('Store', {
+        properties: {
+          value: {
+            type: createHastRoot('State'),
+            shortType: createHighlightedCodeBlock('State'),
+          },
+        },
+      });
+      const result = typeToJsx({ type: cls, additionalTypes: [] }, undefined, {
+        TypePre,
+        ShortTypePre,
+        ShortTypeCode,
+      });
+
+      expect(result.type?.type).toBe('class');
+      if (result.type?.type === 'class') {
+        expect(staticMarkup(result.type.data.properties.value.shortType)).toContain(
+          'data-pre="short"',
+        );
+      }
     });
   });
 });

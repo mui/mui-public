@@ -1,19 +1,21 @@
 /* eslint-disable no-console */
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
-import { $ } from 'execa';
 import { globby } from 'globby';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { sep as posixSep } from 'node:path/posix';
 import * as semver from 'semver';
+import { mapAsync } from 'es-toolkit/array';
 
 import {
   createPackageBin,
   createPackageExports,
+  createPackageImports,
   getOutExtension,
-  mapConcurrently,
+  validateEnginesNode,
   validatePkgJson,
 } from '../utils/build.mjs';
+import { readPnpmConfig } from '../utils/pnpm.mjs';
 
 /**
  * @typedef {Object} Args
@@ -26,11 +28,13 @@ import {
  * @property {boolean} skipBabelRuntimeCheck - Whether to skip checking for Babel runtime dependencies in the package.
  * @property {boolean} skipPackageJson - Whether to skip generating the package.json file in the bundle output.
  * @property {boolean} skipMainCheck - Whether to skip checking for main field in package.json.
+ * @property {boolean} skipPublint - Whether to skip validating the output directory with publint.
  * @property {string[]} ignore - Globs to be ignored by Babel.
  * @property {string[]} [copy] - Files/Directories to be copied. Can be a glob pattern.
  * @property {boolean} [enableReactCompiler] - Whether to use the React compiler.
- * @property {boolean} [tsgo] - Whether to build types using typescript native (tsgo).
- * @property {boolean} [flat] - Builds the package in a flat structure without subdirectories for each module type.
+ * @property {boolean} [tsgo] - Whether to build types using the native TypeScript compiler.
+ * @property {boolean} [flat] - Deprecated no-op; flat builds are always used.
+ * @property {boolean} expand - Whether to enumerate glob patterns in exports/imports into concrete entries.
  */
 
 const validBundles = [
@@ -45,13 +49,12 @@ const validBundles = [
  * @param {string} options.name - The name of the package.
  * @param {string} options.version - The version of the package.
  * @param {string} options.license - The license of the package.
- * @param {boolean} options.isFlat - Whether the build is flat structure.
  * @param {'module' | 'commonjs'} options.packageType - The package.json type field.
  * @param {import('../utils/build.mjs').BundleType} options.bundle
  * @param {string} options.outputDir
  */
-async function addLicense({ name, version, license, bundle, outputDir, isFlat, packageType }) {
-  const outExtension = getOutExtension(bundle, { isFlat, packageType });
+async function addLicense({ name, version, license, bundle, outputDir, packageType }) {
+  const outExtension = getOutExtension(bundle, { packageType });
   const file = path.join(outputDir, `index${outExtension}`);
   if (
     !(await fs.stat(file).then(
@@ -80,11 +83,11 @@ ${content}`,
 /**
  * @param {Object} param0
  * @param {import('./packageJson').PackageJson} param0.packageJson - The package.json content.
- * @param {{type: import('../utils/build.mjs').BundleType; dir: string}[]} param0.bundles
+ * @param {import('../utils/build.mjs').BundleType[]} param0.bundles
  * @param {string} param0.outputDir
  * @param {string} param0.cwd
  * @param {boolean} param0.addTypes - Whether to add type declarations for the package.
- * @param {boolean} param0.isFlat - Whether the build is flat structure.
+ * @param {boolean} [param0.expand] - Whether to enumerate glob patterns into concrete entries.
  * @param {'module' | 'commonjs'} param0.packageType - The package.json type field.
  */
 async function writePackageJson({
@@ -93,37 +96,48 @@ async function writePackageJson({
   outputDir,
   cwd,
   addTypes = false,
-  isFlat = false,
+  expand = true,
   packageType,
 }) {
   delete packageJson.scripts;
   delete packageJson.publishConfig?.directory;
   delete packageJson.devDependencies;
-  delete packageJson.imports;
 
   const resolvedPackageType = packageType || packageJson.type || 'commonjs';
   packageJson.type = resolvedPackageType;
 
   const originalExports = packageJson.exports;
   delete packageJson.exports;
+  const originalImports = packageJson.imports;
+  delete packageJson.imports;
   const originalBin = packageJson.bin;
   delete packageJson.bin;
 
-  const {
-    exports: packageExports,
-    main,
-    types,
-  } = await createPackageExports({
-    exports: originalExports,
-    bundles,
-    outputDir,
-    cwd,
-    addTypes,
-    isFlat,
-    packageType: resolvedPackageType,
-  });
+  const [{ exports: packageExports, main, types }, packageImports] = await Promise.all([
+    createPackageExports(originalExports, {
+      bundles,
+      outputDir,
+      cwd,
+      addTypes,
+      expand,
+      packageType: resolvedPackageType,
+    }),
+    originalImports
+      ? createPackageImports(originalImports, {
+          bundles,
+          cwd,
+          outputDir,
+          addTypes,
+          expand,
+          packageType: resolvedPackageType,
+        })
+      : Promise.resolve(undefined),
+  ]);
 
   packageJson.exports = packageExports;
+  if (packageImports) {
+    packageJson.imports = packageImports;
+  }
   if (main) {
     packageJson.main = main;
   }
@@ -131,11 +145,9 @@ async function writePackageJson({
     packageJson.types = types;
   }
 
-  const bin = await createPackageBin({
-    bin: originalBin,
+  const bin = await createPackageBin(originalBin, {
     bundles,
     cwd,
-    isFlat,
     packageType: resolvedPackageType,
   });
   if (bin) {
@@ -205,6 +217,11 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         default: false,
         description: 'Skip checking for main field in package.json.',
       })
+      .option('skipPublint', {
+        type: 'boolean',
+        default: false,
+        description: 'Skip validating the output directory with publint.',
+      })
       .option('copy', {
         type: 'string',
         array: true,
@@ -219,22 +236,29 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       })
       .option('tsgo', {
         type: 'boolean',
-        default: process.env.MUI_USE_TSGO,
+        default: false,
         description:
-          'Uses tsgo cli instead of tsc for type generation. Can also be set via env var "MUI_USE_TSGO"',
+          'Use the native TypeScript compiler instead of the TS6 JS compiler for type generation',
       })
       .option('flat', {
         type: 'boolean',
-        default: process.env.MUI_BUILD_FLAT === '1',
+        deprecated:
+          'Flat builds are now always used; this flag is a no-op and will be removed in a future release.',
+        default: true,
         description:
-          'Builds the package in a flat structure without subdirectories for each module type.',
+          '@deprecated Flat builds are always used now. The package is always built in a flat structure without subdirectories for each module type.',
+      })
+      .option('expand', {
+        type: 'boolean',
+        default: true,
+        description:
+          'Enumerate glob patterns in the package.json "exports"/"imports" into concrete entries. Use --no-expand to keep them as Node runtime subpath patterns.',
       });
   },
   async handler(args) {
     const {
       bundle: bundles,
       hasLargeFiles,
-      skipBundlePackageJson,
       verbose = false,
       ignore: extraIgnores,
       buildTypes,
@@ -249,15 +273,13 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     const pkgJsonPath = path.join(cwd, 'package.json');
     const packageJson = JSON.parse(await fs.readFile(pkgJsonPath, { encoding: 'utf8' }));
     validatePkgJson(packageJson, { skipMainCheck: args.skipMainCheck, enableReactCompiler });
+    validateEnginesNode(packageJson, cwd);
 
     const buildDirBase = /** @type {string} */ (packageJson.publishConfig?.directory);
     const buildDir = path.join(cwd, buildDirBase);
     const packageType = packageJson.type === 'module' ? 'module' : 'commonjs';
 
     console.log(`Selected output directory: "${buildDirBase}"`);
-    if (args.flat) {
-      console.log('Building package in flat structure.');
-    }
 
     await fs.rm(buildDir, { recursive: true, force: true });
 
@@ -265,8 +287,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     if (babelRuntimeVersion === 'catalog:') {
       // resolve the version from the given package
       // outputs the pnpm-workspace.yaml config as json
-      const { stdout: configStdout } = await $`pnpm config list --json`;
-      const pnpmWorkspaceConfig = JSON.parse(configStdout);
+      const pnpmWorkspaceConfig = await readPnpmConfig();
       babelRuntimeVersion = pnpmWorkspaceConfig.catalog['@babel/runtime'];
     }
 
@@ -282,15 +303,6 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     }
 
     const { build: babelBuild, cjsCopy } = await import('../utils/babel.mjs');
-    const relativeOutDirs = !args.flat
-      ? {
-          cjs: '.',
-          esm: 'esm',
-        }
-      : {
-          cjs: '.',
-          esm: '.',
-        };
     const sourceDir = path.join(cwd, 'src');
     const reactVersion =
       semver.minVersion(packageJson.peerDependencies?.react || '')?.version ?? 'latest';
@@ -306,13 +318,10 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     await Promise.all(
       bundles.map(async (bundle) => {
         const outExtension = getOutExtension(bundle, {
-          isFlat: !!args.flat,
           isType: false,
           packageType,
         });
-        const relativeOutDir = relativeOutDirs[bundle];
-        const outputDir = path.join(buildDir, relativeOutDir);
-        await fs.mkdir(outputDir, { recursive: true });
+        await fs.mkdir(buildDir, { recursive: true });
 
         const promises = [];
 
@@ -320,7 +329,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
           babelBuild({
             cwd,
             sourceDir,
-            outDir: outputDir,
+            outDir: buildDir,
             babelRuntimeVersion,
             hasLargeFiles,
             bundle,
@@ -340,61 +349,28 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
           }),
         );
 
-        if (buildDir !== outputDir && !skipBundlePackageJson && !args.flat) {
-          // @TODO - Not needed if the output extension is .mjs. Remove this before PR merge.
-          promises.push(
-            fs.writeFile(
-              path.join(outputDir, 'package.json'),
-              JSON.stringify({
-                type: bundle === 'esm' ? 'module' : 'commonjs',
-                sideEffects: packageJson.sideEffects ?? false,
-              }),
-            ),
-          );
-        }
-
-        if (!args.flat) {
-          // cjs for reexporting from commons only modules.
-          // @NOTE: If we need to rely more on this we can think about setting up
-          // a separate commonjs => commonjs build for .cjs files to .cjs
-          // `--extensions-.cjs --out-file-extension .cjs`
-          promises.push(cjsCopy({ from: sourceDir, to: outputDir }));
-        }
-
         await Promise.all(promises);
         await addLicense({
           bundle,
           license: packageJson.license,
           name: packageJson.name,
           version: packageJson.version,
-          outputDir,
-          isFlat: !!args.flat,
+          outputDir: buildDir,
           packageType,
         });
       }),
     );
 
-    if (args.flat) {
-      await cjsCopy({ from: sourceDir, to: buildDir });
-    }
+    await cjsCopy({ from: sourceDir, to: buildDir });
     // js build end
 
     if (buildTypes) {
       const tsMod = await import('../utils/typescript.mjs');
-      /**
-       * @type {{type: import('../utils/build.mjs').BundleType, dir: string}[]};
-       */
-      const bundleMap = bundles.map((type) => ({
-        type,
-        dir: relativeOutDirs[type],
-      }));
-
       await tsMod.createTypes({
-        bundles: bundleMap,
+        bundles,
         srcDir: sourceDir,
         cwd,
         skipTsc,
-        isFlat: !!args.flat,
         buildDir,
         useTsgo,
         packageType,
@@ -409,13 +385,10 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     await writePackageJson({
       cwd,
       packageJson,
-      bundles: bundles.map((type) => ({
-        type,
-        dir: relativeOutDirs[type],
-      })),
+      bundles,
       outputDir: buildDir,
       addTypes: buildTypes,
-      isFlat: !!args.flat,
+      expand: args.expand,
       packageType,
     });
 
@@ -425,8 +398,47 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       buildDir,
       verbose: args.verbose,
     });
+
+    if (!args.skipPublint) {
+      await validateWithPublint(buildDir);
+    }
   },
 });
+
+/**
+ * Lints the output directory with publint. Errors fail the build, warnings are only reported.
+ * @param {string} buildDir - The build directory to validate.
+ * @returns {Promise<void>}
+ */
+async function validateWithPublint(buildDir) {
+  const [{ publint }, { formatMessage }] = await Promise.all([
+    import('publint'),
+    import('publint/utils'),
+  ]);
+  // Everything in the output directory is published, so there is nothing to pack.
+  const result = await publint({ pkgDir: buildDir, pack: false, level: 'warning' });
+  const { pkg } = result;
+  // TODO: remove this filter and bump publint to >=0.3.25, which ships the fix from
+  // https://github.com/publint/publint/pull/265 (publint checks `browser` values
+  // that point at another package as local files).
+  const messages = result.messages.filter((message) => {
+    if (message.code !== 'FILE_DOES_NOT_EXIST' || message.path[0] !== 'browser') {
+      return true;
+    }
+    const value = message.path.length === 2 ? pkg.browser?.[message.path[1]] : undefined;
+    return typeof value !== 'string' || value.startsWith('.');
+  });
+
+  for (const message of messages) {
+    const log = message.type === 'error' ? console.error : console.warn;
+    log(`publint ${message.type}: ${formatMessage(message, pkg)}`);
+  }
+
+  const errorCount = messages.filter((message) => message.type === 'error').length;
+  if (errorCount > 0) {
+    throw new Error(`publint found ${errorCount} error(s) in "${buildDir}".`);
+  }
+}
 
 /**
  * @param {Object} param0
@@ -513,7 +525,7 @@ async function copyHandler({ cwd, globs = [], buildDir, verbose = false }) {
       console.log('⓿ No files to copy.');
     }
   }
-  await mapConcurrently(
+  await mapAsync(
     defaultFiles,
     async (file) => {
       if (typeof file === 'string') {
@@ -526,7 +538,7 @@ async function copyHandler({ cwd, globs = [], buildDir, verbose = false }) {
         await recursiveCopy({ source: file.sourcePath, target: file.targetPath, verbose });
       }
     },
-    20,
+    { concurrency: 20 },
   );
   console.log(`📋 Copied ${defaultFiles.length} files.`);
 }

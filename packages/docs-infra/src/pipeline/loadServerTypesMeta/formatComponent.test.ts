@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import type * as tae from 'typescript-api-extractor';
 import { formatComponentData, isPublicComponent } from './formatComponent';
-import { buildTypeCompatibilityMap, type TypeRewriteContext } from './rewriteTypes';
+import { buildTypeCompatibilityMap } from './rewriteTypes';
+import type { TypeRewriteContext } from './rewriteTypes';
 
 /** Default rewrite context for testing - empty map and empty export names */
 const defaultRewriteContext: TypeRewriteContext = {
@@ -68,7 +69,6 @@ describe('formatComponent', () => {
           type: { kind: 'component', props: [] },
           documentation: { description: 'A button' },
         } as any,
-        [],
         {},
         defaultRewriteContext,
       );
@@ -93,7 +93,6 @@ describe('formatComponent', () => {
           type: { kind: 'component', props: [] },
           documentation: { description: 'Input\n\nDocumentation: url' },
         } as any,
-        [],
         {},
         defaultRewriteContext,
         {
@@ -115,20 +114,19 @@ describe('formatComponent', () => {
       });
     });
 
-    it('should find data attributes by suffix', async () => {
+    it('should find the data attributes matched to the component', async () => {
       const result = await formatComponentData(
         { name: 'Checkbox', type: { kind: 'component', props: [] } } as any,
-        [
-          {
-            name: 'CheckboxDataAttributes',
-            type: {
-              kind: 'enum',
-              members: [{ value: 'data-checked', documentation: { description: 'Checked' } }],
-            },
-          },
-        ] as any,
         {},
         defaultRewriteContext,
+        {
+          constantGroups: {
+            dataAttributes: {
+              kind: 'enum',
+              members: [{ value: 'data-checked', documentation: { description: 'Checked' } }],
+            } as any,
+          },
+        },
       );
 
       expect(result.dataAttributes['data-checked'].type).toBeUndefined();
@@ -144,13 +142,14 @@ describe('formatComponent', () => {
       });
     });
 
-    it('should find CSS variables by suffix', async () => {
+    it('should find the CSS variables matched to the component', async () => {
       const result = await formatComponentData(
         { name: 'Slider', type: { kind: 'component', props: [] } } as any,
-        [
-          {
-            name: 'SliderCssVars',
-            type: {
+        {},
+        defaultRewriteContext,
+        {
+          constantGroups: {
+            cssVariables: {
               kind: 'enum',
               members: [
                 {
@@ -158,11 +157,9 @@ describe('formatComponent', () => {
                   documentation: { description: 'Color', tags: [{ name: 'type', value: 'color' }] },
                 },
               ],
-            },
+            } as any,
           },
-        ] as any,
-        {},
-        defaultRewriteContext,
+        },
       );
 
       expect(result.cssVariables['--color'].type).toBe('color');
@@ -194,7 +191,6 @@ describe('formatComponent', () => {
             ],
           },
         } as any,
-        [],
         {},
         defaultRewriteContext,
       );
@@ -229,7 +225,6 @@ describe('formatComponent', () => {
       const exportNames = ['Autocomplete.Root'];
       const result = await formatComponentData(
         component,
-        [],
         {},
         createRewriteContext(exportNames, [component, rootExport]),
       );
@@ -292,7 +287,6 @@ describe('formatComponent', () => {
       ];
       const result = await formatComponentData(
         component,
-        [],
         {},
         createRewriteContext(exportNames, [component, stateExport]),
       );
@@ -358,7 +352,6 @@ describe('formatComponent', () => {
       ];
       const result = await formatComponentData(
         component,
-        [],
         {},
         createRewriteContext(exportNames, [component, stateExport]),
       );
@@ -420,7 +413,6 @@ describe('formatComponent', () => {
       ];
       const result = await formatComponentData(
         component,
-        [parentComponent], // allExports contains the parent
         {},
         createRewriteContext(exportNames, [parentComponent, component]),
       );
@@ -485,7 +477,6 @@ describe('formatComponent', () => {
       ];
       const result = await formatComponentData(
         component,
-        [],
         {},
         createRewriteContext(exportNames, [component, stateExport]),
       );
@@ -543,7 +534,6 @@ describe('formatComponent', () => {
       const exportNames = ['AlertDialog.Trigger', 'AlertDialog.Trigger.Props'];
       const result = await formatComponentData(
         component,
-        [],
         {},
         createRewriteContext(exportNames, [component]),
       );

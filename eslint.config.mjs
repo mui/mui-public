@@ -6,14 +6,12 @@ import {
   EXTENSION_TEST_FILE,
   EXTENSION_TS,
 } from '@mui/internal-code-infra/eslint';
-import nPlugin from 'eslint-plugin-n';
 import { lintJavascriptDemoFocus } from '@mui/internal-docs-infra/pipeline/lintJavascriptDemoFocus';
 import remarkConfig from './.remarkrc.mjs';
 
 const config = defineConfig(
   createBaseConfig({
     baseDirectory: import.meta.dirname,
-    markdown: true,
     consistentTypeImports: true,
   }),
   // eslint-plugin-mdx loads `.remarkrc.mjs` itself, but ESLint doesn't know
@@ -23,9 +21,6 @@ const config = defineConfig(
   { settings: { remarkConfig } },
   {
     files: [`**/*${EXTENSION_TS}`],
-    plugins: {
-      n: nPlugin,
-    },
     rules: {
       // Not needed in this repo
       'compat/compat': 'off',
@@ -52,7 +47,7 @@ const config = defineConfig(
       // Matching the pattern of the test runner
       `**/*${EXTENSION_TEST_FILE}`,
     ],
-    extends: createTestConfig({ useMocha: false, useVitest: true }),
+    extends: createTestConfig(),
   },
   {
     files: [`packages/docs-infra/**/*${EXTENSION_TEST_FILE}`],
@@ -77,6 +72,10 @@ const config = defineConfig(
   },
   {
     files: ['docs/app/**/demos/**/*.tsx', 'docs/app/**/demos/**/*.jsx'],
+    // page.tsx/page.jsx are Next.js route wrappers, not demo previews, so they
+    // are exempt from the demo-focus rule at any demo depth (including the
+    // nested "demo of demo" structure, demos/<slug>/demo-*/page.tsx).
+    ignores: ['docs/app/**/demos/*/page.tsx', 'docs/app/**/demos/*/page.jsx'],
     plugins: {
       'docs-infra': { rules: { 'require-demo-focus': lintJavascriptDemoFocus } },
     },
@@ -95,9 +94,17 @@ const config = defineConfig(
     language: 'json/jsonc',
   },
   {
+    // The babel plugin packages are ESM-only, so relative imports carry their extension.
     files: [`packages/babel-*/**/*${EXTENSION_TS}`],
     rules: {
-      '@typescript-eslint/no-require-imports': 'off',
+      'import/extensions': [
+        'error',
+        'ignorePackages',
+        {
+          js: 'always',
+          mjs: 'always',
+        },
+      ],
     },
   },
   {

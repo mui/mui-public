@@ -1,32 +1,23 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { basename, dirname, resolve, relative, join } from 'node:path';
 import * as lockfile from 'proper-lockfile';
-import { mergeMetadataMarkdown } from './mergeMetadataMarkdown';
-import { markdownToMetadata } from './metadataToMarkdown';
-import type { PageMetadata } from './metadataToMarkdown';
+import { mergeMetadataPages } from './mergeMetadataMarkdown';
+import {
+  markdownToMetadata,
+  metadataToMarkdown,
+  resolveIndexPageMetadata,
+} from './metadataToMarkdown';
+import type { PageMetadata, PagesMetadata } from './metadataToMarkdown';
+import { isRouteGroup, stripRouteGroupSegments } from '../loaderUtils/stripRouteGroups';
+import { kebabToTitleCase } from '../loaderUtils/kebabToTitleCase';
+import { enrichPageIndex } from '../loadServerPageIndex/enrichPageIndex';
+import {
+  resolvePageIndexCacheKey,
+  PAGE_INDEX_CACHE_NAMESPACE,
+} from '../loadServerPageIndex/resolvePageIndexCacheKey';
+import { saveFileCache } from '../cacheUtils';
 import type { HeadingHierarchy } from '../transformMarkdownMetadata/types';
-import { type Audience } from '../../createSitemap/types';
-
-/**
- * Converts a kebab-case string to Title Case
- * @example kebabToTitleCase('my-component') -> 'My Component'
- * @example kebabToTitleCase('hello-world') -> 'Hello World'
- */
-function kebabToTitleCase(str: string): string {
-  return str
-    .split('-')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-}
-
-/**
- * Checks if a directory name is a Next.js route group (wrapped in parentheses)
- * @example isRouteGroup('(public)') -> true
- * @example isRouteGroup('components') -> false
- */
-function isRouteGroup(dirName: string): boolean {
-  return dirName.startsWith('(') && dirName.endsWith(')');
-}
+import type { Audience } from '../../createSitemap/types';
 
 /**
  * Gets the parent directory, skipping over Next.js route groups
@@ -47,6 +38,24 @@ function getParentDir(path: string, skipRouteGroups: boolean = false): string {
 }
 
 /**
+ * Builds the route-group-preserving relative path that identifies a page within its
+ * parent index (for example, `./(components)/accordion/page.mdx`). The parent directory is
+ * resolved by skipping route groups, but the route-group segment is retained in the
+ * returned path so the index can be grouped into `## Section` headings.
+ *
+ * Both index producers — the remark metadata transform (`transformMarkdownMetadata`)
+ * and the types loader (`syncTypes`) — must build a page's path this way so they agree
+ * on its identity and the grouping is derivable from the stored path.
+ * @param pageDir Absolute directory of the page whose index entry is being built.
+ * @param pageFileName File name of the page within that directory (for example, `page.mdx`).
+ */
+export function indexRelativePagePath(pageDir: string, pageFileName: string): string {
+  const parentDir = getParentDir(pageDir, true);
+  const relativePath = relative(parentDir, pageDir);
+  return `./${relativePath}/${pageFileName}`;
+}
+
+/**
  * Checks if a path should be included based on include/exclude patterns
  * @param path The path to check (relative to baseDir)
  * @param include Include patterns - if provided, path must match at least one
@@ -55,7 +64,7 @@ function getParentDir(path: string, skipRouteGroups: boolean = false): string {
  */
 function shouldIncludePath(path: string, include?: string[], exclude?: string[]): boolean {
   // Normalize path separators to forward slashes and remove Next.js route groups
-  const normalizedPath = path.replace(/\\/g, '/').replace(/\/\([^)]+\)/g, '');
+  const normalizedPath = stripRouteGroupSegments(path.replace(/\\/g, '/'));
 
   // Check exclude patterns first
   if (exclude && exclude.length > 0) {
@@ -184,6 +193,110 @@ export interface SyncPageIndexOptions {
    * @default false
    */
   preserveExistingTitleAndSlug?: boolean;
+
+  /**
+   * Directory for the sha256-validated JSON cache of page indexes. When set, each
+   * index written is also cached at `{cacheDir}/pages-index-v2/{route}.json`, leaving
+   * it warm for the next cold `loadServerPageIndex` read. When unset, no cache is written.
+   */
+  cacheDir?: string;
+
+  /**
+   * Root context directory used to derive the cache key/route. Must match the
+   * `rootContext` used by `loadServerPageIndex` for cache keys to align.
+   * @default process.cwd()
+   */
+  rootContext?: string;
+}
+
+async function savePageIndexCache({
+  cacheDir,
+  indexPath,
+  rootContext,
+  markdown,
+  metadata,
+  defaultPageMetadata = true,
+}: {
+  cacheDir: string;
+  indexPath: string;
+  rootContext: string;
+  markdown: string;
+  metadata: PagesMetadata;
+  defaultPageMetadata?: boolean;
+}): Promise<void> {
+  const cacheMetadata = {
+    ...metadata,
+    pageMetadata: defaultPageMetadata
+      ? resolveIndexPageMetadata(metadata.pageMetadata)
+      : metadata.pageMetadata,
+  };
+  await saveFileCache(
+    {
+      cacheDir,
+      namespace: PAGE_INDEX_CACHE_NAMESPACE,
+      cacheKey: resolvePageIndexCacheKey(indexPath, rootContext),
+    },
+    markdown,
+    enrichPageIndex(cacheMetadata, indexPath, rootContext),
+  );
+}
+
+/**
+ * Merges the incoming metadata into the source pages (keyed by path, matching
+ * mergeMetadataMarkdown's logic) and renders the index markdown exactly as it is
+ * persisted. Shared by the writer and the `errorIfOutOfDate` validation path so the two
+ * always agree on what the index should contain - otherwise validation could render
+ * differently from the writer and flag an up-to-date file (or miss a stale one).
+ */
+async function renderIndexPages(
+  sourceMarkdown: string | undefined,
+  sourcePages: PageMetadata[],
+  metadataArray: PageMetadata[],
+  {
+    indexTitle,
+    indexWrapperComponent,
+    preserveExistingTitleAndSlug,
+    relativeIndexPath,
+  }: {
+    indexTitle: string;
+    indexWrapperComponent?: string;
+    preserveExistingTitleAndSlug?: boolean;
+    relativeIndexPath?: string;
+  },
+): Promise<{
+  allPages: PageMetadata[];
+  merged: Awaited<ReturnType<typeof mergeMetadataPages>>;
+  finalMarkdown: string;
+}> {
+  // Build a map keyed by path (not slug) to match mergeMetadataMarkdown's logic.
+  const updatedPagesMap = new Map<string, PageMetadata>();
+  // First, add all source pages.
+  for (const page of sourcePages) {
+    updatedPagesMap.set(page.path, page);
+  }
+  // Then update/add the new metadata items.
+  for (const metaItem of metadataArray) {
+    updatedPagesMap.set(metaItem.path, metaItem);
+  }
+  // The COMPLETE list of pages that should exist.
+  const allPages = Array.from(updatedPagesMap.values());
+
+  // mergeMetadataPages preserves the order from sourceMarkdown and returns the normalized
+  // metadata that renders to finalMarkdown - reused by the writer to populate the cache
+  // without re-parsing what it just wrote.
+  const merged = await mergeMetadataPages(
+    sourceMarkdown,
+    { title: indexTitle, pages: allPages },
+    { indexWrapperComponent, preserveExistingTitleAndSlug },
+  );
+  const finalMarkdown = await metadataToMarkdown(merged.metadata, {
+    editableMarker: merged.editableMarker,
+    indexWrapperComponent: merged.indexWrapperComponent,
+    // Only include path in the comment when baseDir is set (otherwise it's an absolute path).
+    path: relativeIndexPath,
+  });
+
+  return { allPages, merged, finalMarkdown };
 }
 
 /**
@@ -227,6 +340,8 @@ export async function syncPageIndex(options: SyncPageIndexOptions): Promise<void
     errorIfOutOfDate = false,
     indexWrapperComponent,
     preserveExistingTitleAndSlug,
+    cacheDir,
+    rootContext = process.cwd(),
   } = options;
 
   // Validate that either metadata or metadataList is provided
@@ -305,43 +420,56 @@ export async function syncPageIndex(options: SyncPageIndexOptions): Promise<void
   // Step 2: Parse existing content and check if our specific page needs updating
   const existingMarkdown = existingContent.trim() ? existingContent : undefined;
   let existingPages: PageMetadata[] = [];
+  let existingMetadata: PagesMetadata | null = null;
   if (existingMarkdown) {
-    const parsed = await markdownToMetadata(existingMarkdown);
-    if (parsed) {
-      existingPages = parsed.pages;
+    existingMetadata = await markdownToMetadata(existingMarkdown);
+    if (existingMetadata) {
+      existingPages = existingMetadata.pages;
     }
   }
 
-  // Step 3: Check if any of our metadata items need updating
-  let needsUpdate = false;
-  for (const metaItem of metadataArray) {
-    const existingPageIndex = existingPages.findIndex((p) => p.slug === metaItem.slug);
-    if (existingPageIndex >= 0) {
-      const existingPage = existingPages[existingPageIndex];
-      // Compare metadata - if different, we need to update
-      const existingPageJson = JSON.stringify(existingPage);
-      const newPageJson = JSON.stringify(metaItem);
-      if (existingPageJson !== newPageJson) {
-        needsUpdate = true;
-        break;
-      }
-    } else {
-      // Page doesn't exist, we need to add it
-      needsUpdate = true;
-      break;
+  // Refresh the page-index cache from the committed markdown for the "nothing to write"
+  // exits, so the next cold loadServerPageIndex read stays warm without re-parsing.
+  const saveExistingIndexCache = async () => {
+    if (cacheDir && existingMetadata) {
+      await savePageIndexCache({
+        cacheDir,
+        indexPath,
+        rootContext,
+        markdown: existingContent,
+        metadata: existingMetadata,
+        defaultPageMetadata: false,
+      });
     }
-  }
+  };
 
-  if (!needsUpdate) {
-    // All pages are already up-to-date, no need to acquire lock or write
+  // Step 3: Determine whether this update would change the rendered index. A field-level
+  // comparison of the raw metadata false-positives on every call (it carries volatile AST
+  // positions and fields that mergeMetadataPages fills in from the existing markdown), so
+  // render the exact markdown the writer would produce and compare it to what's on disk.
+  const relativeIndexPath = baseDir ? relative(resolve(baseDir), indexPath) : undefined;
+  const { finalMarkdown: renderedMarkdown } = await renderIndexPages(
+    existingMarkdown,
+    existingPages,
+    metadataArray,
+    {
+      indexTitle,
+      indexWrapperComponent,
+      preserveExistingTitleAndSlug,
+      relativeIndexPath,
+    },
+  );
+
+  if (existingContent === renderedMarkdown) {
+    await saveExistingIndexCache();
+
+    // Index is already up-to-date, no need to acquire lock or write it.
     return;
   }
 
-  // If errorIfOutOfDate is true, throw an error instead of updating
   if (errorIfOutOfDate) {
-    const relativeIndexPath = baseDir ? relative(resolve(baseDir), indexPath) : indexPath;
     throw new Error(
-      `Index file is out of date: ${relativeIndexPath}\n` +
+      `Index file is out of date: ${relativeIndexPath ?? indexPath}\n` +
         `Please run the validation command (or next build) locally and commit the updated index files.`,
     );
   }
@@ -390,38 +518,18 @@ export async function syncPageIndex(options: SyncPageIndexOptions): Promise<void
       }
     }
 
-    // For batch updates, merge the metadata items with existing pages
-    // Build a map keyed by path (not slug) to match mergeMetadataMarkdown's logic
-    const updatedPagesMap = new Map<string, PageMetadata>();
-
-    // First, add all current pages
-    for (const page of currentPages) {
-      updatedPagesMap.set(page.path, page);
-    }
-
-    // Then update/add the new metadata items
-    for (const metaItem of metadataArray) {
-      updatedPagesMap.set(metaItem.path, metaItem);
-    }
-
-    // Convert back to array - this is the COMPLETE list of pages that should exist
-    const allPages = Array.from(updatedPagesMap.values());
+    // Re-merge with the latest content re-read under the lock, passing the COMPLETE list
+    // of pages. The returned normalized metadata is reused below to populate the cache
+    // without re-parsing what we just wrote.
+    const { allPages, merged, finalMarkdown } = await renderIndexPages(
+      currentMarkdown,
+      currentPages,
+      metadataArray,
+      { indexTitle, indexWrapperComponent, preserveExistingTitleAndSlug, relativeIndexPath },
+    );
 
     // Store for parent update
     mergedPages = allPages;
-
-    // Re-merge with the latest content, passing the COMPLETE list of pages
-    // mergeMetadataMarkdown will preserve the order from currentMarkdown
-    // Only include path in the comment when baseDir is set (otherwise it's an absolute path)
-    const relativeIndexPath = baseDir ? relative(resolve(baseDir), indexPath) : undefined;
-    const finalMarkdown = await mergeMetadataMarkdown(
-      currentMarkdown,
-      {
-        title: indexTitle,
-        pages: allPages,
-      },
-      { indexWrapperComponent, path: relativeIndexPath, preserveExistingTitleAndSlug },
-    );
 
     // Defensive check
     if (!finalMarkdown || !finalMarkdown.trim()) {
@@ -431,7 +539,24 @@ export async function syncPageIndex(options: SyncPageIndexOptions): Promise<void
     // Step 7: Write only if the final content differs from what's currently on disk
     if (currentContent !== finalMarkdown) {
       await writeFile(indexPath, finalMarkdown, 'utf-8');
+    }
 
+    // Pre-populate the page-index cache from the in-memory merged metadata so the
+    // next cold loadServerPageIndex read skips parsing. The cached read-model must
+    // match enrichPageIndex(markdownToMetadata(finalMarkdown)); resolveIndexPageMetadata
+    // mirrors the default metadata block that metadataToMarkdown embeds when rendering,
+    // so a fresh parse and this build agree. Fails fast on a write error.
+    if (cacheDir) {
+      await savePageIndexCache({
+        cacheDir,
+        indexPath,
+        rootContext,
+        markdown: finalMarkdown,
+        metadata: merged.metadata,
+      });
+    }
+
+    if (currentContent !== finalMarkdown) {
       // Create a marker file unless explicitly disabled
       if (markerDir) {
         // Compute relative path for marker (always compute, not used for comments)
@@ -526,6 +651,8 @@ export async function syncPageIndex(options: SyncPageIndexOptions): Promise<void
         onlyUpdateIndexes,
         markerDir,
         errorIfOutOfDate,
+        cacheDir,
+        rootContext,
       });
     }
   }

@@ -3,10 +3,12 @@ import * as chai from 'chai';
 import './chaiTypes';
 // eslint-disable-next-line import/extensions
 import { cleanup, act } from '@testing-library/react/pure.js';
-import { afterEach, vi } from 'vitest';
+import { afterEach, beforeEach, vi } from 'vitest';
+import type { TestContext } from 'vitest';
 import chaiDom from 'chai-dom';
 import chaiPlugin from './chaiPlugin';
-import { type Configuration, configure } from './configure';
+import { configure } from './configure';
+import type { Configuration } from './configure';
 
 let isInitialized = false;
 
@@ -20,16 +22,38 @@ export default function setupVitest({
   // Instead call `setupVitest` in one of the `setupFiles`, which are not cached and executed
   // per suite.
 
-  afterEach(async () => {
-    if (vi.isFakeTimers()) {
-      await act(async () => {
-        vi.runOnlyPendingTimers();
-      });
+  const cleanupStarted = new WeakSet<TestContext['task']>();
+
+  /** Flush pending updates and release the test's timers and rendered roots. */
+  async function cleanupTest(task: TestContext['task']) {
+    cleanupStarted.add(task);
+
+    // A pending timer can throw during the flush. Release the timers and roots anyway.
+    try {
+      if (vi.isFakeTimers()) {
+        await act(async () => {
+          vi.runOnlyPendingTimers();
+        });
+      }
+    } finally {
+      vi.useRealTimers();
+
+      cleanup();
     }
+  }
 
-    vi.useRealTimers();
+  // Keep cleanup before fixture teardown and test-finished callbacks, which may need real timers.
+  afterEach(({ task }) => cleanupTest(task));
 
-    cleanup();
+  // Vitest skips the remaining `afterEach` hooks when one throws (for example, the console
+  // check below). Use `onTestFinished` as a fallback only when cleanup did not already run.
+  beforeEach(({ task, onTestFinished }) => {
+    cleanupStarted.delete(task);
+    onTestFinished(async () => {
+      if (!cleanupStarted.has(task)) {
+        await cleanupTest(task);
+      }
+    });
   });
 
   if (failOnConsoleEnabled) {
@@ -44,13 +68,13 @@ export default function setupVitest({
 
         if (message.includes('Warning: useLayoutEffect does nothing on the server')) {
           // Controversial warning that is commonly ignored by switching to `useEffect` on the server.
-          // https://github.com/facebook/react/issues/14927
+          // https://github.com/react/react/issues/14927
           // However, this switch doesn't work since it relies on environment sniffing and we test SSR in a browser environment.
           return true;
         }
 
         // Unclear why this is an issue for the current occurrences of this warning.
-        // TODO: Revisit once https://github.com/facebook/react/issues/22796 is resolved
+        // TODO: Revisit once https://github.com/react/react/issues/22796 is resolved
         if (
           message.includes(
             'Detected multiple renderers concurrently rendering the same context provider.',
@@ -88,7 +112,7 @@ export default function setupVitest({
     if (window.navigator.userAgent.includes('jsdom')) {
       // Not yet supported: https://github.com/jsdom/jsdom/issues/2152
       (globalThis as any).window.Touch ??= class Touch {
-        instance: any;
+        declare instance: any;
 
         constructor(instance: any) {
           this.instance = instance;

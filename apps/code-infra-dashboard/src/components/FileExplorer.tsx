@@ -3,8 +3,8 @@ import Box from '@mui/material/Box';
 import Skeleton from '@mui/material/Skeleton';
 import Typography from '@mui/material/Typography';
 import { RichTreeViewPro } from '@mui/x-tree-view-pro/RichTreeViewPro';
-import { TreeItem, type TreeItemProps } from '@mui/x-tree-view-pro';
-import { useTreeItemModel } from '@mui/x-tree-view-pro';
+import { TreeItem, useTreeItemModel } from '@mui/x-tree-view-pro';
+import type { TreeItemProps } from '@mui/x-tree-view-pro';
 import { escapeHtmlId } from '../utils/dom';
 
 export type ChangeType = 'added' | 'removed' | 'modified';
@@ -171,9 +171,14 @@ const FileExplorer = React.memo(function FileExplorer({
   const [expandedItems, setExpandedItems] = React.useState<string[]>(folderIds);
   const containerRef = React.useRef<HTMLDivElement>(null);
 
-  React.useEffect(() => {
+  // Re-seed the user-editable expansion state whenever the `files` prop produces a
+  // new tree. `folderIds` is referentially stable (memoized on `files` via `treeItems`),
+  // so comparing its reference during render resets exactly when the tree's folder set changes.
+  const [prevFolderIds, setPrevFolderIds] = React.useState(folderIds);
+  if (prevFolderIds !== folderIds) {
+    setPrevFolderIds(folderIds);
     setExpandedItems(folderIds);
-  }, [folderIds]);
+  }
 
   React.useEffect(() => {
     const el = containerRef.current;

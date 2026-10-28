@@ -33,7 +33,7 @@ export function ContactForm() {
   };
 
   return (
-    // @highlight-start
+    // @highlight-start @focus
     <form onSubmit={handleSubmit}>
       <label htmlFor="name">Name</label>
       <input id="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
@@ -49,13 +49,14 @@ export function ContactForm() {
 
 export async function MaxSizeCode() {
   // @focus-start @padding 1
-  const { code: strippedSource, comments } = await parseImportsAndComments(source, '/demo.tsx', {
+  const { code: strippedSource, comments } = parseImportsAndComments(source, '/demo.tsx', {
     removeCommentsWithPrefix: [EMPHASIS_COMMENT_PREFIX],
     notableCommentsPrefix: [EMPHASIS_COMMENT_PREFIX],
   });
 
   const code: CodeType = {
     Default: {
+      fileName: 'ContactForm.tsx',
       language: 'tsx',
       source: strippedSource!,
       comments,

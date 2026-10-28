@@ -58,12 +58,11 @@ process.env.SHOW_PRIVATE_PAGES = SHOW_PRIVATE_PAGES;
  * Resolution order:
  * - Repository URL: `process.env.REPOSITORY_URL` (set by Netlify), falling
  *   back to the `repository` field of the nearest ancestor `package.json`.
- * - Ref: `process.env.HEAD` (set by Netlify to the source branch name, even
- *   on deploy-previews where `BRANCH` is the unbrowsable `pull/<id>/head`)
- *   or `git rev-parse --abbrev-ref HEAD` locally — preferred so links keep
- *   tracking new commits on the branch. Falls back to
- *   `process.env.COMMIT_REF` (the deployed SHA) and finally to
- *   `git rev-parse HEAD`.
+ * - Ref: `process.env.COMMIT_REF` (the deployed SHA, set by Netlify) or
+ *   `git rev-parse HEAD` locally — preferred because the SHA is browsable on
+ *   the canonical repository even for fork PRs, whose branch names 404 there.
+ *   Falls back to `process.env.HEAD` (the source branch name) and finally to
+ *   `git rev-parse --abbrev-ref HEAD`.
  *
  * Resolves to an empty string when neither source yields a value.
  */
@@ -91,10 +90,10 @@ function resolveSourceCodeRootUrl(rootDir: string | undefined): string {
     process.env.REPOSITORY_URL ?? (rootDir ? readRepositoryUrlFromPackageJson(rootDir) : undefined);
   const headEnv = process.env.HEAD;
   const ref =
-    (headEnv && isUsableBranchRef(headEnv) ? headEnv : undefined) ??
-    readBranchFromGit() ??
     process.env.COMMIT_REF ??
-    readCommitShaFromGit();
+    readCommitShaFromGit() ??
+    (headEnv && isUsableBranchRef(headEnv) ? headEnv : undefined) ??
+    readBranchFromGit();
   if (!repositoryUrl || !ref) {
     return '';
   }
@@ -197,12 +196,73 @@ function readCommitShaFromGit(): string | undefined {
   }
 }
 
+/**
+ * Work around https://github.com/vercel/next.js/issues/91735.
+ * Next.js 16.2 does not assign MDX files to the React Server Components webpack layer.
+ */
+function patchMdxWebpackLayers(rules: unknown[]): void {
+  for (const rule of rules) {
+    if (!rule || typeof rule !== 'object') {
+      continue;
+    }
+
+    const webpackRule = rule as Record<string, unknown>;
+
+    // page.mdx just verifies the regex matches MDX files
+    if (webpackRule.test instanceof RegExp && webpackRule.test.test('page.mdx')) {
+      const loaders = Array.isArray(webpackRule.use) ? webpackRule.use : [webpackRule.use];
+
+      for (const loader of loaders) {
+        if (!loader || typeof loader !== 'object') {
+          continue;
+        }
+
+        const webpackLoader = loader as Record<string, unknown>;
+        const { options } = webpackLoader;
+
+        if (
+          typeof webpackLoader.loader === 'string' &&
+          webpackLoader.loader.includes('next-swc-loader') &&
+          options &&
+          typeof options === 'object'
+        ) {
+          const webpackOptions = options as Record<string, unknown>;
+          if (webpackOptions.bundleLayer == null) {
+            webpackOptions.bundleLayer = 'rsc';
+          } else {
+            // Next.js now assigns the bundle layer itself, so this workaround is obsolete.
+            throw new Error(
+              'MDX webpack layer workaround is obsolete; remove patchMdxWebpackLayers (see https://github.com/vercel/next.js/issues/91735).',
+            );
+          }
+        }
+      }
+    }
+
+    if (Array.isArray(webpackRule.oneOf)) {
+      patchMdxWebpackLayers(webpackRule.oneOf);
+    }
+    if (Array.isArray(webpackRule.rules)) {
+      patchMdxWebpackLayers(webpackRule.rules);
+    }
+  }
+}
+
 export function withDeploymentConfig<T extends NextConfig>(nextConfig: T): T {
+  const consumerWebpack = nextConfig.webpack;
+  const webpack: NonNullable<NextConfig['webpack']> = (config, context) => {
+    if (context.isServer && config?.module && Array.isArray(config.module.rules)) {
+      patchMdxWebpackLayers(config.module.rules);
+    }
+    return consumerWebpack ? consumerWebpack(config, context) : config;
+  };
+
   return {
     trailingSlash: true,
     reactStrictMode: true,
     productionBrowserSourceMaps: true,
     ...nextConfig,
+    webpack,
     env: {
       // production | staging | pull-request | development
       DEPLOY_ENV,
@@ -239,6 +299,12 @@ export function withDeploymentConfig<T extends NextConfig>(nextConfig: T): T {
     experimental: {
       scrollRestoration: true,
       workerThreads: false,
+      // Run each webpack compilation in a separate, disposable worker process so
+      // its memory is released before static generation instead of accumulating
+      // in the long-lived build process. This is off by default whenever a custom
+      // `webpack` config is present (Next resolves the `undefined` default to
+      // `false` when `config.webpack` is set), so it must be enabled explicitly.
+      webpackBuildWorker: true,
       ...(process.env.CI
         ? {
             cpus: process.env.NEXT_PARALLELISM
@@ -261,6 +327,7 @@ export function withDeploymentConfig<T extends NextConfig>(nextConfig: T): T {
     typescript: {
       // Motivated by https://github.com/vercel/next.js/issues/7687
       ignoreBuildErrors: true,
+      tsconfigPath: './tsconfig.json',
       ...nextConfig.typescript,
     },
   };

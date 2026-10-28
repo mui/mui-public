@@ -16,7 +16,7 @@ and automatic optimization for single-option scenarios.
 | :---------- | :----------------------------------------- | :------ | :------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | type        | `'variant' \| 'transform'`                 | -       | Type of preference, affects the storage key prefix                                                                                                      |
 | name        | `string \| string[]`                       | -       | Variant/transform name(s). Arrays are sorted and joined to form the storage key.&#xA;Single-element arrays disable persistence (no choice to remember). |
-| initializer | `string \| (() => string \| null) \| null` | -       | Initial value or function returning initial value                                                                                                       |
+| initializer | `string \| (() => string \| null) \| null` | `null`  | Initial value or function returning initial value                                                                                                       |
 
 **usePreference Return Value:**
 

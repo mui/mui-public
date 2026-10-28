@@ -1,9 +1,12 @@
+import path from 'node:path';
 import type { NextConfig } from 'next';
 import type { Configuration as WebpackConfig, RuleSetRule } from 'webpack';
 import type { OrderingConfig } from '../pipeline/loadServerTypesText/order';
 import type { DescriptionReplacement } from '../pipeline/loadServerTypesMeta/format';
+import type { InheritedExternalPropsConfig } from '../pipeline/loadServerTypesMeta/inheritedExternalProps';
 import type { EnhanceCodeEmphasisOptions } from '../pipeline/parseSource/calculateFrameRanges';
 import type { TransformHtmlCodeBlockOptions } from '../pipeline/transformHtmlCodeBlock/transformHtmlCodeBlock';
+import { DEFAULT_CACHE_DIR } from '../pipeline/cacheUtils';
 
 // Local type definition matching Next.js's internal JSONValue
 // Used for Turbopack loader options which require serializable values
@@ -77,6 +80,17 @@ export interface WithDocsInfraOptions {
    */
   requireDemoClient?: string;
   /**
+   * When `true`, `pnpm docs-infra validate` ensures every demo `index.ts` matched by a
+   * `loadPrecomputedCodeHighlighter` demo rule has a sibling `page.tsx` that renders
+   * the demo as the route's default export, so each demo is browsable on its own page.
+   *
+   * The demo's export name is read from the `create*` factory call in `index.ts`, so the
+   * generated page imports the exact export (e.g. `import { DemoButton } from '.';`).
+   *
+   * Existing `page.tsx`/`page.ts` files are never overwritten.
+   */
+  requireDemoPage?: boolean;
+  /**
    * Performance logging options
    */
   performance?: {
@@ -117,6 +131,14 @@ export interface WithDocsInfraOptions {
    */
   codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions;
   /**
+   * When `true`, the demo loaders register the `TypescriptToJavascriptTransformer`
+   * so that TypeScript variants also produce a JavaScript counterpart at build time.
+   *
+   * Defaults to `false` because the transform is comparatively expensive;
+   * enable it when the rendered demos should expose both TS and JS sources.
+   */
+  transformTypescriptToJavascript?: boolean;
+  /**
    * Name of the index file to update when syncing types metadata to parent indexes.
    * The types loader will call syncPageIndex to update the parent directory's index
    * with props, dataAttributes, and cssVariables extracted from component types.
@@ -151,6 +173,36 @@ export interface WithDocsInfraOptions {
    * ```
    */
   descriptionReplacements?: DescriptionReplacement[];
+  /**
+   * Props to re-include in component docs when they are inherited from these
+   * externally declared types, keyed by the declaring type's name. Type
+   * extraction normally drops props that are only declared inside
+   * `node_modules` (which keeps native DOM attributes out of the docs); this
+   * option re-adds the configured props when a component's props type extends
+   * one of the listed types from an installed package.
+   *
+   * Entries can also pin the package the type must come from, to disambiguate
+   * same-named types from different packages.
+   *
+   * @example
+   * ```js
+   * { BaseUIComponentProps: ['className', 'render', 'style'] }
+   * ```
+   * @example
+   * ```js
+   * { BaseUIComponentProps: { from: '@base-ui/react', props: ['className', 'render', 'style'] } }
+   * ```
+   */
+  inheritedExternalProps?: InheritedExternalPropsConfig;
+  /**
+   * Directory rooting docs-infra's build caches and coordination state — relocate it (or point it
+   * at a persistent cache) and everything under it moves together: the sha256-validated JSON caches
+   * (`pages-index-v2`, `types-text`, `types-enhanced`) and the index marker directories
+   * (`index-updates`, `types-index-updates`). The IPC socket used to coordinate the type workers
+   * lives outside the project, in the system temp directory, and is unaffected by this option.
+   * @default '.next/cache/docs-infra'
+   */
+  cacheDir?: string;
 }
 
 export interface DocsInfraMdxOptions {
@@ -208,6 +260,12 @@ export interface DocsInfraMdxOptions {
    * Passed to `transformHtmlCodeBlock` in the default rehype plugin list.
    */
   codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions;
+  /**
+   * Directory rooting docs-infra's build caches and index markers. Indexes synced from MDX store
+   * the page-index cache under `{cacheDir}/pages-index-v2/` and markers under `{cacheDir}/index-updates/`.
+   * @default '.next/cache/docs-infra'
+   */
+  cacheDir?: string;
 }
 
 /**
@@ -222,6 +280,7 @@ export function getDocsInfraMdxOptions(
     errorIfIndexOutOfDate = Boolean(process.env.CI),
     defaultInlineCodeLanguage,
     codeBlockEmphasisOptions,
+    cacheDir = DEFAULT_CACHE_DIR,
   } = customOptions;
 
   // Normalize extractToIndex to options object
@@ -231,6 +290,9 @@ export function getDocsInfraMdxOptions(
         include: string[];
         exclude: string[];
         baseDir?: string;
+        markerDir?: string | false;
+        errorIfOutOfDate?: boolean;
+        cacheDir?: string;
       };
 
   if (extractToIndex === false) {
@@ -243,9 +305,18 @@ export function getDocsInfraMdxOptions(
       include: ['app', 'src/app'],
       exclude: [],
       baseDir: baseDir ?? process.cwd(),
+      markerDir: path.posix.join(cacheDir, 'index-updates'),
+      errorIfOutOfDate: errorIfIndexOutOfDate,
+      cacheDir,
     };
   } else {
-    extractToIndexOptions = { ...extractToIndex, baseDir: baseDir ?? process.cwd() };
+    extractToIndexOptions = {
+      ...extractToIndex,
+      baseDir: baseDir ?? process.cwd(),
+      markerDir: path.posix.join(cacheDir, 'index-updates'),
+      errorIfOutOfDate: errorIfIndexOutOfDate,
+      cacheDir,
+    };
   }
 
   const defaultRemarkPlugins: Array<string | [string, ...any[]]> = [
@@ -254,8 +325,6 @@ export function getDocsInfraMdxOptions(
       '@mui/internal-docs-infra/pipeline/transformMarkdownMetadata',
       {
         extractToIndex: extractToIndexOptions,
-        markerPath: '.next/cache/docs-infra/index-updates',
-        errorIfIndexOutOfDate,
       },
     ],
     ['@mui/internal-docs-infra/pipeline/transformMarkdownRelativePaths'],
@@ -314,11 +383,15 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
     typesIndexFileName = 'page.mdx',
     errorIfTypesIndexOutOfDate = Boolean(process.env.CI),
     requireDemoClient,
+    requireDemoPage = false,
+    transformTypescriptToJavascript = false,
+    cacheDir = DEFAULT_CACHE_DIR,
   } = options;
 
   // Only include ordering in loader options if explicitly provided
   const ordering = options.ordering;
   const descriptionReplacements = options.descriptionReplacements;
+  const inheritedExternalProps = options.inheritedExternalProps;
   const demoEmphasisOptions = options.demoEmphasisOptions;
   const codeBlockEmphasisOptions = options.codeBlockEmphasisOptions;
 
@@ -326,9 +399,10 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
   const updateParentIndex = {
     baseDir: process.cwd(),
     indexFileName: typesIndexFileName,
-    markerDir: '.next/cache/docs-infra/types-index-updates',
+    markerDir: path.posix.join(cacheDir, 'types-index-updates'),
     onlyUpdateIndexes: true,
     errorIfOutOfDate: errorIfTypesIndexOutOfDate,
+    cacheDir,
   };
 
   let output: 'hast' | 'hastJson' | 'hastCompressed' = 'hastCompressed';
@@ -352,14 +426,16 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
       ...(demoEmphasisOptions && {
         emphasisOptions: demoEmphasisOptions as unknown as JSONValue,
       }),
+      ...(transformTypescriptToJavascript ? { transformTypescriptToJavascript: true } : {}),
     };
 
-    // The demo highlighter options carry `requireClient` so the validate CLI can
-    // discover both the import specifier and the patterns it should ensure clients for.
-    // The loader itself ignores this option.
+    // The demo highlighter options carry `requireClient`/`requirePage` so the validate
+    // CLI can discover both the import specifier and the patterns it should ensure
+    // clients/pages for. The loader itself ignores these options.
     const demoCodeHighlighterOptions: Record<string, JSONValue> = {
       ...codeHighlighterOptions,
       ...(requireDemoClient ? { requireClient: requireDemoClient } : {}),
+      ...(requireDemoPage ? { requirePage: true } : {}),
     };
 
     const turbopackRules: Exclude<NextConfig['turbopack'], undefined>['rules'] = {
@@ -393,14 +469,17 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
             options: {
               performance,
-              socketDir: '.next/docs-infra',
               updateParentIndex,
+              cacheDir,
               ...(codeBlockEmphasisOptions
                 ? { codeBlockEmphasisOptions: codeBlockEmphasisOptions as unknown as JSONValue }
                 : {}),
               ...(ordering ? { ordering: ordering as unknown as JSONValue } : {}),
               ...(descriptionReplacements
                 ? { descriptionReplacements: descriptionReplacements as unknown as JSONValue }
+                : {}),
+              ...(inheritedExternalProps
+                ? { inheritedExternalProps: inheritedExternalProps as unknown as JSONValue }
                 : {}),
             },
           },
@@ -410,7 +489,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
         loaders: [
           {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedSitemap',
-            options: { performance },
+            options: { performance, cacheDir },
           },
         ],
       },
@@ -516,7 +595,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
             defaultLoaders.babel,
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedSitemap',
-              options: { performance },
+              options: { performance, cacheDir },
             },
           ],
         });
@@ -530,11 +609,12 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
               options: {
                 performance,
-                socketDir: '.next/docs-infra',
                 updateParentIndex,
+                cacheDir,
                 ...(codeBlockEmphasisOptions ? { codeBlockEmphasisOptions } : {}),
                 ...(ordering ? { ordering } : {}),
                 ...(descriptionReplacements ? { descriptionReplacements } : {}),
+                ...(inheritedExternalProps ? { inheritedExternalProps } : {}),
               },
             },
           ],
