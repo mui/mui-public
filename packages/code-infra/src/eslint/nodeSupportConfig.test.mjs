@@ -13,7 +13,8 @@ import { createBaseConfig, createNodeSupportConfig } from './index.mjs';
  * @param {string} code
  * @param {object} [options]
  * @param {string} [options.packageDir]
- * @param {'node-support' | 'base'} [options.config]
+ * @param {'node-support' | 'base'} [options.config] Use `base` to lint globals such as `fetch`: only
+ * the base config declares them, and the rule ignores undeclared ones.
  */
 async function lintInPackage(packageJson, relativePath, code, options = {}) {
   const { packageDir = 'packages/my-package', config = 'node-support' } = options;
@@ -43,6 +44,8 @@ const HAS_OWN = 'export const has = (obj, key) => Object.hasOwn(obj, key);\n';
 const LOGICAL_ASSIGNMENT = 'export function init(obj) {\n  obj.value ??= 1;\n}\n';
 const TIMERS_PROMISES =
   "import { setTimeout } from 'node:timers/promises';\n\nexport const wait = () => setTimeout(1);\n";
+const FETCH = 'export const load = (url) => fetch(url);\n';
+const CRYPTO = 'export const id = () => crypto.randomUUID();\n';
 const NODE_14 = { engines: { node: '>=14.0.0' } };
 
 describe('createNodeSupportConfig', () => {
@@ -79,6 +82,23 @@ describe('createNodeSupportConfig', () => {
       ).toEqual([]);
     });
 
+    it('accepts Node.js APIs that are experimental on every engines.node version', async () => {
+      expect(
+        await lintInPackage(
+          { engines: { node: '>=20.0.0' } },
+          'packages/my-package/src/index.js',
+          FETCH + CRYPTO,
+          { config: 'base' },
+        ),
+      ).toEqual([]);
+    });
+
+    it('reports experimental Node.js APIs that engines.node predates', async () => {
+      expect(
+        await lintInPackage(NODE_14, 'packages/my-package/src/index.js', FETCH, { config: 'base' }),
+      ).toEqual(['n/no-unsupported-features/node-builtins']);
+    });
+
     it('lints packages in other packages* directories', async () => {
       expect(
         await lintInPackage(NODE_14, 'packages-internal/my-package/src/index.js', HAS_OWN, {
@@ -101,6 +121,7 @@ describe('createNodeSupportConfig', () => {
           { engines: { node: '>=22.0.0' } },
           'packages/my-package/src/index.js',
           'export const read = (key) => localStorage.getItem(key) ?? navigator.language;\n',
+          { config: 'base' },
         ),
       ).toEqual([]);
     });

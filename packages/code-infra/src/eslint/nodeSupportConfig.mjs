@@ -50,9 +50,15 @@ export function createNodeSupportConfig(baseDirectory) {
         'n/no-unsupported-features/es-syntax': 'error',
         'n/no-unsupported-features/node-builtins': [
           'error',
-          // Browser APIs that Node.js also exposes, behind an experimental flag. In packages that
-          // combine Node.js tooling with browser code, these refer to the browser API.
           {
+            // Accepts APIs that are experimental or stable on every allowed Node.js version, like
+            // `fetch` (unflagged since 18, stable in 21) or the `crypto` global (unflagged since 19,
+            // stable in 23) on `>=20`. Versions before the first experimental release are still
+            // reported. The plugin doesn't track flags, so an API that needs one on part of the
+            // range passes too, like `CustomEvent` on `>=18.7`, which needs a flag before 19.
+            allowExperimental: true,
+            // Browser APIs that Node.js also exposes, behind an experimental flag. In packages that
+            // combine Node.js tooling with browser code, these refer to the browser API.
             ignores: [
               'localStorage',
               'sessionStorage',
