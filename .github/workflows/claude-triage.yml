@@ -193,7 +193,7 @@ jobs:
             ].join('\n'));
             fs.writeFileSync(`${process.env.RUNNER_TEMP}/request/comments.json`, JSON.stringify(
               comments.filter((entry) => !commentId || entry.id <= commentId)
-                .map((entry) => ({ author: entry.user?.login ?? null, body: entry.body })),
+                .map((entry) => ({ author: entry.user?.login ?? null, url: entry.html_url, body: entry.body })),
               null, 2,
             ));
             core.setOutput('allowed-bot', botLabelRequest ? actor.login : '');
@@ -389,8 +389,13 @@ jobs:
             and validation plans out of comment, including hidden HTML blocks. This includes
             "Likely cause" and "What the code does" sections. Do not claim maintainer review.
             Write for the reporter, who already sees the thread:
-            - Do not recap, summarize, or attribute the issue's comments or timeline. Mention a
-              comment only when it changes the conclusion, and link it instead of restating it.
+            - Do not recap, summarize, or attribute the issue's comments or timeline, and do not
+              name commenters. Mention a comment only when it changes the conclusion, and link it
+              instead of restating it. Link a comment only with its exact `url` from comments.json;
+              never write a comment link yourself, and never link the issue itself as a comment.
+            - Next steps name the decision or information needed. Leave code changes, implementation
+              steps, and tests to the handoff.
+            - Check reporter-supplied code for errors before treating its result as evidence.
             - Do not mention workflow internals: the checkout, the read-only stage, search budgets,
               rate limits, or turn counts. Say what you could not verify once, in one sentence,
               instead of repeating a disclaimer per claim.
