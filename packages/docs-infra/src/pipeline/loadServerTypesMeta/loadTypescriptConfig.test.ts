@@ -1,63 +1,159 @@
 import { describe, it, expect } from 'vitest';
-import { mergeConfig } from './loadTypescriptConfig';
+import { mkdtemp, mkdir, realpath, writeFile, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { loadTypescriptConfig } from './loadTypescriptConfig';
 
-describe('mergeConfig', () => {
-  it('merges flat properties from source into target', () => {
-    const target = { foo: 1, bar: 2 };
-    const source = { bar: 3, baz: 4 };
+async function withFixture(
+  files: Record<string, unknown>,
+  run: (dir: string) => Promise<void>,
+): Promise<void> {
+  const dir = await realpath(await mkdtemp(path.join(os.tmpdir(), 'load-typescript-config-')));
+  try {
+    await Promise.all(
+      Object.entries(files).map(async ([relativePath, content]) => {
+        const filePath = path.join(dir, relativePath);
+        await mkdir(path.dirname(filePath), { recursive: true });
+        await writeFile(
+          filePath,
+          typeof content === 'string' ? content : JSON.stringify(content),
+          'utf-8',
+        );
+      }),
+    );
+    await run(dir);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
 
-    const result = mergeConfig(target, source);
+describe('loadTypescriptConfig', () => {
+  it('loads compiler options from a standalone tsconfig', async () => {
+    await withFixture(
+      {
+        'tsconfig.json': { compilerOptions: { strict: true }, files: ['index.ts'] },
+        'index.ts': '',
+      },
+      async (dir) => {
+        const configPath = path.join(dir, 'tsconfig.json');
 
-    expect(result).toEqual({ foo: 1, bar: 3, baz: 4 });
+        const result = await loadTypescriptConfig(configPath);
+
+        expect(result.projectPath).toBe(dir);
+        expect(result.options.strict).toBe(true);
+        expect(result.options.configFilePath).toBe(configPath);
+        expect(result.dependencies).toEqual([configPath]);
+      },
+    );
   });
 
-  it('recursively merges nested objects', () => {
-    const target = { compilerOptions: { target: 'es5', strict: true } };
-    const source = { compilerOptions: { target: 'es2020', module: 'esnext' } };
+  it('inherits options from an extended tsconfig and lists it as a dependency', async () => {
+    await withFixture(
+      {
+        'tsconfig.base.json': { compilerOptions: { strict: true, jsx: 'preserve' } },
+        'docs/tsconfig.json': {
+          extends: '../tsconfig.base.json',
+          compilerOptions: { jsx: 'react-jsx' },
+          files: ['index.ts'],
+        },
+        'docs/index.ts': '',
+      },
+      async (dir) => {
+        const configPath = path.join(dir, 'docs/tsconfig.json');
 
-    const result = mergeConfig(target, source);
+        const result = await loadTypescriptConfig(configPath);
 
-    expect(result).toEqual({
-      compilerOptions: { target: 'es2020', strict: true, module: 'esnext' },
+        expect(result.options.strict).toBe(true);
+        expect(result.options.jsx).toBe(4 /* ts.JsxEmit.ReactJSX */);
+        expect(result.dependencies).toEqual([configPath, path.join(dir, 'tsconfig.base.json')]);
+      },
+    );
+  });
+
+  it('resolves paths against the tsconfig that defines them', async () => {
+    await withFixture(
+      {
+        'tsconfig.base.json': { compilerOptions: { paths: { '@lib/*': ['./lib/*'] } } },
+        'docs/tsconfig.json': { extends: '../tsconfig.base.json', files: ['index.ts'] },
+        'docs/index.ts': '',
+      },
+      async (dir) => {
+        const result = await loadTypescriptConfig(path.join(dir, 'docs/tsconfig.json'));
+
+        expect(result.options.paths).toEqual({ '@lib/*': ['./lib/*'] });
+        expect(result.options.pathsBasePath).toBe(dir);
+      },
+    );
+  });
+
+  it('replaces inherited paths when the tsconfig defines its own, like tsc', async () => {
+    await withFixture(
+      {
+        'tsconfig.base.json': { compilerOptions: { paths: { '@lib/*': ['./lib/*'] } } },
+        'docs/tsconfig.json': {
+          extends: '../tsconfig.base.json',
+          compilerOptions: { paths: { '@docs/*': ['./src/*'] } },
+          files: ['index.ts'],
+        },
+        'docs/index.ts': '',
+      },
+      async (dir) => {
+        const result = await loadTypescriptConfig(path.join(dir, 'docs/tsconfig.json'));
+
+        expect(result.options.paths).toEqual({ '@docs/*': ['./src/*'] });
+        expect(result.options.pathsBasePath).toBe(path.join(dir, 'docs'));
+      },
+    );
+  });
+
+  it('supports multiple extended tsconfigs and package specifiers', async () => {
+    await withFixture(
+      {
+        'node_modules/@scope/tsconfig/tsconfig.json': {
+          compilerOptions: { strict: true, noEmit: false },
+        },
+        'tsconfig.local.json': { compilerOptions: { noEmit: true } },
+        'tsconfig.json': {
+          extends: ['@scope/tsconfig/tsconfig.json', './tsconfig.local.json'],
+          files: ['index.ts'],
+        },
+        'index.ts': '',
+      },
+      async (dir) => {
+        const configPath = path.join(dir, 'tsconfig.json');
+
+        const result = await loadTypescriptConfig(configPath);
+
+        expect(result.options.strict).toBe(true);
+        expect(result.options.noEmit).toBe(true);
+        expect(result.dependencies).toEqual([
+          configPath,
+          path.join(dir, 'node_modules/@scope/tsconfig/tsconfig.json'),
+          path.join(dir, 'tsconfig.local.json'),
+        ]);
+      },
+    );
+  });
+
+  it('rejects a tsconfig with invalid JSON', async () => {
+    await withFixture({ 'tsconfig.json': '{ "compilerOptions": { , } }' }, async (dir) => {
+      await expect(loadTypescriptConfig(path.join(dir, 'tsconfig.json'))).rejects.toMatchObject({
+        messageText: expect.any(String),
+      });
     });
   });
 
-  it('overwrites arrays rather than merging them', () => {
-    const target = { include: ['src'] };
-    const source = { include: ['lib', 'test'] };
-
-    const result = mergeConfig(target, source);
-
-    expect(result).toEqual({ include: ['lib', 'test'] });
-  });
-
-  it('does not pollute Object.prototype via __proto__ key', () => {
-    const target: Record<string, unknown> = {};
-    const source = JSON.parse('{"__proto__": {"polluted": true}}');
-
-    mergeConfig(target, source);
-
-    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
-    expect(Object.prototype).not.toHaveProperty('polluted');
-  });
-
-  it('does not pollute Object.prototype via constructor.prototype key', () => {
-    const target: Record<string, unknown> = {};
-    const source = JSON.parse('{"constructor": {"prototype": {"polluted": true}}}');
-
-    mergeConfig(target, source);
-
-    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
-    expect(Object.prototype).not.toHaveProperty('polluted');
-  });
-
-  it('does not assign a prototype key from source', () => {
-    const target: Record<string, unknown> = {};
-    const source = JSON.parse('{"prototype": {"polluted": true}}');
-
-    mergeConfig(target, source);
-
-    expect(target).not.toHaveProperty('prototype');
-    expect(Object.prototype).not.toHaveProperty('polluted');
+  it('rejects a tsconfig that extends a missing file', async () => {
+    await withFixture(
+      {
+        'tsconfig.json': { extends: './missing.json', files: ['index.ts'] },
+        'index.ts': '',
+      },
+      async (dir) => {
+        await expect(loadTypescriptConfig(path.join(dir, 'tsconfig.json'))).rejects.toMatchObject({
+          messageText: expect.stringContaining('missing.json'),
+        });
+      },
+    );
   });
 });

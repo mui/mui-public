@@ -37,128 +37,61 @@ function getTsConfigWatchers(): Set<string> {
   return processObj[TSCONFIG_WATCHERS_KEY];
 }
 
-function setupFileWatcher(configPath: string): void {
+function setupFileWatcher(filePath: string): void {
   const cache = getTsConfigCache();
   const watchers = getTsConfigWatchers();
 
   // Skip if already watching this file
-  if (watchers.has(configPath)) {
+  if (watchers.has(filePath)) {
     return;
   }
 
   // Mark as watching
-  watchers.add(configPath);
+  watchers.add(filePath);
 
   // Set up file watcher
-  const watcher = fs.watch(configPath);
+  const watcher = fs.watch(filePath);
 
   // Handle file changes
   (async () => {
     try {
       for await (const event of watcher) {
         if (event.eventType === 'change') {
-          // Purge this config and any configs that might extend it
-          const cachedPaths = Array.from(cache.keys());
-          const toPurge = cachedPaths.filter(
-            (cachedPath) => cachedPath === configPath || cachedPath.includes(configPath),
-          );
-
-          toPurge.forEach((pathToPurge) => {
-            cache.delete(pathToPurge);
-          });
+          // Any cached config may extend the changed file, purge them all
+          cache.clear();
         }
       }
     } catch (error) {
       // Watcher was closed or file was deleted
-      watchers.delete(configPath);
+      watchers.delete(filePath);
     }
   })();
 }
 
-export function mergeConfig(target: any, source: any): any {
-  for (const key of Object.keys(source)) {
-    // Guard against prototype pollution from extended tsconfig files
-    // that may contain `__proto__`, `constructor`, or `prototype` keys.
-    if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
-      continue;
-    }
-    if (
-      typeof target[key] === 'object' &&
-      target[key] !== null &&
-      typeof source[key] === 'object' &&
-      source[key] !== null &&
-      !Array.isArray(target[key]) &&
-      !Array.isArray(source[key])
-    ) {
-      mergeConfig(target[key], source[key]);
-    } else {
-      target[key] = source[key];
-    }
-  }
-
-  return target;
-}
-
 async function loadTypescriptConfigUncached(configPath: string) {
-  const dependencies = [configPath];
   const projectPath = path.dirname(configPath);
 
   const data = await fs.readFile(configPath, 'utf-8');
-  const { config, error } = ts.readConfigFile(configPath, (filePath) => {
-    if (filePath !== configPath) {
-      throw new Error(`Unexpected file path: ${filePath}`);
-    }
+  const sourceFile = ts.readJsonConfigFile(configPath, () => data);
 
-    return data.toString();
-  });
+  // TypeScript resolves `extends` itself, with the same semantics as `tsc`
+  const parsed = ts.parseJsonSourceFileConfigFileContent(
+    sourceFile,
+    ts.sys,
+    projectPath,
+    undefined,
+    configPath,
+  );
 
-  if (error) {
-    throw error;
-  }
-
-  const { options, errors, raw } = ts.parseJsonConfigFileContent(config, ts.sys, projectPath);
-  options.configFilePath = configPath;
-
-  let mergedConfig = options;
-  if (raw.extends) {
-    const extendedConfigPath = path.resolve(projectPath, raw.extends);
-
-    const {
-      options: parentOptions,
-      projectPath: parentPath,
-      dependencies: parentDependencies,
-    } = await loadTypescriptConfig(extendedConfigPath);
-
-    dependencies.push(...parentDependencies);
-
-    // scope compilerOptions.paths relative to the tsconfig location
-    if (parentOptions.paths) {
-      Object.keys(parentOptions.paths).forEach((key) => {
-        if (!parentOptions.paths) {
-          return;
-        }
-
-        const paths: string[] = [];
-        parentOptions.paths[key].forEach((relativePath: string) => {
-          const absolutePath = path.resolve(parentPath, relativePath);
-          let scopedPath = path.relative(projectPath, absolutePath);
-          if (!scopedPath.startsWith('.')) {
-            scopedPath = `./${scopedPath}`;
-          }
-          paths.push(scopedPath);
-        });
-        parentOptions.paths[key] = paths;
-      });
-    }
-
-    mergedConfig = mergeConfig(parentOptions, mergedConfig);
-  }
-
+  const errors = [...ts.getConfigFileParsingDiagnostics(parsed), ...parsed.errors];
   if (errors.length > 0) {
     throw errors[0];
   }
 
-  return { projectPath, options: mergedConfig, dependencies };
+  const dependencies = [configPath, ...(sourceFile.extendedSourceFiles ?? [])];
+  sourceFile.extendedSourceFiles?.forEach(setupFileWatcher);
+
+  return { projectPath, options: parsed.options, dependencies };
 }
 
 export async function loadTypescriptConfig(configPath: string) {
