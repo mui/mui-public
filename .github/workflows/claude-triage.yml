@@ -193,7 +193,7 @@ jobs:
             ].join('\n'));
             fs.writeFileSync(`${process.env.RUNNER_TEMP}/request/comments.json`, JSON.stringify(
               comments.filter((entry) => !commentId || entry.id <= commentId)
-                .map((entry) => ({ author: entry.user?.login ?? null, body: entry.body })),
+                .map((entry) => ({ author: entry.user?.login ?? null, url: entry.html_url, body: entry.body })),
               null, 2,
             ));
             core.setOutput('allowed-bot', botLabelRequest ? actor.login : '');
@@ -381,16 +381,21 @@ jobs:
             return actionable=false without reopening the investigation.
             Return comment as concise reporter-facing Markdown: public component/API, reproduction
             availability when relevant, and any workaround. Start directly with the finding; no general
-            title or pleasantries. End with a separate "### Next steps" section containing concrete actions
-            for the reporter and/or maintainer, or only the specific unanswered questions needed
-            to proceed. Include this section even when an earlier step tells you to stop; if no
+            title or pleasantries. End with a separate "### Next steps" section containing the decisions or
+            information needed from the reporter and/or maintainer, or only the specific unanswered
+            questions needed to proceed. Include this section even when an earlier step tells you to stop; if no
             further action is needed, say so there. Put supporting context above this section.
             Keep fix strategy, internal paths/symbols, root-cause hypotheses, regression tests,
             and validation plans out of comment, including hidden HTML blocks. This includes
             "Likely cause" and "What the code does" sections. Do not claim maintainer review.
             Write for the reporter, who already sees the thread:
-            - Do not recap, summarize, or attribute the issue's comments or timeline. Mention a
-              comment only when it changes the conclusion, and link it instead of restating it.
+            - Do not recap, summarize, or attribute the issue's comments or timeline, and do not
+              name commenters. Mention a comment only when it changes the conclusion, and link it
+              instead of restating it. Link a comment only with its exact `url` from comments.json;
+              never write a comment link yourself, and never link the issue itself as a comment.
+            - Next steps name the decision or information needed. Leave code changes, implementation
+              steps, and tests to the handoff.
+            - Check reporter-supplied code for errors before treating its result as evidence.
             - Do not mention workflow internals: the checkout, the read-only stage, search budgets,
               rate limits, or turn counts. Say what you could not verify once, in one sentence,
               instead of repeating a disclaimer per claim.
