@@ -71,8 +71,7 @@ function setupFileWatcher(filePath: string): void {
 async function loadTypescriptConfigUncached(configPath: string) {
   const projectPath = path.dirname(configPath);
 
-  const data = await fs.readFile(configPath, 'utf-8');
-  const sourceFile = ts.readJsonConfigFile(configPath, () => data);
+  const sourceFile = ts.readJsonConfigFile(configPath, ts.sys.readFile);
 
   // TypeScript resolves `extends` itself, with the same semantics as `tsc`
   const parsed = ts.parseJsonSourceFileConfigFileContent(
@@ -83,9 +82,9 @@ async function loadTypescriptConfigUncached(configPath: string) {
     configPath,
   );
 
-  const errors = [...ts.getConfigFileParsingDiagnostics(parsed), ...parsed.errors];
-  if (errors.length > 0) {
-    throw errors[0];
+  const [error] = ts.getConfigFileParsingDiagnostics(parsed);
+  if (error) {
+    throw error;
   }
 
   const dependencies = [configPath, ...(sourceFile.extendedSourceFiles ?? [])];
