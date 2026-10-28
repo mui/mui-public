@@ -16,9 +16,11 @@ import type { RunBenchmarksOptions } from '../runner/runBenchmarks';
  * Everything `runBenchmarks` takes except the directory, which is where the command was run, with
  * its sampling overrides as flags of their own.
  */
-type Args = Omit<RunBenchmarksOptions, 'harnessDir' | 'sampling'> & {
+type Args = Omit<RunBenchmarksOptions, 'harnessDir' | 'sampling' | 'launchArgs'> & {
   sampleSize?: number;
   timeout?: number;
+  /** One flag, or several when it's repeated. */
+  launchArgs?: string | string[];
 };
 
 const runCommand: CommandModule<{}, Args> = {
@@ -64,6 +66,12 @@ const runCommand: CommandModule<{}, Args> = {
         describe:
           'Also record a performance trace around every sample, for a fixed number of rounds, saved to open in DevTools. Tracing slows the code it records, so the report is only indicative',
       })
+      // A repeated string, not `array: true`, which would also take the filters that follow.
+      .option('launch-args', {
+        type: 'string',
+        describe:
+          'A Chromium flag to add, such as --launch-args=--use-angle=metal for a GPU backend; repeat it for more. The report records them',
+      })
       .option('sample-size', {
         type: 'number',
         describe:
@@ -107,6 +115,7 @@ const runCommand: CommandModule<{}, Args> = {
         testNamePattern: argv.testNamePattern,
         reporter: argv.reporter,
         profile: argv.profile,
+        launchArgs: argv.launchArgs === undefined ? undefined : [argv.launchArgs].flat(),
         sampling: {
           sampleSize: argv.sampleSize,
           timeout: argv.timeout,

@@ -63,6 +63,12 @@ export interface RunBenchmarksOptions {
    * only indicative.
    */
   profile?: boolean;
+  /**
+   * More Chromium flags, after the ones every run uses: a GPU backend for a local run, such as
+   * `--use-angle=metal`, or a software one for WebGL in CI. Both builds share the browser, so a
+   * comparison stays fair, and the report records them, since they change what the numbers mean.
+   */
+  launchArgs?: string[];
 }
 
 /**
@@ -116,7 +122,10 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
   const refs: ResolvedRef[] = [WORKTREE_REF, await resolveBaselineRef(baseline, repoRoot)];
 
   // `getuid` is POSIX-only; on Windows nobody is root. Chrome cannot enter its sandbox as root.
-  const launchArgs = process.getuid?.() === 0 ? ['--no-sandbox'] : [];
+  const launchArgs = [
+    ...(process.getuid?.() === 0 ? ['--no-sandbox'] : []),
+    ...(options.launchArgs ?? []),
+  ];
 
   // The commit follows the name, so a revision like `HEAD~1` still says which commit it landed on.
   const describeRef = (ref: ResolvedRef) =>
