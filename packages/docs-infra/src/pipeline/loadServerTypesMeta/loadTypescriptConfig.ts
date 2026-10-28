@@ -68,12 +68,22 @@ function setupFileWatcher(filePath: string): void {
   })();
 }
 
+const FORMAT_DIAGNOSTICS_HOST: ts.FormatDiagnosticsHost = {
+  getCanonicalFileName: (fileName) => fileName,
+  getCurrentDirectory: () => ts.sys.getCurrentDirectory(),
+  getNewLine: () => ts.sys.newLine,
+};
+
+/**
+ * Reads and parses a tsconfig, letting TypeScript resolve `extends` with the same
+ * semantics as `tsc`. Throws the first configuration error as an `Error`.
+ */
 async function loadTypescriptConfigUncached(configPath: string) {
   const projectPath = path.dirname(configPath);
 
-  const sourceFile = ts.readJsonConfigFile(configPath, ts.sys.readFile);
+  const data = await fs.readFile(configPath, 'utf-8');
+  const sourceFile = ts.readJsonConfigFile(configPath, () => data);
 
-  // TypeScript resolves `extends` itself, with the same semantics as `tsc`
   const parsed = ts.parseJsonSourceFileConfigFileContent(
     sourceFile,
     ts.sys,
@@ -82,17 +92,22 @@ async function loadTypescriptConfigUncached(configPath: string) {
     configPath,
   );
 
-  const [error] = ts.getConfigFileParsingDiagnostics(parsed);
-  if (error) {
-    throw error;
+  const [diagnostic] = ts.getConfigFileParsingDiagnostics(parsed);
+  if (diagnostic) {
+    throw new Error(ts.formatDiagnostic(diagnostic, FORMAT_DIAGNOSTICS_HOST).trim());
   }
 
-  const dependencies = [configPath, ...(sourceFile.extendedSourceFiles ?? [])];
-  sourceFile.extendedSourceFiles?.forEach(setupFileWatcher);
+  // TypeScript reports extended files with forward slashes
+  const extendedFiles = (sourceFile.extendedSourceFiles ?? []).map((file) => path.normalize(file));
+  extendedFiles.forEach(setupFileWatcher);
 
-  return { projectPath, options: parsed.options, dependencies };
+  return { projectPath, options: parsed.options, dependencies: [configPath, ...extendedFiles] };
 }
 
+/**
+ * Loads a tsconfig and caches the result until the tsconfig or any file it extends changes.
+ * Failed loads are not cached, so a fixed tsconfig is picked up on the next call.
+ */
 export async function loadTypescriptConfig(configPath: string) {
   const cache = getTsConfigCache();
 
@@ -106,7 +121,14 @@ export async function loadTypescriptConfig(configPath: string) {
   setupFileWatcher(configPath);
 
   // Create and cache the promise
-  const promise = loadTypescriptConfigUncached(configPath);
+  const promise = (async () => {
+    try {
+      return await loadTypescriptConfigUncached(configPath);
+    } catch (error) {
+      cache.delete(configPath);
+      throw error;
+    }
+  })();
   cache.set(configPath, promise);
 
   return promise;

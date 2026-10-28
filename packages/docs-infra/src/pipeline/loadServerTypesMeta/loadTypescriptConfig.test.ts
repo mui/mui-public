@@ -2,8 +2,13 @@ import { describe, it, expect, onTestFinished } from 'vitest';
 import { mkdtemp, mkdir, realpath, writeFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import ts from 'typescript';
 import { loadTypescriptConfig } from './loadTypescriptConfig';
 
+/**
+ * Writes `files` into a fresh temp directory that is removed when the test finishes.
+ * Object contents are serialized as JSON.
+ */
 async function createFixture(files: Record<string, unknown>): Promise<string> {
   const dir = await realpath(await mkdtemp(path.join(os.tmpdir(), 'load-typescript-config-')));
   onTestFinished(() => rm(dir, { recursive: true, force: true }));
@@ -33,7 +38,7 @@ describe('loadTypescriptConfig', () => {
 
     expect(result.projectPath).toBe(dir);
     expect(result.options.strict).toBe(true);
-    expect(result.options.configFilePath).toBe(configPath);
+    expect(path.normalize(result.options.configFilePath as string)).toBe(configPath);
     expect(result.dependencies).toEqual([configPath]);
   });
 
@@ -52,7 +57,7 @@ describe('loadTypescriptConfig', () => {
     const result = await loadTypescriptConfig(configPath);
 
     expect(result.options.strict).toBe(true);
-    expect(result.options.jsx).toBe(4 /* ts.JsxEmit.ReactJSX */);
+    expect(result.options.jsx).toBe(ts.JsxEmit.ReactJSX);
     expect(result.dependencies).toEqual([configPath, path.join(dir, 'tsconfig.base.json')]);
   });
 
@@ -66,7 +71,7 @@ describe('loadTypescriptConfig', () => {
     const result = await loadTypescriptConfig(path.join(dir, 'docs/tsconfig.json'));
 
     expect(result.options.paths).toEqual({ '@lib/*': ['./lib/*'] });
-    expect(result.options.pathsBasePath).toBe(dir);
+    expect(path.normalize(result.options.pathsBasePath as string)).toBe(dir);
   });
 
   it('replaces inherited paths when the tsconfig defines its own, like tsc', async () => {
@@ -83,7 +88,7 @@ describe('loadTypescriptConfig', () => {
     const result = await loadTypescriptConfig(path.join(dir, 'docs/tsconfig.json'));
 
     expect(result.options.paths).toEqual({ '@docs/*': ['./src/*'] });
-    expect(result.options.pathsBasePath).toBe(path.join(dir, 'docs'));
+    expect(path.normalize(result.options.pathsBasePath as string)).toBe(path.join(dir, 'docs'));
   });
 
   it('supports multiple extended tsconfigs and package specifiers', async () => {
@@ -112,11 +117,14 @@ describe('loadTypescriptConfig', () => {
   });
 
   it('rejects a tsconfig with invalid JSON', async () => {
-    const dir = await createFixture({ 'tsconfig.json': '{ "compilerOptions": { , } }' });
-
-    await expect(loadTypescriptConfig(path.join(dir, 'tsconfig.json'))).rejects.toMatchObject({
-      messageText: expect.any(String),
+    const dir = await createFixture({
+      'tsconfig.json': '{ "compilerOptions": { , }, "files": ["index.ts"] }',
+      'index.ts': '',
     });
+
+    await expect(loadTypescriptConfig(path.join(dir, 'tsconfig.json'))).rejects.toThrow(
+      'error TS1136: Property assignment expected.',
+    );
   });
 
   it('rejects a tsconfig that extends a missing file', async () => {
@@ -125,8 +133,34 @@ describe('loadTypescriptConfig', () => {
       'index.ts': '',
     });
 
+    await expect(loadTypescriptConfig(path.join(dir, 'tsconfig.json'))).rejects.toThrow(
+      /error TS5083: Cannot read file '.*missing\.json'/,
+    );
+  });
+
+  it('rejects a missing tsconfig', async () => {
+    const dir = await createFixture({});
+
     await expect(loadTypescriptConfig(path.join(dir, 'tsconfig.json'))).rejects.toMatchObject({
-      messageText: expect.stringContaining('missing.json'),
+      code: 'ENOENT',
     });
+  });
+
+  it('loads a tsconfig again after a failed load', async () => {
+    const dir = await createFixture({
+      'tsconfig.base.json': { compilerOptions: { target: 'invalid' } },
+      'tsconfig.json': { extends: './tsconfig.base.json', files: ['index.ts'] },
+      'index.ts': '',
+    });
+    const configPath = path.join(dir, 'tsconfig.json');
+    await expect(loadTypescriptConfig(configPath)).rejects.toThrow('--target');
+
+    await writeFile(
+      path.join(dir, 'tsconfig.base.json'),
+      JSON.stringify({ compilerOptions: { target: 'es2020' } }),
+    );
+    const result = await loadTypescriptConfig(configPath);
+
+    expect(result.options.target).toBe(ts.ScriptTarget.ES2020);
   });
 });
