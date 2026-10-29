@@ -586,3 +586,10 @@ type reset = () => void;
 - `useCoordinatedPreference`: `useCoordinated`, `UseCoordinatedOptions`, `UseCoordinatedExtras`, `useCoordinatedLocalStorage`, `useCoordinatedPreference`, `registerLayoutShiftSource`, `whenLayoutShiftsSettled`, `layoutShiftsSettled`, `useCoordinatedLazy`, `createSettleGate`, `SETTLE_SAFETY_TIMEOUT_MS`, `SettleGate`, `CreateSettleGateOptions`, `pageSettleGate`, `useSettleGate`
 - `createSettleGate`: `useCoordinated`, `UseCoordinatedOptions`, `UseCoordinatedExtras`, `useCoordinatedLocalStorage`, `useCoordinatedPreference`, `registerLayoutShiftSource`, `whenLayoutShiftsSettled`, `layoutShiftsSettled`, `useCoordinatedLazy`, `createSettleGate`, `SETTLE_SAFETY_TIMEOUT_MS`, `SettleGate`, `CreateSettleGateOptions`, `pageSettleGate`, `useSettleGate`
 - `useSettleGate`: `useCoordinated`, `UseCoordinatedOptions`, `UseCoordinatedExtras`, `useCoordinatedLocalStorage`, `useCoordinatedPreference`, `registerLayoutShiftSource`, `whenLayoutShiftsSettled`, `layoutShiftsSettled`, `useCoordinatedLazy`, `createSettleGate`, `SETTLE_SAFETY_TIMEOUT_MS`, `SettleGate`, `CreateSettleGateOptions`, `pageSettleGate`, `useSettleGate`
+
+## External Type Links
+
+Maps `Type`: `URL` — the docs of a built-in type the page references.
+
+- `AbortSignal`: <https://developer.mozilla.org/docs/Web/API/AbortSignal>
+- `Promise`: <https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Promise>

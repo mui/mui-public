@@ -43,3 +43,9 @@ type TransformHtmlCodeInlineOptions = {
   includePreElements?: boolean;
 };
 ```
+
+## External Type Links
+
+Maps `Type`: `URL` — the docs of a built-in type the page references.
+
+- `Promise`: <https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Promise>

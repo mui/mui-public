@@ -133,3 +133,9 @@ type PreloadContext = React.Context<PreloadFn | undefined>;
 - `ChunkProvider`: `ChunkProvider`, `ChunkContext`, `useChunkContext`, `usePreload`, `PreloadProvider`, `PreloadContext`, `ChunkContextValue`, `ChunkProviderProps`, `PreloadFn`
 - `PreloadProvider`: `ChunkProvider`, `ChunkContext`, `useChunkContext`, `usePreload`, `PreloadProvider`, `PreloadContext`, `ChunkContextValue`, `ChunkProviderProps`, `PreloadFn`
 - `usePreload`: `ChunkProvider`, `ChunkContext`, `useChunkContext`, `usePreload`, `PreloadProvider`, `PreloadContext`, `ChunkContextValue`, `ChunkProviderProps`, `PreloadFn`
+
+## External Type Links
+
+Maps `Type`: `URL` — the docs of a built-in type the page references.
+
+- `Promise`: <https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Promise>

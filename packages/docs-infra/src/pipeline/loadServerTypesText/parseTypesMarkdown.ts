@@ -628,6 +628,7 @@ export async function parseTypesMarkdown(content: string, ordering?: OrderingCon
   const allTypes: TypesMeta[] = [];
   const descriptionTargets: DescriptionTarget[] = [];
   const externalTypes: Record<string, string> = {};
+  const externalTypeLinks: Record<string, string> = {};
   const parsedVariantTypes: Record<string, string[]> = {};
   const typeNameMap: Record<string, string> = {};
   const parsedVariantTypeNameMapKeys: Record<string, string[]> = {};
@@ -651,7 +652,7 @@ export async function parseTypesMarkdown(content: string, ordering?: OrderingCon
   let lastParamExampleName: string | null = null;
   let lastPropReferencesName: string | null = null;
   let lastParamReferencesName: string | null = null;
-  let metadataSection: 'export-groups' | 'canonical-types' | null = null;
+  let metadataSection: 'export-groups' | 'canonical-types' | 'external-type-links' | null = null;
 
   // Helper to flush the current section
   const flushSection = () => {
@@ -812,12 +813,18 @@ export async function parseTypesMarkdown(content: string, ordering?: OrderingCon
         metadataSection = 'export-groups';
       } else if (text === 'Canonical Types') {
         metadataSection = 'canonical-types';
+      } else if (text === 'External Type Links') {
+        metadataSection = 'external-type-links';
       }
       if (text === 'External Types') {
         inExternalTypes = true;
       } else if (text === 'Additional Types') {
         inExternalTypes = false;
-      } else if (text === 'Export Groups' || text === 'Canonical Types') {
+      } else if (
+        text === 'Export Groups' ||
+        text === 'Canonical Types' ||
+        text === 'External Type Links'
+      ) {
         // Skip metadata sections - they are parsed separately
         inExternalTypes = false;
       }
@@ -854,7 +861,13 @@ export async function parseTypesMarkdown(content: string, ordering?: OrderingCon
         const namesAfterSeparator =
           separatorIndex === -1 ? [] : extractInlineCodeValues(children.slice(separatorIndex + 1));
 
-        if (metadataSection === 'export-groups') {
+        if (metadataSection === 'external-type-links') {
+          const typeName = namesBeforeSeparator[0];
+          const link = children.find((child) => child.type === 'link');
+          if (typeName && link) {
+            externalTypeLinks[typeName] = link.url;
+          }
+        } else if (metadataSection === 'export-groups') {
           const variantName = namesBeforeSeparator[0];
           if (variantName) {
             parsedVariantTypes[variantName] =
@@ -1069,6 +1082,7 @@ export async function parseTypesMarkdown(content: string, ordering?: OrderingCon
     additionalTypes: organized.additionalTypes,
     variantOnlyAdditionalTypes: organized.variantOnlyAdditionalTypes,
     externalTypes,
+    externalTypeLinks,
     typeNameMap,
     variantTypeNameMaps: organized.variantTypeNameMaps,
     variantTypeNames: organized.variantTypeNames,

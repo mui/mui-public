@@ -212,7 +212,7 @@ The type-level metadata takes priority over factory-level options.
 
 ## Enhancers
 
-The `enhancers` option specifies [rehype plugins](../../patterns/hast/page.mdx#enhancing-hast) to run on [HAST](../../patterns/hast/page.mdx) before converting to JSX. By default, [`enhanceCodeInline`](../../pipeline/enhance-code-inline/page.mdx) is applied. When an `anchorMap` is available, [`enhanceCodeTypes`](../../pipeline/enhance-code-types/page.mdx) is appended automatically.
+The `enhancers` option specifies [rehype plugins](../../patterns/hast/page.mdx#enhancing-hast) to run on [HAST](../../patterns/hast/page.mdx) before converting to JSX. By default, [`enhanceCodeInline`](../../pipeline/enhance-code-inline/page.mdx) is applied. When an `anchorMap` or [external type links](#external-type-links) are available, [`enhanceCodeTypes`](../../pipeline/enhance-code-types/page.mdx) is appended automatically.
 
 > [!NOTE]
 > The `anchorMap` contains entries for **all** types from `types.md`, including every component part and additional types. When using `createMultipleTypes`, if you see links that don't resolve to a corresponding `id` on the page, you may be missing a component part (for example, `<TypesCheckbox.Indicator />`) or the `<TypesCheckboxAdditional />` component may need to be added to the page.
@@ -273,6 +273,12 @@ const options = {
 The `TypeRef` component receives `href`, `name`, and `className` properties from the HAST element. See [`useType`](../../hooks/use-type/page.mdx) for building an interactive `TypeRef` component that renders a popover with type documentation.
 
 This option can be set at the factory level (applies to all types) or overridden per type via `TypesTableMeta.typeRefComponent`.
+
+## External Type Links
+
+Built-in types in type signatures, such as `HTMLElement`, `PointerEvent`, `Promise`, or `Intl.NumberFormat`, link to their MDN page. The links are written to the "External Type Links" section of `types.md` when types are synced, and the factory passes them to [`enhanceCodeTypes`](../../pipeline/enhance-code-types/page.mdx#externallinks-option). Types documented on the page keep their page links.
+
+Only types declared in TypeScript's DOM, JavaScript, and worker lib files link, from a hand-picked list of the built-in types MUI libraries use. A package type with the same name as a built-in type is not linked, and neither is a name the page prints for its own type as well. To link another built-in type, add it to `MDN_TYPE_LINKS` in `packages/docs-infra/src/pipeline/loadServerTypesMeta/mdnTypeLinks.ts`.
 
 ## typePropRefComponent
 

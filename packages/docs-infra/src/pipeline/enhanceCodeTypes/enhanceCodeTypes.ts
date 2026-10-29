@@ -5,7 +5,7 @@ import { getLanguageCapabilities } from './getLanguageCapabilities';
 import type { LanguageCapabilities } from './getLanguageCapabilities';
 import { createScanState, finalizePendingDefaultExport, resetExportState } from './scanState';
 import type { ModuleLinkMapEntry } from './scanState';
-import { enhanceChildren, wrapExpressionNodes } from './enhanceChildren';
+import { collectDeclaredNames, enhanceChildren, wrapExpressionNodes } from './enhanceChildren';
 import { flushLiteralCandidate, flushPendingExpression } from './processTextNode';
 
 /**
@@ -27,6 +27,15 @@ export interface EnhanceCodeTypesOptions {
     /** Anchors for CSS-family languages (css, scss, less, sass). */
     css?: Record<string, string>;
   };
+  /**
+   * Links for types documented elsewhere, keyed by the name they are printed as in
+   * JavaScript and TypeScript code, such as `HTMLElement` →
+   * `https://developer.mozilla.org/docs/Web/API/HTMLElement`. Consulted after `linkMap`.
+   *
+   * Only the type name itself is linked. External links never act as owners for
+   * property or parameter anchors.
+   */
+  externalLinks?: Record<string, string>;
   /**
    * When set, the plugin emits a custom component element instead of an `<a>` tag
    * for type/export name references.
@@ -192,14 +201,21 @@ export default function enhanceCodeTypes(options: EnhanceCodeTypesOptions) {
       }
 
       const lang = getLanguageCapabilities(node);
-      let linkMap: Record<string, string> = {};
+      // Without a prototype, names such as `toString` or `constructor` are not found in the map.
+      const linkMap: Record<string, string> = Object.create(null);
       if (lang.semantics === 'js') {
-        linkMap = { ...(options.linkMap.js ?? {}) };
+        Object.assign(linkMap, options.linkMap.js);
       } else if (lang.semantics === 'css') {
-        linkMap = { ...(options.linkMap.css ?? {}) };
+        Object.assign(linkMap, options.linkMap.css);
       }
       const enhanceOptions: EnhanceOptions = {
         linkMap,
+        // Type names only occur in JS-family code; CSS values such as `Highlight` are not types.
+        externalLinks: lang.semantics === 'js' ? options.externalLinks : undefined,
+        declaredNames:
+          lang.semantics === 'js' && options.externalLinks
+            ? collectDeclaredNames(node.children)
+            : undefined,
         typeRefComponent: options.typeRefComponent,
         typePropRefComponent: options.typePropRefComponent,
         typeParamRefComponent: options.typeParamRefComponent,

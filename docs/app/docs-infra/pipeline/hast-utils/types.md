@@ -447,3 +447,9 @@ Any content beyond this limit is ignored by the compressor.
 ```typescript
 type MAX_DICTIONARY_SIZE = number;
 ```
+
+## External Type Links
+
+Maps `Type`: `URL` — the docs of a built-in type the page references.
+
+- `Promise`: <https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Promise>

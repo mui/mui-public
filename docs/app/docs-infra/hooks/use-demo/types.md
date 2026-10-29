@@ -510,3 +510,11 @@ type SourceEnhancer = (
   fileName: string,
 ) => { data?: unknown | undefined } | Promise;
 ```
+
+## External Type Links
+
+Maps `Type`: `URL` — the docs of a built-in type the page references.
+
+- `HTMLButtonElement`: <https://developer.mozilla.org/docs/Web/API/HTMLButtonElement>
+- `HTMLFormElement`: <https://developer.mozilla.org/docs/Web/API/HTMLFormElement>
+- `Promise`: <https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Promise>
