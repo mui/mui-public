@@ -210,7 +210,7 @@ For single-variant exports with subcomponents (for example, `Accordion.Root`, `A
 
 Grouping only activates when there are actual subcomponents — 2-part names that are components, hooks, functions, or classes (not just raw type suffixes like `Button.Props`). Once active:
 
-- **3+ part names** (for example, `Accordion.Root.State`): grouped under the first two parts (`Accordion.Root`)
+- **3+ part names** (for example, `Accordion.Root.State`): grouped under the first two parts (`Accordion.Root`), unless those name a raw type: then they stay with it, so `Toolbar.ButtonDataAttributes.ButtonDataAttribute` stays next to the `Toolbar.ButtonDataAttributes` [constant group](#constant-groups) in the "Default" group
 - **2-part component/hook/function/class** (for example, `Accordion.Root`): becomes its own group
 - **2-part raw types** (for example, `Toolbar.Orientation`): remain in the "Default" group
 - **1-part names** (for example, `DirectionProvider`): remain in the "Default" group
