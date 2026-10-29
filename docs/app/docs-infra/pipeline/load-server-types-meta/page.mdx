@@ -139,7 +139,7 @@ Type extraction is offloaded to a dedicated worker thread. Inside the worker:
 - **Creates an optimized TypeScript program** using an in-memory `LanguageServiceHost` singleton that caches file contents and tracks versions for incremental updates
 - **Parses exports** using `typescript-api-extractor`'s `parseFromProgram`, which extracts components, hooks, functions, classes, type aliases, and interfaces with their full type trees
 - **Builds a type name map** from flat export names to their dotted equivalents (for example, `AccordionRootState` → `Accordion.Root.State`), only when both the flat and dotted names exist as exports
-- **Folds constant namespaces** — the parser flattens `export * as Name from './module'` into one export per member; when the module holds nothing but literal constants, the members are collapsed back into a single [constant group](#constant-groups) named `Name`
+- **Folds constant namespaces** — the parser flattens `export * as Name from './module'` into one export per member; when the module's value exports are all literal constants (type-only exports are ignored), the members are collapsed back into a single [constant group](#constant-groups) named `Name`
 - **Collects dependencies** by walking the import graph from each entrypoint for HMR file watching
 - **Strips functions** from the result for serialization across the worker boundary (structured clone can't handle functions)
 
