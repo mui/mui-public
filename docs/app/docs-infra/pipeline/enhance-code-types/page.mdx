@@ -121,31 +121,23 @@ To resolve these custom HAST elements to React components, you must include the 
 
 See [`useType`](../../hooks/use-type/page.mdx) for how to build an interactive `TypeRef` component.
 
-### resolveExternalLink Option
+### externalLinks Option
 
-Types documented elsewhere, such as types from a dependency, can be linked with `resolveExternalLink`. It only resolves names listed in `externalTypeSources`, which records where each external type is declared: TypeScript's lib files (`{ kind: 'lib', files: ['lib.dom.d.ts'] }`) or a package (`{ kind: 'package', name: 'theme-lib' }`). The types factory fills it in from the type extractor. The resolver receives the name and its source, and returns a URL, or `null` to leave the name unlinked:
+Types documented elsewhere, such as `HTMLElement` on MDN, can be linked with `externalLinks`, a map from a type name to its URL. It is consulted for JavaScript and TypeScript code after `linkMap`, so types documented on the page keep their page links:
 
 ```typescript
-const externalDocs: Record<string, string> = {
-  Theme: 'https://example.com/docs/theme',
-};
-
 const processor = unified()
   .use(rehypeParse, { fragment: true })
   .use(enhanceCodeTypes, {
     linkMap,
-    externalTypeSources: { Theme: { kind: 'package', name: 'theme-lib' } },
-    resolveExternalLink: (name, source) =>
-      source.kind === 'package' && source.name === 'theme-lib'
-        ? (externalDocs[name] ?? null)
-        : null,
+    externalLinks: { HTMLElement: 'https://developer.mozilla.org/docs/Web/API/HTMLElement' },
   })
   .use(rehypeStringify);
 ```
 
-Names without a recorded declaration are never passed to the resolver: types the code declares itself, globals such as `console`, and keywords such as `null`. A name with a source can still be one the resolver does not know, so look names up and return `null` for the rest, rather than building a URL from every name.
+Only the type name is linked. Unlike `linkMap` entries, external links never act as owners for property or parameter links, so in `const el: HTMLElement = { hidden: true }` the `hidden` property stays unlinked. A variable declaration or a name bound in scope refers to local code and stays unlinked too.
 
-Only the type name is linked. Unlike `linkMap` entries, external links never act as owners for property or parameter links, so in `const theme: Theme = { mode: 'dark' }` the `mode` property stays unlinked.
+The types factory fills `externalLinks` in from the [External Type Links](../load-server-types-text/page.mdx#embedded-metadata) section of `types.md`.
 
 ---
 

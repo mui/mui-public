@@ -3,11 +3,7 @@ import type { PluggableList } from 'unified';
 import type { HighlightedTypesMeta } from '@mui/internal-docs-infra/pipeline/loadServerTypes';
 import enhanceCodeInline from '../pipeline/enhanceCodeInline';
 import enhanceCodeTypes from '../pipeline/enhanceCodeTypes';
-import type {
-  EnhanceCodeTypesOptions,
-  ExternalTypeSource,
-  ResolveExternalLink,
-} from '../pipeline/enhanceCodeTypes';
+import type { EnhanceCodeTypesOptions } from '../pipeline/enhanceCodeTypes';
 import type { ModuleLinkMapEntry } from '../pipeline/enhanceCodeTypes/scanState';
 import { typeToJsx, additionalTypesToJsx } from './typesToJsx';
 import type { TypesJsxOptions } from './typesToJsx';
@@ -16,7 +12,7 @@ import type { TypesTableProps } from '../useTypes/useTypes';
 /**
  * Default enhancers applied when no enhancers are specified.
  * Note: enhanceCodeTypes is added dynamically when the page has anchors to link, or external
- * types to resolve with `resolveExternalLink`.
+ * types to link to their docs.
  */
 const DEFAULT_ENHANCERS: PluggableList = [enhanceCodeInline];
 
@@ -72,10 +68,10 @@ export type TypesTableMeta = {
       css?: Record<string, string>;
     };
     /**
-     * Where the external types on the page are declared, keyed by printed name.
-     * Used by enhanceCodeTypes to pass them to `resolveExternalLink`.
+     * Links for the built-in types on the page, such as `HTMLElement` to its MDN page,
+     * keyed by the name they are printed as. Used by enhanceCodeTypes.
      */
-    externalTypeSources?: Record<string, ExternalTypeSource>;
+    externalTypeLinks?: Record<string, string>;
   };
   name?: string;
   displayName?: string;
@@ -189,11 +185,6 @@ export type TypesTableMeta = {
    * in `moduleLinkMap` does not specify a `defaultSlug`.
    */
   defaultImportSlug?: string;
-  /**
-   * Resolves type names that the page does not document to a link elsewhere.
-   * When set, overrides the factory-level resolveExternalLink.
-   */
-  resolveExternalLink?: ResolveExternalLink;
 };
 
 export type AbstractCreateTypesOptions<T extends {} = {}> = {
@@ -296,12 +287,6 @@ export type AbstractCreateTypesOptions<T extends {} = {}> = {
    */
   defaultImportSlug?: string;
   /**
-   * Resolves type names that the page does not document to documentation elsewhere,
-   * such as the docs of a dependency.
-   * Can be overridden by TypesTableMeta.resolveExternalLink.
-   */
-  resolveExternalLink?: ResolveExternalLink;
-  /**
    * Controls when expensive detailedType and formattedCode HAST fields are
    * converted to fully-highlighted JSX.
    * Can be overridden by TypesTableMeta.highlightAt.
@@ -311,8 +296,8 @@ export type AbstractCreateTypesOptions<T extends {} = {}> = {
 
 /**
  * Resolves the enhancers for type fields: `meta.enhancers`, `options.enhancers`, or the
- * defaults, followed by `enhanceCodeTypes` when the page has anchors to link, or external
- * types to resolve with `resolveExternalLink`. Meta settings override factory options.
+ * defaults, followed by `enhanceCodeTypes` when the page has anchors or external type links.
+ * Meta settings override factory options.
  */
 function resolveEnhancers<T extends {}>(
   options: AbstractCreateTypesOptions<T>,
@@ -320,20 +305,16 @@ function resolveEnhancers<T extends {}>(
 ): PluggableList {
   const enhancers = meta.enhancers ?? options.enhancers ?? DEFAULT_ENHANCERS;
   const anchorMap = meta.precompute?.anchorMap;
-  const externalTypeSources = meta.precompute?.externalTypeSources;
-  const resolveExternalLink = meta.resolveExternalLink ?? options.resolveExternalLink;
+  const externalLinks = meta.precompute?.externalTypeLinks;
   const hasAnchors =
     Object.keys(anchorMap?.js ?? {}).length > 0 || Object.keys(anchorMap?.css ?? {}).length > 0;
-  const hasExternalLinks =
-    resolveExternalLink !== undefined && Object.keys(externalTypeSources ?? {}).length > 0;
-  if (!hasAnchors && !hasExternalLinks) {
+  if (!hasAnchors && Object.keys(externalLinks ?? {}).length === 0) {
     return enhancers;
   }
 
   const enhanceCodeTypesOptions: EnhanceCodeTypesOptions = {
     linkMap: anchorMap ?? {},
-    resolveExternalLink,
-    externalTypeSources,
+    externalLinks,
     typeRefComponent: meta.typeRefComponent ?? options.typeRefComponent,
     typePropRefComponent: meta.typePropRefComponent ?? options.typePropRefComponent,
     typeParamRefComponent: meta.typeParamRefComponent ?? options.typeParamRefComponent,

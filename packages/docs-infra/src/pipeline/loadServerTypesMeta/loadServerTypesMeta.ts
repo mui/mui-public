@@ -18,6 +18,7 @@ import type { FunctionTypeMeta as FunctionType } from './formatFunction';
 import { formatRawData } from './formatRaw';
 import type { RawTypeMeta as RawType, ReExportInfo } from './formatRaw';
 import { prettyFormat } from './format';
+import { getMdnTypeLink } from './mdnTypeLinks';
 import type {
   FormattedProperty,
   FormattedEnumMember,
@@ -158,11 +159,10 @@ export interface LoadServerTypesMetaResult extends OrganizeTypesResult<TypesMeta
    */
   externalTypes: Record<string, string>;
   /**
-   * Where the external types in the formatted output are declared, keyed by the name they are
-   * printed as, such as `HTMLElement` from `lib.dom.d.ts` or `React.ReactNode` from
-   * `@types/react`.
+   * Links for the built-in types in the formatted output, keyed by the name they are printed
+   * as, such as `HTMLElement` to its MDN page.
    */
-  externalTypeSources: Record<string, ExternalTypeSource>;
+  externalTypeLinks: Record<string, string>;
   /** Resource name derived from the types path */
   resourceName: string;
 }
@@ -687,12 +687,13 @@ export async function loadServerTypesMeta(
     }),
   );
 
-  const externalTypeSources: Record<string, ExternalTypeSource> = {};
+  const externalTypeLinks: Record<string, string> = {};
   for (const [name, source] of [...collectedExternalTypeSources].sort(([left], [right]) =>
     left.localeCompare(right),
   )) {
-    if (source) {
-      externalTypeSources[name] = source;
+    const link = source ? getMdnTypeLink(name, source) : undefined;
+    if (link) {
+      externalTypeLinks[name] = link;
     }
   }
 
@@ -710,7 +711,7 @@ export async function loadServerTypesMeta(
     allDependencies,
     typeNameMap,
     externalTypes,
-    externalTypeSources,
+    externalTypeLinks,
     resourceName,
     exports: organized.exports,
     additionalTypes: organized.additionalTypes,

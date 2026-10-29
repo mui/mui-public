@@ -448,17 +448,8 @@ Any content beyond this limit is ignored by the compressor.
 type MAX_DICTIONARY_SIZE = number;
 ```
 
-## External Type Sources
+## External Type Links
 
-Maps `Type`: `Declaration` — the TypeScript lib files (`lib.*.d.ts`) or the package that declares a type the page references.
+Maps `Type`: `URL` — the docs of a built-in type the page references.
 
-- `ArrayBuffer`: `lib.es2015.symbol.wellknown.d.ts`, `lib.es2024.arraybuffer.d.ts`, `lib.es5.d.ts`
-- `Components`: `hast-util-to-jsx-runtime`
-- `Element`: `@types/hast`
-- `ElementContent`: `@types/hast`
-- `HastNodes`: `@types/hast`
-- `Promise`: `lib.es2015.iterable.d.ts`, `lib.es2015.promise.d.ts`, `lib.es2015.symbol.wellknown.d.ts`, `lib.es2018.promise.d.ts`, `lib.es5.d.ts`
-- `React.ReactNode`: `@types/react`
-- `Root`: `@types/hast`
-- `RootContent`: `@types/hast`
-- `Uint8Array`: `lib.es2015.core.d.ts`, `lib.es2015.iterable.d.ts`, `lib.es2015.symbol.wellknown.d.ts`, `lib.es2016.array.include.d.ts`, `lib.es2022.array.d.ts`, `lib.es2023.array.d.ts`, `lib.es5.d.ts`, `lib.esnext.typedarrays.d.ts`
+- `Promise`: <https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Promise>

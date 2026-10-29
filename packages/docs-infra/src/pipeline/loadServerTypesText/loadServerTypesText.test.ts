@@ -33,7 +33,7 @@ function fakeData(typeNameMap: Record<string, string>): TypesSourceData {
     variantTypeNames: {},
     variantTypeNameMaps: {},
     externalTypes: {},
-    externalTypeSources: {},
+    externalTypeLinks: {},
     typeNameMap,
     allDependencies: [TYPES_PATH],
     updated: false,
@@ -146,10 +146,10 @@ describe('loadServerTypesText caching', () => {
       additionalTypes: [],
       variantOnlyAdditionalTypes: {},
       externalTypes: {},
-      externalTypeSources: {
-        HTMLElement: { kind: 'lib', files: ['lib.dom.d.ts'] },
-        'Intl.NumberFormat': { kind: 'lib', files: ['lib.es2018.intl.d.ts', 'lib.es5.d.ts'] },
-        'React.ReactNode': { kind: 'package', name: '@types/react' },
+      externalTypeLinks: {
+        HTMLElement: 'https://developer.mozilla.org/docs/Web/API/HTMLElement',
+        'Intl.NumberFormat':
+          'https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Intl/NumberFormat',
       },
       typeNameMap: {},
       variantTypeNameMaps: {},
@@ -169,7 +169,7 @@ describe('loadServerTypesText caching', () => {
       },
       typeNameMap: sourceData.typeNameMap,
       externalTypes: sourceData.externalTypes,
-      externalTypeSources: sourceData.externalTypeSources,
+      externalTypeLinks: sourceData.externalTypeLinks,
     });
     await mkdir(join(TEST_DIR, 'src', 'app', 'components', 'button'), { recursive: true });
     await writeFile(TYPES_PATH, markdown, 'utf-8');

@@ -2,7 +2,6 @@ import type { Element, ElementContent, Text } from 'hast';
 import { getHastTextContent } from '../loadServerTypes/hastTypeUtils';
 import type { LanguageCapabilities } from './getLanguageCapabilities';
 import type { ScanState, ScopeBinding, ModuleLinkMapEntry } from './scanState';
-import type { ExternalTypeSource, ResolveExternalLink } from './enhanceCodeTypes';
 import {
   isLinkableSpan,
   isPropertySpan,
@@ -52,8 +51,7 @@ interface LinkableChain {
  */
 export interface EnhanceOptions {
   linkMap: Record<string, string>;
-  resolveExternalLink?: ResolveExternalLink;
-  externalTypeSources?: Record<string, ExternalTypeSource>;
+  externalLinks?: Record<string, string>;
   typeRefComponent?: string;
   typePropRefComponent?: string;
   typeParamRefComponent?: string;
@@ -685,10 +683,9 @@ function resolveTypeHref(
 }
 
 /**
- * Resolves a name the link map does not know through `resolveExternalLink`, when
- * `externalTypeSources` records where it is declared. A variable declaration or a name bound
- * in scope refers to local code, so it is left unlinked. External links only link the name; owner
- * tracking keeps using `linkMap`.
+ * Looks up a name the link map does not know in `externalLinks`. A variable declaration or a
+ * name bound in scope refers to local code, so it is left unlinked. External links only link
+ * the name; owner tracking keeps using `linkMap`.
  */
 function resolveExternalHref(
   identifier: string,
@@ -696,17 +693,16 @@ function resolveExternalHref(
   state: ScanState,
   isDeclaration: boolean,
 ): string | undefined {
-  const { resolveExternalLink, externalTypeSources } = options;
+  const { externalLinks } = options;
   if (
-    !resolveExternalLink ||
-    !externalTypeSources ||
-    !Object.hasOwn(externalTypeSources, identifier) ||
+    !externalLinks ||
+    !Object.hasOwn(externalLinks, identifier) ||
     isDeclaration ||
     state.scopeStack.some((scope) => scope.bindings.has(identifier))
   ) {
     return undefined;
   }
-  return resolveExternalLink(identifier, externalTypeSources[identifier]) ?? undefined;
+  return externalLinks[identifier];
 }
 
 /**

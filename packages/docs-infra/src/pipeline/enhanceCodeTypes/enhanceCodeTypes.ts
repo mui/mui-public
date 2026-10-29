@@ -1,5 +1,4 @@
 import type { Root as HastRoot, Element } from 'hast';
-import type { ExternalTypeSource } from '@mui/internal-typescript-api-extractor';
 import { visit } from 'unist-util-visit';
 import type { EnhanceOptions } from './enhanceChildren';
 import { getLanguageCapabilities } from './getLanguageCapabilities';
@@ -8,13 +7,6 @@ import { createScanState, finalizePendingDefaultExport, resetExportState } from 
 import type { ModuleLinkMapEntry } from './scanState';
 import { enhanceChildren, wrapExpressionNodes } from './enhanceChildren';
 import { flushLiteralCandidate, flushPendingExpression } from './processTextNode';
-
-export type { ExternalTypeSource };
-
-/**
- * Resolves a type name and where it is declared to a link, or `null` to leave it unlinked.
- */
-export type ResolveExternalLink = (name: string, source: ExternalTypeSource) => string | null;
 
 /**
  * Options for the enhanceCodeTypes plugin.
@@ -36,21 +28,14 @@ export interface EnhanceCodeTypesOptions {
     css?: Record<string, string>;
   };
   /**
-   * Resolves type names that `linkMap` does not know to documentation elsewhere,
-   * such as the docs of a dependency.
-   * Only names listed in `externalTypeSources` are resolved, with their source.
-   * Return `null` to leave a name unlinked.
+   * Links for types documented elsewhere, keyed by the name they are printed as in
+   * JavaScript and TypeScript code, such as `HTMLElement` →
+   * `https://developer.mozilla.org/docs/Web/API/HTMLElement`. Consulted after `linkMap`.
    *
    * Only the type name itself is linked. External links never act as owners for
    * property or parameter anchors.
    */
-  resolveExternalLink?: ResolveExternalLink;
-  /**
-   * Where the external types in the code are declared, keyed by the name they are printed as,
-   * such as `HTMLElement` or `React.ReactNode`. Names missing from it are never passed to
-   * `resolveExternalLink`: code a page declares itself, globals such as `console`, and keywords.
-   */
-  externalTypeSources?: Record<string, ExternalTypeSource>;
+  externalLinks?: Record<string, string>;
   /**
    * When set, the plugin emits a custom component element instead of an `<a>` tag
    * for type/export name references.
@@ -226,8 +211,7 @@ export default function enhanceCodeTypes(options: EnhanceCodeTypesOptions) {
       const enhanceOptions: EnhanceOptions = {
         linkMap,
         // Type names only occur in JS-family code; CSS values such as `Highlight` are not types.
-        resolveExternalLink: lang.semantics === 'js' ? options.resolveExternalLink : undefined,
-        externalTypeSources: options.externalTypeSources,
+        externalLinks: lang.semantics === 'js' ? options.externalLinks : undefined,
         typeRefComponent: options.typeRefComponent,
         typePropRefComponent: options.typePropRefComponent,
         typeParamRefComponent: options.typeParamRefComponent,

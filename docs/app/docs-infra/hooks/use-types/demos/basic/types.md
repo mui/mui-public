@@ -15,9 +15,3 @@ A simple component that displays a title and optional children.
 | title\*  | `string`          | -       | The title to display              |
 | disabled | `boolean`         | -       | Whether the component is disabled |
 | children | `React.ReactNode` | -       | Child elements                    |
-
-## External Type Sources
-
-Maps `Type`: `Declaration` — the TypeScript lib files (`lib.*.d.ts`) or the package that declares a type the page references.
-
-- `React.ReactNode`: `@types/react`

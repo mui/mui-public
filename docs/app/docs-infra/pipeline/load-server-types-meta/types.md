@@ -299,11 +299,10 @@ type LoadServerTypesMetaResult = {
    */
   externalTypes: Record<string, string>;
   /**
-   * Where the external types in the formatted output are declared, keyed by the name they are
-   * printed as, such as `HTMLElement` from `lib.dom.d.ts` or `React.ReactNode` from
-   * `@types/react`.
+   * Links for the built-in types in the formatted output, keyed by the name they are printed
+   * as, such as `HTMLElement` to its MDN page.
    */
-  externalTypeSources: Record<string, ExternalTypeSource>;
+  externalTypeLinks: Record<string, string>;
   /** Resource name derived from the types path */
   resourceName: string;
   /** Export data where each export has a main type and related additional types */
@@ -397,10 +396,8 @@ type TypesMeta = (
 };
 ```
 
-## External Type Sources
+## External Type Links
 
-Maps `Type`: `Declaration` — the TypeScript lib files (`lib.*.d.ts`) or the package that declares a type the page references.
+Maps `Type`: `URL` — the docs of a built-in type the page references.
 
-- `Promise`: `lib.es2015.iterable.d.ts`, `lib.es2015.promise.d.ts`, `lib.es2015.symbol.wellknown.d.ts`, `lib.es2018.promise.d.ts`, `lib.es5.d.ts`
-- `Record`: `lib.es5.d.ts`
-- `Root`: `@types/hast`
+- `Promise`: <https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Promise>

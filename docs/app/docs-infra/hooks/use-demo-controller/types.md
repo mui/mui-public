@@ -60,12 +60,3 @@ type UseDemoControllerResult = {
   onActivate: (deps: { js: boolean; css: boolean }) => void;
 };
 ```
-
-## External Type Sources
-
-Maps `Type`: `Declaration` — the TypeScript lib files (`lib.*.d.ts`) or the package that declares a type the page references.
-
-- `NonNullable`: `lib.es5.d.ts`
-- `React.ReactNode`: `@types/react`
-- `React.SetStateAction`: `@types/react`
-- `Record`: `lib.es5.d.ts`

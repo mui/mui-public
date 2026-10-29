@@ -511,17 +511,10 @@ type SourceEnhancer = (
 ) => { data?: unknown | undefined } | Promise;
 ```
 
-## External Type Sources
+## External Type Links
 
-Maps `Type`: `Declaration` — the TypeScript lib files (`lib.*.d.ts`) or the package that declares a type the page references.
+Maps `Type`: `URL` — the docs of a built-in type the page references.
 
-- `AwaitedReactNode`: `@types/react`
-- `HTMLButtonElement`: `lib.dom.d.ts`
-- `HTMLFormElement`: `lib.dom.d.ts`
-- `Iterable`: `lib.es2015.iterable.d.ts`
-- `Promise`: `lib.es2015.iterable.d.ts`, `lib.es2015.promise.d.ts`, `lib.es2015.symbol.wellknown.d.ts`, `lib.es2018.promise.d.ts`, `lib.es5.d.ts`
-- `React.MouseEvent`: `@types/react`
-- `React.ReactNode`: `@types/react`
-- `React.RefObject`: `@types/react`
-- `ReactElement`: `@types/react`
-- `Record`: `lib.es5.d.ts`
+- `HTMLButtonElement`: <https://developer.mozilla.org/docs/Web/API/HTMLButtonElement>
+- `HTMLFormElement`: <https://developer.mozilla.org/docs/Web/API/HTMLFormElement>
+- `Promise`: <https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Promise>

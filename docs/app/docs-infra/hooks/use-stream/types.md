@@ -253,13 +253,10 @@ type UseStreamResult<P> = {
 - `useStreamController`: `useStream`, `useStreamController`, `streamChunks`, `UseStreamOptions`, `UseStreamResult`, `ChunkSnapshot`, `UseStreamControllerOptions`, `UseStreamControllerResult`, `StreamSource`, `StreamUrlsResult`
 - `streamChunks`: `useStream`, `useStreamController`, `streamChunks`, `UseStreamOptions`, `UseStreamResult`, `ChunkSnapshot`, `UseStreamControllerOptions`, `UseStreamControllerResult`, `StreamSource`, `StreamUrlsResult`
 
-## External Type Sources
+## External Type Links
 
-Maps `Type`: `Declaration` — the TypeScript lib files (`lib.*.d.ts`) or the package that declares a type the page references.
+Maps `Type`: `URL` — the docs of a built-in type the page references.
 
-- `AbortSignal`: `lib.dom.d.ts`
-- `AsyncGenerator`: `lib.es2018.asyncgenerator.d.ts`
-- `Promise`: `lib.es2015.iterable.d.ts`, `lib.es2015.promise.d.ts`, `lib.es2015.symbol.wellknown.d.ts`, `lib.es2018.promise.d.ts`, `lib.es5.d.ts`
-- `React.ComponentType`: `@types/react`
-- `React.ReactNode`: `@types/react`
-- `URL`: `lib.dom.d.ts`
+- `AbortSignal`: <https://developer.mozilla.org/docs/Web/API/AbortSignal>
+- `Promise`: <https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Promise>
+- `URL`: <https://developer.mozilla.org/docs/Web/API/URL>

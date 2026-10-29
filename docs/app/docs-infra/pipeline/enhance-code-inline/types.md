@@ -38,9 +38,3 @@ A unified transformer function
 ```tsx
 type ReturnValue = (tree: Root) => void;
 ```
-
-## External Type Sources
-
-Maps `Type`: `Declaration` — the TypeScript lib files (`lib.*.d.ts`) or the package that declares a type the page references.
-
-- `Root`: `@types/hast`

@@ -431,10 +431,10 @@ type LoadServerTypesResult = {
    */
   anchorMap: { js?: Record<string, string>; css?: Record<string, string> };
   /**
-   * Where the external types referenced on the page are declared, keyed by the name they are
-   * printed as. Lets `resolveExternalLink` link them to their docs.
+   * Links for the built-in types referenced on the page, such as `HTMLElement` to its MDN
+   * page, keyed by the name they are printed as.
    */
-  externalTypeSources: Record<string, ExternalTypeSource>;
+  externalTypeLinks: Record<string, string>;
 };
 ```
 
@@ -465,9 +465,8 @@ Controls the output format of HAST fields in type metadata.
 type TypesOutputFormat = 'hast' | 'hastJson' | 'hastCompressed';
 ```
 
-## External Type Sources
+## External Type Links
 
-Maps `Type`: `Declaration` — the TypeScript lib files (`lib.*.d.ts`) or the package that declares a type the page references.
+Maps `Type`: `URL` — the docs of a built-in type the page references.
 
-- `Promise`: `lib.es2015.iterable.d.ts`, `lib.es2015.promise.d.ts`, `lib.es2015.symbol.wellknown.d.ts`, `lib.es2018.promise.d.ts`, `lib.es5.d.ts`
-- `Record`: `lib.es5.d.ts`
+- `Promise`: <https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Promise>

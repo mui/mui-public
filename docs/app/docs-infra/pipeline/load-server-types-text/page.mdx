@@ -11,9 +11,9 @@ A function for parsing `types.md` files back into structured type metadata. This
 - Prop/parameter examples and references
 - External types section
 - Variant metadata (Export Groups and Canonical Types sections)
-- Where external types are declared (External Type Sources section)
+- Links for built-in types (External Type Links section)
 
-Both `loadServerTypesText` and [`loadServerTypesMeta`](../load-server-types-meta/page.mdx) extend `OrganizeTypesResult<TypesMeta>` and share the same core fields (`exports`, `additionalTypes`, `externalTypes`, `externalTypeSources`, `typeNameMap`, `allDependencies`). This shared shape (`TypesSourceData`) is the contract consumed by [`loadServerTypes`](../load-server-types/page.mdx), which accepts either function's output and applies highlighting on top.
+Both `loadServerTypesText` and [`loadServerTypesMeta`](../load-server-types-meta/page.mdx) extend `OrganizeTypesResult<TypesMeta>` and share the same core fields (`exports`, `additionalTypes`, `externalTypes`, `externalTypeLinks`, `typeNameMap`, `allDependencies`). This shared shape (`TypesSourceData`) is the contract consumed by [`loadServerTypes`](../load-server-types/page.mdx), which accepts either function's output and applies highlighting on top.
 
 This is useful for:
 
@@ -122,13 +122,12 @@ Variant and type name mapping metadata is stored in dedicated H2 sections:
 - `Accordion.Root`: `AccordionRoot`
 ```
 
-**External Type Sources** records where each external type the page prints is declared: the TypeScript lib files that declare it, or its package. [`resolveExternalLink`](../enhance-code-types/page.mdx#resolveexternallink-option) only resolves names listed here:
+**External Type Links** maps the built-in types the page prints to their docs, which [`enhanceCodeTypes`](../enhance-code-types/page.mdx#externallinks-option) links them to:
 
 ```markdown
-## External Type Sources
+## External Type Links
 
-- `HTMLElement`: `lib.dom.d.ts`
-- `React.ReactNode`: `@types/react`
+- `HTMLElement`: <https://developer.mozilla.org/docs/Web/API/HTMLElement>
 ```
 
 ## Types

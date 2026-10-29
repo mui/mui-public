@@ -62,9 +62,8 @@ type UseScrollAnchorResult<
 };
 ```
 
-## External Type Sources
+## External Type Links
 
-Maps `Type`: `Declaration` — the TypeScript lib files (`lib.*.d.ts`) or the package that declares a type the page references.
+Maps `Type`: `URL` — the docs of a built-in type the page references.
 
-- `HTMLElement`: `lib.dom.d.ts`
-- `React.RefObject`: `@types/react`
+- `HTMLElement`: <https://developer.mozilla.org/docs/Web/API/HTMLElement>

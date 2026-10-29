@@ -1,6 +1,5 @@
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import type { ExternalTypeSource } from '@mui/internal-typescript-api-extractor';
 import { toKebabCase } from '../loaderUtils/toKebabCase';
 import { nameMark, performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { highlightTypes } from './highlightTypes';
@@ -111,10 +110,10 @@ export interface LoadServerTypesResult {
     css?: Record<string, string>;
   };
   /**
-   * Where the external types referenced on the page are declared, keyed by the name they are
-   * printed as. Lets `resolveExternalLink` link them to their docs.
+   * Links for the built-in types referenced on the page, such as `HTMLElement` to its MDN
+   * page, keyed by the name they are printed as.
    */
-  externalTypeSources: Record<string, ExternalTypeSource>;
+  externalTypeLinks: Record<string, string>;
 }
 
 /**
@@ -462,6 +461,6 @@ async function enhanceTypes(
     variantTypeNames,
     typeNameMap: syncResult.typeNameMap,
     anchorMap: { js: anchorMap },
-    externalTypeSources: syncResult.externalTypeSources ?? {},
+    externalTypeLinks: syncResult.externalTypeLinks ?? {},
   };
 }
