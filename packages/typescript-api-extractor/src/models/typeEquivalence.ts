@@ -538,7 +538,10 @@ class TypeEquivalence {
     anyIsWildcard: boolean,
     typeParamRenames?: TypeParameterRenameMap,
   ): boolean {
-    if (type1.properties.length !== type2.properties.length) {
+    if (
+      type1.properties.length !== type2.properties.length ||
+      type1.propertiesOmitted !== type2.propertiesOmitted
+    ) {
       return false;
     }
 
