@@ -48,7 +48,11 @@ function copyHeaders(source: Headers, names: string[]): Headers {
   return target;
 }
 
-/** Next answers HEAD with this handler too. */
+/**
+ * Read-only on purpose: every browser call is a GET, and other methods getting a
+ * 405 keeps the token in the cookie unable to write, whatever the GitHub App's
+ * permissions. Next answers HEAD with this handler too.
+ */
 export async function GET(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
   if (isCrossOriginRequest(request.headers)) {
     return NextResponse.json({ error: 'Cross-origin requests are not allowed.' }, { status: 403 });
