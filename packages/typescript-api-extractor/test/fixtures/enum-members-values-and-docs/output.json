@@ -108,6 +108,119 @@
 			"isValue": true,
 			"isType": true,
 			"isNamespace": false
+		},
+		{
+			"name": "leftSide",
+			"type": {
+				"kind": "literal",
+				"value": "\"left\"",
+				"typeName": {
+					"name": "left",
+					"namespaces": ["Side"]
+				},
+				"documentation": {
+					"description": "Left side.",
+					"tags": []
+				}
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "secondFlag",
+			"type": {
+				"kind": "literal",
+				"value": 2,
+				"typeName": {
+					"name": "flag2",
+					"namespaces": ["Flags"]
+				}
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "MemberProps",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "MemberProps"
+				},
+				"properties": [
+					{
+						"name": "side",
+						"type": {
+							"kind": "literal",
+							"value": "\"right\"",
+							"typeName": {
+								"name": "right",
+								"namespaces": ["Side"]
+							},
+							"documentation": {
+								"description": "Right side.",
+								"tags": []
+							}
+						},
+						"optional": false
+					},
+					{
+						"name": "sides",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "literal",
+									"value": "\"left\"",
+									"typeName": {
+										"name": "left",
+										"namespaces": ["Side"]
+									},
+									"documentation": {
+										"description": "Left side.",
+										"tags": []
+									}
+								},
+								{
+									"kind": "literal",
+									"value": "\"right\"",
+									"typeName": {
+										"name": "right",
+										"namespaces": ["Side"]
+									},
+									"documentation": {
+										"description": "Right side.",
+										"tags": []
+									}
+								}
+							]
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "onlyItem",
+			"type": {
+				"typeName": {
+					"name": "DegenerateS"
+				},
+				"members": [
+					{
+						"name": "theOnlyItem",
+						"value": "one"
+					}
+				],
+				"kind": "enum"
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
 		}
 	]
 }

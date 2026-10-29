@@ -1,6 +1,6 @@
 import ts from 'typescript';
 import type { ScopedParserContext } from '../../parserContext';
-import { EnumNode, EnumMember, IntrinsicNode } from '../../models';
+import { EnumNode, EnumMember, IntrinsicNode, LiteralNode } from '../../models';
 import type { AnyType } from '../../models';
 import { getDocumentationFromSymbol } from '../documentationParser';
 import { getTypeNamespaces } from '../common';
@@ -21,9 +21,14 @@ export function resolveEnumLikeType(
   }
 
   let symbol = type.aliasSymbol ?? type.getSymbol();
-  if ('value' in type) {
-    // Edge case: when an enum has one member only, type.getSymbol() returns the symbol of the member.
+  if (type.isLiteral()) {
+    // A literal is the type of one member. It is also the type of an enum with a single
+    // member, which TypeScript does not tell apart, so that case stays the whole enum.
+    const memberSymbol = symbol;
     symbol = symbol?.parent;
+    if (memberSymbol && symbol && session.context.checker.getExportsOfModule(symbol).length > 1) {
+      return buildEnumMemberLiteral(type, memberSymbol, symbol, session.context);
+    }
   }
 
   if (!symbol) {
@@ -31,6 +36,26 @@ export function resolveEnumLikeType(
   }
 
   return buildEnumNodeFromSymbol(symbol, session.context);
+}
+
+/**
+ * Represents the type of one enum member, such as `Side.left`, as a literal of the member's
+ * value named after the member, so its value stays readable where the member is used.
+ */
+function buildEnumMemberLiteral(
+  type: ts.LiteralType,
+  memberSymbol: ts.Symbol,
+  enumSymbol: ts.Symbol,
+  context: ScopedParserContext,
+): LiteralNode {
+  const { checker } = context;
+  const enumNamespaces = getTypeNamespaces(checker.getTypeOfSymbol(enumSymbol));
+
+  return new LiteralNode(
+    type.isStringLiteral() ? `"${type.value}"` : type.value,
+    new TypeName(memberSymbol.getName(), [...enumNamespaces, enumSymbol.getName()]),
+    getDocumentationFromSymbol(memberSymbol, checker),
+  );
 }
 
 function buildEnumNodeFromSymbol(symbol: ts.Symbol, context: ScopedParserContext): EnumNode {
@@ -48,7 +73,9 @@ function buildEnumNodeFromSymbol(symbol: ts.Symbol, context: ScopedParserContext
 
         return new EnumMember(
           memberSymbol.getName(),
-          (memberType as any).value,
+          memberType.isStringLiteral() || memberType.isNumberLiteral()
+            ? memberType.value
+            : undefined,
           getDocumentationFromSymbol(memberSymbol, checker),
         );
       });

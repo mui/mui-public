@@ -61,6 +61,15 @@ Exports without a declaration name, such as `export default function () {}`,
 `export const { helper } = helpers`, are exported under their export name
 (`default`, `helper`) like any other.
 
+## Enum Members
+
+An enum resolves to an `EnumNode` listing all its members, each with its string
+or number `value`, or none for a member computed at runtime. The type of a single
+member, such as that of `export const left = Side.left`, resolves to a
+`LiteralNode` of the member's value, named after the member (`Side.left`). An
+enum with one member has the same type as that member, so it resolves to the
+`EnumNode`.
+
 ## Type Operators
 
 Authored `keyof` expressions are represented without expanding away their syntax:
