@@ -50,8 +50,6 @@ for (const file of config.fileNames) {
   and the parser warning types.
 - [Output format](./docs/output-format.md) - the extracted module model, type
   operator representation, and an annotated example.
-- [Architecture](./docs/architecture.md) - how the parser layers, resolver
-  pipeline, and model helpers fit together.
 
 ## Requirements
 

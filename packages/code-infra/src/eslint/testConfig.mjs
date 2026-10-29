@@ -91,6 +91,9 @@ export function createTestConfig() {
         '@typescript-eslint/no-non-null-asserted-optional-chain': 'off',
         // end migration
         'vitest/prefer-importing-vitest-globals': 'error',
+        // Vitest accepts a failure message as the second argument of `expect`, also when it is
+        // not a literal.
+        'vitest/valid-expect': ['error', { maxArgs: 2 }],
       },
     },
   );

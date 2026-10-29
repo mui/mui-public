@@ -9,7 +9,7 @@ import chalk from 'chalk';
 import { chromium } from '@playwright/test';
 import sirv from 'sirv';
 import type { Browser, CDPSession, Page } from '@playwright/test';
-import { BENCHMARK_LAUNCH_ARGS, BENCHMARK_VIEWPORT } from '../launchArgs';
+import { BENCHMARK_VIEWPORT, withLaunchArgs } from '../launchArgs';
 import { compareBenchmark, formatDuration, formatRoundCount } from '../runReport';
 import type { RunBenchmark, RunMetricDefinition } from '../runReport';
 import { DEFAULT_SAMPLING, differencesSettled } from '../sampling';
@@ -503,7 +503,7 @@ export async function runInterleaved(options: RunInterleavedOptions): Promise<In
     const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
     const browser = await chromium.launch({
       headless: true,
-      args: [...BENCHMARK_LAUNCH_ARGS, ...options.launchArgs],
+      args: withLaunchArgs(options.launchArgs),
     });
     // Closing the browser ends whatever a page is doing at once, rather than when its sample would.
     const closeOnAbort =

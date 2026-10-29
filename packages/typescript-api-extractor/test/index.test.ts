@@ -30,7 +30,7 @@ for (const testCase of testCases) {
   it.skipIf(testCase.includes('.skip'))(testName, async () => {
     const moduleDefinition = parseFromProgram(testCase, program);
 
-    if (regenerateOutput || !fs.existsSync(expectedOutput)) {
+    if (regenerateOutput) {
       fs.writeFileSync(
         expectedOutput,
         // Fixtures keep the tab indentation they were written with; the repository config
@@ -42,6 +42,12 @@ for (const testCase of testCases) {
         }),
       );
       return;
+    }
+
+    if (!fs.existsSync(expectedOutput)) {
+      throw new Error(
+        `Missing ${path.relative(process.cwd(), expectedOutput)}. Generate it with \`UPDATE_OUTPUT=true pnpm test --run --project @mui/internal-typescript-api-extractor\` and review the result.`,
+      );
     }
 
     expect(JSON.parse(JSON.stringify(moduleDefinition))).toEqual(
