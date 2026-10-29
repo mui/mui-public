@@ -135,26 +135,46 @@ export function getFullNameWithSymbol(
   }
 
   return {
-    typeName: new TypeName(
+    typeName: createTypeName(
+      named.symbol,
+      context,
       named.name,
       namespaces.length > 0 ? namespaces : undefined,
       typeArguments.length > 0 ? typeArguments : undefined,
-      getExportedAs(named.symbol, context),
     ),
     symbol: named.symbol,
   };
 }
 
 /**
- * Returns the names under which the parsed module exports a symbol, following
- * import aliases, or undefined when the module doesn't export it.
+ * Creates the `TypeName` of a type named after `symbol`, with the names under
+ * which the parsed module exports that symbol. Parsers create every `TypeName`
+ * here or through `copyTypeName` (enforced by lint), so none loses its export
+ * names. Pass no symbol for a name that doesn't come from one, such as a type
+ * parameter.
  */
-export function getExportedAs(
+export function createTypeName(
   symbol: ts.Symbol | undefined,
   context: ScopedParserContext,
-): string[] | undefined {
+  name: string,
+  namespaces?: readonly string[],
+  typeArguments?: readonly TypeArgument[],
+): TypeName {
   const target = resolveImportAlias(symbol, context.checker);
-  return target ? context.exportNamesBySymbol.get(target) : undefined;
+  return new TypeName(
+    name,
+    namespaces,
+    typeArguments,
+    target ? context.exportNamesBySymbol.get(target) : undefined,
+  );
+}
+
+/**
+ * Copies a `TypeName` of the same symbol, optionally under another name,
+ * keeping its export names.
+ */
+export function copyTypeName(typeName: TypeName, name = typeName.name): TypeName {
+  return new TypeName(name, typeName.namespaces, typeName.typeArguments, typeName.exportedAs);
 }
 
 /**

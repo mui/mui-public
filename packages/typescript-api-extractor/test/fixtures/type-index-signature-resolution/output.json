@@ -426,7 +426,7 @@
 				"kind": "object",
 				"typeName": {
 					"name": "HelperType",
-					"exportedAs": ["HelperType"]
+					"exportedAs": ["HelperType", "MyType"]
 				},
 				"properties": [],
 				"indexSignature": {
@@ -466,7 +466,7 @@
 				"kind": "object",
 				"typeName": {
 					"name": "HelperType",
-					"exportedAs": ["HelperType"]
+					"exportedAs": ["HelperType", "MyType"]
 				},
 				"properties": [],
 				"indexSignature": {
@@ -515,7 +515,7 @@
 							"kind": "object",
 							"typeName": {
 								"name": "HelperType",
-								"exportedAs": ["HelperType"]
+								"exportedAs": ["HelperType", "MyType"]
 							},
 							"properties": [],
 							"indexSignature": {

@@ -9,7 +9,8 @@ import {
   IntersectionNode,
   typeEquivalenceChecker,
 } from '../models';
-import { TypeName } from '../models/typeName';
+import type { TypeName } from '../models/typeName';
+import { copyTypeName } from './common';
 import type { ParserContext } from '../parser';
 
 // The names React uses for what a component renders. Detection goes by name
@@ -176,12 +177,7 @@ function cloneTypeName(typeName: TypeName | undefined): TypeName | undefined {
     return undefined;
   }
 
-  return new TypeName(
-    typeName.name,
-    typeName.namespaces,
-    typeName.typeArguments,
-    typeName.exportedAs,
-  );
+  return copyTypeName(typeName);
 }
 
 function hasReactNodeLikeReturnType(type: FunctionNode) {

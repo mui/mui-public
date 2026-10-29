@@ -935,6 +935,27 @@ describe('formatRaw', () => {
           );
         });
 
+        it('should print a type the entrypoint exports only under its namespace', async () => {
+          // No flat re-exports: the namespace members are the only names TimeField gives
+          // the section types
+          const exports = parseTestSources({
+            'index.ts': "export * as TimeField from './parts';",
+            'parts.ts': "export { DateFieldSection as Section } from './section';",
+            ...sharedSources,
+          });
+
+          const datePart = await formatRawData(
+            findExport(exports, 'TimeField.Section.DatePart'),
+            'TimeField.Section.DatePart',
+            {},
+            defaultRewriteContext,
+          );
+
+          expect(datePart.formattedCode).toBe(
+            "type TimeFieldSectionDatePart = { type: 'datePart'; token: TimeField.Section.Token };",
+          );
+        });
+
         it('should not print a type the entrypoint does not export under its namespace', async () => {
           const exports = parseTestSources({
             'index.ts': [

@@ -155,7 +155,12 @@
 				"kind": "object",
 				"typeName": {
 					"name": "RootProps",
-					"exportedAs": ["RootProps", "Source.RootProps"]
+					"exportedAs": [
+						"RootProps",
+						"Source.RootProps",
+						"Root.Props",
+						"Source.RootComponent.Props"
+					]
 				},
 				"properties": [
 					{
@@ -203,7 +208,12 @@
 				"kind": "union",
 				"typeName": {
 					"name": "RootState",
-					"exportedAs": ["RootState", "Source.RootState"]
+					"exportedAs": [
+						"RootState",
+						"Source.RootState",
+						"Root.State",
+						"Source.RootComponent.State"
+					]
 				},
 				"types": [
 					{
@@ -357,7 +367,12 @@
 				"typeName": {
 					"name": "RootProps",
 					"namespaces": ["Source"],
-					"exportedAs": ["RootProps", "Source.RootProps"]
+					"exportedAs": [
+						"RootProps",
+						"Source.RootProps",
+						"Root.Props",
+						"Source.RootComponent.Props"
+					]
 				},
 				"properties": [
 					{
@@ -406,7 +421,12 @@
 				"typeName": {
 					"name": "RootState",
 					"namespaces": ["Source"],
-					"exportedAs": ["RootState", "Source.RootState"]
+					"exportedAs": [
+						"RootState",
+						"Source.RootState",
+						"Root.State",
+						"Source.RootComponent.State"
+					]
 				},
 				"types": [
 					{

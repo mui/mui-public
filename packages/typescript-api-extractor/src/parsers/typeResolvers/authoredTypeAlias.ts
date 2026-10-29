@@ -1,8 +1,8 @@
 import ts from 'typescript';
-import { TypeName, withTypeName } from '../../models';
-import type { AnyType } from '../../models';
+import { withTypeName } from '../../models';
+import type { AnyType, TypeName } from '../../models';
 import type { ScopedParserContext } from '../../parserContext';
-import { getExportedAs } from '../common';
+import { createTypeName } from '../common';
 import { declarationHasNodeModulesPathSegment } from '../sourceFileUtils';
 import { deriveTypeParameterBindings } from '../typeParameterBindings';
 import type { TypeParameterBindings } from '../typeParameterBindings';
@@ -631,10 +631,11 @@ function getOuterAliasTypeName(
   }
 
   const typeArgumentCount = semanticDeclaration.typeParameters?.length ?? 0;
-  return new TypeName(
+  return createTypeName(
+    type.aliasSymbol,
+    context,
     type.aliasSymbol.name,
     typeName?.namespaces,
     typeArgumentCount > 0 ? typeName?.typeArguments?.slice(0, typeArgumentCount) : undefined,
-    getExportedAs(type.aliasSymbol, context),
   );
 }

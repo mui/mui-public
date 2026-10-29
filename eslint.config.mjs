@@ -64,6 +64,29 @@ const config = defineConfig(
     },
   },
   {
+    files: [`packages/typescript-api-extractor/src/parsers/**/*${EXTENSION_TS}`],
+    ignores: [
+      'packages/typescript-api-extractor/src/parsers/common.ts',
+      `**/*${EXTENSION_TEST_FILE}`,
+    ],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/models', '**/models/typeName'],
+              importNames: ['TypeName'],
+              allowTypeImports: true,
+              message:
+                'Create type names with createTypeName or copyTypeName from parsers/common.ts so they keep their export names.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: [`packages/typescript-api-extractor/**/*${EXTENSION_TEST_FILE}`],
     rules: {
       // Vitest accepts a failure message as the second argument.

@@ -61,19 +61,6 @@ export function isOwnTypeName(typeName: string, collector: ExternalTypesCollecto
     ) {
       return true;
     }
-    // Check if the typeName is the underlying type name of any exported type alias.
-    // e.g., BaseOrientation is the underlying type of TabsRootOrientation which maps to
-    // Tabs.Root.Orientation — so BaseOrientation is effectively an own type.
-    if (
-      collector.allExports.some(
-        (exp) =>
-          'typeName' in exp.type &&
-          (exp.type as { typeName?: tae.TypeName }).typeName?.name === typeName &&
-          collector.typeNameMap![exp.name] !== undefined,
-      )
-    ) {
-      return true;
-    }
   }
   return false;
 }

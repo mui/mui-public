@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "MergedCall"
+					"name": "MergedCall",
+					"exportedAs": ["MergedCallWithTypeParams"]
 				},
 				"callSignatures": [
 					{

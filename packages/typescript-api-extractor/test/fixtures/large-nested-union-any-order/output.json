@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "Forward"
+					"name": "Forward",
+					"exportedAs": ["LargeNestedUnionOrderIndependent"]
 				},
 				"types": [
 					{
@@ -126,7 +127,8 @@
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "WithAnyFirst"
+					"name": "WithAnyFirst",
+					"exportedAs": ["LargeNestedUnionAnyFirst"]
 				},
 				"types": [
 					{
@@ -246,7 +248,8 @@
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "WithAnySecond"
+					"name": "WithAnySecond",
+					"exportedAs": ["LargeNestedUnionAnySecond"]
 				},
 				"types": [
 					{

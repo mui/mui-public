@@ -135,6 +135,38 @@ describe('external types collection via formatType', () => {
     expect(collector.collected.size).toBe(0);
   });
 
+  it('should skip a type the entrypoint re-exports under another name', () => {
+    const exports = parseTestSources({
+      'index.ts': [
+        "export type { BaseOrientation as TabsRootOrientation } from './types';",
+        "export type { TabsRootProps } from './root';",
+      ].join('\n'),
+      'types.ts': "export type BaseOrientation = 'horizontal' | 'vertical';",
+      'root.ts': [
+        "import type { BaseOrientation } from './types';",
+        'export interface TabsRootProps { orientation: BaseOrientation }',
+      ].join('\n'),
+    });
+    const props = exports.find((exportNode) => exportNode.name === 'TabsRootProps');
+    if (!props || !isObjectType(props.type)) {
+      throw new Error('expected TabsRootProps to be an object export');
+    }
+    const orientation = props.type.properties.find((prop) => prop.name === 'orientation');
+    if (!orientation) {
+      throw new Error('property "orientation" not found');
+    }
+
+    const collector = createCollector(exports);
+    const result = formatType(orientation.type, {
+      exportNames: exports.map((exportNode) => exportNode.name),
+      typeNameMap: {},
+      externalTypesCollector: collector,
+    });
+
+    expect(result).toBe('TabsRootOrientation');
+    expect(collector.collected.size).toBe(0);
+  });
+
   it('should filter by pattern when provided', () => {
     const orientationType: tae.UnionNode = {
       kind: 'union',

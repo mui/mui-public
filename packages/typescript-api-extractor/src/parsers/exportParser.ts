@@ -1,12 +1,13 @@
-import type ts from 'typescript';
-import { ExportNode, TypeName, withTypeName } from '../models';
-import type { AnyType } from '../models';
+import ts from 'typescript';
+import { ExportNode, withTypeName } from '../models';
+import type { AnyType, TypeName } from '../models';
 import { ParserError } from '../ParserError';
 import type { ScopedParserContext } from '../parserContext';
-import { getExportedAs, isInternalSymbolName } from './common';
+import { createTypeName, isInternalSymbolName } from './common';
 import { getDocumentationFromSymbol } from './documentationParser';
 import { resolveExportDescriptors } from './exportDescriptors';
 import type { ExportDescriptor } from './exportDescriptors';
+import { declarationHasNodeModulesPathSegment } from './sourceFileUtils';
 import { resolveType } from './typeResolver';
 import { resolveImportAlias } from './typeResolvers/referencedTypeAlias';
 
@@ -30,26 +31,93 @@ export function parseExport(
 }
 
 /**
- * Records the public name of each descriptor under its target symbol, so type
- * references resolved later can name the type the way the module exports it.
+ * Records the public name of every descriptor of a module under its target
+ * symbol, so type references resolved later can name the type the way the
+ * module exports it. An export that only renames another local type records
+ * its name under that type too.
  *
  * Example: `export type { State as ToggleState } from './toggle'` records
- * `ToggleState` for the `State` declared in `./toggle`.
+ * `ToggleState` for the `State` declared in `./toggle`, and the namespace
+ * member `export type State = ComponentRootState` exported as
+ * `Component.Root.State` records that name for `ComponentRootState` as well.
+ *
+ * A symbol lists the names it is exported under directly first, in export
+ * order, then the names of exports that rename it.
  */
 export function registerExportNames(
   descriptors: ExportDescriptor[],
   parserContext: ScopedParserContext,
 ): void {
   const { checker, exportNamesBySymbol } = parserContext;
-  for (const descriptor of descriptors) {
-    const symbol = resolveImportAlias(descriptor.symbol, checker) ?? descriptor.symbol;
+  const addName = (symbol: ts.Symbol, name: string) => {
     const names = exportNamesBySymbol.get(symbol);
-    if (names) {
-      names.push(getExportName(descriptor));
-    } else {
-      exportNamesBySymbol.set(symbol, [getExportName(descriptor)]);
+    if (!names) {
+      exportNamesBySymbol.set(symbol, [name]);
+    } else if (!names.includes(name)) {
+      names.push(name);
+    }
+  };
+
+  for (const descriptor of descriptors) {
+    addName(
+      resolveImportAlias(descriptor.symbol, checker) ?? descriptor.symbol,
+      getExportName(descriptor),
+    );
+  }
+  for (const descriptor of descriptors) {
+    for (const renamedSymbol of getRenamedLocalTypes(descriptor.symbol, parserContext)) {
+      addName(renamedSymbol, getExportName(descriptor));
     }
   }
+}
+
+/**
+ * Follows a chain of plain renames (`type A = B`, without type parameters or
+ * arguments) to the local types it ends at. Stops at external and built-in
+ * types, so `export type Element = HTMLElement` doesn't make every
+ * `HTMLElement` on the page an `Element`.
+ */
+function getRenamedLocalTypes(symbol: ts.Symbol, parserContext: ScopedParserContext): ts.Symbol[] {
+  const { checker, program } = parserContext;
+  const renamedSymbols: ts.Symbol[] = [];
+  let current = resolveImportAlias(symbol, checker);
+
+  while (current) {
+    const declaration = current.declarations?.find(ts.isTypeAliasDeclaration);
+    if (
+      !declaration ||
+      declaration.typeParameters ||
+      !ts.isTypeReferenceNode(declaration.type) ||
+      declaration.type.typeArguments
+    ) {
+      break;
+    }
+
+    const referenceName = declaration.type.typeName;
+    const target = resolveImportAlias(
+      checker.getSymbolAtLocation(
+        ts.isQualifiedName(referenceName) ? referenceName.right : referenceName,
+      ),
+      checker,
+    );
+    if (
+      !target ||
+      target === current ||
+      renamedSymbols.includes(target) ||
+      target.declarations?.some(
+        (targetDeclaration) =>
+          declarationHasNodeModulesPathSegment(targetDeclaration) ||
+          program.isSourceFileDefaultLibrary(targetDeclaration.getSourceFile()),
+      )
+    ) {
+      break;
+    }
+
+    renamedSymbols.push(target);
+    current = target;
+  }
+
+  return renamedSymbols;
 }
 
 /**
@@ -149,11 +217,12 @@ function applyExportTypeNameContext<T extends AnyType>(
   // Fix type names for resolved anonymous/internal symbols. Re-exported aliases
   // can otherwise lose their authored export name and surface as `__type`.
   if (typeName?.name != null && isInternalSymbolName(typeName.name)) {
-    typeName = new TypeName(
+    typeName = createTypeName(
+      descriptor.symbol,
+      parserContext,
       descriptor.name,
       typeName.namespaces,
       typeName.typeArguments,
-      getExportedAs(descriptor.symbol, parserContext),
     );
     typeNameChanged = true;
   }
@@ -166,11 +235,12 @@ function applyExportTypeNameContext<T extends AnyType>(
     // export parser first replaced `__type` with the public member name and
     // then overwrote the namespace, so `export * as NS` exposed `NS.member`
     // even for anonymous external object declarations.
-    typeName = new TypeName(
+    typeName = createTypeName(
+      descriptor.symbol,
+      parserContext,
       descriptor.name,
       descriptor.parentNamespaces,
       typeName?.typeArguments,
-      getExportedAs(descriptor.symbol, parserContext),
     );
     typeNameChanged = true;
   }

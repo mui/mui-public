@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "Internal"
+					"name": "Internal",
+					"exportedAs": ["InternalAlias"]
 				},
 				"properties": [
 					{

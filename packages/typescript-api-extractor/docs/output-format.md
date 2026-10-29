@@ -76,7 +76,18 @@ export type { State as SwitchState, Holder as SwitchHolder } from './switch';
 Here `ToggleHolder.state` is `{ name: 'State', exportedAs: ['ToggleState'] }`
 and `SwitchHolder.state` is `{ name: 'State', exportedAs: ['SwitchState'] }`. A
 type the module doesn't export has no `exportedAs`, even if an exported type
-shares its declared name. External types never carry it.
+shares its declared name.
+
+An export that only renames another local type (`type A = B`, without type
+parameters or type arguments) also lists its name for that type, following
+chains of such renames. A namespace member `export type State =
+ComponentRootState` exported as `Component.Root.State` makes references to
+`ComponentRootState` list `['ComponentRootState', 'Component.Root.State']`:
+the names the type is exported under directly come first, in export order, then
+the renames. Renames of external or built-in types aren't followed, so
+`export type Element = HTMLElement` doesn't name every `HTMLElement` `Element`.
+An external type carries `exportedAs` only when the module re-exports it
+directly.
 
 An export keeps the value space only when some path to it crosses no type-only
 site (`import type`, `export type { X }`, `export type *`, `export type * as N`).

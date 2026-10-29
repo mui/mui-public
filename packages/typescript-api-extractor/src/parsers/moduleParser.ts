@@ -30,11 +30,10 @@ export function parseModule(sourceFile: ts.SourceFile, context: ScopedParserCont
         .map((exportedSymbol) =>
           resolveExportDescriptors(exportedSymbol, context, { containerSymbol: sourceFileSymbol }),
         );
-      for (const descriptors of descriptorsByExport) {
-        if (descriptors) {
-          registerExportNames(descriptors, context);
-        }
-      }
+      registerExportNames(
+        descriptorsByExport.flatMap((descriptors) => descriptors ?? []),
+        context,
+      );
 
       let parsedModuleExports: ExportNode[] = [];
       for (const descriptors of descriptorsByExport) {

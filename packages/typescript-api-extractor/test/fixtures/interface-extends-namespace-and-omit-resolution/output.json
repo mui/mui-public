@@ -114,7 +114,10 @@
 														"kind": "object",
 														"typeName": {
 															"name": "DialogRootChangeEventDetails",
-															"exportedAs": ["DialogRootChangeEventDetails"]
+															"exportedAs": [
+																"DialogRootChangeEventDetails",
+																"DialogRoot.ChangeEventDetails"
+															]
 														},
 														"properties": [
 															{
@@ -123,7 +126,12 @@
 																	"kind": "union",
 																	"typeName": {
 																		"name": "DialogRootChangeEventReason",
-																		"exportedAs": ["DialogRootChangeEventReason"]
+																		"exportedAs": [
+																			"DialogRootChangeEventReason",
+																			"DialogRoot.ChangeEventReason",
+																			"AlertDialogRootChangeEventReason",
+																			"AlertDialogRoot.ChangeEventReason"
+																		]
 																	},
 																	"types": [
 																		{
@@ -264,7 +272,12 @@
 				"kind": "object",
 				"typeName": {
 					"name": "DialogRootActions",
-					"exportedAs": ["DialogRootActions"]
+					"exportedAs": [
+						"DialogRootActions",
+						"DialogRoot.Actions",
+						"AlertDialogRootActions",
+						"AlertDialogRoot.Actions"
+					]
 				},
 				"properties": [
 					{
@@ -317,7 +330,12 @@
 				"kind": "union",
 				"typeName": {
 					"name": "DialogRootChangeEventReason",
-					"exportedAs": ["DialogRootChangeEventReason"]
+					"exportedAs": [
+						"DialogRootChangeEventReason",
+						"DialogRoot.ChangeEventReason",
+						"AlertDialogRootChangeEventReason",
+						"AlertDialogRoot.ChangeEventReason"
+					]
 				},
 				"types": [
 					{
@@ -344,7 +362,7 @@
 				"kind": "object",
 				"typeName": {
 					"name": "DialogRootChangeEventDetails",
-					"exportedAs": ["DialogRootChangeEventDetails"]
+					"exportedAs": ["DialogRootChangeEventDetails", "DialogRoot.ChangeEventDetails"]
 				},
 				"properties": [
 					{
@@ -353,7 +371,12 @@
 							"kind": "union",
 							"typeName": {
 								"name": "DialogRootChangeEventReason",
-								"exportedAs": ["DialogRootChangeEventReason"]
+								"exportedAs": [
+									"DialogRootChangeEventReason",
+									"DialogRoot.ChangeEventReason",
+									"AlertDialogRootChangeEventReason",
+									"AlertDialogRoot.ChangeEventReason"
+								]
 							},
 							"types": [
 								{
@@ -511,7 +534,10 @@
 														"kind": "object",
 														"typeName": {
 															"name": "DialogRootChangeEventDetails",
-															"exportedAs": ["DialogRootChangeEventDetails"]
+															"exportedAs": [
+																"DialogRootChangeEventDetails",
+																"DialogRoot.ChangeEventDetails"
+															]
 														},
 														"properties": [
 															{
@@ -520,7 +546,12 @@
 																	"kind": "union",
 																	"typeName": {
 																		"name": "DialogRootChangeEventReason",
-																		"exportedAs": ["DialogRootChangeEventReason"]
+																		"exportedAs": [
+																			"DialogRootChangeEventReason",
+																			"DialogRoot.ChangeEventReason",
+																			"AlertDialogRootChangeEventReason",
+																			"AlertDialogRoot.ChangeEventReason"
+																		]
 																	},
 																	"types": [
 																		{
@@ -662,7 +693,7 @@
 				"typeName": {
 					"name": "Actions",
 					"namespaces": ["DialogRoot"],
-					"exportedAs": ["DialogRoot.Actions"]
+					"exportedAs": ["DialogRoot.Actions", "AlertDialogRootActions", "AlertDialogRoot.Actions"]
 				},
 				"properties": [
 					{
@@ -716,7 +747,11 @@
 				"typeName": {
 					"name": "ChangeEventReason",
 					"namespaces": ["DialogRoot"],
-					"exportedAs": ["DialogRoot.ChangeEventReason"]
+					"exportedAs": [
+						"DialogRoot.ChangeEventReason",
+						"AlertDialogRootChangeEventReason",
+						"AlertDialogRoot.ChangeEventReason"
+					]
 				},
 				"types": [
 					{
@@ -753,7 +788,12 @@
 							"kind": "union",
 							"typeName": {
 								"name": "DialogRootChangeEventReason",
-								"exportedAs": ["DialogRootChangeEventReason"]
+								"exportedAs": [
+									"DialogRootChangeEventReason",
+									"DialogRoot.ChangeEventReason",
+									"AlertDialogRootChangeEventReason",
+									"AlertDialogRoot.ChangeEventReason"
+								]
 							},
 							"types": [
 								{
@@ -850,7 +890,10 @@
 																"kind": "object",
 																"typeName": {
 																	"name": "DialogRootChangeEventDetails",
-																	"exportedAs": ["DialogRootChangeEventDetails"]
+																	"exportedAs": [
+																		"DialogRootChangeEventDetails",
+																		"DialogRoot.ChangeEventDetails"
+																	]
 																},
 																"properties": [
 																	{
@@ -859,7 +902,12 @@
 																			"kind": "union",
 																			"typeName": {
 																				"name": "DialogRootChangeEventReason",
-																				"exportedAs": ["DialogRootChangeEventReason"]
+																				"exportedAs": [
+																					"DialogRootChangeEventReason",
+																					"DialogRoot.ChangeEventReason",
+																					"AlertDialogRootChangeEventReason",
+																					"AlertDialogRoot.ChangeEventReason"
+																				]
 																			},
 																			"types": [
 																				{
@@ -937,7 +985,12 @@
 																	"kind": "union",
 																	"typeName": {
 																		"name": "DialogRootChangeEventReason",
-																		"exportedAs": ["DialogRootChangeEventReason"]
+																		"exportedAs": [
+																			"DialogRootChangeEventReason",
+																			"DialogRoot.ChangeEventReason",
+																			"AlertDialogRootChangeEventReason",
+																			"AlertDialogRoot.ChangeEventReason"
+																		]
 																	},
 																	"types": [
 																		{
@@ -1148,7 +1201,7 @@
 				"typeName": {
 					"name": "Actions",
 					"namespaces": ["DialogRoot"],
-					"exportedAs": ["DialogRoot.Actions"]
+					"exportedAs": ["DialogRoot.Actions", "AlertDialogRootActions", "AlertDialogRoot.Actions"]
 				},
 				"properties": [
 					{
@@ -1202,7 +1255,11 @@
 				"typeName": {
 					"name": "ChangeEventReason",
 					"namespaces": ["DialogRoot"],
-					"exportedAs": ["DialogRoot.ChangeEventReason"]
+					"exportedAs": [
+						"DialogRoot.ChangeEventReason",
+						"AlertDialogRootChangeEventReason",
+						"AlertDialogRoot.ChangeEventReason"
+					]
 				},
 				"types": [
 					{
@@ -1229,14 +1286,14 @@
 				"kind": "intersection",
 				"typeName": {
 					"name": "AlertDialogRootChangeEventDetails",
-					"exportedAs": ["AlertDialogRootChangeEventDetails"]
+					"exportedAs": ["AlertDialogRootChangeEventDetails", "AlertDialogRoot.ChangeEventDetails"]
 				},
 				"types": [
 					{
 						"kind": "object",
 						"typeName": {
 							"name": "DialogRootChangeEventDetails",
-							"exportedAs": ["DialogRootChangeEventDetails"]
+							"exportedAs": ["DialogRootChangeEventDetails", "DialogRoot.ChangeEventDetails"]
 						},
 						"properties": [
 							{
@@ -1245,7 +1302,12 @@
 									"kind": "union",
 									"typeName": {
 										"name": "DialogRootChangeEventReason",
-										"exportedAs": ["DialogRootChangeEventReason"]
+										"exportedAs": [
+											"DialogRootChangeEventReason",
+											"DialogRoot.ChangeEventReason",
+											"AlertDialogRootChangeEventReason",
+											"AlertDialogRoot.ChangeEventReason"
+										]
 									},
 									"types": [
 										{
@@ -1323,7 +1385,12 @@
 							"kind": "union",
 							"typeName": {
 								"name": "DialogRootChangeEventReason",
-								"exportedAs": ["DialogRootChangeEventReason"]
+								"exportedAs": [
+									"DialogRootChangeEventReason",
+									"DialogRoot.ChangeEventReason",
+									"AlertDialogRootChangeEventReason",
+									"AlertDialogRoot.ChangeEventReason"
+								]
 							},
 							"types": [
 								{
@@ -1446,7 +1513,10 @@
 																"kind": "object",
 																"typeName": {
 																	"name": "DialogRootChangeEventDetails",
-																	"exportedAs": ["DialogRootChangeEventDetails"]
+																	"exportedAs": [
+																		"DialogRootChangeEventDetails",
+																		"DialogRoot.ChangeEventDetails"
+																	]
 																},
 																"properties": [
 																	{
@@ -1455,7 +1525,12 @@
 																			"kind": "union",
 																			"typeName": {
 																				"name": "DialogRootChangeEventReason",
-																				"exportedAs": ["DialogRootChangeEventReason"]
+																				"exportedAs": [
+																					"DialogRootChangeEventReason",
+																					"DialogRoot.ChangeEventReason",
+																					"AlertDialogRootChangeEventReason",
+																					"AlertDialogRoot.ChangeEventReason"
+																				]
 																			},
 																			"types": [
 																				{
@@ -1533,7 +1608,12 @@
 																	"kind": "union",
 																	"typeName": {
 																		"name": "DialogRootChangeEventReason",
-																		"exportedAs": ["DialogRootChangeEventReason"]
+																		"exportedAs": [
+																			"DialogRootChangeEventReason",
+																			"DialogRoot.ChangeEventReason",
+																			"AlertDialogRootChangeEventReason",
+																			"AlertDialogRoot.ChangeEventReason"
+																		]
 																	},
 																	"types": [
 																		{
@@ -1827,7 +1907,7 @@
 						"kind": "object",
 						"typeName": {
 							"name": "DialogRootChangeEventDetails",
-							"exportedAs": ["DialogRootChangeEventDetails"]
+							"exportedAs": ["DialogRootChangeEventDetails", "DialogRoot.ChangeEventDetails"]
 						},
 						"properties": [
 							{
@@ -1836,7 +1916,12 @@
 									"kind": "union",
 									"typeName": {
 										"name": "DialogRootChangeEventReason",
-										"exportedAs": ["DialogRootChangeEventReason"]
+										"exportedAs": [
+											"DialogRootChangeEventReason",
+											"DialogRoot.ChangeEventReason",
+											"AlertDialogRootChangeEventReason",
+											"AlertDialogRoot.ChangeEventReason"
+										]
 									},
 									"types": [
 										{
@@ -1914,7 +1999,12 @@
 							"kind": "union",
 							"typeName": {
 								"name": "DialogRootChangeEventReason",
-								"exportedAs": ["DialogRootChangeEventReason"]
+								"exportedAs": [
+									"DialogRootChangeEventReason",
+									"DialogRoot.ChangeEventReason",
+									"AlertDialogRootChangeEventReason",
+									"AlertDialogRoot.ChangeEventReason"
+								]
 							},
 							"types": [
 								{
