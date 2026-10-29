@@ -34,6 +34,8 @@ UPDATE_OUTPUT=true pnpm test --run --project @mui/internal-typescript-api-extrac
 ```
 
 Review generated fixture diffs carefully; they are part of the behavior contract.
+A new fixture also needs this command: a missing `output.json` fails the test
+rather than being written.
 
 ## Documentation
 
