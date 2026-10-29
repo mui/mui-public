@@ -9,6 +9,13 @@ import { SocketClient, tryAcquireServerLock, releaseServerLock } from './socketC
 import type { WorkerRequest, WorkerResponse } from './worker';
 
 /**
+ * Returns the path of the worker file, which must be compiled JS, not TS.
+ */
+function getWorkerPath() {
+  return path.join(path.dirname(fileURLToPath(import.meta.url)), 'worker.mjs');
+}
+
+/**
  * Shared interface for types processing managers.
  */
 export interface TypesProcessor {
@@ -28,18 +35,9 @@ class TypesMetaWorkerManager implements TypesProcessor {
 
   private requestId = 0;
 
-  private workerPath: string;
-
-  constructor() {
-    // Worker file must be compiled JS, not TS
-    // Use import.meta.url to get current directory in ESM
-    const currentDir = path.dirname(fileURLToPath(import.meta.url));
-    this.workerPath = path.join(currentDir, 'worker.mjs');
-  }
-
   private ensureWorker(): Worker {
     if (!this.worker) {
-      this.worker = new Worker(this.workerPath);
+      this.worker = new Worker(getWorkerPath());
 
       this.worker.on('message', (response: WorkerResponse & { requestId?: number }) => {
         const { requestId, ...rest } = response;
@@ -131,9 +129,7 @@ class WorkerThreadTypesProcessor implements TypesProcessor {
     if (isServer) {
       // We won the lock — spawn the bare worker which will become a socket server.
       // Keep the lock held so no other worker tries to spawn a second server.
-      const currentDir = path.dirname(fileURLToPath(import.meta.url));
-      const workerPath = path.join(currentDir, 'worker.mjs');
-      this.serverWorker = new Worker(workerPath, {
+      this.serverWorker = new Worker(getWorkerPath(), {
         workerData: { isServer: true },
       });
 

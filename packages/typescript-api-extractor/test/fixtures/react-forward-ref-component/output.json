@@ -1,0 +1,173 @@
+{
+	"name": "test/fixtures/react-forward-ref-component/input",
+	"exports": [
+		{
+			"name": "TestComponent",
+			"type": {
+				"kind": "component",
+				"typeName": {
+					"name": "ForwardRefExoticComponent",
+					"namespaces": ["React"],
+					"typeArguments": [
+						{
+							"type": {
+								"kind": "intersection",
+								"types": [
+									{
+										"kind": "object",
+										"typeName": {
+											"name": "Props"
+										},
+										"properties": [
+											{
+												"name": "className",
+												"type": {
+													"kind": "union",
+													"types": [
+														{
+															"kind": "intrinsic",
+															"intrinsic": "string"
+														},
+														{
+															"kind": "intrinsic",
+															"intrinsic": "undefined"
+														}
+													]
+												},
+												"optional": true
+											},
+											{
+												"name": "id",
+												"type": {
+													"kind": "union",
+													"types": [
+														{
+															"kind": "intrinsic",
+															"intrinsic": "string"
+														},
+														{
+															"kind": "intrinsic",
+															"intrinsic": "undefined"
+														}
+													]
+												},
+												"optional": true
+											}
+										]
+									},
+									{
+										"kind": "external",
+										"typeName": {
+											"name": "RefAttributes",
+											"namespaces": ["React"],
+											"typeArguments": [
+												{
+													"type": {
+														"kind": "external",
+														"typeName": {
+															"name": "HTMLDivElement"
+														},
+														"source": {
+															"kind": "lib",
+															"files": ["lib.dom.d.ts"]
+														}
+													},
+													"equalToDefault": false
+												}
+											]
+										},
+										"source": {
+											"kind": "package",
+											"name": "@types/react"
+										}
+									}
+								],
+								"properties": [
+									{
+										"name": "className",
+										"type": {
+											"kind": "union",
+											"types": [
+												{
+													"kind": "intrinsic",
+													"intrinsic": "string"
+												},
+												{
+													"kind": "intrinsic",
+													"intrinsic": "undefined"
+												}
+											]
+										},
+										"optional": true
+									},
+									{
+										"name": "id",
+										"type": {
+											"kind": "union",
+											"types": [
+												{
+													"kind": "intrinsic",
+													"intrinsic": "string"
+												},
+												{
+													"kind": "intrinsic",
+													"intrinsic": "undefined"
+												}
+											]
+										},
+										"optional": true
+									}
+								]
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"props": [
+					{
+						"name": "className",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "id",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					}
+				]
+			},
+			"documentation": {
+				"description": "A test component",
+				"tags": []
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		}
+	],
+	"imports": ["react"]
+}

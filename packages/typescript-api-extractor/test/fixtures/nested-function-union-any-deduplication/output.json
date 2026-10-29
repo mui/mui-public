@@ -1,0 +1,307 @@
+{
+	"name": "test/fixtures/nested-function-union-any-deduplication/input",
+	"exports": [
+		{
+			"name": "CollapseViaAny",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "CollapseViaAny"
+				},
+				"types": [
+					{
+						"kind": "function",
+						"callSignatures": [
+							{
+								"parameters": [
+									{
+										"type": {
+											"kind": "union",
+											"types": [
+												{
+													"kind": "function",
+													"callSignatures": [
+														{
+															"parameters": [
+																{
+																	"type": {
+																		"kind": "intrinsic",
+																		"intrinsic": "string"
+																	},
+																	"name": "y",
+																	"optional": false
+																}
+															],
+															"returnValueType": {
+																"kind": "intrinsic",
+																"intrinsic": "void"
+															}
+														}
+													]
+												},
+												{
+													"kind": "function",
+													"callSignatures": [
+														{
+															"parameters": [
+																{
+																	"type": {
+																		"kind": "intrinsic",
+																		"intrinsic": "number"
+																	},
+																	"name": "y",
+																	"optional": false
+																}
+															],
+															"returnValueType": {
+																"kind": "intrinsic",
+																"intrinsic": "void"
+															}
+														}
+													]
+												}
+											]
+										},
+										"name": "x",
+										"optional": false
+									}
+								],
+								"returnValueType": {
+									"kind": "intrinsic",
+									"intrinsic": "void"
+								}
+							}
+						]
+					}
+				]
+			},
+			"documentation": {
+				"description": "Higher-order edge case: outer function parameters are unions of function\ntypes, and one outer overload uses `any` directly as a parameter type.\n\nNote: TypeScript simplifies `((y: any) => void) | ((y: string) => void)` to\njust `(y: string) => void` at the type level (the any-variant absorbs the\nstring-variant). So to test nested function-union matching with wildcard any,\nwe use `any` at the outer parameter level instead.\n\nCase 1 (CollapseViaAny): One outer overload has (x: any) => void which\n  matches (x: ((y: string) => void) | ((y: number) => void)) => void\n  via the any wildcard. Should collapse to 1 (preferring the concrete one).\n\nCase 2 (NestedUnionReorder): Two overloads with identical inner union\n  members in different order. Should collapse to 1 member.\n\nCase 3 (NotEquivalent): Two overloads with genuinely different inner\n  union members. Must stay 2 members.",
+				"tags": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "NestedUnionReorder",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "NestedUnionReorder"
+				},
+				"types": [
+					{
+						"kind": "function",
+						"callSignatures": [
+							{
+								"parameters": [
+									{
+										"type": {
+											"kind": "union",
+											"types": [
+												{
+													"kind": "function",
+													"callSignatures": [
+														{
+															"parameters": [
+																{
+																	"type": {
+																		"kind": "intrinsic",
+																		"intrinsic": "string"
+																	},
+																	"name": "y",
+																	"optional": false
+																}
+															],
+															"returnValueType": {
+																"kind": "intrinsic",
+																"intrinsic": "void"
+															}
+														}
+													]
+												},
+												{
+													"kind": "function",
+													"callSignatures": [
+														{
+															"parameters": [
+																{
+																	"type": {
+																		"kind": "intrinsic",
+																		"intrinsic": "number"
+																	},
+																	"name": "y",
+																	"optional": false
+																}
+															],
+															"returnValueType": {
+																"kind": "intrinsic",
+																"intrinsic": "void"
+															}
+														}
+													]
+												}
+											]
+										},
+										"name": "x",
+										"optional": false
+									}
+								],
+								"returnValueType": {
+									"kind": "intrinsic",
+									"intrinsic": "void"
+								}
+							}
+						]
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "NotEquivalent",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "NotEquivalent"
+				},
+				"types": [
+					{
+						"kind": "function",
+						"callSignatures": [
+							{
+								"parameters": [
+									{
+										"type": {
+											"kind": "union",
+											"types": [
+												{
+													"kind": "function",
+													"callSignatures": [
+														{
+															"parameters": [
+																{
+																	"type": {
+																		"kind": "intrinsic",
+																		"intrinsic": "string"
+																	},
+																	"name": "y",
+																	"optional": false
+																}
+															],
+															"returnValueType": {
+																"kind": "intrinsic",
+																"intrinsic": "void"
+															}
+														}
+													]
+												},
+												{
+													"kind": "function",
+													"callSignatures": [
+														{
+															"parameters": [
+																{
+																	"type": {
+																		"kind": "intrinsic",
+																		"intrinsic": "boolean"
+																	},
+																	"name": "y",
+																	"optional": false
+																}
+															],
+															"returnValueType": {
+																"kind": "intrinsic",
+																"intrinsic": "void"
+															}
+														}
+													]
+												}
+											]
+										},
+										"name": "x",
+										"optional": false
+									}
+								],
+								"returnValueType": {
+									"kind": "intrinsic",
+									"intrinsic": "void"
+								}
+							}
+						]
+					},
+					{
+						"kind": "function",
+						"callSignatures": [
+							{
+								"parameters": [
+									{
+										"type": {
+											"kind": "union",
+											"types": [
+												{
+													"kind": "function",
+													"callSignatures": [
+														{
+															"parameters": [
+																{
+																	"type": {
+																		"kind": "intrinsic",
+																		"intrinsic": "string"
+																	},
+																	"name": "y",
+																	"optional": false
+																}
+															],
+															"returnValueType": {
+																"kind": "intrinsic",
+																"intrinsic": "void"
+															}
+														}
+													]
+												},
+												{
+													"kind": "function",
+													"callSignatures": [
+														{
+															"parameters": [
+																{
+																	"type": {
+																		"kind": "intrinsic",
+																		"intrinsic": "number"
+																	},
+																	"name": "y",
+																	"optional": false
+																}
+															],
+															"returnValueType": {
+																"kind": "intrinsic",
+																"intrinsic": "void"
+															}
+														}
+													]
+												}
+											]
+										},
+										"name": "x",
+										"optional": false
+									}
+								],
+								"returnValueType": {
+									"kind": "intrinsic",
+									"intrinsic": "void"
+								}
+							}
+						]
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

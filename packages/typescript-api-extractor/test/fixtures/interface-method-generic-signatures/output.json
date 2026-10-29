@@ -1,0 +1,449 @@
+{
+	"name": "test/fixtures/interface-method-generic-signatures/input",
+	"exports": [
+		{
+			"name": "Manager",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Manager",
+					"typeArguments": [
+						{
+							"type": {
+								"name": "Data",
+								"constraint": {
+									"kind": "object",
+									"properties": []
+								},
+								"defaultValue": {
+									"kind": "intrinsic",
+									"intrinsic": "any"
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [
+					{
+						"name": "add",
+						"type": {
+							"kind": "function",
+							"callSignatures": [
+								{
+									"parameters": [
+										{
+											"type": {
+												"kind": "object",
+												"typeName": {
+													"name": "Options",
+													"typeArguments": [
+														{
+															"type": {
+																"name": "T",
+																"constraint": {
+																	"kind": "object",
+																	"properties": []
+																},
+																"defaultValue": {
+																	"name": "Data",
+																	"constraint": {
+																		"kind": "object",
+																		"properties": []
+																	},
+																	"defaultValue": {
+																		"kind": "intrinsic",
+																		"intrinsic": "any"
+																	},
+																	"kind": "typeParameter"
+																},
+																"kind": "typeParameter"
+															},
+															"equalToDefault": false
+														}
+													]
+												},
+												"properties": [
+													{
+														"name": "data",
+														"type": {
+															"kind": "union",
+															"types": [
+																{
+																	"name": "T",
+																	"constraint": {
+																		"kind": "object",
+																		"properties": []
+																	},
+																	"defaultValue": {
+																		"name": "Data",
+																		"constraint": {
+																			"kind": "object",
+																			"properties": []
+																		},
+																		"defaultValue": {
+																			"kind": "intrinsic",
+																			"intrinsic": "any"
+																		},
+																		"kind": "typeParameter"
+																	},
+																	"kind": "typeParameter"
+																},
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "undefined"
+																}
+															]
+														},
+														"optional": true
+													}
+												]
+											},
+											"name": "options",
+											"optional": false
+										}
+									],
+									"returnValueType": {
+										"kind": "intrinsic",
+										"intrinsic": "string"
+									},
+									"typeParameters": [
+										{
+											"name": "T",
+											"constraint": {
+												"name": "Data",
+												"constraint": {
+													"kind": "object",
+													"properties": []
+												},
+												"defaultValue": {
+													"kind": "intrinsic",
+													"intrinsic": "any"
+												},
+												"kind": "typeParameter"
+											},
+											"defaultValue": {
+												"name": "Data",
+												"constraint": {
+													"kind": "object",
+													"properties": []
+												},
+												"defaultValue": {
+													"kind": "intrinsic",
+													"intrinsic": "any"
+												},
+												"kind": "typeParameter"
+											},
+											"kind": "typeParameter"
+										}
+									]
+								}
+							]
+						},
+						"optional": false
+					},
+					{
+						"name": "update",
+						"type": {
+							"kind": "function",
+							"callSignatures": [
+								{
+									"parameters": [
+										{
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											},
+											"name": "id",
+											"optional": false
+										},
+										{
+											"type": {
+												"kind": "object",
+												"typeName": {
+													"name": "Options",
+													"typeArguments": [
+														{
+															"type": {
+																"name": "T",
+																"constraint": {
+																	"kind": "object",
+																	"properties": []
+																},
+																"defaultValue": {
+																	"name": "Data",
+																	"constraint": {
+																		"kind": "object",
+																		"properties": []
+																	},
+																	"defaultValue": {
+																		"kind": "intrinsic",
+																		"intrinsic": "any"
+																	},
+																	"kind": "typeParameter"
+																},
+																"kind": "typeParameter"
+															},
+															"equalToDefault": false
+														}
+													]
+												},
+												"properties": [
+													{
+														"name": "data",
+														"type": {
+															"kind": "union",
+															"types": [
+																{
+																	"name": "T",
+																	"constraint": {
+																		"kind": "object",
+																		"properties": []
+																	},
+																	"defaultValue": {
+																		"name": "Data",
+																		"constraint": {
+																			"kind": "object",
+																			"properties": []
+																		},
+																		"defaultValue": {
+																			"kind": "intrinsic",
+																			"intrinsic": "any"
+																		},
+																		"kind": "typeParameter"
+																	},
+																	"kind": "typeParameter"
+																},
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "undefined"
+																}
+															]
+														},
+														"optional": true
+													}
+												]
+											},
+											"name": "updates",
+											"optional": false
+										}
+									],
+									"returnValueType": {
+										"kind": "intrinsic",
+										"intrinsic": "void"
+									},
+									"typeParameters": [
+										{
+											"name": "T",
+											"constraint": {
+												"name": "Data",
+												"constraint": {
+													"kind": "object",
+													"properties": []
+												},
+												"defaultValue": {
+													"kind": "intrinsic",
+													"intrinsic": "any"
+												},
+												"kind": "typeParameter"
+											},
+											"defaultValue": {
+												"name": "Data",
+												"constraint": {
+													"kind": "object",
+													"properties": []
+												},
+												"defaultValue": {
+													"kind": "intrinsic",
+													"intrinsic": "any"
+												},
+												"kind": "typeParameter"
+											},
+											"kind": "typeParameter"
+										}
+									]
+								}
+							]
+						},
+						"optional": false
+					},
+					{
+						"name": "process",
+						"type": {
+							"kind": "function",
+							"callSignatures": [
+								{
+									"parameters": [
+										{
+											"type": {
+												"kind": "external",
+												"typeName": {
+													"name": "Promise",
+													"typeArguments": [
+														{
+															"type": {
+																"name": "Value",
+																"kind": "typeParameter"
+															},
+															"equalToDefault": false
+														}
+													]
+												},
+												"source": {
+													"kind": "lib",
+													"files": [
+														"lib.es2015.iterable.d.ts",
+														"lib.es2015.promise.d.ts",
+														"lib.es2015.symbol.wellknown.d.ts",
+														"lib.es2018.promise.d.ts",
+														"lib.es5.d.ts"
+													]
+												}
+											},
+											"name": "value",
+											"optional": false
+										},
+										{
+											"type": {
+												"kind": "object",
+												"typeName": {
+													"name": "Options",
+													"typeArguments": [
+														{
+															"type": {
+																"name": "T",
+																"constraint": {
+																	"kind": "object",
+																	"properties": []
+																},
+																"defaultValue": {
+																	"name": "Data",
+																	"constraint": {
+																		"kind": "object",
+																		"properties": []
+																	},
+																	"defaultValue": {
+																		"kind": "intrinsic",
+																		"intrinsic": "any"
+																	},
+																	"kind": "typeParameter"
+																},
+																"kind": "typeParameter"
+															},
+															"equalToDefault": false
+														}
+													]
+												},
+												"properties": [
+													{
+														"name": "data",
+														"type": {
+															"kind": "union",
+															"types": [
+																{
+																	"name": "T",
+																	"constraint": {
+																		"kind": "object",
+																		"properties": []
+																	},
+																	"defaultValue": {
+																		"name": "Data",
+																		"constraint": {
+																			"kind": "object",
+																			"properties": []
+																		},
+																		"defaultValue": {
+																			"kind": "intrinsic",
+																			"intrinsic": "any"
+																		},
+																		"kind": "typeParameter"
+																	},
+																	"kind": "typeParameter"
+																},
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "undefined"
+																}
+															]
+														},
+														"optional": true
+													}
+												]
+											},
+											"name": "options",
+											"optional": false
+										}
+									],
+									"returnValueType": {
+										"kind": "external",
+										"typeName": {
+											"name": "Promise",
+											"typeArguments": [
+												{
+													"type": {
+														"name": "Value",
+														"kind": "typeParameter"
+													},
+													"equalToDefault": false
+												}
+											]
+										},
+										"source": {
+											"kind": "lib",
+											"files": [
+												"lib.es2015.iterable.d.ts",
+												"lib.es2015.promise.d.ts",
+												"lib.es2015.symbol.wellknown.d.ts",
+												"lib.es2018.promise.d.ts",
+												"lib.es5.d.ts"
+											]
+										}
+									},
+									"typeParameters": [
+										{
+											"name": "Value",
+											"kind": "typeParameter"
+										},
+										{
+											"name": "T",
+											"constraint": {
+												"name": "Data",
+												"constraint": {
+													"kind": "object",
+													"properties": []
+												},
+												"defaultValue": {
+													"kind": "intrinsic",
+													"intrinsic": "any"
+												},
+												"kind": "typeParameter"
+											},
+											"defaultValue": {
+												"name": "Data",
+												"constraint": {
+													"kind": "object",
+													"properties": []
+												},
+												"defaultValue": {
+													"kind": "intrinsic",
+													"intrinsic": "any"
+												},
+												"kind": "typeParameter"
+											},
+											"kind": "typeParameter"
+										}
+									]
+								}
+							]
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

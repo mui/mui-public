@@ -17,6 +17,23 @@ describe('lintJavascriptDemoFocus', () => {
   it('should pass RuleTester', () => {
     ruleTester.run('require-demo-focus', lintJavascriptDemoFocus, {
       valid: [
+        {
+          code: `export default function Demo() {
+  return <div>{/** @focus */}<span>Hello</span></div>;
+}`,
+        },
+        {
+          code: `export default function Demo() {
+  /**
+   * @focus-start
+   */
+  const value = 'Hello';
+  return <div>{value}</div>;
+  /**
+   * @focus-end
+   */
+}`,
+        },
         // File already has @highlight-start with @focus — skip
         {
           code: `

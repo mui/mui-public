@@ -3,7 +3,7 @@ import prettier from 'prettier/standalone';
 import prettierPluginEstree from 'prettier/plugins/estree';
 import prettierPluginTypescript from 'prettier/plugins/typescript';
 import prettierPluginMarkdown from 'prettier/plugins/markdown';
-import type * as tae from 'typescript-api-extractor';
+import type * as tae from '@mui/internal-typescript-api-extractor';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';

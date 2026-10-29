@@ -1,4 +1,4 @@
-import type * as tae from 'typescript-api-extractor';
+import type * as tae from '@mui/internal-typescript-api-extractor';
 
 /**
  * Type namespaces the reader is expected to know, which these docs are therefore not

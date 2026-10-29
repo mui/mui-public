@@ -7,7 +7,7 @@
 ### indexRelativePagePath
 
 Builds the route-group-preserving relative path that identifies a page within its
-parent index (e.g. `./(components)/accordion/page.mdx`). The parent directory is
+parent index (for example, `./(components)/accordion/page.mdx`). The parent directory is
 resolved by skipping route groups, but the route-group segment is retained in the
 returned path so the index can be grouped into `## Section` headings.
 
@@ -17,10 +17,10 @@ on its identity and the grouping is derivable from the stored path.
 
 **Parameters:**
 
-| Parameter    | Type     | Default | Description                                                      |
-| :----------- | :------- | :------ | :--------------------------------------------------------------- |
-| pageDir      | `string` | -       | Absolute directory of the page whose index entry is being built. |
-| pageFileName | `string` | -       | File name of the page within that directory (e.g. `page.mdx`).   |
+| Parameter    | Type     | Default | Description                                                            |
+| :----------- | :------- | :------ | :--------------------------------------------------------------------- |
+| pageDir      | `string` | -       | Absolute directory of the page whose index entry is being built.       |
+| pageFileName | `string` | -       | File name of the page within that directory (for example, `page.mdx`). |
 
 **Return Value:**
 
@@ -156,3 +156,9 @@ type SyncPageIndexOptions = {
   rootContext?: string;
 };
 ```
+
+## External Type Links
+
+Maps `Type`: `URL` — the docs of a built-in type the page references.
+
+- `Promise`: <https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Promise>

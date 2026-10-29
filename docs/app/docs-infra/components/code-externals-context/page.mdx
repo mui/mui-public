@@ -268,7 +268,7 @@ import { TypesCodeExternalsContext } from './types';
 
 The context works seamlessly with the docs-infra build system:
 
-1. **Build Time**: Webpack/Turbopack loaders analyze demo code and collect external dependencies
+1. **Build Time**: webpack/Turbopack loaders analyze demo code and collect external dependencies
 2. **Code Generation**: Loaders inject import statements and create externals objects
 3. **Runtime**: Demo client providers supply externals through this context
 4. **Component Access**: Child components use `useCodeExternals` to access the externals

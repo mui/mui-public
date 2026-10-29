@@ -1,0 +1,107 @@
+{
+	"name": "test/fixtures/generic-callback-index-signature-deduplication/input",
+	"exports": [
+		{
+			"name": "Fn",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "Fn"
+				},
+				"types": [
+					{
+						"kind": "function",
+						"callSignatures": [
+							{
+								"parameters": [],
+								"returnValueType": {
+									"name": "T",
+									"constraint": {
+										"kind": "object",
+										"properties": [],
+										"indexSignature": {
+											"keyName": "k",
+											"keyType": "string",
+											"valueType": {
+												"kind": "intrinsic",
+												"intrinsic": "number"
+											}
+										}
+									},
+									"kind": "typeParameter"
+								},
+								"typeParameters": [
+									{
+										"name": "T",
+										"constraint": {
+											"kind": "object",
+											"properties": [],
+											"indexSignature": {
+												"keyName": "k",
+												"keyType": "string",
+												"valueType": {
+													"kind": "intrinsic",
+													"intrinsic": "number"
+												}
+											}
+										},
+										"kind": "typeParameter"
+									}
+								]
+							}
+						]
+					},
+					{
+						"kind": "function",
+						"callSignatures": [
+							{
+								"parameters": [],
+								"returnValueType": {
+									"name": "U",
+									"constraint": {
+										"kind": "object",
+										"properties": [],
+										"indexSignature": {
+											"keyName": "k",
+											"keyType": "string",
+											"valueType": {
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											}
+										}
+									},
+									"kind": "typeParameter"
+								},
+								"typeParameters": [
+									{
+										"name": "U",
+										"constraint": {
+											"kind": "object",
+											"properties": [],
+											"indexSignature": {
+												"keyName": "k",
+												"keyType": "string",
+												"valueType": {
+													"kind": "intrinsic",
+													"intrinsic": "string"
+												}
+											}
+										},
+										"kind": "typeParameter"
+									}
+								]
+							}
+						]
+					}
+				]
+			},
+			"documentation": {
+				"description": "Union of generic callbacks whose constraints are objects with differing\nindex signatures. These should NOT be deduplicated.",
+				"tags": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

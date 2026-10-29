@@ -1,0 +1,1650 @@
+{
+	"name": "test/fixtures/module-reexports-parts-namespace/input",
+	"exports": [
+		{
+			"name": "Component.Root",
+			"type": {
+				"kind": "component",
+				"typeName": {
+					"name": "Root",
+					"namespaces": ["Component"]
+				},
+				"props": [
+					{
+						"name": "title",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"documentation": {
+							"description": "The title to display",
+							"tags": []
+						},
+						"optional": false
+					},
+					{
+						"name": "disabled",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "boolean"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "Whether the component is disabled",
+							"tags": []
+						},
+						"optional": true
+					},
+					{
+						"name": "children",
+						"type": {
+							"kind": "external",
+							"typeName": {
+								"name": "ReactNode",
+								"namespaces": ["React"]
+							},
+							"source": {
+								"kind": "package",
+								"name": "@types/react"
+							}
+						},
+						"documentation": {
+							"description": "Child elements",
+							"tags": []
+						},
+						"optional": true
+					},
+					{
+						"name": "onStateChange",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "function",
+									"callSignatures": [
+										{
+											"parameters": [
+												{
+													"type": {
+														"kind": "object",
+														"typeName": {
+															"name": "ComponentRootChangeEventDetails"
+														},
+														"properties": [
+															{
+																"name": "previousState",
+																"type": {
+																	"kind": "object",
+																	"typeName": {
+																		"name": "ComponentRootState"
+																	},
+																	"properties": [
+																		{
+																			"name": "disabled",
+																			"type": {
+																				"kind": "intrinsic",
+																				"intrinsic": "boolean"
+																			},
+																			"documentation": {
+																				"description": "Whether the component is disabled",
+																				"tags": []
+																			},
+																			"optional": false
+																		},
+																		{
+																			"name": "active",
+																			"type": {
+																				"kind": "intrinsic",
+																				"intrinsic": "boolean"
+																			},
+																			"documentation": {
+																				"description": "Whether the component is active",
+																				"tags": []
+																			},
+																			"optional": false
+																		}
+																	]
+																},
+																"documentation": {
+																	"description": "The previous state",
+																	"tags": []
+																},
+																"optional": false
+															},
+															{
+																"name": "newState",
+																"type": {
+																	"kind": "object",
+																	"typeName": {
+																		"name": "ComponentRootState"
+																	},
+																	"properties": [
+																		{
+																			"name": "disabled",
+																			"type": {
+																				"kind": "intrinsic",
+																				"intrinsic": "boolean"
+																			},
+																			"documentation": {
+																				"description": "Whether the component is disabled",
+																				"tags": []
+																			},
+																			"optional": false
+																		},
+																		{
+																			"name": "active",
+																			"type": {
+																				"kind": "intrinsic",
+																				"intrinsic": "boolean"
+																			},
+																			"documentation": {
+																				"description": "Whether the component is active",
+																				"tags": []
+																			},
+																			"optional": false
+																		}
+																	]
+																},
+																"documentation": {
+																	"description": "The new state",
+																	"tags": []
+																},
+																"optional": false
+															}
+														]
+													},
+													"name": "details",
+													"optional": false
+												}
+											],
+											"returnValueType": {
+												"kind": "intrinsic",
+												"intrinsic": "void"
+											}
+										}
+									]
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "Callback fired when the state changes.\nReceives the event details containing previous and new states.",
+							"tags": []
+						},
+						"optional": true
+					},
+					{
+						"name": "partState",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "object",
+									"typeName": {
+										"name": "ComponentPartState"
+									},
+									"properties": [
+										{
+											"name": "visible",
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "boolean"
+											},
+											"documentation": {
+												"description": "Whether the part is visible",
+												"tags": []
+											},
+											"optional": false
+										},
+										{
+											"name": "expanded",
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "boolean"
+											},
+											"documentation": {
+												"description": "Whether the part is expanded",
+												"tags": []
+											},
+											"optional": false
+										}
+									]
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "Optional state from the Part component.\nThis demonstrates cross-component type references.",
+							"tags": []
+						},
+						"optional": true
+					}
+				]
+			},
+			"documentation": {
+				"description": "A simple component that displays a title and optional children.",
+				"tags": []
+			},
+			"reexportedFrom": "ComponentRoot",
+			"isValue": true,
+			"isType": false,
+			"isNamespace": true
+		},
+		{
+			"name": "Component.Root.State",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "State",
+					"namespaces": ["Component", "Root"]
+				},
+				"properties": [
+					{
+						"name": "disabled",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "boolean"
+						},
+						"documentation": {
+							"description": "Whether the component is disabled",
+							"tags": []
+						},
+						"optional": false
+					},
+					{
+						"name": "active",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "boolean"
+						},
+						"documentation": {
+							"description": "Whether the component is active",
+							"tags": []
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Component.Root.Props",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Props",
+					"namespaces": ["Component", "Root"]
+				},
+				"properties": [
+					{
+						"name": "title",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"documentation": {
+							"description": "The title to display",
+							"tags": []
+						},
+						"optional": false
+					},
+					{
+						"name": "disabled",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "boolean"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "Whether the component is disabled",
+							"tags": []
+						},
+						"optional": true
+					},
+					{
+						"name": "children",
+						"type": {
+							"kind": "external",
+							"typeName": {
+								"name": "ReactNode",
+								"namespaces": ["React"]
+							},
+							"source": {
+								"kind": "package",
+								"name": "@types/react"
+							}
+						},
+						"documentation": {
+							"description": "Child elements",
+							"tags": []
+						},
+						"optional": true
+					},
+					{
+						"name": "onStateChange",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "function",
+									"callSignatures": [
+										{
+											"parameters": [
+												{
+													"type": {
+														"kind": "object",
+														"typeName": {
+															"name": "ComponentRootChangeEventDetails"
+														},
+														"properties": [
+															{
+																"name": "previousState",
+																"type": {
+																	"kind": "object",
+																	"typeName": {
+																		"name": "ComponentRootState"
+																	},
+																	"properties": [
+																		{
+																			"name": "disabled",
+																			"type": {
+																				"kind": "intrinsic",
+																				"intrinsic": "boolean"
+																			},
+																			"documentation": {
+																				"description": "Whether the component is disabled",
+																				"tags": []
+																			},
+																			"optional": false
+																		},
+																		{
+																			"name": "active",
+																			"type": {
+																				"kind": "intrinsic",
+																				"intrinsic": "boolean"
+																			},
+																			"documentation": {
+																				"description": "Whether the component is active",
+																				"tags": []
+																			},
+																			"optional": false
+																		}
+																	]
+																},
+																"documentation": {
+																	"description": "The previous state",
+																	"tags": []
+																},
+																"optional": false
+															},
+															{
+																"name": "newState",
+																"type": {
+																	"kind": "object",
+																	"typeName": {
+																		"name": "ComponentRootState"
+																	},
+																	"properties": [
+																		{
+																			"name": "disabled",
+																			"type": {
+																				"kind": "intrinsic",
+																				"intrinsic": "boolean"
+																			},
+																			"documentation": {
+																				"description": "Whether the component is disabled",
+																				"tags": []
+																			},
+																			"optional": false
+																		},
+																		{
+																			"name": "active",
+																			"type": {
+																				"kind": "intrinsic",
+																				"intrinsic": "boolean"
+																			},
+																			"documentation": {
+																				"description": "Whether the component is active",
+																				"tags": []
+																			},
+																			"optional": false
+																		}
+																	]
+																},
+																"documentation": {
+																	"description": "The new state",
+																	"tags": []
+																},
+																"optional": false
+															}
+														]
+													},
+													"name": "details",
+													"optional": false
+												}
+											],
+											"returnValueType": {
+												"kind": "intrinsic",
+												"intrinsic": "void"
+											}
+										}
+									]
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "Callback fired when the state changes.\nReceives the event details containing previous and new states.",
+							"tags": []
+						},
+						"optional": true
+					},
+					{
+						"name": "partState",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "object",
+									"typeName": {
+										"name": "ComponentPartState"
+									},
+									"properties": [
+										{
+											"name": "visible",
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "boolean"
+											},
+											"documentation": {
+												"description": "Whether the part is visible",
+												"tags": []
+											},
+											"optional": false
+										},
+										{
+											"name": "expanded",
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "boolean"
+											},
+											"documentation": {
+												"description": "Whether the part is expanded",
+												"tags": []
+											},
+											"optional": false
+										}
+									]
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "Optional state from the Part component.\nThis demonstrates cross-component type references.",
+							"tags": []
+						},
+						"optional": true
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Component.Root.ChangeEventDetails",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "ChangeEventDetails",
+					"namespaces": ["Component", "Root"]
+				},
+				"properties": [
+					{
+						"name": "previousState",
+						"type": {
+							"kind": "object",
+							"typeName": {
+								"name": "ComponentRootState"
+							},
+							"properties": [
+								{
+									"name": "disabled",
+									"type": {
+										"kind": "intrinsic",
+										"intrinsic": "boolean"
+									},
+									"documentation": {
+										"description": "Whether the component is disabled",
+										"tags": []
+									},
+									"optional": false
+								},
+								{
+									"name": "active",
+									"type": {
+										"kind": "intrinsic",
+										"intrinsic": "boolean"
+									},
+									"documentation": {
+										"description": "Whether the component is active",
+										"tags": []
+									},
+									"optional": false
+								}
+							]
+						},
+						"documentation": {
+							"description": "The previous state",
+							"tags": []
+						},
+						"optional": false
+					},
+					{
+						"name": "newState",
+						"type": {
+							"kind": "object",
+							"typeName": {
+								"name": "ComponentRootState"
+							},
+							"properties": [
+								{
+									"name": "disabled",
+									"type": {
+										"kind": "intrinsic",
+										"intrinsic": "boolean"
+									},
+									"documentation": {
+										"description": "Whether the component is disabled",
+										"tags": []
+									},
+									"optional": false
+								},
+								{
+									"name": "active",
+									"type": {
+										"kind": "intrinsic",
+										"intrinsic": "boolean"
+									},
+									"documentation": {
+										"description": "Whether the component is active",
+										"tags": []
+									},
+									"optional": false
+								}
+							]
+						},
+						"documentation": {
+							"description": "The new state",
+							"tags": []
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Component.Part",
+			"type": {
+				"kind": "component",
+				"typeName": {
+					"name": "Part",
+					"namespaces": ["Component"]
+				},
+				"props": [
+					{
+						"name": "title",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"documentation": {
+							"description": "The title to display",
+							"tags": []
+						},
+						"optional": false
+					},
+					{
+						"name": "disabled",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "boolean"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "Whether the component is disabled",
+							"tags": []
+						},
+						"optional": true
+					},
+					{
+						"name": "children",
+						"type": {
+							"kind": "external",
+							"typeName": {
+								"name": "ReactNode",
+								"namespaces": ["React"]
+							},
+							"source": {
+								"kind": "package",
+								"name": "@types/react"
+							}
+						},
+						"documentation": {
+							"description": "Child elements",
+							"tags": []
+						},
+						"optional": true
+					}
+				]
+			},
+			"documentation": {
+				"description": "A simple component that displays a title and optional children.",
+				"tags": []
+			},
+			"reexportedFrom": "ComponentPart",
+			"isValue": true,
+			"isType": false,
+			"isNamespace": true
+		},
+		{
+			"name": "Component.Part.State",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "State",
+					"namespaces": ["Component", "Part"]
+				},
+				"properties": [
+					{
+						"name": "visible",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "boolean"
+						},
+						"documentation": {
+							"description": "Whether the part is visible",
+							"tags": []
+						},
+						"optional": false
+					},
+					{
+						"name": "expanded",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "boolean"
+						},
+						"documentation": {
+							"description": "Whether the part is expanded",
+							"tags": []
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Component.Part.Props",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Props",
+					"namespaces": ["Component", "Part"]
+				},
+				"properties": [
+					{
+						"name": "title",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"documentation": {
+							"description": "The title to display",
+							"tags": []
+						},
+						"optional": false
+					},
+					{
+						"name": "disabled",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "boolean"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "Whether the component is disabled",
+							"tags": []
+						},
+						"optional": true
+					},
+					{
+						"name": "children",
+						"type": {
+							"kind": "external",
+							"typeName": {
+								"name": "ReactNode",
+								"namespaces": ["React"]
+							},
+							"source": {
+								"kind": "package",
+								"name": "@types/react"
+							}
+						},
+						"documentation": {
+							"description": "Child elements",
+							"tags": []
+						},
+						"optional": true
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Component.Handle",
+			"type": {
+				"kind": "class",
+				"typeName": {
+					"name": "Handle",
+					"namespaces": ["Component"]
+				},
+				"constructSignatures": [
+					{
+						"parameters": []
+					}
+				],
+				"properties": [
+					{
+						"name": "isOpen",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "boolean"
+						},
+						"documentation": {
+							"description": "Indicates whether the component is currently open.",
+							"tags": []
+						},
+						"optional": false,
+						"readonly": true,
+						"isStatic": false
+					}
+				],
+				"methods": [
+					{
+						"name": "open",
+						"documentation": {
+							"description": "Opens the component with the given trigger ID.",
+							"tags": []
+						},
+						"isStatic": false,
+						"callSignatures": [
+							{
+								"parameters": [
+									{
+										"type": {
+											"kind": "union",
+											"types": [
+												{
+													"kind": "intrinsic",
+													"intrinsic": "string"
+												},
+												{
+													"kind": "intrinsic",
+													"intrinsic": "null"
+												}
+											]
+										},
+										"name": "triggerId",
+										"documentation": {
+											"description": "ID of the trigger to associate with the component.",
+											"tags": []
+										},
+										"optional": false
+									}
+								],
+								"returnValueType": {
+									"kind": "intrinsic",
+									"intrinsic": "void"
+								}
+							}
+						]
+					},
+					{
+						"name": "openWithPayload",
+						"documentation": {
+							"description": "Opens the component and sets the payload.",
+							"tags": []
+						},
+						"isStatic": false,
+						"callSignatures": [
+							{
+								"parameters": [
+									{
+										"type": {
+											"name": "Payload",
+											"defaultValue": {
+												"kind": "intrinsic",
+												"intrinsic": "unknown"
+											},
+											"kind": "typeParameter"
+										},
+										"name": "payload",
+										"documentation": {
+											"description": "Payload to set when opening.",
+											"tags": []
+										},
+										"optional": false
+									}
+								],
+								"returnValueType": {
+									"kind": "intrinsic",
+									"intrinsic": "void"
+								}
+							}
+						]
+					},
+					{
+						"name": "close",
+						"documentation": {
+							"description": "Closes the component.",
+							"tags": []
+						},
+						"isStatic": false,
+						"callSignatures": [
+							{
+								"parameters": [],
+								"returnValueType": {
+									"kind": "intrinsic",
+									"intrinsic": "void"
+								}
+							}
+						]
+					}
+				],
+				"typeParameters": [
+					{
+						"name": "Payload"
+					}
+				]
+			},
+			"documentation": {
+				"description": "A handle to control a Component imperatively.",
+				"tags": []
+			},
+			"reexportedFrom": "ComponentHandle",
+			"isValue": true,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Component.createHandle",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "createHandle",
+					"namespaces": ["Component"]
+				},
+				"callSignatures": [
+					{
+						"parameters": [],
+						"returnValueType": {
+							"kind": "object",
+							"typeName": {
+								"name": "ComponentHandle",
+								"typeArguments": [
+									{
+										"type": {
+											"name": "Payload",
+											"defaultValue": {
+												"kind": "intrinsic",
+												"intrinsic": "unknown"
+											},
+											"kind": "typeParameter"
+										},
+										"equalToDefault": false
+									}
+								]
+							},
+							"properties": [
+								{
+									"name": "store",
+									"type": {
+										"kind": "object",
+										"properties": [
+											{
+												"name": "open",
+												"type": {
+													"kind": "intrinsic",
+													"intrinsic": "boolean"
+												},
+												"optional": false
+											},
+											{
+												"name": "payload",
+												"type": {
+													"kind": "union",
+													"types": [
+														{
+															"name": "Payload",
+															"defaultValue": {
+																"kind": "intrinsic",
+																"intrinsic": "unknown"
+															},
+															"kind": "typeParameter"
+														},
+														{
+															"kind": "intrinsic",
+															"intrinsic": "undefined"
+														}
+													]
+												},
+												"optional": true
+											}
+										]
+									},
+									"documentation": {
+										"description": "Internal store holding state.",
+										"visibility": "internal",
+										"tags": []
+									},
+									"optional": false
+								},
+								{
+									"name": "isOpen",
+									"type": {
+										"kind": "intrinsic",
+										"intrinsic": "boolean"
+									},
+									"documentation": {
+										"description": "Indicates whether the component is currently open.",
+										"tags": []
+									},
+									"optional": false
+								}
+							]
+						},
+						"typeParameters": [
+							{
+								"name": "Payload",
+								"defaultValue": {
+									"kind": "intrinsic",
+									"intrinsic": "unknown"
+								},
+								"kind": "typeParameter"
+							}
+						]
+					}
+				]
+			},
+			"documentation": {
+				"description": "Creates a new handle to connect a Component.Root with detached triggers.",
+				"tags": []
+			},
+			"reexportedFrom": "createComponentHandle",
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "ComponentHandle",
+			"type": {
+				"kind": "class",
+				"typeName": {
+					"name": "ComponentHandle"
+				},
+				"constructSignatures": [
+					{
+						"parameters": []
+					}
+				],
+				"properties": [
+					{
+						"name": "isOpen",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "boolean"
+						},
+						"documentation": {
+							"description": "Indicates whether the component is currently open.",
+							"tags": []
+						},
+						"optional": false,
+						"readonly": true,
+						"isStatic": false
+					}
+				],
+				"methods": [
+					{
+						"name": "open",
+						"documentation": {
+							"description": "Opens the component with the given trigger ID.",
+							"tags": []
+						},
+						"isStatic": false,
+						"callSignatures": [
+							{
+								"parameters": [
+									{
+										"type": {
+											"kind": "union",
+											"types": [
+												{
+													"kind": "intrinsic",
+													"intrinsic": "string"
+												},
+												{
+													"kind": "intrinsic",
+													"intrinsic": "null"
+												}
+											]
+										},
+										"name": "triggerId",
+										"documentation": {
+											"description": "ID of the trigger to associate with the component.",
+											"tags": []
+										},
+										"optional": false
+									}
+								],
+								"returnValueType": {
+									"kind": "intrinsic",
+									"intrinsic": "void"
+								}
+							}
+						]
+					},
+					{
+						"name": "openWithPayload",
+						"documentation": {
+							"description": "Opens the component and sets the payload.",
+							"tags": []
+						},
+						"isStatic": false,
+						"callSignatures": [
+							{
+								"parameters": [
+									{
+										"type": {
+											"name": "Payload",
+											"defaultValue": {
+												"kind": "intrinsic",
+												"intrinsic": "unknown"
+											},
+											"kind": "typeParameter"
+										},
+										"name": "payload",
+										"documentation": {
+											"description": "Payload to set when opening.",
+											"tags": []
+										},
+										"optional": false
+									}
+								],
+								"returnValueType": {
+									"kind": "intrinsic",
+									"intrinsic": "void"
+								}
+							}
+						]
+					},
+					{
+						"name": "close",
+						"documentation": {
+							"description": "Closes the component.",
+							"tags": []
+						},
+						"isStatic": false,
+						"callSignatures": [
+							{
+								"parameters": [],
+								"returnValueType": {
+									"kind": "intrinsic",
+									"intrinsic": "void"
+								}
+							}
+						]
+					}
+				],
+				"typeParameters": [
+					{
+						"name": "Payload"
+					}
+				]
+			},
+			"documentation": {
+				"description": "A handle to control a Component imperatively.",
+				"tags": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "ComponentRootState",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "ComponentRootState"
+				},
+				"properties": [
+					{
+						"name": "disabled",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "boolean"
+						},
+						"documentation": {
+							"description": "Whether the component is disabled",
+							"tags": []
+						},
+						"optional": false
+					},
+					{
+						"name": "active",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "boolean"
+						},
+						"documentation": {
+							"description": "Whether the component is active",
+							"tags": []
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "ComponentRootChangeEventDetails",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "ComponentRootChangeEventDetails"
+				},
+				"properties": [
+					{
+						"name": "previousState",
+						"type": {
+							"kind": "object",
+							"typeName": {
+								"name": "ComponentRootState"
+							},
+							"properties": [
+								{
+									"name": "disabled",
+									"type": {
+										"kind": "intrinsic",
+										"intrinsic": "boolean"
+									},
+									"documentation": {
+										"description": "Whether the component is disabled",
+										"tags": []
+									},
+									"optional": false
+								},
+								{
+									"name": "active",
+									"type": {
+										"kind": "intrinsic",
+										"intrinsic": "boolean"
+									},
+									"documentation": {
+										"description": "Whether the component is active",
+										"tags": []
+									},
+									"optional": false
+								}
+							]
+						},
+						"documentation": {
+							"description": "The previous state",
+							"tags": []
+						},
+						"optional": false
+					},
+					{
+						"name": "newState",
+						"type": {
+							"kind": "object",
+							"typeName": {
+								"name": "ComponentRootState"
+							},
+							"properties": [
+								{
+									"name": "disabled",
+									"type": {
+										"kind": "intrinsic",
+										"intrinsic": "boolean"
+									},
+									"documentation": {
+										"description": "Whether the component is disabled",
+										"tags": []
+									},
+									"optional": false
+								},
+								{
+									"name": "active",
+									"type": {
+										"kind": "intrinsic",
+										"intrinsic": "boolean"
+									},
+									"documentation": {
+										"description": "Whether the component is active",
+										"tags": []
+									},
+									"optional": false
+								}
+							]
+						},
+						"documentation": {
+							"description": "The new state",
+							"tags": []
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "ComponentRootProps",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "ComponentRootProps"
+				},
+				"properties": [
+					{
+						"name": "title",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"documentation": {
+							"description": "The title to display",
+							"tags": []
+						},
+						"optional": false
+					},
+					{
+						"name": "disabled",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "boolean"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "Whether the component is disabled",
+							"tags": []
+						},
+						"optional": true
+					},
+					{
+						"name": "children",
+						"type": {
+							"kind": "external",
+							"typeName": {
+								"name": "ReactNode",
+								"namespaces": ["React"]
+							},
+							"source": {
+								"kind": "package",
+								"name": "@types/react"
+							}
+						},
+						"documentation": {
+							"description": "Child elements",
+							"tags": []
+						},
+						"optional": true
+					},
+					{
+						"name": "onStateChange",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "function",
+									"callSignatures": [
+										{
+											"parameters": [
+												{
+													"type": {
+														"kind": "object",
+														"typeName": {
+															"name": "ComponentRootChangeEventDetails"
+														},
+														"properties": [
+															{
+																"name": "previousState",
+																"type": {
+																	"kind": "object",
+																	"typeName": {
+																		"name": "ComponentRootState"
+																	},
+																	"properties": [
+																		{
+																			"name": "disabled",
+																			"type": {
+																				"kind": "intrinsic",
+																				"intrinsic": "boolean"
+																			},
+																			"documentation": {
+																				"description": "Whether the component is disabled",
+																				"tags": []
+																			},
+																			"optional": false
+																		},
+																		{
+																			"name": "active",
+																			"type": {
+																				"kind": "intrinsic",
+																				"intrinsic": "boolean"
+																			},
+																			"documentation": {
+																				"description": "Whether the component is active",
+																				"tags": []
+																			},
+																			"optional": false
+																		}
+																	]
+																},
+																"documentation": {
+																	"description": "The previous state",
+																	"tags": []
+																},
+																"optional": false
+															},
+															{
+																"name": "newState",
+																"type": {
+																	"kind": "object",
+																	"typeName": {
+																		"name": "ComponentRootState"
+																	},
+																	"properties": [
+																		{
+																			"name": "disabled",
+																			"type": {
+																				"kind": "intrinsic",
+																				"intrinsic": "boolean"
+																			},
+																			"documentation": {
+																				"description": "Whether the component is disabled",
+																				"tags": []
+																			},
+																			"optional": false
+																		},
+																		{
+																			"name": "active",
+																			"type": {
+																				"kind": "intrinsic",
+																				"intrinsic": "boolean"
+																			},
+																			"documentation": {
+																				"description": "Whether the component is active",
+																				"tags": []
+																			},
+																			"optional": false
+																		}
+																	]
+																},
+																"documentation": {
+																	"description": "The new state",
+																	"tags": []
+																},
+																"optional": false
+															}
+														]
+													},
+													"name": "details",
+													"optional": false
+												}
+											],
+											"returnValueType": {
+												"kind": "intrinsic",
+												"intrinsic": "void"
+											}
+										}
+									]
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "Callback fired when the state changes.\nReceives the event details containing previous and new states.",
+							"tags": []
+						},
+						"optional": true
+					},
+					{
+						"name": "partState",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "object",
+									"typeName": {
+										"name": "ComponentPartState"
+									},
+									"properties": [
+										{
+											"name": "visible",
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "boolean"
+											},
+											"documentation": {
+												"description": "Whether the part is visible",
+												"tags": []
+											},
+											"optional": false
+										},
+										{
+											"name": "expanded",
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "boolean"
+											},
+											"documentation": {
+												"description": "Whether the part is expanded",
+												"tags": []
+											},
+											"optional": false
+										}
+									]
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "Optional state from the Part component.\nThis demonstrates cross-component type references.",
+							"tags": []
+						},
+						"optional": true
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "ComponentPartState",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "ComponentPartState"
+				},
+				"properties": [
+					{
+						"name": "visible",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "boolean"
+						},
+						"documentation": {
+							"description": "Whether the part is visible",
+							"tags": []
+						},
+						"optional": false
+					},
+					{
+						"name": "expanded",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "boolean"
+						},
+						"documentation": {
+							"description": "Whether the part is expanded",
+							"tags": []
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "ComponentPartProps",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "ComponentPartProps"
+				},
+				"properties": [
+					{
+						"name": "title",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"documentation": {
+							"description": "The title to display",
+							"tags": []
+						},
+						"optional": false
+					},
+					{
+						"name": "disabled",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "boolean"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "Whether the component is disabled",
+							"tags": []
+						},
+						"optional": true
+					},
+					{
+						"name": "children",
+						"type": {
+							"kind": "external",
+							"typeName": {
+								"name": "ReactNode",
+								"namespaces": ["React"]
+							},
+							"source": {
+								"kind": "package",
+								"name": "@types/react"
+							}
+						},
+						"documentation": {
+							"description": "Child elements",
+							"tags": []
+						},
+						"optional": true
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

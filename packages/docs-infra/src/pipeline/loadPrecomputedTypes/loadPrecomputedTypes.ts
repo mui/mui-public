@@ -212,6 +212,7 @@ export async function loadPrecomputedTypes(
       variantTypeNames: result.variantTypeNames,
       singleComponentName,
       anchorMap: result.anchorMap,
+      externalTypeLinks: result.externalTypeLinks,
     };
 
     // Replace the component reference with an empty object to avoid importing actual component code.

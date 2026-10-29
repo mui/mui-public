@@ -1,13 +1,13 @@
 import { transformSync } from '@babel/core';
 import { describe, it, expect } from 'vitest';
-import plugin from './index';
+import plugin from './index.js';
 
-const transform = (code, pluginOptions) =>
+const transform = (code, pluginOptions, runtime = 'classic') =>
   transformSync(code, {
     babelrc: false,
     configFile: false,
     plugins: [[plugin, pluginOptions]],
-    presets: [['@babel/preset-react', { pure: false }]],
+    presets: [['@babel/preset-react', { pure: false, runtime }]],
   }).code;
 
 const transformWithAllowedCallees = (code) =>
@@ -1054,5 +1054,42 @@ describe('babelDisplayNamePlugin', () => {
     ).toMatchInlineSnapshot(`
       "const Test = true ? () => React.createElement("img", null) : undefined;"
     `);
+  });
+
+  // The build config uses the automatic runtime, so JSX becomes `_jsx(...)` calls.
+  describe('automatic runtime', () => {
+    it('should add display name to arrow function components', () => {
+      expect(
+        transform(
+          `
+        const Test = () => <img/>;`,
+          undefined,
+          'automatic',
+        ),
+      ).toMatchInlineSnapshot(`
+        "import { jsx as _jsx } from "react/jsx-runtime";
+        const Test = () => _jsx("img", {});
+        if (process.env.NODE_ENV !== "production") Test.displayName = "Test";"
+      `);
+    });
+
+    it('should add display name to wrapped components', () => {
+      expect(
+        transform(
+          `
+        import React from 'react';
+        const Test = React.memo(React.forwardRef((props, ref) => <img ref={ref} />));`,
+          undefined,
+          'automatic',
+        ),
+      ).toMatchInlineSnapshot(`
+        "import React from 'react';
+        import { jsx as _jsx } from "react/jsx-runtime";
+        const Test = React.memo(React.forwardRef((props, ref) => _jsx("img", {
+          ref: ref
+        })));
+        if (process.env.NODE_ENV !== "production") Test.displayName = "Test";"
+      `);
+    });
   });
 });

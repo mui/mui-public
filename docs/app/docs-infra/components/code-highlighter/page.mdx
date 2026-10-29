@@ -15,7 +15,7 @@ The component uses the [Props Context Layering pattern](../../patterns/props-con
 - **Lazy syntax highlighting** for performance optimization
 - **Customizable content renderers**
 - **Hybrid rendering** support for build, server, or client-time loading, parsing, and transforming
-- **Webpack integration** for build-time pre-computation
+- **webpack integration** for build-time pre-computation
 
 ## Basic Usage
 
@@ -94,7 +94,7 @@ This follows Next.js' file based routing conventions, similar to how `app/compon
 
 This also allows demo components to follow internal naming conventions, like `CheckboxBasic.tsx` that has a named export of `CheckboxBasic`, while the demo itself can be loaded by importing `./demos/basic` (without needing to specify the index file).
 
-It allows imports to remain the same when variants are added, e.g. `import { DemoCheckboxBasic } from './demos/basic'` will still work even if the demo is split into multiple variants.
+It allows imports to remain the same when variants are added, for example, `import { DemoCheckboxBasic } from './demos/basic'` will still work even if the demo is split into multiple variants.
 
 ```text
 app/components/checkbox/demos/
@@ -109,7 +109,7 @@ app/components/checkbox/demos/
       Checkbox.module.css  # Dependencies (auto-loaded)
 ```
 
-### Webpack Loader Integration
+### webpack Loader Integration
 
 The precomputation is handled by a webpack loader that processes demo files at build time, enabling caching by the contents of the demo index file and all of its dependencies.
 
@@ -135,7 +135,7 @@ import { DemoCodeHighlighterDemoVariants } from './demos/demo-variants';
 
 <DemoCodeHighlighterDemoVariants.Title />
 
-Sometimes you want to show different approaches to the same problem: CSS Modules versus Tailwind, Hooks or Blocks pattern, or different implementation strategies.
+Sometimes you want to show different approaches to the same problem: CSS Modules versus Tailwind, Hooks or Blocks pattern, or different implementation strategies.
 `CodeHighlighter` makes this seamless with variant switching.
 Your components can even appear differently, but we recommend keeping them as similar as possible to avoid confusion.
 
@@ -227,7 +227,7 @@ import { DemoCodeHighlighterFallbackAllVariants } from './demos/demo-fallback-al
 
 <DemoCodeHighlighterFallbackAllVariants.Title />
 
-When `fallbackUsesAllVariants` is enabled, the fallback content receives data for all available variants. This ensures that search engines and AI bots can see all implementation approaches (CSS Modules, Tailwind, etc.) in the initial HTML, making your documentation more comprehensive for automated indexing. Note that the complete list of filenames is always available for navigation, regardless of this setting:
+When `fallbackUsesAllVariants` is enabled, the fallback content receives data for all available variants. This ensures that search engines and AI bots can see all implementation approaches (CSS Modules, Tailwind, etc.) in the initial HTML, making your documentation more comprehensive for automated indexing. Note that the complete list of filenames is always available for navigation, regardless of this setting:
 
 <DemoCodeHighlighterFallbackAllVariants />
 
@@ -286,7 +286,7 @@ Three lesser-known props tune how much work and how many bytes a block ships:
 
 ### Component Name
 
-Demos are exported as `Demo${componentName}${demoName}` e.g. `DemoCheckboxBasic`
+Demos are exported as `Demo${componentName}${demoName}` for example, `DemoCheckboxBasic`
 This makes it easy to import a demo by simply typing `<DemoCheckbox`, and your IDE should display a list of existing demos to auto-import.
 
 ### Demo Titles
@@ -295,7 +295,7 @@ We recommend exporting a `Title` component attached within your `createDemo()` f
 This allows us to use an automatically generated title and slug from the URL of the demo index.
 This ensures that the link for the title is consistent with links to files within the demo itself.
 
-e.g. `./app/components/checkbox/demos/advanced-keyboard/index.ts` would generate a title of `Advanced Keyboard` and a slug of `advanced-keyboard`.
+for example, `./app/components/checkbox/demos/advanced-keyboard/index.ts` would generate a title of `Advanced Keyboard` and a slug of `advanced-keyboard`.
 The URL for this demo would be `/components/checkbox#advanced-keyboard` and a file within it could be `/components/checkbox#advanced-keyboard:file.ts`.
 
 Also, when MDX is rendered in GitHub, `<DemoCheckboxAdvancedKeyboard.Title />` will be visible on the page because it contains the dot.
@@ -309,7 +309,7 @@ import { DemoCheckboxAdvancedKeyboard } from './demos/advanced-keyboard';
 Description of the demo.
 ```
 
-If this convention isn't followed, URLs might deviate e.g. `/components/checkbox#advanced-keyboard` might not link to the correct demo.
+If this convention isn't followed, URLs might deviate for example, `/components/checkbox#advanced-keyboard` might not link to the correct demo.
 
 ```mdx
 // This is not recommended
@@ -400,7 +400,7 @@ See Demo
 
 ## Benchmarking
 
-For performance benchmarks of the `CodeHighlighter` component, see the [Benchmarking Code Highlighter](./bench/page.mdx) page.
+For performance benchmarks of the `CodeHighlighter` component, see the [Benchmarking Code Highlighter](./bench/page.tsx) page.
 
 ## Build-Time vs Server Rendering vs Client Rendering
 

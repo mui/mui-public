@@ -22,7 +22,7 @@ You can [read the Infra documentation here](./docs/README.md).
 - Source: `/docs/`
 - Hosting: https://app.netlify.com/projects/mui-internal/overview
 - [Docs](./docs/#readme)
-- Website for MUI internal packages, e.g. hosts docs-infra.
+- Website for MUI internal packages, for example, hosts docs-infra.
   This is equivalent to https://backoffice.mui.com/ but for public logic.
 
 ## Packages
@@ -39,7 +39,7 @@ You can [read the Infra documentation here](./docs/README.md).
 
 ## Agent skills
 
-This repo ships agent skills under [`skills/`](./skills/) (e.g. `mui-triage`). Install them into a repo's agent skills directory with the [`skills`](https://github.com/vercel-labs/skills) CLI:
+This repo ships agent skills under [`skills/`](./skills/) (for example, `mui-triage`). Install them into a repo's agent skills directory with the [`skills`](https://github.com/vercel-labs/skills) CLI:
 
 ```bash
 npx skills add mui/mui-public --skill mui-triage
@@ -48,12 +48,36 @@ npx skills add mui/mui-public --skill mui-triage
 Notes:
 
 - Omit `--skill <name>` to install every skill this repo ships.
-- Add `-g` to install into the global agent directory, or `--copy` where symlinks aren't supported (e.g. Windows). When a coding agent is detected, the install runs non-interactively.
+- Add `-g` to install into the global agent directory, or `--copy` where symlinks aren't supported (for example, Windows). When a coding agent is detected, the install runs non-interactively.
 
 To refresh installed skills later (`npx skills add` copies the content into your repo):
 
 ```bash
 npx skills update
+```
+
+In Claude Code, you can install them as a plugin instead, which tracks `master` without copying files into your repo. Run this inside the repo where you want the skills:
+
+```bash
+claude plugin marketplace add mui/mui-public
+claude plugin install code-infra@mui-public --scope local
+```
+
+The skills are then available as `/code-infra:<skill>` (for example, `/code-infra:mui-renovate-triage`). They're enabled only for you and only in that repo: `--scope local` records this in `.claude/settings.local.json`, which isn't committed. Use `--scope user` to enable them in every repo instead. To stay on the latest `master`, enable auto-update for the `mui-public` marketplace under `/plugin` → **Marketplaces**, or run `claude plugin update code-infra@mui-public`.
+
+To enable the skills for everyone who works in a repo, use `--scope project`, which writes to the committed `.claude/settings.json`. Also add the marketplace there, so Claude Code knows where to install the plugin from for teammates who haven't added it:
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "mui-public": {
+      "source": { "source": "github", "repo": "mui/mui-public" }
+    }
+  },
+  "enabledPlugins": {
+    "code-infra@mui-public": true
+  }
+}
 ```
 
 ### Renovate PR workflow

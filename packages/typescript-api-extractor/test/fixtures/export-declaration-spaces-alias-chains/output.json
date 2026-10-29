@@ -1,0 +1,91 @@
+{
+	"name": "test/fixtures/export-declaration-spaces-alias-chains/input",
+	"exports": [
+		{
+			"name": "mergedFunction",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "mergedFunction"
+				},
+				"callSignatures": [
+					{
+						"parameters": [],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "chainedFunction",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "chainedFunction"
+				},
+				"callSignatures": [
+					{
+						"parameters": [],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": true,
+			"isNamespace": true
+		},
+		{
+			"name": "chainedFunction.Nested",
+			"type": {
+				"kind": "literal",
+				"value": "\"nested\"",
+				"typeName": {
+					"name": "Nested",
+					"namespaces": ["chainedFunction"]
+				}
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "MergedConstant",
+			"type": {
+				"kind": "object",
+				"properties": [
+					{
+						"name": "id",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": true,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "api",
+			"type": {
+				"kind": "object",
+				"properties": []
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": true
+		}
+	],
+	"imports": ["./functions", "./merged", "./types"]
+}

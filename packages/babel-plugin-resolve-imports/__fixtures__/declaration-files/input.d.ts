@@ -15,3 +15,6 @@ export type { UserType } from './types/models';
 export type { ButtonPropsType } from './types/components';
 
 export declare const createUser: () => User;
+
+// Inline import types
+export declare const findUser: () => import('./types').User;

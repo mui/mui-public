@@ -130,7 +130,7 @@ The plugin automatically configures loaders for these patterns:
 }
 ```
 
-**Webpack Rules:**
+**webpack Rules:**
 
 ```js
 {
@@ -248,7 +248,7 @@ export default withDocsInfra({
 
 ## Example: Custom Demo Structure
 
-If your demos follow a different pattern (e.g., `demo-variant/index.ts`):
+If your demos follow a different pattern (for example, `demo-variant/index.ts`):
 
 ```js
 const nextConfig = withDocsInfra({
@@ -382,7 +382,7 @@ Notes:
 1. **Page Extensions**: Configures Next.js to recognize additional file types as pages
 2. **Export Output**: Enables static export mode for documentation sites
 3. **Turbopack Rules**: Sets up fast refresh and bundling for demo files in development
-4. **Webpack Rules**: Configures production bundling with appropriate loaders
+4. **webpack Rules**: Configures production bundling with appropriate loaders
 5. **Pattern Conversion**: Converts glob patterns to webpack regex for file matching
 
 ## Integration Example
@@ -419,7 +419,7 @@ export default withDocsInfra({
 
 By default, the plugin automatically extracts page metadata and maintains parent directory indexes. See examples in [Controlling Index Generation](#controlling-index-generation) above.
 
-The default filter `{ include: ['app', 'src/app'], exclude: [] }` processes all pages in both `app/` and `src/app/` directories (without trailing slashes - they're added automatically during matching). Index files (e.g., `app/page.mdx`, `app/components/page.mdx`) are automatically excluded to prevent them from creating parent indexes. The base directory is automatically detected from `process.cwd()`.
+The default filter `{ include: ['app', 'src/app'], exclude: [] }` processes all pages in both `app/` and `src/app/` directories (without trailing slashes - they're added automatically during matching). Index files (for example, `app/page.mdx`, `app/components/page.mdx`) are automatically excluded to prevent them from creating parent indexes. The base directory is automatically detected from `process.cwd()`.
 
 For complete details, see the [`transformMarkdownMetadata`](../transform-markdown-metadata/page.mdx) documentation.
 

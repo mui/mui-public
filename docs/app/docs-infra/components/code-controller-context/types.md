@@ -41,7 +41,7 @@ An object containing:
 A code-controller component — the counterpart to `DemoContent`. It wraps `children`
 in a [`CodeControllerContext`](#codecontrollercontext) provider, typically sourcing the value from a hook
 such as `useDemoController`. Parameterize with `T` for the controller's own props
-(e.g. `CodeController<UseDemoControllerOptions>`).
+(for example, `CodeController<UseDemoControllerOptions>`).
 
 ```typescript
 type CodeController = React.ComponentType<CodeControllerProps<{}>>;

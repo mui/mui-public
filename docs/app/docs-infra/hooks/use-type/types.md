@@ -27,9 +27,9 @@ Returns the `TypeData` for the given name, or `undefined` if:
 
 **useType Parameters:**
 
-| Parameter | Type     | Default | Description                                                            |
-| :-------- | :------- | :------ | :--------------------------------------------------------------------- |
-| name      | `string` | -       | The type name to look up (e.g., "Root", "Trigger", "AccordionTrigger") |
+| Parameter | Type     | Default | Description                                                                   |
+| :-------- | :------- | :------ | :---------------------------------------------------------------------------- |
+| name      | `string` | -       | The type name to look up (for example, "Root", "Trigger", "AccordionTrigger") |
 
 **useType Return Value:**
 
@@ -48,10 +48,10 @@ Returns the `TypePropData` for the given type and property name, or `undefined` 
 
 **useTypeProp Parameters:**
 
-| Parameter | Type     | Default | Description                                          |
-| :-------- | :------- | :------ | :--------------------------------------------------- |
-| typeName  | `string` | -       | The type name (e.g., "Root", "Trigger")              |
-| propName  | `string` | -       | The property name (e.g., "className", "defaultOpen") |
+| Parameter | Type     | Default | Description                                                 |
+| :-------- | :------- | :------ | :---------------------------------------------------------- |
+| typeName  | `string` | -       | The type name (for example, "Root", "Trigger")              |
+| propName  | `string` | -       | The property name (for example, "className", "defaultOpen") |
 
 **useTypeProp Return Value:**
 

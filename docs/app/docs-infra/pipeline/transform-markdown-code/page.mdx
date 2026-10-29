@@ -8,7 +8,7 @@ Use this plugin to enhance markdown code blocks with custom data attributes for 
 
 ## Key Features
 
-- **Individual code blocks**: Transform single code blocks with options (e.g., `filename=test.ts`, `highlight=2-3`)
+- **Individual code blocks**: Transform single code blocks with options (for example, `filename=test.ts`, `highlight=2-3`)
 - **Multiple variant formats**: Support for `variant=name` and `variant-type=name` syntax
 - **Automatic grouping**: Adjacent code blocks with variants are combined into single examples
 - **Language detection**: Preserves syntax highlighting with `class="language-*"` attributes
@@ -363,7 +363,7 @@ Code blocks with options (but no `variant` or `variant-type`) are processed imme
 
 - **Single transformation**: Creates a `<pre><code>` element with data attributes (or `<dl>` structure if filename is provided)
 - **No grouping required**: Works with standalone code blocks
-- **Option handling**: Converts options to HTML data attributes (e.g., `filename=test.ts` → `data-filename="test.ts"`)
+- **Option handling**: Converts options to HTML data attributes (for example, `filename=test.ts` → `data-filename="test.ts"`)
 - **Language preservation**: Maintains syntax highlighting via `class="language-*"` attribute
 
 ### Grouping Rules
@@ -577,7 +577,7 @@ For code blocks with explicit filename:
 ### Data Attributes
 
 - `data-variant`: The variant name (from `variant=` or extracted label)
-- `class="language-*"`: The normalized language identifier (e.g., `typescript` not `ts`)
+- `class="language-*"`: The normalized language identifier (for example, `typescript` not `ts`)
 - `data-*`: Any additional properties from code block metadata
 
 ### Performance

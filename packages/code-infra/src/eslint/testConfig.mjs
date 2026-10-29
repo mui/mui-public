@@ -21,7 +21,6 @@ export const baseSpecRules = {
     '@typescript-eslint/no-unused-expressions': 'off',
     '@typescript-eslint/no-unused-vars': 'off',
     '@typescript-eslint/no-use-before-define': 'off',
-    '@typescript-eslint/ban-ts-comment': 'off',
 
     'import/prefer-default-export': 'off',
 
@@ -63,6 +62,7 @@ export function createTestConfig() {
         'import/named': 'off',
         'mui/disallow-active-element-as-key-event-target': 'error',
         'mui/consistent-production-guard': 'off',
+        'mui/no-constructor-assigned-field': 'off',
 
         // disable eslint-plugin-jsx-a11y
         // tests are not driven by assistive technology
@@ -87,11 +87,13 @@ export function createTestConfig() {
         'react/no-unused-prop-types': 'off',
         // Part of the migration away from airbnb config. Turned of initially.
         '@typescript-eslint/no-empty-function': 'off',
-        '@typescript-eslint/ban-ts-comment': 'off',
         'testing-library/no-node-access': 'off',
         '@typescript-eslint/no-non-null-asserted-optional-chain': 'off',
         // end migration
         'vitest/prefer-importing-vitest-globals': 'error',
+        // Vitest accepts a failure message as the second argument of `expect`, also when it is
+        // not a literal.
+        'vitest/valid-expect': ['error', { maxArgs: 2 }],
       },
     },
   );

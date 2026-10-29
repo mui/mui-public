@@ -1,0 +1,31 @@
+{
+	"name": "test/fixtures/readonly-array-mapped-type-template-literal-constraint/input",
+	"exports": [
+		{
+			"name": "Data",
+			"type": {
+				"kind": "array",
+				"typeName": {
+					"name": "Data",
+					"typeArguments": [
+						{
+							"type": {
+								"kind": "object",
+								"properties": []
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"elementType": {
+					"kind": "object",
+					"properties": []
+				},
+				"isReadonly": true
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

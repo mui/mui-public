@@ -1,0 +1,84 @@
+{
+	"name": "test/fixtures/export-declaration-spaces-type-only-retention/input",
+	"exports": [
+		{
+			"name": "directlyMergedFunction",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "directlyMergedFunction"
+				},
+				"callSignatures": [
+					{
+						"parameters": [],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "chainedFunction",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "chainedFunction"
+				},
+				"callSignatures": [
+					{
+						"parameters": [],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						}
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": true
+		},
+		{
+			"name": "chainedFunction.Nested",
+			"type": {
+				"kind": "literal",
+				"value": "\"nested\"",
+				"typeName": {
+					"name": "Nested",
+					"namespaces": ["chainedFunction"]
+				}
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "TypesNamespace.Member",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Member",
+					"namespaces": ["TypesNamespace"]
+				},
+				"properties": [
+					{
+						"name": "id",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

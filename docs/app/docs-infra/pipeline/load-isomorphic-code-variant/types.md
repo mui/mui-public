@@ -192,11 +192,11 @@ fallback, ensuring a smooth user experience without rendering errors.
 
 **Parameters:**
 
-| Parameter       | Type       | Default | Description                                                                         |
-| :-------------- | :--------- | :------ | :---------------------------------------------------------------------------------- |
-| variants        | `string[]` | -       | Array of variant names that must all be ready (e.g., \['javascript', 'typescript']) |
-| code            | `Code`     | -       | The code object containing variant data                                             |
-| needsHighlight? | `boolean`  | -       | Whether all sources need to be syntax highlighted (hast nodes, not strings)         |
+| Parameter       | Type       | Default | Description                                                                                 |
+| :-------------- | :--------- | :------ | :------------------------------------------------------------------------------------------ |
+| variants        | `string[]` | -       | Array of variant names that must all be ready (for example, `['javascript', 'typescript']`) |
+| code            | `Code`     | -       | The code object containing variant data                                                     |
+| needsHighlight? | `boolean`  | -       | Whether all sources need to be syntax highlighted (hast nodes, not strings)                 |
 
 **Return Value:**
 
@@ -284,19 +284,19 @@ This function operates **synchronously** and only validates existing data - it n
 any loading operations. This design is crucial for performance and rendering strategies:
 
 - **Synchronous validation** allows immediate decisions about rendering paths without async overhead
-- **Enables build-time optimization**: When code is precomputed (e.g., via build-time processing),
+- **Enables build-time optimization**: When code is precomputed (for example, via build-time processing),
   this function can immediately return `initialData`, avoiding async components entirely
 - **Separates concerns**: Data validation is separate from data loading, making the codebase
   more predictable and easier to reason about
 
 When `initialData: false` is returned, the calling component is responsible for initiating
-asynchronous loading operations (e.g., `loadCodeFallback`, `CodeInitialSourceLoader`).
+asynchronous loading operations (for example, `loadCodeFallback`, `CodeInitialSourceLoader`).
 
 **Parameters:**
 
 | Parameter         | Type       | Default | Description                                                                                                                                                                                                                                            |
 | :---------------- | :--------- | :------ | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| variants          | `string[]` | -       | Array of all available variant names for this code block (e.g., \['javascript', 'typescript'])                                                                                                                                                         |
+| variants          | `string[]` | -       | Array of all available variant names for this code block (for example, `['javascript', 'typescript']`)                                                                                                                                                 |
 | variant           | `string`   | -       | The specific variant we want to display (must exist in variants array)                                                                                                                                                                                 |
 | code?             | `Code`     | -       | The code object containing all variant data (may be undefined if not loaded)                                                                                                                                                                           |
 | fileName?         | `string`   | -       | Optional specific file to display. Resolution logic: When it matches `variantCode.fileName`, uses the main variant sourceWhen it doesn't match, looks for the file in `variantCode.extraFiles`When undefined, defaults to the main file of the variant |
@@ -414,3 +414,9 @@ type SourceEnhancer = (
   fileName: string,
 ) => { data?: unknown | undefined } | Promise;
 ```
+
+## External Type Links
+
+Maps `Type`: `URL` — the docs of a built-in type the page references.
+
+- `Promise`: <https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Promise>

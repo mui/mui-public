@@ -50,9 +50,9 @@ class InMemoryLanguageServiceHost implements ts.LanguageServiceHost {
    */
   private projectVersion = 0;
 
-  private options: ts.CompilerOptions;
+  declare private options: ts.CompilerOptions;
 
-  private projectPath: string;
+  declare private projectPath: string;
 
   private getVersionCallCount = 0;
 
@@ -353,7 +353,6 @@ function getOrCreateLanguageService(
   // Create optimized compiler options
   const optimizedOptions: ts.CompilerOptions = {
     ...compilerOptions,
-    baseUrl: compilerOptions.baseUrl || projectPath,
     rootDir: compilerOptions.rootDir || projectPath,
     types: compilerOptions.types || [],
     skipLibCheck: true,

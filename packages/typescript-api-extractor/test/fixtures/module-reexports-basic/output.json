@@ -1,0 +1,420 @@
+{
+	"name": "test/fixtures/module-reexports-basic/input",
+	"exports": [
+		{
+			"name": "localFunction",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "localFunction"
+				},
+				"callSignatures": [
+					{
+						"parameters": [],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "Root",
+			"type": {
+				"kind": "component",
+				"typeName": {
+					"name": "RootComponent"
+				},
+				"props": [
+					{
+						"name": "value",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "onChange",
+						"type": {
+							"kind": "function",
+							"callSignatures": [
+								{
+									"parameters": [
+										{
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											},
+											"name": "value",
+											"optional": false
+										}
+									],
+									"returnValueType": {
+										"kind": "intrinsic",
+										"intrinsic": "void"
+									}
+								}
+							]
+						},
+						"optional": false
+					}
+				]
+			},
+			"reexportedFrom": "RootComponent",
+			"isValue": true,
+			"isType": false,
+			"isNamespace": true
+		},
+		{
+			"name": "Root.Props",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Props",
+					"namespaces": ["Root"]
+				},
+				"properties": [
+					{
+						"name": "value",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "onChange",
+						"type": {
+							"kind": "function",
+							"callSignatures": [
+								{
+									"parameters": [
+										{
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											},
+											"name": "value",
+											"optional": false
+										}
+									],
+									"returnValueType": {
+										"kind": "intrinsic",
+										"intrinsic": "void"
+									}
+								}
+							]
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Root.State",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "State",
+					"namespaces": ["Root"]
+				},
+				"types": [
+					{
+						"kind": "literal",
+						"value": "\"idle\""
+					},
+					{
+						"kind": "literal",
+						"value": "\"loading\""
+					},
+					{
+						"kind": "literal",
+						"value": "\"error\""
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "RootProps",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "RootProps"
+				},
+				"properties": [
+					{
+						"name": "value",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "onChange",
+						"type": {
+							"kind": "function",
+							"callSignatures": [
+								{
+									"parameters": [
+										{
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											},
+											"name": "value",
+											"optional": false
+										}
+									],
+									"returnValueType": {
+										"kind": "intrinsic",
+										"intrinsic": "void"
+									}
+								}
+							]
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "RootState",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "RootState"
+				},
+				"types": [
+					{
+						"kind": "literal",
+						"value": "\"idle\""
+					},
+					{
+						"kind": "literal",
+						"value": "\"loading\""
+					},
+					{
+						"kind": "literal",
+						"value": "\"error\""
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Source.RootComponent",
+			"type": {
+				"kind": "component",
+				"typeName": {
+					"name": "RootComponent",
+					"namespaces": ["Source"]
+				},
+				"props": [
+					{
+						"name": "value",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "onChange",
+						"type": {
+							"kind": "function",
+							"callSignatures": [
+								{
+									"parameters": [
+										{
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											},
+											"name": "value",
+											"optional": false
+										}
+									],
+									"returnValueType": {
+										"kind": "intrinsic",
+										"intrinsic": "void"
+									}
+								}
+							]
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": true
+		},
+		{
+			"name": "Source.RootComponent.Props",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Props",
+					"namespaces": ["Source", "RootComponent"]
+				},
+				"properties": [
+					{
+						"name": "value",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "onChange",
+						"type": {
+							"kind": "function",
+							"callSignatures": [
+								{
+									"parameters": [
+										{
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											},
+											"name": "value",
+											"optional": false
+										}
+									],
+									"returnValueType": {
+										"kind": "intrinsic",
+										"intrinsic": "void"
+									}
+								}
+							]
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Source.RootComponent.State",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "State",
+					"namespaces": ["Source", "RootComponent"]
+				},
+				"types": [
+					{
+						"kind": "literal",
+						"value": "\"idle\""
+					},
+					{
+						"kind": "literal",
+						"value": "\"loading\""
+					},
+					{
+						"kind": "literal",
+						"value": "\"error\""
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Source.RootProps",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "RootProps",
+					"namespaces": ["Source"]
+				},
+				"properties": [
+					{
+						"name": "value",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "onChange",
+						"type": {
+							"kind": "function",
+							"callSignatures": [
+								{
+									"parameters": [
+										{
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											},
+											"name": "value",
+											"optional": false
+										}
+									],
+									"returnValueType": {
+										"kind": "intrinsic",
+										"intrinsic": "void"
+									}
+								}
+							]
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Source.RootState",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "RootState",
+					"namespaces": ["Source"]
+				},
+				"types": [
+					{
+						"kind": "literal",
+						"value": "\"idle\""
+					},
+					{
+						"kind": "literal",
+						"value": "\"loading\""
+					},
+					{
+						"kind": "literal",
+						"value": "\"error\""
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

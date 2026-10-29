@@ -282,9 +282,9 @@ type HighlightedRawTypeMeta = {
    * When set, indicates this should be rendered as a link to the component.
    */
   reExportOf?: ReExportInfo;
-  /** For DataAttributes types, the component name this type belongs to. */
+  /** For constant groups holding a component's data attributes, that component's name. */
   dataAttributesOf?: string;
-  /** For CssVars types, the component name this type belongs to. */
+  /** For constant groups holding a component's CSS variables, that component's name. */
   cssVarsOf?: string;
 };
 ```
@@ -430,6 +430,11 @@ type LoadServerTypesResult = {
    * Keys include both dotted names ("Accordion.Trigger") and flat names ("AccordionTrigger").
    */
   anchorMap: { js?: Record<string, string>; css?: Record<string, string> };
+  /**
+   * Links for the built-in types referenced on the page, such as `HTMLElement` to its MDN
+   * page, keyed by the name they are printed as.
+   */
+  externalTypeLinks: Record<string, string>;
 };
 ```
 
@@ -459,3 +464,9 @@ Controls the output format of HAST fields in type metadata.
 ```typescript
 type TypesOutputFormat = 'hast' | 'hastJson' | 'hastCompressed';
 ```
+
+## External Type Links
+
+Maps `Type`: `URL` — the docs of a built-in type the page references.
+
+- `Promise`: <https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Promise>

@@ -1,0 +1,1 @@
+../../../packages/docs-infra/AGENTS.md

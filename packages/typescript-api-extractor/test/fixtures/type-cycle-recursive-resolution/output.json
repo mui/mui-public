@@ -1,0 +1,584 @@
+{
+	"name": "test/fixtures/type-cycle-recursive-resolution/input",
+	"exports": [
+		{
+			"name": "recursiveObject",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "recursiveObject"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "object",
+									"typeName": {
+										"name": "TestObject1",
+										"typeArguments": [
+											{
+												"type": {
+													"kind": "intrinsic",
+													"intrinsic": "string"
+												},
+												"equalToDefault": false
+											}
+										]
+									},
+									"properties": [
+										{
+											"name": "obj2",
+											"type": {
+												"kind": "object",
+												"typeName": {
+													"name": "TestObject2",
+													"typeArguments": [
+														{
+															"type": {
+																"kind": "intrinsic",
+																"intrinsic": "string"
+															},
+															"equalToDefault": false
+														}
+													]
+												},
+												"properties": [
+													{
+														"name": "obj1",
+														"type": {
+															"kind": "object",
+															"typeName": {
+																"name": "TestObject1",
+																"typeArguments": [
+																	{
+																		"type": {
+																			"kind": "intrinsic",
+																			"intrinsic": "string"
+																		},
+																		"equalToDefault": false
+																	}
+																]
+															},
+															"properties": []
+														},
+														"optional": false
+													}
+												]
+											},
+											"optional": false
+										}
+									]
+								},
+								"name": "x",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "testUnion",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "testUnion"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "union",
+									"typeName": {
+										"name": "Union"
+									},
+									"types": [
+										{
+											"kind": "object",
+											"typeName": {
+												"name": "UnionMember1"
+											},
+											"properties": [
+												{
+													"name": "value",
+													"type": {
+														"kind": "intrinsic",
+														"intrinsic": "number"
+													},
+													"optional": false
+												},
+												{
+													"name": "nestedUnion",
+													"type": {
+														"kind": "union",
+														"typeName": {
+															"name": "Union"
+														},
+														"types": []
+													},
+													"optional": false
+												}
+											]
+										},
+										{
+											"kind": "object",
+											"typeName": {
+												"name": "UnionMember2"
+											},
+											"properties": [
+												{
+													"name": "value",
+													"type": {
+														"kind": "intrinsic",
+														"intrinsic": "string"
+													},
+													"optional": false
+												},
+												{
+													"name": "nestedUnion",
+													"type": {
+														"kind": "union",
+														"typeName": {
+															"name": "Union"
+														},
+														"types": []
+													},
+													"optional": false
+												}
+											]
+										}
+									]
+								},
+								"name": "x",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "testIntersection",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "testIntersection"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "intersection",
+									"typeName": {
+										"name": "IntersectionWithCycle"
+									},
+									"types": [
+										{
+											"kind": "object",
+											"typeName": {
+												"name": "IntersectionBase"
+											},
+											"properties": [
+												{
+													"name": "id",
+													"type": {
+														"kind": "intrinsic",
+														"intrinsic": "number"
+													},
+													"optional": false
+												}
+											]
+										},
+										{
+											"kind": "object",
+											"properties": [
+												{
+													"name": "self",
+													"type": {
+														"kind": "intersection",
+														"typeName": {
+															"name": "IntersectionWithCycle"
+														},
+														"types": [],
+														"properties": []
+													},
+													"optional": false
+												}
+											]
+										}
+									],
+									"properties": [
+										{
+											"name": "id",
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "number"
+											},
+											"optional": false
+										},
+										{
+											"name": "self",
+											"type": {
+												"kind": "intersection",
+												"typeName": {
+													"name": "IntersectionWithCycle"
+												},
+												"types": [],
+												"properties": []
+											},
+											"optional": false
+										}
+									]
+								},
+								"name": "x",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "testArray",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "testArray"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "array",
+									"typeName": {
+										"name": "CyclicArray"
+									},
+									"elementType": {
+										"kind": "object",
+										"typeName": {
+											"name": "ArrayElement"
+										},
+										"properties": [
+											{
+												"name": "value",
+												"type": {
+													"kind": "intrinsic",
+													"intrinsic": "number"
+												},
+												"optional": false
+											},
+											{
+												"name": "parent",
+												"type": {
+													"kind": "array",
+													"typeName": {
+														"name": "CyclicArray"
+													},
+													"elementType": {
+														"kind": "intrinsic",
+														"intrinsic": "any"
+													}
+												},
+												"optional": false
+											}
+										]
+									}
+								},
+								"name": "x",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "testTuple",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "testTuple"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "tuple",
+									"typeName": {
+										"name": "CyclicTuple"
+									},
+									"types": [
+										{
+											"kind": "object",
+											"typeName": {
+												"name": "TupleElement"
+											},
+											"properties": [
+												{
+													"name": "value",
+													"type": {
+														"kind": "intrinsic",
+														"intrinsic": "string"
+													},
+													"optional": false
+												},
+												{
+													"name": "tuple",
+													"type": {
+														"kind": "tuple",
+														"typeName": {
+															"name": "CyclicTuple"
+														},
+														"types": []
+													},
+													"optional": false
+												}
+											]
+										},
+										{
+											"kind": "intrinsic",
+											"intrinsic": "number"
+										}
+									]
+								},
+								"name": "x",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "TestObject1",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "TestObject1",
+					"typeArguments": [
+						{
+							"type": {
+								"name": "T",
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [
+					{
+						"name": "obj2",
+						"type": {
+							"kind": "object",
+							"typeName": {
+								"name": "TestObject2",
+								"typeArguments": [
+									{
+										"type": {
+											"name": "T",
+											"kind": "typeParameter"
+										},
+										"equalToDefault": false
+									}
+								]
+							},
+							"properties": [
+								{
+									"name": "obj1",
+									"type": {
+										"kind": "object",
+										"typeName": {
+											"name": "TestObject1",
+											"typeArguments": [
+												{
+													"type": {
+														"kind": "intrinsic",
+														"intrinsic": "string"
+													},
+													"equalToDefault": false
+												}
+											]
+										},
+										"properties": [
+											{
+												"name": "obj2",
+												"type": {
+													"kind": "object",
+													"typeName": {
+														"name": "TestObject2",
+														"typeArguments": [
+															{
+																"type": {
+																	"kind": "intrinsic",
+																	"intrinsic": "string"
+																},
+																"equalToDefault": false
+															}
+														]
+													},
+													"properties": [
+														{
+															"name": "obj1",
+															"type": {
+																"kind": "object",
+																"typeName": {
+																	"name": "TestObject1",
+																	"typeArguments": [
+																		{
+																			"type": {
+																				"kind": "intrinsic",
+																				"intrinsic": "string"
+																			},
+																			"equalToDefault": false
+																		}
+																	]
+																},
+																"properties": []
+															},
+															"optional": false
+														}
+													]
+												},
+												"optional": false
+											}
+										]
+									},
+									"optional": false
+								}
+							]
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "TestObject2",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "TestObject2",
+					"typeArguments": [
+						{
+							"type": {
+								"name": "T",
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [
+					{
+						"name": "obj1",
+						"type": {
+							"kind": "object",
+							"typeName": {
+								"name": "TestObject1",
+								"typeArguments": [
+									{
+										"type": {
+											"kind": "intrinsic",
+											"intrinsic": "string"
+										},
+										"equalToDefault": false
+									}
+								]
+							},
+							"properties": [
+								{
+									"name": "obj2",
+									"type": {
+										"kind": "object",
+										"typeName": {
+											"name": "TestObject2",
+											"typeArguments": [
+												{
+													"type": {
+														"kind": "intrinsic",
+														"intrinsic": "string"
+													},
+													"equalToDefault": false
+												}
+											]
+										},
+										"properties": [
+											{
+												"name": "obj1",
+												"type": {
+													"kind": "object",
+													"typeName": {
+														"name": "TestObject1",
+														"typeArguments": [
+															{
+																"type": {
+																	"kind": "intrinsic",
+																	"intrinsic": "string"
+																},
+																"equalToDefault": false
+															}
+														]
+													},
+													"properties": []
+												},
+												"optional": false
+											}
+										]
+									},
+									"optional": false
+								}
+							]
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

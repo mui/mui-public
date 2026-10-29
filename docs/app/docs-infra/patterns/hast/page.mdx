@@ -39,7 +39,7 @@ No parsing or highlighting libraries are needed in the client bundle or server r
 - No client-side processing of syntax highlighting
 
 > [!NOTE]
-> While server-side highlighting (e.g., with React Server Components) can offload work from the client, it still requires processing on every request. Build-time HAST generation eliminates this overhead entirely by computing highlighting once and caching the results.
+> While server-side highlighting (for example, with React Server Components) can offload work from the client, it still requires processing on every request. Build-time HAST generation eliminates this overhead entirely by computing highlighting once and caching the results.
 
 ### Framework Agnostic
 
@@ -64,7 +64,7 @@ This is not possible with plain HTML strings, which can only be rendered via `da
 
 HAST is part of the [unified](https://unifiedjs.com/) ecosystem, which provides a vast collection of plugins for transforming content:
 
-- **Rehype plugins**: Transform HAST trees (e.g., syntax highlighting, link processing, image optimization)
+- **Rehype plugins**: Transform HAST trees (for example, syntax highlighting, link processing, image optimization)
 - **Remark plugins**: Process markdown before HAST conversion
 - **Composable pipelines**: Chain multiple transformations together
 - **Community ecosystem**: Hundreds of existing plugins available
@@ -74,7 +74,7 @@ This plugin architecture allows you to build sophisticated content processing pi
 
 ### Efficient Caching
 
-Webpack can cache HAST as JSON between builds:
+webpack can cache HAST as JSON between builds:
 
 - Fast incremental builds
 - Only reprocess files that have changed
@@ -167,7 +167,7 @@ This represents: `const x` with syntax highlighting classes applied.
 
 ### Security Considerations
 
-When working with HAST from untrusted sources (e.g., JSON from external APIs or user-generated content), sanitize the HAST tree before converting it to React components:
+When working with HAST from untrusted sources (for example, JSON from external APIs or user-generated content), sanitize the HAST tree before converting it to React components:
 
 ```typescript
 import { hastToJsx } from '@mui/internal-docs-infra/hastToJsx';

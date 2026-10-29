@@ -1,0 +1,269 @@
+{
+	"name": "test/fixtures/class-method-generic-signatures/input",
+	"exports": [
+		{
+			"name": "Repository",
+			"type": {
+				"kind": "class",
+				"typeName": {
+					"name": "Repository"
+				},
+				"constructSignatures": [
+					{
+						"parameters": []
+					}
+				],
+				"properties": [],
+				"methods": [
+					{
+						"name": "find",
+						"isStatic": false,
+						"callSignatures": [
+							{
+								"parameters": [
+									{
+										"type": {
+											"name": "K",
+											"constraint": {
+												"kind": "typeOperator",
+												"operator": "keyof",
+												"type": {
+													"name": "T",
+													"constraint": {
+														"kind": "object",
+														"properties": []
+													},
+													"kind": "typeParameter"
+												},
+												"resolvedType": {
+													"kind": "union",
+													"types": [
+														{
+															"kind": "intrinsic",
+															"intrinsic": "string"
+														},
+														{
+															"kind": "intrinsic",
+															"intrinsic": "number"
+														},
+														{
+															"kind": "intrinsic",
+															"intrinsic": "symbol"
+														}
+													]
+												},
+												"resolutionKind": "baseConstraint"
+											},
+											"kind": "typeParameter"
+										},
+										"name": "key",
+										"optional": false
+									},
+									{
+										"type": {
+											"kind": "intrinsic",
+											"intrinsic": "any"
+										},
+										"name": "value",
+										"optional": false
+									}
+								],
+								"returnValueType": {
+									"kind": "union",
+									"types": [
+										{
+											"name": "T",
+											"constraint": {
+												"kind": "object",
+												"properties": []
+											},
+											"kind": "typeParameter"
+										},
+										{
+											"kind": "intrinsic",
+											"intrinsic": "undefined"
+										}
+									]
+								},
+								"typeParameters": [
+									{
+										"name": "K",
+										"constraint": {
+											"kind": "typeOperator",
+											"operator": "keyof",
+											"type": {
+												"name": "T",
+												"constraint": {
+													"kind": "object",
+													"properties": []
+												},
+												"kind": "typeParameter"
+											},
+											"resolvedType": {
+												"kind": "union",
+												"types": [
+													{
+														"kind": "intrinsic",
+														"intrinsic": "string"
+													},
+													{
+														"kind": "intrinsic",
+														"intrinsic": "number"
+													},
+													{
+														"kind": "intrinsic",
+														"intrinsic": "symbol"
+													}
+												]
+											},
+											"resolutionKind": "baseConstraint"
+										},
+										"kind": "typeParameter"
+									}
+								]
+							}
+						]
+					},
+					{
+						"name": "transform",
+						"isStatic": false,
+						"callSignatures": [
+							{
+								"parameters": [
+									{
+										"type": {
+											"kind": "function",
+											"callSignatures": [
+												{
+													"parameters": [
+														{
+															"type": {
+																"name": "T",
+																"constraint": {
+																	"kind": "object",
+																	"properties": []
+																},
+																"kind": "typeParameter"
+															},
+															"name": "item",
+															"optional": false
+														}
+													],
+													"returnValueType": {
+														"name": "U",
+														"kind": "typeParameter"
+													}
+												}
+											]
+										},
+										"name": "fn",
+										"optional": false
+									}
+								],
+								"returnValueType": {
+									"kind": "array",
+									"elementType": {
+										"name": "U",
+										"kind": "typeParameter"
+									}
+								},
+								"typeParameters": [
+									{
+										"name": "U",
+										"kind": "typeParameter"
+									}
+								]
+							}
+						]
+					},
+					{
+						"name": "merge",
+						"isStatic": false,
+						"callSignatures": [
+							{
+								"parameters": [
+									{
+										"type": {
+											"kind": "object",
+											"typeName": {
+												"name": "Repository",
+												"typeArguments": [
+													{
+														"type": {
+															"name": "Other",
+															"constraint": {
+																"kind": "object",
+																"properties": []
+															},
+															"kind": "typeParameter"
+														},
+														"equalToDefault": false
+													}
+												]
+											},
+											"properties": []
+										},
+										"name": "other",
+										"optional": false
+									}
+								],
+								"returnValueType": {
+									"kind": "object",
+									"typeName": {
+										"name": "Repository",
+										"typeArguments": [
+											{
+												"type": {
+													"kind": "intersection",
+													"types": [
+														{
+															"name": "T",
+															"constraint": {
+																"kind": "object",
+																"properties": []
+															},
+															"kind": "typeParameter"
+														},
+														{
+															"name": "Other",
+															"constraint": {
+																"kind": "object",
+																"properties": []
+															},
+															"kind": "typeParameter"
+														}
+													],
+													"properties": []
+												},
+												"equalToDefault": false
+											}
+										]
+									},
+									"properties": []
+								},
+								"typeParameters": [
+									{
+										"name": "Other",
+										"constraint": {
+											"kind": "object",
+											"properties": []
+										},
+										"kind": "typeParameter"
+									}
+								]
+							}
+						]
+					}
+				],
+				"typeParameters": [
+					{
+						"name": "T"
+					}
+				]
+			},
+			"isValue": true,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

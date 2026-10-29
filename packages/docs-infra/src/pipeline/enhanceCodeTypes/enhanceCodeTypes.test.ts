@@ -89,6 +89,168 @@ describe('enhanceCodeTypes', () => {
     });
   });
 
+  describe('externalLinks option', () => {
+    const externalLinks: Record<string, string> = {
+      Theme: 'https://example.com/theme',
+      'Format.Options': 'https://example.com/format#options',
+    };
+
+    async function processWithExternalLinks(
+      input: string,
+      linkMap: Record<string, string>,
+      options?: { linkProps?: 'shallow' | 'deep'; linkScope?: boolean },
+    ): Promise<string> {
+      const result = await unified()
+        .use(rehypeParse, { fragment: true })
+        .use(enhanceCodeTypes, {
+          linkMap: { js: linkMap, css: linkMap },
+          ...options,
+          externalLinks,
+        })
+        .use(rehypeStringify)
+        .process(input);
+
+      return String(result);
+    }
+
+    it('links types the link map does not know', async () => {
+      const input = '<code class="language-ts"><span class="pl-en">Theme</span></code>';
+
+      const output = await processWithExternalLinks(input, {});
+
+      expect(output).toBe(
+        '<code class="language-ts"><a href="https://example.com/theme" class="pl-en">Theme</a></code>',
+      );
+    });
+
+    it('prefers the link map', async () => {
+      const input = '<code class="language-ts"><span class="pl-en">Theme</span></code>';
+
+      const output = await processWithExternalLinks(input, { Theme: '#theme' });
+
+      expect(output).toBe(
+        '<code class="language-ts"><a href="#theme" class="pl-en">Theme</a></code>',
+      );
+    });
+
+    it('links dotted chains as a whole', async () => {
+      const input =
+        '<code class="language-ts"><span class="pl-en">Format</span>.<span class="pl-en">Options</span></code>';
+
+      const output = await processWithExternalLinks(input, {});
+
+      expect(output).toBe(
+        '<code class="language-ts"><a href="https://example.com/format#options"><span class="pl-en">Format</span>.<span class="pl-en">Options</span></a></code>',
+      );
+    });
+
+    it('does not link properties of externally linked types', async () => {
+      // const opts: Format.Options = { style: "short" };
+      const input =
+        '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">opts</span><span class="pl-k">:</span> <span class="pl-en">Format</span>.<span class="pl-en">Options</span> <span class="pl-k">=</span> { style: <span class="pl-s"><span class="pl-pds">"</span>short<span class="pl-pds">"</span></span> };</code>';
+
+      const output = await processWithExternalLinks(input, {}, { linkProps: 'shallow' });
+
+      expect(output).toBe(
+        '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">opts</span><span class="pl-k">:</span> <a href="https://example.com/format#options"><span class="pl-en">Format</span>.<span class="pl-en">Options</span></a> <span class="pl-k">=</span> { style: <span class="pl-s"><span class="pl-pds">"</span>short<span class="pl-pds">"</span></span> };</code>',
+      );
+    });
+
+    it('does not look names up on the object prototype', async () => {
+      const input =
+        '<code class="language-ts"><span class="pl-en">toString</span> <span class="pl-en">constructor</span></code>';
+
+      const output = await processWithExternalLinks(input, {});
+
+      expect(output).not.toContain('<a');
+    });
+
+    it('does not link names bound in scope', async () => {
+      // const Theme: Local = v; Theme
+      const input =
+        '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">Theme</span><span class="pl-k">:</span> <span class="pl-en">Local</span> <span class="pl-k">=</span> v; <span class="pl-c1">Theme</span></code>';
+
+      const output = await processWithExternalLinks(
+        input,
+        { Local: '#local' },
+        { linkScope: true },
+      );
+
+      expect(output).not.toContain('https://example.com/theme');
+    });
+
+    it.each([
+      ['interface', '<span class="pl-k">interface</span> <span class="pl-en">Theme</span> {}'],
+      [
+        'type',
+        '<span class="pl-k">type</span> <span class="pl-en">Theme</span> <span class="pl-k">=</span> <span class="pl-c1">string</span>;',
+      ],
+      [
+        'export type',
+        '<span class="pl-k">export</span> <span class="pl-k">type</span> <span class="pl-en">Theme</span> <span class="pl-k">=</span> <span class="pl-c1">string</span>;',
+      ],
+      [
+        'abstract class',
+        '<span class="pl-k">abstract</span> <span class="pl-k">class</span> <span class="pl-en">Theme</span> {}',
+      ],
+      ['function', '<span class="pl-k">function</span> <span class="pl-en">Theme</span>() {}'],
+      [
+        'enum',
+        '<span class="pl-k">enum</span> <span class="pl-en">Theme</span> { <span class="pl-smi">A</span> }',
+      ],
+      [
+        'const',
+        '<span class="pl-k">const</span> <span class="pl-en">Theme</span> <span class="pl-k">=</span> () <span class="pl-k">=></span> {};',
+      ],
+    ])('does not link the name declared with `%s`', async (_kind, declaration) => {
+      const input = `<code class="language-tsx">${declaration}</code>`;
+
+      const output = await processWithExternalLinks(input, {});
+
+      expect(output).not.toContain('https://example.com/theme');
+    });
+
+    it('does not link uses of a name the code declares', async () => {
+      // interface Theme {}
+      // function apply(value: Theme) {}
+      const input =
+        '<code class="language-tsx"><span class="pl-k">interface</span> <span class="pl-en">Theme</span> {}\n<span class="pl-k">function</span> <span class="pl-en">apply</span>(<span class="pl-v">value</span><span class="pl-k">:</span> <span class="pl-en">Theme</span>) {}</code>';
+
+      const output = await processWithExternalLinks(input, {});
+
+      expect(output).not.toContain('https://example.com/theme');
+    });
+
+    it('does not link uses that come before the declaration', async () => {
+      // function apply(value: Theme) {}
+      // interface Theme {}
+      const input =
+        '<code class="language-tsx"><span class="pl-k">function</span> <span class="pl-en">apply</span>(<span class="pl-v">value</span><span class="pl-k">:</span> <span class="pl-en">Theme</span>) {}\n<span class="pl-k">interface</span> <span class="pl-en">Theme</span> {}</code>';
+
+      const output = await processWithExternalLinks(input, {});
+
+      expect(output).not.toContain('https://example.com/theme');
+    });
+
+    it('links types in an anonymous function declaration', async () => {
+      // const run = function (value: Theme) {};
+      const input =
+        '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-en">run</span> <span class="pl-k">=</span> <span class="pl-k">function</span> (<span class="pl-v">value</span><span class="pl-k">:</span> <span class="pl-en">Theme</span>) {};</code>';
+
+      const output = await processWithExternalLinks(input, {});
+
+      expect(output).toContain('<a href="https://example.com/theme" class="pl-en">Theme</a>');
+    });
+
+    it('does not link names in CSS', async () => {
+      const input = '<code class="language-css"><span class="pl-c1">Theme</span></code>';
+
+      const output = await processWithExternalLinks(input, {});
+
+      expect(output).toBe('<code class="language-css"><span class="pl-c1">Theme</span></code>');
+    });
+  });
+
   describe('dotted chain linking', () => {
     it('wraps a two-part dotted chain in an anchor', async () => {
       const input =

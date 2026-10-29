@@ -1,0 +1,139 @@
+{
+	"name": "test/fixtures/type-conditional-return-and-props/input",
+	"exports": [
+		{
+			"name": "conditionalReturn",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "conditionalReturn"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"name": "T",
+									"constraint": {
+										"kind": "intrinsic",
+										"intrinsic": "boolean"
+									},
+									"kind": "typeParameter"
+								},
+								"name": "x",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "number"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "null"
+								}
+							]
+						},
+						"typeParameters": [
+							{
+								"name": "T",
+								"constraint": {
+									"kind": "intrinsic",
+									"intrinsic": "boolean"
+								},
+								"kind": "typeParameter"
+							}
+						]
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "ConditionalPropsComponent",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "ConditionalPropsComponent"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "object",
+									"typeName": {
+										"name": "Props",
+										"typeArguments": [
+											{
+												"type": {
+													"name": "Multiple",
+													"constraint": {
+														"kind": "intrinsic",
+														"intrinsic": "boolean"
+													},
+													"kind": "typeParameter"
+												},
+												"equalToDefault": false
+											}
+										]
+									},
+									"properties": [
+										{
+											"name": "value",
+											"type": {
+												"kind": "union",
+												"types": [
+													{
+														"kind": "intrinsic",
+														"intrinsic": "string"
+													},
+													{
+														"kind": "array",
+														"elementType": {
+															"kind": "intrinsic",
+															"intrinsic": "string"
+														}
+													},
+													{
+														"kind": "intrinsic",
+														"intrinsic": "null"
+													}
+												]
+											},
+											"optional": false
+										}
+									]
+								},
+								"name": "props",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "null"
+						},
+						"typeParameters": [
+							{
+								"name": "Multiple",
+								"constraint": {
+									"kind": "intrinsic",
+									"intrinsic": "boolean"
+								},
+								"kind": "typeParameter"
+							}
+						]
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		}
+	]
+}

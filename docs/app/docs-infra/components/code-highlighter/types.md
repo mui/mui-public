@@ -44,7 +44,7 @@ never reaches the path that renders precomputed content.
 | highlightAfter          | `'init' \| 'stream' \| 'hydration' \| 'idle'`  | `'idle'`  | When to perform syntax highlighting and code processing                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | initialDisabled         | `boolean`                                      | -         | Start the editable code read-only. Threaded into `contentProps`; `useCode` seeds its&#xA;`editable` toggle from it (a reader flips it back with `setEditable`). Runtime-only.                                                                                                                                                                                                                                                                                                                                           |
 | initialVariant          | `string`                                       | -         | Default variant to show on first load                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| language                | `string`                                       | -         | Language for syntax highlighting (e.g., 'tsx', 'css'). When provided, fileName is not required for parsing.                                                                                                                                                                                                                                                                                                                                                                                                             |
+| language                | `string`                                       | -         | Language for syntax highlighting (for example, 'tsx', 'css'). When provided, fileName is not required for parsing.                                                                                                                                                                                                                                                                                                                                                                                                      |
 | loadCodeMeta            | `LoadCodeMeta`                                 | -         | Function to load code metadata from a URL                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | loadPrecompute          | `(() => Promise<Code>)`                        | -         | Loads the complete precomputed source after the fallback approaches the viewport.                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | loadSource              | `LoadSource`                                   | -         | Function to load raw source code and dependencies                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
@@ -53,11 +53,11 @@ never reaches the path that renders precomputed content.
 | slug                    | `string`                                       | -         | URL-friendly identifier for deep linking and navigation                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | sourceEnhancers         | `SourceEnhancers`                              | -         | Array of source enhancers that run after parsing to enhance the HAST tree                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | sourceParser            | `Promise<ParseSource>`                         | -         | Promise resolving to a source parser for syntax highlighting                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| sourceTransformers      | `SourceTransformers`                           | -         | Array of source transformers for code processing (e.g., TypeScript to JavaScript)                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| sourceTransformers      | `SourceTransformers`                           | -         | Array of source transformers for code processing (for example, TypeScript to JavaScript)                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | url                     | `string`                                       | -         | Source URL where the code content originates from                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | urlPrefix               | `{ from: string; to: string }`                 | -         | Optional URL-prefix rewrite forwarded to .&#xA;Lets the demo factory translate local `file://` URLs returned by&#xA;`loadSource` into hosted URLs before they reach the client.                                                                                                                                                                                                                                                                                                                                         |
 | variant                 | `string`                                       | -         | Currently selected variant name                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| variantType             | `string`                                       | -         | What type of variants are available (e.g., a type `packageManager` when variants `npm` and `yarn` are available)                                                                                                                                                                                                                                                                                                                                                                                                        |
+| variantType             | `string`                                       | -         | What type of variants are available (for example, a type `packageManager` when variants `npm` and `yarn` are available)                                                                                                                                                                                                                                                                                                                                                                                                 |
 | variants                | `string[]`                                     | -         | Static variant names that should be fetched at runtime                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | children                | `string`                                       | -         | Raw code string for simple use cases                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 
@@ -356,7 +356,7 @@ type CodeContentProps = {
   code?: Code;
   /** React components for live preview alongside code */
   components?: Components;
-  /** What type of variants are available (e.g., a type `packageManager` when variants `npm` and `yarn` are available) */
+  /** What type of variants are available (for example, a type `packageManager` when variants `npm` and `yarn` are available) */
   variantType?: string;
   /** Static variant names that should be fetched at runtime */
   variants?: string[];
@@ -364,7 +364,7 @@ type CodeContentProps = {
   variant?: string;
   /** Currently selected file name */
   fileName?: string;
-  /** Language for syntax highlighting (e.g., 'tsx', 'css'). When provided, fileName is not required for parsing. */
+  /** Language for syntax highlighting (for example, 'tsx', 'css'). When provided, fileName is not required for parsing. */
   language?: string;
   /** Default variant to show on first load */
   initialVariant?: string;
@@ -387,7 +387,7 @@ type CodeFunctionProps = {
   loadVariantMeta?: LoadVariantMeta;
   /** Function to load raw source code and dependencies */
   loadSource?: LoadSource;
-  /** Array of source transformers for code processing (e.g., TypeScript to JavaScript) */
+  /** Array of source transformers for code processing (for example, TypeScript to JavaScript) */
   sourceTransformers?: SourceTransformers;
   /** Promise resolving to a source parser for syntax highlighting */
   sourceParser?: Promise<ParseSource>;
@@ -436,7 +436,7 @@ type CodeHighlighterBaseProps<T extends {}> = {
   code?: Code;
   /** React components for live preview alongside code */
   components?: Components;
-  /** What type of variants are available (e.g., a type `packageManager` when variants `npm` and `yarn` are available) */
+  /** What type of variants are available (for example, a type `packageManager` when variants `npm` and `yarn` are available) */
   variantType?: string;
   /** Static variant names that should be fetched at runtime */
   variants?: string[];
@@ -444,7 +444,7 @@ type CodeHighlighterBaseProps<T extends {}> = {
   variant?: string;
   /** Currently selected file name */
   fileName?: string;
-  /** Language for syntax highlighting (e.g., 'tsx', 'css'). When provided, fileName is not required for parsing. */
+  /** Language for syntax highlighting (for example, 'tsx', 'css'). When provided, fileName is not required for parsing. */
   language?: string;
   /** Default variant to show on first load */
   initialVariant?: string;
@@ -511,7 +511,7 @@ type CodeHighlighterBaseProps<T extends {}> = {
   loadVariantMeta?: LoadVariantMeta;
   /** Function to load raw source code and dependencies */
   loadSource?: LoadSource;
-  /** Array of source transformers for code processing (e.g., TypeScript to JavaScript) */
+  /** Array of source transformers for code processing (for example, TypeScript to JavaScript) */
   sourceTransformers?: SourceTransformers;
   /** Promise resolving to a source parser for syntax highlighting */
   sourceParser?: Promise<ParseSource>;
@@ -563,7 +563,7 @@ type CodeHighlighterClientProps = {
   code?: Code;
   /** React components for live preview alongside code */
   components?: Components;
-  /** What type of variants are available (e.g., a type `packageManager` when variants `npm` and `yarn` are available) */
+  /** What type of variants are available (for example, a type `packageManager` when variants `npm` and `yarn` are available) */
   variantType?: string;
   /** Static variant names that should be fetched at runtime */
   variants?: string[];
@@ -571,7 +571,7 @@ type CodeHighlighterClientProps = {
   variant?: string;
   /** Currently selected file name */
   fileName?: string;
-  /** Language for syntax highlighting (e.g., 'tsx', 'css'). When provided, fileName is not required for parsing. */
+  /** Language for syntax highlighting (for example, 'tsx', 'css'). When provided, fileName is not required for parsing. */
   language?: string;
   /** Default variant to show on first load */
   initialVariant?: string;
@@ -666,7 +666,7 @@ type CodeHighlighterProps<T extends {}> = {
   code?: Code;
   /** React components for live preview alongside code */
   components?: Components;
-  /** What type of variants are available (e.g., a type `packageManager` when variants `npm` and `yarn` are available) */
+  /** What type of variants are available (for example, a type `packageManager` when variants `npm` and `yarn` are available) */
   variantType?: string;
   /** Static variant names that should be fetched at runtime */
   variants?: string[];
@@ -674,7 +674,7 @@ type CodeHighlighterProps<T extends {}> = {
   variant?: string;
   /** Currently selected file name */
   fileName?: string;
-  /** Language for syntax highlighting (e.g., 'tsx', 'css'). When provided, fileName is not required for parsing. */
+  /** Language for syntax highlighting (for example, 'tsx', 'css'). When provided, fileName is not required for parsing. */
   language?: string;
   /** Default variant to show on first load */
   initialVariant?: string;
@@ -741,7 +741,7 @@ type CodeHighlighterProps<T extends {}> = {
   loadVariantMeta?: LoadVariantMeta;
   /** Function to load raw source code and dependencies */
   loadSource?: LoadSource;
-  /** Array of source transformers for code processing (e.g., TypeScript to JavaScript) */
+  /** Array of source transformers for code processing (for example, TypeScript to JavaScript) */
   sourceTransformers?: SourceTransformers;
   /** Promise resolving to a source parser for syntax highlighting */
   sourceParser?: Promise<ParseSource>;
@@ -1101,7 +1101,7 @@ type LoadFallbackCodeOptions = {
   loadVariantMeta?: LoadVariantMeta;
   /** Function to load raw source code and dependencies */
   loadSource?: LoadSource;
-  /** Array of source transformers for code processing (e.g., TypeScript to JavaScript) */
+  /** Array of source transformers for code processing (for example, TypeScript to JavaScript) */
   sourceTransformers?: SourceTransformers;
   /** Promise resolving to a source parser for syntax highlighting */
   sourceParser?: Promise<ParseSource>;
@@ -1199,7 +1199,7 @@ type LoadVariantOptions = {
   loadSource?: LoadSource;
   /** Function to load specific variant metadata */
   loadVariantMeta?: LoadVariantMeta;
-  /** Array of source transformers for code processing (e.g., TypeScript to JavaScript) */
+  /** Array of source transformers for code processing (for example, TypeScript to JavaScript) */
   sourceTransformers?: SourceTransformers;
   /** Array of source enhancers that run after parsing to enhance the HAST tree */
   sourceEnhancers?: SourceEnhancers;
@@ -1359,3 +1359,10 @@ type VariantSource = string | HastRoot | { hastJson: string } | { hastCompressed
 
 - `CodeHighlighter`: `useCodeFallback`, `UseCodeFallbackResult`, `mergeComments`, `CodeHighlighter`
 - `CodeHighlighterTypes`: `Components`, `EditableSourceProjection`, `Transforms`, `ExternalImportItem`, `Externals`, `HastRoot`, `VariantSource`, `VariantExtraFiles`, `VariantCode`, `Code`, `CollapseMap`, `ControlledVariantExtraFiles`, `ControlledVariantCode`, `ControlledCode`, `ContentProps`, `Fallbacks`, `ContentLoadingFile`, `ContentLoadingVariant`, `BaseContentLoadingProps`, `ContentLoadingProps`, `LoadCodeMeta`, `LoadVariantMeta`, `LoadSource`, `TransformSource`, `ParseSource`, `SourceTransformer`, `SourceTransformers`, `SourceComments`, `SourceEnhancer`, `SourceEnhancers`, `LoadFileOptions`, `LoadVariantOptions`, `LoadFallbackCodeOptions`, `CodeIdentityProps`, `CodeContentProps`, `CodeLoadingProps`, `CodeFunctionProps`, `CodeRenderingProps`, `CodeClientRenderingProps`, `CodeHighlighterBaseProps`, `CodeHighlighterClientProps`, `CodeHighlighterProps`
+
+## External Type Links
+
+Maps `Type`: `URL` — the docs of a built-in type the page references.
+
+- `Promise`: <https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Promise>
+- `Set`: <https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Set>

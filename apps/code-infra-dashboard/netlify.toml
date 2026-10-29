@@ -9,11 +9,11 @@
 
 [dev]
   framework = "#custom"
-  command = "pnpm -F @apps/code-infra-dashboard start"
+  command = "pnpm -F ./apps/code-infra-dashboard start"
   targetPort = 3000
 
 [build.environment]
-  NODE_VERSION = "22.23.2"
+  NODE_VERSION = "22.23.4"
 
 [functions]
   directory = "functions"

@@ -92,7 +92,7 @@ type ChunkContext = React.Context<ChunkContextValue | undefined>;
 ### ChunkContextValue
 
 Provided by a `ChunkProvider`: lazily resolve the client `StreamSource` for
-descendant chunks. Called only when a chunk actually needs to load (i.e. it
+descendant chunks. Called only when a chunk actually needs to load (that is, it
 was not preloaded), so the loader module stays out of the initial bundle and
 is never imported when everything is precomputed.
 
@@ -133,3 +133,9 @@ type PreloadContext = React.Context<PreloadFn | undefined>;
 - `ChunkProvider`: `ChunkProvider`, `ChunkContext`, `useChunkContext`, `usePreload`, `PreloadProvider`, `PreloadContext`, `ChunkContextValue`, `ChunkProviderProps`, `PreloadFn`
 - `PreloadProvider`: `ChunkProvider`, `ChunkContext`, `useChunkContext`, `usePreload`, `PreloadProvider`, `PreloadContext`, `ChunkContextValue`, `ChunkProviderProps`, `PreloadFn`
 - `usePreload`: `ChunkProvider`, `ChunkContext`, `useChunkContext`, `usePreload`, `PreloadProvider`, `PreloadContext`, `ChunkContextValue`, `ChunkProviderProps`, `PreloadFn`
+
+## External Type Links
+
+Maps `Type`: `URL` — the docs of a built-in type the page references.
+
+- `Promise`: <https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Promise>

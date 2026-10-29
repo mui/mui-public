@@ -1,0 +1,106 @@
+{
+	"name": "test/fixtures/type-indexed-access-union-resolution/input",
+	"exports": [
+		{
+			"name": "useConfig",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "useConfig"
+				},
+				"callSignatures": [
+					{
+						"parameters": [],
+						"returnValueType": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "external",
+									"typeName": {
+										"name": "HTMLElement"
+									},
+									"source": {
+										"kind": "lib",
+										"files": ["lib.dom.d.ts"]
+									}
+								},
+								{
+									"kind": "external",
+									"typeName": {
+										"name": "ShadowRoot"
+									},
+									"source": {
+										"kind": "lib",
+										"files": ["lib.dom.d.ts"]
+									}
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "null"
+								}
+							]
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "Props",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Props"
+				},
+				"properties": [
+					{
+						"name": "container",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "external",
+									"typeName": {
+										"name": "HTMLElement"
+									},
+									"source": {
+										"kind": "lib",
+										"files": ["lib.dom.d.ts"]
+									}
+								},
+								{
+									"kind": "external",
+									"typeName": {
+										"name": "ShadowRoot"
+									},
+									"source": {
+										"kind": "lib",
+										"files": ["lib.dom.d.ts"]
+									}
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "null"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "The container for the portal.",
+							"tags": []
+						},
+						"optional": true
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

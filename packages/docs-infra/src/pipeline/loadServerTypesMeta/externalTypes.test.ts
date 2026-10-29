@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type * as tae from 'typescript-api-extractor';
+import type * as tae from '@mui/internal-typescript-api-extractor';
 import { formatType } from './formatType';
 import { formatProperties } from './format';
 import { formatExternalTypeDefinition } from './externalTypes';
@@ -16,6 +16,7 @@ function createCollector(
 ): ExternalTypesCollector {
   return {
     collected: new Map<string, ExternalTypeMeta>(),
+    sources: new Map(),
     allExports,
     pattern,
   };

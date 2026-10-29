@@ -1,12 +1,11 @@
-import * as fs from 'fs';
-import * as path from 'path';
-import { transformSync } from '@babel/core';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import * as babel from '@babel/core';
 import { pluginTester } from 'babel-plugin-tester';
 import { expect, describe, it } from 'vitest';
-import * as babel from '@babel/core';
-import plugin from './index';
+import plugin from './index.js';
 
-const fixturePath = path.resolve(__dirname, './__fixtures__');
+const fixturePath = path.resolve(import.meta.dirname, './__fixtures__');
 
 /**
  *
@@ -144,7 +143,7 @@ describe('collectErrors', () => {
       'throw /* minify-error */ new Error(`second ${x} error`);',
     ].join('\n');
 
-    transformSync(code, {
+    babel.transformSync(code, {
       filename: '/test/file.js',
       plugins: [[plugin, { collectErrors: errors }]],
       configFile: false,
@@ -161,7 +160,7 @@ describe('collectErrors', () => {
       'throw /* minify-error */ new Error(...bar);',
     ].join('\n');
 
-    transformSync(code, {
+    babel.transformSync(code, {
       filename: '/test/file.js',
       plugins: [[plugin, { collectErrors: errors }]],
       configFile: false,
@@ -189,7 +188,7 @@ describe('collectErrors', () => {
       'throw /* minify-error */ new Error("valid error message");',
     ].join('\n');
 
-    transformSync(code, {
+    babel.transformSync(code, {
       filename: '/test/file.js',
       plugins: [[plugin, { collectErrors: errors }]],
       configFile: false,
@@ -208,7 +207,7 @@ describe('collectErrors', () => {
       '\n',
     );
 
-    transformSync(code, {
+    babel.transformSync(code, {
       filename: '/test/file.js',
       plugins: [[plugin, { collectErrors: errors, detection: 'opt-out' }]],
       configFile: false,

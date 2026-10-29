@@ -1,0 +1,86 @@
+{
+	"name": "test/fixtures/function-parameters-optional-and-defaults/input",
+	"exports": [
+		{
+			"name": "optionalParameters",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "optionalParameters"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "number"
+								},
+								"name": "required",
+								"optional": false
+							},
+							{
+								"type": {
+									"kind": "union",
+									"types": [
+										{
+											"kind": "intrinsic",
+											"intrinsic": "number"
+										},
+										{
+											"kind": "intrinsic",
+											"intrinsic": "undefined"
+										}
+									]
+								},
+								"name": "optional",
+								"documentation": {
+									"description": "The optional parameter.",
+									"tags": []
+								},
+								"optional": true
+							},
+							{
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "number"
+								},
+								"name": "withInlineDefault",
+								"documentation": {
+									"description": "The parameter with a default value.",
+									"tags": []
+								},
+								"optional": true,
+								"defaultValue": "42"
+							},
+							{
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"name": "withReferencedDefault",
+								"documentation": {
+									"description": "The parameter with a default value from a constant.",
+									"tags": []
+								},
+								"optional": true,
+								"defaultValue": "\"default\""
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						}
+					}
+				]
+			},
+			"documentation": {
+				"description": "Function with optional parameters",
+				"tags": []
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		}
+	]
+}

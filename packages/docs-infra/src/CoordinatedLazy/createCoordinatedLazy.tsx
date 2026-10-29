@@ -34,7 +34,7 @@ function RenderNull(): null {
  * The client-mode branch hands the (function-bearing) `config` to a `'use client'`
  * component, so a client-loaded chunk must render inside a client subtree - call
  * `createCoordinatedLazy` from a client module, or wrap it in a client provider
- * (e.g. `abstractCreateStream`'s `ClientProvider`). Server-loaded and
+ * (for example, `abstractCreateStream`'s `ClientProvider`). Server-loaded and
  * preloaded/precomputed chunks have no such constraint - they render entirely on
  * the server path.
  *

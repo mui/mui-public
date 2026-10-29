@@ -34,7 +34,7 @@ export interface CoordinatedFallbackContextValue {
 
 /**
  * The data the fallback hoisted, handed down to the full content so it can use
- * what the fallback fetched (e.g. a DEFLATE dictionary). Read via
+ * what the fallback fetched (for example, a DEFLATE dictionary). Read via
  * {@link useCoordinatedContent}.
  */
 export interface CoordinatedContentContextValue {
@@ -92,7 +92,7 @@ export interface UseCoordinatedSwapOptions {
   awaitContent?: boolean;
   /**
    * Settle gate to register this swap with. When omitted, the ambient gate from
-   * a surrounding coordinator (e.g. the `useStream` controller, via
+   * a surrounding coordinator (for example, the `useStream` controller, via
    * {@link CoordinatedGateContext}) is used instead. The page-global gate is
    * always registered on top of either, so a page-wide coordinated commit waits
    * for the swap regardless.
@@ -155,14 +155,14 @@ export interface CoordinatedLazyProps {
   requireHoist?: boolean;
   /**
    * Hold the swap until the content reports it has loaded, mounting the content
-   * behind the fallback so a code-split (e.g. `LazyContent`) content can load in
+   * behind the fallback so a code-split (for example, `LazyContent`) content can load in
    * the background and reveal only once its chunk has arrived. See
    * {@link UseCoordinatedSwapOptions.awaitContent}.
    */
   awaitContent?: boolean;
   /**
    * Settle gate to register this swap with. When omitted, the ambient gate from
-   * a surrounding coordinator (e.g. the `useStream` controller, via
+   * a surrounding coordinator (for example, the `useStream` controller, via
    * {@link CoordinatedGateContext}) is used instead. The page-global gate is
    * always registered on top of either, so a page-wide coordinated commit waits
    * for the swap regardless.
@@ -434,7 +434,7 @@ export interface LazyContentProps<T extends {} = {}> {
   fallback?: React.ReactNode;
   /**
    * Additional settle gate to report readiness to once the component has loaded
-   * and mounted (e.g. a `useStream` controller gate). The page-global gate is
+   * and mounted (for example, a `useStream` controller gate). The page-global gate is
    * always registered too. Client path only - the server path streams via
    * Suspense and has no client gate to report to.
    */

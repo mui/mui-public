@@ -109,6 +109,11 @@ export interface LoadServerTypesResult {
     js?: Record<string, string>;
     css?: Record<string, string>;
   };
+  /**
+   * Links for the built-in types referenced on the page, such as `HTMLElement` to its MDN
+   * page, keyed by the name they are printed as.
+   */
+  externalTypeLinks: Record<string, string>;
 }
 
 /**
@@ -456,5 +461,6 @@ async function enhanceTypes(
     variantTypeNames,
     typeNameMap: syncResult.typeNameMap,
     anchorMap: { js: anchorMap },
+    externalTypeLinks: syncResult.externalTypeLinks ?? {},
   };
 }

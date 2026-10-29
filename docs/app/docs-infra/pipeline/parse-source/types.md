@@ -36,9 +36,9 @@ Gets the grammar scope from a language name.
 
 **Parameters:**
 
-| Parameter | Type     | Default | Description                                          |
-| :-------- | :------- | :------ | :--------------------------------------------------- |
-| language  | `string` | -       | The language name (e.g., 'tsx', 'css', 'typescript') |
+| Parameter | Type     | Default | Description                                                 |
+| :-------- | :------- | :------ | :---------------------------------------------------------- |
+| language  | `string` | -       | The language name (for example, 'tsx', 'css', 'typescript') |
 
 **Return Value:**
 
@@ -159,3 +159,9 @@ Used when `language` prop is provided instead of fileName.
 ```typescript
 type languageToGrammarMap = Record<string, string>;
 ```
+
+## External Type Links
+
+Maps `Type`: `URL` — the docs of a built-in type the page references.
+
+- `Promise`: <https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Promise>

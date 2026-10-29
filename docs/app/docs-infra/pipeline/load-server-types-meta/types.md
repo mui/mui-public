@@ -12,7 +12,6 @@ This function handles:
 
 - Loading TypeScript configuration
 - Resolving library source files and variants
-- Finding meta files (DataAttributes, CssVars)
 - Processing types via worker thread
 - Formatting component, hook, function, and raw types
 - Collecting external types referenced in props/params
@@ -299,6 +298,11 @@ type LoadServerTypesMetaResult = {
    * Map from type name to its definition string.
    */
   externalTypes: Record<string, string>;
+  /**
+   * Links for the built-in types in the formatted output, keyed by the name they are printed
+   * as, such as `HTMLElement` to its MDN page.
+   */
+  externalTypeLinks: Record<string, string>;
   /** Resource name derived from the types path */
   resourceName: string;
   /** Export data where each export has a main type and related additional types */
@@ -350,9 +354,9 @@ type RawTypeMeta = {
    * When set, indicates this should be rendered as a link to the component.
    */
   reExportOf?: ReExportInfo;
-  /** For DataAttributes types, the component name this type belongs to. */
+  /** For constant groups holding a component's data attributes, that component's name. */
   dataAttributesOf?: string;
-  /** For CssVars types, the component name this type belongs to. */
+  /** For constant groups holding a component's CSS variables, that component's name. */
   cssVarsOf?: string;
   /**
    * For object types, the individual properties with their types and descriptions.
@@ -371,7 +375,7 @@ type ReExportInfo = {
   /** Anchor slug for linking (e.g., "#trigger") */
   slug: string;
   /** What kind of type this re-exports */
-  suffix: 'props' | 'css-variables' | 'data-attributes';
+  suffix: 'props';
 };
 ```
 
@@ -391,3 +395,9 @@ type TypesMeta = (
   aliases?: string[];
 };
 ```
+
+## External Type Links
+
+Maps `Type`: `URL` — the docs of a built-in type the page references.
+
+- `Promise`: <https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Promise>

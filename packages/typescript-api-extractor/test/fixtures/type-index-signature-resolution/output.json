@@ -1,0 +1,542 @@
+{
+	"name": "test/fixtures/type-index-signature-resolution/input",
+	"exports": [
+		{
+			"name": "acceptsIndexSignatures",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "acceptsIndexSignatures"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "object",
+									"properties": [],
+									"indexSignature": {
+										"keyName": "key",
+										"keyType": "string",
+										"valueType": {
+											"kind": "intrinsic",
+											"intrinsic": "number"
+										}
+									}
+								},
+								"name": "stringIndex",
+								"optional": false
+							},
+							{
+								"type": {
+									"kind": "object",
+									"properties": [],
+									"indexSignature": {
+										"keyName": "key",
+										"keyType": "number",
+										"valueType": {
+											"kind": "intrinsic",
+											"intrinsic": "string"
+										}
+									}
+								},
+								"name": "numberIndex",
+								"optional": false
+							},
+							{
+								"type": {
+									"kind": "object",
+									"properties": [],
+									"indexSignature": {
+										"keyName": "key",
+										"keyType": "string",
+										"valueType": {
+											"kind": "union",
+											"types": [
+												{
+													"kind": "intrinsic",
+													"intrinsic": "string"
+												},
+												{
+													"kind": "intrinsic",
+													"intrinsic": "boolean"
+												}
+											]
+										}
+									}
+								},
+								"name": "mixedIndex",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "returnsIndexSignature",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "returnsIndexSignature"
+				},
+				"callSignatures": [
+					{
+						"parameters": [],
+						"returnValueType": {
+							"kind": "object",
+							"properties": [],
+							"indexSignature": {
+								"keyName": "key",
+								"keyType": "string",
+								"valueType": {
+									"kind": "intrinsic",
+									"intrinsic": "number"
+								}
+							}
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "MyComponent",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "MyComponent"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "object",
+									"properties": [
+										{
+											"name": "className",
+											"type": {
+												"kind": "union",
+												"types": [
+													{
+														"kind": "intrinsic",
+														"intrinsic": "string"
+													},
+													{
+														"kind": "intrinsic",
+														"intrinsic": "undefined"
+													}
+												]
+											},
+											"optional": true
+										}
+									],
+									"indexSignature": {
+										"keyName": "key",
+										"keyType": "string",
+										"valueType": {
+											"kind": "intrinsic",
+											"intrinsic": "unknown"
+										}
+									}
+								},
+								"name": "props",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "null"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "StringIndexType",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "StringIndexType"
+				},
+				"properties": [],
+				"indexSignature": {
+					"keyName": "key",
+					"keyType": "string",
+					"valueType": {
+						"kind": "intrinsic",
+						"intrinsic": "number"
+					}
+				}
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "NumberIndexType",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "NumberIndexType"
+				},
+				"properties": [],
+				"indexSignature": {
+					"keyName": "key",
+					"keyType": "number",
+					"valueType": {
+						"kind": "intrinsic",
+						"intrinsic": "string"
+					}
+				}
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "TypeWithCustomKeyName",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "TypeWithCustomKeyName"
+				},
+				"properties": [],
+				"indexSignature": {
+					"keyName": "fileName",
+					"keyType": "string",
+					"valueType": {
+						"kind": "intrinsic",
+						"intrinsic": "number"
+					}
+				}
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "TypeWithNestedCustomKey",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "TypeWithNestedCustomKey"
+				},
+				"properties": [],
+				"indexSignature": {
+					"keyName": "customKey",
+					"keyType": "string",
+					"valueType": {
+						"kind": "object",
+						"properties": [
+							{
+								"name": "nested",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "boolean"
+								},
+								"optional": false
+							}
+						]
+					}
+				}
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "SimpleIndex",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "SimpleIndex"
+				},
+				"properties": [],
+				"indexSignature": {
+					"keyName": "myKey",
+					"keyType": "string",
+					"valueType": {
+						"kind": "intrinsic",
+						"intrinsic": "boolean"
+					}
+				}
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "VariantExtraFiles",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "VariantExtraFiles"
+				},
+				"properties": [],
+				"indexSignature": {
+					"keyName": "fileName",
+					"keyType": "string",
+					"valueType": {
+						"kind": "object",
+						"properties": [
+							{
+								"name": "source",
+								"type": {
+									"kind": "union",
+									"types": [
+										{
+											"kind": "intrinsic",
+											"intrinsic": "string"
+										},
+										{
+											"kind": "intrinsic",
+											"intrinsic": "null"
+										}
+									]
+								},
+								"optional": false
+							}
+						]
+					}
+				}
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "OuterType",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "OuterType"
+				},
+				"properties": [
+					{
+						"name": "inner",
+						"type": {
+							"kind": "object",
+							"properties": [],
+							"indexSignature": {
+								"keyName": "customKey",
+								"keyType": "string",
+								"valueType": {
+									"kind": "intrinsic",
+									"intrinsic": "number"
+								}
+							}
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "MixedType",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "MixedType"
+				},
+				"properties": [
+					{
+						"name": "fixedProp",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					}
+				],
+				"indexSignature": {
+					"keyName": "key",
+					"keyType": "string",
+					"valueType": {
+						"kind": "union",
+						"types": [
+							{
+								"kind": "intrinsic",
+								"intrinsic": "string"
+							},
+							{
+								"kind": "intrinsic",
+								"intrinsic": "number"
+							}
+						]
+					}
+				}
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "IndexedInterface",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "IndexedInterface"
+				},
+				"properties": [],
+				"indexSignature": {
+					"keyName": "key",
+					"keyType": "string",
+					"valueType": {
+						"kind": "intrinsic",
+						"intrinsic": "unknown"
+					}
+				}
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "MyType",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "HelperType"
+				},
+				"properties": [],
+				"indexSignature": {
+					"keyName": "fileName",
+					"keyType": "string",
+					"valueType": {
+						"kind": "object",
+						"properties": [
+							{
+								"name": "source",
+								"type": {
+									"kind": "union",
+									"types": [
+										{
+											"kind": "intrinsic",
+											"intrinsic": "string"
+										},
+										{
+											"kind": "intrinsic",
+											"intrinsic": "null"
+										}
+									]
+								},
+								"optional": false
+							}
+						]
+					}
+				}
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "HelperType",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "HelperType"
+				},
+				"properties": [],
+				"indexSignature": {
+					"keyName": "fileName",
+					"keyType": "string",
+					"valueType": {
+						"kind": "object",
+						"properties": [
+							{
+								"name": "source",
+								"type": {
+									"kind": "union",
+									"types": [
+										{
+											"kind": "intrinsic",
+											"intrinsic": "string"
+										},
+										{
+											"kind": "intrinsic",
+											"intrinsic": "null"
+										}
+									]
+								},
+								"optional": false
+							}
+						]
+					}
+				}
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "MyInterface",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "MyInterface"
+				},
+				"properties": [
+					{
+						"name": "data",
+						"type": {
+							"kind": "object",
+							"typeName": {
+								"name": "HelperType"
+							},
+							"properties": [],
+							"indexSignature": {
+								"keyName": "fileName",
+								"keyType": "string",
+								"valueType": {
+									"kind": "object",
+									"properties": [
+										{
+											"name": "source",
+											"type": {
+												"kind": "union",
+												"types": [
+													{
+														"kind": "intrinsic",
+														"intrinsic": "string"
+													},
+													{
+														"kind": "intrinsic",
+														"intrinsic": "null"
+													}
+												]
+											},
+											"optional": false
+										}
+									]
+								}
+							}
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	],
+	"imports": ["./helper"]
+}
