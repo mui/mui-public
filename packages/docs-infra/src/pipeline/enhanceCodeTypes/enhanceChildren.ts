@@ -52,6 +52,8 @@ interface LinkableChain {
 export interface EnhanceOptions {
   linkMap: Record<string, string>;
   externalLinks?: Record<string, string>;
+  /** Names the code block declares, which `externalLinks` never applies to. */
+  declaredNames?: Set<string>;
   typeRefComponent?: string;
   typePropRefComponent?: string;
   typeParamRefComponent?: string;
@@ -711,21 +713,42 @@ function isDeclarationName(children: ElementContent[], index: number): boolean {
 }
 
 /**
- * Looks up a name the link map does not know in `externalLinks`. A declaration or a name bound
- * in scope refers to local code, so it is left unlinked. External links only link the name;
- * owner tracking keeps using `linkMap`.
+ * The names a code block declares, such as `Theme` in `interface Theme {}`. They refer to the
+ * block's own code wherever they appear in it, before the declaration as well as after.
+ */
+export function collectDeclaredNames(children: ElementContent[]): Set<string> {
+  const names = new Set<string>();
+  const visitChildren = (nodes: ElementContent[]) => {
+    nodes.forEach((node, index) => {
+      if (node.type !== 'element') {
+        return;
+      }
+      if (isLinkableSpan(node) && isDeclarationName(nodes, index)) {
+        names.add(getTextContent(node));
+      } else {
+        visitChildren(node.children);
+      }
+    });
+  };
+  visitChildren(children);
+  return names;
+}
+
+/**
+ * Looks up a name the link map does not know in `externalLinks`. A name the block declares or
+ * a name bound in scope refers to local code, so it is left unlinked. External links only link
+ * the name; owner tracking keeps using `linkMap`.
  */
 function resolveExternalHref(
   identifier: string,
   options: EnhanceOptions,
   state: ScanState,
-  isDeclaration: boolean,
 ): string | undefined {
-  const { externalLinks } = options;
+  const { externalLinks, declaredNames } = options;
   if (
     !externalLinks ||
     !Object.hasOwn(externalLinks, identifier) ||
-    isDeclaration ||
+    declaredNames?.has(identifier) ||
     state.scopeStack.some((scope) => scope.bindings.has(identifier))
   ) {
     return undefined;
@@ -818,12 +841,7 @@ function handleLinkableSpan(
   const href =
     cssClassHref ??
     resolveTypeHref(identifier, linkMap, state) ??
-    resolveExternalHref(
-      identifier,
-      options,
-      state,
-      Boolean(isVarDecl) || isDeclarationName(children, startIndex),
-    );
+    resolveExternalHref(identifier, options, state);
   const nodes: ElementContent[] = [];
 
   if (isBareCssClass) {

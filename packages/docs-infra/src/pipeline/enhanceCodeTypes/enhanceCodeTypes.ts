@@ -5,7 +5,7 @@ import { getLanguageCapabilities } from './getLanguageCapabilities';
 import type { LanguageCapabilities } from './getLanguageCapabilities';
 import { createScanState, finalizePendingDefaultExport, resetExportState } from './scanState';
 import type { ModuleLinkMapEntry } from './scanState';
-import { enhanceChildren, wrapExpressionNodes } from './enhanceChildren';
+import { collectDeclaredNames, enhanceChildren, wrapExpressionNodes } from './enhanceChildren';
 import { flushLiteralCandidate, flushPendingExpression } from './processTextNode';
 
 /**
@@ -212,6 +212,10 @@ export default function enhanceCodeTypes(options: EnhanceCodeTypesOptions) {
         linkMap,
         // Type names only occur in JS-family code; CSS values such as `Highlight` are not types.
         externalLinks: lang.semantics === 'js' ? options.externalLinks : undefined,
+        declaredNames:
+          lang.semantics === 'js' && options.externalLinks
+            ? collectDeclaredNames(node.children)
+            : undefined,
         typeRefComponent: options.typeRefComponent,
         typePropRefComponent: options.typePropRefComponent,
         typeParamRefComponent: options.typeParamRefComponent,

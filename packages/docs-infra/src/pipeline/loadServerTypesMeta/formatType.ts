@@ -93,11 +93,6 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
   } = options;
 
   /**
-   * Checks if a qualified type name matches the selfName (type being defined).
-   * Strips type arguments before comparing to handle generic instances.
-   * e.g., "Tabs.Root.ChangeEventDetails<'none', ...>" should match "Tabs.Root.ChangeEventDetails"
-   */
-  /**
    * Prints the name of a type that is not external. Lib types are always external, so a name
    * printed here is the project's own, and a lib type that shares it is left unlinked.
    */
@@ -115,6 +110,11 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
     return qualifiedName;
   }
 
+  /**
+   * Checks if a qualified type name matches the selfName (type being defined).
+   * Strips type arguments before comparing to handle generic instances.
+   * e.g., "Tabs.Root.ChangeEventDetails<'none', ...>" should match "Tabs.Root.ChangeEventDetails"
+   */
   function matchesSelfName(qualifiedName: string, simpleName: string | undefined): boolean {
     if (!selfName) {
       return false;

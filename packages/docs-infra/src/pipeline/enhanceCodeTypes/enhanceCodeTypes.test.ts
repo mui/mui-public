@@ -210,6 +210,28 @@ describe('enhanceCodeTypes', () => {
       expect(output).not.toContain('https://example.com/theme');
     });
 
+    it('does not link uses of a name the code declares', async () => {
+      // interface Theme {}
+      // function apply(value: Theme) {}
+      const input =
+        '<code class="language-tsx"><span class="pl-k">interface</span> <span class="pl-en">Theme</span> {}\n<span class="pl-k">function</span> <span class="pl-en">apply</span>(<span class="pl-v">value</span><span class="pl-k">:</span> <span class="pl-en">Theme</span>) {}</code>';
+
+      const output = await processWithExternalLinks(input, {});
+
+      expect(output).not.toContain('https://example.com/theme');
+    });
+
+    it('does not link uses that come before the declaration', async () => {
+      // function apply(value: Theme) {}
+      // interface Theme {}
+      const input =
+        '<code class="language-tsx"><span class="pl-k">function</span> <span class="pl-en">apply</span>(<span class="pl-v">value</span><span class="pl-k">:</span> <span class="pl-en">Theme</span>) {}\n<span class="pl-k">interface</span> <span class="pl-en">Theme</span> {}</code>';
+
+      const output = await processWithExternalLinks(input, {});
+
+      expect(output).not.toContain('https://example.com/theme');
+    });
+
     it('links types in an anonymous function declaration', async () => {
       // const run = function (value: Theme) {};
       const input =
