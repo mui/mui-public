@@ -62,20 +62,17 @@ export function getParameterDocumentationFromSymbol(
   parameterSymbol: ts.Symbol,
   checker: ts.TypeChecker,
 ): Documentation | undefined {
-  const summary = parameterSymbol
-    .getDocumentationComment(checker)
-    .map((comment) => comment.text)
-    .join('\n')
+  const summary = ts
+    .displayPartsToString(parameterSymbol.getDocumentationComment(checker))
     .replace(/^[\s-*:]*/, '');
 
   const rawTags = parameterSymbol.getJsDocTags(checker);
   const docTags: DocumentationTag[] = rawTags
     .filter((tag) => tag.name !== 'param')
     .map((tag) => {
-      const text = tag.text?.map((part) => part.text).join(' ');
       return {
         name: tag.name,
-        value: text,
+        value: tag.text ? ts.displayPartsToString(tag.text) : undefined,
       };
     });
   const visibility = getVisibilityFromTagNames(rawTags.map((tag) => tag.name));
@@ -122,8 +119,44 @@ function parseTag(tag: ts.JSDocTag): DocumentationTag {
     };
   }
 
+  if (ts.isJSDocSeeTag(tag)) {
+    return {
+      name: tag.tagName.text,
+      value: getSeeTagValue(tag),
+    };
+  }
+
   return {
     name: tag.tagName.text,
-    value: typeof tag.comment === 'string' ? tag.comment : undefined,
+    value: ts.getTextOfJSDocComment(tag.comment),
   };
+}
+
+/**
+ * Reassembles an `@see` tag as written. TypeScript parses its first word as a
+ * name reference and keeps only the rest as the comment, so `@see
+ * https://example.com` arrives as name `https` and comment `://example.com`.
+ */
+function getSeeTagValue(tag: ts.JSDocSeeTag): string | undefined {
+  const comment = ts.getTextOfJSDocComment(tag.comment);
+  if (!tag.name) {
+    return comment;
+  }
+
+  const name = tag.name.getText();
+  const sourceText = tag.getSourceFile().text;
+  const separator = sourceText.charAt(tag.name.end);
+
+  if (separator === '\n' || separator === '\r') {
+    // A name reference that ends its line leaves the next line's `*` margin in
+    // the comment.
+    const rest = comment?.replace(/^\*[ \t]?/, '');
+    return rest ? `${name}\n${rest}` : name;
+  }
+
+  if (!comment) {
+    return name;
+  }
+
+  return /\s/.test(separator) ? `${name} ${comment}` : `${name}${comment}`;
 }
