@@ -67,8 +67,12 @@ export interface ExportDescriptor {
   declarationSpaces: DeclarationSpaces;
   /** Original exported name when the public descriptor is a renamed re-export. */
   reexportedFrom?: string;
-  /** Interface or class heritage metadata attached to the export. */
-  extendsTypes?: ExtendsTypeInfo[];
+  /**
+   * Lazily reads the interface heritage metadata attached to the export. Like
+   * `getType`, it queries types, so it is deferred until the export's nodes are
+   * built rather than run while every export of a module is normalized.
+   */
+  getExtendsTypes?: () => ExtendsTypeInfo[] | undefined;
 }
 
 /** A descriptor before its declaration spaces are attached. */
@@ -433,7 +437,7 @@ function resolveInterfaceExportDescriptor(
     parentNamespaces,
     typeResolutionOrder: getNextTypeResolutionOrder(resolutionState),
     symbolScope,
-    extendsTypes: extractExtendsTypes(exportDeclaration.heritageClauses, context.checker),
+    getExtendsTypes: () => extractExtendsTypes(exportDeclaration.heritageClauses, context.checker),
   };
 }
 

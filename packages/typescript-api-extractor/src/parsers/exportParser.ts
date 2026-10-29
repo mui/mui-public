@@ -1,6 +1,6 @@
 import ts from 'typescript';
 import { ExportNode, withTypeName } from '../models';
-import type { AnyType, TypeName } from '../models';
+import type { AnyType, ExtendsTypeInfo, TypeName } from '../models';
 import { ParserError } from '../ParserError';
 import type { ScopedParserContext } from '../parserContext';
 import { createTypeName, isInternalSymbolName } from './common';
@@ -143,9 +143,22 @@ export function createExportNodes(
   descriptors: ExportDescriptor[],
   parserContext: ScopedParserContext,
 ): ExportNode[] | undefined {
+  // Heritage is read before any type of the export resolves, where normalizing the
+  // export used to read it: TypeScript numbers types as it creates them, and union
+  // and property order follows that numbering.
+  const extendsTypesByDescriptor = new Map(
+    descriptors.map((descriptor) => [descriptor, descriptor.getExtendsTypes?.()]),
+  );
   const nodesByDescriptor = new Map<ExportDescriptor, ExportNode[] | undefined>();
   for (const descriptor of getTypeResolutionOrderedDescriptors(descriptors)) {
-    nodesByDescriptor.set(descriptor, createExportNodesFromDescriptor(descriptor, parserContext));
+    nodesByDescriptor.set(
+      descriptor,
+      createExportNodesFromDescriptor(
+        descriptor,
+        extendsTypesByDescriptor.get(descriptor),
+        parserContext,
+      ),
+    );
   }
 
   // Descriptor order is the emitted API order. Type-resolution order is kept
@@ -177,6 +190,7 @@ function getTypeResolutionOrderedDescriptors(descriptors: ExportDescriptor[]): E
  */
 function createExportNodesFromDescriptor(
   descriptor: ExportDescriptor,
+  extendsTypes: ExtendsTypeInfo[] | undefined,
   parserContext: ScopedParserContext,
 ): ExportNode[] | undefined {
   return runWithSymbolScopes(parserContext, descriptor.symbolScope, () => {
@@ -198,7 +212,7 @@ function createExportNodesFromDescriptor(
             getDocumentationFromSymbol(descriptor.symbol, parserContext.checker),
             descriptor.declarationSpaces,
             descriptor.reexportedFrom,
-            descriptor.extendsTypes,
+            extendsTypes,
           ),
         ];
       });

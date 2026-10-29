@@ -1018,7 +1018,9 @@ describe('formatRaw', () => {
           defaultRewriteContext,
         );
 
-        expect(items.formattedCode).toBe('type GridBodyItems<Row = any> = { first: Grid.Body.Row<Row> };');
+        expect(items.formattedCode).toBe(
+          'type GridBodyItems<Row = any> = { first: Grid.Body.Row<Row> };',
+        );
       });
 
       describe('of types that share a declared name', () => {
