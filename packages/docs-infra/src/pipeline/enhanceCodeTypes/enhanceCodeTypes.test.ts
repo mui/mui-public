@@ -105,6 +105,7 @@ describe('enhanceCodeTypes', () => {
       linkMap: Record<string, string>,
       options?: {
         linkProps?: 'shallow' | 'deep';
+        linkScope?: boolean;
         externalTypeSources?: Record<string, ExternalTypeSource>;
         onResolve?: (name: string, source: ExternalTypeSource) => void;
       },
@@ -114,6 +115,7 @@ describe('enhanceCodeTypes', () => {
         .use(enhanceCodeTypes, {
           linkMap: { js: linkMap, css: linkMap },
           linkProps: options?.linkProps,
+          linkScope: options?.linkScope,
           externalTypeSources: options?.externalTypeSources ?? recordedSources,
           resolveExternalLink: (name, source) => {
             options?.onResolve?.(name, source);
@@ -201,6 +203,37 @@ describe('enhanceCodeTypes', () => {
 
       expect(resolved).toEqual([]);
       expect(output).not.toContain('<a');
+    });
+
+    it('does not look names up on the object prototype', async () => {
+      const input =
+        '<code class="language-ts"><span class="pl-en">toString</span> <span class="pl-en">constructor</span></code>';
+      const resolved: string[] = [];
+
+      const output = await processWithExternalLinks(
+        input,
+        {},
+        {
+          onResolve: (name) => resolved.push(name),
+        },
+      );
+
+      expect(resolved).toEqual([]);
+      expect(output).not.toContain('<a');
+    });
+
+    it('does not link names bound in scope', async () => {
+      // const Theme: Local = v; Theme
+      const input =
+        '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">Theme</span><span class="pl-k">:</span> <span class="pl-en">Local</span> <span class="pl-k">=</span> v; <span class="pl-c1">Theme</span></code>';
+
+      const output = await processWithExternalLinks(
+        input,
+        { Local: '#local' },
+        { linkScope: true },
+      );
+
+      expect(output).not.toContain('https://example.com/theme');
     });
 
     it('does not link names in CSS', async () => {

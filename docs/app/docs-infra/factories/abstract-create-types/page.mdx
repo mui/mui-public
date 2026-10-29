@@ -212,7 +212,7 @@ The type-level metadata takes priority over factory-level options.
 
 ## Enhancers
 
-The `enhancers` option specifies [rehype plugins](../../patterns/hast/page.mdx#enhancing-hast) to run on [HAST](../../patterns/hast/page.mdx) before converting to JSX. By default, [`enhanceCodeInline`](../../pipeline/enhance-code-inline/page.mdx) is applied. When an `anchorMap` is available, [`enhanceCodeTypes`](../../pipeline/enhance-code-types/page.mdx) is appended automatically.
+The `enhancers` option specifies [rehype plugins](../../patterns/hast/page.mdx#enhancing-hast) to run on [HAST](../../patterns/hast/page.mdx) before converting to JSX. By default, [`enhanceCodeInline`](../../pipeline/enhance-code-inline/page.mdx) is applied. When an `anchorMap` is available, or a [`resolveExternalLink`](#resolveexternallink) has external types to resolve, [`enhanceCodeTypes`](../../pipeline/enhance-code-types/page.mdx) is appended automatically.
 
 > [!NOTE]
 > The `anchorMap` contains entries for **all** types from `types.md`, including every component part and additional types. When using `createMultipleTypes`, if you see links that don't resolve to a corresponding `id` on the page, you may be missing a component part (for example, `<TypesCheckbox.Indicator />`) or the `<TypesCheckboxAdditional />` component may need to be added to the page.

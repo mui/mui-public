@@ -750,7 +750,9 @@ export function getFullyQualifiedName(
     typeName,
     exportNames,
     typeNameMap,
-    externalTypesCollector && { ...externalTypesCollector, collected: new Map() },
+    externalTypesCollector && typeName.typeArguments?.length
+      ? { ...externalTypesCollector, collected: new Map() }
+      : externalTypesCollector,
     preserveTypeParameters,
   );
 

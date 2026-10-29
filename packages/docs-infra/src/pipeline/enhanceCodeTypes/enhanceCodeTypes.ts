@@ -9,13 +9,6 @@ import type { ModuleLinkMapEntry } from './scanState';
 import { enhanceChildren, wrapExpressionNodes } from './enhanceChildren';
 import { flushLiteralCandidate, flushPendingExpression } from './processTextNode';
 
-/**
- * Where a type documented elsewhere is declared.
- *
- * - `lib`: TypeScript's default library, with the library files that declare the
- *   type (for example `['lib.dom.d.ts']`).
- * - `package`: an npm package, named after its directory under `node_modules`.
- */
 export type { ExternalTypeSource };
 
 /**
@@ -223,11 +216,12 @@ export default function enhanceCodeTypes(options: EnhanceCodeTypesOptions) {
       }
 
       const lang = getLanguageCapabilities(node);
-      let linkMap: Record<string, string> = {};
+      // Without a prototype, names such as `toString` or `constructor` are not found in the map.
+      const linkMap: Record<string, string> = Object.create(null);
       if (lang.semantics === 'js') {
-        linkMap = { ...(options.linkMap.js ?? {}) };
+        Object.assign(linkMap, options.linkMap.js);
       } else if (lang.semantics === 'css') {
-        linkMap = { ...(options.linkMap.css ?? {}) };
+        Object.assign(linkMap, options.linkMap.css);
       }
       const enhanceOptions: EnhanceOptions = {
         linkMap,

@@ -686,15 +686,27 @@ function resolveTypeHref(
 
 /**
  * Resolves a name the link map does not know through `resolveExternalLink`, when
- * `externalTypeSources` records where it is declared. External links only link the
- * name; owner tracking keeps using `linkMap`.
+ * `externalTypeSources` records where it is declared. A variable declaration or a name bound
+ * in scope refers to local code, so it is left unlinked. External links only link the name; owner
+ * tracking keeps using `linkMap`.
  */
-function resolveExternalHref(identifier: string, options: EnhanceOptions): string | undefined {
-  const source = options.externalTypeSources?.[identifier];
-  if (!options.resolveExternalLink || !source) {
+function resolveExternalHref(
+  identifier: string,
+  options: EnhanceOptions,
+  state: ScanState,
+  isDeclaration: boolean,
+): string | undefined {
+  const { resolveExternalLink, externalTypeSources } = options;
+  if (
+    !resolveExternalLink ||
+    !externalTypeSources ||
+    !Object.hasOwn(externalTypeSources, identifier) ||
+    isDeclaration ||
+    state.scopeStack.some((scope) => scope.bindings.has(identifier))
+  ) {
     return undefined;
   }
-  return options.resolveExternalLink(identifier, source) ?? undefined;
+  return resolveExternalLink(identifier, externalTypeSources[identifier]) ?? undefined;
 }
 
 /**
@@ -782,7 +794,7 @@ function handleLinkableSpan(
   const href =
     cssClassHref ??
     resolveTypeHref(identifier, linkMap, state) ??
-    resolveExternalHref(identifier, options);
+    resolveExternalHref(identifier, options, state, Boolean(isVarDecl));
   const nodes: ElementContent[] = [];
 
   if (isBareCssClass) {

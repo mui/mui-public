@@ -371,7 +371,7 @@ type TypesTableMeta = {
 ```typescript
 type ResolveExternalLink = (
   name: string,
-  source: { kind: 'lib'; files: unknown } | { kind: 'package'; name: string },
+  source: { kind: 'lib'; files: string[] } | { kind: 'package'; name: string },
 ) => string | null;
 ```
 

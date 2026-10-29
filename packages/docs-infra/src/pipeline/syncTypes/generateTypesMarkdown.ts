@@ -1034,8 +1034,8 @@ export async function generateTypesMarkdown(
     const sourceItems = Object.entries(externalTypeSources).map(([typeName, source]) => {
       const children: PhrasingContent[] = [md.inlineCode(typeName), md.text(': ')];
       const values = source.kind === 'lib' ? source.files : [source.name];
-      values.forEach((value, i) => {
-        if (i > 0) {
+      values.forEach((value, index) => {
+        if (index > 0) {
           children.push(md.text(', '));
         }
         children.push(md.inlineCode(value));

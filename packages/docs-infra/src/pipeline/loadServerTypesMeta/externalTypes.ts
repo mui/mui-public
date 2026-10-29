@@ -9,6 +9,7 @@ import {
   isTemplateLiteralType,
   isTypeOperatorType,
   isTypeQueryType,
+  isArrayType,
 } from './typeGuards';
 import { isBuiltInTypeName } from './builtInTypes';
 import { groupType, UNION_OR_INTERSECTION } from './precedence';
@@ -60,7 +61,8 @@ export function collectExternalTypeSource(
   if (!source) {
     return;
   }
-  const name = printedName.replace(/<.*$/s, '');
+  const typeArgumentsStart = printedName.indexOf('<');
+  const name = typeArgumentsStart === -1 ? printedName : printedName.slice(0, typeArgumentsStart);
   const existing = collector.sources.get(name);
   if (existing === undefined) {
     collector.sources.set(name, source);
@@ -70,9 +72,10 @@ export function collectExternalTypeSource(
 }
 
 /**
- * The source of an alias-named union that only adds `undefined` or `null` to one external type,
+ * The source of a union named after the one external type it adds `undefined` or `null` to,
  * as the extractor names optional props of an external type: `Intl.NumberFormat | undefined`
- * keeps the name `Intl.NumberFormat`.
+ * keeps the name `Intl.NumberFormat`. An alias of its own, such as
+ * `type MaybeElement = HTMLElement | null`, is not that type and has no source.
  */
 export function getNamedUnionSource(type: tae.UnionNode): tae.ExternalTypeSource | undefined {
   const members = type.types.filter(
@@ -82,7 +85,14 @@ export function getNamedUnionSource(type: tae.UnionNode): tae.ExternalTypeSource
         (member.intrinsic === 'undefined' || member.intrinsic === 'null')
       ),
   );
-  return members.length === 1 && isExternalType(members[0]) ? members[0].source : undefined;
+  const [member] = members;
+  if (members.length !== 1 || !isExternalType(member) || !type.typeName) {
+    return undefined;
+  }
+  const sameName =
+    member.typeName.name === type.typeName.name &&
+    (member.typeName.namespaces ?? []).join('.') === (type.typeName.namespaces ?? []).join('.');
+  return sameName ? member.source : undefined;
 }
 
 /**
@@ -188,6 +198,11 @@ export function formatExternalTypeDefinition(type: tae.AnyType): string {
 
   if (isExternalType(type)) {
     return type.typeName.name;
+  }
+
+  if (isArrayType(type)) {
+    const elementType = formatExternalTypeDefinition(type.elementType);
+    return elementType.includes(' ') ? `(${elementType})[]` : `${elementType}[]`;
   }
 
   if (isObjectType(type)) {

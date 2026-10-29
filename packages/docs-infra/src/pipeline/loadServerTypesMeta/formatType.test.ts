@@ -4,6 +4,7 @@ import { formatType, prettyFormatType } from './formatType';
 import { formatProperties, formatDetailedType } from './format';
 import { parseTestSources } from './parseTestSources';
 import { isObjectType } from './typeGuards';
+import type { ExternalTypesCollector } from './externalTypes';
 
 describe('formatType', () => {
   it('should format intrinsic types', () => {
@@ -1664,5 +1665,75 @@ describe('typeNameMap transformations', () => {
       // Should keep named type references, NOT expand and merge
       expect(result).toBe('ProcessedParameter | ProcessedProperty');
     });
+  });
+});
+
+describe('external type sources', () => {
+  const LIB = 'interface Element {}\ninterface Range {}\ninterface Box<T> {}';
+
+  /**
+   * Formats every property of the `Props` export and returns the sources the collector recorded.
+   */
+  function collectSources(sources: Record<string, string>) {
+    const exports = parseTestSources(sources, {
+      lib: LIB,
+      installedLib: true,
+    });
+    const props = exports.find((exportNode) => exportNode.name === 'Props');
+    if (!props || !isObjectType(props.type)) {
+      throw new Error('expected a `Props` object export');
+    }
+    const collector: ExternalTypesCollector = {
+      collected: new Map(),
+      sources: new Map(),
+      allExports: exports,
+    };
+    for (const property of props.type.properties) {
+      formatType(property.type, {
+        removeUndefined: property.optional,
+        exportNames: exports.map((exportNode) => exportNode.name),
+        typeNameMap: {},
+        externalTypesCollector: collector,
+      });
+    }
+    return Object.fromEntries(collector.sources);
+  }
+
+  it('records where an external type is declared', () => {
+    expect(collectSources({ 'types.ts': 'export interface Props { el: Element }' })).toEqual({
+      Element: { kind: 'lib', files: ['lib.d.ts'] },
+    });
+  });
+
+  it('records the external type of an optional prop', () => {
+    expect(collectSources({ 'types.ts': 'export interface Props { el?: Element }' })).toEqual({
+      Element: { kind: 'lib', files: ['lib.d.ts'] },
+    });
+  });
+
+  it('does not give an alias the source of the external type it wraps', () => {
+    const source =
+      'type MaybeElement = Element | null;\nexport interface Props { el: MaybeElement }';
+
+    expect(collectSources({ 'types.ts': source })).not.toHaveProperty('MaybeElement');
+  });
+
+  it('records external types in type arguments', () => {
+    expect(collectSources({ 'types.ts': 'export interface Props { box: Box<Element> }' })).toEqual({
+      Box: { kind: 'lib', files: ['lib.d.ts'] },
+      Element: { kind: 'lib', files: ['lib.d.ts'] },
+    });
+  });
+
+  it('marks a name printed for types from different declarations as ambiguous', () => {
+    const sources = {
+      'types.ts': [
+        "import type { Range as PackageRange } from './node_modules/shadow/index';",
+        'export interface Props { dom: Range; shadow: PackageRange }',
+      ].join('\n'),
+      'node_modules/shadow/index.d.ts': 'export interface Range { start: number }',
+    };
+
+    expect(collectSources(sources)).toEqual({ Range: null });
   });
 });

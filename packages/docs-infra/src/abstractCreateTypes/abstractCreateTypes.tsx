@@ -15,7 +15,8 @@ import type { TypesTableProps } from '../useTypes/useTypes';
 
 /**
  * Default enhancers applied when no enhancers are specified.
- * Note: enhanceCodeTypes is added dynamically when anchorMap is available.
+ * Note: enhanceCodeTypes is added dynamically when the page has anchors to link, or external
+ * types to resolve with `resolveExternalLink`.
  */
 const DEFAULT_ENHANCERS: PluggableList = [enhanceCodeInline];
 
