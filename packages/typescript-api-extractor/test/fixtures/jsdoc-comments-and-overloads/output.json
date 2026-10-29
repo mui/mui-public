@@ -1,0 +1,182 @@
+{
+	"name": "test/fixtures/jsdoc-comments-and-overloads/input",
+	"exports": [
+		{
+			"name": "TestComponent",
+			"type": {
+				"kind": "component",
+				"typeName": {
+					"name": "TestComponent"
+				},
+				"props": [
+					{
+						"name": "className",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "The class name.\nUsed to make the component more classy.",
+							"tags": []
+						},
+						"optional": true
+					},
+					{
+						"name": "someValue",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "number"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "A value.",
+							"defaultValue": "10",
+							"tags": []
+						},
+						"optional": true
+					}
+				]
+			},
+			"documentation": {
+				"description": "The test component.",
+				"visibility": "internal",
+				"tags": []
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "testFunction",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "testFunction"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "number"
+								},
+								"name": "p1",
+								"documentation": {
+									"description": "The first parameter which is a number",
+									"tags": []
+								},
+								"optional": false
+							},
+							{
+								"type": {
+									"kind": "union",
+									"types": [
+										{
+											"kind": "intrinsic",
+											"intrinsic": "number"
+										},
+										{
+											"kind": "intrinsic",
+											"intrinsic": "undefined"
+										}
+									]
+								},
+								"name": "p2",
+								"documentation": {
+									"description": "The second parameter",
+									"tags": []
+								},
+								"optional": true
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "number"
+						}
+					},
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"name": "p1",
+								"documentation": {
+									"description": "The first parameter which is a string",
+									"tags": []
+								},
+								"optional": false
+							},
+							{
+								"type": {
+									"kind": "union",
+									"types": [
+										{
+											"kind": "intrinsic",
+											"intrinsic": "number"
+										},
+										{
+											"kind": "intrinsic",
+											"intrinsic": "undefined"
+										}
+									]
+								},
+								"name": "p2",
+								"documentation": {
+									"description": "The second parameter",
+									"tags": []
+								},
+								"optional": true
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "number"
+						}
+					}
+				]
+			},
+			"documentation": {
+				"description": "A test function",
+				"visibility": "public",
+				"tags": [
+					{
+						"name": "remarks",
+						"value": "This is a test function."
+					},
+					{
+						"name": "returns",
+						"value": "The return value"
+					},
+					{
+						"name": "example",
+						"value": "testFunction('test', 10);"
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		}
+	],
+	"imports": ["react"]
+}

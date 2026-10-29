@@ -1,0 +1,116 @@
+{
+	"name": "test/fixtures/unresolved-indexed-access-fallback/input",
+	"exports": [
+		{
+			"name": "IndexedAccessFallback",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "IndexedAccessFallback"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "intrinsic",
+									"typeName": {
+										"name": "Lookup",
+										"typeArguments": [
+											{
+												"type": {
+													"name": "T",
+													"kind": "typeParameter"
+												},
+												"equalToDefault": false
+											},
+											{
+												"type": {
+													"name": "K",
+													"constraint": {
+														"kind": "typeOperator",
+														"operator": "keyof",
+														"type": {
+															"name": "T",
+															"kind": "typeParameter"
+														},
+														"resolvedType": {
+															"kind": "union",
+															"types": [
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "string"
+																},
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "number"
+																},
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "symbol"
+																}
+															]
+														},
+														"resolutionKind": "baseConstraint"
+													},
+													"kind": "typeParameter"
+												},
+												"equalToDefault": false
+											}
+										]
+									},
+									"intrinsic": "any"
+								},
+								"name": "value",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						},
+						"typeParameters": [
+							{
+								"name": "T",
+								"kind": "typeParameter"
+							},
+							{
+								"name": "K",
+								"constraint": {
+									"kind": "typeOperator",
+									"operator": "keyof",
+									"type": {
+										"name": "T",
+										"kind": "typeParameter"
+									},
+									"resolvedType": {
+										"kind": "union",
+										"types": [
+											{
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											},
+											{
+												"kind": "intrinsic",
+												"intrinsic": "number"
+											},
+											{
+												"kind": "intrinsic",
+												"intrinsic": "symbol"
+											}
+										]
+									},
+									"resolutionKind": "baseConstraint"
+								},
+								"kind": "typeParameter"
+							}
+						]
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

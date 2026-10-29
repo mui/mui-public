@@ -1,0 +1,58 @@
+{
+	"name": "test/fixtures/export-declaration-spaces-export-equals/input",
+	"exports": [
+		{
+			"name": "Service",
+			"type": {
+				"kind": "class",
+				"typeName": {
+					"name": "Service"
+				},
+				"constructSignatures": [
+					{
+						"parameters": []
+					}
+				],
+				"properties": [
+					{
+						"name": "id",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false,
+						"readonly": false,
+						"isStatic": false
+					}
+				],
+				"methods": []
+			},
+			"isValue": true,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "TypeOnlyService",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Service"
+				},
+				"properties": [
+					{
+						"name": "id",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	],
+	"imports": ["./legacy", "./legacy"]
+}

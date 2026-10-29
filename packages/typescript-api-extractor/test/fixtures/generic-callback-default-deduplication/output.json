@@ -1,0 +1,75 @@
+{
+	"name": "test/fixtures/generic-callback-default-deduplication/input",
+	"exports": [
+		{
+			"name": "Fn",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "Fn"
+				},
+				"types": [
+					{
+						"kind": "function",
+						"callSignatures": [
+							{
+								"parameters": [],
+								"returnValueType": {
+									"name": "T",
+									"defaultValue": {
+										"kind": "intrinsic",
+										"intrinsic": "string"
+									},
+									"kind": "typeParameter"
+								},
+								"typeParameters": [
+									{
+										"name": "T",
+										"defaultValue": {
+											"kind": "intrinsic",
+											"intrinsic": "string"
+										},
+										"kind": "typeParameter"
+									}
+								]
+							}
+						]
+					},
+					{
+						"kind": "function",
+						"callSignatures": [
+							{
+								"parameters": [],
+								"returnValueType": {
+									"name": "T",
+									"defaultValue": {
+										"kind": "intrinsic",
+										"intrinsic": "number"
+									},
+									"kind": "typeParameter"
+								},
+								"typeParameters": [
+									{
+										"name": "T",
+										"defaultValue": {
+											"kind": "intrinsic",
+											"intrinsic": "number"
+										},
+										"kind": "typeParameter"
+									}
+								]
+							}
+						]
+					}
+				]
+			},
+			"documentation": {
+				"description": "Union of generic callbacks that differ only by type parameter defaults.\nEach signature should be preserved since they have different defaults.",
+				"tags": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

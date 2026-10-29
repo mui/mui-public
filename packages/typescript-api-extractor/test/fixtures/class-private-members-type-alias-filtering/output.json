@@ -1,0 +1,27 @@
+{
+	"name": "test/fixtures/class-private-members-type-alias-filtering/input",
+	"exports": [
+		{
+			"name": "InternalAlias",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Internal"
+				},
+				"properties": [
+					{
+						"name": "open",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "boolean"
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

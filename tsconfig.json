@@ -22,10 +22,11 @@
     { "path": "packages/code-infra" },
     { "path": "packages/docs-infra" },
     { "path": "packages/netlify-cache" },
+    { "path": "packages/typescript-api-extractor" },
     { "path": "tsconfig.node.json" },
     { "path": "scripts" },
     { "path": "docs" },
-    { "path": "test/performance" }
+    { "path": "test/benchmark" }
   ],
   "files": []
 }

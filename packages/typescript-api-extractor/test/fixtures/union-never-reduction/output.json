@@ -1,0 +1,114 @@
+{
+	"name": "test/fixtures/union-never-reduction/input",
+	"exports": [
+		{
+			"name": "ValueOrNull",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "ValueOrNull",
+					"typeArguments": [
+						{
+							"type": {
+								"name": "Value",
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"types": [
+					{
+						"kind": "array",
+						"elementType": {
+							"name": "Value",
+							"kind": "typeParameter"
+						}
+					},
+					{
+						"name": "Value",
+						"kind": "typeParameter"
+					},
+					{
+						"kind": "intrinsic",
+						"intrinsic": "null"
+					}
+				]
+			},
+			"documentation": {
+				"description": "`never` should be removed from unions when other members are present.",
+				"tags": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "OnValueChange",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "OnValueChange",
+					"typeArguments": [
+						{
+							"type": {
+								"name": "Value",
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "union",
+									"typeName": {
+										"name": "ValueOrNull",
+										"typeArguments": [
+											{
+												"type": {
+													"name": "Value",
+													"kind": "typeParameter"
+												},
+												"equalToDefault": false
+											}
+										]
+									},
+									"types": [
+										{
+											"kind": "array",
+											"elementType": {
+												"name": "Value",
+												"kind": "typeParameter"
+											}
+										},
+										{
+											"name": "Value",
+											"kind": "typeParameter"
+										},
+										{
+											"kind": "intrinsic",
+											"intrinsic": "null"
+										}
+									]
+								},
+								"name": "value",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						}
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

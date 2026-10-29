@@ -1,0 +1,317 @@
+{
+	"name": "test/fixtures/mapped-type-builtin-utility-resolution/input",
+	"exports": [
+		{
+			"name": "partialAlias",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "partialAlias"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "object",
+									"typeName": {
+										"name": "PartialType"
+									},
+									"properties": [
+										{
+											"name": "a",
+											"type": {
+												"kind": "union",
+												"types": [
+													{
+														"kind": "intrinsic",
+														"intrinsic": "boolean"
+													},
+													{
+														"kind": "intrinsic",
+														"intrinsic": "undefined"
+													}
+												]
+											},
+											"optional": true
+										},
+										{
+											"name": "b",
+											"type": {
+												"kind": "union",
+												"types": [
+													{
+														"kind": "intrinsic",
+														"intrinsic": "string"
+													},
+													{
+														"kind": "intrinsic",
+														"intrinsic": "undefined"
+													}
+												]
+											},
+											"optional": true
+										}
+									]
+								},
+								"name": "params",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "requiredAlias",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "requiredAlias"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "object",
+									"typeName": {
+										"name": "RequiredType"
+									},
+									"properties": [
+										{
+											"name": "a",
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "boolean"
+											},
+											"optional": false
+										},
+										{
+											"name": "b",
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											},
+											"optional": false
+										}
+									]
+								},
+								"name": "params",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "inlinePartial",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "inlinePartial"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "object",
+									"typeName": {
+										"name": "Partial",
+										"typeArguments": [
+											{
+												"type": {
+													"kind": "object",
+													"typeName": {
+														"name": "Base"
+													},
+													"properties": [
+														{
+															"name": "a",
+															"type": {
+																"kind": "intrinsic",
+																"intrinsic": "boolean"
+															},
+															"optional": false
+														},
+														{
+															"name": "b",
+															"type": {
+																"kind": "union",
+																"types": [
+																	{
+																		"kind": "intrinsic",
+																		"intrinsic": "string"
+																	},
+																	{
+																		"kind": "intrinsic",
+																		"intrinsic": "undefined"
+																	}
+																]
+															},
+															"optional": true
+														}
+													]
+												},
+												"equalToDefault": false
+											}
+										]
+									},
+									"properties": [
+										{
+											"name": "a",
+											"type": {
+												"kind": "union",
+												"types": [
+													{
+														"kind": "intrinsic",
+														"intrinsic": "boolean"
+													},
+													{
+														"kind": "intrinsic",
+														"intrinsic": "undefined"
+													}
+												]
+											},
+											"optional": true
+										},
+										{
+											"name": "b",
+											"type": {
+												"kind": "union",
+												"types": [
+													{
+														"kind": "intrinsic",
+														"intrinsic": "string"
+													},
+													{
+														"kind": "intrinsic",
+														"intrinsic": "undefined"
+													}
+												]
+											},
+											"optional": true
+										}
+									]
+								},
+								"name": "params",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "inlineRequired",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "inlineRequired"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "object",
+									"typeName": {
+										"name": "Required",
+										"typeArguments": [
+											{
+												"type": {
+													"kind": "object",
+													"typeName": {
+														"name": "Base"
+													},
+													"properties": [
+														{
+															"name": "a",
+															"type": {
+																"kind": "intrinsic",
+																"intrinsic": "boolean"
+															},
+															"optional": false
+														},
+														{
+															"name": "b",
+															"type": {
+																"kind": "union",
+																"types": [
+																	{
+																		"kind": "intrinsic",
+																		"intrinsic": "string"
+																	},
+																	{
+																		"kind": "intrinsic",
+																		"intrinsic": "undefined"
+																	}
+																]
+															},
+															"optional": true
+														}
+													]
+												},
+												"equalToDefault": false
+											}
+										]
+									},
+									"properties": [
+										{
+											"name": "a",
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "boolean"
+											},
+											"optional": false
+										},
+										{
+											"name": "b",
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											},
+											"optional": false
+										}
+									]
+								},
+								"name": "params",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		}
+	]
+}

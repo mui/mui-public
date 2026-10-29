@@ -56,6 +56,30 @@ To refresh installed skills later (`npx skills add` copies the content into your
 npx skills update
 ```
 
+In Claude Code, you can install them as a plugin instead, which tracks `master` without copying files into your repo. Run this inside the repo where you want the skills:
+
+```bash
+claude plugin marketplace add mui/mui-public
+claude plugin install code-infra@mui-public --scope local
+```
+
+The skills are then available as `/code-infra:<skill>` (for example, `/code-infra:mui-renovate-triage`). They're enabled only for you and only in that repo: `--scope local` records this in `.claude/settings.local.json`, which isn't committed. Use `--scope user` to enable them in every repo instead. To stay on the latest `master`, enable auto-update for the `mui-public` marketplace under `/plugin` → **Marketplaces**, or run `claude plugin update code-infra@mui-public`.
+
+To enable the skills for everyone who works in a repo, use `--scope project`, which writes to the committed `.claude/settings.json`. Also add the marketplace there, so Claude Code knows where to install the plugin from for teammates who haven't added it:
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "mui-public": {
+      "source": { "source": "github", "repo": "mui/mui-public" }
+    }
+  },
+  "enabledPlugins": {
+    "code-infra@mui-public": true
+  }
+}
+```
+
 ### Renovate PR workflow
 
 Use [mui-renovate-triage](./skills/mui-renovate-triage/SKILL.md) to fetch a deterministic snapshot of open Renovate PRs and review them one at a time. For each PR, it shows a summary and link, asks whether to merge or continue when CI passes, and runs mui-renovate-fix when CI fails. Follow-up requests continue through the original snapshot without a persistent queue. Request read-only review to skip fixes.

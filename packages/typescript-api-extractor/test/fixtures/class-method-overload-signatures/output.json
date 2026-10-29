@@ -1,0 +1,245 @@
+{
+	"name": "test/fixtures/class-method-overload-signatures/input",
+	"exports": [
+		{
+			"name": "Formatter",
+			"type": {
+				"kind": "class",
+				"typeName": {
+					"name": "Formatter"
+				},
+				"constructSignatures": [
+					{
+						"parameters": []
+					}
+				],
+				"properties": [],
+				"methods": [
+					{
+						"name": "format",
+						"isStatic": false,
+						"callSignatures": [
+							{
+								"parameters": [
+									{
+										"type": {
+											"name": "T",
+											"constraint": {
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											},
+											"kind": "typeParameter"
+										},
+										"name": "value",
+										"optional": false
+									}
+								],
+								"returnValueType": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"typeParameters": [
+									{
+										"name": "T",
+										"constraint": {
+											"kind": "intrinsic",
+											"intrinsic": "string"
+										},
+										"kind": "typeParameter"
+									}
+								]
+							},
+							{
+								"parameters": [
+									{
+										"type": {
+											"name": "T",
+											"constraint": {
+												"kind": "intrinsic",
+												"intrinsic": "number"
+											},
+											"kind": "typeParameter"
+										},
+										"name": "value",
+										"optional": false
+									},
+									{
+										"type": {
+											"kind": "intrinsic",
+											"intrinsic": "number"
+										},
+										"name": "precision",
+										"optional": false
+									}
+								],
+								"returnValueType": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"typeParameters": [
+									{
+										"name": "T",
+										"constraint": {
+											"kind": "intrinsic",
+											"intrinsic": "number"
+										},
+										"kind": "typeParameter"
+									}
+								]
+							}
+						]
+					},
+					{
+						"name": "parse",
+						"isStatic": false,
+						"callSignatures": [
+							{
+								"parameters": [
+									{
+										"type": {
+											"kind": "intrinsic",
+											"intrinsic": "string"
+										},
+										"name": "input",
+										"optional": false
+									}
+								],
+								"returnValueType": {
+									"name": "T",
+									"constraint": {
+										"kind": "object",
+										"properties": []
+									},
+									"defaultValue": {
+										"kind": "external",
+										"typeName": {
+											"name": "Record",
+											"typeArguments": [
+												{
+													"type": {
+														"kind": "intrinsic",
+														"intrinsic": "string"
+													},
+													"equalToDefault": false
+												},
+												{
+													"type": {
+														"kind": "intrinsic",
+														"intrinsic": "unknown"
+													},
+													"equalToDefault": false
+												}
+											]
+										},
+										"source": {
+											"kind": "lib",
+											"files": ["lib.es5.d.ts"]
+										}
+									},
+									"kind": "typeParameter"
+								},
+								"typeParameters": [
+									{
+										"name": "T",
+										"constraint": {
+											"kind": "object",
+											"properties": []
+										},
+										"defaultValue": {
+											"kind": "external",
+											"typeName": {
+												"name": "Record",
+												"typeArguments": [
+													{
+														"type": {
+															"kind": "intrinsic",
+															"intrinsic": "string"
+														},
+														"equalToDefault": false
+													},
+													{
+														"type": {
+															"kind": "intrinsic",
+															"intrinsic": "unknown"
+														},
+														"equalToDefault": false
+													}
+												]
+											},
+											"source": {
+												"kind": "lib",
+												"files": ["lib.es5.d.ts"]
+											}
+										},
+										"kind": "typeParameter"
+									}
+								]
+							},
+							{
+								"parameters": [
+									{
+										"type": {
+											"kind": "intrinsic",
+											"intrinsic": "string"
+										},
+										"name": "input",
+										"optional": false
+									},
+									{
+										"type": {
+											"kind": "intrinsic",
+											"intrinsic": "string"
+										},
+										"name": "delimiter",
+										"optional": false
+									}
+								],
+								"returnValueType": {
+									"name": "T",
+									"constraint": {
+										"kind": "array",
+										"elementType": {
+											"kind": "intrinsic",
+											"intrinsic": "string"
+										}
+									},
+									"defaultValue": {
+										"kind": "array",
+										"elementType": {
+											"kind": "intrinsic",
+											"intrinsic": "string"
+										}
+									},
+									"kind": "typeParameter"
+								},
+								"typeParameters": [
+									{
+										"name": "T",
+										"constraint": {
+											"kind": "array",
+											"elementType": {
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											}
+										},
+										"defaultValue": {
+											"kind": "array",
+											"elementType": {
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											}
+										},
+										"kind": "typeParameter"
+									}
+								]
+							}
+						]
+					}
+				]
+			},
+			"isValue": true,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

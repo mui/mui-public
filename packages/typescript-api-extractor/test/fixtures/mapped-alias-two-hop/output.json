@@ -1,0 +1,222 @@
+{
+	"name": "test/fixtures/mapped-alias-two-hop/input",
+	"exports": [
+		{
+			"name": "Inner",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Inner",
+					"typeArguments": [
+						{
+							"type": {
+								"name": "K",
+								"constraint": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						},
+						{
+							"type": {
+								"name": "V",
+								"defaultValue": {
+									"kind": "intrinsic",
+									"intrinsic": "unknown"
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [],
+				"indexSignature": {
+					"keyName": "P",
+					"keyType": "string",
+					"valueType": {
+						"kind": "union",
+						"types": [
+							{
+								"name": "V",
+								"defaultValue": {
+									"kind": "intrinsic",
+									"intrinsic": "unknown"
+								},
+								"kind": "typeParameter"
+							},
+							{
+								"kind": "intrinsic",
+								"intrinsic": "undefined"
+							}
+						]
+					}
+				}
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Middle",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Inner",
+					"typeArguments": [
+						{
+							"type": {
+								"name": "K",
+								"constraint": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						},
+						{
+							"type": {
+								"name": "V",
+								"defaultValue": {
+									"kind": "intrinsic",
+									"intrinsic": "boolean"
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [],
+				"indexSignature": {
+					"keyName": "P",
+					"keyType": "string",
+					"valueType": {
+						"kind": "union",
+						"types": [
+							{
+								"name": "V",
+								"defaultValue": {
+									"kind": "intrinsic",
+									"intrinsic": "boolean"
+								},
+								"kind": "typeParameter"
+							},
+							{
+								"kind": "intrinsic",
+								"intrinsic": "undefined"
+							}
+						]
+					}
+				}
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Outer",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Middle",
+					"typeArguments": [
+						{
+							"type": {
+								"name": "K",
+								"constraint": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						},
+						{
+							"type": {
+								"name": "V",
+								"defaultValue": {
+									"kind": "intrinsic",
+									"intrinsic": "number"
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [],
+				"indexSignature": {
+					"keyName": "P",
+					"keyType": "string",
+					"valueType": {
+						"kind": "union",
+						"types": [
+							{
+								"name": "V",
+								"defaultValue": {
+									"kind": "intrinsic",
+									"intrinsic": "number"
+								},
+								"kind": "typeParameter"
+							},
+							{
+								"kind": "intrinsic",
+								"intrinsic": "undefined"
+							}
+						]
+					}
+				}
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "UseOuter",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Outer",
+					"typeArguments": [
+						{
+							"type": {
+								"name": "K",
+								"constraint": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [],
+				"indexSignature": {
+					"keyName": "P",
+					"keyType": "string",
+					"valueType": {
+						"kind": "union",
+						"types": [
+							{
+								"kind": "intrinsic",
+								"intrinsic": "number"
+							},
+							{
+								"kind": "intrinsic",
+								"intrinsic": "undefined"
+							}
+						]
+					}
+				}
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

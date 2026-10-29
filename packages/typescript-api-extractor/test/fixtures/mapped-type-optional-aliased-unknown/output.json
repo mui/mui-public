@@ -1,0 +1,52 @@
+{
+	"name": "test/fixtures/mapped-type-optional-aliased-unknown/input",
+	"exports": [
+		{
+			"name": "OptionalUnknownMap",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "OptionalUnknownMap",
+					"typeArguments": [
+						{
+							"type": {
+								"name": "K",
+								"constraint": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"defaultValue": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [],
+				"indexSignature": {
+					"keyName": "P",
+					"keyType": "string",
+					"valueType": {
+						"kind": "union",
+						"types": [
+							{
+								"kind": "intrinsic",
+								"intrinsic": "unknown"
+							},
+							{
+								"kind": "intrinsic",
+								"intrinsic": "undefined"
+							}
+						]
+					}
+				}
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

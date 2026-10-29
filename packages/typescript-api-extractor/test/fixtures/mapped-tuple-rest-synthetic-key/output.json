@@ -1,0 +1,147 @@
+{
+	"name": "test/fixtures/mapped-tuple-rest-synthetic-key/input",
+	"exports": [
+		{
+			"name": "Rest",
+			"type": {
+				"kind": "tuple",
+				"typeName": {
+					"name": "Rest",
+					"typeArguments": [
+						{
+							"type": {
+								"name": "V",
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						},
+						{
+							"type": {
+								"name": "V",
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"types": [
+					{
+						"name": "V",
+						"kind": "typeParameter"
+					},
+					{
+						"name": "V",
+						"kind": "typeParameter"
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Wrap",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Wrap",
+					"typeArguments": [
+						{
+							"type": {
+								"name": "T",
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Result",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Wrap",
+					"typeArguments": [
+						{
+							"type": {
+								"kind": "object",
+								"properties": [
+									{
+										"name": "a",
+										"type": {
+											"kind": "intrinsic",
+											"intrinsic": "number"
+										},
+										"optional": false
+									},
+									{
+										"name": "b",
+										"type": {
+											"kind": "intrinsic",
+											"intrinsic": "string"
+										},
+										"optional": false
+									}
+								]
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [
+					{
+						"name": "a",
+						"type": {
+							"kind": "tuple",
+							"types": [
+								{
+									"kind": "literal",
+									"value": "\"a\""
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "number"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "number"
+								}
+							]
+						},
+						"optional": false
+					},
+					{
+						"name": "b",
+						"type": {
+							"kind": "tuple",
+							"types": [
+								{
+									"kind": "literal",
+									"value": "\"b\""
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								}
+							]
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

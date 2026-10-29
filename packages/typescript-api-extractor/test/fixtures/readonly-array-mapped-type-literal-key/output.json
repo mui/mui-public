@@ -1,0 +1,91 @@
+{
+	"name": "test/fixtures/readonly-array-mapped-type-literal-key/input",
+	"exports": [
+		{
+			"name": "DirectData",
+			"type": {
+				"kind": "array",
+				"typeName": {
+					"name": "DirectData",
+					"typeArguments": [
+						{
+							"type": {
+								"kind": "object",
+								"properties": [
+									{
+										"name": "a",
+										"type": {
+											"kind": "intrinsic",
+											"intrinsic": "unknown"
+										},
+										"optional": true
+									},
+									{
+										"name": "b",
+										"type": {
+											"kind": "intrinsic",
+											"intrinsic": "unknown"
+										},
+										"optional": true
+									}
+								]
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"elementType": {
+					"kind": "object",
+					"properties": [
+						{
+							"name": "a",
+							"type": {
+								"kind": "intrinsic",
+								"intrinsic": "unknown"
+							},
+							"optional": true
+						},
+						{
+							"name": "b",
+							"type": {
+								"kind": "intrinsic",
+								"intrinsic": "unknown"
+							},
+							"optional": true
+						}
+					]
+				},
+				"isReadonly": true
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "ParametricData",
+			"type": {
+				"kind": "array",
+				"typeName": {
+					"name": "ParametricData",
+					"typeArguments": [
+						{
+							"type": {
+								"kind": "object",
+								"properties": []
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"elementType": {
+					"kind": "object",
+					"properties": []
+				},
+				"isReadonly": true
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

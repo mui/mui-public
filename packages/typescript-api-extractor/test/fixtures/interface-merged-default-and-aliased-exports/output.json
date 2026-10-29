@@ -1,0 +1,118 @@
+{
+	"name": "test/fixtures/interface-merged-default-and-aliased-exports/input",
+	"exports": [
+		{
+			"name": "Interface1",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Interface1"
+				},
+				"properties": [
+					{
+						"name": "s",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "b",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "boolean"
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Interface2",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Interface2"
+				},
+				"properties": [
+					{
+						"name": "n",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "number"
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Interface2Alias",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Interface2"
+				},
+				"properties": [
+					{
+						"name": "n",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "number"
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "default",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "default"
+				},
+				"properties": [
+					{
+						"name": "n1",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "number"
+						},
+						"optional": false
+					},
+					{
+						"name": "n2",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "number"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

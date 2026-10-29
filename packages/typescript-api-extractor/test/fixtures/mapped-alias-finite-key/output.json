@@ -1,0 +1,146 @@
+{
+	"name": "test/fixtures/mapped-alias-finite-key/input",
+	"exports": [
+		{
+			"name": "MapAlias",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "MapAlias",
+					"typeArguments": [
+						{
+							"type": {
+								"name": "K",
+								"constraint": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						},
+						{
+							"type": {
+								"name": "V",
+								"defaultValue": {
+									"kind": "intrinsic",
+									"intrinsic": "unknown"
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [],
+				"indexSignature": {
+					"keyName": "P",
+					"keyType": "string",
+					"valueType": {
+						"kind": "union",
+						"types": [
+							{
+								"name": "V",
+								"defaultValue": {
+									"kind": "intrinsic",
+									"intrinsic": "unknown"
+								},
+								"kind": "typeParameter"
+							},
+							{
+								"kind": "intrinsic",
+								"intrinsic": "undefined"
+							}
+						]
+					}
+				}
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Specialized",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "MapAlias",
+					"typeArguments": [
+						{
+							"type": {
+								"kind": "union",
+								"types": [
+									{
+										"kind": "literal",
+										"value": "\"a\""
+									},
+									{
+										"kind": "literal",
+										"value": "\"b\""
+									}
+								]
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [
+					{
+						"name": "a",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "unknown"
+						},
+						"optional": true
+					},
+					{
+						"name": "b",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "unknown"
+						},
+						"optional": true
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "LiteralWrapped",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "MapAlias",
+					"typeArguments": [
+						{
+							"type": {
+								"name": "K",
+								"constraint": {
+									"kind": "union",
+									"types": [
+										{
+											"kind": "literal",
+											"value": "\"a\""
+										},
+										{
+											"kind": "literal",
+											"value": "\"b\""
+										}
+									]
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

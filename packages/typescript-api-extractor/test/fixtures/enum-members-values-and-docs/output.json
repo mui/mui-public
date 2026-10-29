@@ -1,0 +1,113 @@
+{
+	"name": "test/fixtures/enum-members-values-and-docs/input",
+	"exports": [
+		{
+			"name": "Side",
+			"type": {
+				"typeName": {
+					"name": "Side"
+				},
+				"members": [
+					{
+						"name": "left",
+						"value": "left",
+						"documentation": {
+							"description": "Left side.",
+							"tags": []
+						}
+					},
+					{
+						"name": "right",
+						"value": "right",
+						"documentation": {
+							"description": "Right side.",
+							"tags": []
+						}
+					}
+				],
+				"documentation": {
+					"description": "Description of the Side enum.",
+					"tags": []
+				},
+				"kind": "enum"
+			},
+			"documentation": {
+				"description": "Description of the Side enum.",
+				"tags": []
+			},
+			"isValue": true,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Flags",
+			"type": {
+				"typeName": {
+					"name": "Flags"
+				},
+				"members": [
+					{
+						"name": "flag1",
+						"value": 1
+					},
+					{
+						"name": "flag2",
+						"value": 2
+					},
+					{
+						"name": "flag3",
+						"value": 4
+					},
+					{
+						"name": "flag2And3",
+						"value": 6
+					},
+					{
+						"name": "implicitValue",
+						"value": 7
+					}
+				],
+				"kind": "enum"
+			},
+			"isValue": true,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "DegenerateN",
+			"type": {
+				"typeName": {
+					"name": "DegenerateN"
+				},
+				"members": [
+					{
+						"name": "theOnlyItem",
+						"value": 1
+					}
+				],
+				"kind": "enum"
+			},
+			"isValue": true,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "DegenerateS",
+			"type": {
+				"typeName": {
+					"name": "DegenerateS"
+				},
+				"members": [
+					{
+						"name": "theOnlyItem",
+						"value": "one"
+					}
+				],
+				"kind": "enum"
+			},
+			"isValue": true,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

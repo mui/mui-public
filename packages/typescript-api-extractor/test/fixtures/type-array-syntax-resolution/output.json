@@ -1,0 +1,145 @@
+{
+	"name": "test/fixtures/type-array-syntax-resolution/input",
+	"exports": [
+		{
+			"name": "acceptsArrayProps",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "acceptsArrayProps"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "object",
+									"typeName": {
+										"name": "Params"
+									},
+									"properties": [
+										{
+											"name": "arr1",
+											"type": {
+												"kind": "array",
+												"elementType": {
+													"kind": "intrinsic",
+													"intrinsic": "string"
+												}
+											},
+											"optional": false
+										},
+										{
+											"name": "arr2",
+											"type": {
+												"kind": "array",
+												"elementType": {
+													"kind": "intrinsic",
+													"intrinsic": "number"
+												}
+											},
+											"optional": false
+										},
+										{
+											"name": "optionalArr1",
+											"type": {
+												"kind": "union",
+												"types": [
+													{
+														"kind": "array",
+														"elementType": {
+															"kind": "intrinsic",
+															"intrinsic": "string"
+														}
+													},
+													{
+														"kind": "intrinsic",
+														"intrinsic": "undefined"
+													}
+												]
+											},
+											"optional": true
+										},
+										{
+											"name": "optionalArr2",
+											"type": {
+												"kind": "union",
+												"types": [
+													{
+														"kind": "array",
+														"elementType": {
+															"kind": "intrinsic",
+															"intrinsic": "number"
+														}
+													},
+													{
+														"kind": "intrinsic",
+														"intrinsic": "undefined"
+													}
+												]
+											},
+											"optional": true
+										}
+									]
+								},
+								"name": "params",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "acceptsArrayParameters",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "acceptsArrayParameters"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "array",
+									"elementType": {
+										"kind": "intrinsic",
+										"intrinsic": "string"
+									}
+								},
+								"name": "a1",
+								"optional": false
+							},
+							{
+								"type": {
+									"kind": "array",
+									"elementType": {
+										"kind": "intrinsic",
+										"intrinsic": "number"
+									}
+								},
+								"name": "a2",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		}
+	]
+}

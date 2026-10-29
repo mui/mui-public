@@ -1,0 +1,52 @@
+{
+	"name": "test/fixtures/react-props-literal-types/input",
+	"exports": [
+		{
+			"name": "LiteralPropsComponent",
+			"type": {
+				"kind": "component",
+				"typeName": {
+					"name": "LiteralPropsComponent"
+				},
+				"props": [
+					{
+						"name": "stringLiteral",
+						"type": {
+							"kind": "literal",
+							"value": "\"foo\""
+						},
+						"optional": false
+					},
+					{
+						"name": "numberLiteral",
+						"type": {
+							"kind": "literal",
+							"value": 42
+						},
+						"optional": false
+					},
+					{
+						"name": "booleanLiteral",
+						"type": {
+							"kind": "literal",
+							"value": "true"
+						},
+						"optional": false
+					},
+					{
+						"name": "nullLiteral",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "null"
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		}
+	],
+	"imports": ["react"]
+}

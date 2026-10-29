@@ -1,0 +1,75 @@
+{
+	"name": "test/fixtures/module-reexport-imported-class-type/input",
+	"exports": [
+		{
+			"name": "ImportedClass",
+			"type": {
+				"kind": "class",
+				"typeName": {
+					"name": "ImportedClass"
+				},
+				"constructSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"name": "value",
+								"documentation": {
+									"description": "The initial value.",
+									"tags": []
+								},
+								"optional": false
+							}
+						],
+						"documentation": {
+							"description": "Creates a new ImportedClass.",
+							"tags": []
+						}
+					}
+				],
+				"properties": [
+					{
+						"name": "value",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"documentation": {
+							"description": "The value held by the instance.",
+							"tags": []
+						},
+						"optional": false,
+						"readonly": false,
+						"isStatic": false
+					}
+				],
+				"methods": [
+					{
+						"name": "getValue",
+						"documentation": {
+							"description": "Returns the current value.",
+							"tags": []
+						},
+						"isStatic": false,
+						"callSignatures": [
+							{
+								"parameters": [],
+								"returnValueType": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								}
+							}
+						]
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	],
+	"imports": ["./source"]
+}

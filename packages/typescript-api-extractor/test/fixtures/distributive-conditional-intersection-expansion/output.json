@@ -1,0 +1,321 @@
+{
+	"name": "test/fixtures/distributive-conditional-intersection-expansion/input",
+	"exports": [
+		{
+			"name": "EventDetailsHandlers",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "EventDetailsHandlers"
+				},
+				"properties": [
+					{
+						"name": "onNoHack",
+						"type": {
+							"kind": "function",
+							"callSignatures": [
+								{
+									"parameters": [
+										{
+											"type": {
+												"kind": "intersection",
+												"typeName": {
+													"name": "TabsLikeNoHack"
+												},
+												"types": [
+													{
+														"kind": "object",
+														"properties": [
+															{
+																"name": "reason",
+																"type": {
+																	"kind": "literal",
+																	"value": "\"none\""
+																},
+																"optional": false
+															},
+															{
+																"name": "event",
+																"type": {
+																	"kind": "external",
+																	"typeName": {
+																		"name": "Event"
+																	},
+																	"source": {
+																		"kind": "lib",
+																		"files": ["lib.dom.d.ts"]
+																	}
+																},
+																"optional": false
+															},
+															{
+																"name": "cancel",
+																"type": {
+																	"kind": "function",
+																	"callSignatures": [
+																		{
+																			"parameters": [],
+																			"returnValueType": {
+																				"kind": "intrinsic",
+																				"intrinsic": "void"
+																			}
+																		}
+																	]
+																},
+																"optional": false
+															}
+														]
+													},
+													{
+														"kind": "object",
+														"properties": [
+															{
+																"name": "direction",
+																"type": {
+																	"kind": "union",
+																	"types": [
+																		{
+																			"kind": "literal",
+																			"value": "\"left\""
+																		},
+																		{
+																			"kind": "literal",
+																			"value": "\"right\""
+																		}
+																	]
+																},
+																"optional": false
+															}
+														]
+													}
+												],
+												"properties": [
+													{
+														"name": "reason",
+														"type": {
+															"kind": "literal",
+															"value": "\"none\""
+														},
+														"optional": false
+													},
+													{
+														"name": "event",
+														"type": {
+															"kind": "external",
+															"typeName": {
+																"name": "Event"
+															},
+															"source": {
+																"kind": "lib",
+																"files": ["lib.dom.d.ts"]
+															}
+														},
+														"optional": false
+													},
+													{
+														"name": "cancel",
+														"type": {
+															"kind": "function",
+															"callSignatures": [
+																{
+																	"parameters": [],
+																	"returnValueType": {
+																		"kind": "intrinsic",
+																		"intrinsic": "void"
+																	}
+																}
+															]
+														},
+														"optional": false
+													},
+													{
+														"name": "direction",
+														"type": {
+															"kind": "union",
+															"types": [
+																{
+																	"kind": "literal",
+																	"value": "\"left\""
+																},
+																{
+																	"kind": "literal",
+																	"value": "\"right\""
+																}
+															]
+														},
+														"optional": false
+													}
+												]
+											},
+											"name": "details",
+											"optional": false
+										}
+									],
+									"returnValueType": {
+										"kind": "intrinsic",
+										"intrinsic": "void"
+									}
+								}
+							]
+						},
+						"optional": false
+					},
+					{
+						"name": "onWithHack",
+						"type": {
+							"kind": "function",
+							"callSignatures": [
+								{
+									"parameters": [
+										{
+											"type": {
+												"kind": "intersection",
+												"typeName": {
+													"name": "TabsLikeWithHack"
+												},
+												"types": [
+													{
+														"kind": "object",
+														"properties": [
+															{
+																"name": "reason",
+																"type": {
+																	"kind": "literal",
+																	"value": "\"none\""
+																},
+																"optional": false
+															},
+															{
+																"name": "event",
+																"type": {
+																	"kind": "external",
+																	"typeName": {
+																		"name": "Event"
+																	},
+																	"source": {
+																		"kind": "lib",
+																		"files": ["lib.dom.d.ts"]
+																	}
+																},
+																"optional": false
+															},
+															{
+																"name": "cancel",
+																"type": {
+																	"kind": "function",
+																	"callSignatures": [
+																		{
+																			"parameters": [],
+																			"returnValueType": {
+																				"kind": "intrinsic",
+																				"intrinsic": "void"
+																			}
+																		}
+																	]
+																},
+																"optional": false
+															}
+														]
+													},
+													{
+														"kind": "object",
+														"properties": [
+															{
+																"name": "direction",
+																"type": {
+																	"kind": "union",
+																	"types": [
+																		{
+																			"kind": "literal",
+																			"value": "\"left\""
+																		},
+																		{
+																			"kind": "literal",
+																			"value": "\"right\""
+																		}
+																	]
+																},
+																"optional": false
+															}
+														]
+													}
+												],
+												"properties": [
+													{
+														"name": "reason",
+														"type": {
+															"kind": "literal",
+															"value": "\"none\""
+														},
+														"optional": false
+													},
+													{
+														"name": "event",
+														"type": {
+															"kind": "external",
+															"typeName": {
+																"name": "Event"
+															},
+															"source": {
+																"kind": "lib",
+																"files": ["lib.dom.d.ts"]
+															}
+														},
+														"optional": false
+													},
+													{
+														"name": "cancel",
+														"type": {
+															"kind": "function",
+															"callSignatures": [
+																{
+																	"parameters": [],
+																	"returnValueType": {
+																		"kind": "intrinsic",
+																		"intrinsic": "void"
+																	}
+																}
+															]
+														},
+														"optional": false
+													},
+													{
+														"name": "direction",
+														"type": {
+															"kind": "union",
+															"types": [
+																{
+																	"kind": "literal",
+																	"value": "\"left\""
+																},
+																{
+																	"kind": "literal",
+																	"value": "\"right\""
+																}
+															]
+														},
+														"optional": false
+													}
+												]
+											},
+											"name": "details",
+											"optional": false
+										}
+									],
+									"returnValueType": {
+										"kind": "intrinsic",
+										"intrinsic": "void"
+									}
+								}
+							]
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

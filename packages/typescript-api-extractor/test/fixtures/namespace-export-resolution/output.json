@@ -1,0 +1,596 @@
+{
+	"name": "test/fixtures/namespace-export-resolution/input",
+	"exports": [
+		{
+			"name": "acceptsNestedParams",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "acceptsNestedParams"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "object",
+									"typeName": {
+										"name": "Params",
+										"namespaces": ["Root", "Sub"]
+									},
+									"properties": [
+										{
+											"name": "s",
+											"type": {
+												"typeName": {
+													"name": "Grade",
+													"namespaces": ["Root", "Sub"]
+												},
+												"members": [
+													{
+														"name": "good",
+														"value": 0
+													},
+													{
+														"name": "bad",
+														"value": 1
+													}
+												],
+												"kind": "enum"
+											},
+											"optional": false
+										},
+										{
+											"name": "a",
+											"type": {
+												"kind": "union",
+												"typeName": {
+													"name": "NamespacedType",
+													"namespaces": ["Root"]
+												},
+												"types": [
+													{
+														"kind": "literal",
+														"value": "\"one\""
+													},
+													{
+														"kind": "literal",
+														"value": "\"two\""
+													}
+												]
+											},
+											"optional": false
+										},
+										{
+											"name": "os",
+											"type": {
+												"kind": "union",
+												"types": [
+													{
+														"typeName": {
+															"name": "Grade",
+															"namespaces": ["Root", "Sub"]
+														},
+														"members": [
+															{
+																"name": "good",
+																"value": 0
+															},
+															{
+																"name": "bad",
+																"value": 1
+															}
+														],
+														"kind": "enum"
+													},
+													{
+														"kind": "intrinsic",
+														"intrinsic": "undefined"
+													}
+												]
+											},
+											"optional": true
+										},
+										{
+											"name": "oa",
+											"type": {
+												"kind": "union",
+												"typeName": {
+													"name": "NamespacedType",
+													"namespaces": ["Root"]
+												},
+												"types": [
+													{
+														"kind": "union",
+														"typeName": {
+															"name": "NamespacedType",
+															"namespaces": ["Root"]
+														},
+														"types": [
+															{
+																"kind": "literal",
+																"value": "\"one\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"two\""
+															}
+														]
+													},
+													{
+														"kind": "intrinsic",
+														"intrinsic": "undefined"
+													}
+												]
+											},
+											"optional": true
+										}
+									]
+								},
+								"name": "params",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "acceptsNamespacedType",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "acceptsNamespacedType"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "union",
+									"typeName": {
+										"name": "NamespacedType",
+										"namespaces": ["Root"]
+									},
+									"types": [
+										{
+											"kind": "literal",
+											"value": "\"one\""
+										},
+										{
+											"kind": "literal",
+											"value": "\"two\""
+										}
+									]
+								},
+								"name": "a",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "Root.rootFunction",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "rootFunction",
+					"namespaces": ["Root"]
+				},
+				"callSignatures": [
+					{
+						"parameters": [],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "Root.Sub.nestedParams",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "nestedParams",
+					"namespaces": ["Root", "Sub"]
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "object",
+									"typeName": {
+										"name": "Params",
+										"namespaces": ["Root", "Sub"]
+									},
+									"properties": [
+										{
+											"name": "s",
+											"type": {
+												"typeName": {
+													"name": "Grade",
+													"namespaces": ["Root", "Sub"]
+												},
+												"members": [
+													{
+														"name": "good",
+														"value": 0
+													},
+													{
+														"name": "bad",
+														"value": 1
+													}
+												],
+												"kind": "enum"
+											},
+											"optional": false
+										},
+										{
+											"name": "a",
+											"type": {
+												"kind": "union",
+												"typeName": {
+													"name": "NamespacedType",
+													"namespaces": ["Root"]
+												},
+												"types": [
+													{
+														"kind": "literal",
+														"value": "\"one\""
+													},
+													{
+														"kind": "literal",
+														"value": "\"two\""
+													}
+												]
+											},
+											"optional": false
+										},
+										{
+											"name": "os",
+											"type": {
+												"kind": "union",
+												"types": [
+													{
+														"typeName": {
+															"name": "Grade",
+															"namespaces": ["Root", "Sub"]
+														},
+														"members": [
+															{
+																"name": "good",
+																"value": 0
+															},
+															{
+																"name": "bad",
+																"value": 1
+															}
+														],
+														"kind": "enum"
+													},
+													{
+														"kind": "intrinsic",
+														"intrinsic": "undefined"
+													}
+												]
+											},
+											"optional": true
+										},
+										{
+											"name": "oa",
+											"type": {
+												"kind": "union",
+												"typeName": {
+													"name": "NamespacedType",
+													"namespaces": ["Root"]
+												},
+												"types": [
+													{
+														"kind": "union",
+														"typeName": {
+															"name": "NamespacedType",
+															"namespaces": ["Root"]
+														},
+														"types": [
+															{
+																"kind": "literal",
+																"value": "\"one\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"two\""
+															}
+														]
+													},
+													{
+														"kind": "intrinsic",
+														"intrinsic": "undefined"
+													}
+												]
+											},
+											"optional": true
+										}
+									]
+								},
+								"name": "params",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "Root.Sub.NestedComponent",
+			"type": {
+				"kind": "component",
+				"typeName": {
+					"name": "NestedComponent",
+					"namespaces": ["Root", "Sub"]
+				},
+				"props": []
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "Root.Sub.useHook",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "useHook",
+					"namespaces": ["Root", "Sub"]
+				},
+				"callSignatures": [
+					{
+						"parameters": [],
+						"returnValueType": {
+							"kind": "object",
+							"properties": [
+								{
+									"name": "active",
+									"type": {
+										"kind": "intrinsic",
+										"intrinsic": "boolean"
+									},
+									"optional": false
+								},
+								{
+									"name": "count",
+									"type": {
+										"kind": "intrinsic",
+										"intrinsic": "number"
+									},
+									"optional": false
+								}
+							]
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "Root.Sub.Params",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Params",
+					"namespaces": ["Root", "Sub"]
+				},
+				"properties": [
+					{
+						"name": "s",
+						"type": {
+							"typeName": {
+								"name": "Grade",
+								"namespaces": ["Root", "Sub"]
+							},
+							"members": [
+								{
+									"name": "good",
+									"value": 0
+								},
+								{
+									"name": "bad",
+									"value": 1
+								}
+							],
+							"kind": "enum"
+						},
+						"optional": false
+					},
+					{
+						"name": "a",
+						"type": {
+							"kind": "union",
+							"typeName": {
+								"name": "NamespacedType",
+								"namespaces": ["Root"]
+							},
+							"types": [
+								{
+									"kind": "literal",
+									"value": "\"one\""
+								},
+								{
+									"kind": "literal",
+									"value": "\"two\""
+								}
+							]
+						},
+						"optional": false
+					},
+					{
+						"name": "os",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"typeName": {
+										"name": "Grade",
+										"namespaces": ["Root", "Sub"]
+									},
+									"members": [
+										{
+											"name": "good",
+											"value": 0
+										},
+										{
+											"name": "bad",
+											"value": 1
+										}
+									],
+									"kind": "enum"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "oa",
+						"type": {
+							"kind": "union",
+							"typeName": {
+								"name": "NamespacedType",
+								"namespaces": ["Root"]
+							},
+							"types": [
+								{
+									"kind": "union",
+									"typeName": {
+										"name": "NamespacedType",
+										"namespaces": ["Root"]
+									},
+									"types": [
+										{
+											"kind": "literal",
+											"value": "\"one\""
+										},
+										{
+											"kind": "literal",
+											"value": "\"two\""
+										}
+									]
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Root.Sub.Grade",
+			"type": {
+				"typeName": {
+					"name": "Grade",
+					"namespaces": ["Root", "Sub"]
+				},
+				"members": [
+					{
+						"name": "good",
+						"value": 0
+					},
+					{
+						"name": "bad",
+						"value": 1
+					}
+				],
+				"kind": "enum"
+			},
+			"isValue": true,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Root.NamespacedType",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "NamespacedType",
+					"namespaces": ["Root"]
+				},
+				"types": [
+					{
+						"kind": "literal",
+						"value": "\"one\""
+					},
+					{
+						"kind": "literal",
+						"value": "\"two\""
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Other.Orientation",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "Orientation",
+					"namespaces": ["Other"]
+				},
+				"types": [
+					{
+						"kind": "literal",
+						"value": "\"horizontal\""
+					},
+					{
+						"kind": "literal",
+						"value": "\"vertical\""
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

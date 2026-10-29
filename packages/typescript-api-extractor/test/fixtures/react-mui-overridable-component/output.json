@@ -1,0 +1,848 @@
+{
+	"name": "test/fixtures/react-mui-overridable-component/input",
+	"exports": [
+		{
+			"name": "default",
+			"type": {
+				"kind": "component",
+				"props": [
+					{
+						"name": "component",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"name": "RootComponent",
+									"constraint": {
+										"kind": "external",
+										"typeName": {
+											"name": "ElementType",
+											"namespaces": ["React"],
+											"typeArguments": [
+												{
+													"type": {
+														"kind": "intrinsic",
+														"intrinsic": "any"
+													},
+													"equalToDefault": true
+												},
+												{
+													"type": {
+														"kind": "union",
+														"types": [
+															{
+																"kind": "literal",
+																"value": "\"symbol\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"object\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"div\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"a\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"abbr\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"address\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"area\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"article\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"aside\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"audio\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"b\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"base\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"bdi\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"bdo\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"big\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"blockquote\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"body\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"br\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"button\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"canvas\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"caption\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"center\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"cite\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"code\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"col\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"colgroup\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"data\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"datalist\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"dd\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"del\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"details\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"dfn\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"dialog\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"dl\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"dt\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"em\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"embed\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"fieldset\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"figcaption\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"figure\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"footer\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"form\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"h1\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"h2\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"h3\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"h4\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"h5\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"h6\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"head\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"header\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"hgroup\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"hr\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"html\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"i\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"iframe\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"img\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"input\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"ins\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"kbd\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"keygen\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"label\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"legend\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"li\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"link\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"main\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"map\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"mark\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"menu\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"menuitem\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"meta\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"meter\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"nav\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"noindex\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"noscript\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"ol\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"optgroup\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"option\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"output\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"p\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"param\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"picture\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"pre\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"progress\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"q\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"rp\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"rt\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"ruby\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"s\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"samp\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"search\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"slot\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"script\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"section\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"select\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"small\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"source\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"span\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"strong\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"style\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"sub\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"summary\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"sup\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"table\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"template\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"tbody\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"td\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"textarea\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"tfoot\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"th\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"thead\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"time\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"title\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"tr\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"track\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"u\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"ul\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"var\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"video\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"wbr\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"webview\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"svg\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"animate\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"animateMotion\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"animateTransform\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"circle\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"clipPath\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"defs\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"desc\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"ellipse\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"feBlend\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"feColorMatrix\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"feComponentTransfer\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"feComposite\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"feConvolveMatrix\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"feDiffuseLighting\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"feDisplacementMap\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"feDistantLight\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"feDropShadow\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"feFlood\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"feFuncA\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"feFuncB\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"feFuncG\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"feFuncR\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"feGaussianBlur\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"feImage\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"feMerge\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"feMergeNode\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"feMorphology\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"feOffset\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"fePointLight\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"feSpecularLighting\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"feSpotLight\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"feTile\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"feTurbulence\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"filter\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"foreignObject\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"g\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"image\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"line\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"linearGradient\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"marker\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"mask\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"metadata\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"mpath\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"path\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"pattern\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"polygon\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"polyline\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"radialGradient\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"rect\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"set\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"stop\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"switch\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"text\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"textPath\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"tspan\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"use\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"view\""
+															}
+														]
+													},
+													"equalToDefault": true
+												}
+											]
+										},
+										"source": {
+											"kind": "package",
+											"name": "@types/react"
+										}
+									},
+									"kind": "typeParameter"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "The component used for the root node.",
+							"tags": []
+						},
+						"optional": true
+					},
+					{
+						"name": "variant",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "literal",
+									"value": "\"default\""
+								},
+								{
+									"kind": "literal",
+									"value": "\"small\""
+								},
+								{
+									"kind": "literal",
+									"value": "\"large\""
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "className",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "style",
+						"type": {
+							"kind": "union",
+							"typeName": {
+								"name": "CSSProperties",
+								"namespaces": ["React"]
+							},
+							"types": [
+								{
+									"kind": "external",
+									"typeName": {
+										"name": "CSSProperties",
+										"namespaces": ["React"]
+									},
+									"source": {
+										"kind": "package",
+										"name": "@types/react"
+									}
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		}
+	],
+	"imports": ["react"]
+}

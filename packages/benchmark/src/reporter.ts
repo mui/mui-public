@@ -5,6 +5,7 @@ import type { RenderEvent, IterationData, MetricReport, MetricDefinition } from 
 import type { BenchmarkBaseUpload, BenchmarkReportEntry } from './ciReport';
 import { benchmarkUploadSchema, getCiMetadata } from './ciReport';
 import { calculateMean, aggregateSamples } from './stats';
+import { baseMetricName } from './metricCore';
 import { dim, red, green, yellow, cyan, printTable, fileUrl } from './format';
 import { uploadCiReport } from './upload';
 import { syncPrComment } from './syncPrComment';
@@ -171,12 +172,6 @@ function printDurationMatrix(name: string, report: BenchmarkReportEntry, footer:
     footer,
     name,
   );
-}
-
-/** Strips a `#sub-series` suffix to recover the metric name used to look up its definition. */
-function baseMetricName(key: string): string {
-  const hashIndex = key.indexOf('#');
-  return hashIndex === -1 ? key : key.slice(0, hashIndex);
 }
 
 function formatMetricValue(value: number, definition?: MetricDefinition): string {

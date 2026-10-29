@@ -177,6 +177,7 @@ export const repositories = new Map<string, Repository>(
         packages: [],
         prComment: {
           bundleSize: true,
+          benchmark: true,
         },
       },
       {

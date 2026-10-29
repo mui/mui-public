@@ -1,0 +1,550 @@
+{
+	"name": "test/fixtures/type-literal-union-resolution/input",
+	"exports": [
+		{
+			"name": "acceptsLiteralUnionProps",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "acceptsLiteralUnionProps"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "object",
+									"typeName": {
+										"name": "Params"
+									},
+									"properties": [
+										{
+											"name": "inlineStringUnion",
+											"type": {
+												"kind": "union",
+												"types": [
+													{
+														"kind": "literal",
+														"value": "\"foo\""
+													},
+													{
+														"kind": "literal",
+														"value": "\"bar\""
+													},
+													{
+														"kind": "literal",
+														"value": "\"baz\""
+													}
+												]
+											},
+											"optional": false
+										},
+										{
+											"name": "inlineNumberUnion",
+											"type": {
+												"kind": "union",
+												"types": [
+													{
+														"kind": "literal",
+														"value": 1
+													},
+													{
+														"kind": "literal",
+														"value": 2
+													},
+													{
+														"kind": "literal",
+														"value": 3
+													}
+												]
+											},
+											"optional": false
+										},
+										{
+											"name": "referencedStringUnion",
+											"type": {
+												"kind": "union",
+												"typeName": {
+													"name": "StringUnion"
+												},
+												"types": [
+													{
+														"kind": "literal",
+														"value": "\"foo\""
+													},
+													{
+														"kind": "literal",
+														"value": "\"bar\""
+													},
+													{
+														"kind": "literal",
+														"value": "\"baz\""
+													}
+												]
+											},
+											"optional": false
+										},
+										{
+											"name": "referencedNumberUnion",
+											"type": {
+												"kind": "union",
+												"typeName": {
+													"name": "NumberUnion"
+												},
+												"types": [
+													{
+														"kind": "literal",
+														"value": 1
+													},
+													{
+														"kind": "literal",
+														"value": 2
+													},
+													{
+														"kind": "literal",
+														"value": 3
+													}
+												]
+											},
+											"optional": false
+										},
+										{
+											"name": "callback",
+											"type": {
+												"kind": "function",
+												"callSignatures": [
+													{
+														"parameters": [
+															{
+																"type": {
+																	"kind": "union",
+																	"types": [
+																		{
+																			"kind": "union",
+																			"typeName": {
+																				"name": "StringUnion"
+																			},
+																			"types": [
+																				{
+																					"kind": "literal",
+																					"value": "\"foo\""
+																				},
+																				{
+																					"kind": "literal",
+																					"value": "\"bar\""
+																				},
+																				{
+																					"kind": "literal",
+																					"value": "\"baz\""
+																				}
+																			]
+																		},
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "undefined"
+																		}
+																	]
+																},
+																"name": "ref",
+																"optional": false
+															}
+														],
+														"returnValueType": {
+															"kind": "intrinsic",
+															"intrinsic": "void"
+														}
+													}
+												]
+											},
+											"optional": false
+										},
+										{
+											"name": "unionOfUnions",
+											"type": {
+												"kind": "union",
+												"types": [
+													{
+														"kind": "union",
+														"typeName": {
+															"name": "StringUnion"
+														},
+														"types": [
+															{
+																"kind": "literal",
+																"value": "\"foo\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"bar\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"baz\""
+															}
+														]
+													},
+													{
+														"kind": "union",
+														"typeName": {
+															"name": "NumberUnion"
+														},
+														"types": [
+															{
+																"kind": "literal",
+																"value": 1
+															},
+															{
+																"kind": "literal",
+																"value": 2
+															},
+															{
+																"kind": "literal",
+																"value": 3
+															}
+														]
+													}
+												]
+											},
+											"optional": false
+										},
+										{
+											"name": "indirectUnion",
+											"type": {
+												"kind": "union",
+												"types": [
+													{
+														"kind": "union",
+														"typeName": {
+															"name": "IndirectStringUnion"
+														},
+														"types": [
+															{
+																"kind": "union",
+																"typeName": {
+																	"name": "StringUnion"
+																},
+																"types": [
+																	{
+																		"kind": "literal",
+																		"value": "\"foo\""
+																	},
+																	{
+																		"kind": "literal",
+																		"value": "\"bar\""
+																	},
+																	{
+																		"kind": "literal",
+																		"value": "\"baz\""
+																	}
+																]
+															},
+															{
+																"kind": "literal",
+																"value": "\"qux\""
+															}
+														]
+													},
+													{
+														"kind": "intrinsic",
+														"intrinsic": "undefined"
+													}
+												]
+											},
+											"optional": false
+										}
+									]
+								},
+								"name": "parameters",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "acceptsLiteralUnionParameters",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "acceptsLiteralUnionParameters"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "union",
+									"types": [
+										{
+											"kind": "literal",
+											"value": "\"foo\""
+										},
+										{
+											"kind": "literal",
+											"value": "\"bar\""
+										},
+										{
+											"kind": "literal",
+											"value": "\"baz\""
+										}
+									]
+								},
+								"name": "inlineStringUnion",
+								"optional": false
+							},
+							{
+								"type": {
+									"kind": "union",
+									"types": [
+										{
+											"kind": "literal",
+											"value": 1
+										},
+										{
+											"kind": "literal",
+											"value": 2
+										},
+										{
+											"kind": "literal",
+											"value": 3
+										}
+									]
+								},
+								"name": "inlineNumberUnion",
+								"optional": false
+							},
+							{
+								"type": {
+									"kind": "union",
+									"typeName": {
+										"name": "StringUnion"
+									},
+									"types": [
+										{
+											"kind": "literal",
+											"value": "\"foo\""
+										},
+										{
+											"kind": "literal",
+											"value": "\"bar\""
+										},
+										{
+											"kind": "literal",
+											"value": "\"baz\""
+										}
+									]
+								},
+								"name": "referencedStringUnion",
+								"optional": false
+							},
+							{
+								"type": {
+									"kind": "union",
+									"typeName": {
+										"name": "NumberUnion"
+									},
+									"types": [
+										{
+											"kind": "literal",
+											"value": 1
+										},
+										{
+											"kind": "literal",
+											"value": 2
+										},
+										{
+											"kind": "literal",
+											"value": 3
+										}
+									]
+								},
+								"name": "referencedNumberUnion",
+								"optional": false
+							},
+							{
+								"type": {
+									"kind": "union",
+									"types": [
+										{
+											"kind": "union",
+											"typeName": {
+												"name": "StringUnion"
+											},
+											"types": [
+												{
+													"kind": "literal",
+													"value": "\"foo\""
+												},
+												{
+													"kind": "literal",
+													"value": "\"bar\""
+												},
+												{
+													"kind": "literal",
+													"value": "\"baz\""
+												}
+											]
+										},
+										{
+											"kind": "union",
+											"typeName": {
+												"name": "NumberUnion"
+											},
+											"types": [
+												{
+													"kind": "literal",
+													"value": 1
+												},
+												{
+													"kind": "literal",
+													"value": 2
+												},
+												{
+													"kind": "literal",
+													"value": 3
+												}
+											]
+										}
+									]
+								},
+								"name": "unionOfUnions",
+								"optional": false
+							},
+							{
+								"type": {
+									"kind": "union",
+									"types": [
+										{
+											"kind": "union",
+											"typeName": {
+												"name": "IndirectStringUnion"
+											},
+											"types": [
+												{
+													"kind": "union",
+													"typeName": {
+														"name": "StringUnion"
+													},
+													"types": [
+														{
+															"kind": "literal",
+															"value": "\"foo\""
+														},
+														{
+															"kind": "literal",
+															"value": "\"bar\""
+														},
+														{
+															"kind": "literal",
+															"value": "\"baz\""
+														}
+													]
+												},
+												{
+													"kind": "literal",
+													"value": "\"qux\""
+												}
+											]
+										},
+										{
+											"kind": "intrinsic",
+											"intrinsic": "undefined"
+										}
+									]
+								},
+								"name": "indirectUnion",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "acceptsKeyofProp",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "acceptsKeyofProp"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "typeOperator",
+									"operator": "keyof",
+									"type": {
+										"kind": "object",
+										"typeName": {
+											"name": "Params"
+										},
+										"properties": []
+									},
+									"resolvedType": {
+										"kind": "union",
+										"types": [
+											{
+												"kind": "literal",
+												"value": "\"inlineStringUnion\""
+											},
+											{
+												"kind": "literal",
+												"value": "\"inlineNumberUnion\""
+											},
+											{
+												"kind": "literal",
+												"value": "\"referencedStringUnion\""
+											},
+											{
+												"kind": "literal",
+												"value": "\"referencedNumberUnion\""
+											},
+											{
+												"kind": "literal",
+												"value": "\"callback\""
+											},
+											{
+												"kind": "literal",
+												"value": "\"unionOfUnions\""
+											},
+											{
+												"kind": "literal",
+												"value": "\"indirectUnion\""
+											}
+										]
+									},
+									"resolutionKind": "exact"
+								},
+								"name": "prop",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		}
+	]
+}

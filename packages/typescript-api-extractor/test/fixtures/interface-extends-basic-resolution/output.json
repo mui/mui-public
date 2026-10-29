@@ -1,0 +1,155 @@
+{
+	"name": "test/fixtures/interface-extends-basic-resolution/input",
+	"exports": [
+		{
+			"name": "ExtendedProps",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "ExtendedProps"
+				},
+				"properties": [
+					{
+						"name": "name",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "id",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					}
+				]
+			},
+			"extendsTypes": [
+				{
+					"name": "BaseProps"
+				}
+			],
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "MultiExtendedProps",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "MultiExtendedProps"
+				},
+				"properties": [
+					{
+						"name": "description",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "id",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "count",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "number"
+						},
+						"optional": false
+					}
+				]
+			},
+			"extendsTypes": [
+				{
+					"name": "BaseProps"
+				},
+				{
+					"name": "AnotherBase"
+				}
+			],
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "AlertDialogProps",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "AlertDialogProps"
+				},
+				"properties": [
+					{
+						"name": "urgent",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "boolean"
+						},
+						"optional": false
+					},
+					{
+						"name": "open",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "boolean"
+						},
+						"optional": false
+					}
+				]
+			},
+			"extendsTypes": [
+				{
+					"name": "Dialog.Props",
+					"resolvedName": "DialogProps"
+				}
+			],
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Dialog",
+			"type": {
+				"kind": "intrinsic",
+				"intrinsic": "any"
+			},
+			"isValue": false,
+			"isType": false,
+			"isNamespace": true
+		},
+		{
+			"name": "Dialog.Props",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Props",
+					"namespaces": ["Dialog"]
+				},
+				"properties": [
+					{
+						"name": "open",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "boolean"
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

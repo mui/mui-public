@@ -1,0 +1,80 @@
+{
+	"name": "test/fixtures/generic-argument-alias-resolution/input",
+	"exports": [
+		{
+			"name": "acceptsGenericAlias",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "acceptsGenericAlias"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "object",
+									"typeName": {
+										"name": "GenericObject",
+										"typeArguments": [
+											{
+												"type": {
+													"kind": "union",
+													"typeName": {
+														"name": "MyUnion"
+													},
+													"types": [
+														{
+															"kind": "intrinsic",
+															"intrinsic": "string"
+														},
+														{
+															"kind": "intrinsic",
+															"intrinsic": "number"
+														}
+													]
+												},
+												"equalToDefault": false
+											}
+										]
+									},
+									"properties": [
+										{
+											"name": "x",
+											"type": {
+												"kind": "union",
+												"typeName": {
+													"name": "MyUnion"
+												},
+												"types": [
+													{
+														"kind": "intrinsic",
+														"intrinsic": "string"
+													},
+													{
+														"kind": "intrinsic",
+														"intrinsic": "number"
+													}
+												]
+											},
+											"optional": false
+										}
+									]
+								},
+								"name": "a",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "null"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		}
+	]
+}
