@@ -72,8 +72,8 @@ export function registerExportNames(
 }
 
 /**
- * Follows a chain of plain renames (`type A = B`, without type parameters or
- * arguments) to the local types it ends at. Stops at external and built-in
+ * Follows a chain of plain renames (`type A = B`, or `type A<T> = B<T>` passing
+ * its type parameters through in order) to the local types it ends at. Stops at external and built-in
  * types, so `export type Element = HTMLElement` doesn't make every
  * `HTMLElement` on the page an `Element`.
  */
@@ -84,12 +84,7 @@ function getRenamedLocalTypes(symbol: ts.Symbol, parserContext: ScopedParserCont
 
   while (current) {
     const declaration = current.declarations?.find(ts.isTypeAliasDeclaration);
-    if (
-      !declaration ||
-      declaration.typeParameters ||
-      !ts.isTypeReferenceNode(declaration.type) ||
-      declaration.type.typeArguments
-    ) {
+    if (!declaration || !isPlainRename(declaration)) {
       break;
     }
 
@@ -118,6 +113,27 @@ function getRenamedLocalTypes(symbol: ts.Symbol, parserContext: ScopedParserCont
   }
 
   return renamedSymbols;
+}
+
+function isPlainRename(
+  declaration: ts.TypeAliasDeclaration,
+): declaration is ts.TypeAliasDeclaration & { type: ts.TypeReferenceNode } {
+  if (!ts.isTypeReferenceNode(declaration.type)) {
+    return false;
+  }
+
+  const typeParameters = declaration.typeParameters ?? [];
+  const typeArguments = declaration.type.typeArguments ?? [];
+  return (
+    typeArguments.length === typeParameters.length &&
+    typeArguments.every(
+      (argument, index) =>
+        ts.isTypeReferenceNode(argument) &&
+        !argument.typeArguments &&
+        ts.isIdentifier(argument.typeName) &&
+        argument.typeName.text === typeParameters[index].name.text,
+    )
+  );
 }
 
 /**

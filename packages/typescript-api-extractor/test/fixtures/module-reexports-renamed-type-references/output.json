@@ -178,6 +178,161 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false
+		},
+		{
+			"name": "PairHolder",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "PairHolder",
+					"exportedAs": ["PairHolder"]
+				},
+				"properties": [
+					{
+						"name": "pair",
+						"type": {
+							"kind": "object",
+							"typeName": {
+								"name": "Pair",
+								"typeArguments": [
+									{
+										"type": {
+											"kind": "intrinsic",
+											"intrinsic": "string"
+										},
+										"equalToDefault": false
+									},
+									{
+										"type": {
+											"kind": "intrinsic",
+											"intrinsic": "number"
+										},
+										"equalToDefault": false
+									}
+								],
+								"exportedAs": ["SamePair"]
+							},
+							"properties": [
+								{
+									"name": "first",
+									"type": {
+										"kind": "intrinsic",
+										"intrinsic": "string"
+									},
+									"optional": false
+								},
+								{
+									"name": "second",
+									"type": {
+										"kind": "intrinsic",
+										"intrinsic": "number"
+									},
+									"optional": false
+								}
+							]
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "SamePair",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Pair",
+					"typeArguments": [
+						{
+							"type": {
+								"name": "First",
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						},
+						{
+							"type": {
+								"name": "Second",
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					],
+					"exportedAs": ["SamePair"]
+				},
+				"properties": [
+					{
+						"name": "first",
+						"type": {
+							"name": "First",
+							"kind": "typeParameter"
+						},
+						"optional": false
+					},
+					{
+						"name": "second",
+						"type": {
+							"name": "Second",
+							"kind": "typeParameter"
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "SwappedPair",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Pair",
+					"typeArguments": [
+						{
+							"type": {
+								"name": "Second",
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						},
+						{
+							"type": {
+								"name": "First",
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					],
+					"exportedAs": ["SamePair"]
+				},
+				"properties": [
+					{
+						"name": "first",
+						"type": {
+							"name": "Second",
+							"kind": "typeParameter"
+						},
+						"optional": false
+					},
+					{
+						"name": "second",
+						"type": {
+							"name": "First",
+							"kind": "typeParameter"
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
 		}
-	]
+	],
+	"imports": ["./generic"]
 }

@@ -31,7 +31,7 @@
 							"equalToDefault": false
 						}
 					],
-					"exportedAs": ["Inner"]
+					"exportedAs": ["Inner", "Middle", "Outer", "UseOuter"]
 				},
 				"properties": [],
 				"indexSignature": {
@@ -90,7 +90,7 @@
 							"equalToDefault": false
 						}
 					],
-					"exportedAs": ["Inner"]
+					"exportedAs": ["Inner", "Middle", "Outer", "UseOuter"]
 				},
 				"properties": [],
 				"indexSignature": {
@@ -149,7 +149,7 @@
 							"equalToDefault": false
 						}
 					],
-					"exportedAs": ["Middle"]
+					"exportedAs": ["Middle", "Outer", "UseOuter"]
 				},
 				"properties": [],
 				"indexSignature": {
@@ -197,7 +197,7 @@
 							"equalToDefault": false
 						}
 					],
-					"exportedAs": ["Outer"]
+					"exportedAs": ["Outer", "UseOuter"]
 				},
 				"properties": [],
 				"indexSignature": {

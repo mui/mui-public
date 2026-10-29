@@ -994,6 +994,33 @@ describe('formatRaw', () => {
         });
       });
 
+      it('should print a generic type the entrypoint renames under its namespace', async () => {
+        const exports = parseTestSources({
+          'index.ts': ["export * as Grid from './parts';", "export type * from './body';"].join(
+            '\n',
+          ),
+          'parts.ts': "export { GridBody as Body } from './body';",
+          'body.ts': [
+            'export interface GridBodyRow<Row = any> { id: string; value: Row }',
+            'export interface GridBodyItems<Row = any> { first: GridBodyRow<Row> }',
+            'export declare function GridBody(props: { rows: GridBodyRow[] }): null;',
+            'export declare namespace GridBody {',
+            '  export type Row<Row = any> = GridBodyRow<Row>;',
+            '  export type Items<Row = any> = GridBodyItems<Row>;',
+            '}',
+          ].join('\n'),
+        });
+
+        const items = await formatRawData(
+          findExport(exports, 'GridBodyItems'),
+          'Grid.Body.Items',
+          {},
+          defaultRewriteContext,
+        );
+
+        expect(items.formattedCode).toBe('type GridBodyItems<Row = any> = { first: Grid.Body.Row<Row> };');
+      });
+
       describe('of types that share a declared name', () => {
         const exports = parseTestSources({
           'index.ts': [

@@ -20,7 +20,7 @@
 							"equalToDefault": false
 						}
 					],
-					"exportedAs": ["DialogRootProps"]
+					"exportedAs": ["DialogRootProps", "DialogRoot.Props"]
 				},
 				"properties": [
 					{
@@ -856,7 +856,7 @@
 							"equalToDefault": false
 						}
 					],
-					"exportedAs": ["AlertDialogRootProps"]
+					"exportedAs": ["AlertDialogRootProps", "AlertDialogRoot.Props"]
 				},
 				"properties": [
 					{
