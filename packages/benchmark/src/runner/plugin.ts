@@ -31,6 +31,19 @@ export interface BenchmarkPluginOptions {
   harnessDir?: string;
 }
 
+declare module 'vite' {
+  interface UserConfig {
+    /** What the `benchmark` CLI asks of a build of the harness's pages. */
+    benchmark?: {
+      /**
+       * Build only these benchmark files' pages (posix, relative to `src`): the files the run
+       * selected. A page the run doesn't measure isn't built, so it can't fail the build.
+       */
+      files?: string[];
+    };
+  }
+}
+
 /**
  * Checks that the workspace packages the harness links to have actually been built.
  *
@@ -152,6 +165,17 @@ export function benchmarkPlugin(options: BenchmarkPluginOptions = {}): Plugin {
       // A plain `vite build` into the output directory marks it ignored, as the `benchmark` CLI does.
       if (!userConfig.build?.outDir) {
         await prepareOutputDir(harnessDir);
+      }
+
+      const selected = userConfig.benchmark?.files;
+      if (selected) {
+        const unknown = selected.filter(
+          (file) => !benchFiles.some((benchFile) => benchFile.file === file),
+        );
+        if (unknown.length > 0) {
+          throw new Error(`No benchmark file ${unknown.join(', ')} under ${srcDir}.`);
+        }
+        benchFiles = benchFiles.filter((benchFile) => selected.includes(benchFile.file));
       }
 
       const input = Object.fromEntries(
