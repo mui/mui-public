@@ -1,0 +1,444 @@
+{
+	"name": "test/fixtures/react-component-union-variants/input",
+	"exports": [
+		{
+			"name": "Toolbar",
+			"type": {
+				"kind": "component",
+				"props": [
+					{
+						"name": "render",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "function",
+									"callSignatures": [
+										{
+											"parameters": [
+												{
+													"type": {
+														"kind": "object",
+														"properties": [
+															{
+																"name": "className",
+																"type": {
+																	"kind": "union",
+																	"types": [
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "string"
+																		},
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "undefined"
+																		}
+																	]
+																},
+																"optional": true
+															}
+														]
+													},
+													"name": "props",
+													"optional": false
+												}
+											],
+											"returnValueType": {
+												"kind": "external",
+												"typeName": {
+													"name": "ReactElement",
+													"namespaces": ["React"],
+													"typeArguments": [
+														{
+															"type": {
+																"kind": "intrinsic",
+																"intrinsic": "unknown"
+															},
+															"equalToDefault": true
+														},
+														{
+															"type": {
+																"kind": "union",
+																"types": [
+																	{
+																		"kind": "intrinsic",
+																		"intrinsic": "string"
+																	},
+																	{
+																		"kind": "external",
+																		"typeName": {
+																			"name": "JSXElementConstructor",
+																			"namespaces": ["React"],
+																			"typeArguments": [
+																				{
+																					"type": {
+																						"kind": "intrinsic",
+																						"intrinsic": "any"
+																					},
+																					"equalToDefault": false
+																				}
+																			]
+																		},
+																		"source": {
+																			"kind": "package",
+																			"name": "@types/react"
+																		}
+																	}
+																]
+															},
+															"equalToDefault": true
+														}
+													]
+												},
+												"source": {
+													"kind": "package",
+													"name": "@types/react"
+												}
+											}
+										}
+									]
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "Renders the root element itself.",
+							"tags": []
+						},
+						"optional": true
+					},
+					{
+						"name": "className",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "children",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "external",
+									"typeName": {
+										"name": "ReactNode",
+										"namespaces": ["React"]
+									},
+									"source": {
+										"kind": "package",
+										"name": "@types/react"
+									}
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					}
+				]
+			},
+			"documentation": {
+				"description": "A toolbar that renders either its own root element or a caller-supplied one.",
+				"tags": []
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "OptionalToolbar",
+			"type": {
+				"kind": "union",
+				"types": [
+					{
+						"kind": "function",
+						"typeName": {
+							"name": "ForwardRefExoticComponent",
+							"namespaces": ["React"],
+							"typeArguments": [
+								{
+									"type": {
+										"kind": "intersection",
+										"types": [
+											{
+												"kind": "object",
+												"typeName": {
+													"name": "ToolbarProps"
+												},
+												"properties": [
+													{
+														"name": "children",
+														"type": {
+															"kind": "external",
+															"typeName": {
+																"name": "ReactNode",
+																"namespaces": ["React"]
+															},
+															"source": {
+																"kind": "package",
+																"name": "@types/react"
+															}
+														},
+														"optional": true
+													},
+													{
+														"name": "className",
+														"type": {
+															"kind": "union",
+															"types": [
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "string"
+																},
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "undefined"
+																}
+															]
+														},
+														"documentation": {
+															"description": "Class applied to the root element.",
+															"tags": []
+														},
+														"optional": true
+													}
+												]
+											},
+											{
+												"kind": "external",
+												"typeName": {
+													"name": "RefAttributes",
+													"namespaces": ["React"],
+													"typeArguments": [
+														{
+															"type": {
+																"kind": "external",
+																"typeName": {
+																	"name": "HTMLDivElement"
+																},
+																"source": {
+																	"kind": "lib",
+																	"files": ["lib.dom.d.ts"]
+																}
+															},
+															"equalToDefault": false
+														}
+													]
+												},
+												"source": {
+													"kind": "package",
+													"name": "@types/react"
+												}
+											}
+										],
+										"properties": [
+											{
+												"name": "children",
+												"type": {
+													"kind": "external",
+													"typeName": {
+														"name": "ReactNode",
+														"namespaces": ["React"]
+													},
+													"source": {
+														"kind": "package",
+														"name": "@types/react"
+													}
+												},
+												"optional": true
+											},
+											{
+												"name": "className",
+												"type": {
+													"kind": "union",
+													"types": [
+														{
+															"kind": "intrinsic",
+															"intrinsic": "string"
+														},
+														{
+															"kind": "intrinsic",
+															"intrinsic": "undefined"
+														}
+													]
+												},
+												"documentation": {
+													"description": "Class applied to the root element.",
+													"tags": []
+												},
+												"optional": true
+											}
+										]
+									},
+									"equalToDefault": false
+								}
+							]
+						},
+						"callSignatures": [
+							{
+								"parameters": [
+									{
+										"type": {
+											"kind": "intersection",
+											"types": [
+												{
+													"kind": "object",
+													"typeName": {
+														"name": "ToolbarProps"
+													},
+													"properties": [
+														{
+															"name": "children",
+															"type": {
+																"kind": "external",
+																"typeName": {
+																	"name": "ReactNode",
+																	"namespaces": ["React"]
+																},
+																"source": {
+																	"kind": "package",
+																	"name": "@types/react"
+																}
+															},
+															"optional": true
+														},
+														{
+															"name": "className",
+															"type": {
+																"kind": "union",
+																"types": [
+																	{
+																		"kind": "intrinsic",
+																		"intrinsic": "string"
+																	},
+																	{
+																		"kind": "intrinsic",
+																		"intrinsic": "undefined"
+																	}
+																]
+															},
+															"documentation": {
+																"description": "Class applied to the root element.",
+																"tags": []
+															},
+															"optional": true
+														}
+													]
+												},
+												{
+													"kind": "external",
+													"typeName": {
+														"name": "RefAttributes",
+														"namespaces": ["React"],
+														"typeArguments": [
+															{
+																"type": {
+																	"kind": "external",
+																	"typeName": {
+																		"name": "HTMLDivElement"
+																	},
+																	"source": {
+																		"kind": "lib",
+																		"files": ["lib.dom.d.ts"]
+																	}
+																},
+																"equalToDefault": false
+															}
+														]
+													},
+													"source": {
+														"kind": "package",
+														"name": "@types/react"
+													}
+												}
+											],
+											"properties": [
+												{
+													"name": "children",
+													"type": {
+														"kind": "external",
+														"typeName": {
+															"name": "ReactNode",
+															"namespaces": ["React"]
+														},
+														"source": {
+															"kind": "package",
+															"name": "@types/react"
+														}
+													},
+													"optional": true
+												},
+												{
+													"name": "className",
+													"type": {
+														"kind": "union",
+														"types": [
+															{
+																"kind": "intrinsic",
+																"intrinsic": "string"
+															},
+															{
+																"kind": "intrinsic",
+																"intrinsic": "undefined"
+															}
+														]
+													},
+													"documentation": {
+														"description": "Class applied to the root element.",
+														"tags": []
+													},
+													"optional": true
+												}
+											]
+										},
+										"name": "props",
+										"optional": false
+									}
+								],
+								"returnValueType": {
+									"kind": "external",
+									"typeName": {
+										"name": "ReactNode",
+										"namespaces": ["React"]
+									},
+									"source": {
+										"kind": "package",
+										"name": "@types/react"
+									}
+								}
+							}
+						]
+					},
+					{
+						"kind": "intrinsic",
+						"intrinsic": "undefined"
+					}
+				]
+			},
+			"documentation": {
+				"description": "Not every union of a component is a component: an arm that is not itself\ncomponent-like keeps the export a plain union.",
+				"tags": []
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		}
+	],
+	"imports": ["react"]
+}

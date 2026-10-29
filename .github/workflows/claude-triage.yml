@@ -1,5 +1,6 @@
 # Callers select triggers and pass issue-number, mode, and optionally comment-id.
-# Human senders need write, maintain, or admin access; bots may request triage through issue labels.
+# Human senders need write access unless an allowed label permits author/member replies.
+# Bots may request triage through issue labels.
 # Labeling automation must use an App token or PAT; GITHUB_TOKEN label events do not start workflows.
 # PRs are ignored.
 # Both modes currently post a triage diagnosis; automated fixes and draft PR publishing are disabled.
@@ -36,11 +37,11 @@ on:
       triage-model:
         description: Claude model used for triage.
         type: string
-        default: claude-sonnet-5-5
+        default: claude-opus-5-5
       fix-model:
         description: Claude model used for fixing.
         type: string
-        default: claude-sonnet-5-5
+        default: claude-opus-5-5
       triage-max-turns:
         description: Hard turn limit for the triage invocation.
         type: number
@@ -75,6 +76,7 @@ jobs:
       issues: write
     outputs:
       allowed-bot: ${{ steps.request.outputs.allowed-bot }}
+      allowed-user: ${{ steps.request.outputs.allowed-user }}
       mode: ${{ steps.request.outputs.mode }}
       issue: ${{ steps.request.outputs.issue }}
       base: ${{ steps.request.outputs.base }}
@@ -98,22 +100,58 @@ jobs:
                 !['triage', 'fix'].includes(mode)) {
               throw new Error('Expected a positive issue-number, mode triage or fix, and a non-negative comment-id.');
             }
+            // Replies from the issue author, collaborators, or org members request triage only while one of these is present.
+            const commentLabels = ['ai: needs-triage', 'ai: triaged'];
             const actor = context.payload.sender;
+            const { data: issue } = await github.rest.issues.get({
+              ...context.repo, issue_number: issueNumber,
+            });
+            if (issue.pull_request) return;
+            const labeledCommentRequest = context.eventName === 'issue_comment';
+
+            // Validate labeled replies before granting any permission exception.
+            if (labeledCommentRequest) {
+              const userType = 'User';
+              const { comment } = context.payload;
+
+              if (actor?.type !== userType) {
+                return;
+              }
+              if (context.payload.action !== 'created' || mode !== 'triage') {
+                return;
+              }
+              if (context.payload.issue?.number !== issueNumber) {
+                return;
+              }
+              if (commentId === 0 || comment?.id !== commentId) {
+                return;
+              }
+              if (comment?.user?.type !== userType || comment.user.login !== actor.login) {
+                return;
+              }
+
+              const hasAllowedLabel = issue.labels.some((label) =>
+                commentLabels.includes(typeof label === 'string' ? label : label.name));
+              if (!hasAllowedLabel) {
+                return;
+              }
+            }
+
+            // GitHub supplies author_association; comment text cannot confer repository/org access.
+            const authorizedCommentRequest = labeledCommentRequest &&
+              (issue.user?.login === actor.login ||
+               ['OWNER', 'MEMBER', 'COLLABORATOR'].includes(context.payload.comment.author_association));
             // GitHub enforces label-write access for the bot that produced this event.
             const botLabelRequest = actor?.type === 'Bot' && context.eventName === 'issues' &&
               context.payload.action === 'labeled' && context.payload.issue?.number === issueNumber &&
               mode === 'triage' && commentId === 0;
-            if (!botLabelRequest) {
+            if (!botLabelRequest && !authorizedCommentRequest) {
               if (actor?.type !== 'User') return;
               const { data: access } = await github.rest.repos.getCollaboratorPermissionLevel({
                 ...context.repo, username: actor.login,
               });
               if (!['admin', 'maintain', 'write'].includes(access.permission)) return;
             }
-            const { data: issue } = await github.rest.issues.get({
-              ...context.repo, issue_number: issueNumber,
-            });
-            if (issue.pull_request) return;
             const { data: repository } = await github.rest.repos.get(context.repo);
             const { data: branch } = await github.rest.repos.getBranch({
               ...context.repo, branch: repository.default_branch,
@@ -155,10 +193,11 @@ jobs:
             ].join('\n'));
             fs.writeFileSync(`${process.env.RUNNER_TEMP}/request/comments.json`, JSON.stringify(
               comments.filter((entry) => !commentId || entry.id <= commentId)
-                .map((entry) => ({ author: entry.user?.login ?? null, body: entry.body })),
+                .map((entry) => ({ author: entry.user?.login ?? null, url: entry.html_url, body: entry.body })),
               null, 2,
             ));
             core.setOutput('allowed-bot', botLabelRequest ? actor.login : '');
+            core.setOutput('allowed-user', authorizedCommentRequest ? actor.login : '');
             core.setOutput('mode', mode);
             core.setOutput('issue', issue.number);
             core.setOutput('base', branch.commit.sha);
@@ -231,10 +270,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_HOST: github.com
           GH_PROMPT_DISABLED: '1'
-        uses: anthropics/claude-code-action@5eb090f3c3afd701a0672cd32981197ca27688f6 # v1.0.253
+        uses: anthropics/claude-code-action@925afb53776cf1a2b738c6bdbed37b4d4000ef13 # v1.0.262
         with:
           github_token: ${{ github.token }} # Use this job's read-only token instead of minting an App token.
           allowed_bots: ${{ needs.authorize.outputs.allowed-bot }} # Forward only the bot approved by authorization.
+          allowed_non_write_users: ${{ needs.authorize.outputs.allowed-user }} # Forward only the human reply approved by authorization.
           show_full_output: ${{ inputs.debug }}
           anthropic_federation_rule_id: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID }}
           anthropic_organization_id: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
@@ -303,7 +343,7 @@ jobs:
                category=needs-information and actionable=false, and stop.
             3. Assess the reproduction when supplied. Preserve the reporter's runnable link and useful
                steps instead of replacing them with a less usable prose reconstruction. State that
-               reproduction is unverified in this read-only stage; never claim to have opened,
+               the reproduction is unverified, without mentioning the stage; never claim to have opened,
                executed, reduced, or snapshotted it. Identify any unclear steps that need refinement.
             4. Categorize using the definitions below. Before choosing expected-behavior, look for
                supporting repository documentation, tests, explanatory code comments, or prior
@@ -341,13 +381,28 @@ jobs:
             return actionable=false without reopening the investigation.
             Return comment as concise reporter-facing Markdown: public component/API, reproduction
             availability when relevant, and any workaround. Start directly with the finding; no general
-            title or pleasantries. End with a separate "### Next steps" section containing concrete actions
-            for the reporter and/or maintainer, or only the specific unanswered questions needed
-            to proceed. Include this section even when an earlier step tells you to stop; if no
+            title or pleasantries. End with a separate "### Next steps" section containing the decisions or
+            information needed from the reporter and/or maintainer, or only the specific unanswered
+            questions needed to proceed. Include this section even when an earlier step tells you to stop; if no
             further action is needed, say so there. Put supporting context above this section.
             Keep fix strategy, internal paths/symbols, root-cause hypotheses, regression tests,
-            and validation plans out of comment, including hidden HTML blocks. Do not claim
-            maintainer review.
+            and validation plans out of comment, including hidden HTML blocks. This includes
+            "Likely cause" and "What the code does" sections. Do not claim maintainer review.
+            Write for the reporter, who already sees the thread:
+            - Do not recap, summarize, or attribute the issue's comments or timeline, and do not
+              name commenters. Mention a comment only when it changes the conclusion, and link it
+              instead of restating it. Link a comment only with its exact `url` from comments.json;
+              never write a comment link yourself, and never link the issue itself as a comment.
+            - Next steps name the decision or information needed. Leave code changes, implementation
+              steps, and tests to the handoff.
+            - Check reporter-supplied code for errors before treating its result as evidence.
+            - Do not mention workflow internals: the checkout, the read-only stage, search budgets,
+              rate limits, or turn counts. Say what you could not verify once, in one sentence,
+              instead of repeating a disclaimer per claim.
+            - Name a release line only when the issue, a linked source, or the checkout's package
+              metadata states it; never guess versions or release plans.
+            - Do not cite a link or comment you did not read.
+            - Address the reporter as "you"; do not refer to them as "the reporter".
             Return handoff separately for the fix job: checkout SHA, confidence, probable cause,
             supporting evidence, relevant paths, regression test and validation plan, and anything
             unverified. This field is not posted in the issue comment; it is still a workflow artifact,
@@ -395,8 +450,6 @@ jobs:
             completed,
             outcome: process.env.CLAUDE_OUTCOME || 'skipped',
             subtype: typeof result?.subtype === 'string' && /^[a-z_]{1,80}$/.test(result.subtype) ? result.subtype : null,
-            models: result?.modelUsage && typeof result.modelUsage === 'object'
-              ? Object.keys(result.modelUsage).filter((model) => /^[a-zA-Z0-9._:-]{1,100}$/.test(model)).slice(0, 8) : [],
             turns: number(result?.num_turns),
             durationMs: number(result?.duration_ms),
             costUsd: number(result?.total_cost_usd),
@@ -464,14 +517,13 @@ jobs:
                 if (value && typeof value === 'object' && !Array.isArray(value)) metadata = value;
               }
             } catch {
-              // Reports still get the configured model and run link when usage is unavailable.
+              // Reports still get the run link when usage is unavailable.
             }
-            const models = Array.isArray(metadata.models)
-              ? metadata.models.filter((model) => typeof model === 'string' && /^[a-zA-Z0-9._:-]{1,100}$/.test(model)).slice(0, 8) : [];
             const number = (value) => typeof value === 'number' && Number.isFinite(value) && value >= 0;
             const facts = [
               `🤖 ${phase === 'triage' ? 'Triage' : 'Fix'} · Claude Code`,
-              models.length ? models.join(', ') : `${phase === 'triage' ? process.env.TRIAGE_MODEL : process.env.FIX_MODEL} (configured)`,
+              // Claude Code also calls auxiliary models, so report only the configured one.
+              phase === 'triage' ? process.env.TRIAGE_MODEL : process.env.FIX_MODEL,
               `${process.env.REASONING_EFFORT} effort`,
             ];
             if (number(metadata.turns)) facts.push(`${metadata.turns} turns`);
@@ -532,16 +584,16 @@ jobs:
             if (completed && result) core.setOutput('category', result.category);
 
       - name: Label the successfully triaged issue
-        if: ${{ !cancelled() && steps.comment.outcome == 'success' && needs.triage.result == 'success' && needs.triage.outputs.completed == 'true' }}
+        if: ${{ !cancelled() && steps.comment.outcome == 'success' && steps.comment.outputs.category != '' && needs.triage.result == 'success' && needs.triage.outputs.completed == 'true' }}
         continue-on-error: true
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           LABEL_TARGETS: >-
-            [{"number": ${{ needs.authorize.outputs.issue }}, "name": "ai: triaged", "color": "c5def5", "description": "AI triage completed and findings posted."}]
+            [{"number": ${{ needs.authorize.outputs.issue }}, "name": "ai: triaged", "color": "c5def5", "description": "AI triage completed and findings posted.", "remove": "ai: needs-triage"}]
         with:
           script: &apply-ai-labels |
             const targets = JSON.parse(process.env.LABEL_TARGETS);
-            await Promise.all(targets.map(async ({ number, name, color, description }) => {
+            await Promise.all(targets.map(async ({ number, name, color, description, remove }) => {
               try {
                 try {
                   await github.rest.issues.addLabels({ ...context.repo, issue_number: number, labels: [name] });
@@ -555,8 +607,16 @@ jobs:
                   }
                   await github.rest.issues.addLabels({ ...context.repo, issue_number: number, labels: [name] });
                 }
+                if (remove) {
+                  try {
+                    await github.rest.issues.removeLabel({ ...context.repo, issue_number: number, name: remove });
+                  } catch (error) {
+                    // The pending label may already be absent on follow-up triage runs.
+                    if (error.status !== 404) throw error;
+                  }
+                }
               } catch (error) {
-                core.warning(`Could not apply ${name} to #${number}: ${error.message}`);
+                core.warning(`Could not complete ${name} labeling for #${number}: ${error.message}`);
               }
             }));
 
@@ -671,7 +731,7 @@ jobs:
       - name: Develop and test the fix on the runner
         id: claude
         if: steps.eligible.outputs.actionable == 'true'
-        uses: anthropics/claude-code-action@5eb090f3c3afd701a0672cd32981197ca27688f6 # v1.0.253
+        uses: anthropics/claude-code-action@925afb53776cf1a2b738c6bdbed37b4d4000ef13 # v1.0.262
         with:
           github_token: ${{ github.token }} # Use this job's read-only token instead of minting an App token.
           show_full_output: ${{ inputs.debug }}

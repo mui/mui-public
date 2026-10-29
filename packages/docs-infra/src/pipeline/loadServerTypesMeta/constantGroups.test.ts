@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { parseFromProgram } from 'typescript-api-extractor';
-import type * as tae from 'typescript-api-extractor';
+import { parseFromProgram } from '@mui/internal-typescript-api-extractor';
+import type * as tae from '@mui/internal-typescript-api-extractor';
 import {
   findConstantNamespaces,
   foldConstantNamespaces,
@@ -89,6 +89,23 @@ describe('findConstantNamespaces', () => {
     );
   });
 
+  it('skips type-only exports next to the constants', () => {
+    const { program, entrypoint } = createTestProgram({
+      'index.ts': `export * as ButtonDataAttributes from './attributes';`,
+      'attributes.ts': `
+        ${BUTTON_DATA_ATTRIBUTES}
+        export type ButtonDataAttribute = typeof pressed;
+        export interface ButtonDataAttributeMap {
+          pressed: typeof pressed;
+        }
+      `,
+    });
+
+    expect(findConstantNamespaces(entrypoint, program)).toEqual(
+      new Map([['ButtonDataAttributes', new Map([['pressed', 'data-pressed']])]]),
+    );
+  });
+
   it('ignores modules exporting anything besides literal constants', () => {
     const { program, entrypoint } = createTestProgram({
       'index.ts': `
@@ -151,6 +168,11 @@ describe('foldConstantNamespaces', () => {
         ],
       },
     ]);
+    expect(exports.find((node) => node.name === 'ButtonDataAttributes')).toMatchObject({
+      isValue: true,
+      isType: false,
+      isNamespace: true,
+    });
   });
 
   it('reads constants re-exported or referenced from another module, and numbers', () => {
@@ -176,6 +198,31 @@ describe('foldConstantNamespaces', () => {
         ['depth', 2],
       ]),
     );
+  });
+
+  it('keeps type-only exports of a constant namespace as types', () => {
+    const exports = foldSources({
+      'index.ts': `export * as ButtonDataAttributes from './attributes';`,
+      'attributes.ts': `
+        ${BUTTON_DATA_ATTRIBUTES}
+        export type ButtonDataAttribute = typeof pressed;
+      `,
+    });
+
+    expect(summarize(exports)).toEqual([
+      {
+        name: 'ButtonDataAttributes',
+        members: [
+          {
+            name: 'pressed',
+            value: 'data-pressed',
+            description: 'Present when pressed.',
+            type: undefined,
+          },
+        ],
+      },
+      { name: 'ButtonDataAttributes.ButtonDataAttribute' },
+    ]);
   });
 
   it('leaves other namespaces untouched', () => {

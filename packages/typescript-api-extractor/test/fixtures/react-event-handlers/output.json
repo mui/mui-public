@@ -1,0 +1,158 @@
+{
+	"name": "test/fixtures/react-event-handlers/input",
+	"exports": [
+		{
+			"name": "EventHandlersComponent",
+			"type": {
+				"kind": "component",
+				"typeName": {
+					"name": "EventHandlersComponent"
+				},
+				"props": [
+					{
+						"name": "onClick",
+						"type": {
+							"kind": "external",
+							"typeName": {
+								"name": "MouseEventHandler",
+								"namespaces": ["React"],
+								"typeArguments": [
+									{
+										"type": {
+											"kind": "external",
+											"typeName": {
+												"name": "Element"
+											},
+											"source": {
+												"kind": "lib",
+												"files": ["lib.dom.d.ts"]
+											}
+										},
+										"equalToDefault": true
+									}
+								]
+							},
+							"source": {
+								"kind": "package",
+								"name": "@types/react"
+							}
+						},
+						"optional": false
+					},
+					{
+						"name": "onKeyDown",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "external",
+									"typeName": {
+										"name": "KeyboardEventHandler",
+										"namespaces": ["React"],
+										"typeArguments": [
+											{
+												"type": {
+													"kind": "external",
+													"typeName": {
+														"name": "Element"
+													},
+													"source": {
+														"kind": "lib",
+														"files": ["lib.dom.d.ts"]
+													}
+												},
+												"equalToDefault": true
+											}
+										]
+									},
+									"source": {
+										"kind": "package",
+										"name": "@types/react"
+									}
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "onFocus",
+						"type": {
+							"kind": "external",
+							"typeName": {
+								"name": "FocusEventHandler",
+								"namespaces": ["React"],
+								"typeArguments": [
+									{
+										"type": {
+											"kind": "external",
+											"typeName": {
+												"name": "HTMLDivElement"
+											},
+											"source": {
+												"kind": "lib",
+												"files": ["lib.dom.d.ts"]
+											}
+										},
+										"equalToDefault": false
+									}
+								]
+							},
+							"source": {
+								"kind": "package",
+								"name": "@types/react"
+							}
+						},
+						"optional": false
+					},
+					{
+						"name": "onBlur",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "external",
+									"typeName": {
+										"name": "FocusEventHandler",
+										"namespaces": ["React"],
+										"typeArguments": [
+											{
+												"type": {
+													"kind": "external",
+													"typeName": {
+														"name": "HTMLDivElement"
+													},
+													"source": {
+														"kind": "lib",
+														"files": ["lib.dom.d.ts"]
+													}
+												},
+												"equalToDefault": false
+											}
+										]
+									},
+									"source": {
+										"kind": "package",
+										"name": "@types/react"
+									}
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		}
+	],
+	"imports": ["react"]
+}

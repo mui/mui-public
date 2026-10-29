@@ -1,13 +1,15 @@
 /* eslint-disable no-console */
 
 import { addAbortListener, once } from 'node:events';
+import { rm } from 'node:fs/promises';
 import * as http from 'node:http';
 import type { AddressInfo } from 'node:net';
+import * as path from 'node:path';
 import chalk from 'chalk';
 import { chromium } from '@playwright/test';
 import sirv from 'sirv';
 import type { Browser, CDPSession, Page } from '@playwright/test';
-import { BENCHMARK_LAUNCH_ARGS, BENCHMARK_VIEWPORT } from '../launchArgs';
+import { BENCHMARK_VIEWPORT, withLaunchArgs } from '../launchArgs';
 import { compareBenchmark, formatDuration, formatRoundCount } from '../runReport';
 import type { RunBenchmark, RunMetricDefinition } from '../runReport';
 import { DEFAULT_SAMPLING, differencesSettled } from '../sampling';
@@ -41,7 +43,16 @@ export interface RunInterleavedOptions {
   testNamePattern?: RegExp;
   /** Stops the run: the browser closes, and the run rejects. */
   signal?: AbortSignal;
+  /**
+   * Profiles the run: every benchmark samples exactly the run's sample size (default
+   * `PROFILE_ROUNDS`), whatever it sets itself, with a performance trace around each sample written
+   * under `tracesDir`, to open in DevTools.
+   */
+  profile?: { tracesDir: string };
 }
+
+/** Rounds a profile records unless the run gives a sample size. */
+const PROFILE_ROUNDS = 5;
 
 export interface InterleavedResults {
   benchmarks: RunBenchmark[];
@@ -57,7 +68,7 @@ type CdpMethod = Parameters<CDPSession['send']>[0];
 /** One measured round: every variant's values by metric name, in slot order. */
 type Round = Array<Record<string, number>>;
 
-export function errorMessage(error: unknown): string {
+function errorMessage(error: unknown): string {
   return error instanceof Error ? (error.stack ?? error.message) : String(error);
 }
 
@@ -71,7 +82,7 @@ function shuffledIndices(length: number): number[] {
   return indices;
 }
 
-export function shuffled<T>(items: T[]): T[] {
+function shuffled<T>(items: T[]): T[] {
   return shuffledIndices(items.length).map((index) => items[index]);
 }
 
@@ -94,7 +105,7 @@ type PageListing = Pick<BenchPage, 'cases' | 'comparisons'>;
  * Opens a tab, in a browser context of its own, bridged to a CDP session for trusted input. Closing
  * its context closes it.
  */
-export async function openBenchTab(browser: Browser): Promise<Page> {
+async function openBenchTab(browser: Browser): Promise<Page> {
   const context = await browser.newContext({ viewport: BENCHMARK_VIEWPORT });
   try {
     const page = await context.newPage();
@@ -117,7 +128,7 @@ export async function openBenchTab(browser: Browser): Promise<Page> {
 }
 
 /** Loads a benchmark page into the tab, and waits until it has registered its cases. */
-export async function loadBenchPage(
+async function loadBenchPage(
   page: Page,
   url: string,
 ): Promise<PageListing & { visibility: DocumentVisibilityState }> {
@@ -158,16 +169,11 @@ async function listBenchPages(browser: Browser, urls: string[]): Promise<PageLis
   }
 }
 
-/** Runs one iteration of a case, and returns what it recorded, by series. */
-export function sampleBenchCase(page: Page, name: string): Promise<Record<string, number>> {
-  return page.evaluate((caseName) => window.benchmarkPage!.sample(caseName), name);
-}
-
 /**
  * A variant of a benchmark: the page it is sampled in and the case it runs there. One build of a
  * benchmark file running a case, or the working tree's build running one case of a `compare()`.
  */
-export interface PageSlot {
+interface PageSlot {
   /** How the slot is named in the report: `current`, `baseline`, or the compared case's name. */
   variant: string;
   url: string;
@@ -180,17 +186,17 @@ interface CaseResult {
   metrics: Record<string, RunMetricDefinition>;
 }
 
-export type BenchmarkEntry = Pick<RunBenchmark, 'name' | 'file' | 'kind' | 'variants' | 'alarms'>;
+type BenchmarkEntry = Pick<RunBenchmark, 'name' | 'file' | 'kind' | 'variants' | 'alarms'>;
 
 /** A benchmark to measure: its variants' slots, sampled as its options ask. */
-export interface MeasuredBenchmark {
+interface MeasuredBenchmark {
   entry: BenchmarkEntry;
   slots: PageSlot[];
   sampling: Required<SamplingOptions>;
 }
 
 /** A benchmark to measure, or why it can't be. */
-export type PlannedBenchmark = MeasuredBenchmark | { entry: BenchmarkEntry; error: string };
+type PlannedBenchmark = MeasuredBenchmark | { entry: BenchmarkEntry; error: string };
 
 /** A benchmark being measured, and how far it got. */
 interface Progress {
@@ -226,7 +232,12 @@ function isSampling(progress: Progress): boolean {
  * order, and samples them there. A benchmark gets the round only if every one of its variants was
  * sampled in it; one whose sample fails stops, with its error, and the page reloads before the next.
  */
-async function runFileRound(page: Page, active: Progress[], signal?: AbortSignal): Promise<void> {
+async function runFileRound(
+  browser: Browser,
+  page: Page,
+  active: Progress[],
+  { profile, signal }: Pick<RunInterleavedOptions, 'profile' | 'signal'>,
+): Promise<void> {
   const entries = active.map((progress) => ({ progress, round: [] as Round }));
   const urls = [...new Set(active.flatMap(({ plan }) => plan.slots.map((slot) => slot.url)))];
   // Unset after a failed sample, so what the failed case left behind doesn't reach the next one.
@@ -260,8 +271,29 @@ async function runFileRound(page: Page, active: Progress[], signal?: AbortSignal
           }
         }
         const startedAt = Date.now();
-        // eslint-disable-next-line no-await-in-loop
-        round[index] = await sampleBenchCase(page, slot.caseName);
+        if (profile) {
+          // Playwright creates the directories when it writes the trace.
+          // eslint-disable-next-line no-await-in-loop
+          await browser.startTracing(page, {
+            path: path.join(
+              profile.tracesDir,
+              progress.plan.entry.name.replace(/[^\w.-]+/g, '-'),
+              `${slot.variant}-${progress.rounds.length + 1}.json`,
+            ),
+          });
+        }
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          round[index] = await page.evaluate(
+            (name) => window.benchmarkPage!.sample(name),
+            slot.caseName,
+          );
+        } finally {
+          if (profile) {
+            // eslint-disable-next-line no-await-in-loop
+            await browser.stopTracing();
+          }
+        }
         if (index === 0 && !progress.metrics) {
           // Read from the reference page: a metric whose config the change under test altered is
           // described the way the change describes it. Its first sample recorded every metric the
@@ -302,8 +334,9 @@ async function runFileRound(page: Page, active: Progress[], signal?: AbortSignal
 async function runBenchFile(
   browser: Browser,
   plans: PlannedBenchmark[],
-  signal?: AbortSignal,
+  options: Pick<RunInterleavedOptions, 'profile' | 'signal'>,
 ): Promise<CaseResult[]> {
+  const { signal } = options;
   const count = `${plans.length} benchmark${plans.length === 1 ? '' : 's'}`;
   console.log(chalk.cyan(`\nRunning ${plans[0].entry.file} (${count})…`));
   const startedAt = Date.now();
@@ -328,7 +361,7 @@ async function runBenchFile(
     opened = page;
     while (page && active.length > 0) {
       // eslint-disable-next-line no-await-in-loop
-      await runFileRound(page, active, signal);
+      await runFileRound(browser, page, active, options);
       active = progresses.filter(isSampling);
     }
   } catch (error) {
@@ -427,14 +460,14 @@ async function planBenchFile(
         return { entry, error: `"${caseName}" does not exist in [${variants[missing + 1]}].` };
       }
       const slots = urls.map((url, index) => ({ variant: variants[index], url, caseName }));
-      return { entry, slots, sampling: samplingOf(sampling, options.sampling) };
+      return { entry, slots, sampling: samplingOf(sampling, options) };
     },
   );
 
   for (const { name, cases, sampling } of reference.comparisons) {
     const entry: BenchmarkEntry = { name, file: benchFile.file, kind: 'compare', variants: cases };
     const slots = cases.map((caseName) => ({ variant: caseName, url: urls[0], caseName }));
-    planned.push({ entry, slots, sampling: samplingOf(sampling, options.sampling) });
+    planned.push({ entry, slots, sampling: samplingOf(sampling, options) });
   }
   return planned;
 }
@@ -442,29 +475,26 @@ async function planBenchFile(
 /**
  * A benchmark's sampling, as in Vitest: what it sets itself, then what the run gives as defaults,
  * then the built-in defaults. Both come from `getSampling`, so they are valid and set no key to
- * undefined.
+ * undefined. A profile samples exactly the run's sample size instead, or `PROFILE_ROUNDS`.
  */
 function samplingOf(
   own: SamplingOptions,
-  runDefaults: SamplingOptions = {},
+  { sampling: runDefaults = {}, profile }: RunInterleavedOptions,
 ): Required<SamplingOptions> {
+  if (profile) {
+    return { sampleSize: runDefaults.sampleSize ?? PROFILE_ROUNDS, timeout: 0 };
+  }
   return { ...DEFAULT_SAMPLING, ...runDefaults, ...own };
 }
 
-/** What a run drives: the browser, and every benchmark it was asked for, in order. */
-export interface PlannedRun {
-  browser: Browser;
-  planned: PlannedBenchmark[];
-}
-
 /**
- * Serves the builds, launches the browser and lists every benchmark the run was asked for, then
- * hands them to `drive`, which measures or profiles them.
+ * Serves the builds, launches the browser, lists every benchmark the run was asked for, then
+ * measures them a file at a time.
  */
-export async function withPlannedRun<T>(
-  options: RunInterleavedOptions,
-  drive: (run: PlannedRun) => Promise<T>,
-): Promise<T> {
+export async function runInterleaved(options: RunInterleavedOptions): Promise<InterleavedResults> {
+  if (options.profile) {
+    await rm(options.profile.tracesDir, { recursive: true, force: true });
+  }
   // In `dev` mode, every page load reads the build from disk and the browser caches nothing
   // (`no-store`).
   const server = http.createServer(sirv(options.buildsDir, { dev: true }));
@@ -473,7 +503,7 @@ export async function withPlannedRun<T>(
     const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
     const browser = await chromium.launch({
       headless: true,
-      args: [...BENCHMARK_LAUNCH_ARGS, ...options.launchArgs],
+      args: withLaunchArgs(options.launchArgs),
     });
     // Closing the browser ends whatever a page is doing at once, rather than when its sample would.
     const closeOnAbort =
@@ -493,7 +523,20 @@ export async function withPlannedRun<T>(
       if (planned.length === 0) {
         throw new Error(`No benchmark name matches ${testNamePattern}.`);
       }
-      return await drive({ browser, planned });
+
+      const results: CaseResult[] = [];
+      // A file's plans are listed together, so grouping keeps the run's order. Sequential on
+      // purpose: concurrent files would contend for the same machine, and a browser traces one tab
+      // at a time.
+      for (const plans of Map.groupBy(planned, (plan) => plan.entry.file).values()) {
+        // eslint-disable-next-line no-await-in-loop
+        results.push(...(await runBenchFile(browser, plans, options)));
+      }
+      return {
+        benchmarks: results.map((result) => result.benchmark),
+        metrics: Object.assign({}, ...results.map((result) => result.metrics)),
+        browserVersion: browser.version(),
+      };
     } finally {
       closeOnAbort?.[Symbol.dispose]();
       await browser.close();
@@ -501,21 +544,4 @@ export async function withPlannedRun<T>(
   } finally {
     await server[Symbol.asyncDispose]();
   }
-}
-
-export function runInterleaved(options: RunInterleavedOptions): Promise<InterleavedResults> {
-  return withPlannedRun(options, async ({ browser, planned }) => {
-    const results: CaseResult[] = [];
-    // A file's plans are listed together, so grouping keeps the run's order. Sequential on purpose:
-    // concurrent files would contend for the same machine.
-    for (const plans of Map.groupBy(planned, (plan) => plan.entry.file).values()) {
-      // eslint-disable-next-line no-await-in-loop
-      results.push(...(await runBenchFile(browser, plans, options.signal)));
-    }
-    return {
-      benchmarks: results.map((result) => result.benchmark),
-      metrics: Object.assign({}, ...results.map((result) => result.metrics)),
-      browserVersion: browser.version(),
-    };
-  });
 }

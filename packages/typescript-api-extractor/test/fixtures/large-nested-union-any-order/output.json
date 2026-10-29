@@ -1,0 +1,365 @@
+{
+	"name": "test/fixtures/large-nested-union-any-order/input",
+	"exports": [
+		{
+			"name": "LargeNestedUnionOrderIndependent",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "Forward"
+				},
+				"types": [
+					{
+						"kind": "function",
+						"callSignatures": [
+							{
+								"parameters": [
+									{
+										"type": {
+											"kind": "union",
+											"types": [
+												{
+													"kind": "function",
+													"callSignatures": [
+														{
+															"parameters": [
+																{
+																	"type": {
+																		"kind": "literal",
+																		"value": "\"a\""
+																	},
+																	"name": "y",
+																	"optional": false
+																}
+															],
+															"returnValueType": {
+																"kind": "intrinsic",
+																"intrinsic": "void"
+															}
+														}
+													]
+												},
+												{
+													"kind": "function",
+													"callSignatures": [
+														{
+															"parameters": [
+																{
+																	"type": {
+																		"kind": "literal",
+																		"value": "\"b\""
+																	},
+																	"name": "y",
+																	"optional": false
+																}
+															],
+															"returnValueType": {
+																"kind": "intrinsic",
+																"intrinsic": "void"
+															}
+														}
+													]
+												},
+												{
+													"kind": "function",
+													"callSignatures": [
+														{
+															"parameters": [
+																{
+																	"type": {
+																		"kind": "literal",
+																		"value": "\"c\""
+																	},
+																	"name": "y",
+																	"optional": false
+																}
+															],
+															"returnValueType": {
+																"kind": "intrinsic",
+																"intrinsic": "void"
+															}
+														}
+													]
+												},
+												{
+													"kind": "function",
+													"callSignatures": [
+														{
+															"parameters": [
+																{
+																	"type": {
+																		"kind": "literal",
+																		"value": "\"d\""
+																	},
+																	"name": "y",
+																	"optional": false
+																}
+															],
+															"returnValueType": {
+																"kind": "intrinsic",
+																"intrinsic": "void"
+															}
+														}
+													]
+												}
+											]
+										},
+										"name": "x",
+										"optional": false
+									}
+								],
+								"returnValueType": {
+									"kind": "intrinsic",
+									"intrinsic": "void"
+								}
+							}
+						]
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "LargeNestedUnionAnyFirst",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "WithAnyFirst"
+				},
+				"types": [
+					{
+						"kind": "function",
+						"callSignatures": [
+							{
+								"parameters": [
+									{
+										"type": {
+											"kind": "union",
+											"types": [
+												{
+													"kind": "function",
+													"callSignatures": [
+														{
+															"parameters": [
+																{
+																	"type": {
+																		"kind": "literal",
+																		"value": "\"a\""
+																	},
+																	"name": "y",
+																	"optional": false
+																}
+															],
+															"returnValueType": {
+																"kind": "intrinsic",
+																"intrinsic": "void"
+															}
+														}
+													]
+												},
+												{
+													"kind": "function",
+													"callSignatures": [
+														{
+															"parameters": [
+																{
+																	"type": {
+																		"kind": "literal",
+																		"value": "\"b\""
+																	},
+																	"name": "y",
+																	"optional": false
+																}
+															],
+															"returnValueType": {
+																"kind": "intrinsic",
+																"intrinsic": "void"
+															}
+														}
+													]
+												},
+												{
+													"kind": "function",
+													"callSignatures": [
+														{
+															"parameters": [
+																{
+																	"type": {
+																		"kind": "literal",
+																		"value": "\"c\""
+																	},
+																	"name": "y",
+																	"optional": false
+																}
+															],
+															"returnValueType": {
+																"kind": "intrinsic",
+																"intrinsic": "void"
+															}
+														}
+													]
+												},
+												{
+													"kind": "function",
+													"callSignatures": [
+														{
+															"parameters": [
+																{
+																	"type": {
+																		"kind": "literal",
+																		"value": "\"d\""
+																	},
+																	"name": "y",
+																	"optional": false
+																}
+															],
+															"returnValueType": {
+																"kind": "intrinsic",
+																"intrinsic": "void"
+															}
+														}
+													]
+												}
+											]
+										},
+										"name": "x",
+										"optional": false
+									}
+								],
+								"returnValueType": {
+									"kind": "intrinsic",
+									"intrinsic": "void"
+								}
+							}
+						]
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "LargeNestedUnionAnySecond",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "WithAnySecond"
+				},
+				"types": [
+					{
+						"kind": "function",
+						"callSignatures": [
+							{
+								"parameters": [
+									{
+										"type": {
+											"kind": "union",
+											"types": [
+												{
+													"kind": "function",
+													"callSignatures": [
+														{
+															"parameters": [
+																{
+																	"type": {
+																		"kind": "literal",
+																		"value": "\"a\""
+																	},
+																	"name": "y",
+																	"optional": false
+																}
+															],
+															"returnValueType": {
+																"kind": "intrinsic",
+																"intrinsic": "void"
+															}
+														}
+													]
+												},
+												{
+													"kind": "function",
+													"callSignatures": [
+														{
+															"parameters": [
+																{
+																	"type": {
+																		"kind": "literal",
+																		"value": "\"b\""
+																	},
+																	"name": "y",
+																	"optional": false
+																}
+															],
+															"returnValueType": {
+																"kind": "intrinsic",
+																"intrinsic": "void"
+															}
+														}
+													]
+												},
+												{
+													"kind": "function",
+													"callSignatures": [
+														{
+															"parameters": [
+																{
+																	"type": {
+																		"kind": "literal",
+																		"value": "\"c\""
+																	},
+																	"name": "y",
+																	"optional": false
+																}
+															],
+															"returnValueType": {
+																"kind": "intrinsic",
+																"intrinsic": "void"
+															}
+														}
+													]
+												},
+												{
+													"kind": "function",
+													"callSignatures": [
+														{
+															"parameters": [
+																{
+																	"type": {
+																		"kind": "literal",
+																		"value": "\"d\""
+																	},
+																	"name": "y",
+																	"optional": false
+																}
+															],
+															"returnValueType": {
+																"kind": "intrinsic",
+																"intrinsic": "void"
+															}
+														}
+													]
+												}
+											]
+										},
+										"name": "x",
+										"optional": false
+									}
+								],
+								"returnValueType": {
+									"kind": "intrinsic",
+									"intrinsic": "void"
+								}
+							}
+						]
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

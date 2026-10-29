@@ -1,0 +1,329 @@
+{
+	"name": "test/fixtures/external-union-type-name-preservation/input",
+	"exports": [
+		{
+			"name": "Boundary",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "Boundary"
+				},
+				"types": [
+					{
+						"kind": "literal",
+						"value": "\"clipping-ancestors\""
+					},
+					{
+						"kind": "external",
+						"typeName": {
+							"name": "Element"
+						},
+						"source": {
+							"kind": "lib",
+							"files": ["lib.dom.d.ts"]
+						}
+					},
+					{
+						"kind": "array",
+						"elementType": {
+							"kind": "external",
+							"typeName": {
+								"name": "Element"
+							},
+							"source": {
+								"kind": "lib",
+								"files": ["lib.dom.d.ts"]
+							}
+						}
+					},
+					{
+						"kind": "external",
+						"typeName": {
+							"name": "Rect"
+						},
+						"source": {
+							"kind": "package",
+							"name": "external-lib"
+						}
+					}
+				]
+			},
+			"documentation": {
+				"description": "A boundary can be the clipping ancestors, an element, or a Rect.\nThe Rect type should be preserved as \"Rect\" not expanded to its underlying type.",
+				"tags": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Anchor",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "Anchor"
+				},
+				"types": [
+					{
+						"kind": "external",
+						"typeName": {
+							"name": "Element"
+						},
+						"source": {
+							"kind": "lib",
+							"files": ["lib.dom.d.ts"]
+						}
+					},
+					{
+						"kind": "external",
+						"typeName": {
+							"name": "Point"
+						},
+						"source": {
+							"kind": "package",
+							"name": "external-lib"
+						}
+					}
+				]
+			},
+			"documentation": {
+				"description": "An anchor can be an element or a Point.",
+				"tags": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Padding",
+			"type": {
+				"kind": "external",
+				"typeName": {
+					"name": "Padding"
+				},
+				"source": {
+					"kind": "package",
+					"name": "external-lib"
+				}
+			},
+			"documentation": {
+				"description": "Padding can be a number or a partial side object.\nThis is a UNION type that should be EXPANDED (not collapsed to just \"Padding\").",
+				"tags": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "NestedRect",
+			"type": {
+				"kind": "external",
+				"typeName": {
+					"name": "NestedRect"
+				},
+				"source": {
+					"kind": "package",
+					"name": "external-lib"
+				}
+			},
+			"documentation": {
+				"description": "A rectangle with x, y coordinates and width, height dimensions.\n\nTypeScript will resolve this to Prettify<Coords & Dimensions>,\nbut consumers should see \"Rect\" in their type information.",
+				"tags": []
+			},
+			"reexportedFrom": "Rect",
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "PositioningProps",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "PositioningProps"
+				},
+				"properties": [
+					{
+						"name": "collisionBoundary",
+						"type": {
+							"kind": "union",
+							"typeName": {
+								"name": "Boundary"
+							},
+							"types": [
+								{
+									"kind": "union",
+									"typeName": {
+										"name": "Boundary"
+									},
+									"types": [
+										{
+											"kind": "literal",
+											"value": "\"clipping-ancestors\""
+										},
+										{
+											"kind": "external",
+											"typeName": {
+												"name": "Element"
+											},
+											"source": {
+												"kind": "lib",
+												"files": ["lib.dom.d.ts"]
+											}
+										},
+										{
+											"kind": "array",
+											"elementType": {
+												"kind": "external",
+												"typeName": {
+													"name": "Element"
+												},
+												"source": {
+													"kind": "lib",
+													"files": ["lib.dom.d.ts"]
+												}
+											}
+										},
+										{
+											"kind": "external",
+											"typeName": {
+												"name": "Rect"
+											},
+											"source": {
+												"kind": "package",
+												"name": "external-lib"
+											}
+										}
+									]
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "The collision boundary.",
+							"tags": []
+						},
+						"optional": true
+					},
+					{
+						"name": "anchor",
+						"type": {
+							"kind": "union",
+							"typeName": {
+								"name": "Anchor"
+							},
+							"types": [
+								{
+									"kind": "union",
+									"typeName": {
+										"name": "Anchor"
+									},
+									"types": [
+										{
+											"kind": "external",
+											"typeName": {
+												"name": "Element"
+											},
+											"source": {
+												"kind": "lib",
+												"files": ["lib.dom.d.ts"]
+											}
+										},
+										{
+											"kind": "external",
+											"typeName": {
+												"name": "Point"
+											},
+											"source": {
+												"kind": "package",
+												"name": "external-lib"
+											}
+										}
+									]
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "The anchor point or element.",
+							"tags": []
+						},
+						"optional": true
+					},
+					{
+						"name": "collisionPadding",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "external",
+									"typeName": {
+										"name": "Padding"
+									},
+									"source": {
+										"kind": "package",
+										"name": "external-lib"
+									}
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "The collision padding.\nExternal types like Padding are preserved with their name.",
+							"tags": []
+						},
+						"optional": true
+					},
+					{
+						"name": "nestedRect",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "external",
+									"typeName": {
+										"name": "NestedRect"
+									},
+									"source": {
+										"kind": "package",
+										"name": "external-lib"
+									}
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "null"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "A nested re-exported type used in a union.\nTests that nested re-exports preserve type names.",
+							"tags": []
+						},
+						"optional": true
+					}
+				]
+			},
+			"documentation": {
+				"description": "Props that use external types in unions.",
+				"tags": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	],
+	"imports": ["external-lib", "external-lib-wrapper"]
+}

@@ -9,3 +9,6 @@ docs/export
 
 __fixtures__
 *.tsbuildinfo
+
+# Extractor inputs and expected outputs are compared verbatim
+packages/typescript-api-extractor/test/fixtures

@@ -37,127 +37,77 @@ function getTsConfigWatchers(): Set<string> {
   return processObj[TSCONFIG_WATCHERS_KEY];
 }
 
-function setupFileWatcher(configPath: string): void {
+function setupFileWatcher(filePath: string): void {
   const cache = getTsConfigCache();
   const watchers = getTsConfigWatchers();
 
   // Skip if already watching this file
-  if (watchers.has(configPath)) {
+  if (watchers.has(filePath)) {
     return;
   }
 
   // Mark as watching
-  watchers.add(configPath);
+  watchers.add(filePath);
 
   // Set up file watcher
-  const watcher = fs.watch(configPath);
+  const watcher = fs.watch(filePath);
 
   // Handle file changes
   (async () => {
     try {
       for await (const event of watcher) {
         if (event.eventType === 'change') {
-          // Purge this config and any configs that might extend it
-          const cachedPaths = Array.from(cache.keys());
-          const toPurge = cachedPaths.filter(
-            (cachedPath) => cachedPath === configPath || cachedPath.includes(configPath),
-          );
-
-          toPurge.forEach((pathToPurge) => {
-            cache.delete(pathToPurge);
-          });
+          // Any cached config may extend the changed file, purge them all
+          cache.clear();
         }
       }
     } catch (error) {
       // Watcher was closed or file was deleted
-      watchers.delete(configPath);
+      watchers.delete(filePath);
     }
   })();
 }
 
-function mergeConfig(target: any, source: any): any {
-  for (const key in source) {
-    if (Object.prototype.hasOwnProperty.call(source, key)) {
-      if (
-        typeof target[key] === 'object' &&
-        target[key] !== null &&
-        typeof source[key] === 'object' &&
-        source[key] !== null &&
-        !Array.isArray(target[key]) &&
-        !Array.isArray(source[key])
-      ) {
-        mergeConfig(target[key], source[key]);
-      } else {
-        target[key] = source[key];
-      }
-    }
-  }
+const FORMAT_DIAGNOSTICS_HOST: ts.FormatDiagnosticsHost = {
+  getCanonicalFileName: (fileName) => fileName,
+  getCurrentDirectory: () => ts.sys.getCurrentDirectory(),
+  getNewLine: () => ts.sys.newLine,
+};
 
-  return target;
-}
-
+/**
+ * Reads and parses a tsconfig, letting TypeScript resolve `extends` with the same
+ * semantics as `tsc`. Throws the first configuration error as an `Error`.
+ */
 async function loadTypescriptConfigUncached(configPath: string) {
-  const dependencies = [configPath];
   const projectPath = path.dirname(configPath);
 
   const data = await fs.readFile(configPath, 'utf-8');
-  const { config, error } = ts.readConfigFile(configPath, (filePath) => {
-    if (filePath !== configPath) {
-      throw new Error(`Unexpected file path: ${filePath}`);
-    }
+  const sourceFile = ts.readJsonConfigFile(configPath, () => data);
 
-    return data.toString();
-  });
+  const parsed = ts.parseJsonSourceFileConfigFileContent(
+    sourceFile,
+    ts.sys,
+    projectPath,
+    undefined,
+    configPath,
+  );
 
-  if (error) {
-    throw error;
+  const [diagnostic] = ts.getConfigFileParsingDiagnostics(parsed);
+  if (diagnostic) {
+    throw new Error(ts.formatDiagnostic(diagnostic, FORMAT_DIAGNOSTICS_HOST).trim());
   }
 
-  const { options, errors, raw } = ts.parseJsonConfigFileContent(config, ts.sys, projectPath);
-  options.configFilePath = configPath;
+  // TypeScript reports extended files with forward slashes
+  const extendedFiles = (sourceFile.extendedSourceFiles ?? []).map((file) => path.normalize(file));
+  extendedFiles.forEach(setupFileWatcher);
 
-  let mergedConfig = options;
-  if (raw.extends) {
-    const extendedConfigPath = path.resolve(projectPath, raw.extends);
-
-    const {
-      options: parentOptions,
-      projectPath: parentPath,
-      dependencies: parentDependencies,
-    } = await loadTypescriptConfig(extendedConfigPath);
-
-    dependencies.push(...parentDependencies);
-
-    // scope compilerOptions.paths relative to the tsconfig location
-    if (parentOptions.paths) {
-      Object.keys(parentOptions.paths).forEach((key) => {
-        if (!parentOptions.paths) {
-          return;
-        }
-
-        const paths: string[] = [];
-        parentOptions.paths[key].forEach((relativePath: string) => {
-          const absolutePath = path.resolve(parentPath, relativePath);
-          let scopedPath = path.relative(projectPath, absolutePath);
-          if (!scopedPath.startsWith('.')) {
-            scopedPath = `./${scopedPath}`;
-          }
-          paths.push(scopedPath);
-        });
-        parentOptions.paths[key] = paths;
-      });
-    }
-
-    mergedConfig = mergeConfig(parentOptions, mergedConfig);
-  }
-
-  if (errors.length > 0) {
-    throw errors[0];
-  }
-
-  return { projectPath, options: mergedConfig, dependencies };
+  return { projectPath, options: parsed.options, dependencies: [configPath, ...extendedFiles] };
 }
 
+/**
+ * Loads a tsconfig and caches the result until the tsconfig or any file it extends changes.
+ * Failed loads are not cached, so a fixed tsconfig is picked up on the next call.
+ */
 export async function loadTypescriptConfig(configPath: string) {
   const cache = getTsConfigCache();
 
@@ -174,5 +124,13 @@ export async function loadTypescriptConfig(configPath: string) {
   const promise = loadTypescriptConfigUncached(configPath);
   cache.set(configPath, promise);
 
-  return promise;
+  try {
+    return await promise;
+  } catch (error) {
+    // Leave a newer load alone if the cache was purged while this one ran
+    if (cache.get(configPath) === promise) {
+      cache.delete(configPath);
+    }
+    throw error;
+  }
 }

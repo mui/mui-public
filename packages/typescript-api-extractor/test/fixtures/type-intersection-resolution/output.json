@@ -1,0 +1,391 @@
+{
+	"name": "test/fixtures/type-intersection-resolution/input",
+	"exports": [
+		{
+			"name": "inlineIntersection",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "inlineIntersection"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "intersection",
+									"types": [
+										{
+											"kind": "object",
+											"typeName": {
+												"name": "A"
+											},
+											"properties": [
+												{
+													"name": "a",
+													"type": {
+														"kind": "intrinsic",
+														"intrinsic": "string"
+													},
+													"optional": false
+												},
+												{
+													"name": "b",
+													"type": {
+														"kind": "intrinsic",
+														"intrinsic": "number"
+													},
+													"optional": false
+												}
+											]
+										},
+										{
+											"kind": "object",
+											"typeName": {
+												"name": "B"
+											},
+											"properties": [
+												{
+													"name": "a",
+													"type": {
+														"kind": "union",
+														"types": [
+															{
+																"kind": "intrinsic",
+																"intrinsic": "string"
+															},
+															{
+																"kind": "intrinsic",
+																"intrinsic": "undefined"
+															}
+														]
+													},
+													"optional": true
+												},
+												{
+													"name": "c",
+													"type": {
+														"kind": "union",
+														"types": [
+															{
+																"kind": "intrinsic",
+																"intrinsic": "number"
+															},
+															{
+																"kind": "intrinsic",
+																"intrinsic": "undefined"
+															}
+														]
+													},
+													"optional": true
+												}
+											]
+										}
+									],
+									"properties": [
+										{
+											"name": "a",
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											},
+											"optional": false
+										},
+										{
+											"name": "b",
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "number"
+											},
+											"optional": false
+										},
+										{
+											"name": "c",
+											"type": {
+												"kind": "union",
+												"types": [
+													{
+														"kind": "intrinsic",
+														"intrinsic": "number"
+													},
+													{
+														"kind": "intrinsic",
+														"intrinsic": "undefined"
+													}
+												]
+											},
+											"optional": true
+										}
+									]
+								},
+								"name": "a",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "aliasedIntersection",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "aliasedIntersection"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "intersection",
+									"typeName": {
+										"name": "AB"
+									},
+									"types": [
+										{
+											"kind": "object",
+											"typeName": {
+												"name": "A"
+											},
+											"properties": [
+												{
+													"name": "a",
+													"type": {
+														"kind": "intrinsic",
+														"intrinsic": "string"
+													},
+													"optional": false
+												},
+												{
+													"name": "b",
+													"type": {
+														"kind": "intrinsic",
+														"intrinsic": "number"
+													},
+													"optional": false
+												}
+											]
+										},
+										{
+											"kind": "object",
+											"typeName": {
+												"name": "B"
+											},
+											"properties": [
+												{
+													"name": "a",
+													"type": {
+														"kind": "union",
+														"types": [
+															{
+																"kind": "intrinsic",
+																"intrinsic": "string"
+															},
+															{
+																"kind": "intrinsic",
+																"intrinsic": "undefined"
+															}
+														]
+													},
+													"optional": true
+												},
+												{
+													"name": "c",
+													"type": {
+														"kind": "union",
+														"types": [
+															{
+																"kind": "intrinsic",
+																"intrinsic": "number"
+															},
+															{
+																"kind": "intrinsic",
+																"intrinsic": "undefined"
+															}
+														]
+													},
+													"optional": true
+												}
+											]
+										}
+									],
+									"properties": [
+										{
+											"name": "a",
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											},
+											"optional": false
+										},
+										{
+											"name": "b",
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "number"
+											},
+											"optional": false
+										},
+										{
+											"name": "c",
+											"type": {
+												"kind": "union",
+												"types": [
+													{
+														"kind": "intrinsic",
+														"intrinsic": "number"
+													},
+													{
+														"kind": "intrinsic",
+														"intrinsic": "undefined"
+													}
+												]
+											},
+											"optional": true
+										}
+									]
+								},
+								"name": "a",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "intersectionWithMethod",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "intersectionWithMethod"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "intersection",
+									"typeName": {
+										"name": "WithMethod"
+									},
+									"types": [
+										{
+											"kind": "object",
+											"typeName": {
+												"name": "A"
+											},
+											"properties": [
+												{
+													"name": "a",
+													"type": {
+														"kind": "intrinsic",
+														"intrinsic": "string"
+													},
+													"optional": false
+												},
+												{
+													"name": "b",
+													"type": {
+														"kind": "intrinsic",
+														"intrinsic": "number"
+													},
+													"optional": false
+												}
+											]
+										},
+										{
+											"kind": "object",
+											"properties": [
+												{
+													"name": "doSomething",
+													"type": {
+														"kind": "function",
+														"typeName": {
+															"name": "doSomething"
+														},
+														"callSignatures": [
+															{
+																"parameters": [],
+																"returnValueType": {
+																	"kind": "intrinsic",
+																	"intrinsic": "void"
+																}
+															}
+														]
+													},
+													"optional": false
+												}
+											]
+										}
+									],
+									"properties": [
+										{
+											"name": "a",
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											},
+											"optional": false
+										},
+										{
+											"name": "b",
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "number"
+											},
+											"optional": false
+										},
+										{
+											"name": "doSomething",
+											"type": {
+												"kind": "function",
+												"typeName": {
+													"name": "doSomething"
+												},
+												"callSignatures": [
+													{
+														"parameters": [],
+														"returnValueType": {
+															"kind": "intrinsic",
+															"intrinsic": "void"
+														}
+													}
+												]
+											},
+											"optional": false
+										}
+									]
+								},
+								"name": "a",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		}
+	]
+}

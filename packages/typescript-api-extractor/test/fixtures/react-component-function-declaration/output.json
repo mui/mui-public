@@ -1,0 +1,36 @@
+{
+	"name": "test/fixtures/react-component-function-declaration/input",
+	"exports": [
+		{
+			"name": "DeclaredComponent",
+			"type": {
+				"kind": "component",
+				"typeName": {
+					"name": "DeclaredComponent"
+				},
+				"props": [
+					{
+						"name": "className",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		}
+	]
+}

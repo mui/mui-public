@@ -1,0 +1,518 @@
+{
+	"name": "test/fixtures/module-dts-declarations-and-reexports/input",
+	"exports": [
+		{
+			"name": "processType",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "processType"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "object",
+									"typeName": {
+										"name": "FormattedParameter"
+									},
+									"properties": [
+										{
+											"name": "name",
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											},
+											"optional": false
+										},
+										{
+											"name": "type",
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											},
+											"optional": false
+										},
+										{
+											"name": "optional",
+											"type": {
+												"kind": "union",
+												"types": [
+													{
+														"kind": "intrinsic",
+														"intrinsic": "boolean"
+													},
+													{
+														"kind": "intrinsic",
+														"intrinsic": "undefined"
+													}
+												]
+											},
+											"optional": true
+										}
+									]
+								},
+								"name": "input",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "object",
+							"typeName": {
+								"name": "FormattedProperty"
+							},
+							"properties": [
+								{
+									"name": "type",
+									"type": {
+										"kind": "intrinsic",
+										"intrinsic": "string"
+									},
+									"optional": false
+								},
+								{
+									"name": "description",
+									"type": {
+										"kind": "union",
+										"types": [
+											{
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											},
+											{
+												"kind": "intrinsic",
+												"intrinsic": "undefined"
+											}
+										]
+									},
+									"optional": true
+								}
+							]
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "wrapValue",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "wrapValue"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"name": "T",
+									"kind": "typeParameter"
+								},
+								"name": "value",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "object",
+							"typeName": {
+								"name": "Container",
+								"typeArguments": [
+									{
+										"type": {
+											"name": "T",
+											"kind": "typeParameter"
+										},
+										"equalToDefault": false
+									}
+								]
+							},
+							"properties": [
+								{
+									"name": "value",
+									"type": {
+										"name": "T",
+										"kind": "typeParameter"
+									},
+									"optional": false
+								},
+								{
+									"name": "metadata",
+									"type": {
+										"kind": "union",
+										"types": [
+											{
+												"kind": "external",
+												"typeName": {
+													"name": "Record",
+													"typeArguments": [
+														{
+															"type": {
+																"kind": "intrinsic",
+																"intrinsic": "string"
+															},
+															"equalToDefault": false
+														},
+														{
+															"type": {
+																"kind": "intrinsic",
+																"intrinsic": "unknown"
+															},
+															"equalToDefault": false
+														}
+													]
+												},
+												"source": {
+													"kind": "lib",
+													"files": ["lib.es5.d.ts"]
+												}
+											},
+											{
+												"kind": "intrinsic",
+												"intrinsic": "undefined"
+											}
+										]
+									},
+									"optional": true
+								}
+							]
+						},
+						"typeParameters": [
+							{
+								"name": "T",
+								"kind": "typeParameter"
+							}
+						]
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "FormattedProperty",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "FormattedProperty"
+				},
+				"properties": [
+					{
+						"name": "type",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "description",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "FormattedParameter",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "FormattedParameter"
+				},
+				"properties": [
+					{
+						"name": "name",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "type",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "optional",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "boolean"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "TypeContainer",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Container",
+					"typeArguments": [
+						{
+							"type": {
+								"name": "T",
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [
+					{
+						"name": "value",
+						"type": {
+							"name": "T",
+							"kind": "typeParameter"
+						},
+						"optional": false
+					},
+					{
+						"name": "metadata",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "external",
+									"typeName": {
+										"name": "Record",
+										"typeArguments": [
+											{
+												"type": {
+													"kind": "intrinsic",
+													"intrinsic": "string"
+												},
+												"equalToDefault": false
+											},
+											{
+												"type": {
+													"kind": "intrinsic",
+													"intrinsic": "unknown"
+												},
+												"equalToDefault": false
+											}
+										]
+									},
+									"source": {
+										"kind": "lib",
+										"files": ["lib.es5.d.ts"]
+									}
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "ProcessingStatus",
+			"type": {
+				"kind": "object",
+				"properties": [
+					{
+						"name": "Pending",
+						"type": {
+							"kind": "literal",
+							"value": "\"pending\""
+						},
+						"optional": false
+					},
+					{
+						"name": "Complete",
+						"type": {
+							"kind": "literal",
+							"value": "\"complete\""
+						},
+						"optional": false
+					},
+					{
+						"name": "Failed",
+						"type": {
+							"kind": "literal",
+							"value": "\"failed\""
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": true,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "formatType",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "formatType"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"name": "type",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "object",
+							"typeName": {
+								"name": "FormattedProperty"
+							},
+							"properties": [
+								{
+									"name": "type",
+									"type": {
+										"kind": "intrinsic",
+										"intrinsic": "string"
+									},
+									"optional": false
+								},
+								{
+									"name": "description",
+									"type": {
+										"kind": "union",
+										"types": [
+											{
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											},
+											{
+												"kind": "intrinsic",
+												"intrinsic": "undefined"
+											}
+										]
+									},
+									"optional": true
+								}
+							]
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "parseParameters",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "parseParameters"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"name": "input",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "array",
+							"elementType": {
+								"kind": "object",
+								"typeName": {
+									"name": "FormattedParameter"
+								},
+								"properties": [
+									{
+										"name": "name",
+										"type": {
+											"kind": "intrinsic",
+											"intrinsic": "string"
+										},
+										"optional": false
+									},
+									{
+										"name": "type",
+										"type": {
+											"kind": "intrinsic",
+											"intrinsic": "string"
+										},
+										"optional": false
+									},
+									{
+										"name": "optional",
+										"type": {
+											"kind": "union",
+											"types": [
+												{
+													"kind": "intrinsic",
+													"intrinsic": "boolean"
+												},
+												{
+													"kind": "intrinsic",
+													"intrinsic": "undefined"
+												}
+											]
+										},
+										"optional": true
+									}
+								]
+							}
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		}
+	],
+	"imports": ["./source.js"]
+}

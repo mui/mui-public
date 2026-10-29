@@ -1,0 +1,232 @@
+{
+	"name": "test/fixtures/react-component-overloads-mismatched-type-parameters/input",
+	"exports": [
+		{
+			"name": "DifferentNamesComponent",
+			"type": {
+				"kind": "component",
+				"typeName": {
+					"name": "DifferentNamesComponent"
+				},
+				"props": [
+					{
+						"name": "value",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"name": "Value",
+									"kind": "typeParameter"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "items",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "array",
+									"elementType": {
+										"name": "Item",
+										"kind": "typeParameter"
+									}
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "DifferentConstraintsComponent",
+			"type": {
+				"kind": "component",
+				"typeName": {
+					"name": "DifferentConstraintsComponent"
+				},
+				"props": [
+					{
+						"name": "value",
+						"type": {
+							"name": "Value",
+							"constraint": {
+								"kind": "intrinsic",
+								"intrinsic": "string"
+							},
+							"kind": "typeParameter"
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "PartiallyGenericComponent",
+			"type": {
+				"kind": "component",
+				"typeName": {
+					"name": "PartiallyGenericComponent"
+				},
+				"props": [
+					{
+						"name": "value",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"name": "Value",
+									"kind": "typeParameter"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "label",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "DifferentDefaultsComponent",
+			"type": {
+				"kind": "component",
+				"typeName": {
+					"name": "DifferentDefaultsComponent"
+				},
+				"props": [
+					{
+						"name": "value",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"name": "Value",
+									"defaultValue": {
+										"kind": "intrinsic",
+										"intrinsic": "string"
+									},
+									"kind": "typeParameter"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "NestedGenericConstraintsComponent",
+			"type": {
+				"kind": "component",
+				"typeName": {
+					"name": "NestedGenericConstraintsComponent"
+				},
+				"props": [
+					{
+						"name": "value",
+						"type": {
+							"name": "Value",
+							"constraint": {
+								"kind": "object",
+								"properties": [
+									{
+										"name": "format",
+										"type": {
+											"kind": "function",
+											"callSignatures": [
+												{
+													"parameters": [
+														{
+															"type": {
+																"name": "Input",
+																"constraint": {
+																	"kind": "intrinsic",
+																	"intrinsic": "string"
+																},
+																"kind": "typeParameter"
+															},
+															"name": "input",
+															"optional": false
+														}
+													],
+													"returnValueType": {
+														"kind": "intrinsic",
+														"intrinsic": "string"
+													},
+													"typeParameters": [
+														{
+															"name": "Input",
+															"constraint": {
+																"kind": "intrinsic",
+																"intrinsic": "string"
+															},
+															"kind": "typeParameter"
+														}
+													]
+												}
+											]
+										},
+										"optional": false
+									}
+								]
+							},
+							"kind": "typeParameter"
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		}
+	],
+	"imports": ["react"]
+}

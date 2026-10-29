@@ -1,0 +1,57 @@
+{
+	"name": "test/fixtures/external-mapped-type-name-preservation/input",
+	"exports": [
+		{
+			"name": "Boundary",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "Boundary"
+				},
+				"types": [
+					{
+						"kind": "literal",
+						"value": "\"clipping-ancestors\""
+					},
+					{
+						"kind": "external",
+						"typeName": {
+							"name": "Element"
+						},
+						"source": {
+							"kind": "lib",
+							"files": ["lib.dom.d.ts"]
+						}
+					},
+					{
+						"kind": "array",
+						"elementType": {
+							"kind": "external",
+							"typeName": {
+								"name": "Element"
+							},
+							"source": {
+								"kind": "lib",
+								"files": ["lib.dom.d.ts"]
+							}
+						}
+					},
+					{
+						"kind": "external",
+						"typeName": {
+							"name": "Rect"
+						},
+						"source": {
+							"kind": "package",
+							"name": "floating-ui"
+						}
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	],
+	"imports": ["floating-ui"]
+}

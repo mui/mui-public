@@ -16,7 +16,6 @@ import { refLabel, resolveBaselineRef, WORKTREE_REF } from './refs';
 import type { ResolvedRef } from './refs';
 import { discoverBenchFiles } from './benchFiles';
 import { runInterleaved } from './runInterleaved';
-import { traceBenchmarks } from './traceBenchmarks';
 import { buildRefPages, restoreWorkspace } from './buildPages';
 import { printRunReport } from './printReport';
 import { buildsDirOf, prepareOutputDir, resultsPathOf } from './outputDir';
@@ -59,26 +58,27 @@ export interface RunBenchmarksOptions {
    */
   signal?: AbortSignal;
   /**
-   * Record the benchmarks instead of measuring them: a performance trace around every sample, to
-   * open in DevTools' Performance panel. Writes no report.
+   * Also record a performance trace around every sample, to open in DevTools' Performance panel,
+   * for a fixed number of rounds. Tracing slows the code it records, so the report's numbers are
+   * only indicative.
    */
   profile?: boolean;
+  /**
+   * More Chromium flags, after the ones every run uses: a GPU backend for a local run, such as
+   * `--use-angle=metal`, or a software one for WebGL in CI. Both builds share the browser, so a
+   * comparison stays fair, and the report records them, since they change what the numbers mean.
+   */
+  launchArgs?: string[];
 }
-
-/** Rounds a profile records unless a sample size is given. */
-const PROFILE_ROUNDS = 5;
 
 /**
  * Benchmarks a harness's `*.bench.tsx` files across two builds of the workspace — the working tree
- * and a baseline — and writes and prints the run report. With `profile`, it
- * traces them instead, and returns no report.
+ * and a baseline — and writes, prints, and returns the run report, failed benchmarks included.
  *
  * Both builds are packed from their own commit and installed into the harness the same way, so
  * neither resolves the library through a workspace link.
  */
-export async function runBenchmarks(
-  options: RunBenchmarksOptions,
-): Promise<BenchmarkRunReport | undefined> {
+export async function runBenchmarks(options: RunBenchmarksOptions): Promise<BenchmarkRunReport> {
   const startedAt = Date.now();
   const {
     harnessDir,
@@ -122,7 +122,10 @@ export async function runBenchmarks(
   const refs: ResolvedRef[] = [WORKTREE_REF, await resolveBaselineRef(baseline, repoRoot)];
 
   // `getuid` is POSIX-only; on Windows nobody is root. Chrome cannot enter its sandbox as root.
-  const launchArgs = process.getuid?.() === 0 ? ['--no-sandbox'] : [];
+  const launchArgs = [
+    ...(process.getuid?.() === 0 ? ['--no-sandbox'] : []),
+    ...(options.launchArgs ?? []),
+  ];
 
   // The commit follows the name, so a revision like `HEAD~1` still says which commit it landed on.
   const describeRef = (ref: ResolvedRef) =>
@@ -180,36 +183,17 @@ export async function runBenchmarks(
       });
     }
 
-    const runOptions = {
+    const tracesDir = path.join(outputDir, 'traces');
+    const results = await runInterleaved({
       signal,
       buildsDir,
       benchFiles,
       benchRefs: refs,
       launchArgs,
       testNamePattern: namePattern,
-    };
-
-    if (profile) {
-      const traced = await traceBenchmarks({
-        ...runOptions,
-        rounds: sampling.sampleSize ?? PROFILE_ROUNDS,
-        tracesDir: path.join(outputDir, 'traces'),
-      });
-      if (reporter === 'json') {
-        process.stdout.write(`${JSON.stringify({ benchmarks: traced }, null, 2)}\n`);
-      } else {
-        for (const { name, traces, error } of traced) {
-          console.log(error ? chalk.red(`✖ ${name}: ${error}`) : `\n${name}`);
-          for (const [variant, files] of Object.entries(traces)) {
-            console.log(`  ${variant}: ${files.length} traces in ${path.dirname(files[0] ?? '')}`);
-          }
-        }
-        console.log(chalk.dim('\nOpen a trace in DevTools: Performance panel, "Load profile…".'));
-      }
-      return undefined;
-    }
-
-    const results = await runInterleaved({ ...runOptions, sampling });
+      sampling,
+      ...(profile && { profile: { tracesDir } }),
+    });
 
     const { commitSha, branch } = await getCiMetadata();
     const report: BenchmarkRunReport = {
@@ -244,11 +228,11 @@ export async function runBenchmarks(
       printRunReport(report);
     }
     console.log(chalk.green(`\nWrote JSON report to ${outPath}`));
-
-    // Written first, so the errors are readable and an upload can still say what happened — then
-    // fail, because a harness that measured nothing at all otherwise reports a passing job.
-    if (report.benchmarks.every((benchmark) => benchmark.error !== undefined)) {
-      throw new Error('No benchmark produced any measurement.');
+    if (profile) {
+      console.log(
+        chalk.green(`Wrote traces to ${tracesDir}`) +
+          chalk.dim(' — open one in DevTools: Performance panel, "Load profile…".'),
+      );
     }
     return report;
   } finally {

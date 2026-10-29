@@ -1,0 +1,475 @@
+{
+	"name": "test/fixtures/react-forward-ref-union-props/input",
+	"exports": [
+		{
+			"name": "Button",
+			"type": {
+				"kind": "component",
+				"typeName": {
+					"name": "ForwardRefExoticComponent",
+					"namespaces": ["React"],
+					"typeArguments": [
+						{
+							"type": {
+								"kind": "union",
+								"types": [
+									{
+										"kind": "intersection",
+										"types": [
+											{
+												"kind": "object",
+												"typeName": {
+													"name": "ButtonNativeProps"
+												},
+												"properties": [
+													{
+														"name": "nativeButton",
+														"type": {
+															"kind": "union",
+															"types": [
+																{
+																	"kind": "literal",
+																	"value": "true"
+																},
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "undefined"
+																}
+															]
+														},
+														"optional": true
+													},
+													{
+														"name": "type",
+														"type": {
+															"kind": "union",
+															"types": [
+																{
+																	"kind": "literal",
+																	"value": "\"button\""
+																},
+																{
+																	"kind": "literal",
+																	"value": "\"submit\""
+																},
+																{
+																	"kind": "literal",
+																	"value": "\"reset\""
+																},
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "undefined"
+																}
+															]
+														},
+														"optional": true
+													},
+													{
+														"name": "id",
+														"type": {
+															"kind": "union",
+															"types": [
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "string"
+																},
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "undefined"
+																}
+															]
+														},
+														"optional": true
+													},
+													{
+														"name": "className",
+														"type": {
+															"kind": "union",
+															"types": [
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "string"
+																},
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "undefined"
+																}
+															]
+														},
+														"optional": true
+													}
+												]
+											},
+											{
+												"kind": "external",
+												"typeName": {
+													"name": "RefAttributes",
+													"namespaces": ["React"],
+													"typeArguments": [
+														{
+															"type": {
+																"kind": "external",
+																"typeName": {
+																	"name": "HTMLButtonElement"
+																},
+																"source": {
+																	"kind": "lib",
+																	"files": ["lib.dom.d.ts"]
+																}
+															},
+															"equalToDefault": false
+														}
+													]
+												},
+												"source": {
+													"kind": "package",
+													"name": "@types/react"
+												}
+											}
+										],
+										"properties": [
+											{
+												"name": "nativeButton",
+												"type": {
+													"kind": "union",
+													"types": [
+														{
+															"kind": "literal",
+															"value": "true"
+														},
+														{
+															"kind": "intrinsic",
+															"intrinsic": "undefined"
+														}
+													]
+												},
+												"optional": true
+											},
+											{
+												"name": "type",
+												"type": {
+													"kind": "union",
+													"types": [
+														{
+															"kind": "literal",
+															"value": "\"button\""
+														},
+														{
+															"kind": "literal",
+															"value": "\"submit\""
+														},
+														{
+															"kind": "literal",
+															"value": "\"reset\""
+														},
+														{
+															"kind": "intrinsic",
+															"intrinsic": "undefined"
+														}
+													]
+												},
+												"optional": true
+											},
+											{
+												"name": "id",
+												"type": {
+													"kind": "union",
+													"types": [
+														{
+															"kind": "intrinsic",
+															"intrinsic": "string"
+														},
+														{
+															"kind": "intrinsic",
+															"intrinsic": "undefined"
+														}
+													]
+												},
+												"optional": true
+											},
+											{
+												"name": "className",
+												"type": {
+													"kind": "union",
+													"types": [
+														{
+															"kind": "intrinsic",
+															"intrinsic": "string"
+														},
+														{
+															"kind": "intrinsic",
+															"intrinsic": "undefined"
+														}
+													]
+												},
+												"optional": true
+											}
+										]
+									},
+									{
+										"kind": "intersection",
+										"types": [
+											{
+												"kind": "object",
+												"typeName": {
+													"name": "ButtonNonNativeProps"
+												},
+												"properties": [
+													{
+														"name": "nativeButton",
+														"type": {
+															"kind": "literal",
+															"value": "false"
+														},
+														"optional": false
+													},
+													{
+														"name": "type",
+														"type": {
+															"kind": "union",
+															"types": [
+																{
+																	"kind": "literal",
+																	"value": "\"button\""
+																},
+																{
+																	"kind": "literal",
+																	"value": "\"submit\""
+																},
+																{
+																	"kind": "literal",
+																	"value": "\"reset\""
+																},
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "undefined"
+																}
+															]
+														},
+														"optional": true
+													},
+													{
+														"name": "id",
+														"type": {
+															"kind": "union",
+															"types": [
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "string"
+																},
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "undefined"
+																}
+															]
+														},
+														"optional": true
+													},
+													{
+														"name": "className",
+														"type": {
+															"kind": "union",
+															"types": [
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "string"
+																},
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "undefined"
+																}
+															]
+														},
+														"optional": true
+													}
+												]
+											},
+											{
+												"kind": "external",
+												"typeName": {
+													"name": "RefAttributes",
+													"namespaces": ["React"],
+													"typeArguments": [
+														{
+															"type": {
+																"kind": "external",
+																"typeName": {
+																	"name": "HTMLButtonElement"
+																},
+																"source": {
+																	"kind": "lib",
+																	"files": ["lib.dom.d.ts"]
+																}
+															},
+															"equalToDefault": false
+														}
+													]
+												},
+												"source": {
+													"kind": "package",
+													"name": "@types/react"
+												}
+											}
+										],
+										"properties": [
+											{
+												"name": "nativeButton",
+												"type": {
+													"kind": "literal",
+													"value": "false"
+												},
+												"optional": false
+											},
+											{
+												"name": "type",
+												"type": {
+													"kind": "union",
+													"types": [
+														{
+															"kind": "literal",
+															"value": "\"button\""
+														},
+														{
+															"kind": "literal",
+															"value": "\"submit\""
+														},
+														{
+															"kind": "literal",
+															"value": "\"reset\""
+														},
+														{
+															"kind": "intrinsic",
+															"intrinsic": "undefined"
+														}
+													]
+												},
+												"optional": true
+											},
+											{
+												"name": "id",
+												"type": {
+													"kind": "union",
+													"types": [
+														{
+															"kind": "intrinsic",
+															"intrinsic": "string"
+														},
+														{
+															"kind": "intrinsic",
+															"intrinsic": "undefined"
+														}
+													]
+												},
+												"optional": true
+											},
+											{
+												"name": "className",
+												"type": {
+													"kind": "union",
+													"types": [
+														{
+															"kind": "intrinsic",
+															"intrinsic": "string"
+														},
+														{
+															"kind": "intrinsic",
+															"intrinsic": "undefined"
+														}
+													]
+												},
+												"optional": true
+											}
+										]
+									}
+								]
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"props": [
+					{
+						"name": "nativeButton",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "boolean"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "type",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "literal",
+									"value": "\"button\""
+								},
+								{
+									"kind": "literal",
+									"value": "\"submit\""
+								},
+								{
+									"kind": "literal",
+									"value": "\"reset\""
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "id",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "className",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		}
+	],
+	"imports": ["react"]
+}

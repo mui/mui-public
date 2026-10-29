@@ -1,0 +1,73 @@
+{
+	"name": "test/fixtures/readonly-array-mapped-type-key-no-default/input",
+	"exports": [
+		{
+			"name": "Data",
+			"type": {
+				"kind": "array",
+				"typeName": {
+					"name": "Data",
+					"typeArguments": [
+						{
+							"type": {
+								"kind": "object",
+								"properties": [],
+								"indexSignature": {
+									"keyName": "key",
+									"keyType": "string",
+									"valueType": {
+										"kind": "union",
+										"types": [
+											{
+												"name": "V",
+												"defaultValue": {
+													"kind": "intrinsic",
+													"intrinsic": "unknown"
+												},
+												"kind": "typeParameter"
+											},
+											{
+												"kind": "intrinsic",
+												"intrinsic": "undefined"
+											}
+										]
+									}
+								}
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"elementType": {
+					"kind": "object",
+					"properties": [],
+					"indexSignature": {
+						"keyName": "key",
+						"keyType": "string",
+						"valueType": {
+							"kind": "union",
+							"types": [
+								{
+									"name": "V",
+									"defaultValue": {
+										"kind": "intrinsic",
+										"intrinsic": "unknown"
+									},
+									"kind": "typeParameter"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						}
+					}
+				},
+				"isReadonly": true
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

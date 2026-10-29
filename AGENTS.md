@@ -79,6 +79,10 @@ Applies to the whole repository.
   not unit-test a helper the exported entry points already exercise — reach its edge cases through
   those entry points instead. A genuinely generic utility — string manipulation, HTTP, paths,
   formatting — is a module of its own: extract it, and test it through its own API.
+- **Test logic, not configuration.** Only add a test when there is behavior of our own to cover.
+  Setting an option on a third-party rule or tool, such as an ESLint rule option in a shared
+  config, needs no test: it would only exercise the dependency. Custom ESLint rules and other code
+  we wrote are logic and keep their tests.
 
 ## Common Tasks
 
@@ -101,9 +105,10 @@ Applies to the whole repository.
 
 ### GitHub Actions
 
-- The reusable Claude triage workflow accepts explicit issue/mode/comment inputs. Keep event-specific command or label parsing in callers; authorize the event sender in the reusable workflow. Bot senders may request triage for the issue they labeled; other requests require a human collaborator with write access. Labeling automation needs an App token or PAT because GITHUB_TOKEN label events do not trigger workflows.
+- The reusable Claude triage workflow accepts explicit issue/mode/comment inputs. Keep event-specific command or label parsing in callers; authorize the event sender in the reusable workflow. Bot senders may request triage for the issue they labeled; human replies on labeled issues may also come from the issue author or repository/organization members. Labeling automation needs an App token or PAT because GITHUB_TOKEN label events do not trigger workflows.
 - Bot-triggered Claude jobs must also configure the Claude action's `allowed_bots` input; workflow-level authorization does not bypass the action's independent human-actor check.
-- Claude triage comments start directly with findings and end with a `Next steps` section. Classify requests by their substance: an existing supported API that meets the user's goal without evidence of a defect calls for usage guidance, even if the issue is framed as a bug.
+- After successful triage and posting the reply, the reusable workflow adds `ai: triaged` before removing `ai: needs-triage`. Failed or incomplete triage, failed replies, and missing usable reports keep the pending label. An already-absent pending label is harmless on follow-up runs.
+- Claude triage comments start directly with findings and end with a `Next steps` section. Classify requests by their substance: an existing supported API that meets the user's goal without evidence of a defect calls for usage guidance, even if the issue is framed as a bug. Comment links use the `url` from `comments.json`. Next steps hold decisions or questions, not implementation steps. Check reporter-supplied code for errors before using its result as evidence.
 
 - **Pin every action to a full-length commit SHA** and annotate it with the exact release tag it resolves to, for example, `uses: actions/stale@1e223db275d687790206a7acac4d1a11bd6fe629 # v10.4.0`.
 - **Use the full version in the comment**, never a major-only alias like `# v1` or `# v10`. Renovate reads that comment as the current version and keeps its precision, so a truncated tag downgrades every future bump to an opaque digest update with no changelog to review.
@@ -133,3 +138,7 @@ Applies to the whole repository.
 ## Docs Infra Conventions
 
 When working in the `@mui/internal-docs-infra` (`packages/docs-infra`) package or `docs/app/docs-infra` docs, follow the conventions in [packages/docs-infra/AGENTS.md](packages/docs-infra/AGENTS.md).
+
+## TypeScript API Extractor Conventions
+
+When working in the `@mui/internal-typescript-api-extractor` (`packages/typescript-api-extractor`) package, follow the conventions in [packages/typescript-api-extractor/AGENTS.md](packages/typescript-api-extractor/AGENTS.md). Fix extraction gaps there rather than working around them in docs-infra.
