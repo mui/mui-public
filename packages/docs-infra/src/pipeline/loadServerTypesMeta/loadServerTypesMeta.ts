@@ -29,6 +29,7 @@ import { buildTypeCompatibilityMap } from './rewriteTypes';
 import type { TypeRewriteContext } from './rewriteTypes';
 import type { ExternalTypeMeta, ExternalTypesCollector } from './externalTypes';
 import { matchConstantGroups } from './constantGroups';
+import { groupTypesByComponent } from './groupTypesByComponent';
 import { getWorkerManager } from './workerManager';
 import { reconstructPerformanceLogs } from './performanceTracking';
 import { typeSuffixes as defaultTypeSuffixes } from '../loadServerTypesText/order';
@@ -421,80 +422,18 @@ export async function loadServerTypesMeta(
   // Group types by component name when there's a single Default variant with sub-components
   // This creates per-component groupings (e.g., "Accordion.Root", "Accordion.Header")
   // For multi-variant cases (CssModules, Tailwind), keep the original structure
-  //
-  // Key distinction:
-  // - Accordion: Has sub-components like Accordion.Root, Accordion.Trigger -> group by sub-component
-  // - Button: Just Button with Button.Props, Button.State -> all stay in "Default"
-  //
-  // We detect this by checking if there are any 2-part names that are NOT suffixes.
-  // If all 2-part names are just type suffixes (Props, State, etc.), keep everything in Default.
   const variantNames = Object.keys(variantData);
   if (variantNames.length === 1 && variantNames[0] === 'Default') {
-    const defaultData = variantData.Default;
+    const { types, typeNameMap } = variantData.Default;
+    const groupedTypes = groupTypesByComponent(
+      types,
+      options.ordering?.typeSuffixes ?? defaultTypeSuffixes,
+    );
 
-    // Check if there are actual sub-components (2-part names that are NOT suffixes)
-    // e.g., "Accordion.Root" is a sub-component, but "Button.Props" is just a suffix
-    // and "Form.ValidationMode" is a raw type, not a sub-component
-    const hasSubComponents = defaultData.types.some((t) => {
-      const parts = t.name.split('.');
-      if (parts.length !== 2) {
-        return false;
-      }
-      // It's a sub-component if:
-      // 1. The second part is NOT a type suffix, AND
-      // 2. It's an actual component/hook/function/class (not a raw type)
-      return (
-        !(options.ordering?.typeSuffixes ?? defaultTypeSuffixes).includes(parts[1]) &&
-        (t.type === 'component' || t.type === 'hook' || t.type === 'function' || t.type === 'class')
-      );
-    });
-
-    if (hasSubComponents) {
-      // Group types by component name
-      const groupedVariantData: typeof variantData = {};
-
-      for (const typeMeta of defaultData.types) {
-        // Determine the component group name:
-        // - 3+ parts (e.g., "Accordion.Root.State"): first two parts ("Accordion.Root")
-        // - 2 parts AND it's a component/hook/function/class (e.g., "Accordion.Root", "Progress.Value"): both parts
-        // - 2 parts AND it's a raw type (e.g., "Toolbar.Orientation", "Field.ValidityData"): "Default" group
-        // - 1 part (e.g., "DirectionProvider"): "Default" group
-        let groupName: string;
-        const parts = typeMeta.name.split('.');
-        if (parts.length >= 3) {
-          groupName = `${parts[0]}.${parts[1]}`;
-        } else if (parts.length === 2) {
-          if (
-            typeMeta.type === 'component' ||
-            typeMeta.type === 'hook' ||
-            typeMeta.type === 'function' ||
-            typeMeta.type === 'class'
-          ) {
-            // Actual sub-component like Accordion.Root, Progress.Value -> group under full name
-            groupName = typeMeta.name;
-          } else {
-            // Raw type like Toolbar.Orientation, Field.ValidityData -> group under "Default"
-            groupName = 'Default';
-          }
-        } else {
-          groupName = 'Default';
-        }
-
-        if (!groupedVariantData[groupName]) {
-          groupedVariantData[groupName] = {
-            types: [],
-            typeNameMap: defaultData.typeNameMap,
-          };
-        }
-        groupedVariantData[groupName].types.push(typeMeta);
-      }
-
-      // Replace variantData with grouped version
-      // Clear and repopulate to maintain the same object reference
-      for (const key of Object.keys(variantData)) {
-        delete variantData[key];
-      }
-      Object.assign(variantData, groupedVariantData);
+    // Repopulate in place to maintain the same object reference
+    delete variantData.Default;
+    for (const [groupName, groupTypes] of groupedTypes) {
+      variantData[groupName] = { types: groupTypes, typeNameMap };
     }
   }
 

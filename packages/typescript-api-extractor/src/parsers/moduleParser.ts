@@ -1,6 +1,6 @@
 import path from 'node:path';
 import ts from 'typescript';
-import type { ExportNode } from '../models';
+import type { ExportNode, NamespaceReexport } from '../models';
 import { ModuleNode } from '../models';
 import type { ScopedParserContext } from '../parserContext';
 import { parseExport } from './exportParser';
@@ -23,14 +23,13 @@ export function parseModule(sourceFile: ts.SourceFile, context: ScopedParserCont
       }
 
       let parsedModuleExports: ExportNode[] = [];
+      const namespaceReexports: NamespaceReexport[] = [];
       const exportedSymbols = checker.getExportsOfModule(sourceFileSymbol);
 
       for (const exportedSymbol of exportedSymbols) {
-        const parsedExports = parseExport(exportedSymbol, context, [], sourceFileSymbol);
-        if (!parsedExports) {
-          continue;
-        }
-        parsedModuleExports.push(...parsedExports);
+        const parsedExport = parseExport(exportedSymbol, context, sourceFileSymbol);
+        parsedModuleExports.push(...parsedExport.exports);
+        namespaceReexports.push(...parsedExport.namespaceReexports);
       }
 
       parsedModuleExports = applyExportTransforms(parsedModuleExports, context);
@@ -51,6 +50,7 @@ export function parseModule(sourceFile: ts.SourceFile, context: ScopedParserCont
         relativeModulePath,
         parsedModuleExports,
         imports.length > 0 ? imports : undefined,
+        namespaceReexports.length > 0 ? namespaceReexports : undefined,
       );
     } catch (error) {
       if (!(error instanceof ParserError)) {

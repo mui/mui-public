@@ -1,13 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { parseFromProgram } from '@mui/internal-typescript-api-extractor';
 import type * as tae from '@mui/internal-typescript-api-extractor';
-import {
-  findConstantNamespaces,
-  foldConstantNamespaces,
-  matchConstantGroups,
-} from './constantGroups';
-import { createTestProgram } from './parseTestSources';
-import { PARSER_OPTIONS } from './constants';
+import { foldConstantNamespaces, matchConstantGroups } from './constantGroups';
+import { parseTestModule } from './parseTestSources';
 
 const LIB = `interface ReactElement {}`;
 
@@ -25,10 +19,24 @@ const BUTTON_DATA_ATTRIBUTES = `
 
 /** Parses the entrypoint and folds its constant namespaces, the way the pipeline does. */
 function foldSources(sources: Record<string, string>) {
-  const { program, entrypoint } = createTestProgram(sources, LIB);
-  return foldConstantNamespaces(
-    parseFromProgram(entrypoint, program, PARSER_OPTIONS).exports,
-    findConstantNamespaces(entrypoint, program),
+  return foldConstantNamespaces(parseTestModule(sources, { lib: LIB }));
+}
+
+/** The values of each folded constant namespace, keyed by its path, then member name. */
+function readConstantNamespaces(sources: Record<string, string>) {
+  const { exports, namespaces } = foldSources(sources);
+  return new Map(
+    namespaces.map((namespace) => {
+      const group = exports.find((node) => node.name === namespace);
+      return [
+        namespace,
+        new Map(
+          group?.type.kind === 'enum'
+            ? group.type.members.map((member): [string, unknown] => [member.name, member.value])
+            : [],
+        ),
+      ];
+    }),
   );
 }
 
@@ -49,32 +57,32 @@ function summarize(exports: tae.ExportNode[]) {
   );
 }
 
-describe('findConstantNamespaces', () => {
+describe('foldConstantNamespaces namespace detection', () => {
   it('finds a namespace export of a module of constants', () => {
-    const { program, entrypoint } = createTestProgram({
+    const namespaces = readConstantNamespaces({
       'index.ts': `export * as ButtonDataAttributes from './attributes';`,
       'attributes.ts': BUTTON_DATA_ATTRIBUTES,
     });
 
-    expect(findConstantNamespaces(entrypoint, program)).toEqual(
+    expect(namespaces).toEqual(
       new Map([['ButtonDataAttributes', new Map([['pressed', 'data-pressed']])]]),
     );
   });
 
   it('follows namespace exports through `export *`', () => {
-    const { program, entrypoint } = createTestProgram({
+    const namespaces = readConstantNamespaces({
       'index.ts': `export * from './button';`,
       'button.ts': `export * as ButtonDataAttributes from './attributes';`,
       'attributes.ts': BUTTON_DATA_ATTRIBUTES,
     });
 
-    expect(findConstantNamespaces(entrypoint, program)).toEqual(
+    expect(namespaces).toEqual(
       new Map([['ButtonDataAttributes', new Map([['pressed', 'data-pressed']])]]),
     );
   });
 
   it('finds constant namespaces nested in other namespace exports', () => {
-    const { program, entrypoint } = createTestProgram({
+    const namespaces = readConstantNamespaces({
       'index.ts': `export * as Toolbar from './parts';`,
       'parts.ts': `
         export { Button } from './button';
@@ -84,13 +92,13 @@ describe('findConstantNamespaces', () => {
       'attributes.ts': BUTTON_DATA_ATTRIBUTES,
     });
 
-    expect(findConstantNamespaces(entrypoint, program)).toEqual(
+    expect(namespaces).toEqual(
       new Map([['Toolbar.ButtonDataAttributes', new Map([['pressed', 'data-pressed']])]]),
     );
   });
 
   it('skips type-only exports next to the constants', () => {
-    const { program, entrypoint } = createTestProgram({
+    const namespaces = readConstantNamespaces({
       'index.ts': `export * as ButtonDataAttributes from './attributes';`,
       'attributes.ts': `
         ${BUTTON_DATA_ATTRIBUTES}
@@ -101,13 +109,90 @@ describe('findConstantNamespaces', () => {
       `,
     });
 
-    expect(findConstantNamespaces(entrypoint, program)).toEqual(
+    expect(namespaces).toEqual(
       new Map([['ButtonDataAttributes', new Map([['pressed', 'data-pressed']])]]),
     );
   });
 
+  it('skips type-only namespaces next to the constants', () => {
+    const namespaces = readConstantNamespaces({
+      'index.ts': `export * as ButtonDataAttributes from './attributes';`,
+      'attributes.ts': `
+        ${BUTTON_DATA_ATTRIBUTES}
+        export type * as Helpers from './helpers';
+        export namespace Types {
+          export type Pressed = typeof pressed;
+        }
+      `,
+      'helpers.ts': `export type Helper = string;`,
+    });
+
+    expect(namespaces).toEqual(
+      new Map([['ButtonDataAttributes', new Map([['pressed', 'data-pressed']])]]),
+    );
+  });
+
+  it('reads enum members as constants', () => {
+    const namespaces = readConstantNamespaces({
+      'index.ts': `export * as ButtonDataAttributes from './attributes';`,
+      'attributes.ts': `
+        import { Common } from './common';
+        export const pressed = Common.pressed;
+      `,
+      'common.ts': `
+        export enum Common {
+          pressed = 'data-pressed',
+          disabled = 'data-disabled',
+        }
+      `,
+    });
+
+    expect(namespaces).toEqual(
+      new Map([['ButtonDataAttributes', new Map([['pressed', 'data-pressed']])]]),
+    );
+  });
+
+  it('ignores modules with runtime exports that have no parsed export of their own', () => {
+    const namespaces = readConstantNamespaces({
+      'index.ts': `
+        export * as ButtonDataAttributes from './attributes';
+        export * as ButtonCssVariables from './variables';
+        export * as ToolbarDataAttributes from './toolbar';
+      `,
+      'attributes.ts': `
+        ${BUTTON_DATA_ATTRIBUTES}
+        export default function () {}
+      `,
+      'variables.ts': `
+        export const width = '--width';
+        const helpers = { isPressed: () => true };
+        export const { isPressed } = helpers;
+      `,
+      'toolbar.ts': `
+        export const orientation = 'data-orientation';
+        export default 'data-default' + orientation;
+      `,
+    });
+
+    expect(namespaces).toEqual(new Map());
+  });
+
+  it('ignores modules holding a namespace with runtime values', () => {
+    const namespaces = readConstantNamespaces({
+      'index.ts': `export * as ButtonDataAttributes from './attributes';`,
+      'attributes.ts': `
+        ${BUTTON_DATA_ATTRIBUTES}
+        export namespace Runtime {
+          export const flag = 'flag';
+        }
+      `,
+    });
+
+    expect(namespaces).toEqual(new Map());
+  });
+
   it('ignores modules exporting anything besides literal constants', () => {
-    const { program, entrypoint } = createTestProgram({
+    const namespaces = readConstantNamespaces({
       'index.ts': `
         export * as Button from './parts';
         export * as ButtonHelpers from './helpers';
@@ -125,13 +210,37 @@ describe('findConstantNamespaces', () => {
       'settings.ts': `export let label = 'label';`,
     });
 
-    expect(findConstantNamespaces(entrypoint, program)).toEqual(new Map());
+    expect(namespaces).toEqual(new Map());
+  });
+
+  it('ignores a module of constants holding a nested namespace export, but not the nested one', () => {
+    const namespaces = readConstantNamespaces({
+      'index.ts': `export * as Toolbar from './parts';`,
+      'parts.ts': `
+        export const orientation = 'data-orientation';
+        export * as ButtonDataAttributes from './attributes';
+      `,
+      'attributes.ts': BUTTON_DATA_ATTRIBUTES,
+    });
+
+    expect(namespaces).toEqual(
+      new Map([['Toolbar.ButtonDataAttributes', new Map([['pressed', 'data-pressed']])]]),
+    );
+  });
+
+  it('ignores type-only namespace exports', () => {
+    const namespaces = readConstantNamespaces({
+      'index.ts': `export type * as ButtonDataAttributes from './attributes';`,
+      'attributes.ts': BUTTON_DATA_ATTRIBUTES,
+    });
+
+    expect(namespaces).toEqual(new Map());
   });
 });
 
 describe('foldConstantNamespaces', () => {
   it('collapses a constant namespace into one group in place of its members', () => {
-    const exports = foldSources({
+    const { exports } = foldSources({
       'index.ts': `
         export { Button } from './button';
         export * as ButtonDataAttributes from './attributes';
@@ -176,7 +285,7 @@ describe('foldConstantNamespaces', () => {
   });
 
   it('reads constants re-exported or referenced from another module, and numbers', () => {
-    const exports = foldSources({
+    const { exports } = foldSources({
       'index.ts': `export * as ButtonCssVariables from './variables';`,
       'variables.ts': `
         import { shared } from './shared';
@@ -200,8 +309,8 @@ describe('foldConstantNamespaces', () => {
     );
   });
 
-  it('keeps type-only exports of a constant namespace as types', () => {
-    const exports = foldSources({
+  it('keeps type-only exports next to the constants as they are', () => {
+    const { exports } = foldSources({
       'index.ts': `export * as ButtonDataAttributes from './attributes';`,
       'attributes.ts': `
         ${BUTTON_DATA_ATTRIBUTES}
@@ -226,7 +335,7 @@ describe('foldConstantNamespaces', () => {
   });
 
   it('leaves other namespaces untouched', () => {
-    const exports = foldSources({
+    const { exports } = foldSources({
       'index.ts': `export * as Toolbar from './parts';`,
       'parts.ts': BUTTON,
     });
@@ -237,7 +346,7 @@ describe('foldConstantNamespaces', () => {
 
 describe('matchConstantGroups', () => {
   it('resolves the component each group name stands for', () => {
-    const exports = foldSources({
+    const { exports } = foldSources({
       'index.ts': `
         export * as Toolbar from './parts';
         export * as ToolbarButtonDataAttributes from './attributes';
@@ -263,7 +372,7 @@ describe('matchConstantGroups', () => {
   });
 
   it('resolves groups exported inside a component namespace', () => {
-    const exports = foldSources({
+    const { exports } = foldSources({
       'index.ts': `export * as Toolbar from './parts';`,
       'parts.ts': `
         export { Button } from './button';
@@ -281,7 +390,7 @@ describe('matchConstantGroups', () => {
   });
 
   it('reads `*DataAttributes` as data attributes and `*CssVariables` as CSS variables', () => {
-    const exports = foldSources({
+    const { exports } = foldSources({
       'index.ts': `
         export { Button } from './button';
         export * as ButtonDataAttributes from './attributes';
@@ -301,7 +410,7 @@ describe('matchConstantGroups', () => {
   });
 
   it('ignores groups with other names', () => {
-    const exports = foldSources({
+    const { exports } = foldSources({
       'index.ts': `
         export { Button } from './button';
         export * as ButtonKeys from './attributes';
@@ -313,8 +422,25 @@ describe('matchConstantGroups', () => {
     expect(matchConstantGroups(exports).targets).toEqual(new Map());
   });
 
+  it('throws for a group of constants with type-only helpers when no component matches', () => {
+    const { exports } = foldSources({
+      'index.ts': `
+        export { Button } from './button';
+        export * as CheckboxDataAttributes from './attributes';
+      `,
+      'button.ts': BUTTON,
+      'attributes.ts': `
+        ${BUTTON_DATA_ATTRIBUTES}
+        export type * as Helpers from './helpers';
+      `,
+      'helpers.ts': `export type Helper = string;`,
+    });
+
+    expect(() => matchConstantGroups(exports)).toThrow(/CheckboxDataAttributes.*Checkbox/);
+  });
+
   it('throws when the name before the suffix is no exported component', () => {
-    const exports = foldSources({
+    const { exports } = foldSources({
       'index.ts': `
         export { Button } from './button';
         export * as CheckboxDataAttributes from './attributes';

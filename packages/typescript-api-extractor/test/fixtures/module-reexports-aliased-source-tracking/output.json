@@ -399,5 +399,31 @@
 			"isType": true,
 			"isNamespace": false
 		}
+	],
+	"namespaceReexports": [
+		{
+			"name": "AlertDialog",
+			"isValue": true,
+			"members": [
+				{
+					"name": "Root",
+					"isValue": true,
+					"isType": false,
+					"isNamespace": true
+				},
+				{
+					"name": "Trigger",
+					"isValue": true,
+					"isType": false,
+					"isNamespace": true
+				},
+				{
+					"name": "Backdrop",
+					"isValue": true,
+					"isType": false,
+					"isNamespace": true
+				}
+			]
+		}
 	]
 }

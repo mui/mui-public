@@ -309,5 +309,61 @@
 			"isType": true,
 			"isNamespace": false
 		}
+	],
+	"namespaceReexports": [
+		{
+			"name": "TypeOnlyBarrelNamespace",
+			"isValue": true,
+			"members": [
+				{
+					"name": "BarrelEnum",
+					"isValue": false,
+					"isType": true,
+					"isNamespace": false
+				},
+				{
+					"name": "NamespaceEnum",
+					"isValue": false,
+					"isType": true,
+					"isNamespace": false
+				},
+				{
+					"name": "BarrelClass",
+					"isValue": false,
+					"isType": true,
+					"isNamespace": false
+				}
+			]
+		},
+		{
+			"name": "ValueBarrelNamespace",
+			"isValue": true,
+			"members": [
+				{
+					"name": "BarrelEnum",
+					"isValue": true,
+					"isType": true,
+					"isNamespace": false
+				},
+				{
+					"name": "NamespaceEnum",
+					"isValue": true,
+					"isType": true,
+					"isNamespace": false
+				},
+				{
+					"name": "barrelFunction",
+					"isValue": true,
+					"isType": false,
+					"isNamespace": false
+				},
+				{
+					"name": "BarrelClass",
+					"isValue": true,
+					"isType": true,
+					"isNamespace": false
+				}
+			]
+		}
 	]
 }

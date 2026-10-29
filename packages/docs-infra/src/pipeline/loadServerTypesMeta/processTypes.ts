@@ -7,7 +7,7 @@ import ts from 'typescript';
 import { createOptimizedProgram } from './createOptimizedProgram';
 import { augmentComponentsWithInheritedProps } from './inheritedExternalProps';
 import type { InheritedExternalPropsConfig } from './inheritedExternalProps';
-import { findConstantNamespaces, foldConstantNamespaces } from './constantGroups';
+import { foldConstantNamespaces } from './constantGroups';
 import { PARSER_OPTIONS } from './constants';
 import { extractJSDocText, isJSDocNodeArray } from './extractJSDocText';
 import { PerformanceTracker } from './performanceTracking';
@@ -282,7 +282,7 @@ function extractNamespaces(exports: ExportNode[]): string[] {
 // Worker returns raw export nodes and metadata for formatting in main thread
 export interface VariantResult {
   exports: ExportNode[];
-  /** Names of the exports folded from namespaces of constants (see `findConstantNamespaces`) */
+  /** Names of the exports folded from namespaces of constants (see `foldConstantNamespaces`) */
   constantNamespaces: string[];
   namespaces: string[];
   typeNameMap?: Record<string, string>; // Maps flat type names to dotted names (serializable across worker boundary)
@@ -380,8 +380,7 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
 
           // Modules of constants exported as a namespace (`export * as ButtonDataAttributes`)
           // arrive flattened into one export per member; document each as a single group.
-          const constantNamespaces = findConstantNamespaces(entrypoint, program);
-          const exports = foldConstantNamespaces(parsed.exports, constantNamespaces);
+          const { exports, namespaces: constantNamespaces } = foldConstantNamespaces(parsed);
 
           // Re-add configured props that the parser dropped because they are
           // inherited from an externally declared type in node_modules
@@ -442,7 +441,7 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
             variantName,
             variantData: {
               exports,
-              constantNamespaces: Array.from(constantNamespaces.keys()),
+              constantNamespaces,
               namespaces,
               // Convert Map to Record for serialization across worker boundary
               typeNameMap:

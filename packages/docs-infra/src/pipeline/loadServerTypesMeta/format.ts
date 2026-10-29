@@ -754,7 +754,7 @@ export async function formatEnum(
       );
       const description = descriptionText ? await parseMarkdownToHast(descriptionText) : undefined;
 
-      result[member.value] = {
+      result[String(member.value)] = {
         description,
         descriptionText,
         type: member.documentation?.tags?.find((tag) => tag.name === 'type')?.value,

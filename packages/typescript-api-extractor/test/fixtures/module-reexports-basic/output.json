@@ -416,5 +416,31 @@
 			"isType": true,
 			"isNamespace": false
 		}
+	],
+	"namespaceReexports": [
+		{
+			"name": "Source",
+			"isValue": true,
+			"members": [
+				{
+					"name": "RootComponent",
+					"isValue": true,
+					"isType": false,
+					"isNamespace": true
+				},
+				{
+					"name": "RootProps",
+					"isValue": false,
+					"isType": true,
+					"isNamespace": false
+				},
+				{
+					"name": "RootState",
+					"isValue": false,
+					"isType": true,
+					"isNamespace": false
+				}
+			]
+		}
 	]
 }

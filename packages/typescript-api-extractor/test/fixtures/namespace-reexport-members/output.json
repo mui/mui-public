@@ -1,0 +1,485 @@
+{
+	"name": "test/fixtures/namespace-reexport-members/input",
+	"exports": [
+		{
+			"name": "ButtonDataAttributes.pressed",
+			"type": {
+				"kind": "literal",
+				"value": "\"data-pressed\"",
+				"typeName": {
+					"name": "pressed",
+					"namespaces": ["ButtonDataAttributes"]
+				}
+			},
+			"documentation": {
+				"description": "Present when pressed.",
+				"tags": []
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "ButtonDataAttributes.depth",
+			"type": {
+				"kind": "literal",
+				"value": 2,
+				"typeName": {
+					"name": "depth",
+					"namespaces": ["ButtonDataAttributes"]
+				}
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "ButtonDataAttributes.ButtonDataAttribute",
+			"type": {
+				"kind": "literal",
+				"value": "\"data-pressed\"",
+				"typeName": {
+					"name": "ButtonDataAttribute",
+					"namespaces": ["ButtonDataAttributes"]
+				}
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Toolbar.Button",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "Button",
+					"namespaces": ["Toolbar"]
+				},
+				"callSignatures": [
+					{
+						"parameters": [],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": true
+		},
+		{
+			"name": "Toolbar.Button.Size",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "Size",
+					"namespaces": ["Toolbar", "Button"]
+				},
+				"types": [
+					{
+						"kind": "literal",
+						"value": "\"small\""
+					},
+					{
+						"kind": "literal",
+						"value": "\"large\""
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Toolbar.ButtonDataAttributes.pressed",
+			"type": {
+				"kind": "literal",
+				"value": "\"data-pressed\"",
+				"typeName": {
+					"name": "pressed",
+					"namespaces": ["Toolbar", "ButtonDataAttributes"]
+				}
+			},
+			"documentation": {
+				"description": "Present when pressed.",
+				"tags": []
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "Toolbar.ButtonDataAttributes.depth",
+			"type": {
+				"kind": "literal",
+				"value": 2,
+				"typeName": {
+					"name": "depth",
+					"namespaces": ["Toolbar", "ButtonDataAttributes"]
+				}
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "Toolbar.ButtonDataAttributes.ButtonDataAttribute",
+			"type": {
+				"kind": "literal",
+				"value": "\"data-pressed\"",
+				"typeName": {
+					"name": "ButtonDataAttribute",
+					"namespaces": ["Toolbar", "ButtonDataAttributes"]
+				}
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Mixed.value",
+			"type": {
+				"kind": "literal",
+				"value": "\"value\"",
+				"typeName": {
+					"name": "value",
+					"namespaces": ["Mixed"]
+				}
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "Mixed.TypeHelpers.pressed",
+			"type": {
+				"kind": "literal",
+				"value": "\"data-pressed\"",
+				"typeName": {
+					"name": "pressed",
+					"namespaces": ["Mixed", "TypeHelpers"]
+				}
+			},
+			"documentation": {
+				"description": "Present when pressed.",
+				"tags": []
+			},
+			"isValue": false,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "Mixed.TypeHelpers.depth",
+			"type": {
+				"kind": "literal",
+				"value": 2,
+				"typeName": {
+					"name": "depth",
+					"namespaces": ["Mixed", "TypeHelpers"]
+				}
+			},
+			"isValue": false,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "Mixed.TypeHelpers.ButtonDataAttribute",
+			"type": {
+				"kind": "literal",
+				"value": "\"data-pressed\"",
+				"typeName": {
+					"name": "ButtonDataAttribute",
+					"namespaces": ["Mixed", "TypeHelpers"]
+				}
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Mixed.Types.Name",
+			"type": {
+				"kind": "intrinsic",
+				"typeName": {
+					"name": "Name",
+					"namespaces": ["Mixed", "Types"]
+				},
+				"intrinsic": "string"
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Mixed.Runtime.flag",
+			"type": {
+				"kind": "literal",
+				"value": "true",
+				"typeName": {
+					"name": "flag",
+					"namespaces": ["Mixed", "Runtime"]
+				}
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "TypeOnly.Button",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "Button",
+					"namespaces": ["TypeOnly"]
+				},
+				"callSignatures": [
+					{
+						"parameters": [],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						}
+					}
+				]
+			},
+			"isValue": false,
+			"isType": false,
+			"isNamespace": true
+		},
+		{
+			"name": "TypeOnly.Button.Size",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "Size",
+					"namespaces": ["TypeOnly", "Button"]
+				},
+				"types": [
+					{
+						"kind": "literal",
+						"value": "\"small\""
+					},
+					{
+						"kind": "literal",
+						"value": "\"large\""
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "TypeOnly.ButtonDataAttributes.pressed",
+			"type": {
+				"kind": "literal",
+				"value": "\"data-pressed\"",
+				"typeName": {
+					"name": "pressed",
+					"namespaces": ["TypeOnly", "ButtonDataAttributes"]
+				}
+			},
+			"documentation": {
+				"description": "Present when pressed.",
+				"tags": []
+			},
+			"isValue": false,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "TypeOnly.ButtonDataAttributes.depth",
+			"type": {
+				"kind": "literal",
+				"value": 2,
+				"typeName": {
+					"name": "depth",
+					"namespaces": ["TypeOnly", "ButtonDataAttributes"]
+				}
+			},
+			"isValue": false,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "TypeOnly.ButtonDataAttributes.ButtonDataAttribute",
+			"type": {
+				"kind": "literal",
+				"value": "\"data-pressed\"",
+				"typeName": {
+					"name": "ButtonDataAttribute",
+					"namespaces": ["TypeOnly", "ButtonDataAttributes"]
+				}
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	],
+	"namespaceReexports": [
+		{
+			"name": "ButtonDataAttributes",
+			"isValue": true,
+			"members": [
+				{
+					"name": "pressed",
+					"isValue": true,
+					"isType": false,
+					"isNamespace": false
+				},
+				{
+					"name": "depth",
+					"isValue": true,
+					"isType": false,
+					"isNamespace": false
+				},
+				{
+					"name": "ButtonDataAttribute",
+					"isValue": false,
+					"isType": true,
+					"isNamespace": false
+				}
+			]
+		},
+		{
+			"name": "Toolbar",
+			"isValue": true,
+			"members": [
+				{
+					"name": "Button",
+					"isValue": true,
+					"isType": false,
+					"isNamespace": true
+				},
+				{
+					"name": "ButtonDataAttributes",
+					"isValue": true,
+					"isType": false,
+					"isNamespace": true
+				}
+			]
+		},
+		{
+			"name": "Toolbar.ButtonDataAttributes",
+			"isValue": true,
+			"members": [
+				{
+					"name": "pressed",
+					"isValue": true,
+					"isType": false,
+					"isNamespace": false
+				},
+				{
+					"name": "depth",
+					"isValue": true,
+					"isType": false,
+					"isNamespace": false
+				},
+				{
+					"name": "ButtonDataAttribute",
+					"isValue": false,
+					"isType": true,
+					"isNamespace": false
+				}
+			]
+		},
+		{
+			"name": "Mixed",
+			"isValue": true,
+			"members": [
+				{
+					"name": "value",
+					"isValue": true,
+					"isType": false,
+					"isNamespace": false
+				},
+				{
+					"name": "TypeHelpers",
+					"isValue": false,
+					"isType": false,
+					"isNamespace": true
+				},
+				{
+					"name": "Types",
+					"isValue": false,
+					"isType": false,
+					"isNamespace": true
+				},
+				{
+					"name": "Runtime",
+					"isValue": true,
+					"isType": false,
+					"isNamespace": true
+				}
+			]
+		},
+		{
+			"name": "Mixed.TypeHelpers",
+			"isValue": false,
+			"members": [
+				{
+					"name": "pressed",
+					"isValue": false,
+					"isType": false,
+					"isNamespace": false
+				},
+				{
+					"name": "depth",
+					"isValue": false,
+					"isType": false,
+					"isNamespace": false
+				},
+				{
+					"name": "ButtonDataAttribute",
+					"isValue": false,
+					"isType": true,
+					"isNamespace": false
+				}
+			]
+		},
+		{
+			"name": "TypeOnly",
+			"isValue": false,
+			"members": [
+				{
+					"name": "Button",
+					"isValue": false,
+					"isType": false,
+					"isNamespace": true
+				},
+				{
+					"name": "ButtonDataAttributes",
+					"isValue": false,
+					"isType": false,
+					"isNamespace": true
+				}
+			]
+		},
+		{
+			"name": "TypeOnly.ButtonDataAttributes",
+			"isValue": false,
+			"members": [
+				{
+					"name": "pressed",
+					"isValue": false,
+					"isType": false,
+					"isNamespace": false
+				},
+				{
+					"name": "depth",
+					"isValue": false,
+					"isType": false,
+					"isNamespace": false
+				},
+				{
+					"name": "ButtonDataAttribute",
+					"isValue": false,
+					"isType": true,
+					"isNamespace": false
+				}
+			]
+		}
+	]
+}

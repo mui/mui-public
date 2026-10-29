@@ -3,13 +3,24 @@ import { getDeclarationSpaces } from './declarationSpaces';
 import { getExportReach } from './exportValuePaths';
 import type { ScopedParserContext } from '../parserContext';
 import { ParserError } from '../ParserError';
-import type { DeclarationSpaces, ExtendsTypeInfo } from '../models';
+import type {
+  DeclarationSpaces,
+  ExtendsTypeInfo,
+  NamespaceReexport,
+  NamespaceReexportMember,
+} from '../models';
 import { isInternalSymbolName } from './common';
 import { declarationHasNodeModulesPathSegment } from './sourceFileUtils';
 import { analyzeTypeAliasSource } from './typeResolvers/authoredTypeAlias';
 
-interface ExportDescriptorResolutionState {
+/**
+ * State shared across one top-level resolution.
+ */
+export interface ExportDescriptorResolutionState {
+  /** The type-resolution order assigned to the next descriptor. */
   nextTypeResolutionOrder: number;
+  /** Namespace re-exports reached so far, outer ones first. */
+  namespaceReexports: NamespaceReexport[];
 }
 
 /**
@@ -24,6 +35,8 @@ interface ExportDescriptorScope {
   parentNamespaces: string[];
   symbolScope: string[];
   resolutionState: ExportDescriptorResolutionState;
+  /** Whether the export, or a namespace containing it, is reached only through type-only sites. */
+  isTypeOnly: boolean;
 }
 
 /**
@@ -82,8 +95,10 @@ export interface ExportDescriptorOptions {
   parentNamespaces?: string[];
   /** Symbol-stack entries from enclosing exports, extended with this symbol's name for warning metadata. */
   parentSymbolScope?: string[];
-  /** Mutable counter shared across one top-level resolution that assigns each descriptor its type-resolution order. */
+  /** Mutable state shared across one top-level resolution: the type-resolution order counter and the namespace re-exports reached. */
   resolutionState?: ExportDescriptorResolutionState;
+  /** Whether the namespace listing the export is itself reached only through type-only sites. */
+  isInTypeOnlyNamespace?: boolean;
   /**
    * The module or namespace listing the export, which decides whether it is reached
    * as a value, as a type only, or not at all. Without it, only the export symbol's
@@ -110,8 +125,9 @@ export function resolveExportDescriptors(
   {
     parentNamespaces = [],
     parentSymbolScope = [],
-    resolutionState = { nextTypeResolutionOrder: 0 },
+    resolutionState = { nextTypeResolutionOrder: 0, namespaceReexports: [] },
     containerSymbol,
+    isInTypeOnlyNamespace = false,
   }: ExportDescriptorOptions = {},
 ): ExportDescriptor[] | undefined {
   return context.runWithSymbolScope(exportSymbol.name, () => {
@@ -126,6 +142,7 @@ export function resolveExportDescriptors(
         parentNamespaces,
         symbolScope: [...parentSymbolScope, exportSymbol.name],
         resolutionState,
+        isTypeOnly: isInTypeOnlyNamespace || reach === 'typeOnly',
       };
 
       const declarations = exportSymbol.declarations;
@@ -179,7 +196,8 @@ export function resolveExportDescriptors(
  * Handles `export * as Name from './module'` namespace re-exports.
  *
  * Example: `export * as Component from './parts'` gives every member from
- * `./parts` the parent namespace `Component`.
+ * `./parts` the parent namespace `Component`, and records the namespace with
+ * every export of `./parts`, including those that produce no descriptor.
  *
  * @param exportSymbol The `export * as Name` alias symbol.
  * @param scope Current resolution scope (checker/scope helpers, namespace path, symbol scope, order counter).
@@ -188,14 +206,52 @@ function resolveNamespaceExportDescriptors(
   exportSymbol: ts.Symbol,
   scope: ExportDescriptorScope,
 ): ExportDescriptor[] | undefined {
-  const aliasedSymbol = scope.context.checker.getAliasedSymbol(exportSymbol);
+  const { checker } = scope.context;
+  const aliasedSymbol = checker.getAliasedSymbol(exportSymbol);
   if (!aliasedSymbol) {
     return undefined;
   }
 
+  scope.resolutionState.namespaceReexports.push({
+    name: [...scope.parentNamespaces, exportSymbol.name].join('.'),
+    isValue: !scope.isTypeOnly,
+    members: checker
+      .getExportsOfModule(aliasedSymbol)
+      .flatMap((member) => getNamespaceReexportMember(member, aliasedSymbol, scope)),
+  });
+
   return asNonEmptyDescriptors(
     resolveNamespaceMemberDescriptors(aliasedSymbol, exportSymbol.name, scope),
   );
+}
+
+/**
+ * Describes one export of a re-exported module with the declaration spaces it
+ * is reached with, or nothing when type-only sites hide it.
+ *
+ * @param member The export symbol as the module lists it.
+ * @param moduleSymbol The re-exported module.
+ * @param scope Resolution scope of the namespace re-export.
+ */
+function getNamespaceReexportMember(
+  member: ts.Symbol,
+  moduleSymbol: ts.Symbol,
+  scope: ExportDescriptorScope,
+): NamespaceReexportMember[] {
+  const { checker } = scope.context;
+  const reach = getExportReach(member, moduleSymbol, checker);
+  if (reach === 'hidden') {
+    return [];
+  }
+
+  const declarationSpaces = getDeclarationSpaces(member, checker);
+  return [
+    {
+      name: member.name,
+      ...declarationSpaces,
+      isValue: declarationSpaces.isValue && reach === 'value' && !scope.isTypeOnly,
+    },
+  ];
 }
 
 /**
@@ -335,7 +391,37 @@ function resolveDeclarationExportDescriptor(
     return resolveTypeAliasExportDescriptor(exportSymbol, exportDeclaration, scope);
   }
 
-  return undefined;
+  return resolveSymbolExportDescriptor(exportSymbol, scope);
+}
+
+/**
+ * Handles exports whose declaration has no dedicated builder, or no name to
+ * resolve a symbol from, by reading the type straight off the export symbol.
+ *
+ * Example: `export default function () {}`, `export default class {}`, and
+ * the bindings of `export const { helper } = helpers` are exported values
+ * like any other, so they get an export rather than being skipped.
+ *
+ * @param exportSymbol The export symbol being normalized; it is also the documentation target.
+ * @param scope Current resolution scope.
+ */
+function resolveSymbolExportDescriptor(
+  exportSymbol: ts.Symbol,
+  scope: ExportDescriptorScope,
+): ExportDescriptorDraft {
+  const { context, parentNamespaces, symbolScope, resolutionState } = scope;
+  const { checker } = context;
+  return {
+    name: exportSymbol.name,
+    symbol: exportSymbol,
+    getType: () =>
+      getDeclarationSpaces(exportSymbol, checker).isValue
+        ? checker.getTypeOfSymbol(exportSymbol)
+        : checker.getDeclaredTypeOfSymbol(exportSymbol),
+    parentNamespaces,
+    typeResolutionOrder: getNextTypeResolutionOrder(resolutionState),
+    symbolScope,
+  };
 }
 
 /**
@@ -386,7 +472,7 @@ function resolveValueExportDescriptor(
   scope: ExportDescriptorScope,
 ): ExportDescriptorDraft | undefined {
   if (!exportDeclaration.name) {
-    return undefined;
+    return resolveSymbolExportDescriptor(exportSymbol, scope);
   }
 
   const { context, parentNamespaces, symbolScope, resolutionState } = scope;
@@ -491,7 +577,7 @@ function resolveClassExportDescriptor(
   scope: ExportDescriptorScope,
 ): ExportDescriptorDraft | undefined {
   if (!exportDeclaration.name) {
-    return undefined;
+    return resolveSymbolExportDescriptor(exportSymbol, scope);
   }
 
   const { context, parentNamespaces, symbolScope, resolutionState } = scope;
@@ -656,7 +742,7 @@ function resolveNamespaceMemberDescriptors(
   namespaceExportName: string,
   scope: ExportDescriptorScope,
 ): ExportDescriptor[] {
-  const { context, parentNamespaces, symbolScope, resolutionState } = scope;
+  const { context, parentNamespaces, symbolScope, resolutionState, isTypeOnly } = scope;
   const namespaceMembers = context.checker.getExportsOfModule(namespaceSymbol);
   const descriptors: ExportDescriptor[] = [];
 
@@ -666,6 +752,7 @@ function resolveNamespaceMemberDescriptors(
       parentSymbolScope: symbolScope,
       resolutionState,
       containerSymbol: namespaceSymbol,
+      isInTypeOnlyNamespace: isTypeOnly,
     });
     if (memberDescriptors) {
       descriptors.push(...memberDescriptors);

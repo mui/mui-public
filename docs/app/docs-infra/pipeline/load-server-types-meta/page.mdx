@@ -139,7 +139,7 @@ Type extraction is offloaded to a dedicated worker thread. Inside the worker:
 - **Creates an optimized TypeScript program** using an in-memory `LanguageServiceHost` singleton that caches file contents and tracks versions for incremental updates
 - **Parses exports** using `typescript-api-extractor`'s `parseFromProgram`, which extracts components, hooks, functions, classes, type aliases, and interfaces with their full type trees
 - **Builds a type name map** from flat export names to their dotted equivalents (for example, `AccordionRootState` → `Accordion.Root.State`), only when both the flat and dotted names exist as exports
-- **Folds constant namespaces** — the parser flattens `export * as Name from './module'` into one export per member; when the module's value exports are all literal constants (type-only exports are ignored), the members are collapsed back into a single [constant group](#constant-groups) named `Name`
+- **Folds constant namespaces** — the parser flattens `export * as Name from './module'` into one export per member, and lists every export of the module in `namespaceReexports`. When each of the module's runtime exports is a literal constant, those members are collapsed back into a single [constant group](#constant-groups) named `Name`. Type-only exports next to them, such as `export type ButtonDataAttribute = typeof pressed` or `export type * as Helpers`, stay as typing helpers; any other runtime export, such as a function, an anonymous default export, or a namespace holding values, keeps the module from folding
 - **Collects dependencies** by walking the import graph from each entrypoint for HMR file watching
 - **Strips functions** from the result for serialization across the worker boundary (structured clone can't handle functions)
 
@@ -210,7 +210,7 @@ For single-variant exports with subcomponents (for example, `Accordion.Root`, `A
 
 Grouping only activates when there are actual subcomponents — 2-part names that are components, hooks, functions, or classes (not just raw type suffixes like `Button.Props`). Once active:
 
-- **3+ part names** (for example, `Accordion.Root.State`): grouped under the first two parts (`Accordion.Root`)
+- **3+ part names** (for example, `Accordion.Root.State`): grouped under the first two parts (`Accordion.Root`), unless those name a raw type: then they stay with it, so `Toolbar.ButtonDataAttributes.ButtonDataAttribute` stays next to the `Toolbar.ButtonDataAttributes` [constant group](#constant-groups) in the "Default" group
 - **2-part component/hook/function/class** (for example, `Accordion.Root`): becomes its own group
 - **2-part raw types** (for example, `Toolbar.Orientation`): remain in the "Default" group
 - **1-part names** (for example, `DirectionProvider`): remain in the "Default" group

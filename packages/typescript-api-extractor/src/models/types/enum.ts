@@ -19,7 +19,8 @@ export class EnumNode implements TypeNode {
 export class EnumMember {
   constructor(
     public name: string,
-    public value: string,
+    /** The member's value: a string or number, or none for a member computed at runtime. */
+    public value: string | number | undefined,
     public documentation: Documentation | undefined,
   ) {}
 }

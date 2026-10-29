@@ -1,13 +1,20 @@
 import type ts from 'typescript';
 import { ExportNode, TypeName, withTypeName } from '../models';
-import type { AnyType } from '../models';
+import type { AnyType, NamespaceReexport } from '../models';
 import { ParserError } from '../ParserError';
 import type { ScopedParserContext } from '../parserContext';
 import { isInternalSymbolName } from './common';
 import { getDocumentationFromSymbol } from './documentationParser';
 import { resolveExportDescriptors } from './exportDescriptors';
-import type { ExportDescriptor } from './exportDescriptors';
+import type { ExportDescriptor, ExportDescriptorResolutionState } from './exportDescriptors';
 import { resolveType } from './typeResolver';
+
+/** What one module export symbol contributes to its module's output. */
+export interface ParsedExport {
+  exports: ExportNode[];
+  /** The namespace re-exports reached through the export, outer ones first. */
+  namespaceReexports: NamespaceReexport[];
+}
 
 /**
  * Converts one TypeScript module export symbol into output `ExportNode`s.
@@ -18,15 +25,19 @@ import { resolveType } from './typeResolver';
 export function parseExport(
   exportSymbol: ts.Symbol,
   parserContext: ScopedParserContext,
-  parentNamespaces: string[] = [],
   containerSymbol?: ts.Symbol,
-): ExportNode[] | undefined {
+): ParsedExport {
+  const resolutionState: ExportDescriptorResolutionState = {
+    nextTypeResolutionOrder: 0,
+    namespaceReexports: [],
+  };
   const descriptors = resolveExportDescriptors(exportSymbol, parserContext, {
-    parentNamespaces,
+    resolutionState,
     containerSymbol,
   });
+  const { namespaceReexports } = resolutionState;
   if (!descriptors) {
-    return undefined;
+    return { exports: [], namespaceReexports };
   }
 
   const nodesByDescriptor = new Map<ExportDescriptor, ExportNode[] | undefined>();
@@ -40,7 +51,7 @@ export function parseExport(
   // observable in authored union member order.
   const exports = descriptors.flatMap((descriptor) => nodesByDescriptor.get(descriptor) ?? []);
 
-  return exports.length > 0 ? exports : undefined;
+  return { exports, namespaceReexports };
 }
 
 /**

@@ -27,3 +27,16 @@ export enum DegenerateN {
 export enum DegenerateS {
 	theOnlyItem = 'one',
 }
+
+// The type of one member is a literal of its value, named after the member.
+export const leftSide = Side.left;
+
+export const secondFlag = Flags.flag2;
+
+export interface MemberProps {
+	side: Side.right;
+	sides: Side.left | Side.right;
+}
+
+// An enum with a single member has the same type as that member, so it stays the enum.
+export const onlyItem = DegenerateS.theOnlyItem;

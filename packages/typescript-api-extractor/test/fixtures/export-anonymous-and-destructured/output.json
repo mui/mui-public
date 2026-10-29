@@ -1,0 +1,125 @@
+{
+	"name": "test/fixtures/export-anonymous-and-destructured/input",
+	"exports": [
+		{
+			"name": "default",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "default"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"name": "value",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "number"
+						}
+					}
+				]
+			},
+			"documentation": {
+				"description": "A default function without a name.",
+				"tags": []
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "helper",
+			"type": {
+				"kind": "function",
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "number"
+								},
+								"name": "value",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "number"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "label",
+			"type": {
+				"kind": "literal",
+				"value": "\"label\""
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "Anonymous.default",
+			"type": {
+				"kind": "class",
+				"typeName": {
+					"name": "default",
+					"namespaces": ["Anonymous"]
+				},
+				"constructSignatures": [
+					{
+						"parameters": []
+					}
+				],
+				"properties": [
+					{
+						"name": "size",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "number"
+						},
+						"optional": false,
+						"readonly": false,
+						"isStatic": false
+					}
+				],
+				"methods": []
+			},
+			"documentation": {
+				"description": "A default class without a name.",
+				"tags": []
+			},
+			"isValue": true,
+			"isType": true,
+			"isNamespace": false
+		}
+	],
+	"namespaceReexports": [
+		{
+			"name": "Anonymous",
+			"isValue": true,
+			"members": [
+				{
+					"name": "default",
+					"isValue": true,
+					"isType": true,
+					"isNamespace": false
+				}
+			]
+		}
+	]
+}
