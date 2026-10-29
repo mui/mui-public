@@ -26,6 +26,11 @@ const TYPES_MARKDOWN = `# Button API
 | Prop      | Type                     | Default | Description    |
 | :-------- | :----------------------- | :------ | :------------- |
 | container | \`Theme \\| null\` | -       | The container. |
+| anchor    | \`Anchor\`               | -       | The anchor.    |
+
+## External Type Sources
+
+- \`Theme\`: \`theme-lib\`
 `;
 
 function TypesTable({ type }: TypesTableProps<{}>) {
@@ -55,6 +60,7 @@ async function getButtonTypesMarkup(
         additionalTypes: types.additionalTypes,
         variantOnlyAdditionalTypes: types.variantOnlyAdditionalTypes,
         anchorMap: types.anchorMap,
+        externalTypeSources: types.externalTypeSources,
       },
     },
   );
@@ -67,12 +73,25 @@ describe('abstractCreateTypes', () => {
   });
 
   describe('resolveExternalLink', () => {
-    it('links types the page does not document', async () => {
-      const markup = await getButtonTypesMarkup((name) =>
-        name === 'Theme' ? 'https://example.com/theme' : null,
+    it('links types the page does not document, with where they are declared', async () => {
+      const markup = await getButtonTypesMarkup((name, source) =>
+        name === 'Theme' && source.kind === 'package' && source.name === 'theme-lib'
+          ? 'https://example.com/theme'
+          : null,
       );
 
       expect(markup).toContain('<a href="https://example.com/theme"');
+    });
+
+    it('only resolves types with a recorded declaration', async () => {
+      const resolved: string[] = [];
+      await getButtonTypesMarkup((name) => {
+        resolved.push(name);
+        return null;
+      });
+
+      expect(resolved).not.toContain('Anchor');
+      expect(resolved).not.toContain('null');
     });
 
     it('leaves types the page does not document unlinked by default', async () => {

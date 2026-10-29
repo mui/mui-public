@@ -58,3 +58,10 @@ type CreateDemoClientMeta<C extends DefaultController> = {
   controllerProps?: {};
 };
 ```
+
+## External Type Sources
+
+Maps `Type`: `Declaration` — the TypeScript lib files (`lib.*.d.ts`) or the package that declares a type the page references.
+
+- `React.ComponentType`: `@types/react`
+- `React.ReactNode`: `@types/react`

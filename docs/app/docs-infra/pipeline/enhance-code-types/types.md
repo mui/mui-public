@@ -33,14 +33,14 @@ type ReturnValue = (tree: Root) => void;
 
 ### ResolveExternalLink
 
-Resolves a type name, and where it is declared when known, to a link or `null`.
+Resolves a type name and where it is declared to a link, or `null` to leave it unlinked.
 
 **Parameters:**
 
 | Parameter | Type                 | Default | Description |
 | :-------- | :------------------- | :------ | :---------- |
 | name      | `string`             | -       | -           |
-| source?   | `ExternalTypeSource` | -       | -           |
+| source    | `ExternalTypeSource` | -       | -           |
 
 **Return Value:**
 
@@ -74,12 +74,19 @@ type EnhanceCodeTypesOptions = {
   /**
    * Resolves type names that `linkMap` does not know to documentation elsewhere,
    * such as the docs of a dependency.
-   * Return `null` to leave a name unlinked. The plugin does not pass `source` yet.
+   * Only names listed in `externalTypeSources` are resolved, with their source.
+   * Return `null` to leave a name unlinked.
    *
    * Only the type name itself is linked. External links never act as owners for
    * property or parameter anchors.
    */
   resolveExternalLink?: ResolveExternalLink;
+  /**
+   * Where the external types in the code are declared, keyed by the name they are printed as,
+   * such as `HTMLElement` or `React.ReactNode`. Names missing from it are never passed to
+   * `resolveExternalLink`: code a page declares itself, globals such as `console`, and keywords.
+   */
+  externalTypeSources?: Record<string, ExternalTypeSource>;
   /**
    * When set, the plugin emits a custom component element instead of an `<a>` tag
    * for type/export name references.
@@ -203,12 +210,20 @@ type EnhanceCodeTypesOptions = {
 
 ### ExternalTypeSource
 
-Where a type documented elsewhere is declared.
+Where an external type is declared.
 
-- `lib`: TypeScript's default library, with the library files that declare the
-  type (for example `['lib.dom.d.ts']`).
-- `package`: an npm package, named after its directory under `node_modules`.
+- `lib`: TypeScript's default library, with the library files that declare
+  the type (for example `['lib.dom.d.ts']`).
+- `package`: an npm package, named after its directory under `node_modules`
+  (for example `'@types/react'`).
 
 ```typescript
 type ExternalTypeSource = { kind: 'lib'; files: string[] } | { kind: 'package'; name: string };
 ```
+
+## External Type Sources
+
+Maps `Type`: `Declaration` — the TypeScript lib files (`lib.*.d.ts`) or the package that declares a type the page references.
+
+- `Record`: `lib.es5.d.ts`
+- `Root`: `@types/hast`

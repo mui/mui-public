@@ -858,3 +858,17 @@ type UseCoordinatedSwapResult = {
 - `useCoordinatedContent`: `CoordinatedLazy`, `createCoordinatedLazy`, `useChunk`, `useCoordinatedSwap`, `useCoordinatedFallback`, `LazyContent`, `LazyContentServer`, `ChunkServerLoader`, `resolveChunkRender`, `CoordinatedFallbackContext`, `CoordinatedContentContext`, `useCoordinatedContent`, `CoordinatedGateContext`, `useCoordinatedGate`, `UseChunkResult`, `CoordinatedLazyProps`, `CoordinatedFallbackContextValue`, `CoordinatedContentContextValue`, `UseCoordinatedFallbackResult`, `UseCoordinatedSwapOptions`, `UseCoordinatedSwapResult`, `ChunkContentProps`, `ChunkLoadingProps`, `ChunkComponentProps`, `StreamSource`, `StreamUrlsResult`, `ChunkSwapConfig`, `CreateChunkConfig`, `IsLoaded`, `IsInitial`, `ChunkRenderMode`, `ChunkRenderInputs`, `ChunkRenderDecision`, `LazyContentProps`, `LazyComponentImport`
 - `useCoordinatedSwap`: `CoordinatedLazy`, `createCoordinatedLazy`, `useChunk`, `useCoordinatedSwap`, `useCoordinatedFallback`, `LazyContent`, `LazyContentServer`, `ChunkServerLoader`, `resolveChunkRender`, `CoordinatedFallbackContext`, `CoordinatedContentContext`, `useCoordinatedContent`, `CoordinatedGateContext`, `useCoordinatedGate`, `UseChunkResult`, `CoordinatedLazyProps`, `CoordinatedFallbackContextValue`, `CoordinatedContentContextValue`, `UseCoordinatedFallbackResult`, `UseCoordinatedSwapOptions`, `UseCoordinatedSwapResult`, `ChunkContentProps`, `ChunkLoadingProps`, `ChunkComponentProps`, `StreamSource`, `StreamUrlsResult`, `ChunkSwapConfig`, `CreateChunkConfig`, `IsLoaded`, `IsInitial`, `ChunkRenderMode`, `ChunkRenderInputs`, `ChunkRenderDecision`, `LazyContentProps`, `LazyComponentImport`
 - `LazyContent`: `CoordinatedLazy`, `createCoordinatedLazy`, `useChunk`, `useCoordinatedSwap`, `useCoordinatedFallback`, `LazyContent`, `LazyContentServer`, `ChunkServerLoader`, `resolveChunkRender`, `CoordinatedFallbackContext`, `CoordinatedContentContext`, `useCoordinatedContent`, `CoordinatedGateContext`, `useCoordinatedGate`, `UseChunkResult`, `CoordinatedLazyProps`, `CoordinatedFallbackContextValue`, `CoordinatedContentContextValue`, `UseCoordinatedFallbackResult`, `UseCoordinatedSwapOptions`, `UseCoordinatedSwapResult`, `ChunkContentProps`, `ChunkLoadingProps`, `ChunkComponentProps`, `StreamSource`, `StreamUrlsResult`, `ChunkSwapConfig`, `CreateChunkConfig`, `IsLoaded`, `IsInitial`, `ChunkRenderMode`, `ChunkRenderInputs`, `ChunkRenderDecision`, `LazyContentProps`, `LazyComponentImport`
+
+## External Type Sources
+
+Maps `Type`: `Declaration` — the TypeScript lib files (`lib.*.d.ts`) or the package that declares a type the page references.
+
+- `AbortSignal`: `lib.dom.d.ts`
+- `AsyncGenerator`: `lib.es2018.asyncgenerator.d.ts`
+- `Promise`: `lib.es2015.iterable.d.ts`, `lib.es2015.promise.d.ts`, `lib.es2015.symbol.wellknown.d.ts`, `lib.es2018.promise.d.ts`, `lib.es5.d.ts`
+- `React.ComponentType`: `@types/react`
+- `React.Context`: `@types/react`
+- `React.ReactNode`: `@types/react`
+- `ReactElement`: `@types/react`
+- `Record`: `lib.es5.d.ts`
+- `URL`: `lib.dom.d.ts`

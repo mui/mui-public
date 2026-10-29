@@ -123,7 +123,7 @@ See [`useType`](../../hooks/use-type/page.mdx) for how to build an interactive `
 
 ### resolveExternalLink Option
 
-Types documented elsewhere, such as types from a dependency, can be linked with `resolveExternalLink`. It receives each type name in JavaScript and TypeScript code that the `linkMap` does not know and returns a URL, or `null` to leave the name unlinked. Its optional second argument, where the type is declared, is not passed yet:
+Types documented elsewhere, such as types from a dependency, can be linked with `resolveExternalLink`. It only resolves names listed in `externalTypeSources`, which records where each external type is declared: TypeScript's lib files (`{ kind: 'lib', files: ['lib.dom.d.ts'] }`) or a package (`{ kind: 'package', name: 'theme-lib' }`). The types factory fills it in from the type extractor. The resolver receives the name and its source, and returns a URL, or `null` to leave the name unlinked:
 
 ```typescript
 const externalDocs: Record<string, string> = {
@@ -134,12 +134,18 @@ const processor = unified()
   .use(rehypeParse, { fragment: true })
   .use(enhanceCodeTypes, {
     linkMap,
-    resolveExternalLink: (name) => externalDocs[name] ?? null,
+    externalTypeSources: { Theme: { kind: 'package', name: 'theme-lib' } },
+    resolveExternalLink: (name, source) =>
+      source.kind === 'package' && source.name === 'theme-lib'
+        ? (externalDocs[name] ?? null)
+        : null,
   })
   .use(rehypeStringify);
 ```
 
-Only the type name is linked. Unlike `linkMap` entries, external links never act as owners for property or parameter links, so in `const theme: Theme = { mode: 'dark' }` the `mode` property stays unlinked. Names declared or bound in the code itself are not resolved either.
+Names without a recorded declaration are never passed to the resolver: types the code declares itself, globals such as `console`, and keywords such as `null`. A name with a source can still be one the resolver does not know, so look names up and return `null` for the rest, rather than building a URL from every name.
+
+Only the type name is linked. Unlike `linkMap` entries, external links never act as owners for property or parameter links, so in `const theme: Theme = { mode: 'dark' }` the `mode` property stays unlinked.
 
 ---
 

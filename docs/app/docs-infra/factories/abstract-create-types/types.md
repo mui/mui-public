@@ -242,6 +242,7 @@ type TypesTableMeta = {
     variantTypeNames?: Record<string, string[]>;
     singleComponentName?: string;
     anchorMap?: { js?: Record<string, string>; css?: Record<string, string> };
+    externalTypeSources?: Record<string, ExternalTypeSource>;
   };
   name?: string;
   displayName?: string;
@@ -370,6 +371,15 @@ type TypesTableMeta = {
 ```typescript
 type ResolveExternalLink = (
   name: string,
-  source?: { kind: 'lib'; files: unknown } | { kind: 'package'; name: string } | undefined,
+  source: { kind: 'lib'; files: unknown } | { kind: 'package'; name: string },
 ) => string | null;
 ```
+
+## External Type Sources
+
+Maps `Type`: `Declaration` — the TypeScript lib files (`lib.*.d.ts`) or the package that declares a type the page references.
+
+- `PluggableList`: `unified`
+- `React.ComponentType`: `@types/react`
+- `React.ReactNode`: `@types/react`
+- `Record`: `lib.es5.d.ts`

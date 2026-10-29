@@ -1,6 +1,7 @@
 // Can use node: imports here since this is server-only code
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import type { ExternalTypeSource } from '@mui/internal-typescript-api-extractor';
 
 import { extractNameAndSlugFromUrl } from '../loaderUtils';
 import { nameMark, performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
@@ -156,6 +157,12 @@ export interface LoadServerTypesMetaResult extends OrganizeTypesResult<TypesMeta
    * Map from type name to its definition string.
    */
   externalTypes: Record<string, string>;
+  /**
+   * Where the external types in the formatted output are declared, keyed by the name they are
+   * printed as, such as `HTMLElement` from `lib.dom.d.ts` or `React.ReactNode` from
+   * `@types/react`.
+   */
+  externalTypeSources: Record<string, ExternalTypeSource>;
   /** Resource name derived from the types path */
   resourceName: string;
 }
@@ -267,6 +274,7 @@ export async function loadServerTypesMeta(
   // External types are collected during formatting as type names are encountered
   // in the formatted output, eliminating the need for a separate tree walk + filtering step.
   const collectedExternalTypes = new Map<string, ExternalTypeMeta>();
+  const collectedExternalTypeSources = new Map<string, ExternalTypeSource | null>();
 
   // Parse external types pattern once if provided
   const externalTypesPatternRegex = options.externalTypesPattern
@@ -302,6 +310,7 @@ export async function loadServerTypesMeta(
       // Each variant shares the same collected map so types are deduplicated automatically.
       const externalTypesCollector: ExternalTypesCollector = {
         collected: collectedExternalTypes,
+        sources: collectedExternalTypeSources,
         allExports: variantResult.exports,
         pattern: externalTypesPatternRegex,
         typeNameMap: variantResult.typeNameMap,
@@ -678,6 +687,15 @@ export async function loadServerTypesMeta(
     }),
   );
 
+  const externalTypeSources: Record<string, ExternalTypeSource> = {};
+  for (const [name, source] of [...collectedExternalTypeSources].sort(([left], [right]) =>
+    left.localeCompare(right),
+  )) {
+    if (source) {
+      externalTypeSources[name] = source;
+    }
+  }
+
   performanceMeasure(
     currentMark,
     { mark: 'complete', measure: 'total processing' },
@@ -692,6 +710,7 @@ export async function loadServerTypesMeta(
     allDependencies,
     typeNameMap,
     externalTypes,
+    externalTypeSources,
     resourceName,
     exports: organized.exports,
     additionalTypes: organized.additionalTypes,

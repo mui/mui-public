@@ -51,6 +51,8 @@ This is the shared contract consumed by loadServerTypes.
 type TypesSourceData = {
   /** External types discovered in the file */
   externalTypes: Record<string, string>;
+  /** Where the external types referenced in the file are declared, keyed by printed name */
+  externalTypeSources: Record<string, ExternalTypeSource>;
   /**
    * Type name map (merged across all variants).
    * Maps flat names (like "AccordionTriggerState") to dotted names (like "Accordion.Trigger.State").
@@ -83,3 +85,10 @@ type TypesSourceData = {
   variantTypeNameMaps: Record<string, Record<string, string>>;
 };
 ```
+
+## External Type Sources
+
+Maps `Type`: `Declaration` — the TypeScript lib files (`lib.*.d.ts`) or the package that declares a type the page references.
+
+- `Promise`: `lib.es2015.iterable.d.ts`, `lib.es2015.promise.d.ts`, `lib.es2015.symbol.wellknown.d.ts`, `lib.es2018.promise.d.ts`, `lib.es5.d.ts`
+- `Record`: `lib.es5.d.ts`

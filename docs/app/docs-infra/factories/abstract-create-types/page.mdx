@@ -276,7 +276,7 @@ This option can be set at the factory level (applies to all types) or overridden
 
 ## resolveExternalLink
 
-The `resolveExternalLink` option links types that the page does not document, such as types from a dependency. It is passed to [`enhanceCodeTypes`](../../pipeline/enhance-code-types/page.mdx#resolveexternallink-option), which describes how names are resolved. Types documented on the page keep their page links.
+The `resolveExternalLink` option links types that the page does not document, such as types from a dependency. The factory passes it to [`enhanceCodeTypes`](../../pipeline/enhance-code-types/page.mdx#resolveexternallink-option) along with where each external type on the page is declared, as recorded by the type extractor in the "External Type Sources" section of `types.md`. Types documented on the page keep their page links.
 
 This option can be set at the factory level or overridden per type via `TypesTableMeta.resolveExternalLink`.
 

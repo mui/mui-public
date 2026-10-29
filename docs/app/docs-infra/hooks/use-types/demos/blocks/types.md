@@ -32,3 +32,9 @@ A simple component that displays a title and optional children.
 
 - `Component.Root`
 - `Component.Part`
+
+## External Type Sources
+
+Maps `Type`: `Declaration` — the TypeScript lib files (`lib.*.d.ts`) or the package that declares a type the page references.
+
+- `React.ReactNode`: `@types/react`

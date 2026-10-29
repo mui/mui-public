@@ -161,3 +161,11 @@ type SitemapSectionData = {
   detailsSectionTitle?: string;
 };
 ```
+
+## External Type Sources
+
+Maps `Type`: `Declaration` — the TypeScript lib files (`lib.*.d.ts`) or the package that declares a type the page references.
+
+- `Metadata`: `next`
+- `React.ComponentType`: `@types/react`
+- `Record`: `lib.es5.d.ts`

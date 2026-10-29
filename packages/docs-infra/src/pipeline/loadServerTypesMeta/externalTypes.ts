@@ -34,12 +34,55 @@ export interface ExternalTypeMeta {
 export interface ExternalTypesCollector {
   /** Map to accumulate results (type name -> ExternalTypeMeta) */
   collected: Map<string, ExternalTypeMeta>;
+  /**
+   * Where the external types in the formatted output are declared, keyed by the name they are
+   * printed as. `null` marks a name printed for types from different declarations.
+   */
+  sources: Map<string, tae.ExternalTypeSource | null>;
   /** All exports in the module, used to identify own types */
   allExports: tae.ExportNode[];
   /** Optional pattern to filter which external types to include */
   pattern?: RegExp;
   /** Map of original export names to dotted display names, used to identify renamed own types */
   typeNameMap?: Record<string, string>;
+}
+
+/**
+ * Records where an external type printed as `printedName` is declared, so the name can be
+ * linked to that declaration's docs. A name printed for two different declarations, such as
+ * the DOM `Range` and a package's `Range`, cannot tell them apart and is marked ambiguous.
+ */
+export function collectExternalTypeSource(
+  printedName: string,
+  source: tae.ExternalTypeSource | undefined,
+  collector: ExternalTypesCollector,
+): void {
+  if (!source) {
+    return;
+  }
+  const name = printedName.replace(/<.*$/s, '');
+  const existing = collector.sources.get(name);
+  if (existing === undefined) {
+    collector.sources.set(name, source);
+  } else if (existing !== null && JSON.stringify(existing) !== JSON.stringify(source)) {
+    collector.sources.set(name, null);
+  }
+}
+
+/**
+ * The source of an alias-named union that only adds `undefined` or `null` to one external type,
+ * as the extractor names optional props of an external type: `Intl.NumberFormat | undefined`
+ * keeps the name `Intl.NumberFormat`.
+ */
+export function getNamedUnionSource(type: tae.UnionNode): tae.ExternalTypeSource | undefined {
+  const members = type.types.filter(
+    (member) =>
+      !(
+        isIntrinsicType(member) &&
+        (member.intrinsic === 'undefined' || member.intrinsic === 'null')
+      ),
+  );
+  return members.length === 1 && isExternalType(members[0]) ? members[0].source : undefined;
 }
 
 /**

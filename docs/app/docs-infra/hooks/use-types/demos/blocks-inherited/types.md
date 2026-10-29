@@ -63,3 +63,9 @@ Maps `Canonical`: `Alias` — Use Canonical when its namespace is already import
 - `AlertDialog.Trigger.Props`: `AlertDialogTriggerProps`
 - `AlertDialog.Trigger.State`: `AlertDialogTriggerState`
 - `AlertDialog.Close.Props`: `AlertDialogCloseProps`
+
+## External Type Sources
+
+Maps `Type`: `Declaration` — the TypeScript lib files (`lib.*.d.ts`) or the package that declares a type the page references.
+
+- `React.ReactNode`: `@types/react`

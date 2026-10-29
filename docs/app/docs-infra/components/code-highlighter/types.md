@@ -1359,3 +1359,15 @@ type VariantSource = string | HastRoot | { hastJson: string } | { hastCompressed
 
 - `CodeHighlighter`: `useCodeFallback`, `UseCodeFallbackResult`, `mergeComments`, `CodeHighlighter`
 - `CodeHighlighterTypes`: `Components`, `EditableSourceProjection`, `Transforms`, `ExternalImportItem`, `Externals`, `HastRoot`, `VariantSource`, `VariantExtraFiles`, `VariantCode`, `Code`, `CollapseMap`, `ControlledVariantExtraFiles`, `ControlledVariantCode`, `ControlledCode`, `ContentProps`, `Fallbacks`, `ContentLoadingFile`, `ContentLoadingVariant`, `BaseContentLoadingProps`, `ContentLoadingProps`, `LoadCodeMeta`, `LoadVariantMeta`, `LoadSource`, `TransformSource`, `ParseSource`, `SourceTransformer`, `SourceTransformers`, `SourceComments`, `SourceEnhancer`, `SourceEnhancers`, `LoadFileOptions`, `LoadVariantOptions`, `LoadFallbackCodeOptions`, `CodeIdentityProps`, `CodeContentProps`, `CodeLoadingProps`, `CodeFunctionProps`, `CodeRenderingProps`, `CodeClientRenderingProps`, `CodeHighlighterBaseProps`, `CodeHighlighterClientProps`, `CodeHighlighterProps`
+
+## External Type Sources
+
+Maps `Type`: `Declaration` — the TypeScript lib files (`lib.*.d.ts`) or the package that declares a type the page references.
+
+- `Delta`: `jsondiffpatch`
+- `Promise`: `lib.es2015.iterable.d.ts`, `lib.es2015.promise.d.ts`, `lib.es2015.symbol.wellknown.d.ts`, `lib.es2018.promise.d.ts`, `lib.es5.d.ts`
+- `React.ComponentType`: `@types/react`
+- `React.ReactNode`: `@types/react`
+- `Record`: `lib.es5.d.ts`
+- `RootData`: `@types/hast`
+- `Set`: `lib.es2015.collection.d.ts`, `lib.es2015.iterable.d.ts`, `lib.es2015.symbol.wellknown.d.ts`, `lib.es2025.collection.d.ts`

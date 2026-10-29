@@ -37,3 +37,9 @@ declare namespace ComponentDataAttributes {
   const type: 'data-type';
 }
 ```
+
+## External Type Sources
+
+Maps `Type`: `Declaration` — the TypeScript lib files (`lib.*.d.ts`) or the package that declares a type the page references.
+
+- `React.ReactNode`: `@types/react`

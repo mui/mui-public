@@ -295,6 +295,7 @@ export async function syncTypes(options: SyncTypesOptions): Promise<TypesSourceD
     allDependencies,
     typeNameMap,
     externalTypes,
+    externalTypeSources,
     resourceName,
     exports: organizedExports,
     additionalTypes: organizedAdditionalTypes,
@@ -323,6 +324,7 @@ export async function syncTypes(options: SyncTypesOptions): Promise<TypesSourceD
     },
     typeNameMap,
     externalTypes,
+    externalTypeSources,
     path: relativePath,
   });
 
@@ -355,6 +357,7 @@ export async function syncTypes(options: SyncTypesOptions): Promise<TypesSourceD
       additionalTypes: organizedAdditionalTypes,
       variantOnlyAdditionalTypes: organizedVariantOnlyAdditionalTypes,
       externalTypes,
+      externalTypeSources,
       typeNameMap: typeNameMap ?? {},
       variantTypeNames,
       variantTypeNameMaps,
@@ -446,6 +449,7 @@ export async function syncTypes(options: SyncTypesOptions): Promise<TypesSourceD
     additionalTypes: organizedAdditionalTypes,
     variantOnlyAdditionalTypes: organizedVariantOnlyAdditionalTypes,
     externalTypes,
+    externalTypeSources,
     allDependencies: dependencies,
     typeNameMap: typeNameMap ?? {},
     variantTypeNames,

@@ -430,6 +430,11 @@ type LoadServerTypesResult = {
    * Keys include both dotted names ("Accordion.Trigger") and flat names ("AccordionTrigger").
    */
   anchorMap: { js?: Record<string, string>; css?: Record<string, string> };
+  /**
+   * Where the external types referenced on the page are declared, keyed by the name they are
+   * printed as. Lets `resolveExternalLink` link them to their docs.
+   */
+  externalTypeSources: Record<string, ExternalTypeSource>;
 };
 ```
 
@@ -459,3 +464,10 @@ Controls the output format of HAST fields in type metadata.
 ```typescript
 type TypesOutputFormat = 'hast' | 'hastJson' | 'hastCompressed';
 ```
+
+## External Type Sources
+
+Maps `Type`: `Declaration` — the TypeScript lib files (`lib.*.d.ts`) or the package that declares a type the page references.
+
+- `Promise`: `lib.es2015.iterable.d.ts`, `lib.es2015.promise.d.ts`, `lib.es2015.symbol.wellknown.d.ts`, `lib.es2018.promise.d.ts`, `lib.es5.d.ts`
+- `Record`: `lib.es5.d.ts`

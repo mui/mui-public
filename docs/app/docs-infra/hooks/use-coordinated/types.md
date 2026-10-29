@@ -586,3 +586,12 @@ type reset = () => void;
 - `useCoordinatedPreference`: `useCoordinated`, `UseCoordinatedOptions`, `UseCoordinatedExtras`, `useCoordinatedLocalStorage`, `useCoordinatedPreference`, `registerLayoutShiftSource`, `whenLayoutShiftsSettled`, `layoutShiftsSettled`, `useCoordinatedLazy`, `createSettleGate`, `SETTLE_SAFETY_TIMEOUT_MS`, `SettleGate`, `CreateSettleGateOptions`, `pageSettleGate`, `useSettleGate`
 - `createSettleGate`: `useCoordinated`, `UseCoordinatedOptions`, `UseCoordinatedExtras`, `useCoordinatedLocalStorage`, `useCoordinatedPreference`, `registerLayoutShiftSource`, `whenLayoutShiftsSettled`, `layoutShiftsSettled`, `useCoordinatedLazy`, `createSettleGate`, `SETTLE_SAFETY_TIMEOUT_MS`, `SettleGate`, `CreateSettleGateOptions`, `pageSettleGate`, `useSettleGate`
 - `useSettleGate`: `useCoordinated`, `UseCoordinatedOptions`, `UseCoordinatedExtras`, `useCoordinatedLocalStorage`, `useCoordinatedPreference`, `registerLayoutShiftSource`, `whenLayoutShiftsSettled`, `layoutShiftsSettled`, `useCoordinatedLazy`, `createSettleGate`, `SETTLE_SAFETY_TIMEOUT_MS`, `SettleGate`, `CreateSettleGateOptions`, `pageSettleGate`, `useSettleGate`
+
+## External Type Sources
+
+Maps `Type`: `Declaration` — the TypeScript lib files (`lib.*.d.ts`) or the package that declares a type the page references.
+
+- `AbortSignal`: `lib.dom.d.ts`
+- `Promise`: `lib.es2015.iterable.d.ts`, `lib.es2015.promise.d.ts`, `lib.es2015.symbol.wellknown.d.ts`, `lib.es2018.promise.d.ts`, `lib.es5.d.ts`
+- `React.Dispatch`: `@types/react`
+- `React.SetStateAction`: `@types/react`

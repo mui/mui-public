@@ -156,3 +156,9 @@ Maps `Canonical`: `Alias` — Use Canonical when its namespace is already import
 - `Component.Root.ChangeEventDetails`: `ComponentRootChangeEventDetails`
 - `Component.Part.State`: `ComponentPartState`
 - `Component.Part.Props`: `ComponentPartProps`
+
+## External Type Sources
+
+Maps `Type`: `Declaration` — the TypeScript lib files (`lib.*.d.ts`) or the package that declares a type the page references.
+
+- `React.ReactNode`: `@types/react`

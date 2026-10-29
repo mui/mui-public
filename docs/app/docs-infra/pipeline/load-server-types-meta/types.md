@@ -298,6 +298,12 @@ type LoadServerTypesMetaResult = {
    * Map from type name to its definition string.
    */
   externalTypes: Record<string, string>;
+  /**
+   * Where the external types in the formatted output are declared, keyed by the name they are
+   * printed as, such as `HTMLElement` from `lib.dom.d.ts` or `React.ReactNode` from
+   * `@types/react`.
+   */
+  externalTypeSources: Record<string, ExternalTypeSource>;
   /** Resource name derived from the types path */
   resourceName: string;
   /** Export data where each export has a main type and related additional types */
@@ -390,3 +396,11 @@ type TypesMeta = (
   aliases?: string[];
 };
 ```
+
+## External Type Sources
+
+Maps `Type`: `Declaration` — the TypeScript lib files (`lib.*.d.ts`) or the package that declares a type the page references.
+
+- `Promise`: `lib.es2015.iterable.d.ts`, `lib.es2015.promise.d.ts`, `lib.es2015.symbol.wellknown.d.ts`, `lib.es2018.promise.d.ts`, `lib.es5.d.ts`
+- `Record`: `lib.es5.d.ts`
+- `Root`: `@types/hast`

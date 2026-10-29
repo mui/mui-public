@@ -115,6 +115,7 @@ export function normalizeTypesSourceDataForCache(data: TypesSourceData): TypesSo
     additionalTypes: data.additionalTypes.map(normalizeTypeMetaForCache),
     variantOnlyAdditionalTypes: normalizeVariantOnlyTypesForCache(data.variantOnlyAdditionalTypes),
     externalTypes: data.externalTypes,
+    externalTypeSources: data.externalTypeSources,
     typeNameMap: data.typeNameMap,
     variantTypeNameMaps: data.variantTypeNameMaps,
     variantTypeNames: data.variantTypeNames,

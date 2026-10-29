@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
+import type { ExternalTypeSource } from '@mui/internal-typescript-api-extractor';
 import { withFileCache } from '../cacheUtils';
 import type { FileCacheRef } from '../cacheUtils';
 import type { TypesMeta } from '../loadServerTypesMeta';
@@ -19,6 +20,8 @@ import type { OrderingConfig } from './order';
 export interface TypesSourceData extends OrganizeTypesResult<TypesMeta> {
   /** External types discovered in the file */
   externalTypes: Record<string, string>;
+  /** Where the external types referenced in the file are declared, keyed by printed name */
+  externalTypeSources: Record<string, ExternalTypeSource>;
   /**
    * Type name map (merged across all variants).
    * Maps flat names (like "AccordionTriggerState") to dotted names (like "Accordion.Trigger.State").

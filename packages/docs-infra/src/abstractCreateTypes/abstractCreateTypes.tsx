@@ -3,7 +3,11 @@ import type { PluggableList } from 'unified';
 import type { HighlightedTypesMeta } from '@mui/internal-docs-infra/pipeline/loadServerTypes';
 import enhanceCodeInline from '../pipeline/enhanceCodeInline';
 import enhanceCodeTypes from '../pipeline/enhanceCodeTypes';
-import type { EnhanceCodeTypesOptions, ResolveExternalLink } from '../pipeline/enhanceCodeTypes';
+import type {
+  EnhanceCodeTypesOptions,
+  ExternalTypeSource,
+  ResolveExternalLink,
+} from '../pipeline/enhanceCodeTypes';
 import type { ModuleLinkMapEntry } from '../pipeline/enhanceCodeTypes/scanState';
 import { typeToJsx, additionalTypesToJsx } from './typesToJsx';
 import type { TypesJsxOptions } from './typesToJsx';
@@ -66,6 +70,11 @@ export type TypesTableMeta = {
       js?: Record<string, string>;
       css?: Record<string, string>;
     };
+    /**
+     * Where the external types on the page are declared, keyed by printed name.
+     * Used by enhanceCodeTypes to pass them to `resolveExternalLink`.
+     */
+    externalTypeSources?: Record<string, ExternalTypeSource>;
   };
   name?: string;
   displayName?: string;
@@ -301,8 +310,8 @@ export type AbstractCreateTypesOptions<T extends {} = {}> = {
 
 /**
  * Resolves the enhancers for type fields: `meta.enhancers`, `options.enhancers`, or the
- * defaults, followed by `enhanceCodeTypes` when the page has anchors to link or an external
- * link resolver is set. Meta settings override factory options.
+ * defaults, followed by `enhanceCodeTypes` when the page has anchors to link, or external
+ * types to resolve with `resolveExternalLink`. Meta settings override factory options.
  */
 function resolveEnhancers<T extends {}>(
   options: AbstractCreateTypesOptions<T>,
@@ -310,16 +319,20 @@ function resolveEnhancers<T extends {}>(
 ): PluggableList {
   const enhancers = meta.enhancers ?? options.enhancers ?? DEFAULT_ENHANCERS;
   const anchorMap = meta.precompute?.anchorMap;
+  const externalTypeSources = meta.precompute?.externalTypeSources;
   const resolveExternalLink = meta.resolveExternalLink ?? options.resolveExternalLink;
   const hasAnchors =
     Object.keys(anchorMap?.js ?? {}).length > 0 || Object.keys(anchorMap?.css ?? {}).length > 0;
-  if (!hasAnchors && !resolveExternalLink) {
+  const hasExternalLinks =
+    resolveExternalLink !== undefined && Object.keys(externalTypeSources ?? {}).length > 0;
+  if (!hasAnchors && !hasExternalLinks) {
     return enhancers;
   }
 
   const enhanceCodeTypesOptions: EnhanceCodeTypesOptions = {
     linkMap: anchorMap ?? {},
     resolveExternalLink,
+    externalTypeSources,
     typeRefComponent: meta.typeRefComponent ?? options.typeRefComponent,
     typePropRefComponent: meta.typePropRefComponent ?? options.typePropRefComponent,
     typeParamRefComponent: meta.typeParamRefComponent ?? options.typeParamRefComponent,

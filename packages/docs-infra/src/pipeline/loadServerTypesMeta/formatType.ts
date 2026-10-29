@@ -23,6 +23,8 @@ import {
   maybeCollectExternalTemplateLiteral,
   maybeCollectExternalFunction,
   maybeCollectExternalReference,
+  collectExternalTypeSource,
+  getNamedUnionSource,
 } from './externalTypes';
 import type { ExternalTypesCollector } from './externalTypes';
 import { isBuiltInTypeReference } from './builtInTypes';
@@ -119,17 +121,24 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
 
   if (isExternalType(type)) {
     if (/^ReactElement(<.*>)?/.test(type.typeName.name || '')) {
+      if (externalTypesCollector) {
+        collectExternalTypeSource('ReactElement', type.source, externalTypesCollector);
+      }
       return 'ReactElement';
     }
 
     if (type.typeName.namespaces?.length === 1 && type.typeName.namespaces[0] === 'React') {
-      return createNameWithTypeArguments(
+      const reactName = createNameWithTypeArguments(
         type.typeName,
         exportNames,
         typeNameMap,
         externalTypesCollector,
         preserveTypeParameters,
       );
+      if (externalTypesCollector) {
+        collectExternalTypeSource(reactName, type.source, externalTypesCollector);
+      }
+      return reactName;
     }
 
     const qualifiedName = getFullyQualifiedName(
@@ -137,6 +146,7 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
       exportNames,
       typeNameMap,
       preserveTypeParameters,
+      externalTypesCollector,
     );
 
     if (externalTypesCollector) {
@@ -146,6 +156,7 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
         !isOwnTypeName(qualifiedName, externalTypesCollector)
       ) {
         maybeCollectExternalReference(type, externalTypesCollector);
+        collectExternalTypeSource(qualifiedName, type.source, externalTypesCollector);
       }
     }
 
@@ -154,7 +165,13 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
 
   if (isIntrinsicType(type)) {
     return type.typeName
-      ? getFullyQualifiedName(type.typeName, exportNames, typeNameMap, preserveTypeParameters)
+      ? getFullyQualifiedName(
+          type.typeName,
+          exportNames,
+          typeNameMap,
+          preserveTypeParameters,
+          externalTypesCollector,
+        )
       : type.intrinsic;
   }
 
@@ -169,6 +186,7 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
         exportNames,
         typeNameMap,
         preserveTypeParameters,
+        externalTypesCollector,
       );
       // Check both the simple name AND the fully qualified name against selfName
       // selfName can be either format depending on context
@@ -183,6 +201,11 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
             !isOwnTypeName(qualifiedName, externalTypesCollector)
           ) {
             maybeCollectExternalUnion(type, externalTypesCollector);
+            collectExternalTypeSource(
+              qualifiedName,
+              getNamedUnionSource(type),
+              externalTypesCollector,
+            );
           }
         }
         return qualifiedName;
@@ -259,6 +282,7 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
         exportNames,
         typeNameMap,
         preserveTypeParameters,
+        externalTypesCollector,
       );
       // Check both the simple name AND the fully qualified name against selfName
       // selfName can be either format depending on context
@@ -363,6 +387,7 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
         exportNames,
         typeNameMap,
         preserveTypeParameters,
+        externalTypesCollector,
       );
       if (!matchesSelfName(qualifiedName, type.typeName!.name)) {
         return qualifiedName;
@@ -379,6 +404,7 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
           exportNames,
           typeNameMap,
           preserveTypeParameters,
+          externalTypesCollector,
         );
         if (!matchesSelfName(qualifiedName, type.typeName!.name)) {
           return qualifiedName;
@@ -459,6 +485,7 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
         exportNames,
         typeNameMap,
         preserveTypeParameters,
+        externalTypesCollector,
       );
       if (!matchesSelfName(qualifiedName, type.typeName.name)) {
         if (externalTypesCollector) {
@@ -517,6 +544,7 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
         exportNames,
         typeNameMap,
         preserveTypeParameters,
+        externalTypesCollector,
       );
       if (externalTypesCollector) {
         // Only collect as external if the qualified name wasn't rewritten to an own type.
@@ -618,7 +646,13 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
 
   if (isTupleType(type)) {
     if (type.typeName) {
-      return getFullyQualifiedName(type.typeName, exportNames, typeNameMap, preserveTypeParameters);
+      return getFullyQualifiedName(
+        type.typeName,
+        exportNames,
+        typeNameMap,
+        preserveTypeParameters,
+        externalTypesCollector,
+      );
     }
 
     // Use expandObjects=false for tuple members to prevent deep expansion (one level only)
@@ -708,14 +742,17 @@ export function getFullyQualifiedName(
   exportNames: string[],
   typeNameMap: Record<string, string>,
   preserveTypeParameters?: boolean,
+  externalTypesCollector?: ExternalTypesCollector,
 ): string {
+  // Type arguments only record where their external types are declared: the External Types
+  // section describes the types a page references directly, not every type argument.
   const nameWithTypeArgs = createNameWithTypeArguments(
     typeName,
     exportNames,
     typeNameMap,
-    undefined,
+    externalTypesCollector && { ...externalTypesCollector, collected: new Map() },
     preserveTypeParameters,
-  ); // Note: externalTypesCollector not threaded here since getFullyQualifiedName is name-only lookup
+  );
 
   // Construct the flat name (what parseExports would have created)
   const flatName =

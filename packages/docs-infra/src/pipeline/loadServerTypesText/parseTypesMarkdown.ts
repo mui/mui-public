@@ -3,6 +3,7 @@ import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
 import type { Root, RootContent, Table, Paragraph, PhrasingContent } from 'mdast';
 import type { Root as HastRoot } from 'hast';
+import type { ExternalTypeSource } from '@mui/internal-typescript-api-extractor';
 import remarkTypography from 'remark-typography';
 import remarkRehype from 'remark-rehype';
 import transformMarkdownCode from '../transformMarkdownCode';
@@ -628,6 +629,7 @@ export async function parseTypesMarkdown(content: string, ordering?: OrderingCon
   const allTypes: TypesMeta[] = [];
   const descriptionTargets: DescriptionTarget[] = [];
   const externalTypes: Record<string, string> = {};
+  const externalTypeSources: Record<string, ExternalTypeSource> = {};
   const parsedVariantTypes: Record<string, string[]> = {};
   const typeNameMap: Record<string, string> = {};
   const parsedVariantTypeNameMapKeys: Record<string, string[]> = {};
@@ -651,7 +653,7 @@ export async function parseTypesMarkdown(content: string, ordering?: OrderingCon
   let lastParamExampleName: string | null = null;
   let lastPropReferencesName: string | null = null;
   let lastParamReferencesName: string | null = null;
-  let metadataSection: 'export-groups' | 'canonical-types' | null = null;
+  let metadataSection: 'export-groups' | 'canonical-types' | 'external-type-sources' | null = null;
 
   // Helper to flush the current section
   const flushSection = () => {
@@ -812,12 +814,18 @@ export async function parseTypesMarkdown(content: string, ordering?: OrderingCon
         metadataSection = 'export-groups';
       } else if (text === 'Canonical Types') {
         metadataSection = 'canonical-types';
+      } else if (text === 'External Type Sources') {
+        metadataSection = 'external-type-sources';
       }
       if (text === 'External Types') {
         inExternalTypes = true;
       } else if (text === 'Additional Types') {
         inExternalTypes = false;
-      } else if (text === 'Export Groups' || text === 'Canonical Types') {
+      } else if (
+        text === 'Export Groups' ||
+        text === 'Canonical Types' ||
+        text === 'External Type Sources'
+      ) {
         // Skip metadata sections - they are parsed separately
         inExternalTypes = false;
       }
@@ -854,7 +862,17 @@ export async function parseTypesMarkdown(content: string, ordering?: OrderingCon
         const namesAfterSeparator =
           separatorIndex === -1 ? [] : extractInlineCodeValues(children.slice(separatorIndex + 1));
 
-        if (metadataSection === 'export-groups') {
+        if (metadataSection === 'external-type-sources') {
+          const typeName = namesBeforeSeparator[0];
+          if (typeName && namesAfterSeparator.length > 0) {
+            // Lib files are listed by file name; a package by its name.
+            externalTypeSources[typeName] = namesAfterSeparator.every((name) =>
+              name.endsWith('.d.ts'),
+            )
+              ? { kind: 'lib', files: namesAfterSeparator }
+              : { kind: 'package', name: namesAfterSeparator[0] };
+          }
+        } else if (metadataSection === 'export-groups') {
           const variantName = namesBeforeSeparator[0];
           if (variantName) {
             parsedVariantTypes[variantName] =
@@ -1069,6 +1087,7 @@ export async function parseTypesMarkdown(content: string, ordering?: OrderingCon
     additionalTypes: organized.additionalTypes,
     variantOnlyAdditionalTypes: organized.variantOnlyAdditionalTypes,
     externalTypes,
+    externalTypeSources,
     typeNameMap,
     variantTypeNameMaps: organized.variantTypeNameMaps,
     variantTypeNames: organized.variantTypeNames,

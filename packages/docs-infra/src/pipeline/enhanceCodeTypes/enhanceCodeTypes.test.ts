@@ -4,6 +4,7 @@ import rehypeParse from 'rehype-parse';
 import rehypeStringify from 'rehype-stringify';
 import enhanceCodeTypes from './enhanceCodeTypes';
 import type { ModuleLinkMapEntry } from './scanState';
+import type { ExternalTypeSource } from './enhanceCodeTypes';
 
 describe('enhanceCodeTypes', () => {
   function parseCodeExports(
@@ -94,18 +95,30 @@ describe('enhanceCodeTypes', () => {
       Theme: 'https://example.com/theme',
       'Format.Options': 'https://example.com/format#options',
     };
+    const recordedSources: Record<string, ExternalTypeSource> = {
+      Theme: { kind: 'package', name: 'theme-lib' },
+      'Format.Options': { kind: 'lib', files: ['lib.es5.d.ts'] },
+    };
 
     async function processWithExternalLinks(
       input: string,
       linkMap: Record<string, string>,
-      options?: { linkProps?: 'shallow' | 'deep'; linkScope?: boolean },
+      options?: {
+        linkProps?: 'shallow' | 'deep';
+        externalTypeSources?: Record<string, ExternalTypeSource>;
+        onResolve?: (name: string, source: ExternalTypeSource) => void;
+      },
     ): Promise<string> {
       const result = await unified()
         .use(rehypeParse, { fragment: true })
         .use(enhanceCodeTypes, {
           linkMap: { js: linkMap, css: linkMap },
-          ...options,
-          resolveExternalLink: (name) => externalLinks[name] ?? null,
+          linkProps: options?.linkProps,
+          externalTypeSources: options?.externalTypeSources ?? recordedSources,
+          resolveExternalLink: (name, source) => {
+            options?.onResolve?.(name, source);
+            return externalLinks[name] ?? null;
+          },
         })
         .use(rehypeStringify)
         .process(input);
@@ -156,18 +169,38 @@ describe('enhanceCodeTypes', () => {
       );
     });
 
-    it('does not link local declarations that share a name with an external type', async () => {
-      // const Theme: Local = v; Theme
+    it('passes where the type is declared', async () => {
+      const input = '<code class="language-ts"><span class="pl-en">Theme</span></code>';
+      const resolved: Array<[string, ExternalTypeSource]> = [];
+
+      await processWithExternalLinks(
+        input,
+        {},
+        {
+          onResolve: (name, source) => resolved.push([name, source]),
+        },
+      );
+
+      expect(resolved).toEqual([['Theme', { kind: 'package', name: 'theme-lib' }]]);
+    });
+
+    it('only resolves names with a recorded declaration', async () => {
+      // interface Theme { mode: string } console.log(Theme)
       const input =
-        '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">Theme</span><span class="pl-k">:</span> <span class="pl-en">Local</span> <span class="pl-k">=</span> v; <span class="pl-c1">Theme</span></code>';
+        '<code class="language-ts"><span class="pl-k">interface</span> <span class="pl-en">Theme</span> { <span class="pl-v">mode</span><span class="pl-k">:</span> <span class="pl-c1">string</span> } <span class="pl-smi">console</span>.<span class="pl-c1">log</span>(<span class="pl-c1">Theme</span>)</code>';
+      const resolved: string[] = [];
 
       const output = await processWithExternalLinks(
         input,
-        { Local: '#local' },
-        { linkScope: true },
+        {},
+        {
+          externalTypeSources: {},
+          onResolve: (name) => resolved.push(name),
+        },
       );
 
-      expect(output).not.toContain('https://example.com/theme');
+      expect(resolved).toEqual([]);
+      expect(output).not.toContain('<a');
     });
 
     it('does not link names in CSS', async () => {
