@@ -1,7 +1,7 @@
 /* eslint-disable no-bitwise -- TypeScript type and symbol flags are bitmasks */
 import ts from 'typescript';
-import { parseFromProgram, withTypeName } from 'typescript-api-extractor';
-import type { ExportNode, ParserOptions } from 'typescript-api-extractor';
+import { parseFromProgram, withTypeName } from '@mui/internal-typescript-api-extractor';
+import type { ExportNode, ParserOptions } from '@mui/internal-typescript-api-extractor';
 import { resolveAlias } from './collectExportSymbols';
 
 interface Candidate {

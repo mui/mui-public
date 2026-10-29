@@ -1,6 +1,6 @@
 /* eslint-disable no-bitwise -- TypeScript symbol flags are bitmasks */
 import ts from 'typescript';
-import type { ExportNode } from 'typescript-api-extractor';
+import type { ExportNode } from '@mui/internal-typescript-api-extractor';
 
 /**
  * Maps the parsed exports of an entrypoint to their symbols. typescript-api-extractor gives
