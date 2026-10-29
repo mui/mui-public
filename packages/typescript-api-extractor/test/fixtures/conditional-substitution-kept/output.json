@@ -1,0 +1,309 @@
+{
+	"name": "test/fixtures/conditional-substitution-kept/input",
+	"exports": [
+		{
+			"name": "Merged",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "Merged"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "object",
+									"properties": [
+										{
+											"name": "row",
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											},
+											"optional": false
+										}
+									]
+								},
+								"name": "props",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						}
+					}
+				]
+			},
+			"documentation": {
+				"description": "The export documents the value that shares the alias's name.",
+				"tags": []
+			},
+			"isValue": true,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Value",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Value",
+					"typeArguments": [
+						{
+							"type": {
+								"name": "Mode",
+								"constraint": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [
+					{
+						"name": "value",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "array",
+									"elementType": {
+										"kind": "intrinsic",
+										"intrinsic": "string"
+									}
+								}
+							]
+						},
+						"optional": false
+					}
+				]
+			},
+			"documentation": {
+				"description": "A narrower type argument than the constraint takes the other branch.",
+				"tags": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Selected",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Selected",
+					"typeArguments": [
+						{
+							"type": {
+								"name": "Item",
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						},
+						{
+							"type": {
+								"name": "Multiple",
+								"constraint": {
+									"kind": "intrinsic",
+									"intrinsic": "boolean"
+								},
+								"defaultValue": {
+									"kind": "literal",
+									"value": "false"
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [
+					{
+						"name": "value",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"name": "Item",
+									"kind": "typeParameter"
+								},
+								{
+									"kind": "array",
+									"elementType": {
+										"name": "Item",
+										"kind": "typeParameter"
+									}
+								}
+							]
+						},
+						"optional": false
+					}
+				]
+			},
+			"documentation": {
+				"description": "The branch depends on the type argument, whatever the default.",
+				"tags": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Unconstrained",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Unconstrained",
+					"typeArguments": [
+						{
+							"type": {
+								"name": "Multiple",
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [
+					{
+						"name": "value",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "array",
+									"elementType": {
+										"kind": "intrinsic",
+										"intrinsic": "string"
+									}
+								}
+							]
+						},
+						"optional": false
+					}
+				]
+			},
+			"documentation": {
+				"description": "Nothing bounds the tested type parameter.",
+				"tags": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Middle",
+			"type": {
+				"kind": "union",
+				"types": [
+					{
+						"kind": "object",
+						"properties": [
+							{
+								"name": "none",
+								"type": {
+									"kind": "literal",
+									"value": "true"
+								},
+								"optional": false
+							}
+						]
+					},
+					{
+						"kind": "object",
+						"properties": [
+							{
+								"name": "a",
+								"type": {
+									"kind": "literal",
+									"value": "true"
+								},
+								"optional": false
+							}
+						]
+					},
+					{
+						"kind": "object",
+						"properties": [
+							{
+								"name": "other",
+								"type": {
+									"kind": "literal",
+									"value": "true"
+								},
+								"optional": false
+							}
+						]
+					}
+				]
+			},
+			"documentation": {
+				"description": "Both ends of the constraint take the same branch, which its middle doesn't.",
+				"tags": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Items",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Items",
+					"typeArguments": [
+						{
+							"type": {
+								"name": "List",
+								"constraint": {
+									"kind": "array",
+									"elementType": {
+										"kind": "intrinsic",
+										"intrinsic": "string"
+									},
+									"isReadonly": true
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [
+					{
+						"name": "items",
+						"type": {
+							"kind": "array",
+							"elementType": {
+								"kind": "intrinsic",
+								"intrinsic": "string"
+							},
+							"isReadonly": true
+						},
+						"optional": false
+					}
+				]
+			},
+			"documentation": {
+				"description": "A distributive condition, which stays generic over its type parameter.",
+				"tags": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

@@ -1,7 +1,6 @@
 import ts from 'typescript';
 import { EnumMember, EnumNode, ExportNode, TypeName } from '@mui/internal-typescript-api-extractor';
 import type * as tae from '@mui/internal-typescript-api-extractor';
-import { resolveAlias } from './collectExportSymbols';
 import { formatPropertyComment } from './formatType';
 import { isComponentType, isEnumType } from './typeGuards';
 
@@ -28,6 +27,11 @@ export interface ConstantGroupTarget {
 
 /** The constant groups holding one component's tables. */
 export type ComponentConstantGroups = Partial<Record<ConstantGroupKind, tae.EnumNode>>;
+
+function resolveAlias(symbol: ts.Symbol, checker: ts.TypeChecker): ts.Symbol {
+  // eslint-disable-next-line no-bitwise -- TypeScript symbol flags are a bitmask
+  return symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
+}
 
 /** The value of a constant in a constant group. */
 type ConstantValue = string | number;
@@ -88,17 +92,34 @@ function readConstantModule(
  * @returns Member values keyed by namespace path, then member name
  */
 export function findConstantNamespaces(
-  symbolsByExportName: Map<string, ts.Symbol>,
-  checker: ts.TypeChecker,
+  entrypoint: string,
+  program: ts.Program,
 ): Map<string, Map<string, ConstantValue>> {
   const namespaces = new Map<string, Map<string, ConstantValue>>();
-  for (const [path, exportSymbol] of symbolsByExportName) {
-    if (exportSymbol.declarations?.some(ts.isNamespaceExport)) {
-      const values = readConstantModule(resolveAlias(exportSymbol, checker), checker);
-      if (values) {
-        namespaces.set(path, values);
+  const sourceFile = program.getSourceFile(entrypoint);
+  const checker = program.getTypeChecker();
+  const entrypointSymbol = sourceFile && checker.getSymbolAtLocation(sourceFile);
+  const visited = new Set<ts.Symbol>();
+
+  const visit = (moduleSymbol: ts.Symbol, prefix: string) => {
+    for (const exportSymbol of checker.getExportsOfModule(moduleSymbol)) {
+      if (exportSymbol.declarations?.some(ts.isNamespaceExport)) {
+        const target = checker.getAliasedSymbol(exportSymbol);
+        const path = `${prefix}${exportSymbol.name}`;
+        const values = readConstantModule(target, checker);
+
+        if (values) {
+          namespaces.set(path, values);
+        } else if (!visited.has(target)) {
+          visited.add(target);
+          visit(target, `${path}.`);
+        }
       }
     }
+  };
+
+  if (entrypointSymbol) {
+    visit(entrypointSymbol, '');
   }
 
   return namespaces;

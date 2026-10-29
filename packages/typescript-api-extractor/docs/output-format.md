@@ -170,6 +170,34 @@ have erased their source syntax. For example, `ReturnType`, `Parameters`,
 `Awaited`, `ConstructorParameters`, `ThisParameterType`, and user-authored
 conditional `infer` selectors can expose only their reduced semantic result.
 
+## Conditional Types
+
+A conditional type that TypeScript cannot decide yet, because it tests a type
+parameter, is emitted as the union of its branches. A distributive condition
+keeps the tested type parameter in each branch.
+
+An exported generic type alias whose condition tests its own type parameters is
+resolved further when one branch holds for every type argument it accepts,
+apart from `any`. The condition is checked with each tested type parameter set
+to its constraint (`unknown` without one) and to `never`. When both pick the
+same branch, the export is that branch with the constraints substituted. It
+keeps its name and type arguments, and untested type parameters stay generic:
+
+```typescript
+type IsAny<T> = 0 extends 1 & T ? true : false;
+
+// Emitted as { row: Row; columnId: string }, not a union with columnId: any.
+export type Cell<Row, Columns extends readonly { id: string }[]> =
+  IsAny<Columns> extends true
+    ? { row: Row; columnId: any }
+    : { row: Row; columnId: Columns[number]['id'] };
+```
+
+Defaults are not used, since a caller can pass any other type argument. Aliases
+that forward their type parameters to such a conditional, also across files, are
+resolved the same way. Conditionals declared in dependencies, and exports that
+also declare a value, keep the union.
+
 ## Template Literals
 
 Template literal types keep their literal text and resolve each placeholder like

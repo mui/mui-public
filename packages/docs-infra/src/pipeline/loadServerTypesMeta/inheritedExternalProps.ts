@@ -12,7 +12,6 @@ import {
   UnionNode,
 } from '@mui/internal-typescript-api-extractor';
 import type { AnyType, ComponentNode, ExportNode } from '@mui/internal-typescript-api-extractor';
-import { resolveAlias } from './collectExportSymbols';
 import { isComponentType, isObjectType } from './typeGuards';
 
 /**
@@ -69,13 +68,22 @@ const MAX_CONVERSION_DEPTH = 8;
  */
 export function augmentComponentsWithInheritedProps(
   exports: ExportNode[],
-  symbolsByExportName: Map<string, ts.Symbol>,
-  checker: ts.TypeChecker,
+  program: ts.Program,
+  sourceFile: ts.SourceFile,
   config: InheritedExternalPropsConfig | undefined,
 ): void {
   if (!config || Object.keys(config).length === 0) {
     return;
   }
+
+  const checker = program.getTypeChecker();
+  const moduleSymbol = checker.getSymbolAtLocation(sourceFile);
+  if (!moduleSymbol) {
+    return;
+  }
+
+  const symbolsByExportName = new Map<string, ts.Symbol>();
+  collectExportSymbols(checker, moduleSymbol, [], symbolsByExportName, new Set());
 
   const exportNames = exports.map((exportNode) => exportNode.name);
   const resolvedConfig = resolveConfig(config);
@@ -154,10 +162,45 @@ function augmentPropsTypeExports(
 }
 
 /**
+ * Maps parsed export names to their TypeScript symbols, using the same naming
+ * scheme as typescript-api-extractor (namespace members become dotted names,
+ * e.g. `Menu.Root`).
+ */
+function collectExportSymbols(
+  checker: ts.TypeChecker,
+  moduleSymbol: ts.Symbol,
+  namespaces: string[],
+  result: Map<string, ts.Symbol>,
+  visited: Set<ts.Symbol>,
+): void {
+  if (namespaces.length > 2 || visited.has(moduleSymbol)) {
+    return;
+  }
+  visited.add(moduleSymbol);
+
+  for (const exportSymbol of checker.getExportsOfModule(moduleSymbol)) {
+    const name = [...namespaces, exportSymbol.name].join('.');
+    result.set(name, exportSymbol);
+
+    // Recurse into `export * as Namespace from '...'` re-exports.
+    const declaration = exportSymbol.declarations?.[0];
+    if (declaration && ts.isNamespaceExport(declaration)) {
+      const aliased = checker.getAliasedSymbol(exportSymbol);
+      if (aliased) {
+        collectExportSymbols(checker, aliased, [...namespaces, exportSymbol.name], result, visited);
+      }
+    }
+  }
+}
+
+/**
  * Resolves the props type of a component export from its first call signature.
  */
 function getComponentPropsType(checker: ts.TypeChecker, symbol: ts.Symbol): ts.Type | undefined {
-  const componentType = checker.getTypeOfSymbol(resolveAlias(symbol, checker));
+  // eslint-disable-next-line no-bitwise
+  const isAlias = (symbol.flags & ts.SymbolFlags.Alias) !== 0;
+  const resolvedSymbol = isAlias ? checker.getAliasedSymbol(symbol) : symbol;
+  const componentType = checker.getTypeOfSymbol(resolvedSymbol);
 
   for (const signature of componentType.getCallSignatures()) {
     const propsParameter = signature.parameters[0];

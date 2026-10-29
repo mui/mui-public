@@ -7,9 +7,7 @@ import ts from 'typescript';
 import { createOptimizedProgram } from './createOptimizedProgram';
 import { augmentComponentsWithInheritedProps } from './inheritedExternalProps';
 import type { InheritedExternalPropsConfig } from './inheritedExternalProps';
-import { collectExportSymbols } from './collectExportSymbols';
 import { findConstantNamespaces, foldConstantNamespaces } from './constantGroups';
-import { substituteConditionalTypeParameters } from './substituteConditionalTypeParameters';
 import { PARSER_OPTIONS } from './constants';
 import { extractJSDocText, isJSDocNodeArray } from './extractJSDocText';
 import { PerformanceTracker } from './performanceTracking';
@@ -379,43 +377,18 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
           // Use parseFromProgram directly - it now handles namespace exports,
           // type aliases, and re-exports properly
           const parsed = parseFromProgram(entrypoint, program, PARSER_OPTIONS);
-          const checker = program.getTypeChecker();
-          const symbolsByExportName = collectExportSymbols(sourceFile, checker, parsed.exports);
-
-          // Conditional type aliases that test their own type parameters can't be resolved
-          // while generic; resolve them through their constraints where that picks the
-          // branch every caller gets.
-          const substitutionStart = tracker.mark(
-            nameMark(functionName, `Variant ${variantName} Substitution Start`, [
-              request.relativePath,
-            ]),
-          );
-          const resolvedExports = substituteConditionalTypeParameters(
-            parsed.exports,
-            symbolsByExportName,
-            program,
-            PARSER_OPTIONS,
-          );
-          const substitutionEnd = tracker.mark(
-            nameMark(functionName, `Variant ${variantName} Substituted`, [request.relativePath]),
-          );
-          tracker.measure(
-            nameMark(functionName, `Variant ${variantName} Substitution`, [request.relativePath]),
-            substitutionStart,
-            substitutionEnd,
-          );
 
           // Modules of constants exported as a namespace (`export * as ButtonDataAttributes`)
           // arrive flattened into one export per member; document each as a single group.
-          const constantNamespaces = findConstantNamespaces(symbolsByExportName, checker);
-          const exports = foldConstantNamespaces(resolvedExports, constantNamespaces);
+          const constantNamespaces = findConstantNamespaces(entrypoint, program);
+          const exports = foldConstantNamespaces(parsed.exports, constantNamespaces);
 
           // Re-add configured props that the parser dropped because they are
           // inherited from an externally declared type in node_modules
           augmentComponentsWithInheritedProps(
             exports,
-            symbolsByExportName,
-            checker,
+            program,
+            sourceFile,
             request.inheritedExternalProps,
           );
 
