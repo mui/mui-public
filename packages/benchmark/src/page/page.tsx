@@ -160,6 +160,14 @@ declare global {
   }
 }
 
+/**
+ * Puts a sample's spans on a "Benchmark" track of their own in a DevTools trace, through the
+ * Performance panel's extensibility API; elsewhere, the `detail` is just data.
+ */
+function benchmarkTrackDetail(color: 'primary' | 'tertiary') {
+  return { devtools: { dataType: 'track-entry', track: 'Benchmark', color } };
+}
+
 const send: CdpSend = (method, params) => {
   if (!window.benchmarkCdp) {
     throw new Error('No CDP bridge: the runner must expose `benchmarkCdp` on this page.');
@@ -173,16 +181,30 @@ async function sample(name: string): Promise<Record<string, number>> {
   if (!run) {
     throw new Error(`No benchmark named "${name}". Known: ${[...cases.keys()].join(', ')}`);
   }
-  await collectGarbage();
   performance.clearMarks();
   performance.clearMeasures();
+  const collectStart = performance.now();
+  await collectGarbage();
 
   const values = new Map<string, number>();
   sampleValues = values;
+  const runStart = performance.now();
   try {
     await run({ cdp });
   } finally {
     sampleValues = null;
+    // The collection and the run as spans of a trace, written after the run so that only reading
+    // the clock happens between the two.
+    performance.measure('collect', {
+      start: collectStart,
+      end: runStart,
+      detail: benchmarkTrackDetail('tertiary'),
+    });
+    performance.measure('run', {
+      start: runStart,
+      end: performance.now(),
+      detail: benchmarkTrackDetail('primary'),
+    });
   }
 
   if (values.size === 0) {

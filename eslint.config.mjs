@@ -6,7 +6,6 @@ import {
   EXTENSION_TEST_FILE,
   EXTENSION_TS,
 } from '@mui/internal-code-infra/eslint';
-import nPlugin from 'eslint-plugin-n';
 import { lintJavascriptDemoFocus } from '@mui/internal-docs-infra/pipeline/lintJavascriptDemoFocus';
 import remarkConfig from './.remarkrc.mjs';
 
@@ -22,9 +21,6 @@ const config = defineConfig(
   { settings: { remarkConfig } },
   {
     files: [`**/*${EXTENSION_TS}`],
-    plugins: {
-      n: nPlugin,
-    },
     rules: {
       // Not needed in this repo
       'compat/compat': 'off',
@@ -72,7 +68,18 @@ const config = defineConfig(
     rules: {
       // Vitest accepts a failure message as the second argument.
       'vitest/valid-expect': ['error', { maxArgs: 2 }],
-      'vitest/expect-expect': ['error', { assertFunctionNames: ['expect', 'expect*'] }],
+      'vitest/expect-expect': [
+        'error',
+        {
+          assertFunctionNames: [
+            'expect',
+            'expectTypeOf',
+            'expectKind',
+            'expectExternalAliases',
+            'expectReferenceFormExports',
+          ],
+        },
+      ],
     },
   },
   {

@@ -14,8 +14,8 @@ export class ComponentNode implements TypeNode {
     props: PropertyNode[],
     typeParameters?: TypeParameterNode[],
   ) {
-    this.props = props;
     this.typeName = typeName?.name ? typeName : undefined;
+    this.props = props;
     this.typeParameters = typeParameters?.length ? typeParameters : undefined;
   }
 

@@ -21,8 +21,8 @@ export class IntrinsicNode implements TypeNode {
   declare intrinsic: IntrinsicType;
 
   constructor(intrinsic: IntrinsicType, typeName: TypeName | undefined = undefined) {
-    this.intrinsic = intrinsic;
     this.typeName = typeName?.name ? typeName : undefined;
+    this.intrinsic = intrinsic;
   }
 
   toString(): string {

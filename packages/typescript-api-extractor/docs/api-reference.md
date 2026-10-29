@@ -7,8 +7,8 @@ See the [usage guide](./usage.md) for worked examples and the
 
 ### `createProgram`
 
-Re-export of TypeScript's `createProgram` from the TypeScript version bundled
-with `@mui/internal-typescript-api-extractor`. It has the same overloads/signature as
+Re-export of TypeScript's `createProgram` from the `typescript` peer dependency
+installed next to `@mui/internal-typescript-api-extractor`. It has the same overloads/signature as
 `typescript.createProgram` and returns a `Program`.
 
 ### `loadConfig(tsConfigPath: string)`

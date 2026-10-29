@@ -151,6 +151,11 @@ describe('foldConstantNamespaces', () => {
         ],
       },
     ]);
+    expect(exports.find((node) => node.name === 'ButtonDataAttributes')).toMatchObject({
+      isValue: true,
+      isType: false,
+      isNamespace: true,
+    });
   });
 
   it('reads constants re-exported or referenced from another module, and numbers', () => {

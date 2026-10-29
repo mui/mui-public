@@ -5,6 +5,7 @@
     "lib": ["es2022"],
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
+    "isolatedModules": true,
     "types": ["node"]
   },
   "include": ["src", "test"],

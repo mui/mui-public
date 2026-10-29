@@ -15,7 +15,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "build": "code-infra build --tsgo --bundle esm --copy 'docs/*.md:docs'",
+    "build": "code-infra build --tsgo --bundle esm --copy \"docs/*.md:docs\"",
     "test": "pnpm -w test --project @mui/internal-typescript-api-extractor",
     "typescript": "tsc -noEmit && tsc -p test/tsconfig.inputs.json"
   },
@@ -27,8 +27,7 @@
     "node": ">=22.12.0"
   },
   "dependencies": {
-    "@babel/runtime": "^8.0.7",
-    "es-toolkit": "^1.52.0"
+    "@babel/runtime": "^8.0.7"
   },
   "peerDependencies": {
     "typescript": "^5.8 || ^6.0"
