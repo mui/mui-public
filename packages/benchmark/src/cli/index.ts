@@ -16,11 +16,9 @@ import type { RunBenchmarksOptions } from '../runner/runBenchmarks';
  * Everything `runBenchmarks` takes except the directory, which is where the command was run, with
  * its sampling overrides as flags of their own.
  */
-type Args = Omit<RunBenchmarksOptions, 'harnessDir' | 'sampling' | 'launchArgs'> & {
+type Args = Omit<RunBenchmarksOptions, 'harnessDir' | 'sampling'> & {
   sampleSize?: number;
   timeout?: number;
-  /** One flag, or several when it's repeated. */
-  launchArgs?: string | string[];
 };
 
 const runCommand: CommandModule<{}, Args> = {
@@ -69,6 +67,8 @@ const runCommand: CommandModule<{}, Args> = {
       // A repeated string, not `array: true`, which would also take the filters that follow.
       .option('launch-args', {
         type: 'string',
+        // One flag, or several when it's repeated; not called when the flag is absent.
+        coerce: (value: string | string[]) => [value].flat(),
         describe:
           'A Chromium flag to add, such as --launch-args=--use-angle=metal for a GPU backend; repeat it for more. The report records them',
       })
@@ -115,7 +115,7 @@ const runCommand: CommandModule<{}, Args> = {
         testNamePattern: argv.testNamePattern,
         reporter: argv.reporter,
         profile: argv.profile,
-        launchArgs: argv.launchArgs === undefined ? undefined : [argv.launchArgs].flat(),
+        launchArgs: argv.launchArgs,
         sampling: {
           sampleSize: argv.sampleSize,
           timeout: argv.timeout,
