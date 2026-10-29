@@ -13,7 +13,7 @@ Always reference these instructions first and fallback to search or bash command
   reviewer would reasonably flag that the change deliberately leaves as is, one bullet each with
   what would be flagged and why it stays. Not a log of every design choice. Reviewers, human or
   automated, must not flag what a listed trade-off covers; re-raise it only when the diff
-  contradicts its stated reason. A trade-off that should outlive the PR belongs in a comment.
+  contradicts its stated reason. A trade-off that should outlive the PR belongs in a code comment.
 
 ## Working Effectively
 
