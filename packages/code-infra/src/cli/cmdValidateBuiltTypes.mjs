@@ -5,6 +5,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { mapAsync } from 'es-toolkit/array';
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
+import * as semver from 'semver';
 import { stringify } from 'yaml';
 import { getWorkspacePackages, readPackageJson, writePackageJson } from '../utils/pnpm.mjs';
 import { findTscPair } from '../utils/typescript.mjs';
@@ -152,6 +153,29 @@ function toFileStem(packageName) {
 }
 
 /**
+ * The range of versions that satisfy both `a` and `b`.
+ *
+ * @param {string} name
+ * @param {string} a
+ * @param {string} b
+ * @returns {string}
+ */
+function intersectRanges(name, a, b) {
+  if (!semver.validRange(a) || !semver.validRange(b)) {
+    return a;
+  }
+  if (!semver.intersects(a, b)) {
+    throw new Error(`No version of "${name}" satisfies every peer range: "${a}" and "${b}".`);
+  }
+  const setsOf = (/** @type {string} */ range) =>
+    new semver.Range(range).set.map((comparators) => comparators.map(String).join(' '));
+  return setsOf(a)
+    .flatMap((setA) => setsOf(b).map((setB) => `${setA} ${setB}`.trim()))
+    .filter((range) => semver.intersects(range, range))
+    .join(' || ');
+}
+
+/**
  * Parses `tsc --pretty false` output. Errors inside a packed package are reported relative to
  * that package, so the output doesn't depend on the store layout.
  *
@@ -231,13 +255,13 @@ async function validateBuiltTypes({ workspaceRoot, tempDir }) {
     packed.map(({ manifest, tarball }) => [manifest.name, `file:${tarball}`]),
   );
   const packageNames = Object.keys(tarballs);
-  // Consumers provide every peer, optional ones included, at a version in range.
+  // Consumers provide every peer, optional ones included, at a version in range of every package.
   /** @type {Record<string, string>} */
   const peers = {};
   for (const { manifest } of packed) {
     for (const [name, range] of Object.entries(manifest.peerDependencies ?? {})) {
-      if (range && !tarballs[name] && !peers[name]) {
-        peers[name] = range;
+      if (range && !tarballs[name]) {
+        peers[name] = peers[name] ? intersectRanges(name, peers[name], range) : range;
       }
     }
   }

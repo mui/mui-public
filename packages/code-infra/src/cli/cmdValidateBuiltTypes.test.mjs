@@ -81,6 +81,39 @@ describe('validate-built-types', () => {
   );
 
   it(
+    'fails when no version of a shared peer satisfies every package',
+    async () => {
+      const root = await makeTempDir();
+      await fs.writeFile(path.join(root, 'package.json'), JSON.stringify({ private: true }));
+      await fs.writeFile(path.join(root, 'pnpm-workspace.yaml'), 'packages:\n  - packages/*\n');
+      for (const [name, range] of [
+        ['d', '^18.0.0'],
+        ['e', '^22.0.0'],
+      ]) {
+        // eslint-disable-next-line no-await-in-loop
+        await writePackage(root, `packages/${name}`, {
+          name: `@test/${name}`,
+          version: '1.0.0',
+          peerDependencies: { '@types/node': range },
+        });
+      }
+
+      const result = await run(process.execPath, [CLI_PATH, 'validate-built-types'], {
+        cwd: root,
+      }).then(
+        () => null,
+        (/** @type {{ code: number, stderr: string }} */ error) => error,
+      );
+
+      expect(result?.code).toBe(1);
+      expect(result?.stderr).toContain(
+        'No version of "@types/node" satisfies every peer range: "^18.0.0" and "^22.0.0".',
+      );
+    },
+    CLI_TIMEOUT,
+  );
+
+  it(
     'leaves out entry points that only have types, which nothing imports',
     async () => {
       const root = await makeTempDir();
