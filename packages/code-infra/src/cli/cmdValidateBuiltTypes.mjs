@@ -176,18 +176,15 @@ function intersectRanges(name, a, b) {
 }
 
 /**
- * Parses `tsc --pretty false` output. Errors inside a packed package are reported relative to
- * that package, so the output doesn't depend on the store layout.
+ * Parses the errors in `tsc --pretty false` output that point at a file.
  *
  * @param {string} output
- * @param {string[]} packageNames
- * @param {string} tempDir Stripped from messages.
  * @returns {TypeScriptError[]}
  */
-function parseTypeScriptErrors(output, packageNames, tempDir) {
+function parseTypeScriptErrors(output) {
   /** @type {TypeScriptError[]} */
   const errors = [];
-  for (const line of output.split('\n')) {
+  for (const line of output.split(/\r?\n/)) {
     const match = /^(.+?)\(\d+,\d+\): error (TS\d+): (.*)$/.exec(line);
     if (match) {
       errors.push({ file: match[1], code: match[2], message: match[3] });
@@ -195,6 +192,19 @@ function parseTypeScriptErrors(output, packageNames, tempDir) {
       errors[errors.length - 1].message += `\n${line}`;
     }
   }
+  return errors;
+}
+
+/**
+ * Keeps the errors in the packed packages and the generated entry files. Errors inside a packed
+ * package are reported relative to that package, so the output doesn't depend on the store layout.
+ *
+ * @param {TypeScriptError[]} errors
+ * @param {string[]} packageNames
+ * @param {string} tempDir Stripped from messages.
+ * @returns {TypeScriptError[]}
+ */
+function getOwnErrors(errors, packageNames, tempDir) {
   return errors.flatMap((error) => {
     const message = error.message.replaceAll(`${tempDir}/`, '');
     const index = error.file.lastIndexOf('node_modules/');
@@ -335,10 +345,9 @@ async function validateBuiltTypes({ workspaceRoot, tempDir }) {
   }
 
   const { native, js } = await findTscPair(workspaceRoot);
-  // The native compiler is multi-threaded itself, and the programs already run in parallel.
-  const tscArgs = native ? [native, '--singleThreaded'] : [js];
+  const tsc = native ?? js;
   const realTempDir = await fs.realpath(tempDir);
-  const outputs = await mapAsync(
+  const ownErrors = await mapAsync(
     checks.filter(({ entryPoints }) => entryPoints.size > 0),
     async ({ file, entryPoints, module, moduleResolution }) => {
       const tsconfigFile = `${file}.json`;
@@ -349,21 +358,26 @@ async function validateBuiltTypes({ workspaceRoot, tempDir }) {
           `${JSON.stringify({ compilerOptions: { ...compilerOptions, module, moduleResolution }, files: [path.basename(file)] }, null, 2)}\n`,
         ),
       ]);
-      const [tsc, ...args] = tscArgs;
       const result = await $({
         cwd: projectDir,
         reject: false,
-      })`${tsc} ${args} -p ${tsconfigFile} --pretty false`;
-      return result.stdout;
+      })`${tsc} -p ${tsconfigFile} --pretty false`;
+      const fileErrors = parseTypeScriptErrors(result.stdout);
+      // Errors in third-party declarations also fail tsc, but a failure without any error in a
+      // file means tsc didn't check the program at all.
+      if (result.failed && fileErrors.length === 0) {
+        throw new Error(
+          `TypeScript failed to check ${tsconfigFile}:\n${result.stdout || result.stderr || result.message}`,
+        );
+      }
+      return getOwnErrors(fileErrors, packageNames, realTempDir);
     },
     { concurrency: os.availableParallelism() },
   );
   /** @type {Map<string, TypeScriptError>} */
   const errors = new Map();
-  for (const output of outputs) {
-    for (const error of parseTypeScriptErrors(output, packageNames, realTempDir)) {
-      errors.set(`${error.file}\0${error.code}\0${error.message}`, error);
-    }
+  for (const error of ownErrors.flat()) {
+    errors.set(`${error.file}\0${error.code}\0${error.message}`, error);
   }
 
   return {
