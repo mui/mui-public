@@ -179,6 +179,47 @@ describe('enhanceCodeTypes', () => {
       expect(output).not.toContain('https://example.com/theme');
     });
 
+    it.each([
+      ['interface', '<span class="pl-k">interface</span> <span class="pl-en">Theme</span> {}'],
+      [
+        'type',
+        '<span class="pl-k">type</span> <span class="pl-en">Theme</span> <span class="pl-k">=</span> <span class="pl-c1">string</span>;',
+      ],
+      [
+        'export type',
+        '<span class="pl-k">export</span> <span class="pl-k">type</span> <span class="pl-en">Theme</span> <span class="pl-k">=</span> <span class="pl-c1">string</span>;',
+      ],
+      [
+        'abstract class',
+        '<span class="pl-k">abstract</span> <span class="pl-k">class</span> <span class="pl-en">Theme</span> {}',
+      ],
+      ['function', '<span class="pl-k">function</span> <span class="pl-en">Theme</span>() {}'],
+      [
+        'enum',
+        '<span class="pl-k">enum</span> <span class="pl-en">Theme</span> { <span class="pl-smi">A</span> }',
+      ],
+      [
+        'const',
+        '<span class="pl-k">const</span> <span class="pl-en">Theme</span> <span class="pl-k">=</span> () <span class="pl-k">=></span> {};',
+      ],
+    ])('does not link the name declared with `%s`', async (_kind, declaration) => {
+      const input = `<code class="language-tsx">${declaration}</code>`;
+
+      const output = await processWithExternalLinks(input, {});
+
+      expect(output).not.toContain('https://example.com/theme');
+    });
+
+    it('links types in an anonymous function declaration', async () => {
+      // const run = function (value: Theme) {};
+      const input =
+        '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-en">run</span> <span class="pl-k">=</span> <span class="pl-k">function</span> (<span class="pl-v">value</span><span class="pl-k">:</span> <span class="pl-en">Theme</span>) {};</code>';
+
+      const output = await processWithExternalLinks(input, {});
+
+      expect(output).toContain('<a href="https://example.com/theme" class="pl-en">Theme</a>');
+    });
+
     it('does not link names in CSS', async () => {
       const input = '<code class="language-css"><span class="pl-c1">Theme</span></code>';
 

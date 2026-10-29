@@ -682,10 +682,38 @@ function resolveTypeHref(
   return undefined;
 }
 
+const DECLARATION_KEYWORDS = new Set([
+  'class',
+  'const',
+  'enum',
+  'function',
+  'interface',
+  'let',
+  'type',
+  'var',
+]);
+
 /**
- * Looks up a name the link map does not know in `externalLinks`. A variable declaration or a
- * name bound in scope refers to local code, so it is left unlinked. External links only link
- * the name; owner tracking keeps using `linkMap`.
+ * Whether the span at `index` is the name a declaration introduces, such as `Theme` in
+ * `interface Theme {}`: the highlighter puts only whitespace between the keyword and the name.
+ * Anonymous forms such as `class extends Base` put another token there, so `Base` is not one.
+ */
+function isDeclarationName(children: ElementContent[], index: number): boolean {
+  const between = children[index - 1];
+  const keyword = children[index - 2];
+  return (
+    between?.type === 'text' &&
+    between.value.trim() === '' &&
+    keyword?.type === 'element' &&
+    isKeywordSpan(keyword) &&
+    DECLARATION_KEYWORDS.has(getTextContent(keyword))
+  );
+}
+
+/**
+ * Looks up a name the link map does not know in `externalLinks`. A declaration or a name bound
+ * in scope refers to local code, so it is left unlinked. External links only link the name;
+ * owner tracking keeps using `linkMap`.
  */
 function resolveExternalHref(
   identifier: string,
@@ -790,7 +818,12 @@ function handleLinkableSpan(
   const href =
     cssClassHref ??
     resolveTypeHref(identifier, linkMap, state) ??
-    resolveExternalHref(identifier, options, state, Boolean(isVarDecl));
+    resolveExternalHref(
+      identifier,
+      options,
+      state,
+      Boolean(isVarDecl) || isDeclarationName(children, startIndex),
+    );
   const nodes: ElementContent[] = [];
 
   if (isBareCssClass) {
