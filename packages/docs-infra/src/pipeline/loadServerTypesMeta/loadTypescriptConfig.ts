@@ -121,15 +121,16 @@ export async function loadTypescriptConfig(configPath: string) {
   setupFileWatcher(configPath);
 
   // Create and cache the promise
-  const promise = (async () => {
-    try {
-      return await loadTypescriptConfigUncached(configPath);
-    } catch (error) {
-      cache.delete(configPath);
-      throw error;
-    }
-  })();
+  const promise = loadTypescriptConfigUncached(configPath);
   cache.set(configPath, promise);
 
-  return promise;
+  try {
+    return await promise;
+  } catch (error) {
+    // Leave a newer load alone if the cache was purged while this one ran
+    if (cache.get(configPath) === promise) {
+      cache.delete(configPath);
+    }
+    throw error;
+  }
 }

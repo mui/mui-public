@@ -1,8 +1,9 @@
-import { describe, it, expect, onTestFinished } from 'vitest';
+import { describe, it, expect, onTestFinished, vi } from 'vitest';
 import { mkdtemp, mkdir, realpath, writeFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import ts from 'typescript';
+import { createOptimizedProgram } from './createOptimizedProgram';
 import { loadTypescriptConfig } from './loadTypescriptConfig';
 
 /**
@@ -162,5 +163,46 @@ describe('loadTypescriptConfig', () => {
     const result = await loadTypescriptConfig(configPath);
 
     expect(result.options.target).toBe(ts.ScriptTarget.ES2020);
+  });
+
+  it('picks up changes to an extended tsconfig', async () => {
+    const dir = await createFixture({
+      'tsconfig.base.json': { compilerOptions: { strict: true } },
+      'tsconfig.json': { extends: './tsconfig.base.json', files: ['index.ts'] },
+      'index.ts': '',
+    });
+    const configPath = path.join(dir, 'tsconfig.json');
+    expect((await loadTypescriptConfig(configPath)).options.strict).toBe(true);
+
+    await writeFile(
+      path.join(dir, 'tsconfig.base.json'),
+      JSON.stringify({ compilerOptions: { strict: false } }),
+    );
+
+    await vi.waitFor(async () => {
+      expect((await loadTypescriptConfig(configPath)).options.strict).toBe(false);
+    });
+  });
+
+  it('resolves imports in the types program through inherited paths', async () => {
+    const dir = await createFixture({
+      'tsconfig.base.json': { compilerOptions: { paths: { '@lib/*': ['./lib/*'] } } },
+      'lib/Button.ts': 'export interface ButtonProps { disabled?: boolean }',
+      'docs/tsconfig.json': { extends: '../tsconfig.base.json', files: ['index.ts'] },
+      'docs/index.ts': "export type { ButtonProps } from '@lib/Button';",
+    });
+    const projectPath = path.join(dir, 'docs');
+    const entrypoint = path.join(projectPath, 'index.ts');
+    const config = await loadTypescriptConfig(path.join(projectPath, 'tsconfig.json'));
+
+    const program = createOptimizedProgram(projectPath, config.options, [entrypoint]);
+
+    const checker = program.getTypeChecker();
+    const moduleSymbol = checker.getSymbolAtLocation(program.getSourceFile(entrypoint)!)!;
+    const buttonProps = checker.getExportsOfModule(moduleSymbol)[0];
+    const declarations = checker.getAliasedSymbol(buttonProps).declarations ?? [];
+    expect(declarations.map((declaration) => declaration.getSourceFile().fileName)).toEqual([
+      path.join(dir, 'lib/Button.ts'),
+    ]);
   });
 });
