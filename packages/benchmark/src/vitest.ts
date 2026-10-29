@@ -1,7 +1,7 @@
 import react from '@vitejs/plugin-react';
 import { playwright } from '@vitest/browser-playwright';
 import type { ViteUserConfig } from 'vitest/config';
-import { BENCHMARK_LAUNCH_ARGS, BENCHMARK_VIEWPORT } from './launchArgs';
+import { BENCHMARK_LAUNCH_ARGS, BENCHMARK_VIEWPORT, withLaunchArgs } from './launchArgs';
 
 export interface CreateBenchmarkVitestConfigOptions {
   /**
@@ -114,7 +114,7 @@ export function createBenchmarkVitestConfig(
         ],
         provider: playwright({
           launchOptions: {
-            args: [...(profile ? profileArgs : BENCHMARK_LAUNCH_ARGS), ...launchArgs],
+            args: withLaunchArgs(launchArgs, profile ? profileArgs : BENCHMARK_LAUNCH_ARGS),
           },
         }),
       },

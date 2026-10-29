@@ -594,6 +594,12 @@ Performance panel. A "Benchmark" track there marks the garbage collection that p
 run (`collect`) and the run itself (`run`). Tracing slows the code it records, so the report it
 writes is only indicative.
 
+Chromium runs headless with a fixed set of flags. `--launch-args` adds one, and can be repeated:
+`--launch-args=--use-angle=metal` measures a local run on the GPU, which CI machines don't have, so
+its numbers only compare with runs on the same machine and flags. Both builds share the browser, so
+a comparison stays fair either way, and the report records the flags. A `--js-flags` value joins the
+built-in one rather than replacing it, which would drop the `--expose-gc` the forced GC needs.
+
 `benchmark --help` lists the remaining options.
 
 ## API
