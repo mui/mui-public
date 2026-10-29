@@ -100,8 +100,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pat
   responseHeaders.set('cache-control', 'private, max-age=0, must-revalidate');
   responseHeaders.set('vary', 'Accept');
 
-  // The Response constructor rejects a body on a 304.
-  return new Response(upstreamResponse.status === 304 ? null : upstreamResponse.body, {
+  return new Response(upstreamResponse.body, {
     status: upstreamResponse.status,
     headers: responseHeaders,
   });

@@ -36,11 +36,12 @@ async function openSessionCookie(ttl = SESSION_MAX_AGE_SECONDS) {
 }
 
 /**
- * The cookie is sealed to expire with the token, so nothing downstream checks
- * expiry: the browser drops the cookie a minute early, and the seal itself is
- * refused after that time even if a copy survives. The token is never refreshed.
- * `tokenExpiresAt` is only sent by GitHub Apps with "Expire user authorization
- * tokens" enabled.
+ * The cookie is sealed to expire with the token, which is never refreshed: the
+ * browser drops the cookie a minute early, and the seal is refused once a minute
+ * of clock-skew allowance past the token's expiry has gone too. A copy used in
+ * that last minute carries a dead token, which GitHub rejects and the proxy
+ * clears. `tokenExpiresAt` is only sent by GitHub Apps with "Expire user
+ * authorization tokens" enabled.
  */
 export async function writeSession(session: Session, tokenExpiresAt?: string): Promise<void> {
   // At least a second: iron-session reads a ttl of 0 as "never expires".

@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import { useQuery } from '@tanstack/react-query';
 import Alert from '@mui/material/Alert';
 import NextLink from 'next/link';
 import Box from '@mui/material/Box';
@@ -23,7 +22,7 @@ import ErrorDisplay from '../components/ErrorDisplay';
 import { useSearchParamsState } from '../hooks/useSearchParamsState';
 import { parseIssueUrl } from '../utils/github';
 import type { IssueReactionTarget } from '../utils/github';
-import { useGitHubClient } from '../hooks/useGitHubClient';
+import { useGitHubQuery } from '../hooks/useGitHubQuery';
 
 const EXAMPLES = [
   { label: 'mui-design-kits#10', url: 'https://github.com/mui/mui-design-kits/issues/10' },
@@ -197,12 +196,10 @@ export default function Reactions() {
   );
   const parseError = Boolean(searchParams.url) && target === null;
 
-  const { octokit, ready, key } = useGitHubClient();
-
-  const query = useQuery({
-    queryKey: key('reactions', target ? targetKey(target) : null, unbounded),
-    queryFn: () => fetchReactions(octokit, target!, unbounded),
-    enabled: ready && Boolean(target),
+  const query = useGitHubQuery({
+    queryKey: ['reactions', target ? targetKey(target) : null, unbounded],
+    queryFn: (octokit) => fetchReactions(octokit, target!, unbounded),
+    enabled: Boolean(target),
     staleTime: 60 * 1000,
     retry: false,
   });

@@ -15,6 +15,7 @@ import { signIn, signOut, useSession } from '../../hooks/useSession';
 export default function SignInButton() {
   const { session, isPending } = useSession();
   const [anchorEl, setAnchorEl] = React.useState<HTMLElement | null>(null);
+  const [signOutFailed, setSignOutFailed] = React.useState(false);
 
   if (isPending) {
     return <Skeleton variant="rounded" width={88} height={30} />;
@@ -38,7 +39,7 @@ export default function SignInButton() {
 
   if (!session?.signedIn) {
     return (
-      <Tooltip title="Raises the GitHub API rate limit and unlocks private repositories">
+      <Tooltip title="Raises the GitHub API rate limit from 60 to 5,000 requests per hour">
         <Button startIcon={<GitHubIcon />} onClick={signIn}>
           Sign in
         </Button>
@@ -56,11 +57,18 @@ export default function SignInButton() {
       <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
         <MenuItem
           onClick={async () => {
-            setAnchorEl(null);
-            await signOut();
+            setSignOutFailed(false);
+            try {
+              await signOut();
+            } catch {
+              setSignOutFailed(true);
+            }
           }}
         >
-          <ListItemText>Sign out</ListItemText>
+          <ListItemText
+            primary="Sign out"
+            secondary={signOutFailed ? "That didn't work. Try again." : undefined}
+          />
         </MenuItem>
       </Menu>
     </React.Fragment>

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { DASHBOARD_ORIGIN } from '@/constants';
 import {
   BASE_COOKIE_OPTIONS,
   GITHUB_AUTHORIZE_URL,
@@ -17,6 +18,20 @@ export async function GET(request: NextRequest) {
       { error: 'GitHub sign-in is not configured for this deployment.' },
       { status: 503 },
     );
+  }
+
+  // The callback always runs on the canonical origin, so a state cookie set on
+  // any other host -- like the onrender.com one that older links point at --
+  // would never reach it. Start over there instead. The host comes from the
+  // request headers: Next builds `nextUrl` from its own configured hostname, not
+  // the one the browser used. Spoofing them only ever leads to the canonical URL.
+  const canonical = new URL(DASHBOARD_ORIGIN);
+  const requestHost =
+    request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? request.nextUrl.host;
+  if (requestHost !== canonical.host) {
+    const canonicalLogin = new URL(request.nextUrl.pathname, canonical);
+    canonicalLogin.search = request.nextUrl.search;
+    return NextResponse.redirect(canonicalLogin);
   }
 
   const state = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64url');

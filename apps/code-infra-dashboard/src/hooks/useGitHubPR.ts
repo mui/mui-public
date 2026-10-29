@@ -1,6 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
 import { parseRepo } from '../utils/github';
-import { useGitHubClient } from './useGitHubClient';
+import { useGitHubQuery } from './useGitHubQuery';
 
 export interface GitHubPRInfo {
   title: string;
@@ -31,15 +30,13 @@ export interface UseGitHubPR {
  * @param prNumber The PR number to fetch information for, optional
  */
 export function useGitHubPR(repo: string, prNumber?: number): UseGitHubPR {
-  const { octokit, ready, key } = useGitHubClient();
-
   const {
     data = null,
     isLoading,
     error,
-  } = useQuery({
-    queryKey: key('github-pr', repo, prNumber),
-    queryFn: async () => {
+  } = useGitHubQuery({
+    queryKey: ['github-pr', repo, prNumber],
+    queryFn: async (octokit) => {
       if (!prNumber) {
         return null;
       }
@@ -52,7 +49,7 @@ export function useGitHubPR(repo: string, prNumber?: number): UseGitHubPR {
       return prInfo;
     },
     retry: 1,
-    enabled: ready && Boolean(repo && prNumber),
+    enabled: Boolean(repo && prNumber),
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 

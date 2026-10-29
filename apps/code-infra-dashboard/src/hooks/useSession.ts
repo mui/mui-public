@@ -40,8 +40,12 @@ export function signIn(): void {
   window.location.href = loginUrl.toString();
 }
 
+/** Rejects when the server didn't sign the user out, rather than pretending it did. */
 export async function signOut(): Promise<void> {
-  await fetch('/api/auth/logout', { method: 'POST' });
+  const response = await fetch('/api/auth/logout', { method: 'POST' });
+  if (!response.ok) {
+    throw new Error(`Signing out failed with ${response.status}.`);
+  }
   // Sign-in is a full navigation too; reloading drops every response that was
   // fetched as the signed-in user along with the rest of the tab's cache.
   window.location.reload();

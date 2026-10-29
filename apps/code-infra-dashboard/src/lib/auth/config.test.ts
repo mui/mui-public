@@ -9,7 +9,7 @@ afterEach(() => {
 function stubConfiguredDeploy() {
   vi.stubEnv('GITHUB_OAUTH_CLIENT_ID', 'client-id');
   vi.stubEnv('GITHUB_OAUTH_CLIENT_SECRET', 'client-secret');
-  vi.stubEnv('SESSION_SECRET', 'session-secret');
+  vi.stubEnv('SESSION_SECRET', 'a-session-secret-of-thirty-two-chars');
   vi.stubEnv('IS_PULL_REQUEST', 'false');
 }
 
@@ -30,6 +30,14 @@ describe('getOAuthClient', () => {
   it('returns null without a session secret to store the token under', () => {
     stubConfiguredDeploy();
     vi.stubEnv('SESSION_SECRET', undefined);
+
+    expect(getOAuthClient()).toBe(null);
+  });
+
+  // iron-session throws on shorter secrets, which would crash every session route.
+  it('returns null when the session secret is under 32 characters', () => {
+    stubConfiguredDeploy();
+    vi.stubEnv('SESSION_SECRET', 'only-thirty-one-characters-long');
 
     expect(getOAuthClient()).toBe(null);
   });

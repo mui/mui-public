@@ -11,11 +11,9 @@ export const queryClient: QueryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (error) => {
       if (error instanceof Error && 'status' in error && error.status === 401) {
-        // Not cancelling an in-flight read lets queries rejected together share it.
-        queryClient.invalidateQueries(
-          { queryKey: sessionQueryOptions.queryKey },
-          { cancelRefetch: false },
-        );
+        // Restarts any read already in flight: it may have left before the proxy
+        // cleared the cookie, and would report the session as still signed in.
+        queryClient.invalidateQueries({ queryKey: sessionQueryOptions.queryKey });
       }
     },
   }),

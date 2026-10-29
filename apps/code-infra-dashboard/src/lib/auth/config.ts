@@ -67,9 +67,11 @@ export function getOAuthClient(): { clientId: string; clientSecret: string } | n
 
   const clientId = process.env.GITHUB_OAUTH_CLIENT_ID;
   const clientSecret = process.env.GITHUB_OAUTH_CLIENT_SECRET;
+  const sessionSecret = process.env.SESSION_SECRET;
 
-  // Without a session secret there is nowhere to keep the token we'd receive.
-  if (!clientId || !clientSecret || !process.env.SESSION_SECRET) {
+  // Without a usable session secret there is nowhere to keep the token we'd
+  // receive, and iron-session throws on anything shorter than 32 characters.
+  if (!clientId || !clientSecret || !sessionSecret || sessionSecret.length < 32) {
     return null;
   }
 

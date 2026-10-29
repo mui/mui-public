@@ -1,8 +1,7 @@
-import { useInfiniteQuery } from '@tanstack/react-query';
 import * as React from 'react';
 import type { RestEndpointMethodTypes } from '@octokit/rest';
 import { parseRepo } from '../utils/github';
-import { useGitHubClient } from './useGitHubClient';
+import { useGitHubInfiniteQuery } from './useGitHubQuery';
 
 export type GitHubCommit =
   RestEndpointMethodTypes['repos']['listCommits']['response']['data'][number];
@@ -68,12 +67,10 @@ export function useMasterCommits(
   repo: string,
   { groupByDay = false }: UseMasterCommitsOptions = {},
 ): UseMasterCommits {
-  const { octokit, ready, key } = useGitHubClient();
-
   const { data, isLoading, isFetchingNextPage, hasNextPage, error, fetchNextPage } =
-    useInfiniteQuery({
-      queryKey: key('master-commits', repo, groupByDay ? 'daily' : 'per-commit'),
-      queryFn: async ({ pageParam }: { pageParam: PageParam }): Promise<PageData> => {
+    useGitHubInfiniteQuery({
+      queryKey: ['master-commits', repo, groupByDay ? 'daily' : 'per-commit'],
+      queryFn: async (octokit, { pageParam }): Promise<PageData> => {
         const { owner, repo: repoName } = parseRepo(repo);
 
         const commitParams: Parameters<typeof octokit.rest.repos.listCommits>[0] = {
@@ -124,7 +121,7 @@ export function useMasterCommits(
         return undefined;
       }, []),
       retry: 1,
-      enabled: ready && Boolean(repo),
+      enabled: Boolean(repo),
       staleTime: 5 * 60 * 1000,
     });
 
