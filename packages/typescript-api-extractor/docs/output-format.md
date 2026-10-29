@@ -56,6 +56,11 @@ space is masked, and an export left with nothing but a value, such as a function
 or variable with any namespace merged onto it, is omitted. A re-export from an
 unresolvable module gets the checker's fallback: a value of type `any`.
 
+Exports without a declaration name, such as `export default function () {}`,
+`export default class {}`, and the bindings of
+`export const { helper } = helpers`, are exported under their export name
+(`default`, `helper`) like any other.
+
 ## Type Operators
 
 Authored `keyof` expressions are represented without expanding away their syntax:

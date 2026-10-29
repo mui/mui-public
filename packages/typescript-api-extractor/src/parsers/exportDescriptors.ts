@@ -335,7 +335,37 @@ function resolveDeclarationExportDescriptor(
     return resolveTypeAliasExportDescriptor(exportSymbol, exportDeclaration, scope);
   }
 
-  return undefined;
+  return resolveSymbolExportDescriptor(exportSymbol, scope);
+}
+
+/**
+ * Handles exports whose declaration has no dedicated builder, or no name to
+ * resolve a symbol from, by reading the type straight off the export symbol.
+ *
+ * Example: `export default function () {}`, `export default class {}`, and
+ * the bindings of `export const { helper } = helpers` are exported values
+ * like any other, so they get an export rather than being skipped.
+ *
+ * @param exportSymbol The export symbol being normalized; it is also the documentation target.
+ * @param scope Current resolution scope.
+ */
+function resolveSymbolExportDescriptor(
+  exportSymbol: ts.Symbol,
+  scope: ExportDescriptorScope,
+): ExportDescriptorDraft {
+  const { context, parentNamespaces, symbolScope, resolutionState } = scope;
+  const { checker } = context;
+  return {
+    name: exportSymbol.name,
+    symbol: exportSymbol,
+    getType: () =>
+      getDeclarationSpaces(exportSymbol, checker).isValue
+        ? checker.getTypeOfSymbol(exportSymbol)
+        : checker.getDeclaredTypeOfSymbol(exportSymbol),
+    parentNamespaces,
+    typeResolutionOrder: getNextTypeResolutionOrder(resolutionState),
+    symbolScope,
+  };
 }
 
 /**
@@ -386,7 +416,7 @@ function resolveValueExportDescriptor(
   scope: ExportDescriptorScope,
 ): ExportDescriptorDraft | undefined {
   if (!exportDeclaration.name) {
-    return undefined;
+    return resolveSymbolExportDescriptor(exportSymbol, scope);
   }
 
   const { context, parentNamespaces, symbolScope, resolutionState } = scope;
@@ -491,7 +521,7 @@ function resolveClassExportDescriptor(
   scope: ExportDescriptorScope,
 ): ExportDescriptorDraft | undefined {
   if (!exportDeclaration.name) {
-    return undefined;
+    return resolveSymbolExportDescriptor(exportSymbol, scope);
   }
 
   const { context, parentNamespaces, symbolScope, resolutionState } = scope;
