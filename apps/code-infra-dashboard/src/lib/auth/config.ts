@@ -13,8 +13,9 @@ export const GITHUB_AUTHORIZE_URL = 'https://github.com/login/oauth/authorize';
 /** Shared by the session and OAuth state cookies. */
 export const BASE_COOKIE_OPTIONS = {
   httpOnly: true,
-  // Render terminates TLS, but local dev is plain http.
-  secure: process.env.NODE_ENV === 'production',
+  // Follows the origin rather than NODE_ENV: a production build served over plain
+  // http on localhost would otherwise set Secure cookies, which some browsers drop.
+  secure: new URL(DASHBOARD_ORIGIN).protocol === 'https:',
   sameSite: 'lax',
 } as const;
 

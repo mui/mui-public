@@ -31,6 +31,7 @@ services:
         generateValue: true
       # The canonical origin: the GitHub sign-in callback, PR comment links and
       # QR codes all use it. Without it they fall back to the onrender.com host.
+      # Previews ignore it and use their own URL (see src/constants.ts).
       - key: DASHBOARD_ORIGIN
         value: https://frontend-public.mui.com
       # Encrypts the browser session cookie. Rotating it signs everyone out.

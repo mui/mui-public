@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { isCrossOriginRequest } from '@/lib/auth/config';
+import { getOAuthClient, isCrossOriginRequest } from '@/lib/auth/config';
 import { clearSession, readSession } from '@/lib/auth/session';
 
 const GITHUB_API_ORIGIN = 'https://api.github.com';
@@ -20,14 +20,17 @@ const FORWARDED_REQUEST_HEADERS = [
 
 /**
  * `link` goes back untouched: its next-page URLs point at api.github.com, and
- * the browser's Octokit routes those through this proxy itself.
+ * the browser's Octokit routes those through this proxy itself. `deprecation` and
+ * `sunset` feed Octokit's console warnings about retiring endpoints.
  */
 const FORWARDED_RESPONSE_HEADERS = [
   'content-type',
+  'deprecation',
   'etag',
   'last-modified',
   'link',
   'retry-after',
+  'sunset',
   'x-github-media-type',
   'x-github-request-id',
   'x-ratelimit-limit',
@@ -54,18 +57,24 @@ function copyHeaders(source: Headers, names: string[]): Headers {
  * permissions. Next answers HEAD with this handler too.
  */
 export async function GET(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
+  // Error bodies use `message`, like GitHub's own: Octokit reads that field into
+  // the error it throws, and anything else surfaces in the UI as raw JSON.
   if (isCrossOriginRequest(request.headers)) {
-    return NextResponse.json({ error: 'Cross-origin requests are not allowed.' }, { status: 403 });
+    return NextResponse.json(
+      { message: 'Cross-origin requests are not allowed.' },
+      { status: 403 },
+    );
   }
 
-  const session = await readSession();
+  // Without sign-in configured there can be no session, and reading one would throw.
+  const session = getOAuthClient() ? await readSession() : null;
   if (!session) {
-    return NextResponse.json({ error: 'Not signed in to GitHub.' }, { status: 401 });
+    return NextResponse.json({ message: 'Not signed in to GitHub.' }, { status: 401 });
   }
 
   const { path } = await context.params;
   if (path.some((segment) => segment === '..' || segment === '.')) {
-    return NextResponse.json({ error: 'Invalid path.' }, { status: 400 });
+    return NextResponse.json({ message: 'Invalid path.' }, { status: 400 });
   }
 
   // Assigned through the pathname setter, which can't change the host: resolving
@@ -83,11 +92,13 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pat
   // Redirects are followed here rather than handed to the browser: GitHub
   // redirects renamed and transferred repositories to another api.github.com
   // URL, which the browser would request directly, without the token.
+  // Tied to the browser's request, so a closed tab also abandons the GitHub call.
   const upstreamResponse = await fetch(upstreamUrl, {
     method: request.method,
     headers: upstreamHeaders,
     cache: 'no-store',
     redirect: 'follow',
+    signal: request.signal,
   });
 
   // A session's token never changes and its cookie expires with it, so GitHub

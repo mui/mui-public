@@ -52,6 +52,23 @@ describe('GET /api/auth/login', () => {
     expect(response.cookies.get('mui_dashboard_oauth_state')).toBe(undefined);
   });
 
+  // Browsers silently drop cookies over 4 KB, which would lose the state too and
+  // make sign-in from a long URL fail every time.
+  it('drops a return path too long to fit in the state cookie', async () => {
+    stubConfiguredDeploy();
+    const url = new URL('/api/auth/login', DASHBOARD_ORIGIN);
+    url.searchParams.set('returnTo', `/query-oss-insight?sql=${'SELECT 1\n'.repeat(400)}`);
+    const request = new NextRequest(url, { headers: { host: url.host } });
+
+    const response = await GET(request);
+
+    const stateCookie = response.cookies.get('mui_dashboard_oauth_state')?.value ?? '';
+    const stored = new URLSearchParams(stateCookie);
+    expect(stored.get('state')).toBeTruthy();
+    expect(stored.has('returnTo')).toBe(false);
+    expect(encodeURIComponent(stateCookie).length).toBeLessThan(4000);
+  });
+
   it('is unavailable without sign-in configured', async () => {
     const response = await GET(loginRequest(DASHBOARD_ORIGIN));
 

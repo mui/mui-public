@@ -11,6 +11,9 @@ import {
   getOAuthClient,
 } from '@/lib/auth/config';
 
+/** Leaves headroom under the 4096-byte cap for the cookie's name. */
+const MAX_STATE_COOKIE_VALUE_LENGTH = 3500;
+
 export async function GET(request: NextRequest) {
   const client = getOAuthClient();
   if (!client) {
@@ -45,10 +48,17 @@ export async function GET(request: NextRequest) {
 
   // The return path is stored as given: the callback resolves it, and has to
   // treat whatever arrives in this cookie as untrusted regardless.
-  const stored = new URLSearchParams({
+  const withReturnTo = new URLSearchParams({
     state,
     returnTo: request.nextUrl.searchParams.get('returnTo') ?? '',
   });
+  // Browsers drop a cookie whose name and value exceed 4096 bytes, state and all,
+  // so a return path that won't fit is given up: the user lands on the home page
+  // instead. Next percent-encodes the value once more when it sets the cookie.
+  const stored =
+    encodeURIComponent(withReturnTo.toString()).length <= MAX_STATE_COOKIE_VALUE_LENGTH
+      ? withReturnTo
+      : new URLSearchParams({ state });
   response.cookies.set(OAUTH_STATE_COOKIE, stored.toString(), {
     ...BASE_COOKIE_OPTIONS,
     path: OAUTH_STATE_COOKIE_PATH,

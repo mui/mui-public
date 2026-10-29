@@ -1,8 +1,11 @@
 import { vi, describe, it, expect, afterEach } from 'vitest';
 import { proxiedOctokit } from './github';
 
-/** Where the stubbed browser tab is. */
-const TAB_ORIGIN = 'https://dashboard.example.com';
+/**
+ * Where the stubbed browser tab is: local dev, which differs from api.github.com
+ * in scheme, host and port, so each part of the rewrite is checked.
+ */
+const TAB_ORIGIN = 'http://localhost:3000';
 
 afterEach(() => {
   vi.unstubAllGlobals();

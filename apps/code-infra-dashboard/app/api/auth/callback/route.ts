@@ -10,6 +10,7 @@ import {
   getOAuthClient,
   resolveReturnTo,
 } from '@/lib/auth/config';
+import { describeGitHubError } from '@/lib/auth/describeGitHubError';
 import { writeSession } from '@/lib/auth/session';
 import type { Session } from '@/lib/auth/session';
 
@@ -40,7 +41,7 @@ async function exchangeCodeForSession(
     }).rest.users.getAuthenticated();
 
     // Any refresh token is deliberately dropped: the session ends with the token,
-    // so the cookie never holds a long-lived credential.
+    // so the cookie never holds a refresh token.
     return {
       session: {
         login: user.login,
@@ -53,7 +54,9 @@ async function exchangeCodeForSession(
   } catch (error) {
     // Codes are single-use, so reloading this URL ends up here as well as a
     // misconfigured client secret; only the latter needs anyone's attention.
-    console.error('GitHub sign-in: exchanging the authorization code failed.', error);
+    console.error(
+      `GitHub sign-in: exchanging the authorization code failed: ${describeGitHubError(error)}`,
+    );
     return null;
   }
 }
