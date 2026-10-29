@@ -1646,5 +1646,37 @@
 			"isType": true,
 			"isNamespace": false
 		}
+	],
+	"namespaceReexports": [
+		{
+			"name": "Component",
+			"isValue": true,
+			"members": [
+				{
+					"name": "Root",
+					"isValue": true,
+					"isType": false,
+					"isNamespace": true
+				},
+				{
+					"name": "Part",
+					"isValue": true,
+					"isType": false,
+					"isNamespace": true
+				},
+				{
+					"name": "Handle",
+					"isValue": true,
+					"isType": true,
+					"isNamespace": false
+				},
+				{
+					"name": "createHandle",
+					"isValue": true,
+					"isType": false,
+					"isNamespace": false
+				}
+			]
+		}
 	]
 }

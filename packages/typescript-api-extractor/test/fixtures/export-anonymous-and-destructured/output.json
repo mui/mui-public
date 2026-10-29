@@ -107,5 +107,19 @@
 			"isType": true,
 			"isNamespace": false
 		}
+	],
+	"namespaceReexports": [
+		{
+			"name": "Anonymous",
+			"isValue": true,
+			"members": [
+				{
+					"name": "default",
+					"isValue": true,
+					"isType": true,
+					"isNamespace": false
+				}
+			]
+		}
 	]
 }

@@ -624,5 +624,79 @@
 			"isNamespace": false
 		}
 	],
-	"imports": ["./helpers", "./helpers"]
+	"imports": ["./helpers", "./helpers"],
+	"namespaceReexports": [
+		{
+			"name": "TypeOnlyNamespace",
+			"isValue": false,
+			"members": [
+				{
+					"name": "mergedTarget",
+					"isValue": false,
+					"isType": false,
+					"isNamespace": false
+				},
+				{
+					"name": "typeOnlyImported",
+					"isValue": false,
+					"isType": false,
+					"isNamespace": false
+				},
+				{
+					"name": "ReexportedAlias",
+					"isValue": false,
+					"isType": true,
+					"isNamespace": false
+				},
+				{
+					"name": "reexportedValue",
+					"isValue": false,
+					"isType": false,
+					"isNamespace": false
+				},
+				{
+					"name": "ReexportedClass",
+					"isValue": false,
+					"isType": true,
+					"isNamespace": false
+				}
+			]
+		},
+		{
+			"name": "ValueNamespace",
+			"isValue": true,
+			"members": [
+				{
+					"name": "mergedTarget",
+					"isValue": true,
+					"isType": false,
+					"isNamespace": false
+				},
+				{
+					"name": "typeOnlyImported",
+					"isValue": true,
+					"isType": false,
+					"isNamespace": false
+				},
+				{
+					"name": "ReexportedAlias",
+					"isValue": false,
+					"isType": true,
+					"isNamespace": false
+				},
+				{
+					"name": "reexportedValue",
+					"isValue": true,
+					"isType": false,
+					"isNamespace": false
+				},
+				{
+					"name": "ReexportedClass",
+					"isValue": true,
+					"isType": true,
+					"isNamespace": false
+				}
+			]
+		}
+	]
 }

@@ -9,6 +9,7 @@ the runtime model.
 interface ModuleNode {
   name: string;
   exports: ExportNode[];
+  namespaceReexports?: NamespaceReexport[];
 }
 
 interface ExportNode {
@@ -60,6 +61,48 @@ Exports without a declaration name, such as `export default function () {}`,
 `export default class {}`, and the bindings of
 `export const { helper } = helpers`, are exported under their export name
 (`default`, `helper`) like any other.
+
+## Namespace Re-exports
+
+A namespace re-export (`export * as Name from './module'`) has no `ExportNode`
+of its own. Each export of the module becomes an `ExportNode` named
+`Name.member`, and the namespace is listed in `namespaceReexports`:
+
+```typescript
+interface NamespaceReexport {
+  name: string;
+  isValue: boolean;
+  members: NamespaceReexportMember[];
+}
+
+interface NamespaceReexportMember {
+  name: string;
+  isValue: boolean;
+  isType: boolean;
+  isNamespace: boolean;
+}
+```
+
+`members` lists every export of the module with the declaration spaces it is
+reached with, including exports that have no `ExportNode` of their own: a
+namespace declared in the module, such as `export namespace Helpers {}`, and a
+namespace re-exported from it. `isValue` is `false` when the namespace is
+reached only through type-only sites, such as `export type * as Name`, and then
+no member is a value either. A member hidden by a type-only star export is left
+out, as it is from `exports`.
+
+Re-exports nest. In `export * as Toolbar from './parts'`, where `./parts` has
+`export * as ButtonDataAttributes from './attributes'`, `Toolbar` has the
+member `ButtonDataAttributes`, a namespace and a value, and
+`Toolbar.ButtonDataAttributes` is listed too, with the exports of
+`./attributes`. Their `ExportNode`s are named
+`Toolbar.ButtonDataAttributes.member`. Outer namespaces are listed first.
+
+Together with the declaration spaces, the members tell what one module exports
+at runtime: its value members. For example, a module whose value members are
+all constants can be documented as one group, with the type helpers next to
+them left out, even though a constant and a type alias can resolve to the same
+literal type.
 
 ## Enum Members
 
