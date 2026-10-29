@@ -48,6 +48,11 @@ export interface ExternalTypesCollector {
   typeNameMap?: Record<string, string>;
 }
 
+function withoutTypeArguments(printedName: string): string {
+  const typeArgumentsStart = printedName.indexOf('<');
+  return typeArgumentsStart === -1 ? printedName : printedName.slice(0, typeArgumentsStart);
+}
+
 /**
  * Records where an external type printed as `printedName` is declared, so the name can be
  * linked to that declaration's docs. A name printed for two different declarations, such as
@@ -61,14 +66,21 @@ export function collectExternalTypeSource(
   if (!source) {
     return;
   }
-  const typeArgumentsStart = printedName.indexOf('<');
-  const name = typeArgumentsStart === -1 ? printedName : printedName.slice(0, typeArgumentsStart);
+  const name = withoutTypeArguments(printedName);
   const existing = collector.sources.get(name);
   if (existing === undefined) {
     collector.sources.set(name, source);
   } else if (existing !== null && JSON.stringify(existing) !== JSON.stringify(source)) {
     collector.sources.set(name, null);
   }
+}
+
+/**
+ * Records that a project's own type is printed as `printedName`. The occurrences of a name
+ * cannot be told apart, so an external type printed the same way is left unlinked too.
+ */
+export function collectOwnTypeName(printedName: string, collector: ExternalTypesCollector): void {
+  collector.sources.set(withoutTypeArguments(printedName), null);
 }
 
 /**

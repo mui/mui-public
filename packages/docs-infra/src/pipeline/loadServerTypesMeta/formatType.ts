@@ -24,6 +24,7 @@ import {
   maybeCollectExternalFunction,
   maybeCollectExternalReference,
   collectExternalTypeSource,
+  collectOwnTypeName,
   getNamedUnionSource,
 } from './externalTypes';
 import type { ExternalTypesCollector } from './externalTypes';
@@ -96,6 +97,24 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
    * Strips type arguments before comparing to handle generic instances.
    * e.g., "Tabs.Root.ChangeEventDetails<'none', ...>" should match "Tabs.Root.ChangeEventDetails"
    */
+  /**
+   * Prints the name of a type that is not external. Lib types are always external, so a name
+   * printed here is the project's own, and a lib type that shares it is left unlinked.
+   */
+  function printOwnTypeName(typeName: tae.TypeName): string {
+    const qualifiedName = getFullyQualifiedName(
+      typeName,
+      exportNames,
+      typeNameMap,
+      preserveTypeParameters,
+      externalTypesCollector,
+    );
+    if (externalTypesCollector) {
+      collectOwnTypeName(qualifiedName, externalTypesCollector);
+    }
+    return qualifiedName;
+  }
+
   function matchesSelfName(qualifiedName: string, simpleName: string | undefined): boolean {
     if (!selfName) {
       return false;
@@ -164,15 +183,7 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
   }
 
   if (isIntrinsicType(type)) {
-    return type.typeName
-      ? getFullyQualifiedName(
-          type.typeName,
-          exportNames,
-          typeNameMap,
-          preserveTypeParameters,
-          externalTypesCollector,
-        )
-      : type.intrinsic;
+    return type.typeName ? printOwnTypeName(type.typeName) : type.intrinsic;
   }
 
   if (isUnionType(type)) {
@@ -201,11 +212,12 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
             !isOwnTypeName(qualifiedName, externalTypesCollector)
           ) {
             maybeCollectExternalUnion(type, externalTypesCollector);
-            collectExternalTypeSource(
-              qualifiedName,
-              getNamedUnionSource(type),
-              externalTypesCollector,
-            );
+            const source = getNamedUnionSource(type);
+            if (source) {
+              collectExternalTypeSource(qualifiedName, source, externalTypesCollector);
+            } else {
+              collectOwnTypeName(qualifiedName, externalTypesCollector);
+            }
           }
         }
         return qualifiedName;
@@ -277,13 +289,7 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
     // The expandObjects flag is primarily for object types where showing the structure is valuable
     // But skip if the type name matches selfName to avoid circular references like `type Foo = Foo`
     if (type.typeName) {
-      const qualifiedName = getFullyQualifiedName(
-        type.typeName,
-        exportNames,
-        typeNameMap,
-        preserveTypeParameters,
-        externalTypesCollector,
-      );
+      const qualifiedName = printOwnTypeName(type.typeName);
       // Check both the simple name AND the fully qualified name against selfName
       // selfName can be either format depending on context
       // Also strip type arguments to catch cases like `type Foo = Foo<Args>`
@@ -382,13 +388,7 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
     // BUT if the type name matches selfName, we need to expand to avoid circular references
     // like `type ToastManager = ToastManager`
     if (hasValidTypeName && !expandObjects) {
-      const qualifiedName = getFullyQualifiedName(
-        type.typeName!,
-        exportNames,
-        typeNameMap,
-        preserveTypeParameters,
-        externalTypesCollector,
-      );
+      const qualifiedName = printOwnTypeName(type.typeName!);
       if (!matchesSelfName(qualifiedName, type.typeName!.name)) {
         return qualifiedName;
       }
@@ -399,13 +399,7 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
     // This ensures types like `DialogHandle<Payload>` are shown instead of `{}`
     if (isObjectEmpty(type.properties) && !indexSignature) {
       if (hasValidTypeName) {
-        const qualifiedName = getFullyQualifiedName(
-          type.typeName!,
-          exportNames,
-          typeNameMap,
-          preserveTypeParameters,
-          externalTypesCollector,
-        );
+        const qualifiedName = printOwnTypeName(type.typeName!);
         if (!matchesSelfName(qualifiedName, type.typeName!.name)) {
           return qualifiedName;
         }
@@ -480,13 +474,7 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
     // A reference to a template literal alias keeps its name, like the other named types.
     // But skip if the type name matches selfName to avoid circular references like `type Foo = Foo`
     if (type.typeName) {
-      const qualifiedName = getFullyQualifiedName(
-        type.typeName,
-        exportNames,
-        typeNameMap,
-        preserveTypeParameters,
-        externalTypesCollector,
-      );
+      const qualifiedName = printOwnTypeName(type.typeName);
       if (!matchesSelfName(qualifiedName, type.typeName.name)) {
         if (externalTypesCollector) {
           // Only collect as external if the qualified name wasn't rewritten to an own type.
@@ -539,13 +527,7 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
       type.typeName?.name && !type.typeName.name.startsWith('ComponentRenderFn');
 
     if (hasNamedTypeAlias && !expandObjects) {
-      const qualifiedName = getFullyQualifiedName(
-        type.typeName!,
-        exportNames,
-        typeNameMap,
-        preserveTypeParameters,
-        externalTypesCollector,
-      );
+      const qualifiedName = printOwnTypeName(type.typeName!);
       if (externalTypesCollector) {
         // Only collect as external if the qualified name wasn't rewritten to an own type.
         if (
@@ -646,13 +628,7 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
 
   if (isTupleType(type)) {
     if (type.typeName) {
-      return getFullyQualifiedName(
-        type.typeName,
-        exportNames,
-        typeNameMap,
-        preserveTypeParameters,
-        externalTypesCollector,
-      );
+      return printOwnTypeName(type.typeName);
     }
 
     // Use expandObjects=false for tuple members to prevent deep expansion (one level only)

@@ -1715,7 +1715,7 @@ describe('external type sources', () => {
     const source =
       'type MaybeElement = Element | null;\nexport interface Props { el: MaybeElement }';
 
-    expect(collectSources({ 'types.ts': source })).not.toHaveProperty('MaybeElement');
+    expect(collectSources({ 'types.ts': source })).toEqual({ MaybeElement: null });
   });
 
   it('records external types in type arguments', () => {
@@ -1723,6 +1723,21 @@ describe('external type sources', () => {
       Box: { kind: 'lib', files: ['lib.d.ts'] },
       Element: { kind: 'lib', files: ['lib.d.ts'] },
     });
+  });
+
+  it('leaves a lib type unlinked when the page also prints its own type with that name', () => {
+    const sources = {
+      'types.ts': [
+        "import type { Chart } from './chart';",
+        "export interface Props { dom: Range; chart: Chart['range'] }",
+      ].join('\n'),
+      'chart.ts': [
+        'export interface Range { start: number; end: number }',
+        'export interface Chart { range: Range }',
+      ].join('\n'),
+    };
+
+    expect(collectSources(sources)).toEqual({ Range: null });
   });
 
   it('marks a name printed for types from different declarations as ambiguous', () => {
