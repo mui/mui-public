@@ -182,6 +182,43 @@ export interface Cell {
     ).toBe('ColumnData<string>');
   });
 
+  it('should keep intersection members whose properties were not expanded', () => {
+    // `Wide` has more properties than the parser expands, so it comes back without any. It
+    // is not empty, so it must neither be dropped nor merged away.
+    const wideProperties = Array.from({ length: 51 }, (_, index) => `p${index}: string;`).join(
+      '\n',
+    );
+    const [cell] = parseTestSources(
+      {
+        'index.ts': `
+export interface Wide {
+  ${wideProperties}
+}
+
+export interface ColumnData {
+  id: string;
+}
+
+export interface Cell {
+  column: Wide & ColumnData;
+}
+`,
+      },
+      {
+        lib: ts.sys.readFile(`${ts.getDefaultLibFilePath({}).replace(/[^/]+$/, '')}lib.es5.d.ts`),
+      },
+    ).filter((exportNode) => exportNode.name === 'Cell');
+    const column =
+      cell.type.kind === 'object'
+        ? cell.type.properties.find((property) => property.name === 'column')
+        : undefined;
+
+    expect(
+      column &&
+        formatType(column.type, { exportNames: ['Wide', 'ColumnData', 'Cell'], typeNameMap: {} }),
+    ).toBe('Wide & ColumnData');
+  });
+
   it('should format object types when expanded', () => {
     const objectType: tae.ObjectNode = {
       kind: 'object',
