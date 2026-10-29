@@ -66,16 +66,10 @@ export function getParameterDocumentationFromSymbol(
     .displayPartsToString(parameterSymbol.getDocumentationComment(checker))
     .replace(/^[\s-*:]*/, '');
 
-  const rawTags = parameterSymbol.getJsDocTags(checker);
-  const docTags: DocumentationTag[] = rawTags
-    .filter((tag) => tag.name !== 'param')
-    .map((tag) => {
-      return {
-        name: tag.name,
-        value: tag.text ? ts.displayPartsToString(tag.text) : undefined,
-      };
-    });
-  const visibility = getVisibilityFromTagNames(rawTags.map((tag) => tag.name));
+  const declaration = parameterSymbol.valueDeclaration;
+  const jsDocTags = declaration ? ts.getJSDocTags(declaration) : [];
+  const docTags = jsDocTags.filter((tag) => tag.tagName.text !== 'param').map(parseTag);
+  const visibility = getVisibilityFromTagNames(jsDocTags.map((tag) => tag.tagName.text));
 
   if (!summary.length && docTags.length === 0) {
     return undefined;
@@ -133,30 +127,15 @@ function parseTag(tag: ts.JSDocTag): DocumentationTag {
 }
 
 /**
- * Reassembles an `@see` tag as written. TypeScript parses its first word as a
+ * Reads an `@see` tag's text as written. TypeScript parses its first word as a
  * name reference and keeps only the rest as the comment, so `@see
  * https://example.com` arrives as name `https` and comment `://example.com`.
  */
 function getSeeTagValue(tag: ts.JSDocSeeTag): string | undefined {
-  const comment = ts.getTextOfJSDocComment(tag.comment);
-  if (!tag.name) {
-    return comment;
-  }
-
-  const name = tag.name.getText();
-  const sourceText = tag.getSourceFile().text;
-  const separator = sourceText.charAt(tag.name.end);
-
-  if (separator === '\n' || separator === '\r') {
-    // A name reference that ends its line leaves the next line's `*` margin in
-    // the comment.
-    const rest = comment?.replace(/^\*[ \t]?/, '');
-    return rest ? `${name}\n${rest}` : name;
-  }
-
-  if (!comment) {
-    return name;
-  }
-
-  return /\s/.test(separator) ? `${name} ${comment}` : `${name}${comment}`;
+  const text = tag
+    .getSourceFile()
+    .text.slice(tag.tagName.end, tag.end)
+    .replace(/\n[ \t]*\*[ \t]?/g, '\n')
+    .trim();
+  return text || undefined;
 }
