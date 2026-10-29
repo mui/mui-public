@@ -15,6 +15,9 @@ on:
   push:
     branches: [master]
   workflow_dispatch:
+  # Repair missed events and recover after transient API or runner failures.
+  schedule:
+    - cron: '17,47 * * * *'
 permissions: {}
 jobs:
   release-freshness:
@@ -26,13 +29,31 @@ jobs:
 ```
 
 Optional workflow inputs `base-branch` and `release-label` default to `master`
-and `release`. Match the caller's push branch filter to `base-branch`. Keep PR events unfiltered so retargeting away from the protected branch refreshes shared heads.
+and `release`. Use one base branch and label configuration per repository: the
+status context is shared across all callers. Match the caller's push branch filter
+to `base-branch`. Keep PR events unfiltered so retargeting away from the protected
+branch refreshes shared heads.
 
-The workflow checks out only trusted mui-public code, never PR code. PR events select the affected SHA bucket, base pushes select buckets containing
-open release PRs, and manual runs initialize all open PRs. Sixteen stable SHA
-buckets keep the matrix bounded. Every worker refreshes its entire bucket, so
-GitHub replacing an older pending job cannot drop another PR's update. Workers
-read current API state and API failures report an error status. Status updates run asynchronously after base pushes.
+The workflow checks out only trusted mui-public code, never PR code. One job
+serializes all event types in the repository and reconciles every open PR targeting
+the configured base branch. There is no API-dependent preparation job or PR matrix.
+If GitHub replaces a pending job, the replacement still refreshes the affected open
+heads. PR events also refresh their event head and previous head after synchronization.
+
+GitHub requests retry transient failures up to three times. If discovery fails,
+the job attempts an error status for every head learned from the event and any
+completed response pages, continuing if a status write fails. Comparison errors
+produce error statuses too. Current statuses are read in GraphQL batches to avoid a request per head and
+republishing unchanged results; if that optional read fails, the computed result is still written.
+
+This is an asynchronous freshness check, not an atomic merge-time guarantee.
+A base push or label change can leave a previous success visible until its job
+runs. A complete discovery outage cannot identify unknown PR heads, and a failed
+status write cannot invalidate an existing success. A failed Actions job alone
+does not block merging under this required-status rule. Scheduled runs provide
+automatic reconciliation after recovery; maintainers can also rerun a failed job
+or dispatch the workflow manually. GitHub may delay scheduled runs. Use GitHub's
+native up-to-date branch requirement if every merge must be checked atomically.
 
 Commit statuses are shared by PRs with an identical head SHA. If any open PR
 sharing that SHA has the release label, the shared status requires freshness.

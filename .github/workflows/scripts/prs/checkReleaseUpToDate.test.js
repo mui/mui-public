@@ -1,7 +1,7 @@
 // @ts-check
 import { describe, expect, it } from 'vitest';
 import { context as workflowContext, getOctokit } from '@actions/github';
-import { checkPullRequestBatch, getPullRequests } from './checkReleaseUpToDate';
+import { checkReleaseUpToDate } from './checkReleaseUpToDate';
 
 const headSha = 'a'.repeat(40);
 const context = {
@@ -9,11 +9,11 @@ const context = {
   repo: { owner: 'mui', repo: 'material-ui' },
   issue: { owner: 'mui', repo: 'material-ui', number: 42 },
   eventName: 'pull_request_target',
-  payload: { pull_request: { number: 42 } },
+  payload: { pull_request: { number: 42, head: { sha: headSha } } },
+  runId: 1234,
 };
-const batch = { bucket: 10, pulls: [{ number: 42, sha: headSha }] };
 
-/** @param {{ labels?: string[], behind?: number, state?: string, base?: string, compareError?: boolean, listError?: boolean, prError?: boolean, initialStatuses?: {sha: string, state: string, context: string, description?: string}[], pages?: {number: number, head: {sha: string}, labels: {name: string}[]}[][] }} [options] */
+/** @param {{ labels?: string[], behind?: number, state?: string, base?: string, compareError?: boolean, listError?: boolean, listErrorPage?: number, statusReadError?: boolean, statusWriteError?: string, initialStatuses?: {sha: string, state: string, context: string, description?: string}[], pages?: {number: number, head: {sha: string}, labels: {name: string}[]}[][] }} [options] */
 function createGithub({
   labels = ['release'],
   behind = 0,
@@ -21,7 +21,9 @@ function createGithub({
   base = 'master',
   compareError = false,
   listError = false,
-  prError = false,
+  listErrorPage,
+  statusReadError = false,
+  statusWriteError,
   initialStatuses = [],
   pages,
 } = {}) {
@@ -41,15 +43,38 @@ function createGithub({
     async (input, options) => {
       const url = new URL(String(input));
       requests.push(`${options?.method || 'GET'} ${url.pathname}${url.search}`);
-      if (url.pathname.endsWith('/pulls/42')) {
-        if (prError) {
-          return Response.json({ message: 'PR unavailable' }, { status: 503 });
+      if (url.pathname === '/graphql') {
+        if (statusReadError) {
+          return Response.json({ message: 'Statuses unavailable' }, { status: 503 });
         }
-        return Response.json(pr);
-      }
-      if (url.pathname.includes('/commits/') && url.pathname.endsWith('/statuses')) {
-        const sha = url.pathname.split('/').at(-2);
-        return Response.json(statuses.filter((status) => status.sha === sha).reverse());
+        const { query, variables } = JSON.parse(String(options?.body));
+        expect(variables).toEqual({
+          owner: 'mui',
+          repo: 'material-ui',
+          context: 'Release branch up to date',
+        });
+        expect(query).toContain('context(name: $context)');
+        const repository = Object.fromEntries(
+          [...query.matchAll(/(head\d+): object\(oid: "([a-f\d]{40})"\)/g)].map((match) => {
+            const status = statuses.findLast(
+              (entry) => entry.sha === match[2] && entry.context === variables.context,
+            );
+            return [
+              match[1],
+              {
+                status: status
+                  ? {
+                      context: {
+                        state: status.state.toUpperCase(),
+                        description: status.description ?? null,
+                      },
+                    }
+                  : null,
+              },
+            ];
+          }),
+        );
+        return Response.json({ data: { repository } });
       }
       if (url.pathname.includes('/compare/')) {
         return compareError
@@ -57,6 +82,9 @@ function createGithub({
           : Response.json({ behind_by: behind });
       }
       if (url.pathname.includes('/statuses/')) {
+        if (url.pathname.endsWith(`/statuses/${statusWriteError}`)) {
+          return Response.json({ message: 'Status write unavailable' }, { status: 503 });
+        }
         statuses.push({
           sha: url.pathname.split('/').at(-1),
           ...JSON.parse(String(options?.body)),
@@ -64,10 +92,10 @@ function createGithub({
         return Response.json({}, { status: 201 });
       }
       if (url.pathname.endsWith('/pulls')) {
-        if (listError) {
+        const page = Number(url.searchParams.get('page') || 1);
+        if (listError || page === listErrorPage) {
           return Response.json({ message: 'PR list unavailable' }, { status: 503 });
         }
-        const page = Number(url.searchParams.get('page') || 1);
         /** @type {Record<string, string>} */ const headers =
           page < responses.length
             ? {
@@ -83,9 +111,71 @@ function createGithub({
 }
 
 describe('release branch freshness', () => {
+  it('reconciles every open head even when a pending event for another head was replaced', async () => {
+    const otherSha = 'b'.repeat(40);
+    const { github, statuses } = createGithub({
+      behind: 1,
+      pages: [
+        [
+          { number: 42, head: { sha: headSha }, labels: [] },
+          { number: 43, head: { sha: otherSha }, labels: [{ name: 'release' }] },
+        ],
+      ],
+    });
+    await checkReleaseUpToDate({ github, context });
+    expect(statuses).toEqual([
+      expect.objectContaining({ sha: headSha, state: 'success' }),
+      expect.objectContaining({ sha: otherSha, state: 'failure' }),
+    ]);
+  });
+
+  it('invalidates known heads when both discovery and status reads fail, continuing after a failed write', async () => {
+    const previousSha = 'b'.repeat(40);
+    const { github, statuses, requests } = createGithub({
+      listError: true,
+      statusReadError: true,
+      statusWriteError: headSha,
+    });
+    await expect(
+      checkReleaseUpToDate({
+        github,
+        context: {
+          ...context,
+          payload: {
+            action: 'synchronize',
+            before: previousSha,
+            pull_request: { number: 42, head: { sha: headSha } },
+          },
+        },
+      }),
+    ).rejects.toThrow();
+    expect(requests).toContainEqual(expect.stringContaining(`/statuses/${headSha}`));
+    expect(statuses).toEqual([expect.objectContaining({ sha: previousSha, state: 'error' })]);
+  });
+
+  it('clears a previous head after synchronization even when it has no remaining PR', async () => {
+    const previousSha = 'b'.repeat(40);
+    const { github, statuses } = createGithub({ behind: 1 });
+    await checkReleaseUpToDate({
+      github,
+      context: {
+        ...context,
+        payload: {
+          action: 'synchronize',
+          before: previousSha,
+          pull_request: { number: 42, head: { sha: headSha } },
+        },
+      },
+    });
+    expect(statuses).toContainEqual(
+      expect.objectContaining({ sha: previousSha, state: 'success' }),
+    );
+    expect(statuses).toContainEqual(expect.objectContaining({ sha: headSha, state: 'failure' }));
+  });
+
   it('passes an unlabeled PR without comparing commits and posts on its head', async () => {
     const { github, statuses, requests } = createGithub({ labels: [] });
-    await checkPullRequestBatch({ github, context, batch });
+    await checkReleaseUpToDate({ github, context });
     expect(statuses.at(-1)).toEqual(
       expect.objectContaining({
         sha: headSha,
@@ -98,20 +188,19 @@ describe('release branch freshness', () => {
 
   it.each([0, 1, 12])('checks ancestry when the PR is %i commits behind', async (behind) => {
     const { github, statuses, requests } = createGithub({ behind });
-    await checkPullRequestBatch({ github, context, batch });
+    await checkReleaseUpToDate({ github, context });
     expect(statuses.map((status) => status.state)).toEqual([behind === 0 ? 'success' : 'failure']);
     expect(requests).toContainEqual(expect.stringContaining(`/compare/master...${headSha}`));
   });
 
   it('uses current labels when a release label was removed', async () => {
     const { github, statuses } = createGithub({ labels: [] });
-    await checkPullRequestBatch({
+    await checkReleaseUpToDate({
       github,
       context: {
         ...context,
         payload: { pull_request: { number: 42, labels: [{ name: 'release' }] } },
       },
-      batch,
     });
     expect(statuses.at(-1)?.state).toBe('success');
   });
@@ -120,7 +209,7 @@ describe('release branch freshness', () => {
     'clears the old head when its only PR is no longer eligible: %j',
     async (options) => {
       const { github, statuses } = createGithub(options);
-      await checkPullRequestBatch({ github, context, batch });
+      await checkReleaseUpToDate({ github, context });
       expect(statuses.at(-1)?.state).toBe('success');
     },
   );
@@ -139,9 +228,7 @@ describe('release branch freshness', () => {
           },
         ],
       });
-      await expect(checkPullRequestBatch({ github, context, batch })).rejects.toThrow(
-        'unavailable',
-      );
+      await expect(checkReleaseUpToDate({ github, context })).rejects.toThrow(/freshness/i);
       expect(statuses.map((status) => status.state)).toEqual(['success', 'error']);
     },
   );
@@ -150,10 +237,9 @@ describe('release branch freshness', () => {
     const { github, statuses, requests } = createGithub({
       pages: [[{ number: 42, head: { sha: headSha }, labels: [{ name: 'ship' }] }]],
     });
-    await checkPullRequestBatch({
+    await checkReleaseUpToDate({
       github,
       context,
-      batch,
       baseBranch: 'next',
       releaseLabel: 'ship',
     });
@@ -161,104 +247,148 @@ describe('release branch freshness', () => {
     expect(requests).toContainEqual(expect.stringContaining(`/compare/next...${headSha}`));
   });
 
-  it('selects the current head from a PR event', async () => {
-    const { github } = createGithub();
-    expect(await getPullRequests({ github, context })).toEqual([batch]);
-  });
-
-  it('falls back to the event head when refreshing the PR fails', async () => {
-    const { github } = createGithub({ prError: true });
-    const eventContext = {
-      ...context,
-      payload: { pull_request: { number: 42, head: { sha: headSha } } },
-    };
-    expect(await getPullRequests({ github, context: eventContext })).toEqual([batch]);
-  });
-
-  it('finds release PRs across pages after a base branch push', async () => {
-    const { github, requests } = createGithub({
-      pages: [
-        [
-          { number: 42, head: { sha: headSha }, labels: [{ name: 'release' }] },
-          { number: 43, head: { sha: headSha }, labels: [] },
-        ],
-        [{ number: 44, head: { sha: headSha }, labels: [{ name: 'release' }] }],
-      ],
-    });
-    expect(
-      await getPullRequests({
-        github,
-        context: { ...context, eventName: 'push', payload: { ref: 'refs/heads/master' } },
-      }),
-    ).toEqual([
-      {
-        bucket: 10,
-        pulls: [
-          { number: 42, sha: headSha },
-          { number: 44, sha: headSha },
-        ],
-      },
-    ]);
-    expect(requests).toContainEqual(expect.stringContaining('base=master'));
-    expect(requests).toHaveLength(2);
-  });
-
-  it('initializes all open PRs on a manual run', async () => {
-    const { github } = createGithub({ labels: [] });
-    expect(
-      await getPullRequests({
-        github,
-        context: { ...context, eventName: 'workflow_dispatch', payload: {} },
-      }),
-    ).toEqual([batch]);
-  });
-
   it('ignores pushes to another branch', async () => {
     const { github, requests } = createGithub();
-    expect(
-      await getPullRequests({
-        github,
-        context: { ...context, eventName: 'push', payload: { ref: 'refs/heads/feature' } },
-      }),
-    ).toEqual([]);
+    await checkReleaseUpToDate({
+      github,
+      context: { ...context, eventName: 'push', payload: { ref: 'refs/heads/feature' } },
+    });
     expect(requests).toEqual([]);
   });
 
-  it.each([false, true])(
-    'prevents a shared-head bypass in either event order (unlabeled first: %s)',
-    async (unlabeledFirst) => {
-      const pages = [
-        [
-          { number: 42, head: { sha: headSha }, labels: [] },
-          { number: 43, head: { sha: headSha }, labels: [{ name: 'release' }] },
+  it.each(['push', 'workflow_dispatch', 'schedule'])(
+    'reconciles labeled and unlabeled PRs across pages on %s',
+    async (eventName) => {
+      const otherSha = 'b'.repeat(40);
+      const { github, statuses, requests } = createGithub({
+        behind: 2,
+        pages: [
+          [{ number: 42, head: { sha: headSha }, labels: [] }],
+          [{ number: 43, head: { sha: otherSha }, labels: [{ name: 'release' }] }],
         ],
-      ];
-      const unlabeled = createGithub({ labels: [], behind: 2, pages });
-      const release = createGithub({ behind: 2, pages });
-      for (const run of unlabeledFirst ? [unlabeled, release] : [release, unlabeled]) {
-        // eslint-disable-next-line no-await-in-loop -- Replay events in order to exercise shared-status overwrites.
-        await checkPullRequestBatch({ github: run.github, context, batch });
-        expect(run.statuses.at(-1)?.state).toBe('failure');
-      }
+      });
+      await checkReleaseUpToDate({
+        github,
+        context: {
+          ...context,
+          eventName,
+          payload: { ref: 'refs/heads/master', after: 'c'.repeat(40) },
+        },
+      });
+      expect(statuses).toEqual([
+        expect.objectContaining({ sha: headSha, state: 'success' }),
+        expect.objectContaining({ sha: otherSha, state: 'failure' }),
+      ]);
+      expect(requests).toContainEqual(expect.stringContaining('page=2'));
+      expect(requests).toContainEqual(expect.stringContaining(`/compare/master...${otherSha}`));
     },
   );
 
-  it('bounds the initialization matrix while retaining all PRs', async () => {
-    const pulls = Array.from({ length: 300 }, (_, index) => ({
+  it('invalidates heads from earlier pages when base-push discovery fails later', async () => {
+    const { github, statuses } = createGithub({
+      listErrorPage: 2,
+      pages: [[{ number: 42, head: { sha: headSha }, labels: [{ name: 'release' }] }], []],
+      initialStatuses: [{ sha: headSha, state: 'success', context: 'Release branch up to date' }],
+    });
+    await expect(
+      checkReleaseUpToDate({
+        github,
+        context: {
+          ...context,
+          eventName: 'push',
+          payload: { ref: 'refs/heads/master' },
+        },
+      }),
+    ).rejects.toThrow(/freshness/i);
+    expect(statuses.map((status) => status.state)).toEqual(['success', 'error']);
+  });
+
+  it('publishes the computed result even when status history cannot be read', async () => {
+    const { github, statuses } = createGithub({ statusReadError: true, behind: 1 });
+    await checkReleaseUpToDate({ github, context });
+    expect(statuses).toEqual([expect.objectContaining({ sha: headSha, state: 'failure' })]);
+  });
+
+  it('continues checking other heads when a status cannot be written', async () => {
+    const otherSha = 'b'.repeat(40);
+    const { github, statuses } = createGithub({
+      statusWriteError: headSha,
+      pages: [
+        [
+          { number: 42, head: { sha: headSha }, labels: [] },
+          { number: 43, head: { sha: otherSha }, labels: [{ name: 'release' }] },
+        ],
+      ],
+    });
+    await expect(checkReleaseUpToDate({ github, context })).rejects.toThrow(/freshness/i);
+    expect(statuses).toEqual([expect.objectContaining({ sha: otherSha, state: 'success' })]);
+  });
+
+  it('finds an unchanged freshness status despite hundreds of unrelated statuses', async () => {
+    const initialStatuses = [
+      {
+        sha: headSha,
+        state: 'success',
+        context: 'Release branch up to date',
+        description: 'This release PR contains the latest master commits.',
+      },
+      ...Array.from({ length: 100 }, (_, index) => ({
+        sha: headSha,
+        state: 'success',
+        context: `Other check ${index}`,
+      })),
+    ];
+    const { github, statuses, requests } = createGithub({ initialStatuses });
+    await checkReleaseUpToDate({ github, context });
+    expect(statuses).toHaveLength(101);
+    expect(requests).toContain('POST /graphql');
+  });
+
+  it('does not duplicate a result on consecutive reconciliations', async () => {
+    const { github, statuses } = createGithub({ behind: 1 });
+    await checkReleaseUpToDate({ github, context });
+    await checkReleaseUpToDate({ github, context });
+    expect(statuses.map((status) => status.state)).toEqual(['failure']);
+  });
+
+  it('reconciles hundreds of unchanged heads without a request per head', async () => {
+    const pulls = Array.from({ length: 120 }, (_, index) => ({
       number: index + 1,
       head: { sha: index.toString(16).padStart(40, '0') },
       labels: [],
     }));
-    const { github } = createGithub({ pages: [pulls] });
-    const batches = await getPullRequests({
+    const { github, statuses, requests } = createGithub({
+      pages: [pulls],
+      initialStatuses: pulls.map((pr) => ({
+        sha: pr.head.sha,
+        state: 'success',
+        context: 'Release branch up to date',
+        description: 'No open release PR targets this branch with this head commit.',
+      })),
+    });
+    await checkReleaseUpToDate({
       github,
       context: { ...context, eventName: 'workflow_dispatch', payload: {} },
     });
-    expect(batches.length).toBeLessThanOrEqual(16);
-    expect(batches.flatMap((entry) => entry.pulls)).toHaveLength(300);
+    expect(statuses).toHaveLength(120);
+    expect(requests.length).toBeLessThan(10);
   });
 
-  it('refreshes the entire bucket so replaced pending jobs do not lose updates', async () => {
+  it.each([false, true])(
+    'keeps the release requirement across pages in either PR order (release first: %s)',
+    async (releaseFirst) => {
+      const release = { number: 42, head: { sha: headSha }, labels: [{ name: 'release' }] };
+      const unlabeled = { number: 43, head: { sha: headSha }, labels: [] };
+      const { github, statuses } = createGithub({
+        behind: 2,
+        pages: releaseFirst ? [[release], [unlabeled]] : [[unlabeled], [release]],
+      });
+      await checkReleaseUpToDate({ github, context });
+      expect(statuses).toEqual([expect.objectContaining({ sha: headSha, state: 'failure' })]);
+    },
+  );
+
+  it('refreshes all heads so replaced pending jobs do not lose updates', async () => {
     const otherSha = `${'b'.repeat(38)}aa`;
     const { github, statuses } = createGithub({
       pages: [
@@ -269,14 +399,14 @@ describe('release branch freshness', () => {
       ],
       behind: 1,
     });
-    await checkPullRequestBatch({ github, context, batch });
+    await checkReleaseUpToDate({ github, context });
     expect(statuses.filter((status) => status.state !== 'pending')).toEqual([
       expect.objectContaining({ sha: headSha, state: 'success' }),
       expect.objectContaining({ sha: otherSha, state: 'failure' }),
     ]);
   });
 
-  it('does not republish unchanged statuses for other heads in the bucket', async () => {
+  it('does not republish unchanged statuses on repeated reconciliation', async () => {
     const otherSha = `${'b'.repeat(38)}aa`;
     const { github, statuses, requests } = createGithub({
       labels: [],
@@ -302,7 +432,7 @@ describe('release branch freshness', () => {
         },
       ],
     });
-    await checkPullRequestBatch({ github, context, batch });
+    await checkReleaseUpToDate({ github, context });
     expect(statuses).toHaveLength(2);
     expect(requests).not.toContainEqual(expect.stringContaining(`/statuses/${headSha}`));
     expect(requests).not.toContainEqual(expect.stringContaining(`/statuses/${otherSha}`));

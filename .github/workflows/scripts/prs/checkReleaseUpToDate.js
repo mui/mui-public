@@ -8,209 +8,153 @@
  * @property {string} [baseBranch]
  * @property {string} [releaseLabel]
  */
-/** @typedef {{ bucket: number, pulls: { number: number, sha: string }[] }} Batch */
 
-/** @param {string} sha */
-const bucketFor = (sha) => Number.parseInt(sha.slice(-2), 16) % 16;
-
-/** @param {Options} options @returns {Promise<Batch[]>} */
-async function getPullRequests({
+/** @param {Options} options */
+async function checkReleaseUpToDate({
   github,
   context,
   baseBranch = 'master',
   releaseLabel = 'release',
 }) {
-  /** @type {{ number: number, head: { sha: string } }[]} */
-  let pulls;
-  if (context.eventName === 'pull_request_target') {
-    const number = context.payload.pull_request?.number;
-    if (!number) {
-      throw new Error('Missing PR number.');
-    }
-    const eventHead = context.payload.pull_request?.head?.sha;
-    try {
-      const { data: pr } = await github.rest.pulls.get({ ...context.repo, pull_number: number });
-      pulls = [pr];
-      // Also refresh an earlier head if this event queued while the head changed.
-      if (eventHead && eventHead !== pr.head.sha) {
-        pulls.push({ number, head: { sha: eventHead } });
-      }
-    } catch (error) {
-      if (!eventHead) {
-        throw error;
-      }
-      // The worker can still invalidate an old success and retry against current API state.
-      pulls = [{ number, head: { sha: eventHead } }];
-    }
-  } else {
-    if (context.eventName === 'push' && context.payload.ref !== `refs/heads/${baseBranch}`) {
-      return [];
-    }
-    if (context.eventName !== 'push' && context.eventName !== 'workflow_dispatch') {
-      throw new Error(`Unsupported event: ${context.eventName}`);
-    }
-    const open = await github.paginate(github.rest.pulls.list, {
-      ...context.repo,
-      state: 'open',
-      base: baseBranch,
-      per_page: 100,
-    });
-    pulls = open.filter(
-      (pr) =>
-        context.eventName === 'workflow_dispatch' ||
-        pr.labels.some((label) => label.name === releaseLabel),
-    );
+  if (context.eventName === 'push' && context.payload.ref !== `refs/heads/${baseBranch}`) {
+    return;
+  }
+  if (
+    !['pull_request_target', 'push', 'workflow_dispatch', 'schedule'].includes(context.eventName)
+  ) {
+    throw new Error(`Unsupported event: ${context.eventName}`);
   }
 
-  // A fixed number of buckets stays below GitHub's 256-job matrix limit.
-  /** @type {Map<number, Batch>} */
-  const batches = new Map();
-  for (const pr of pulls) {
-    const bucket = bucketFor(pr.head.sha);
-    const batch = batches.get(bucket) ?? { bucket, pulls: [] };
-    batch.pulls.push({ number: pr.number, sha: pr.head.sha });
-    batches.set(bucket, batch);
-  }
-  return [...batches.values()];
-}
-
-/** @param {Options & { batch: Batch }} options */
-async function checkPullRequestBatch({
-  github,
-  context,
-  batch,
-  baseBranch = 'master',
-  releaseLabel = 'release',
-}) {
-  /** @param {string} sha @param {'pending' | 'success' | 'failure' | 'error'} state @param {string} description */
+  const statusContext = 'Release branch up to date';
+  /** @param {string} sha @param {'success' | 'failure' | 'error'} state @param {string} description */
   const report = (sha, state, description) =>
     github.rest.repos.createCommitStatus({
       ...context.repo,
       sha,
-      context: 'Release branch up to date',
+      context: statusContext,
       state,
-      description: description.slice(0, 140),
+      description,
       target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
     });
-  const preparedHeads = new Set(batch.pulls.map((pr) => pr.sha));
 
-  /** @param {string} sha */
-  const getCurrentStatus = async (sha) => {
-    const { data: statuses } = await github.rest.repos.listCommitStatusesForRef({
-      ...context.repo,
-      ref: sha,
-      per_page: 100,
-    });
-    return statuses.find((status) => status.context === 'Release branch up to date');
-  };
-
-  /** @param {string} sha @param {'success' | 'failure' | 'error'} state @param {string} description @param {Awaited<ReturnType<typeof getCurrentStatus>>} currentStatus */
-  const reportIfChanged = async (sha, state, description, currentStatus) => {
-    if (currentStatus?.state === state && currentStatus.description === description) {
-      return;
+  // Include event heads to clear a closed, retargeted, or synchronized PR's old
+  // status even when no open PR uses that head anymore.
+  /** @type {Map<string, boolean>} */
+  const heads = new Map();
+  if (context.eventName === 'pull_request_target') {
+    for (const sha of [context.payload.pull_request?.head?.sha, context.payload.before]) {
+      if (typeof sha === 'string' && /^[a-f\d]{40}$/i.test(sha)) {
+        heads.set(sha, false);
+      }
     }
-    await report(sha, state, description);
-  };
+  }
 
-  /** @type {Awaited<ReturnType<typeof github.rest.pulls.list>>['data']} */
-  let open;
   try {
-    open = await github.paginate(github.rest.pulls.list, {
+    // Reconcile all open heads on every run. GitHub can replace a pending job;
+    // the replacement must also repair the PR that triggered the discarded job.
+    for await (const { data: pulls } of github.paginate.iterator(github.rest.pulls.list, {
       ...context.repo,
       state: 'open',
       base: baseBranch,
       per_page: 100,
-    });
-  } catch (error) {
-    for (const sha of preparedHeads) {
-      const currentStatus = await getCurrentStatus(sha);
-      await reportIfChanged(
-        sha,
-        'error',
-        'Unable to fetch PRs. Re-run the release freshness workflow.',
-        currentStatus,
-      );
+    })) {
+      for (const pr of pulls) {
+        // Commit statuses are SHA-scoped: any release PR sharing this head must
+        // satisfy freshness, regardless of which PR triggered the workflow.
+        heads.set(
+          pr.head.sha,
+          heads.get(pr.head.sha) === true || pr.labels.some((label) => label.name === releaseLabel),
+        );
+      }
     }
-    throw error;
+  } catch (error) {
+    const errors = [error];
+    // Discovery may fail on a later page. Invalidate every head learned so far,
+    // without depending on another read, and do not stop at the first failed write.
+    for (const sha of heads.keys()) {
+      try {
+        await report(sha, 'error', 'Unable to fetch PRs. Re-run the release freshness workflow.');
+      } catch (statusError) {
+        errors.push(statusError);
+      }
+    }
+    throw new AggregateError(errors, 'Unable to fetch PRs for release freshness.');
   }
 
-  // Statuses are shared by PRs with the same SHA. Any release PR sharing the head
-  // must satisfy freshness, so an unlabeled PR cannot overwrite its failure.
-  const heads = new Map([...preparedHeads].map((sha) => [sha, false]));
-  for (const pr of open) {
-    if (bucketFor(pr.head.sha) !== batch.bucket) {
-      continue;
+  /** @typedef {{ state: string, description: string | null }} Status */
+  /** @type {Map<string, Status | null | undefined>} */
+  const currentStatuses = new Map();
+  const shas = [...heads.keys()];
+  for (let offset = 0; offset < shas.length; offset += 50) {
+    const chunk = shas.slice(offset, offset + 50);
+    // Read only this context, in batches, rather than spending one REST request
+    // per open PR or walking unrelated status history.
+    const fields = chunk
+      .map(
+        (sha, index) =>
+          `head${index}: object(oid: "${sha}") { ... on Commit { status { context(name: $context) { state description } } } }`,
+      )
+      .join('\n');
+    try {
+      const result = await github.graphql(
+        `query($owner: String!, $repo: String!, $context: String!) {
+          repository(owner: $owner, name: $repo) { ${fields} }
+        }`,
+        { ...context.repo, context: statusContext },
+      );
+      /** @type {{ repository: Record<string, { status: { context: Status | null } | null } | null> | null }} */
+      const data = result;
+      chunk.forEach((sha, index) => {
+        currentStatuses.set(sha, data.repository?.[`head${index}`]?.status?.context);
+      });
+    } catch {
+      // This read only saves writes. Still publish computed results on failure.
     }
-    heads.set(
-      pr.head.sha,
-      heads.get(pr.head.sha) === true || pr.labels.some((label) => label.name === releaseLabel),
-    );
   }
 
   const errors = [];
   for (const [sha, release] of heads) {
-    let currentStatus;
-    try {
-      currentStatus = await getCurrentStatus(sha);
-    } catch (error) {
+    /** @type {'success' | 'failure' | 'error'} */
+    let state = 'success';
+    let description = 'No open release PR targets this branch with this head commit.';
+    if (release) {
       try {
-        await report(
-          sha,
-          'error',
-          'Unable to read the current status. Re-run the release freshness workflow.',
-        );
-      } catch (statusError) {
-        errors.push(statusError);
-        continue;
-      }
-      errors.push(error);
-      continue;
-    }
-    try {
-      if (!release) {
-        await reportIfChanged(
-          sha,
-          'success',
-          'No open release PR targets this branch with this head commit.',
-          currentStatus,
-        );
-        continue;
-      }
-      // Resolve the live base branch, rather than using an older push payload.
-      try {
+        // Resolve the live base branch, rather than using an older push payload.
         const { data: comparison } = await github.rest.repos.compareCommitsWithBasehead({
           ...context.repo,
           basehead: `${baseBranch}...${sha}`,
           per_page: 1,
         });
-        const upToDate = comparison.behind_by === 0;
-        await reportIfChanged(
-          sha,
-          upToDate ? 'success' : 'failure',
-          upToDate
+        state = comparison.behind_by === 0 ? 'success' : 'failure';
+        description =
+          state === 'success'
             ? `This release PR contains the latest ${baseBranch} commits.`
-            : `Merge or rebase ${baseBranch} into this release PR.`,
-          currentStatus,
-        );
+            : `Merge or rebase ${baseBranch} into this release PR.`;
       } catch (error) {
-        await reportIfChanged(
-          sha,
-          'error',
-          'Unable to compare commits. Re-run the release freshness workflow.',
-          currentStatus,
-        );
+        state = 'error';
+        description = 'Unable to compare commits. Re-run the release freshness workflow.';
         errors.push(error);
+      }
+    }
+
+    description = description.slice(0, 140);
+    try {
+      // Status history is only a write-deduplication optimization. Failure to read
+      // it must never prevent publishing the result established above.
+      const currentStatus = currentStatuses.get(sha);
+      if (
+        currentStatus?.state.toLowerCase() !== state ||
+        currentStatus.description !== description
+      ) {
+        await report(sha, state, description);
       }
     } catch (error) {
       errors.push(error);
     }
   }
-  if (errors.length === 1) {
-    throw errors[0];
-  }
-  if (errors.length > 1) {
+  if (errors.length > 0) {
     throw new AggregateError(errors, 'Some release branch freshness checks failed.');
   }
 }
 
-module.exports = { getPullRequests, checkPullRequestBatch };
+module.exports = { checkReleaseUpToDate };
