@@ -1,0 +1,57 @@
+{
+	"name": "test/fixtures/type-record-resolution/input",
+	"exports": [
+		{
+			"name": "acceptsRecord",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "acceptsRecord"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "external",
+									"typeName": {
+										"name": "Record",
+										"typeArguments": [
+											{
+												"type": {
+													"kind": "intrinsic",
+													"intrinsic": "string"
+												},
+												"equalToDefault": false
+											},
+											{
+												"type": {
+													"kind": "intrinsic",
+													"intrinsic": "unknown"
+												},
+												"equalToDefault": false
+											}
+										]
+									},
+									"source": {
+										"kind": "lib",
+										"files": ["lib.es5.d.ts"]
+									}
+								},
+								"name": "params",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		}
+	]
+}

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { parseFromProgram } from 'typescript-api-extractor';
-import type * as tae from 'typescript-api-extractor';
+import { parseFromProgram } from '@mui/internal-typescript-api-extractor';
+import type * as tae from '@mui/internal-typescript-api-extractor';
 import {
   findConstantNamespaces,
   foldConstantNamespaces,
@@ -151,6 +151,11 @@ describe('foldConstantNamespaces', () => {
         ],
       },
     ]);
+    expect(exports.find((node) => node.name === 'ButtonDataAttributes')).toMatchObject({
+      isValue: true,
+      isType: false,
+      isNamespace: true,
+    });
   });
 
   it('reads constants re-exported or referenced from another module, and numbers', () => {

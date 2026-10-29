@@ -1,0 +1,185 @@
+{
+	"name": "test/fixtures/readonly-array-mapped-alias-wrapped/input",
+	"exports": [
+		{
+			"name": "MapAlias",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "MapAlias",
+					"typeArguments": [
+						{
+							"type": {
+								"name": "K",
+								"constraint": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						},
+						{
+							"type": {
+								"name": "V",
+								"defaultValue": {
+									"kind": "intrinsic",
+									"intrinsic": "unknown"
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [],
+				"indexSignature": {
+					"keyName": "P",
+					"keyType": "string",
+					"valueType": {
+						"kind": "union",
+						"types": [
+							{
+								"name": "V",
+								"defaultValue": {
+									"kind": "intrinsic",
+									"intrinsic": "unknown"
+								},
+								"kind": "typeParameter"
+							},
+							{
+								"kind": "intrinsic",
+								"intrinsic": "undefined"
+							}
+						]
+					}
+				}
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Wrapped",
+			"type": {
+				"kind": "array",
+				"typeName": {
+					"name": "Wrapped",
+					"typeArguments": [
+						{
+							"type": {
+								"kind": "object",
+								"typeName": {
+									"name": "MapAlias",
+									"typeArguments": [
+										{
+											"type": {
+												"name": "K",
+												"constraint": {
+													"kind": "intrinsic",
+													"intrinsic": "string"
+												},
+												"kind": "typeParameter"
+											},
+											"equalToDefault": false
+										},
+										{
+											"type": {
+												"name": "V",
+												"defaultValue": {
+													"kind": "intrinsic",
+													"intrinsic": "string"
+												},
+												"kind": "typeParameter"
+											},
+											"equalToDefault": false
+										}
+									]
+								},
+								"properties": [],
+								"indexSignature": {
+									"keyName": "P",
+									"keyType": "string",
+									"valueType": {
+										"kind": "union",
+										"types": [
+											{
+												"name": "V",
+												"defaultValue": {
+													"kind": "intrinsic",
+													"intrinsic": "string"
+												},
+												"kind": "typeParameter"
+											},
+											{
+												"kind": "intrinsic",
+												"intrinsic": "undefined"
+											}
+										]
+									}
+								}
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"elementType": {
+					"kind": "object",
+					"typeName": {
+						"name": "MapAlias",
+						"typeArguments": [
+							{
+								"type": {
+									"name": "K",
+									"constraint": {
+										"kind": "intrinsic",
+										"intrinsic": "string"
+									},
+									"kind": "typeParameter"
+								},
+								"equalToDefault": false
+							},
+							{
+								"type": {
+									"name": "V",
+									"defaultValue": {
+										"kind": "intrinsic",
+										"intrinsic": "string"
+									},
+									"kind": "typeParameter"
+								},
+								"equalToDefault": false
+							}
+						]
+					},
+					"properties": [],
+					"indexSignature": {
+						"keyName": "P",
+						"keyType": "string",
+						"valueType": {
+							"kind": "union",
+							"types": [
+								{
+									"name": "V",
+									"defaultValue": {
+										"kind": "intrinsic",
+										"intrinsic": "string"
+									},
+									"kind": "typeParameter"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						}
+					}
+				},
+				"isReadonly": true
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

@@ -1,0 +1,165 @@
+{
+	"name": "test/fixtures/namespace-nested-alias-resolution/input",
+	"exports": [
+		{
+			"name": "NamespacedAliasComponent",
+			"type": {
+				"kind": "component",
+				"typeName": {
+					"name": "NamespacedAliasComponent"
+				},
+				"props": [
+					{
+						"name": "foo",
+						"type": {
+							"kind": "union",
+							"typeName": {
+								"name": "Foo",
+								"namespaces": ["Root"]
+							},
+							"types": [
+								{
+									"kind": "literal",
+									"value": "\"a\""
+								},
+								{
+									"kind": "literal",
+									"value": "\"b\""
+								}
+							]
+						},
+						"optional": false
+					},
+					{
+						"name": "nestedFoo",
+						"type": {
+							"kind": "union",
+							"typeName": {
+								"name": "Foo",
+								"namespaces": ["Root", "Nested"]
+							},
+							"types": [
+								{
+									"kind": "literal",
+									"value": "\"a\""
+								},
+								{
+									"kind": "literal",
+									"value": "\"b\""
+								}
+							]
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "Root.Foo",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "Foo",
+					"namespaces": ["Root"]
+				},
+				"types": [
+					{
+						"kind": "literal",
+						"value": "\"a\""
+					},
+					{
+						"kind": "literal",
+						"value": "\"b\""
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Root.Nested.Foo",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "Foo",
+					"namespaces": ["Root", "Nested"]
+				},
+				"types": [
+					{
+						"kind": "literal",
+						"value": "\"a\""
+					},
+					{
+						"kind": "literal",
+						"value": "\"b\""
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Root.Props",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Props",
+					"namespaces": ["Root"]
+				},
+				"properties": [
+					{
+						"name": "foo",
+						"type": {
+							"kind": "union",
+							"typeName": {
+								"name": "Foo",
+								"namespaces": ["Root"]
+							},
+							"types": [
+								{
+									"kind": "literal",
+									"value": "\"a\""
+								},
+								{
+									"kind": "literal",
+									"value": "\"b\""
+								}
+							]
+						},
+						"optional": false
+					},
+					{
+						"name": "nestedFoo",
+						"type": {
+							"kind": "union",
+							"typeName": {
+								"name": "Foo",
+								"namespaces": ["Root", "Nested"]
+							},
+							"types": [
+								{
+									"kind": "literal",
+									"value": "\"a\""
+								},
+								{
+									"kind": "literal",
+									"value": "\"b\""
+								}
+							]
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	],
+	"imports": ["./types"]
+}

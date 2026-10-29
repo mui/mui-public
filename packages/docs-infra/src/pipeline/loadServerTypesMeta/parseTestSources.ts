@@ -1,6 +1,6 @@
 import ts from 'typescript';
-import { parseFromProgram } from 'typescript-api-extractor';
-import type * as tae from 'typescript-api-extractor';
+import { parseFromProgram } from '@mui/internal-typescript-api-extractor';
+import type * as tae from '@mui/internal-typescript-api-extractor';
 import { PARSER_OPTIONS } from './constants';
 
 const ROOT = '/virtual';

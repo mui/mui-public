@@ -10,8 +10,8 @@ import {
   PropertyNode,
   TypeName,
   UnionNode,
-} from 'typescript-api-extractor';
-import type { AnyType, ComponentNode, ExportNode } from 'typescript-api-extractor';
+} from '@mui/internal-typescript-api-extractor';
+import type { AnyType, ComponentNode, ExportNode } from '@mui/internal-typescript-api-extractor';
 import { isComponentType, isObjectType } from './typeGuards';
 
 /**

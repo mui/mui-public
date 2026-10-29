@@ -1,0 +1,96 @@
+{
+	"name": "test/fixtures/type-union-object-props-resolution/input",
+	"exports": [
+		{
+			"name": "UnionPropsComponent",
+			"type": {
+				"kind": "component",
+				"typeName": {
+					"name": "UnionPropsComponent"
+				},
+				"props": [
+					{
+						"name": "matching",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "boolean"
+						},
+						"optional": false
+					},
+					{
+						"name": "uniqueA",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "conflictingOptionality",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "conflictingType",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "number"
+								}
+							]
+						},
+						"optional": false
+					},
+					{
+						"name": "uniqueB",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		}
+	],
+	"imports": ["react"]
+}

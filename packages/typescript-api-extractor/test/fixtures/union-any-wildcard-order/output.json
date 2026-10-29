@@ -1,0 +1,215 @@
+{
+	"name": "test/fixtures/union-any-wildcard-order/input",
+	"exports": [
+		{
+			"name": "OrderIndependent",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "OrderIndependent"
+				},
+				"types": [
+					{
+						"kind": "function",
+						"callSignatures": [
+							{
+								"parameters": [
+									{
+										"type": {
+											"kind": "union",
+											"types": [
+												{
+													"kind": "intrinsic",
+													"intrinsic": "string"
+												},
+												{
+													"kind": "intrinsic",
+													"intrinsic": "number"
+												}
+											]
+										},
+										"name": "x",
+										"optional": false
+									}
+								],
+								"returnValueType": {
+									"kind": "intrinsic",
+									"intrinsic": "void"
+								}
+							}
+						]
+					}
+				]
+			},
+			"documentation": {
+				"description": "Tests that union/intersection multiset matching is order-independent.\n\nCase 1 (OrderIndependent): Two overloads whose parameter is the same union\nwith members in different order (`string | number` vs `number | string`).\nShould collapse to 1 member.\n\nCase 2 (AnyWildcardDedup): One overload has `any` parameter (TypeScript\nsimplifies `any | string` to `any`), the other has `string | number`.\nThe `any` wildcard matches a concrete type, so they collapse to 1 member\n(the non-any version is preferred).\n\nCase 3 (NotEquivalent): Two overloads with genuinely different unions\n(`string | number` vs `string | boolean`). Must NOT collapse.",
+				"tags": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "AnyWildcardDedup",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "AnyWildcardDedup"
+				},
+				"types": [
+					{
+						"kind": "function",
+						"callSignatures": [
+							{
+								"parameters": [
+									{
+										"type": {
+											"kind": "union",
+											"types": [
+												{
+													"kind": "intrinsic",
+													"intrinsic": "string"
+												},
+												{
+													"kind": "intrinsic",
+													"intrinsic": "number"
+												}
+											]
+										},
+										"name": "x",
+										"optional": false
+									}
+								],
+								"returnValueType": {
+									"kind": "intrinsic",
+									"intrinsic": "void"
+								}
+							}
+						]
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "AnyWildcardDedupReversed",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "AnyWildcardDedupReversed"
+				},
+				"types": [
+					{
+						"kind": "function",
+						"callSignatures": [
+							{
+								"parameters": [
+									{
+										"type": {
+											"kind": "union",
+											"types": [
+												{
+													"kind": "intrinsic",
+													"intrinsic": "string"
+												},
+												{
+													"kind": "intrinsic",
+													"intrinsic": "number"
+												}
+											]
+										},
+										"name": "x",
+										"optional": false
+									}
+								],
+								"returnValueType": {
+									"kind": "intrinsic",
+									"intrinsic": "void"
+								}
+							}
+						]
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "NotEquivalent",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "NotEquivalent"
+				},
+				"types": [
+					{
+						"kind": "function",
+						"callSignatures": [
+							{
+								"parameters": [
+									{
+										"type": {
+											"kind": "union",
+											"types": [
+												{
+													"kind": "intrinsic",
+													"intrinsic": "string"
+												},
+												{
+													"kind": "intrinsic",
+													"intrinsic": "number"
+												}
+											]
+										},
+										"name": "x",
+										"optional": false
+									}
+								],
+								"returnValueType": {
+									"kind": "intrinsic",
+									"intrinsic": "void"
+								}
+							}
+						]
+					},
+					{
+						"kind": "function",
+						"callSignatures": [
+							{
+								"parameters": [
+									{
+										"type": {
+											"kind": "union",
+											"types": [
+												{
+													"kind": "intrinsic",
+													"intrinsic": "string"
+												},
+												{
+													"kind": "intrinsic",
+													"intrinsic": "boolean"
+												}
+											]
+										},
+										"name": "x",
+										"optional": false
+									}
+								],
+								"returnValueType": {
+									"kind": "intrinsic",
+									"intrinsic": "void"
+								}
+							}
+						]
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

@@ -1,0 +1,125 @@
+{
+	"name": "test/fixtures/function-declaration-expression-arrow/input",
+	"exports": [
+		{
+			"name": "declaration",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "declaration"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "object",
+									"typeName": {
+										"name": "Parameters"
+									},
+									"properties": [
+										{
+											"name": "s",
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											},
+											"optional": false
+										}
+									]
+								},
+								"name": "p",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "greetAsExpression",
+			"type": {
+				"kind": "function",
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "object",
+									"typeName": {
+										"name": "Parameters"
+									},
+									"properties": [
+										{
+											"name": "s",
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											},
+											"optional": false
+										}
+									]
+								},
+								"name": "p",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "greetAsArrowFunction",
+			"type": {
+				"kind": "function",
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "object",
+									"typeName": {
+										"name": "Parameters"
+									},
+									"properties": [
+										{
+											"name": "s",
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											},
+											"optional": false
+										}
+									]
+								},
+								"name": "p",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		}
+	]
+}

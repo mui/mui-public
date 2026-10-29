@@ -1,0 +1,197 @@
+{
+	"name": "test/fixtures/react-refs/input",
+	"exports": [
+		{
+			"name": "RefPropsComponent",
+			"type": {
+				"kind": "component",
+				"typeName": {
+					"name": "RefPropsComponent"
+				},
+				"props": [
+					{
+						"name": "refObject",
+						"type": {
+							"kind": "external",
+							"typeName": {
+								"name": "RefObject",
+								"namespaces": ["React"],
+								"typeArguments": [
+									{
+										"type": {
+											"kind": "external",
+											"typeName": {
+												"name": "HTMLInputElement"
+											},
+											"source": {
+												"kind": "lib",
+												"files": ["lib.dom.d.ts"]
+											}
+										},
+										"equalToDefault": false
+									}
+								]
+							},
+							"source": {
+								"kind": "package",
+								"name": "@types/react"
+							}
+						},
+						"optional": false
+					},
+					{
+						"name": "refCallback",
+						"type": {
+							"kind": "external",
+							"typeName": {
+								"name": "RefCallback",
+								"namespaces": ["React"]
+							},
+							"source": {
+								"kind": "package",
+								"name": "@types/react"
+							}
+						},
+						"optional": false
+					},
+					{
+						"name": "ref",
+						"type": {
+							"kind": "external",
+							"typeName": {
+								"name": "Ref",
+								"namespaces": ["React"],
+								"typeArguments": [
+									{
+										"type": {
+											"kind": "external",
+											"typeName": {
+												"name": "HTMLInputElement"
+											},
+											"source": {
+												"kind": "lib",
+												"files": ["lib.dom.d.ts"]
+											}
+										},
+										"equalToDefault": false
+									}
+								]
+							},
+							"source": {
+								"kind": "package",
+								"name": "@types/react"
+							}
+						},
+						"optional": false
+					},
+					{
+						"name": "optionalRefObject",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "external",
+									"typeName": {
+										"name": "RefObject",
+										"namespaces": ["React"],
+										"typeArguments": [
+											{
+												"type": {
+													"kind": "external",
+													"typeName": {
+														"name": "HTMLInputElement"
+													},
+													"source": {
+														"kind": "lib",
+														"files": ["lib.dom.d.ts"]
+													}
+												},
+												"equalToDefault": false
+											}
+										]
+									},
+									"source": {
+										"kind": "package",
+										"name": "@types/react"
+									}
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "optionalRefCallback",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "external",
+									"typeName": {
+										"name": "RefCallback",
+										"namespaces": ["React"]
+									},
+									"source": {
+										"kind": "package",
+										"name": "@types/react"
+									}
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "optionalRef",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "external",
+									"typeName": {
+										"name": "Ref",
+										"namespaces": ["React"],
+										"typeArguments": [
+											{
+												"type": {
+													"kind": "external",
+													"typeName": {
+														"name": "HTMLInputElement"
+													},
+													"source": {
+														"kind": "lib",
+														"files": ["lib.dom.d.ts"]
+													}
+												},
+												"equalToDefault": false
+											}
+										]
+									},
+									"source": {
+										"kind": "package",
+										"name": "@types/react"
+									}
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		}
+	],
+	"imports": ["react"]
+}

@@ -1,8 +1,8 @@
 import type { CompilerOptions } from 'typescript';
 // eslint-disable-next-line n/prefer-node-protocol
 import { fileURLToPath } from 'url';
-import { parseFromProgram } from 'typescript-api-extractor';
-import type { ExportNode, TypeName, AnyType } from 'typescript-api-extractor';
+import { parseFromProgram } from '@mui/internal-typescript-api-extractor';
+import type { ExportNode, TypeName, AnyType } from '@mui/internal-typescript-api-extractor';
 import ts from 'typescript';
 import { createOptimizedProgram } from './createOptimizedProgram';
 import { augmentComponentsWithInheritedProps } from './inheritedExternalProps';

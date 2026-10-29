@@ -1,0 +1,313 @@
+{
+	"name": "test/fixtures/export-declaration-spaces-star-barrels/input",
+	"exports": [
+		{
+			"name": "TypeOnlyBarrelNamespace.BarrelEnum",
+			"type": {
+				"typeName": {
+					"name": "BarrelEnum",
+					"namespaces": ["TypeOnlyBarrelNamespace"]
+				},
+				"members": [
+					{
+						"name": "member",
+						"value": "member"
+					}
+				],
+				"kind": "enum"
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "TypeOnlyBarrelNamespace.NamespaceEnum",
+			"type": {
+				"typeName": {
+					"name": "NamespaceEnum",
+					"namespaces": ["TypeOnlyBarrelNamespace"]
+				},
+				"members": [
+					{
+						"name": "member",
+						"value": "member"
+					}
+				],
+				"kind": "enum"
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "TypeOnlyBarrelNamespace.BarrelClass",
+			"type": {
+				"kind": "class",
+				"typeName": {
+					"name": "BarrelClass",
+					"namespaces": ["TypeOnlyBarrelNamespace"]
+				},
+				"constructSignatures": [
+					{
+						"parameters": []
+					}
+				],
+				"properties": [
+					{
+						"name": "id",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false,
+						"readonly": false,
+						"isStatic": false
+					}
+				],
+				"methods": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "ValueBarrelNamespace.BarrelEnum",
+			"type": {
+				"typeName": {
+					"name": "BarrelEnum",
+					"namespaces": ["ValueBarrelNamespace"]
+				},
+				"members": [
+					{
+						"name": "member",
+						"value": "member"
+					}
+				],
+				"kind": "enum"
+			},
+			"isValue": true,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "ValueBarrelNamespace.NamespaceEnum",
+			"type": {
+				"typeName": {
+					"name": "NamespaceEnum",
+					"namespaces": ["ValueBarrelNamespace"]
+				},
+				"members": [
+					{
+						"name": "member",
+						"value": "member"
+					}
+				],
+				"kind": "enum"
+			},
+			"isValue": true,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "ValueBarrelNamespace.barrelFunction",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "barrelFunction",
+					"namespaces": ["ValueBarrelNamespace"]
+				},
+				"callSignatures": [
+					{
+						"parameters": [],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "ValueBarrelNamespace.BarrelClass",
+			"type": {
+				"kind": "class",
+				"typeName": {
+					"name": "BarrelClass",
+					"namespaces": ["ValueBarrelNamespace"]
+				},
+				"constructSignatures": [
+					{
+						"parameters": []
+					}
+				],
+				"properties": [
+					{
+						"name": "id",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false,
+						"readonly": false,
+						"isStatic": false
+					}
+				],
+				"methods": []
+			},
+			"isValue": true,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "BarrelEnum",
+			"type": {
+				"typeName": {
+					"name": "BarrelEnum"
+				},
+				"members": [
+					{
+						"name": "member",
+						"value": "member"
+					}
+				],
+				"kind": "enum"
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "NamespaceEnum",
+			"type": {
+				"typeName": {
+					"name": "NamespaceEnum"
+				},
+				"members": [
+					{
+						"name": "member",
+						"value": "member"
+					}
+				],
+				"kind": "enum"
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "BarrelClass",
+			"type": {
+				"kind": "class",
+				"typeName": {
+					"name": "BarrelClass"
+				},
+				"constructSignatures": [
+					{
+						"parameters": []
+					}
+				],
+				"properties": [
+					{
+						"name": "id",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false,
+						"readonly": false,
+						"isStatic": false
+					}
+				],
+				"methods": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "BarrelProps",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "BarrelProps"
+				},
+				"properties": [
+					{
+						"name": "id",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "DualPathClass",
+			"type": {
+				"kind": "class",
+				"typeName": {
+					"name": "DualPathClass"
+				},
+				"constructSignatures": [
+					{
+						"parameters": []
+					}
+				],
+				"properties": [
+					{
+						"name": "id",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false,
+						"readonly": false,
+						"isStatic": false
+					}
+				],
+				"methods": []
+			},
+			"isValue": true,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "ReexportedBarrelClass",
+			"type": {
+				"kind": "class",
+				"typeName": {
+					"name": "ReexportedBarrelClass"
+				},
+				"constructSignatures": [
+					{
+						"parameters": []
+					}
+				],
+				"properties": [
+					{
+						"name": "id",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false,
+						"readonly": false,
+						"isStatic": false
+					}
+				],
+				"methods": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

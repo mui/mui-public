@@ -1,0 +1,156 @@
+{
+	"name": "test/fixtures/type-reference-vs-inline-resolution/input",
+	"exports": [
+		{
+			"name": "referenceTypes",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "referenceTypes"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "object",
+									"typeName": {
+										"name": "CustomInterface"
+									},
+									"properties": [
+										{
+											"name": "a",
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "number"
+											},
+											"optional": false
+										}
+									]
+								},
+								"name": "a",
+								"optional": false
+							},
+							{
+								"type": {
+									"kind": "object",
+									"typeName": {
+										"name": "CustomType"
+									},
+									"properties": [
+										{
+											"name": "s",
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											},
+											"optional": false
+										}
+									]
+								},
+								"name": "b",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "object",
+									"typeName": {
+										"name": "CustomInterface"
+									},
+									"properties": [
+										{
+											"name": "a",
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "number"
+											},
+											"optional": false
+										}
+									]
+								},
+								{
+									"kind": "object",
+									"typeName": {
+										"name": "CustomType"
+									},
+									"properties": [
+										{
+											"name": "s",
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											},
+											"optional": false
+										}
+									]
+								}
+							]
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "inlineTypes",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "inlineTypes"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "object",
+									"properties": [
+										{
+											"name": "a",
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "number"
+											},
+											"optional": false
+										}
+									]
+								},
+								"name": "a",
+								"optional": false
+							},
+							{
+								"type": {
+									"kind": "object",
+									"properties": [
+										{
+											"name": "s",
+											"type": {
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											},
+											"optional": false
+										}
+									]
+								},
+								"name": "b",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		}
+	]
+}

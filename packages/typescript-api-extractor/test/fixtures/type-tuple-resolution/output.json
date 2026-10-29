@@ -1,0 +1,131 @@
+{
+	"name": "test/fixtures/type-tuple-resolution/input",
+	"exports": [
+		{
+			"name": "testFunction1",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "testFunction1"
+				},
+				"callSignatures": [
+					{
+						"parameters": [],
+						"returnValueType": {
+							"kind": "tuple",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "number"
+								}
+							]
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "testFunction2",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "testFunction2"
+				},
+				"callSignatures": [
+					{
+						"parameters": [],
+						"returnValueType": {
+							"kind": "tuple",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "number"
+								}
+							]
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "testFunction3",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "testFunction3"
+				},
+				"callSignatures": [
+					{
+						"parameters": [],
+						"returnValueType": {
+							"kind": "tuple",
+							"typeName": {
+								"name": "TupleType"
+							},
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "number"
+								}
+							]
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "testFunction4",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "testFunction4"
+				},
+				"callSignatures": [
+					{
+						"parameters": [],
+						"returnValueType": {
+							"kind": "tuple",
+							"typeName": {
+								"name": "NamedTupleType"
+							},
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "number"
+								}
+							]
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		}
+	]
+}

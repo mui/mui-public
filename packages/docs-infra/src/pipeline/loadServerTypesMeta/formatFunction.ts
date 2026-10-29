@@ -1,4 +1,4 @@
-import type * as tae from 'typescript-api-extractor';
+import type * as tae from '@mui/internal-typescript-api-extractor';
 import {
   formatParameters,
   formatProperties,

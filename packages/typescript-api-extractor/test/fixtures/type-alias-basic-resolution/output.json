@@ -1,0 +1,475 @@
+{
+	"name": "test/fixtures/type-alias-basic-resolution/input",
+	"exports": [
+		{
+			"name": "acceptsAliases",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "acceptsAliases"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "union",
+									"typeName": {
+										"name": "Alias"
+									},
+									"types": [
+										{
+											"kind": "literal",
+											"value": 1
+										},
+										{
+											"kind": "literal",
+											"value": 2
+										}
+									]
+								},
+								"name": "a",
+								"optional": false
+							},
+							{
+								"type": {
+									"kind": "object",
+									"typeName": {
+										"name": "MyRecord",
+										"typeArguments": [
+											{
+												"type": {
+													"kind": "intrinsic",
+													"intrinsic": "string"
+												},
+												"equalToDefault": false
+											},
+											{
+												"type": {
+													"kind": "intrinsic",
+													"intrinsic": "string"
+												},
+												"equalToDefault": false
+											}
+										]
+									},
+									"properties": [],
+									"indexSignature": {
+										"keyType": "string",
+										"valueType": {
+											"kind": "intrinsic",
+											"intrinsic": "string"
+										}
+									}
+								},
+								"name": "r",
+								"optional": false
+							},
+							{
+								"type": {
+									"kind": "object",
+									"typeName": {
+										"name": "AliasToGeneric"
+									},
+									"properties": []
+								},
+								"name": "s",
+								"optional": false
+							},
+							{
+								"type": {
+									"kind": "intrinsic",
+									"typeName": {
+										"name": "AliasedAny"
+									},
+									"intrinsic": "any"
+								},
+								"name": "n",
+								"optional": false
+							},
+							{
+								"type": {
+									"kind": "intrinsic",
+									"typeName": {
+										"name": "AliasedUnknown"
+									},
+									"intrinsic": "unknown"
+								},
+								"name": "u",
+								"optional": false
+							},
+							{
+								"type": {
+									"kind": "union",
+									"typeName": {
+										"name": "Alias"
+									},
+									"types": [
+										{
+											"kind": "union",
+											"typeName": {
+												"name": "Alias"
+											},
+											"types": [
+												{
+													"kind": "literal",
+													"value": 1
+												},
+												{
+													"kind": "literal",
+													"value": 2
+												}
+											]
+										},
+										{
+											"kind": "intrinsic",
+											"intrinsic": "undefined"
+										}
+									]
+								},
+								"name": "oa",
+								"optional": true
+							},
+							{
+								"type": {
+									"kind": "union",
+									"types": [
+										{
+											"kind": "object",
+											"typeName": {
+												"name": "MyRecord",
+												"typeArguments": [
+													{
+														"type": {
+															"kind": "intrinsic",
+															"intrinsic": "string"
+														},
+														"equalToDefault": false
+													},
+													{
+														"type": {
+															"kind": "intrinsic",
+															"intrinsic": "string"
+														},
+														"equalToDefault": false
+													}
+												]
+											},
+											"properties": [],
+											"indexSignature": {
+												"keyType": "string",
+												"valueType": {
+													"kind": "intrinsic",
+													"intrinsic": "string"
+												}
+											}
+										},
+										{
+											"kind": "intrinsic",
+											"intrinsic": "undefined"
+										}
+									]
+								},
+								"name": "or",
+								"optional": true
+							},
+							{
+								"type": {
+									"kind": "union",
+									"typeName": {
+										"name": "AliasToGeneric"
+									},
+									"types": [
+										{
+											"kind": "object",
+											"typeName": {
+												"name": "AliasToGeneric"
+											},
+											"properties": []
+										},
+										{
+											"kind": "intrinsic",
+											"intrinsic": "undefined"
+										}
+									]
+								},
+								"name": "os",
+								"optional": true
+							},
+							{
+								"type": {
+									"kind": "intrinsic",
+									"typeName": {
+										"name": "AliasedAny"
+									},
+									"intrinsic": "any"
+								},
+								"name": "on",
+								"optional": true
+							},
+							{
+								"type": {
+									"kind": "intrinsic",
+									"typeName": {
+										"name": "AliasedUnknown"
+									},
+									"intrinsic": "unknown"
+								},
+								"name": "ou",
+								"optional": true
+							},
+							{
+								"type": {
+									"kind": "union",
+									"types": [
+										{
+											"kind": "intrinsic",
+											"typeName": {
+												"name": "AliasedAny"
+											},
+											"intrinsic": "any"
+										},
+										{
+											"kind": "intrinsic",
+											"intrinsic": "undefined"
+										}
+									]
+								},
+								"name": "ox",
+								"optional": true
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "AliasContainer",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "AliasContainer"
+				},
+				"properties": [
+					{
+						"name": "a",
+						"type": {
+							"kind": "union",
+							"typeName": {
+								"name": "Alias"
+							},
+							"types": [
+								{
+									"kind": "literal",
+									"value": 1
+								},
+								{
+									"kind": "literal",
+									"value": 2
+								}
+							]
+						},
+						"optional": false
+					},
+					{
+						"name": "r",
+						"type": {
+							"kind": "object",
+							"typeName": {
+								"name": "MyRecord",
+								"typeArguments": [
+									{
+										"type": {
+											"kind": "intrinsic",
+											"intrinsic": "string"
+										},
+										"equalToDefault": false
+									},
+									{
+										"type": {
+											"kind": "intrinsic",
+											"intrinsic": "string"
+										},
+										"equalToDefault": false
+									}
+								]
+							},
+							"properties": [],
+							"indexSignature": {
+								"keyType": "string",
+								"valueType": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								}
+							}
+						},
+						"optional": false
+					},
+					{
+						"name": "s",
+						"type": {
+							"kind": "object",
+							"typeName": {
+								"name": "AliasToGeneric"
+							},
+							"properties": []
+						},
+						"optional": false
+					},
+					{
+						"name": "n",
+						"type": {
+							"kind": "intrinsic",
+							"typeName": {
+								"name": "AliasedAny"
+							},
+							"intrinsic": "any"
+						},
+						"optional": false
+					},
+					{
+						"name": "u",
+						"type": {
+							"kind": "intrinsic",
+							"typeName": {
+								"name": "AliasedUnknown"
+							},
+							"intrinsic": "unknown"
+						},
+						"optional": false
+					},
+					{
+						"name": "oa",
+						"type": {
+							"kind": "union",
+							"typeName": {
+								"name": "Alias"
+							},
+							"types": [
+								{
+									"kind": "union",
+									"typeName": {
+										"name": "Alias"
+									},
+									"types": [
+										{
+											"kind": "literal",
+											"value": 1
+										},
+										{
+											"kind": "literal",
+											"value": 2
+										}
+									]
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "or",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "object",
+									"typeName": {
+										"name": "MyRecord",
+										"typeArguments": [
+											{
+												"type": {
+													"kind": "intrinsic",
+													"intrinsic": "string"
+												},
+												"equalToDefault": false
+											},
+											{
+												"type": {
+													"kind": "intrinsic",
+													"intrinsic": "string"
+												},
+												"equalToDefault": false
+											}
+										]
+									},
+									"properties": [],
+									"indexSignature": {
+										"keyType": "string",
+										"valueType": {
+											"kind": "intrinsic",
+											"intrinsic": "string"
+										}
+									}
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "os",
+						"type": {
+							"kind": "union",
+							"typeName": {
+								"name": "AliasToGeneric"
+							},
+							"types": [
+								{
+									"kind": "object",
+									"typeName": {
+										"name": "AliasToGeneric"
+									},
+									"properties": []
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					},
+					{
+						"name": "on",
+						"type": {
+							"kind": "intrinsic",
+							"typeName": {
+								"name": "AliasedAny"
+							},
+							"intrinsic": "any"
+						},
+						"optional": true
+					},
+					{
+						"name": "ou",
+						"type": {
+							"kind": "intrinsic",
+							"typeName": {
+								"name": "AliasedUnknown"
+							},
+							"intrinsic": "unknown"
+						},
+						"optional": true
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

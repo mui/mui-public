@@ -1,0 +1,379 @@
+{
+	"name": "test/fixtures/external-type-source/input",
+	"exports": [
+		{
+			"name": "SourceProps",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "SourceProps"
+				},
+				"properties": [
+					{
+						"name": "locale",
+						"type": {
+							"kind": "external",
+							"typeName": {
+								"name": "LocalesArgument",
+								"namespaces": ["Intl"]
+							},
+							"source": {
+								"kind": "lib",
+								"files": ["lib.es2020.intl.d.ts"]
+							}
+						},
+						"documentation": {
+							"description": "Declared in one of the `lib.es*.d.ts` files.",
+							"tags": []
+						},
+						"optional": true
+					},
+					{
+						"name": "numberFormat",
+						"type": {
+							"kind": "union",
+							"typeName": {
+								"name": "NumberFormat",
+								"namespaces": ["Intl"]
+							},
+							"types": [
+								{
+									"kind": "external",
+									"typeName": {
+										"name": "NumberFormat",
+										"namespaces": ["Intl"]
+									},
+									"source": {
+										"kind": "lib",
+										"files": ["lib.es2018.intl.d.ts", "lib.es2020.bigint.d.ts", "lib.es5.d.ts"]
+									}
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "Declared across several `lib.es*.d.ts` files.",
+							"tags": []
+						},
+						"optional": true
+					},
+					{
+						"name": "range",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "external",
+									"typeName": {
+										"name": "Range"
+									},
+									"source": {
+										"kind": "package",
+										"name": "shadow-lib"
+									}
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "Declared in a package, with the same name as the DOM `Range`.\nAttributed to the declaring package, not to `augmenting-lib` that augments it.",
+							"tags": []
+						},
+						"optional": true
+					},
+					{
+						"name": "shadowNumberFormat",
+						"type": {
+							"kind": "union",
+							"typeName": {
+								"name": "NumberFormat",
+								"namespaces": ["Intl"]
+							},
+							"types": [
+								{
+									"kind": "external",
+									"typeName": {
+										"name": "NumberFormat",
+										"namespaces": ["Intl"]
+									},
+									"source": {
+										"kind": "package",
+										"name": "shadow-lib"
+									}
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "Declared in a package, with the same name as the built-in `Intl.NumberFormat`.",
+							"tags": []
+						},
+						"optional": true
+					},
+					{
+						"name": "packageLocale",
+						"type": {
+							"kind": "external",
+							"typeName": {
+								"name": "Locale"
+							},
+							"source": {
+								"kind": "package",
+								"name": "shadow-lib"
+							}
+						},
+						"documentation": {
+							"description": "A package alias of a built-in type is attributed to the package.",
+							"tags": []
+						},
+						"optional": true
+					},
+					{
+						"name": "renamedLocale",
+						"type": {
+							"kind": "external",
+							"typeName": {
+								"name": "RenamedLocale"
+							},
+							"source": {
+								"kind": "package",
+								"name": "shadow-lib"
+							}
+						},
+						"documentation": {
+							"description": "The same alias imported under another name is still attributed to the package.",
+							"tags": []
+						},
+						"optional": true
+					},
+					{
+						"name": "packageRange",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "external",
+									"typeName": {
+										"name": "PackageRange"
+									},
+									"source": {
+										"kind": "package",
+										"name": "shadow-lib"
+									}
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "A package alias of a built-in interface.",
+							"tags": []
+						},
+						"optional": true
+					},
+					{
+						"name": "importedPackageRange",
+						"type": {
+							"kind": "union",
+							"typeName": {
+								"name": "PackageRange"
+							},
+							"types": [
+								{
+									"kind": "external",
+									"typeName": {
+										"name": "PackageRange"
+									},
+									"source": {
+										"kind": "package",
+										"name": "shadow-lib"
+									}
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "The same alias referenced through an inline `import()` type.",
+							"tags": []
+						},
+						"optional": true
+					},
+					{
+						"name": "widget",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "external",
+									"typeName": {
+										"name": "Widget"
+									},
+									"source": {
+										"kind": "package",
+										"name": "@scope/widgets"
+									}
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "Declared in a scoped package.",
+							"tags": []
+						},
+						"optional": true
+					},
+					{
+						"name": "anyRange",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "external",
+									"typeName": {
+										"name": "Range"
+									},
+									"source": {
+										"kind": "lib",
+										"files": ["lib.dom.d.ts"]
+									}
+								},
+								{
+									"kind": "external",
+									"typeName": {
+										"name": "Range"
+									},
+									"source": {
+										"kind": "package",
+										"name": "shadow-lib"
+									}
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "The DOM `Range` (declared in `lib.dom.d.ts`) and the package `Range` stay distinct members.",
+							"tags": []
+						},
+						"optional": true
+					},
+					{
+						"name": "onRange",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "function",
+									"callSignatures": [
+										{
+											"parameters": [
+												{
+													"type": {
+														"kind": "external",
+														"typeName": {
+															"name": "Range"
+														},
+														"source": {
+															"kind": "lib",
+															"files": ["lib.dom.d.ts"]
+														}
+													},
+													"name": "range",
+													"optional": false
+												}
+											],
+											"returnValueType": {
+												"kind": "intrinsic",
+												"intrinsic": "void"
+											}
+										}
+									]
+								},
+								{
+									"kind": "function",
+									"callSignatures": [
+										{
+											"parameters": [
+												{
+													"type": {
+														"kind": "external",
+														"typeName": {
+															"name": "Range"
+														},
+														"source": {
+															"kind": "package",
+															"name": "shadow-lib"
+														}
+													},
+													"name": "range",
+													"optional": false
+												}
+											],
+											"returnValueType": {
+												"kind": "intrinsic",
+												"intrinsic": "void"
+											}
+										}
+									]
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "Callbacks that differ only in which `Range` they receive stay distinct members.",
+							"tags": []
+						},
+						"optional": true
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "PackageRange",
+			"type": {
+				"kind": "external",
+				"typeName": {
+					"name": "Range",
+					"namespaces": ["globalThis"]
+				},
+				"source": {
+					"kind": "lib",
+					"files": ["lib.dom.d.ts"]
+				}
+			},
+			"documentation": {
+				"description": "A package alias of a built-in interface.",
+				"tags": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	],
+	"imports": ["augmenting-lib", "shadow-lib", "@scope/widgets"]
+}

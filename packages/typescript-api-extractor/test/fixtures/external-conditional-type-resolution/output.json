@@ -1,0 +1,74 @@
+{
+	"name": "test/fixtures/external-conditional-type-resolution/input",
+	"exports": [
+		{
+			"name": "Props",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Props"
+				},
+				"properties": [
+					{
+						"name": "event",
+						"type": {
+							"kind": "external",
+							"typeName": {
+								"name": "Event"
+							},
+							"source": {
+								"kind": "lib",
+								"files": ["lib.dom.d.ts"]
+							}
+						},
+						"documentation": {
+							"description": "The event associated with the change.",
+							"tags": []
+						},
+						"optional": false
+					},
+					{
+						"name": "keyboardEvent",
+						"type": {
+							"kind": "external",
+							"typeName": {
+								"name": "KeyboardEvent"
+							},
+							"source": {
+								"kind": "lib",
+								"files": ["lib.dom.d.ts"]
+							}
+						},
+						"documentation": {
+							"description": "The keyboard event.",
+							"tags": []
+						},
+						"optional": false
+					},
+					{
+						"name": "unknownEvent",
+						"type": {
+							"kind": "external",
+							"typeName": {
+								"name": "Event"
+							},
+							"source": {
+								"kind": "lib",
+								"files": ["lib.dom.d.ts"]
+							}
+						},
+						"documentation": {
+							"description": "Unknown reason falls back to generic Event.",
+							"tags": []
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	],
+	"imports": ["./external-types"]
+}

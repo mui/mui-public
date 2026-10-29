@@ -134,3 +134,7 @@ Applies to the whole repository.
 ## Docs Infra Conventions
 
 When working in the `@mui/internal-docs-infra` (`packages/docs-infra`) package or `docs/app/docs-infra` docs, follow the conventions in [packages/docs-infra/AGENTS.md](packages/docs-infra/AGENTS.md).
+
+## TypeScript API Extractor Conventions
+
+When working in the `@mui/internal-typescript-api-extractor` (`packages/typescript-api-extractor`) package, follow the conventions in [packages/typescript-api-extractor/AGENTS.md](packages/typescript-api-extractor/AGENTS.md). Fix extraction gaps there rather than working around them in docs-infra.

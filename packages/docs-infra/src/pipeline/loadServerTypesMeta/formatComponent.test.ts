@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type * as tae from 'typescript-api-extractor';
+import type * as tae from '@mui/internal-typescript-api-extractor';
 import { formatComponentData, isPublicComponent } from './formatComponent';
 import { buildTypeCompatibilityMap } from './rewriteTypes';
 import type { TypeRewriteContext } from './rewriteTypes';

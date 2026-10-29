@@ -1,0 +1,277 @@
+{
+	"name": "test/fixtures/type-object-shape-resolution/input",
+	"exports": [
+		{
+			"name": "acceptsInlineObjectTypes",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "acceptsInlineObjectTypes"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "object",
+									"properties": []
+								},
+								"name": "emptyObject",
+								"optional": false
+							},
+							{
+								"type": {
+									"kind": "object",
+									"properties": []
+								},
+								"name": "objectKeyword",
+								"optional": false
+							},
+							{
+								"type": {
+									"kind": "external",
+									"typeName": {
+										"name": "Record",
+										"typeArguments": [
+											{
+												"type": {
+													"kind": "intrinsic",
+													"intrinsic": "string"
+												},
+												"equalToDefault": false
+											},
+											{
+												"type": {
+													"kind": "intrinsic",
+													"intrinsic": "any"
+												},
+												"equalToDefault": false
+											}
+										]
+									},
+									"source": {
+										"kind": "lib",
+										"files": ["lib.es5.d.ts"]
+									}
+								},
+								"name": "record",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "acceptsNamedObjectTypes",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "acceptsNamedObjectTypes"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "object",
+									"typeName": {
+										"name": "EmptyInterface"
+									},
+									"properties": []
+								},
+								"name": "emptyInterface",
+								"optional": false
+							},
+							{
+								"type": {
+									"kind": "object",
+									"typeName": {
+										"name": "EmptyObject"
+									},
+									"properties": []
+								},
+								"name": "emptyObject",
+								"optional": false
+							},
+							{
+								"type": {
+									"kind": "object",
+									"typeName": {
+										"name": "ObjectKeyword"
+									},
+									"properties": []
+								},
+								"name": "objectKeyword",
+								"optional": false
+							},
+							{
+								"type": {
+									"kind": "object",
+									"typeName": {
+										"name": "RecordType"
+									},
+									"properties": [],
+									"indexSignature": {
+										"keyType": "string",
+										"valueType": {
+											"kind": "intrinsic",
+											"intrinsic": "any"
+										}
+									}
+								},
+								"name": "recordType",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		},
+		{
+			"name": "acceptsObjectProps",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "acceptsObjectProps"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "object",
+									"typeName": {
+										"name": "Params"
+									},
+									"properties": [
+										{
+											"name": "emptyInterface",
+											"type": {
+												"kind": "object",
+												"typeName": {
+													"name": "EmptyInterface"
+												},
+												"properties": []
+											},
+											"optional": false
+										},
+										{
+											"name": "emptyObject",
+											"type": {
+												"kind": "object",
+												"typeName": {
+													"name": "EmptyObject"
+												},
+												"properties": []
+											},
+											"optional": false
+										},
+										{
+											"name": "inlineEmptyObject",
+											"type": {
+												"kind": "object",
+												"properties": []
+											},
+											"optional": false
+										},
+										{
+											"name": "objectKeyword",
+											"type": {
+												"kind": "object",
+												"typeName": {
+													"name": "ObjectKeyword"
+												},
+												"properties": []
+											},
+											"optional": false
+										},
+										{
+											"name": "inlineObjectKeyword",
+											"type": {
+												"kind": "object",
+												"properties": []
+											},
+											"optional": false
+										},
+										{
+											"name": "recordType",
+											"type": {
+												"kind": "object",
+												"typeName": {
+													"name": "RecordType"
+												},
+												"properties": [],
+												"indexSignature": {
+													"keyType": "string",
+													"valueType": {
+														"kind": "intrinsic",
+														"intrinsic": "any"
+													}
+												}
+											},
+											"optional": false
+										},
+										{
+											"name": "inlineRecordType",
+											"type": {
+												"kind": "external",
+												"typeName": {
+													"name": "Record",
+													"typeArguments": [
+														{
+															"type": {
+																"kind": "intrinsic",
+																"intrinsic": "string"
+															},
+															"equalToDefault": false
+														},
+														{
+															"type": {
+																"kind": "intrinsic",
+																"intrinsic": "any"
+															},
+															"equalToDefault": false
+														}
+													]
+												},
+												"source": {
+													"kind": "lib",
+													"files": ["lib.es5.d.ts"]
+												}
+											},
+											"optional": false
+										}
+									]
+								},
+								"name": "params",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "void"
+						}
+					}
+				]
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		}
+	]
+}

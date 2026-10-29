@@ -1,0 +1,63 @@
+{
+	"name": "test/fixtures/react-hook-overload-signatures/input",
+	"exports": [
+		{
+			"name": "useHook",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "useHook"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"name": "s",
+								"documentation": {
+									"description": "The string",
+									"tags": []
+								},
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						}
+					},
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "number"
+								},
+								"name": "n",
+								"documentation": {
+									"description": "The number",
+									"tags": []
+								},
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "number"
+						}
+					}
+				]
+			},
+			"documentation": {
+				"description": "Returns the input string.",
+				"tags": []
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false
+		}
+	]
+}
