@@ -56,6 +56,31 @@ space is masked, and an export left with nothing but a value, such as a function
 or variable with any namespace merged onto it, is omitted. A re-export from an
 unresolvable module gets the checker's fallback: a value of type `any`.
 
+## Objects
+
+Object types list their properties and, when they have one, their index
+signature:
+
+```typescript
+interface ObjectNode {
+  kind: 'object';
+  typeName?: TypeName;
+  properties: PropertyNode[];
+  documentation?: DocumentationNode;
+  indexSignature?: IndexSignatureNode;
+  propertiesOmitted?: true;
+}
+```
+
+`propertiesOmitted: true` marks an object whose properties the parser
+deliberately left out, so an empty `properties` list does not mean the type has
+none. That happens when `shouldResolveObject` declines to expand it, when it is
+a recursive reference to a type still being resolved, when it is the named
+operand of a preserved type operator, and when all its properties come from
+external declarations that `includeExternalTypes` excludes. The field is omitted
+when `properties` lists every property, so an empty object without it, such as
+`{}` or an `Omit` that removes every key, has no properties.
+
 ## Type Operators
 
 Authored `keyof` expressions are represented without expanding away their syntax:
