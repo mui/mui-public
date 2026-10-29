@@ -79,6 +79,10 @@ Applies to the whole repository.
   not unit-test a helper the exported entry points already exercise — reach its edge cases through
   those entry points instead. A genuinely generic utility — string manipulation, HTTP, paths,
   formatting — is a module of its own: extract it, and test it through its own API.
+- **Test logic, not configuration.** Only add a test when there is behavior of our own to cover.
+  Setting an option on a third-party rule or tool, such as an ESLint rule option in a shared
+  config, needs no test: it would only exercise the dependency. Custom ESLint rules and other code
+  we wrote are logic and keep their tests.
 
 ## Common Tasks
 
