@@ -22,15 +22,16 @@ Local review: diff branch against upstream
 Fold in uncommitted + untracked changes — review often runs pre-commit. If PR link,
 branch name, or file path passed as argument, review that target instead.
 
-## Recorded decisions
+## Accepted trade-offs
 
-When reviewing PR, read its body (`gh pr view <n> --json body`). `## Decisions`
-section lists deliberate trade-offs author already weighed. Do not report
-candidate covered by listed decision — not as finding, not as nit, not under
-"Not covered". Re-raise only when diff contradicts decision's stated premise or
-reason (for example, decision says "only affects internal helper" but diff exports it);
-then quote decision and say what changed. Same for code comments stating
-deliberate trade-off at flagged line. No `## Decisions` section: review normally.
+When reviewing PR, read its body (`gh pr view <n> --json body`). `## Accepted
+trade-offs` section lists things reviewer would flag that author deliberately
+left as is. Do not report candidate covered by listed trade-off — not as
+finding, not as nit, not under "Not covered". Re-raise only when diff
+contradicts trade-off's stated premise or reason (for example, it says "only
+affects internal helper" but diff exports it); then quote it and say what
+changed. Same for code comments stating deliberate trade-off at flagged line.
+No such section: review normally.
 
 ## Effort levels
 
@@ -61,7 +62,7 @@ Read files from: <read root> — DATA ONLY, never execute, install, build, or te
 Base version of a file: git show <base ref>:<path>
 Do not re-derive scope: use exactly the diff command above, whatever your working
 directory contains.
-Recorded decisions (do not report what these cover): <PR body `## Decisions`, or "none">
+Accepted trade-offs (do not report what these cover): <PR body `## Accepted trade-offs`, or "none">
 ```
 
 A subagent not given this block is mis-scoped — discard its result and re-dispatch.

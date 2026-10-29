@@ -9,10 +9,12 @@ Always reference these instructions first and fallback to search or bash command
 ## Pull Requests
 
 - **ALWAYS create pull requests as drafts** using `gh pr create --draft`.
-- **Record deliberate trade-offs under `## Decisions` in the PR body**, one bullet each: the
-  decision and why. Reviewers, human or automated, must not flag what a listed decision covers;
-  re-raise it only when the diff contradicts the decision's stated reason. A trade-off that
-  should outlive the PR belongs in a code comment at the affected line as well.
+- **List accepted trade-offs under `## Accepted trade-offs` in the PR body**: only things a
+  reviewer would reasonably flag that the change deliberately leaves as is, one bullet each with
+  what would be flagged and why it stays. Not a log of every design choice. Reviewers, human or
+  automated, must not flag what a listed trade-off covers; re-raise it only when the diff
+  contradicts its stated reason. A trade-off that should outlive the PR belongs in a code
+  comment at the affected line as well.
 
 ## Working Effectively
 
