@@ -1,8 +1,7 @@
-import ts from 'typescript';
 import { EnumMember, EnumNode, ExportNode, TypeName } from '@mui/internal-typescript-api-extractor';
 import type * as tae from '@mui/internal-typescript-api-extractor';
 import { formatPropertyComment } from './formatType';
-import { isComponentType, isEnumType } from './typeGuards';
+import { isComponentType, isEnumType, isLiteralType } from './typeGuards';
 
 /** Which of a component's tables a constant group holds. */
 export type ConstantGroupKind = 'dataAttributes' | 'cssVariables';
@@ -28,155 +27,128 @@ export interface ConstantGroupTarget {
 /** The constant groups holding one component's tables. */
 export type ComponentConstantGroups = Partial<Record<ConstantGroupKind, tae.EnumNode>>;
 
-function resolveAlias(symbol: ts.Symbol, checker: ts.TypeChecker): ts.Symbol {
-  // eslint-disable-next-line no-bitwise -- TypeScript symbol flags are a bitmask
-  return symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
-}
-
 /** The value of a constant in a constant group. */
 type ConstantValue = string | number;
 
 /**
- * Reads the value of a `const` holding a string or number literal.
+ * Reads the value of an export holding a string or number literal. The parser quotes
+ * string literals and keeps numbers as they are.
  */
-function readLiteralConstant(
-  symbol: ts.Symbol,
-  checker: ts.TypeChecker,
-): ConstantValue | undefined {
-  const declaration = symbol.valueDeclaration;
-  if (
-    !declaration ||
-    !ts.isVariableDeclaration(declaration) ||
-    // eslint-disable-next-line no-bitwise -- TypeScript node flags are a bitmask
-    !(ts.getCombinedNodeFlags(declaration) & ts.NodeFlags.Const)
-  ) {
+function readLiteralValue(node: tae.ExportNode | undefined): ConstantValue | undefined {
+  if (!node || !isLiteralType(node.type)) {
     return undefined;
   }
 
-  const type = checker.getTypeOfSymbol(symbol);
-  return type.isStringLiteral() || type.isNumberLiteral() ? type.value : undefined;
-}
-
-/**
- * Reads a module's exports as constant values, when its value exports are nothing but literal
- * constants. Type-only exports, such as a union of the constants, are typing helpers and are
- * skipped rather than disqualifying the module.
- */
-function readConstantModule(
-  moduleSymbol: ts.Symbol,
-  checker: ts.TypeChecker,
-): Map<string, ConstantValue> | undefined {
-  const values = new Map<string, ConstantValue>();
-  const members = checker
-    .getExportsOfModule(moduleSymbol)
-    // eslint-disable-next-line no-bitwise -- TypeScript symbol flags are a bitmask
-    .filter((member) => resolveAlias(member, checker).flags & ts.SymbolFlags.Value);
-  const isConstantModule =
-    members.length > 0 &&
-    members.every((member) => {
-      const value = readLiteralConstant(resolveAlias(member, checker), checker);
-      if (value === undefined) {
-        return false;
-      }
-      values.set(member.name, value);
-      return true;
-    });
-
-  return isConstantModule ? values : undefined;
-}
-
-/**
- * Finds the entrypoint's namespace exports whose module's value exports are all literal constants,
- * e.g. `export * as ButtonDataAttributes from './ButtonDataAttributes'`, with their values.
- * Namespaces nested in other namespace exports are found too, under their dotted path
- * (`Toolbar.ButtonDataAttributes`).
- *
- * The parser flattens such a namespace into one export per member and cannot tell a constant
- * from a type alias of the same literal, so the checker is asked instead.
- *
- * @returns Member values keyed by namespace path, then member name
- */
-export function findConstantNamespaces(
-  entrypoint: string,
-  program: ts.Program,
-): Map<string, Map<string, ConstantValue>> {
-  const namespaces = new Map<string, Map<string, ConstantValue>>();
-  const sourceFile = program.getSourceFile(entrypoint);
-  const checker = program.getTypeChecker();
-  const entrypointSymbol = sourceFile && checker.getSymbolAtLocation(sourceFile);
-  const visited = new Set<ts.Symbol>();
-
-  const visit = (moduleSymbol: ts.Symbol, prefix: string) => {
-    for (const exportSymbol of checker.getExportsOfModule(moduleSymbol)) {
-      if (exportSymbol.declarations?.some(ts.isNamespaceExport)) {
-        const target = checker.getAliasedSymbol(exportSymbol);
-        const path = `${prefix}${exportSymbol.name}`;
-        const values = readConstantModule(target, checker);
-
-        if (values) {
-          namespaces.set(path, values);
-        } else if (!visited.has(target)) {
-          visited.add(target);
-          visit(target, `${path}.`);
-        }
-      }
-    }
-  };
-
-  if (entrypointSymbol) {
-    visit(entrypointSymbol, '');
+  const value: unknown = node.type.value;
+  if (typeof value === 'number') {
+    return value;
   }
 
-  return namespaces;
+  return typeof value === 'string' &&
+    value.length >= 2 &&
+    value.startsWith('"') &&
+    value.endsWith('"')
+    ? value.slice(1, -1)
+    : undefined;
 }
 
 /**
- * Collapses the flattened members of each constant namespace (`ButtonDataAttributes.open`)
- * into a single enum-shaped export named after the namespace, in place of its first member.
+ * Reads a namespace re-export as a group of constants, when every runtime export of its
+ * module is a literal constant. Type-only exports, such as a union of the constants or a
+ * namespace of types, are typing helpers and do not count. Any other runtime export,
+ * including one the parser emits no export for and a namespace holding values, means the
+ * module is more than constants. Constants are recognized by their literal type, so a
+ * `let` reads as one only when it is annotated with a literal type rather than widened.
+ *
+ * @param valueExports The parsed runtime exports, keyed by name
+ * @returns The group's members, or nothing when the namespace is not a group of constants
+ */
+function readConstantNamespace(
+  namespace: tae.NamespaceReexport,
+  valueExports: Map<string, tae.ExportNode>,
+): EnumMember[] | undefined {
+  // Through a type-only site, no member is a value, so nothing is folded.
+  const members: EnumMember[] = [];
+  for (const member of namespace.members) {
+    if (member.isValue) {
+      if (member.isNamespace) {
+        return undefined;
+      }
+
+      const node = valueExports.get(`${namespace.name}.${member.name}`);
+      const value = readLiteralValue(node);
+      if (value === undefined) {
+        return undefined;
+      }
+
+      members.push(new EnumMember(member.name, value, node?.documentation));
+    }
+  }
+
+  return members.length > 0 ? members : undefined;
+}
+
+/**
+ * Collapses the constants of each namespace re-export holding nothing at runtime but
+ * literal constants (`ButtonDataAttributes.open`) into a single enum-shaped export named
+ * after the namespace, in place of its first constant. Namespaces nested in other
+ * namespace re-exports are folded under their dotted path (`Toolbar.ButtonDataAttributes`).
+ * Type-only exports of such a namespace stay as they are.
+ *
+ * @returns The exports with constant namespaces folded, and the folded namespaces' names
  */
 export function foldConstantNamespaces(
-  exports: tae.ExportNode[],
-  namespaces: Map<string, Map<string, ConstantValue>>,
-): tae.ExportNode[] {
-  if (namespaces.size === 0) {
-    return exports;
-  }
+  parsedModule: Pick<tae.ModuleNode, 'exports' | 'namespaceReexports'>,
+): {
+  exports: tae.ExportNode[];
+  namespaces: string[];
+} {
+  const { exports, namespaceReexports = [] } = parsedModule;
 
-  const groups = new Map<string, EnumMember[]>();
-  const folded: tae.ExportNode[] = [];
-
+  const valueExports = new Map<string, tae.ExportNode>();
   for (const node of exports) {
-    // Members sit directly under their namespace, which may itself be nested
-    // (`Toolbar.ButtonDataAttributes.pressed`).
-    const dot = node.name.lastIndexOf('.');
-    const namespace = dot === -1 ? undefined : node.name.slice(0, dot);
-    const memberName = node.name.slice(dot + 1);
-    const value = namespace === undefined ? undefined : namespaces.get(namespace)?.get(memberName);
-
-    if (namespace === undefined || value === undefined) {
-      folded.push(node);
-    } else {
-      let members = groups.get(namespace);
-      if (!members) {
-        members = [];
-        groups.set(namespace, members);
-        folded.push(
-          new ExportNode(
-            namespace,
-            new EnumNode(new TypeName(namespace), members, undefined),
-            undefined,
-            // `export * as X` binds a module namespace object.
-            { isValue: true, isType: false, isNamespace: true },
-          ),
-        );
-      }
-      // Typed as a string, but the parser stores numeric enum values as numbers too; do
-      // the same so both forms render alike.
-      members.push(new EnumMember(memberName, value as string, node.documentation));
+    if (node.isValue) {
+      valueExports.set(node.name, node);
     }
   }
 
-  return folded;
+  // The folded group of each constant, keyed by the constant's export name.
+  const groupsByConstant = new Map<string, tae.ExportNode>();
+  const namespaces: string[] = [];
+  for (const namespace of namespaceReexports) {
+    const members = readConstantNamespace(namespace, valueExports);
+    if (members) {
+      namespaces.push(namespace.name);
+      const group = new ExportNode(
+        namespace.name,
+        new EnumNode(new TypeName(namespace.name), members, undefined),
+        undefined,
+        // `export * as X` binds a module namespace object.
+        { isValue: true, isType: false, isNamespace: true },
+      );
+      for (const member of members) {
+        groupsByConstant.set(`${namespace.name}.${member.name}`, group);
+      }
+    }
+  }
+
+  if (namespaces.length === 0) {
+    return { exports, namespaces };
+  }
+
+  const placed = new Set<tae.ExportNode>();
+  const folded: tae.ExportNode[] = [];
+  for (const node of exports) {
+    const group = node.isValue ? groupsByConstant.get(node.name) : undefined;
+    if (!group) {
+      folded.push(node);
+    } else if (!placed.has(group)) {
+      placed.add(group);
+      folded.push(group);
+    }
+  }
+
+  return { exports: folded, namespaces };
 }
 
 /**
@@ -189,8 +161,8 @@ export function formatConstantGroupDeclaration(
   asNamespace: boolean,
 ): string {
   const members = group.members.map((member) => {
-    // Enum members hold the literal's value, numbers included; a computed member has none.
-    const value: unknown = member.value;
+    // A computed enum member has no value.
+    const { value } = member;
     const literal = typeof value === 'number' ? String(value) : JSON.stringify(value);
     const comment = member.documentation ? formatPropertyComment(member.documentation) : undefined;
     let declaration = `${member.name} = ${literal},`;

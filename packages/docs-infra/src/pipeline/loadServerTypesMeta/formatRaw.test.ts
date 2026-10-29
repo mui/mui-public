@@ -1,10 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import type * as tae from '@mui/internal-typescript-api-extractor';
-import { parseFromProgram } from '@mui/internal-typescript-api-extractor';
 import { formatRawData, formatReExportData, isRawType } from './formatRaw';
-import { createTestProgram, parseTestSources } from './parseTestSources';
-import { findConstantNamespaces, foldConstantNamespaces } from './constantGroups';
-import { PARSER_OPTIONS } from './constants';
+import { parseTestModule, parseTestSources } from './parseTestSources';
+import { foldConstantNamespaces } from './constantGroups';
 import { buildTypeCompatibilityMap } from './rewriteTypes';
 import type { TypeRewriteContext } from './rewriteTypes';
 
@@ -288,9 +286,12 @@ describe('formatRaw', () => {
       });
 
       it('should declare a folded constant namespace as a namespace of constants', async () => {
-        const { program, entrypoint } = createTestProgram({
-          'index.ts': `export * as ButtonDataAttributes from './attributes';`,
-          'attributes.ts': `
+        const {
+          exports: [group],
+        } = foldConstantNamespaces(
+          parseTestModule({
+            'index.ts': `export * as ButtonDataAttributes from './attributes';`,
+            'attributes.ts': `
             /** Present when pressed. */
             export const pressed = 'data-pressed';
             export const disabled = 'data-disabled';
@@ -300,10 +301,7 @@ describe('formatRaw', () => {
              */
             export const width = '--width';
           `,
-        });
-        const [group] = foldConstantNamespaces(
-          parseFromProgram(entrypoint, program, PARSER_OPTIONS).exports,
-          findConstantNamespaces(entrypoint, program),
+          }),
         );
 
         const result = await formatRawData(group, group.name, {}, defaultRewriteContext, {
