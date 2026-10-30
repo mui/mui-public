@@ -25,7 +25,7 @@ function shouldRetryRateLimit(retryAfter, options, octokit, retryCount) {
  */
 
 /**
- * @typedef {import('./types').FetchedCommitDetails} FetchedCommitDetails
+ * @typedef {import('./types.js').FetchedCommitDetails} FetchedCommitDetails
  */
 
 /**
@@ -180,7 +180,7 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
 /**
  *
  * @param {import('@octokit/rest').RestEndpointMethodTypes["pulls"]["get"]["response"]["data"]["author_association"]} input
- * @returns {Exclude<import('./types').FetchedCommitDetails["author"], null>["association"]}
+ * @returns {Exclude<import('./types.js').FetchedCommitDetails["author"], null>["association"]}
  */
 function getAuthorAssociation(input) {
   switch (input) {
