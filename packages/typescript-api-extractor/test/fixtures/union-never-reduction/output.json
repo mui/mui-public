@@ -15,7 +15,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"declarationId": "a1d3fa73bda851aa"
 				},
 				"types": [
 					{
@@ -41,7 +42,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "a1d3fa73bda851aa",
+			"declaredName": "ValueOrNull"
 		},
 		{
 			"name": "OnValueChange",
@@ -57,7 +60,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"declarationId": "bb4be82c68524bcd"
 				},
 				"callSignatures": [
 					{
@@ -75,7 +79,8 @@
 												},
 												"equalToDefault": false
 											}
-										]
+										],
+										"declarationId": "a1d3fa73bda851aa"
 									},
 									"types": [
 										{
@@ -108,7 +113,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "bb4be82c68524bcd",
+			"declaredName": "OnValueChange"
 		}
 	]
 }

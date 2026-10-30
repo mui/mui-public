@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "class",
 				"typeName": {
-					"name": "ImportedClass"
+					"name": "ImportedClass",
+					"declarationId": "ad2813c78b17edb2"
 				},
 				"constructSignatures": [
 					{
@@ -68,7 +69,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "ad2813c78b17edb2",
+			"declaredName": "ImportedClass"
 		}
 	],
 	"imports": ["./source"]

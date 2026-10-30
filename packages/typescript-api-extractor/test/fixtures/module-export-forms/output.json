@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "inlineExport"
+					"name": "inlineExport",
+					"declarationId": "9664603c971fe1d4"
 				},
 				"callSignatures": [
 					{
@@ -20,14 +21,17 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "9664603c971fe1d4",
+			"declaredName": "inlineExport"
 		},
 		{
 			"name": "default",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "defaultExport"
+					"name": "defaultExport",
+					"declarationId": "d0bba7f24aa1e1e3"
 				},
 				"callSignatures": [
 					{
@@ -50,14 +54,17 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "d0bba7f24aa1e1e3",
+			"declaredName": "defaultExport"
 		},
 		{
 			"name": "overloadedFunction",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "overloadedFunction"
+					"name": "overloadedFunction",
+					"declarationId": "1da0c747a7cde9b7"
 				},
 				"callSignatures": [
 					{
@@ -96,14 +103,17 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "1da0c747a7cde9b7",
+			"declaredName": "overloadedFunction"
 		},
 		{
 			"name": "aliasedOverloadedFunction",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "overloadedFunction"
+					"name": "overloadedFunction",
+					"declarationId": "1da0c747a7cde9b7"
 				},
 				"callSignatures": [
 					{
@@ -142,14 +152,17 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "1da0c747a7cde9b7",
+			"declaredName": "overloadedFunction"
 		},
 		{
 			"name": "functionAndNamespaceDeclaration",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "functionAndNamespaceDeclaration"
+					"name": "functionAndNamespaceDeclaration",
+					"declarationId": "0233031b5517be8b"
 				},
 				"callSignatures": [
 					{
@@ -159,7 +172,8 @@
 									"kind": "object",
 									"typeName": {
 										"name": "Params",
-										"namespaces": ["functionAndNamespaceDeclaration"]
+										"namespaces": ["functionAndNamespaceDeclaration"],
+										"declarationId": "574ba518fe186799"
 									},
 									"properties": [
 										{
@@ -222,7 +236,9 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": true
+			"isNamespace": true,
+			"declarationId": "c68f0e9bd4c977ea",
+			"declaredName": "functionAndNamespaceDeclaration"
 		},
 		{
 			"name": "functionAndNamespaceDeclaration.Params",
@@ -230,7 +246,8 @@
 				"kind": "object",
 				"typeName": {
 					"name": "Params",
-					"namespaces": ["functionAndNamespaceDeclaration"]
+					"namespaces": ["functionAndNamespaceDeclaration"],
+					"declarationId": "574ba518fe186799"
 				},
 				"properties": [
 					{
@@ -245,7 +262,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "574ba518fe186799",
+			"declaredName": "Params"
 		}
 	],
 	"imports": ["react"]

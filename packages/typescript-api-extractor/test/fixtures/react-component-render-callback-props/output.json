@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "AccordionHeader"
+					"name": "AccordionHeader",
+					"declarationId": "cf85e062f859f4a3"
 				},
 				"props": [
 					{
@@ -104,7 +105,8 @@
 												"type": {
 													"kind": "object",
 													"typeName": {
-														"name": "AccordionItemState"
+														"name": "AccordionItemState",
+														"declarationId": "c8ec6cede8b8bae4"
 													},
 													"properties": [
 														{
@@ -119,7 +121,8 @@
 												},
 												"equalToDefault": false
 											}
-										]
+										],
+										"declarationId": "bfbc8a78f104a895"
 									},
 									"callSignatures": [
 										{
@@ -158,7 +161,8 @@
 													"type": {
 														"kind": "object",
 														"typeName": {
-															"name": "AccordionItemState"
+															"name": "AccordionItemState",
+															"declarationId": "c8ec6cede8b8bae4"
 														},
 														"properties": [
 															{
@@ -246,7 +250,9 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "cf85e062f859f4a3",
+			"declaredName": "AccordionHeader"
 		},
 		{
 			"name": "AccordionHeaderProps",
@@ -260,7 +266,8 @@
 								"kind": "object",
 								"typeName": {
 									"name": "State",
-									"namespaces": ["Accordion", "Item"]
+									"namespaces": ["Accordion", "Item"],
+									"declarationId": "c8ec6cede8b8bae4"
 								},
 								"properties": [
 									{
@@ -275,7 +282,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"declarationId": "6366c0c378ae5746"
 				},
 				"properties": [
 					{
@@ -373,7 +381,8 @@
 												"type": {
 													"kind": "object",
 													"typeName": {
-														"name": "AccordionItemState"
+														"name": "AccordionItemState",
+														"declarationId": "c8ec6cede8b8bae4"
 													},
 													"properties": [
 														{
@@ -388,7 +397,8 @@
 												},
 												"equalToDefault": false
 											}
-										]
+										],
+										"declarationId": "bfbc8a78f104a895"
 									},
 									"callSignatures": [
 										{
@@ -427,7 +437,8 @@
 													"type": {
 														"kind": "object",
 														"typeName": {
-															"name": "AccordionItemState"
+															"name": "AccordionItemState",
+															"declarationId": "c8ec6cede8b8bae4"
 														},
 														"properties": [
 															{
@@ -515,7 +526,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "15a130219ab8cf0b",
+			"declaredName": "AccordionHeaderProps"
 		}
 	],
 	"imports": ["react"]

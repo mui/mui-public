@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "Fn"
+					"name": "Fn",
+					"declarationId": "72aa41c47f9463f3"
 				},
 				"types": [
 					{
@@ -79,14 +80,17 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "72aa41c47f9463f3",
+			"declaredName": "Fn"
 		},
 		{
 			"name": "Outer",
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "Outer"
+					"name": "Outer",
+					"declarationId": "b33aaa320ac83b78"
 				},
 				"types": [
 					{
@@ -189,7 +193,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "b33aaa320ac83b78",
+			"declaredName": "Outer"
 		}
 	]
 }

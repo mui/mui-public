@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "UnionPropsComponent"
+					"name": "UnionPropsComponent",
+					"declarationId": "803c80c3704122b2"
 				},
 				"props": [
 					{
@@ -89,7 +90,9 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "803c80c3704122b2",
+			"declaredName": "UnionPropsComponent"
 		}
 	],
 	"imports": ["react"]

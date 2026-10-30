@@ -192,7 +192,6 @@ export class TypeResolutionSession implements TypeResolutionSessionContract {
 
   private resolveUncached(type: ts.Type, typeNode: ts.TypeNode | undefined): AnyType {
     const { context } = this;
-    const { checker } = context;
 
     const typeId = getTypeId(type);
 
@@ -270,7 +269,7 @@ export class TypeResolutionSession implements TypeResolutionSessionContract {
 
       // If this type was already on the stack, return a shallow version with type info but no properties.
       if (isAlreadyOnStack) {
-        return withNameResolutionWarnings(createShallowType(type, typeName, checker));
+        return withNameResolutionWarnings(createShallowType(type, typeName, context));
       }
 
       const request: TypeResolutionRequest = {

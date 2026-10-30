@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "useHook"
+					"name": "useHook",
+					"declarationId": "5505af9ac7983612"
 				},
 				"callSignatures": [
 					{
@@ -15,7 +16,8 @@
 								"type": {
 									"kind": "object",
 									"typeName": {
-										"name": "HookParameters"
+										"name": "HookParameters",
+										"declarationId": "2ae7248916682e36"
 									},
 									"properties": [
 										{
@@ -68,7 +70,8 @@
 						"returnValueType": {
 							"kind": "object",
 							"typeName": {
-								"name": "HookReturnValue"
+								"name": "HookReturnValue",
+								"declarationId": "06dc1f34de790153"
 							},
 							"properties": [
 								{
@@ -167,7 +170,9 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "8736c85328495c67",
+			"declaredName": "useHook"
 		}
 	],
 	"imports": ["react"]

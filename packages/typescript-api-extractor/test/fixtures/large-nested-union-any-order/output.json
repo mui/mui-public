@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "Forward"
+					"name": "Forward",
+					"declarationId": "54d00f3f10641ab6"
 				},
 				"types": [
 					{
@@ -119,14 +120,17 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "54d00f3f10641ab6",
+			"declaredName": "Forward"
 		},
 		{
 			"name": "LargeNestedUnionAnyFirst",
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "WithAnyFirst"
+					"name": "WithAnyFirst",
+					"declarationId": "d9cf1a20f26261db"
 				},
 				"types": [
 					{
@@ -239,14 +243,17 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "d9cf1a20f26261db",
+			"declaredName": "WithAnyFirst"
 		},
 		{
 			"name": "LargeNestedUnionAnySecond",
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "WithAnySecond"
+					"name": "WithAnySecond",
+					"declarationId": "9f54be6fe2a45bc9"
 				},
 				"types": [
 					{
@@ -359,7 +366,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "9f54be6fe2a45bc9",
+			"declaredName": "WithAnySecond"
 		}
 	]
 }

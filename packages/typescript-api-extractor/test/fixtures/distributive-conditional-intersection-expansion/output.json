@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "EventDetailsHandlers"
+					"name": "EventDetailsHandlers",
+					"declarationId": "fe66b7c922e47e5d"
 				},
 				"properties": [
 					{
@@ -20,7 +21,8 @@
 											"type": {
 												"kind": "intersection",
 												"typeName": {
-													"name": "TabsLikeNoHack"
+													"name": "TabsLikeNoHack",
+													"declarationId": "8b9d0fa45c0b4197"
 												},
 												"types": [
 													{
@@ -171,7 +173,8 @@
 											"type": {
 												"kind": "intersection",
 												"typeName": {
-													"name": "TabsLikeWithHack"
+													"name": "TabsLikeWithHack",
+													"declarationId": "1258d1893a161c33"
 												},
 												"types": [
 													{
@@ -315,7 +318,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "fe66b7c922e47e5d",
+			"declaredName": "EventDetailsHandlers"
 		}
 	]
 }

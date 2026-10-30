@@ -32,7 +32,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"declarationId": "e03ea8fc79fa8525"
 				},
 				"elementType": {
 					"kind": "object",
@@ -59,7 +60,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "e03ea8fc79fa8525",
+			"declaredName": "DirectData"
 		},
 		{
 			"name": "ParametricData",
@@ -75,7 +78,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"declarationId": "9b5aa8a37bc35df4"
 				},
 				"elementType": {
 					"kind": "object",
@@ -85,7 +89,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "9b5aa8a37bc35df4",
+			"declaredName": "ParametricData"
 		}
 	]
 }

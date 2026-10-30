@@ -21,11 +21,6 @@ export interface TypesSourceData extends OrganizeTypesResult<TypesMeta> {
   externalTypes: Record<string, string>;
   /** Links for the built-in types referenced in the file, keyed by printed name */
   externalTypeLinks: Record<string, string>;
-  /**
-   * Type name map (merged across all variants).
-   * Maps flat names (like "AccordionTriggerState") to dotted names (like "Accordion.Trigger.State").
-   */
-  typeNameMap: Record<string, string>;
   /** All dependencies that should be watched for changes */
   allDependencies: string[];
   /** Whether the types.md file was updated (false if loaded from existing file) */

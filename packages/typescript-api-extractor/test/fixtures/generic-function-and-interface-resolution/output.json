@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "genericFunction"
+					"name": "genericFunction",
+					"declarationId": "cf9cf2e0f87a61d6"
 				},
 				"callSignatures": [
 					{
@@ -50,7 +51,8 @@
 												},
 												"equalToDefault": false
 											}
-										]
+										],
+										"declarationId": "54c5be59e07cf031"
 									},
 									"properties": [
 										{
@@ -107,7 +109,8 @@
 																			},
 																			"equalToDefault": false
 																		}
-																	]
+																	],
+																	"declarationId": "8c482621aff378a5"
 																},
 																"properties": [
 																	{
@@ -122,7 +125,8 @@
 															},
 															"equalToDefault": false
 														}
-													]
+													],
+													"declarationId": "8c482621aff378a5"
 												},
 												"properties": [
 													{
@@ -139,7 +143,8 @@
 																		},
 																		"equalToDefault": false
 																	}
-																]
+																],
+																"declarationId": "8c482621aff378a5"
 															},
 															"properties": [
 																{
@@ -231,7 +236,9 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "cf9cf2e0f87a61d6",
+			"declaredName": "genericFunction"
 		}
 	],
 	"imports": ["react"]

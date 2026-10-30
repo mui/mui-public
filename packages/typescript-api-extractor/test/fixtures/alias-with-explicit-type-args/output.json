@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "AliasDefaults"
+					"name": "AliasDefaults",
+					"declarationId": "5407787895d25d45"
 				},
 				"properties": [
 					{
@@ -14,7 +15,8 @@
 						"type": {
 							"kind": "object",
 							"typeName": {
-								"name": "UsesOuterDefault"
+								"name": "UsesOuterDefault",
+								"declarationId": "0630c17c345d938d"
 							},
 							"properties": [
 								{
@@ -42,7 +44,8 @@
 						"type": {
 							"kind": "object",
 							"typeName": {
-								"name": "OverridesBoth"
+								"name": "OverridesBoth",
+								"declarationId": "d17bc75d08ef7b31"
 							},
 							"properties": [
 								{
@@ -70,7 +73,8 @@
 						"type": {
 							"kind": "object",
 							"typeName": {
-								"name": "UsesBothDefaults"
+								"name": "UsesBothDefaults",
+								"declarationId": "3a9b8f7d96cc96b8"
 							},
 							"properties": [
 								{
@@ -114,7 +118,8 @@
 										},
 										"equalToDefault": true
 									}
-								]
+								],
+								"declarationId": "a9c8b87ee4c9978c"
 							},
 							"properties": [
 								{
@@ -158,7 +163,8 @@
 										},
 										"equalToDefault": false
 									}
-								]
+								],
+								"declarationId": "a9c8b87ee4c9978c"
 							},
 							"properties": [
 								{
@@ -202,7 +208,8 @@
 										},
 										"equalToDefault": true
 									}
-								]
+								],
+								"declarationId": "a9c8b87ee4c9978c"
 							},
 							"properties": [
 								{
@@ -246,7 +253,8 @@
 										},
 										"equalToDefault": true
 									}
-								]
+								],
+								"declarationId": "a9c8b87ee4c9978c"
 							},
 							"properties": [
 								{
@@ -273,7 +281,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "5407787895d25d45",
+			"declaredName": "AliasDefaults"
 		}
 	]
 }

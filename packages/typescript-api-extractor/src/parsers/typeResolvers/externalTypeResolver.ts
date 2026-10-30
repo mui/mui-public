@@ -2,8 +2,7 @@ import path from 'node:path';
 import ts from 'typescript';
 import { ExternalTypeNode, IntrinsicNode } from '../../models';
 import type { AnyType, ExternalTypeSource } from '../../models';
-import { TypeName } from '../../models/typeName';
-import { isInternalSymbolName } from '../common';
+import { createTypeName, isInternalSymbolName } from '../common';
 import { getNodeModulesPackageName, isNodeModulesDeclaration } from '../sourceFileUtils';
 import type { TypeResolutionRequest, TypeResolutionSession } from '../typeResolutionTypes';
 import { resolveImportAlias } from './referencedTypeAlias';
@@ -129,13 +128,19 @@ export function resolveExternalType(
   // Fixes a weird TS behavior where it doesn't show the alias name but resolves to the actual type in case of RefCallback.
   if (externalTypeName === 'bivarianceHack') {
     return new ExternalTypeNode(
-      new TypeName('RefCallback', ['React'], typeName?.typeArguments),
+      createTypeName(undefined, session.context, 'RefCallback', ['React'], typeName?.typeArguments),
       source,
     );
   }
 
   return new ExternalTypeNode(
-    new TypeName(externalTypeName, typeName?.namespaces, typeName?.typeArguments),
+    createTypeName(
+      nameSymbol,
+      session.context,
+      externalTypeName,
+      typeName?.namespaces,
+      typeName?.typeArguments,
+    ),
     source,
   );
 }

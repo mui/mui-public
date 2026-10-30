@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "IntrinsicPropsComponent"
+					"name": "IntrinsicPropsComponent",
+					"declarationId": "d5379fc037e1ce33"
 				},
 				"props": [
 					{
@@ -45,7 +46,9 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "d5379fc037e1ce33",
+			"declaredName": "IntrinsicPropsComponent"
 		}
 	],
 	"imports": ["react"]

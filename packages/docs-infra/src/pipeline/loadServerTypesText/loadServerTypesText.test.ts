@@ -25,16 +25,14 @@ const TYPES_MARKDOWN = `# Button API
 
 const cacheRef = { cacheDir: CACHE_DIR, namespace: 'types-text', cacheKey: 'components/button' };
 
-function fakeData(typeNameMap: Record<string, string>): TypesSourceData {
+function fakeData(externalTypes: Record<string, string>): TypesSourceData {
   return {
     exports: {},
     additionalTypes: [],
     variantOnlyAdditionalTypes: {},
     variantTypeNames: {},
-    variantTypeNameMaps: {},
-    externalTypes: {},
+    externalTypes,
     externalTypeLinks: {},
-    typeNameMap,
     allDependencies: [TYPES_PATH],
     updated: false,
   };
@@ -63,7 +61,7 @@ describe('loadServerTypesText caching', () => {
       rootContext: TEST_DIR,
     });
     // The sentinel could never come from parsing the markdown, proving the parse was skipped.
-    expect(result.typeNameMap).toEqual({ CACHED: 'yes' });
+    expect(result.externalTypes).toEqual({ CACHED: 'yes' });
   });
 
   it('parses on a miss and writes the cache with the content hash', async () => {
@@ -92,7 +90,7 @@ describe('loadServerTypesText caching', () => {
       rootContext: TEST_DIR,
     });
     expect(result.exports.Button).toBeDefined();
-    expect(result.typeNameMap).not.toHaveProperty('STALE');
+    expect(result.externalTypes).not.toHaveProperty('STALE');
   });
 
   it('does not read or write a cache when cacheDir is unset', async () => {
@@ -121,7 +119,69 @@ describe('loadServerTypesText caching', () => {
       },
     );
     expect(result.exports.Button).toBeDefined();
-    expect(result.typeNameMap).not.toHaveProperty('NO_ORDER');
+    expect(result.externalTypes).not.toHaveProperty('NO_ORDER');
+  });
+
+  it('round-trips the other names of each type through types.md', async () => {
+    const sourceData: TypesSourceData = {
+      exports: {
+        Button: {
+          type: {
+            type: 'component',
+            name: 'Button',
+            data: { name: 'Button', props: {}, dataAttributes: {}, cssVariables: {} },
+            // A flat spelling and a rename
+            aliases: ['ButtonRoot', 'default'],
+            // Not written to types.md, so not part of what parsing it gives
+            declarationId: 'button-declaration',
+          },
+          additionalTypes: [],
+        },
+      },
+      additionalTypes: [
+        {
+          type: 'raw',
+          name: 'Dialog.Trigger.Props',
+          data: {
+            name: 'Dialog.Trigger.Props',
+            formattedCode: 'type DialogTriggerProps = { open: boolean };',
+            descriptionText: 'The props of the trigger.',
+            description: await parseMarkdownToHast('The props of the trigger.'),
+          },
+          // A namespace member reached through another namespace, and a flat spelling
+          aliases: ['DialogTrigger.Props', 'DialogTriggerProps'],
+        },
+      ],
+      variantOnlyAdditionalTypes: {},
+      externalTypes: {},
+      externalTypeLinks: {},
+      variantTypeNames: { Default: ['Button', 'Dialog.Trigger.Props'] },
+      allDependencies: [TYPES_PATH],
+      updated: false,
+    };
+
+    const markdown = await generateTypesMarkdown({
+      name: 'Button API',
+      organized: {
+        exports: sourceData.exports,
+        additionalTypes: sourceData.additionalTypes,
+        variantOnlyAdditionalTypes: sourceData.variantOnlyAdditionalTypes,
+        variantTypeNames: sourceData.variantTypeNames,
+      },
+    });
+    expect(markdown).toContain('### Button\n\nAlso exported as `ButtonRoot`, `default`.\n');
+    expect(markdown).toContain(
+      '### Dialog.Trigger.Props\n\nThe props of the trigger.\n\nAlso exported as `DialogTrigger.Props`, `DialogTriggerProps`.\n\n```typescript\n',
+    );
+    expect(markdown).not.toContain('Canonical Types');
+
+    await mkdir(join(TEST_DIR, 'src', 'app', 'components', 'button'), { recursive: true });
+    await writeFile(TYPES_PATH, markdown, 'utf-8');
+
+    const coldParsed = await loadServerTypesText(pathToFileURL(TYPES_PATH).href);
+    expect(JSON.stringify(normalizeTypesSourceDataForCache(sourceData))).toBe(
+      JSON.stringify(coldParsed),
+    );
   });
 
   it('normalizes source-derived data to match a cached cold parse byte-for-byte', async () => {
@@ -151,8 +211,6 @@ describe('loadServerTypesText caching', () => {
         'Intl.NumberFormat':
           'https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Intl/NumberFormat',
       },
-      typeNameMap: {},
-      variantTypeNameMaps: {},
       variantTypeNames: { Default: ['Button'] },
       allDependencies: [TYPES_PATH],
       updated: false,
@@ -164,10 +222,8 @@ describe('loadServerTypesText caching', () => {
         exports: sourceData.exports,
         additionalTypes: sourceData.additionalTypes,
         variantOnlyAdditionalTypes: sourceData.variantOnlyAdditionalTypes,
-        variantTypeNameMaps: sourceData.variantTypeNameMaps,
         variantTypeNames: sourceData.variantTypeNames,
       },
-      typeNameMap: sourceData.typeNameMap,
       externalTypes: sourceData.externalTypes,
       externalTypeLinks: sourceData.externalTypeLinks,
     });

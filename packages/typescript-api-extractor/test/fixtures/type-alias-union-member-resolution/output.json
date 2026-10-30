@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "f"
+					"name": "f",
+					"declarationId": "ceeb63e604502932"
 				},
 				"callSignatures": [
 					{
@@ -15,13 +16,15 @@
 								"type": {
 									"kind": "union",
 									"typeName": {
-										"name": "Params"
+										"name": "Params",
+										"declarationId": "bc69aad97a6a38cf"
 									},
 									"types": [
 										{
 											"kind": "union",
 											"typeName": {
-												"name": "Alias"
+												"name": "Alias",
+												"declarationId": "174c0af796076b01"
 											},
 											"types": [
 												{
@@ -53,14 +56,17 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "ceeb63e604502932",
+			"declaredName": "f"
 		},
 		{
 			"name": "Props",
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "Props"
+					"name": "Props",
+					"declarationId": "6af023c45366fa84"
 				},
 				"properties": [
 					{
@@ -68,13 +74,15 @@
 						"type": {
 							"kind": "union",
 							"typeName": {
-								"name": "Params"
+								"name": "Params",
+								"declarationId": "bc69aad97a6a38cf"
 							},
 							"types": [
 								{
 									"kind": "union",
 									"typeName": {
-										"name": "Alias"
+										"name": "Alias",
+										"declarationId": "174c0af796076b01"
 									},
 									"types": [
 										{
@@ -99,7 +107,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "6af023c45366fa84",
+			"declaredName": "Props"
 		}
 	]
 }

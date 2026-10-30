@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "useConfig"
+					"name": "useConfig",
+					"declarationId": "353594b9bd1eba79"
 				},
 				"callSignatures": [
 					{
@@ -45,14 +46,17 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "353594b9bd1eba79",
+			"declaredName": "useConfig"
 		},
 		{
 			"name": "Props",
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "Props"
+					"name": "Props",
+					"declarationId": "6b136e3e13f8ac97"
 				},
 				"properties": [
 					{
@@ -100,7 +104,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "6b136e3e13f8ac97",
+			"declaredName": "Props"
 		}
 	]
 }

@@ -38,7 +38,6 @@ export interface FormatTypeOptions {
   jsdocTags?: tae.DocumentationTag[];
   expandObjects?: boolean;
   exportNames: string[];
-  typeNameMap: Record<string, string>;
   externalTypesCollector?: ExternalTypesCollector;
   selfName?: string;
   withPropertyComments?: boolean;
@@ -85,7 +84,6 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
     jsdocTags,
     expandObjects = false,
     exportNames,
-    typeNameMap,
     externalTypesCollector,
     selfName,
     withPropertyComments,
@@ -100,7 +98,6 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
     const qualifiedName = getFullyQualifiedName(
       typeName,
       exportNames,
-      typeNameMap,
       preserveTypeParameters,
       externalTypesCollector,
     );
@@ -150,7 +147,6 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
       const reactName = createNameWithTypeArguments(
         type.typeName,
         exportNames,
-        typeNameMap,
         externalTypesCollector,
         preserveTypeParameters,
       );
@@ -163,17 +159,13 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
     const qualifiedName = getFullyQualifiedName(
       type.typeName,
       exportNames,
-      typeNameMap,
       preserveTypeParameters,
       externalTypesCollector,
     );
 
     if (externalTypesCollector) {
-      // Only collect as external if the qualified name wasn't rewritten to an own type.
-      if (
-        qualifiedName === type.typeName.name ||
-        !isOwnTypeName(qualifiedName, externalTypesCollector)
-      ) {
+      // Only collect as external if it isn't one of the page's own types.
+      if (!isOwnTypeName(type.typeName, externalTypesCollector)) {
         maybeCollectExternalReference(type, externalTypesCollector);
         collectExternalTypeSource(qualifiedName, type.source, externalTypesCollector);
       }
@@ -195,7 +187,6 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
       const qualifiedName = getFullyQualifiedName(
         type.typeName,
         exportNames,
-        typeNameMap,
         preserveTypeParameters,
         externalTypesCollector,
       );
@@ -204,13 +195,9 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
       // Also strip type arguments to catch cases like `type Foo = Foo<Args>`
       if (!matchesSelfName(qualifiedName, type.typeName.name)) {
         if (externalTypesCollector) {
-          // Only collect as external if the qualified name wasn't rewritten to an own type.
-          // e.g., BaseOrientation → Tabs.Root.Orientation means it's an own type alias,
-          // not an external type that should appear in the External Types section.
-          if (
-            qualifiedName === type.typeName.name ||
-            !isOwnTypeName(qualifiedName, externalTypesCollector)
-          ) {
+          // Only collect as external if it isn't one of the page's own types: BaseOrientation
+          // exported as Tabs.Root.Orientation belongs in the page's own sections, not in External Types.
+          if (!isOwnTypeName(type.typeName, externalTypesCollector)) {
             maybeCollectExternalUnion(type, externalTypesCollector);
             const source = getNamedUnionSource(type);
             if (source) {
@@ -259,7 +246,6 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
     const merged = mergeObjectUnionCommonProperties(flattenedMemberTypes, {
       removeUndefined,
       exportNames,
-      typeNameMap,
       externalTypesCollector,
       withPropertyComments,
       preserveTypeParameters,
@@ -274,7 +260,6 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
         formatType(t, {
           removeUndefined,
           exportNames,
-          typeNameMap,
           externalTypesCollector,
           preserveTypeParameters,
         }),
@@ -323,7 +308,6 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
           const typeStr = formatType(m.type, {
             removeUndefined: m.optional,
             exportNames,
-            typeNameMap,
             externalTypesCollector,
             withPropertyComments,
             preserveTypeParameters,
@@ -350,7 +334,6 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
       .map((t) =>
         formatType(t, {
           exportNames,
-          typeNameMap,
           externalTypesCollector,
           preserveTypeParameters,
         }),
@@ -414,7 +397,6 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
     if (indexSignature) {
       const valueTypeStr = formatType(indexSignature.valueType, {
         exportNames,
-        typeNameMap,
         externalTypesCollector,
         preserveTypeParameters,
       });
@@ -441,7 +423,6 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
         const typeStr = formatType(m.type, {
           removeUndefined: m.optional,
           exportNames,
-          typeNameMap,
           externalTypesCollector,
           withPropertyComments,
           preserveTypeParameters,
@@ -477,11 +458,8 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
       const qualifiedName = printOwnTypeName(type.typeName);
       if (!matchesSelfName(qualifiedName, type.typeName.name)) {
         if (externalTypesCollector) {
-          // Only collect as external if the qualified name wasn't rewritten to an own type.
-          if (
-            qualifiedName === type.typeName.name ||
-            !isOwnTypeName(qualifiedName, externalTypesCollector)
-          ) {
+          // Only collect as external if it isn't one of the page's own types.
+          if (!isOwnTypeName(type.typeName, externalTypesCollector)) {
             maybeCollectExternalTemplateLiteral(type, externalTypesCollector);
           }
         }
@@ -493,7 +471,6 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
     return formatTemplateLiteral(type, (placeholder) =>
       formatType(placeholder, {
         exportNames,
-        typeNameMap,
         externalTypesCollector,
         preserveTypeParameters,
       }),
@@ -504,7 +481,6 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
     // Use expandObjects=false for element types to prevent deep expansion (one level only)
     const formattedMemberType = formatType(type.elementType, {
       exportNames,
-      typeNameMap,
       externalTypesCollector,
       preserveTypeParameters,
     });
@@ -529,11 +505,8 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
     if (hasNamedTypeAlias && !expandObjects) {
       const qualifiedName = printOwnTypeName(type.typeName!);
       if (externalTypesCollector) {
-        // Only collect as external if the qualified name wasn't rewritten to an own type.
-        if (
-          qualifiedName === type.typeName!.name ||
-          !isOwnTypeName(qualifiedName, externalTypesCollector)
-        ) {
+        // Only collect as external if it isn't one of the page's own types.
+        if (!isOwnTypeName(type.typeName!, externalTypesCollector)) {
           maybeCollectExternalFunction(type, externalTypesCollector);
         }
       }
@@ -547,10 +520,10 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
             .map((tp) => {
               let result = tp.name;
               if (tp.constraint !== undefined) {
-                result += ` extends ${formatType(tp.constraint, { exportNames, typeNameMap, externalTypesCollector, preserveTypeParameters })}`;
+                result += ` extends ${formatType(tp.constraint, { exportNames, externalTypesCollector, preserveTypeParameters })}`;
               }
               if (tp.defaultValue !== undefined) {
-                result += ` = ${formatType(tp.defaultValue, { exportNames, typeNameMap, externalTypesCollector, preserveTypeParameters })}`;
+                result += ` = ${formatType(tp.defaultValue, { exportNames, externalTypesCollector, preserveTypeParameters })}`;
               }
               return result;
             })
@@ -565,7 +538,6 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
         .map((p, index, allParams) => {
           let paramType = formatType(p.type, {
             exportNames,
-            typeNameMap,
             externalTypesCollector,
             preserveTypeParameters: localPreserve,
           });
@@ -609,7 +581,6 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
       // Use expandObjects=false for return type to prevent deep expansion (one level only)
       const returnType = formatType(s.returnValueType, {
         exportNames,
-        typeNameMap,
         externalTypesCollector,
         preserveTypeParameters: localPreserve,
       });
@@ -632,7 +603,7 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
     }
 
     // Use expandObjects=false for tuple members to prevent deep expansion (one level only)
-    return `[${type.types.map((member: tae.AnyType) => formatType(member, { exportNames, typeNameMap, externalTypesCollector, preserveTypeParameters })).join(', ')}]`;
+    return `[${type.types.map((member: tae.AnyType) => formatType(member, { exportNames, externalTypesCollector, preserveTypeParameters })).join(', ')}]`;
   }
 
   if (isTypeParameterType(type)) {
@@ -650,7 +621,6 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
       ? formatType(type.constraint, {
           expandObjects,
           exportNames,
-          typeNameMap,
           externalTypesCollector,
         })
       : type.name;
@@ -666,7 +636,6 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
       return formatType(operatorKeys, {
         expandObjects,
         exportNames,
-        typeNameMap,
         externalTypesCollector,
         selfName,
         preserveTypeParameters,
@@ -678,7 +647,6 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
     // both composers, so a composite operand has to be grouped.
     const operand = formatType(type.type, {
       exportNames,
-      typeNameMap,
       externalTypesCollector,
       selfName,
       preserveTypeParameters,
@@ -713,111 +681,31 @@ export async function prettyFormatType(type: tae.AnyType, options: FormatTypeOpt
   );
 }
 
+/**
+ * The name a type reference is printed with: its namespaces, name and type arguments. References
+ * to the page's own exports already carry the name the page documents them under.
+ */
 export function getFullyQualifiedName(
   typeName: tae.TypeName,
   exportNames: string[],
-  typeNameMap: Record<string, string>,
   preserveTypeParameters?: boolean,
   externalTypesCollector?: ExternalTypesCollector,
 ): string {
   // Type arguments only record where their external types are declared: the External Types
   // section describes the types a page references directly, not every type argument.
-  const nameWithTypeArgs = createNameWithTypeArguments(
+  return createNameWithTypeArguments(
     typeName,
     exportNames,
-    typeNameMap,
     externalTypesCollector && typeName.typeArguments?.length
       ? { ...externalTypesCollector, collected: new Map() }
       : externalTypesCollector,
     preserveTypeParameters,
   );
-
-  // Construct the flat name (what parseExports would have created)
-  const flatName =
-    typeName.namespaces && typeName.namespaces.length > 0
-      ? typeName.namespaces.join('') + typeName.name
-      : typeName.name;
-
-  // Check if this type is in our map (exact match)
-  if (typeNameMap[flatName]) {
-    // This is one of our component types - use the mapped dotted name
-    const typeArgsStart = nameWithTypeArgs.indexOf('<');
-
-    if (typeArgsStart !== -1) {
-      // Preserve type arguments
-      return typeNameMap[flatName] + nameWithTypeArgs.slice(typeArgsStart);
-    }
-    return typeNameMap[flatName];
-  }
-
-  // Check if flatName matches a dotted export with dots removed
-  // e.g., ComponentPartState -> Component.Part.State (if that export exists)
-  for (const dottedName of Object.values(typeNameMap)) {
-    if (dottedName.replace(/\./g, '') === flatName) {
-      const typeArgsStart = nameWithTypeArgs.indexOf('<');
-      if (typeArgsStart !== -1) {
-        return dottedName + nameWithTypeArgs.slice(typeArgsStart);
-      }
-      return dottedName;
-    }
-  }
-
-  // Check if we have a namespaced reference where the namespace itself needs transformation
-  // E.g., MenuRoot.Actions.Handler where MenuRoot → Menu.Root → Menu.Root.Actions.Handler
-  // This check comes BEFORE flat prefix matching to preserve namespace structure
-  if (typeName.namespaces && typeName.namespaces.length > 0) {
-    // Check if any namespace part is in the typeNameMap
-    const transformedNamespaces = typeName.namespaces.map((ns) => typeNameMap[ns] || ns);
-    const hasTransformation = transformedNamespaces.some((ns, i) => ns !== typeName.namespaces![i]);
-
-    if (hasTransformation) {
-      // Build the transformed name: TransformedNamespace.Member
-      const transformedName = [...transformedNamespaces, typeName.name].join('.');
-      const typeArgsStart = nameWithTypeArgs.indexOf('<');
-
-      if (typeArgsStart !== -1) {
-        // Preserve type arguments
-        return transformedName + nameWithTypeArgs.slice(typeArgsStart);
-      }
-      return transformedName;
-    }
-  }
-
-  // Check if flatName starts with a known component prefix
-  // e.g., "ComponentPartState" starts with "ComponentPart" -> "Component.Part", so becomes "Component.Part.State"
-  // This handles types that don't have namespace structure (already flattened)
-  const sortedEntries = Object.entries(typeNameMap).sort((a, b) => b[0].length - a[0].length);
-  for (const [flat, dotted] of sortedEntries) {
-    if (flatName.startsWith(flat) && flatName.length > flat.length) {
-      const suffix = flatName.slice(flat.length);
-      const dottedName = `${dotted}.${suffix}`;
-      const typeArgsStart = nameWithTypeArgs.indexOf('<');
-      if (typeArgsStart !== -1) {
-        return dottedName + nameWithTypeArgs.slice(typeArgsStart);
-      }
-      return dottedName;
-    }
-  }
-
-  // No transformation needed - return as-is preserving namespace structure
-  // For external types like React.ComponentType, preserve the dotted format
-  if (typeName.namespaces && typeName.namespaces.length > 0) {
-    const dottedName = [...typeName.namespaces, typeName.name].join('.');
-    const typeArgsStart = nameWithTypeArgs.indexOf('<');
-    if (typeArgsStart !== -1) {
-      return dottedName + nameWithTypeArgs.slice(typeArgsStart);
-    }
-    return dottedName;
-  }
-
-  // Not in the map and no namespaces - it's an external type (React, HTMLElement, etc.)
-  return nameWithTypeArgs;
 }
 
 function createNameWithTypeArguments(
   typeName: tae.TypeName,
   exportNames: string[],
-  typeNameMap: Record<string, string>,
   externalTypesCollector?: ExternalTypesCollector,
   preserveTypeParameters?: boolean,
 ) {
@@ -831,7 +719,7 @@ function createNameWithTypeArguments(
     typeName.typeArguments.length > 0 &&
     typeName.typeArguments.some((ta) => ta.equalToDefault === false)
   ) {
-    return `${prefix}${typeName.name}<${typeName.typeArguments.map((ta) => formatType(ta.type, { exportNames, typeNameMap, externalTypesCollector, preserveTypeParameters })).join(', ')}>`;
+    return `${prefix}${typeName.name}<${typeName.typeArguments.map((ta) => formatType(ta.type, { exportNames, externalTypesCollector, preserveTypeParameters })).join(', ')}>`;
   }
 
   return `${prefix}${typeName.name}`;
@@ -851,7 +739,6 @@ function mergeObjectUnionCommonProperties(
   const {
     removeUndefined,
     exportNames,
-    typeNameMap,
     externalTypesCollector,
     withPropertyComments,
     preserveTypeParameters,
@@ -922,7 +809,6 @@ function mergeObjectUnionCommonProperties(
       formatType(p.type, {
         removeUndefined: p.optional,
         exportNames,
-        typeNameMap,
         externalTypesCollector,
         preserveTypeParameters,
       }),
@@ -942,7 +828,6 @@ function mergeObjectUnionCommonProperties(
   const formatOpts = {
     removeUndefined,
     exportNames,
-    typeNameMap,
     externalTypesCollector,
     preserveTypeParameters,
   };

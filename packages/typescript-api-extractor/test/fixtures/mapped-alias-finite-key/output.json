@@ -30,7 +30,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"declarationId": "9803a3ce8038f6fc"
 				},
 				"properties": [],
 				"indexSignature": {
@@ -57,7 +58,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "9803a3ce8038f6fc",
+			"declaredName": "MapAlias"
 		},
 		{
 			"name": "Specialized",
@@ -82,7 +85,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"declarationId": "9803a3ce8038f6fc"
 				},
 				"properties": [
 					{
@@ -105,7 +109,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "3250c6a3c86c072a",
+			"declaredName": "Specialized"
 		},
 		{
 			"name": "LiteralWrapped",
@@ -134,13 +140,16 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"declarationId": "9803a3ce8038f6fc"
 				},
 				"properties": []
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "8077bb3c1d2d828e",
+			"declaredName": "LiteralWrapped"
 		}
 	]
 }

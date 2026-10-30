@@ -7,7 +7,8 @@
 				"kind": "component",
 				"typeName": {
 					"name": "Root",
-					"namespaces": ["Component"]
+					"namespaces": ["Component"],
+					"declarationId": "58ce4d68084f7755"
 				},
 				"props": [
 					{
@@ -76,7 +77,8 @@
 													"type": {
 														"kind": "object",
 														"typeName": {
-															"name": "ComponentRootChangeEventDetails"
+															"name": "ComponentRootChangeEventDetails",
+															"declarationId": "b7d5a283049067a3"
 														},
 														"properties": [
 															{
@@ -84,7 +86,8 @@
 																"type": {
 																	"kind": "object",
 																	"typeName": {
-																		"name": "ComponentRootState"
+																		"name": "ComponentRootState",
+																		"declarationId": "2955eb1cb63d1dd6"
 																	},
 																	"properties": [
 																		{
@@ -124,7 +127,8 @@
 																"type": {
 																	"kind": "object",
 																	"typeName": {
-																		"name": "ComponentRootState"
+																		"name": "ComponentRootState",
+																		"declarationId": "2955eb1cb63d1dd6"
 																	},
 																	"properties": [
 																		{
@@ -192,7 +196,8 @@
 								{
 									"kind": "object",
 									"typeName": {
-										"name": "ComponentPartState"
+										"name": "ComponentPartState",
+										"declarationId": "085f64d19e3504ce"
 									},
 									"properties": [
 										{
@@ -242,7 +247,9 @@
 			"reexportedFrom": "ComponentRoot",
 			"isValue": true,
 			"isType": false,
-			"isNamespace": true
+			"isNamespace": true,
+			"declarationId": "58ce4d68084f7755",
+			"declaredName": "ComponentRoot"
 		},
 		{
 			"name": "Component.Root.State",
@@ -250,7 +257,8 @@
 				"kind": "object",
 				"typeName": {
 					"name": "State",
-					"namespaces": ["Component", "Root"]
+					"namespaces": ["Component", "Root"],
+					"declarationId": "2955eb1cb63d1dd6"
 				},
 				"properties": [
 					{
@@ -281,7 +289,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "2955eb1cb63d1dd6",
+			"declaredName": "ComponentRootState"
 		},
 		{
 			"name": "Component.Root.Props",
@@ -289,7 +299,8 @@
 				"kind": "object",
 				"typeName": {
 					"name": "Props",
-					"namespaces": ["Component", "Root"]
+					"namespaces": ["Component", "Root"],
+					"declarationId": "41eb2ea20ca62a9f"
 				},
 				"properties": [
 					{
@@ -358,7 +369,8 @@
 													"type": {
 														"kind": "object",
 														"typeName": {
-															"name": "ComponentRootChangeEventDetails"
+															"name": "ComponentRootChangeEventDetails",
+															"declarationId": "b7d5a283049067a3"
 														},
 														"properties": [
 															{
@@ -366,7 +378,8 @@
 																"type": {
 																	"kind": "object",
 																	"typeName": {
-																		"name": "ComponentRootState"
+																		"name": "ComponentRootState",
+																		"declarationId": "2955eb1cb63d1dd6"
 																	},
 																	"properties": [
 																		{
@@ -406,7 +419,8 @@
 																"type": {
 																	"kind": "object",
 																	"typeName": {
-																		"name": "ComponentRootState"
+																		"name": "ComponentRootState",
+																		"declarationId": "2955eb1cb63d1dd6"
 																	},
 																	"properties": [
 																		{
@@ -474,7 +488,8 @@
 								{
 									"kind": "object",
 									"typeName": {
-										"name": "ComponentPartState"
+										"name": "ComponentPartState",
+										"declarationId": "085f64d19e3504ce"
 									},
 									"properties": [
 										{
@@ -519,7 +534,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "41eb2ea20ca62a9f",
+			"declaredName": "ComponentRootProps"
 		},
 		{
 			"name": "Component.Root.ChangeEventDetails",
@@ -527,7 +544,8 @@
 				"kind": "object",
 				"typeName": {
 					"name": "ChangeEventDetails",
-					"namespaces": ["Component", "Root"]
+					"namespaces": ["Component", "Root"],
+					"declarationId": "b7d5a283049067a3"
 				},
 				"properties": [
 					{
@@ -535,7 +553,8 @@
 						"type": {
 							"kind": "object",
 							"typeName": {
-								"name": "ComponentRootState"
+								"name": "ComponentRootState",
+								"declarationId": "2955eb1cb63d1dd6"
 							},
 							"properties": [
 								{
@@ -575,7 +594,8 @@
 						"type": {
 							"kind": "object",
 							"typeName": {
-								"name": "ComponentRootState"
+								"name": "ComponentRootState",
+								"declarationId": "2955eb1cb63d1dd6"
 							},
 							"properties": [
 								{
@@ -614,7 +634,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "b7d5a283049067a3",
+			"declaredName": "ComponentRootChangeEventDetails"
 		},
 		{
 			"name": "Component.Part",
@@ -622,7 +644,8 @@
 				"kind": "component",
 				"typeName": {
 					"name": "Part",
-					"namespaces": ["Component"]
+					"namespaces": ["Component"],
+					"declarationId": "16ef2a66211945a7"
 				},
 				"props": [
 					{
@@ -686,7 +709,9 @@
 			"reexportedFrom": "ComponentPart",
 			"isValue": true,
 			"isType": false,
-			"isNamespace": true
+			"isNamespace": true,
+			"declarationId": "16ef2a66211945a7",
+			"declaredName": "ComponentPart"
 		},
 		{
 			"name": "Component.Part.State",
@@ -694,7 +719,8 @@
 				"kind": "object",
 				"typeName": {
 					"name": "State",
-					"namespaces": ["Component", "Part"]
+					"namespaces": ["Component", "Part"],
+					"declarationId": "085f64d19e3504ce"
 				},
 				"properties": [
 					{
@@ -725,7 +751,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "085f64d19e3504ce",
+			"declaredName": "ComponentPartState"
 		},
 		{
 			"name": "Component.Part.Props",
@@ -733,7 +761,8 @@
 				"kind": "object",
 				"typeName": {
 					"name": "Props",
-					"namespaces": ["Component", "Part"]
+					"namespaces": ["Component", "Part"],
+					"declarationId": "2a352f28e66b2fc2"
 				},
 				"properties": [
 					{
@@ -792,7 +821,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "2a352f28e66b2fc2",
+			"declaredName": "ComponentPartProps"
 		},
 		{
 			"name": "Component.Handle",
@@ -800,7 +831,8 @@
 				"kind": "class",
 				"typeName": {
 					"name": "Handle",
-					"namespaces": ["Component"]
+					"namespaces": ["Component"],
+					"declarationId": "71424af9097b121a"
 				},
 				"constructSignatures": [
 					{
@@ -928,7 +960,9 @@
 			"reexportedFrom": "ComponentHandle",
 			"isValue": true,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "71424af9097b121a",
+			"declaredName": "ComponentHandle"
 		},
 		{
 			"name": "Component.createHandle",
@@ -936,7 +970,8 @@
 				"kind": "function",
 				"typeName": {
 					"name": "createHandle",
-					"namespaces": ["Component"]
+					"namespaces": ["Component"],
+					"declarationId": "7707e0d6bd7fa8b0"
 				},
 				"callSignatures": [
 					{
@@ -957,7 +992,8 @@
 										},
 										"equalToDefault": false
 									}
-								]
+								],
+								"declarationId": "71424af9097b121a"
 							},
 							"properties": [
 								{
@@ -1037,14 +1073,17 @@
 			"reexportedFrom": "createComponentHandle",
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "7707e0d6bd7fa8b0",
+			"declaredName": "createComponentHandle"
 		},
 		{
 			"name": "ComponentHandle",
 			"type": {
 				"kind": "class",
 				"typeName": {
-					"name": "ComponentHandle"
+					"name": "ComponentHandle",
+					"declarationId": "71424af9097b121a"
 				},
 				"constructSignatures": [
 					{
@@ -1171,14 +1210,17 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "71424af9097b121a",
+			"declaredName": "ComponentHandle"
 		},
 		{
 			"name": "ComponentRootState",
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "ComponentRootState"
+					"name": "ComponentRootState",
+					"declarationId": "2955eb1cb63d1dd6"
 				},
 				"properties": [
 					{
@@ -1209,14 +1251,17 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "2955eb1cb63d1dd6",
+			"declaredName": "ComponentRootState"
 		},
 		{
 			"name": "ComponentRootChangeEventDetails",
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "ComponentRootChangeEventDetails"
+					"name": "ComponentRootChangeEventDetails",
+					"declarationId": "b7d5a283049067a3"
 				},
 				"properties": [
 					{
@@ -1224,7 +1269,8 @@
 						"type": {
 							"kind": "object",
 							"typeName": {
-								"name": "ComponentRootState"
+								"name": "ComponentRootState",
+								"declarationId": "2955eb1cb63d1dd6"
 							},
 							"properties": [
 								{
@@ -1264,7 +1310,8 @@
 						"type": {
 							"kind": "object",
 							"typeName": {
-								"name": "ComponentRootState"
+								"name": "ComponentRootState",
+								"declarationId": "2955eb1cb63d1dd6"
 							},
 							"properties": [
 								{
@@ -1303,14 +1350,17 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "b7d5a283049067a3",
+			"declaredName": "ComponentRootChangeEventDetails"
 		},
 		{
 			"name": "ComponentRootProps",
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "ComponentRootProps"
+					"name": "ComponentRootProps",
+					"declarationId": "41eb2ea20ca62a9f"
 				},
 				"properties": [
 					{
@@ -1379,7 +1429,8 @@
 													"type": {
 														"kind": "object",
 														"typeName": {
-															"name": "ComponentRootChangeEventDetails"
+															"name": "ComponentRootChangeEventDetails",
+															"declarationId": "b7d5a283049067a3"
 														},
 														"properties": [
 															{
@@ -1387,7 +1438,8 @@
 																"type": {
 																	"kind": "object",
 																	"typeName": {
-																		"name": "ComponentRootState"
+																		"name": "ComponentRootState",
+																		"declarationId": "2955eb1cb63d1dd6"
 																	},
 																	"properties": [
 																		{
@@ -1427,7 +1479,8 @@
 																"type": {
 																	"kind": "object",
 																	"typeName": {
-																		"name": "ComponentRootState"
+																		"name": "ComponentRootState",
+																		"declarationId": "2955eb1cb63d1dd6"
 																	},
 																	"properties": [
 																		{
@@ -1495,7 +1548,8 @@
 								{
 									"kind": "object",
 									"typeName": {
-										"name": "ComponentPartState"
+										"name": "ComponentPartState",
+										"declarationId": "085f64d19e3504ce"
 									},
 									"properties": [
 										{
@@ -1540,14 +1594,17 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "41eb2ea20ca62a9f",
+			"declaredName": "ComponentRootProps"
 		},
 		{
 			"name": "ComponentPartState",
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "ComponentPartState"
+					"name": "ComponentPartState",
+					"declarationId": "085f64d19e3504ce"
 				},
 				"properties": [
 					{
@@ -1578,14 +1635,17 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "085f64d19e3504ce",
+			"declaredName": "ComponentPartState"
 		},
 		{
 			"name": "ComponentPartProps",
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "ComponentPartProps"
+					"name": "ComponentPartProps",
+					"declarationId": "2a352f28e66b2fc2"
 				},
 				"properties": [
 					{
@@ -1644,7 +1704,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "2a352f28e66b2fc2",
+			"declaredName": "ComponentPartProps"
 		}
 	]
 }
