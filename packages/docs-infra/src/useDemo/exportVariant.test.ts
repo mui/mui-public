@@ -65,6 +65,37 @@ describe('exportVariant', () => {
     expect(dependencies.unrelated).toBeUndefined();
   });
 
+  it('omits packages the resolver leaves out without overriding resolved peers', () => {
+    const { exported } = exportVariant(
+      { ...baseVariantCode, externals: ['pkg-a', 'pkg-b'] },
+      {
+        resolveDependencies(packageName): Record<string, string> {
+          return packageName === 'pkg-a' ? { 'pkg-b': '2.0.0' } : {};
+        },
+      },
+    );
+    const packageFile = exported.extraFiles!['../package.json'];
+    if (typeof packageFile === 'string') {
+      throw new Error('Expected package metadata');
+    }
+    const { dependencies } = JSON.parse(stringOrHastToString(packageFile.source!));
+    expect(dependencies['pkg-a']).toBeUndefined();
+    expect(dependencies['pkg-b']).toBe('2.0.0');
+  });
+
+  it('keeps pinned packages the resolver leaves out', () => {
+    const { exported } = exportVariant(
+      { ...baseVariantCode, externals: ['pkg-a'] },
+      { versions: { 'pkg-a': '1.0.0' }, resolveDependencies: () => ({}) },
+    );
+    const packageFile = exported.extraFiles!['../package.json'];
+    if (typeof packageFile === 'string') {
+      throw new Error('Expected package metadata');
+    }
+    const { dependencies } = JSON.parse(stringOrHastToString(packageFile.source!));
+    expect(dependencies['pkg-a']).toBe('1.0.0');
+  });
+
   it('should add basic package.json with default configuration', () => {
     const result = exportVariant(baseVariantCode);
 

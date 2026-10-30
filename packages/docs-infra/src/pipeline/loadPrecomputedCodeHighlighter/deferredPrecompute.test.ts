@@ -86,6 +86,32 @@ function checkStats(
   }
 }
 
+function expectDeferredDependencies(stats: Stats, directory: string) {
+  const deferred = [...stats.compilation.modules].find(
+    (module): module is NormalModule =>
+      'resource' in module &&
+      typeof module.resource === 'string' &&
+      module.resource.endsWith(DEFERRED_QUERY),
+  );
+  expect(deferred).toBeDefined();
+  const dependencies = new Set(deferred?.buildInfo?.snapshot?.getFileIterable());
+  expect(dependencies.has(path.join(directory, 'Demo.js'))).toBe(true);
+  expect(dependencies.has(path.join(directory, 'helper.js'))).toBe(true);
+}
+
+function runCompiler(compiler: webpackCompiler.Compiler) {
+  return new Promise<Stats>((resolve, reject) => {
+    compiler.run((error, stats) => {
+      try {
+        checkStats(error, stats);
+        resolve(stats);
+      } catch (failure) {
+        reject(failure);
+      }
+    });
+  });
+}
+
 /** Loads the new bundle without reusing the previous watch build's module. */
 async function readVariants(directory: string) {
   const outputPath = path.join(directory, 'dist/main.cjs');
@@ -114,16 +140,7 @@ it(
         watching = compiler.watch({ aggregateTimeout: WATCH_AGGREGATE_MS }, (error, stats) => {
           void (async () => {
             checkStats(error, stats);
-            const deferred = [...stats.compilation.modules].find(
-              (module): module is NormalModule =>
-                'resource' in module &&
-                typeof module.resource === 'string' &&
-                module.resource.endsWith(DEFERRED_QUERY),
-            );
-            expect(deferred).toBeDefined();
-            const dependencies = new Set(deferred?.buildInfo?.snapshot?.getFileIterable());
-            expect(dependencies.has(path.join(directory, 'Demo.js'))).toBe(true);
-            expect(dependencies.has(path.join(directory, 'helper.js'))).toBe(true);
+            expectDeferredDependencies(stats, directory);
             const serialized = JSON.stringify(await readVariants(directory));
             builds += 1;
             expect(performance.getEntriesByName(VARIANT_MEASURE).length - priorMeasures).toBe(
@@ -172,16 +189,32 @@ it('preserves deferred options omitted by JSON serialization', async () => {
     ]),
   );
   try {
-    await new Promise<void>((resolve, reject) => {
-      compiler.run((error, stats) => {
-        try {
-          checkStats(error, stats);
-          resolve();
-        } catch (failure) {
-          reject(failure);
-        }
-      });
+    expectDeferredDependencies(await runCompiler(compiler), directory);
+    const variants = await readVariants(directory);
+    expect(variants.Default.source.type).toBe('root');
+  } finally {
+    await new Promise<void>((resolve) => {
+      compiler.close(() => resolve());
     });
+  }
+});
+
+it('reuses deferred output when options contain undefined values', async () => {
+  const { directory, loader } = await createFixture();
+  const compiler = webpack(
+    createConfig(directory, [
+      {
+        test: /index\.ts$/,
+        use: [
+          { loader, options: { deferPrecompute: true, output: 'hast', performance: undefined } },
+        ],
+      },
+    ]),
+  );
+  const priorMeasures = performance.getEntriesByName(VARIANT_MEASURE).length;
+  try {
+    expectDeferredDependencies(await runCompiler(compiler), directory);
+    expect(performance.getEntriesByName(VARIANT_MEASURE).length - priorMeasures).toBe(1);
     const variants = await readVariants(directory);
     expect(variants.Default.source.type).toBe('root');
   } finally {

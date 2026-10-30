@@ -64,7 +64,10 @@ function isSerializable(value: unknown, ancestors = new Set<object>()): boolean 
       return (
         descriptor.enumerable &&
         'value' in descriptor &&
-        isSerializable(descriptor.value, ancestors)
+        // JSON drops undefined properties, matching how the loader treats absent options.
+        // Arrays serialize undefined as null, so elements still have to be serializable.
+        ((descriptor.value === undefined && !Array.isArray(value)) ||
+          isSerializable(descriptor.value, ancestors))
       );
     },
   );

@@ -477,9 +477,14 @@ export function exportVariant(
       const packageImports = importedModules.filter(
         (name) => name === pkg || name.startsWith(`${pkg}/`),
       );
-      const resolvedDeps = resolveDependencies?.(pkg, undefined, packageImports) ?? {};
-      Object.assign(acc, resolvedDeps);
-      acc[pkg] = resolvedDeps[pkg] ?? 'latest';
+      if (resolveDependencies) {
+        Object.assign(acc, resolveDependencies(pkg, undefined, packageImports));
+      } else {
+        acc[pkg] = 'latest';
+      }
+      if (versions[pkg] !== undefined) {
+        acc[pkg] = versions[pkg];
+      }
       return acc;
     },
     {} as Record<string, string>,
