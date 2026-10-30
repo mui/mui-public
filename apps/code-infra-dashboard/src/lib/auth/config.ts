@@ -57,12 +57,14 @@ export function resolveReturnTo(requested: string | null): URL {
  * failing to boot or offering a broken button.
  */
 export function getOAuthClient(): { clientId: string; clientSecret: string } | null {
-  // Preview deploys serve from a per-pull-request onrender.com origin that can't
-  // be registered as a GitHub callback URL, yet they inherit the credentials from
-  // the shared environment group. Wildcard callback matching is no way out: GitHub
-  // matches every subdomain of the registered host, and we don't control the rest
-  // of onrender.com.
-  if (process.env.IS_PULL_REQUEST === 'true') {
+  // GitHub only redirects back to a registered callback URL, so sign-in needs an
+  // explicitly configured origin; the fallback to the deploy's own URL won't do.
+  // This is what keeps it off preview environments: they inherit the OAuth
+  // credentials from the shared environment group but not DASHBOARD_ORIGIN, and
+  // their per-pull-request origins can't be registered. Wildcard callback matching
+  // is no way out: GitHub matches every subdomain of the registered host, and we
+  // don't control the rest of onrender.com.
+  if (!process.env.DASHBOARD_ORIGIN) {
     return null;
   }
 

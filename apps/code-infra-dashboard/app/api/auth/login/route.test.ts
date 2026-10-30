@@ -11,7 +11,7 @@ function stubConfiguredDeploy() {
   vi.stubEnv('GITHUB_OAUTH_CLIENT_ID', 'client-id');
   vi.stubEnv('GITHUB_OAUTH_CLIENT_SECRET', 'client-secret');
   vi.stubEnv('SESSION_SECRET', 'a-session-secret-of-thirty-two-chars');
-  vi.stubEnv('IS_PULL_REQUEST', 'false');
+  vi.stubEnv('DASHBOARD_ORIGIN', DASHBOARD_ORIGIN);
 }
 
 /**

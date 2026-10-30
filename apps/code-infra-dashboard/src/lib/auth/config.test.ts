@@ -10,7 +10,7 @@ function stubConfiguredDeploy() {
   vi.stubEnv('GITHUB_OAUTH_CLIENT_ID', 'client-id');
   vi.stubEnv('GITHUB_OAUTH_CLIENT_SECRET', 'client-secret');
   vi.stubEnv('SESSION_SECRET', 'a-session-secret-of-thirty-two-chars');
-  vi.stubEnv('IS_PULL_REQUEST', 'false');
+  vi.stubEnv('DASHBOARD_ORIGIN', DASHBOARD_ORIGIN);
 }
 
 describe('getOAuthClient', () => {
@@ -43,10 +43,11 @@ describe('getOAuthClient', () => {
   });
 
   // Preview environments inherit the credentials from the shared environment
-  // group, but their origin can't be a registered callback URL.
-  it('returns null on a preview deploy even with everything configured', () => {
+  // group, but not DASHBOARD_ORIGIN, and their own origin can't be a registered
+  // callback URL.
+  it('returns null without an explicitly configured origin, as on a preview', () => {
     stubConfiguredDeploy();
-    vi.stubEnv('IS_PULL_REQUEST', 'true');
+    vi.stubEnv('DASHBOARD_ORIGIN', undefined);
 
     expect(getOAuthClient()).toBe(null);
   });
