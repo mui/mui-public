@@ -30,13 +30,14 @@ interface Probe {
  * their own type parameters. Left generic, TypeScript cannot pick a branch of such a
  * conditional, so it resolves to every branch at once.
  *
- * A branch is only picked when every type argument a caller can pass picks it, apart from
- * `any`. That is checked at both ends of what the tested type parameters accept: their
- * constraint (`unknown` without one), and `never`. When the condition agrees at both ends,
- * the alias is resolved with the constraints substituted. Untested type parameters stay
- * generic, and the export keeps its name and type parameter list. A condition that
- * distributes over a tested type parameter yields `never` at the `never` end and is left
- * as is: the type resolvers already keep its branches generic over that parameter.
+ * The condition is checked at both ends of what the tested type parameters accept: their
+ * constraint (`unknown` without one), and `never`. When it agrees at both ends, the alias is
+ * resolved with the constraints substituted. Untested type parameters stay generic, and the
+ * export keeps its name and type parameter list. For a condition that only flips one way as
+ * the type argument narrows, such as an `IsAny` guard, the branch holds for every type
+ * argument but `any`; an equality check can still differ in between. A condition that
+ * distributes over a tested type parameter yields `never` at the `never` end and is left to
+ * the type resolvers.
  *
  * TypeScript only instantiates an alias with chosen type arguments when they are written
  * out, so the substitutions are written as aliases next to each declaration, in a second
@@ -408,8 +409,14 @@ function createCompanionProgram(
     replacedFiles.set(sourceFile.fileName, { text, ranges });
   }
 
-  // Generated aliases are type-checked even in declaration files.
-  const options = { ...program.getCompilerOptions(), skipLibCheck: false };
+  // Generated aliases are type-checked even in declaration files. They repeat every type
+  // parameter of the declaration they follow, used or not.
+  const options = {
+    ...program.getCompilerOptions(),
+    skipLibCheck: false,
+    noUnusedParameters: false,
+    noUnusedLocals: false,
+  };
   const host = ts.createCompilerHost(options, true);
   const getSourceFile = host.getSourceFile.bind(host);
   // Relative names resolve from the original program's directory, not the process's.

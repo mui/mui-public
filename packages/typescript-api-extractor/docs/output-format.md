@@ -173,15 +173,17 @@ conditional `infer` selectors can expose only their reduced semantic result.
 ## Conditional Types
 
 A conditional type that TypeScript cannot decide yet, because it tests a type
-parameter, is emitted as the union of its branches. A distributive condition
-keeps the tested type parameter in each branch.
+parameter, is emitted as the union of its branches.
 
 An exported generic type alias whose condition tests its own type parameters is
-resolved further when one branch holds for every type argument it accepts,
-apart from `any`. The condition is checked with each tested type parameter set
+resolved further. The condition is checked with each tested type parameter set
 to its constraint (`unknown` without one) and to `never`. When both pick the
 same branch, the export is that branch with the constraints substituted. It
-keeps its name and type arguments, and untested type parameters stay generic:
+keeps its name and type arguments, and untested type parameters stay generic.
+For a condition that only flips one way as the type argument narrows, such as
+an `IsAny` guard, the branch holds for every type argument but `any`. A
+condition that isn't, such as an equality check, can pick the same branch at
+both ends and another one in between:
 
 ```typescript
 type IsAny<T> = 0 extends 1 & T ? true : false;
@@ -195,8 +197,9 @@ export type Cell<Row, Columns extends readonly { id: string }[]> =
 
 Defaults are not used, since a caller can pass any other type argument. Aliases
 that forward their type parameters to such a conditional, also across files, are
-resolved the same way. Conditionals declared in dependencies, and exports that
-also declare a value, keep the union.
+resolved the same way. Distributive conditions (a naked tested type parameter
+on the left), conditionals declared in dependencies, and exports that also
+declare a value are left to the type resolvers.
 
 ## Template Literals
 

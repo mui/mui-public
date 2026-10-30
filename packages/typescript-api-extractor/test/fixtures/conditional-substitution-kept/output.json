@@ -251,7 +251,7 @@
 				]
 			},
 			"documentation": {
-				"description": "Both ends of the constraint take the same branch, which its middle doesn't.",
+				"description": "The constraint and `never` take different branches.",
 				"tags": []
 			},
 			"isValue": false,
@@ -298,7 +298,7 @@
 				]
 			},
 			"documentation": {
-				"description": "A distributive condition, which stays generic over its type parameter.",
+				"description": "A distributive condition, left to the type resolvers.",
 				"tags": []
 			},
 			"isValue": false,

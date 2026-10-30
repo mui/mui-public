@@ -13,14 +13,14 @@ export type Selected<Item, Multiple extends boolean = false> = Multiple extends 
 /** Nothing bounds the tested type parameter. */
 export type Unconstrained<Multiple> = Multiple extends true ? { value: string[] } : { value: string };
 
-/** Both ends of the constraint take the same branch, which its middle doesn't. */
+/** The constraint and `never` take different branches. */
 export type Middle<Key extends 'a' | 'b'> = [Key] extends ['a']
   ? [Key] extends [never]
     ? { none: true }
     : { a: true }
   : { other: true };
 
-/** A distributive condition, which stays generic over its type parameter. */
+/** A distributive condition, left to the type resolvers. */
 export type Items<List extends readonly string[]> = List extends readonly unknown[]
   ? { items: List }
   : { item: List };
