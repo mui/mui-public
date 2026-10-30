@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, onTestFinished } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -9,21 +9,13 @@ import type { VariantResult } from './processTypes';
 import { matchConstantGroups } from './constantGroups';
 import { isPublicComponent } from './formatComponent';
 
-const projectDirs: string[] = [];
-
-afterEach(() => {
-  for (const dir of projectDirs.splice(0)) {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
-
 /**
  * Runs the types worker's processing over sources written to a temporary project, the way the
  * pipeline does. The first source is the entrypoint.
  */
 async function processSources(sources: Record<string, string>): Promise<VariantResult> {
   const projectDir = mkdtempSync(path.join(tmpdir(), 'docs-infra-process-types-'));
-  projectDirs.push(projectDir);
+  onTestFinished(() => rmSync(projectDir, { recursive: true, force: true }));
   for (const [name, text] of Object.entries(sources)) {
     const filePath = path.join(projectDir, name);
     mkdirSync(path.dirname(filePath), { recursive: true });
@@ -82,9 +74,9 @@ describe('processTypes', () => {
       'attributes.ts': `export const disabled = 'data-disabled';`,
     });
 
-    expect(
-      variant.exports.filter((node) => isPublicComponent(node)).map((node) => node.name),
-    ).toEqual(['Dialog.Trigger']);
+    expect(variant.exports.filter(isPublicComponent).map((node) => node.name)).toEqual([
+      'Dialog.Trigger',
+    ]);
     expect(matchConstantGroups(variant.exports).targets.get('DialogTriggerDataAttributes')).toEqual(
       { component: 'Dialog.Trigger', kind: 'dataAttributes' },
     );

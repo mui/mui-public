@@ -20,13 +20,14 @@ export function dropTypeOnlyDuplicates(exports: tae.ExportNode[]): tae.ExportNod
   }
 
   return exports.filter((node) => {
-    if (node.isValue) {
-      return true;
-    }
-
     const [head, ...rest] = node.name.split('.');
     const reexportName = reexportNames.get(head);
-    const isDuplicate = reexportName !== undefined && names.has([reexportName, ...rest].join('.'));
-    return !isDuplicate || (rest.length === 0 && !isComponentType(node.type));
+    if (node.isValue || reexportName === undefined) {
+      return true;
+    }
+    if (rest.length === 0) {
+      return !isComponentType(node.type);
+    }
+    return !names.has([reexportName, ...rest].join('.'));
   });
 }
