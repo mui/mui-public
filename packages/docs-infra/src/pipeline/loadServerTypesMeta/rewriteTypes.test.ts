@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { buildTypeCompatibilityMap, rewriteTypeStringsDeep } from './rewriteTypes';
+import {
+  addReexportedTypeNames,
+  buildTypeCompatibilityMap,
+  rewriteTypeStringsDeep,
+} from './rewriteTypes';
+import { parseTestSources } from './parseTestSources';
 
 describe('buildTypeCompatibilityMap', () => {
   describe('reexportedFrom mapping', () => {
@@ -311,6 +316,99 @@ describe('buildTypeCompatibilityMap', () => {
       expect(map.get('BaseProps')).toBe('MyComponent.Props');
       expect(map.size).toBe(2);
     });
+  });
+});
+
+describe('addReexportedTypeNames', () => {
+  const types = [
+    'export interface ButtonState { disabled: boolean }',
+    'export interface ButtonGroupState { orientation: string }',
+  ].join('\n');
+
+  it('should map the declared name of a re-export to its dotted name', () => {
+    const exports = parseTestSources({
+      'index.ts': [
+        "export type { ButtonState as ToggleState } from './types';",
+        "export * as Toggle from './parts';",
+      ].join('\n'),
+      'parts.ts': "export type { ButtonState as State } from './types';",
+      'types.ts': types,
+    });
+    const typeNameMap = { ToggleState: 'Toggle.State' };
+
+    const result = addReexportedTypeNames(typeNameMap, exports);
+
+    expect(result).toStrictEqual({ ToggleState: 'Toggle.State', ButtonState: 'Toggle.State' });
+    expect(result).not.toBe(typeNameMap);
+    expect(typeNameMap).toStrictEqual({ ToggleState: 'Toggle.State' });
+  });
+
+  it('should skip a re-export without an entry in the type name map', () => {
+    const exports = parseTestSources({
+      'index.ts': "export type { ButtonGroupState as ToggleRootGroupState } from './types';",
+      'types.ts': types,
+    });
+
+    expect(addReexportedTypeNames({}, exports)).toStrictEqual({});
+  });
+
+  it('should not map a component re-exported under a dotted name', () => {
+    const exports = parseTestSources({
+      'index.ts': "export * as Menu from './parts';",
+      'parts.ts': "export { MenuRoot as Root } from './root';",
+      'root.ts': 'export declare function MenuRoot(props: { open: boolean }): null;',
+    });
+
+    expect(addReexportedTypeNames({}, exports)).toStrictEqual({});
+  });
+
+  it('should not map a declared name the entrypoint exports itself', () => {
+    const exports = parseTestSources({
+      // Exports ButtonState under its own name and as ToggleState
+      'index.ts': [
+        "export type { ButtonState, ButtonState as ToggleState } from './types';",
+        "export * as Toggle from './parts';",
+      ].join('\n'),
+      'parts.ts': "export type { ButtonState as State } from './types';",
+      'types.ts': types,
+    });
+
+    expect(addReexportedTypeNames({ ToggleState: 'Toggle.State' }, exports)).toStrictEqual({
+      ToggleState: 'Toggle.State',
+    });
+  });
+
+  it('should keep the first re-export when a declared name is re-exported twice', () => {
+    const exports = parseTestSources({
+      'index.ts': [
+        "export type { BaseOrientation as TabsRootOrientation } from './types';",
+        "export type { BaseOrientation as TabsListOrientation } from './types';",
+        "export * as Tabs from './parts';",
+      ].join('\n'),
+      'parts.ts': [
+        "import type { BaseOrientation } from './types';",
+        'export declare namespace Root {',
+        '  export type Orientation = BaseOrientation;',
+        '}',
+        'export declare namespace List {',
+        '  export type Orientation = BaseOrientation;',
+        '}',
+      ].join('\n'),
+      'types.ts': "export type BaseOrientation = 'horizontal' | 'vertical';",
+    });
+    const typeNameMap = {
+      TabsRootOrientation: 'Tabs.Root.Orientation',
+      TabsListOrientation: 'Tabs.List.Orientation',
+    };
+    const typeCompatibilityMap = buildTypeCompatibilityMap(
+      exports,
+      exports.map((exp) => exp.name),
+    );
+
+    expect(addReexportedTypeNames(typeNameMap, exports).BaseOrientation).toBe(
+      'Tabs.Root.Orientation',
+    );
+    expect(typeCompatibilityMap.get('BaseOrientation')).toBe('TabsRootOrientation');
   });
 });
 
