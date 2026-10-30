@@ -18,6 +18,84 @@ describe('exportVariant', () => {
     source: "console.log('index.ts')",
   };
 
+  it('resolves adapter peers for pinned packages using their complete imports', () => {
+    const packageName = '@mui/x-date-pickers';
+    const adapterImport = `${packageName}/AdapterDayjs`;
+    const version = '^9.0.0';
+    const seenImports: string[][] = [];
+    const { exported } = exportVariant(
+      { ...baseVariantCode, externals: [adapterImport] },
+      {
+        versions: { [packageName]: version },
+        resolveDependencies(resolvedPackage, _envVars, importedModules) {
+          expect(resolvedPackage).toBe(packageName);
+          seenImports.push(importedModules ?? []);
+          return { [packageName]: 'latest', dayjs: 'latest' };
+        },
+      },
+    );
+    const packageFile = exported.extraFiles!['../package.json'];
+    expect(typeof packageFile).toBe('object');
+    if (typeof packageFile === 'string') {
+      throw new Error('Expected package metadata');
+    }
+    const { dependencies } = JSON.parse(stringOrHastToString(packageFile.source!));
+    expect(dependencies[packageName]).toBe(version);
+    expect(dependencies.dayjs).toBe('latest');
+    expect(seenImports).toEqual([[adapterImport]]);
+  });
+
+  it('keeps explicit versions when another package resolves the same peer', () => {
+    const { exported } = exportVariant(
+      { ...baseVariantCode, externals: ['pkg-a', 'pkg-b'] },
+      {
+        versions: { 'pkg-a': '1.0.0', unrelated: '2.0.0' },
+        resolveDependencies(packageName) {
+          return { [packageName]: 'latest', 'pkg-a': 'latest' };
+        },
+      },
+    );
+    const packageFile = exported.extraFiles!['../package.json'];
+    if (typeof packageFile === 'string') {
+      throw new Error('Expected package metadata');
+    }
+    const { dependencies } = JSON.parse(stringOrHastToString(packageFile.source!));
+    expect(dependencies['pkg-a']).toBe('1.0.0');
+    expect(dependencies['pkg-b']).toBe('latest');
+    expect(dependencies.unrelated).toBeUndefined();
+  });
+
+  it('omits packages the resolver leaves out without overriding resolved peers', () => {
+    const { exported } = exportVariant(
+      { ...baseVariantCode, externals: ['pkg-a', 'pkg-b'] },
+      {
+        resolveDependencies(packageName): Record<string, string> {
+          return packageName === 'pkg-a' ? { 'pkg-b': '2.0.0' } : {};
+        },
+      },
+    );
+    const packageFile = exported.extraFiles!['../package.json'];
+    if (typeof packageFile === 'string') {
+      throw new Error('Expected package metadata');
+    }
+    const { dependencies } = JSON.parse(stringOrHastToString(packageFile.source!));
+    expect(dependencies['pkg-a']).toBeUndefined();
+    expect(dependencies['pkg-b']).toBe('2.0.0');
+  });
+
+  it('keeps pinned packages the resolver leaves out', () => {
+    const { exported } = exportVariant(
+      { ...baseVariantCode, externals: ['pkg-a'] },
+      { versions: { 'pkg-a': '1.0.0' }, resolveDependencies: () => ({}) },
+    );
+    const packageFile = exported.extraFiles!['../package.json'];
+    if (typeof packageFile === 'string') {
+      throw new Error('Expected package metadata');
+    }
+    const { dependencies } = JSON.parse(stringOrHastToString(packageFile.source!));
+    expect(dependencies['pkg-a']).toBe('1.0.0');
+  });
+
   it('should add basic package.json with default configuration', () => {
     const result = exportVariant(baseVariantCode);
 
