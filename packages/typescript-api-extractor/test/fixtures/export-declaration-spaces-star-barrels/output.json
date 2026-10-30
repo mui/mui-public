@@ -18,7 +18,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "516df4bc84f98592"
 		},
 		{
 			"name": "TypeOnlyBarrelNamespace.NamespaceEnum",
@@ -37,7 +38,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "19e5d4e4b3c20dfa"
 		},
 		{
 			"name": "TypeOnlyBarrelNamespace.BarrelClass",
@@ -68,7 +70,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "7afffc75b5e5ef83"
 		},
 		{
 			"name": "ValueBarrelNamespace.BarrelEnum",
@@ -87,7 +90,8 @@
 			},
 			"isValue": true,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "516df4bc84f98592"
 		},
 		{
 			"name": "ValueBarrelNamespace.NamespaceEnum",
@@ -106,7 +110,8 @@
 			},
 			"isValue": true,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "19e5d4e4b3c20dfa"
 		},
 		{
 			"name": "ValueBarrelNamespace.barrelFunction",
@@ -128,7 +133,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "9135caa8759ca92e"
 		},
 		{
 			"name": "ValueBarrelNamespace.BarrelClass",
@@ -159,7 +165,8 @@
 			},
 			"isValue": true,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "7afffc75b5e5ef83"
 		},
 		{
 			"name": "BarrelEnum",
@@ -177,7 +184,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "516df4bc84f98592"
 		},
 		{
 			"name": "NamespaceEnum",
@@ -195,7 +203,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "19e5d4e4b3c20dfa"
 		},
 		{
 			"name": "BarrelClass",
@@ -225,7 +234,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "7afffc75b5e5ef83"
 		},
 		{
 			"name": "BarrelProps",
@@ -247,7 +257,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "956c611b8d7f860b"
 		},
 		{
 			"name": "DualPathClass",
@@ -277,7 +288,8 @@
 			},
 			"isValue": true,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "600fd180d6c04368"
 		},
 		{
 			"name": "ReexportedBarrelClass",
@@ -307,7 +319,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "4fff0c9d610460ef"
 		}
 	]
 }

@@ -29,7 +29,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "06111857d0dcbf12"
 		},
 		{
 			"name": "Impossible",
@@ -39,7 +40,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "cd43271f66dacff8"
 		}
 	]
 }

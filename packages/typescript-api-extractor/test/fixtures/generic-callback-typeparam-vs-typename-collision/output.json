@@ -191,7 +191,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "7f7067f4c1274c4c"
 		},
 		{
 			"name": "AlphaEquiv",
@@ -307,7 +308,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "abda106683537f8c"
 		}
 	]
 }

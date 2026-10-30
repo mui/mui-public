@@ -95,7 +95,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "07af75489809f89e"
 		},
 		{
 			"name": "acceptsArrayParameters",
@@ -139,7 +140,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "c82f9f9a0973f9ce"
 		}
 	]
 }

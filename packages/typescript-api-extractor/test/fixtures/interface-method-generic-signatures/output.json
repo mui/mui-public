@@ -443,7 +443,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "3972e46b3f9a80ac"
 		}
 	]
 }

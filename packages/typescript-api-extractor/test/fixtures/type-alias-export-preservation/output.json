@@ -45,7 +45,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "47ff20b125034294"
 		},
 		{
 			"name": "processWithObjectAlias",
@@ -95,7 +96,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "365481b4b80ed4db"
 		},
 		{
 			"name": "SimpleAlias",
@@ -105,7 +107,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "54c3572bf05bb252"
 		},
 		{
 			"name": "UnionAlias",
@@ -131,7 +134,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "d9a38e248bac003a"
 		},
 		{
 			"name": "ObjectAlias",
@@ -161,7 +165,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "8326e63aa8e0cd64"
 		},
 		{
 			"name": "GenericAlias",
@@ -200,7 +205,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "d2cca0996e410c4e"
 		},
 		{
 			"name": "ConditionalAlias",
@@ -219,7 +225,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "9b3a73ae671da0f5"
 		},
 		{
 			"name": "ExtendedAlias",
@@ -280,7 +287,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "e67483854e61e67f"
 		}
 	]
 }

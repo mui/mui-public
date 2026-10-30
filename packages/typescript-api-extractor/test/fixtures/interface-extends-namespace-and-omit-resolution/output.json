@@ -253,7 +253,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "5f5895f2f0883657"
 		},
 		{
 			"name": "DialogRootActions",
@@ -305,7 +306,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "48f8103b82d5cb42"
 		},
 		{
 			"name": "DialogRootChangeEventReason",
@@ -331,7 +333,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "3c50f97ccc6a3707"
 		},
 		{
 			"name": "DialogRootChangeEventDetails",
@@ -388,7 +391,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "89f9f0eed382f331"
 		},
 		{
 			"name": "DialogRoot.Props",
@@ -643,7 +647,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "c2216952d2189a34"
 		},
 		{
 			"name": "DialogRoot.Actions",
@@ -696,7 +701,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "5a91eee7cdab380e"
 		},
 		{
 			"name": "DialogRoot.ChangeEventReason",
@@ -723,7 +729,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "0fe10e9043e1220e"
 		},
 		{
 			"name": "DialogRoot.ChangeEventDetails",
@@ -781,7 +788,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "e504888aed15da8e"
 		},
 		{
 			"name": "AlertDialogRootProps",
@@ -1120,7 +1128,8 @@
 			],
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "a3a3e75503e3b2fc"
 		},
 		{
 			"name": "AlertDialogRootActions",
@@ -1173,7 +1182,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "b3b0bd1ffa11c8b8"
 		},
 		{
 			"name": "AlertDialogRootChangeEventReason",
@@ -1200,7 +1210,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "708da4363273a0f2"
 		},
 		{
 			"name": "AlertDialogRootChangeEventDetails",
@@ -1365,7 +1376,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "b6abf3c3f25f84b3"
 		},
 		{
 			"name": "AlertDialogRoot.Props",
@@ -1699,7 +1711,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "fb8ac9ba60b90265"
 		},
 		{
 			"name": "AlertDialogRoot.Actions",
@@ -1752,7 +1765,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "ba7216a5fe7eadd4"
 		},
 		{
 			"name": "AlertDialogRoot.ChangeEventReason",
@@ -1779,7 +1793,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "213e69111684dd66"
 		},
 		{
 			"name": "AlertDialogRoot.ChangeEventDetails",
@@ -1945,7 +1960,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "89282da23990a98c"
 		}
 	],
 	"imports": ["react"]

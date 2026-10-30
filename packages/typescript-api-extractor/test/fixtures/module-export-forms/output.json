@@ -20,7 +20,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "9664603c971fe1d4"
 		},
 		{
 			"name": "default",
@@ -50,7 +51,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "d0bba7f24aa1e1e3"
 		},
 		{
 			"name": "overloadedFunction",
@@ -96,7 +98,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "1da0c747a7cde9b7"
 		},
 		{
 			"name": "aliasedOverloadedFunction",
@@ -142,7 +145,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "1da0c747a7cde9b7"
 		},
 		{
 			"name": "functionAndNamespaceDeclaration",
@@ -222,7 +226,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": true
+			"isNamespace": true,
+			"declarationId": "c68f0e9bd4c977ea"
 		},
 		{
 			"name": "functionAndNamespaceDeclaration.Params",
@@ -245,7 +250,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "574ba518fe186799"
 		}
 	],
 	"imports": ["react"]

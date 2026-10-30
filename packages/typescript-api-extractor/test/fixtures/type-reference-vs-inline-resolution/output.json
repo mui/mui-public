@@ -94,7 +94,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "d9500ac3070b322f"
 		},
 		{
 			"name": "inlineTypes",
@@ -150,7 +151,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "62338902dd36564a"
 		}
 	]
 }

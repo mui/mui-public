@@ -30,7 +30,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "59a29773a2d75c85"
 		},
 		{
 			"name": "BareElement",
@@ -61,7 +62,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "5d9c0fe1b05e4720"
 		},
 		{
 			"name": "GenericElement",
@@ -92,7 +94,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "920244c7779471ab"
 		},
 		{
 			"name": "BareNode",
@@ -123,7 +126,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "dad16a41070f237a"
 		},
 		{
 			"name": "NullableElement",
@@ -154,7 +158,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "bbadc94be94a4818"
 		},
 		{
 			"name": "InferredElement",
@@ -185,7 +190,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "4aa13a1c4f3c6837"
 		},
 		{
 			"name": "LocalElementType",
@@ -249,7 +255,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "c05a0c790a170b4b"
 		},
 		{
 			"name": "DomElementType",
@@ -307,7 +314,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "e55f8d2a30a5f114"
 		}
 	],
 	"imports": ["react", "react"]

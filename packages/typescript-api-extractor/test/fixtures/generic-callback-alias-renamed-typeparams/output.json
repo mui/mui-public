@@ -69,7 +69,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "0922a5d57fa215ef"
 		},
 		{
 			"name": "AlphaEquivAliasConstrained",
@@ -159,7 +160,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "da71cc353edb9062"
 		},
 		{
 			"name": "NonEquivAliasDifferentConstraints",
@@ -321,7 +323,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "e31ad0c8d62a59b9"
 		}
 	]
 }

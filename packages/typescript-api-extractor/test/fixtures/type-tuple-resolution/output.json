@@ -29,7 +29,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "067df23f492d1dcb"
 		},
 		{
 			"name": "testFunction2",
@@ -59,7 +60,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "db8c2e92b53ccc84"
 		},
 		{
 			"name": "testFunction3",
@@ -92,7 +94,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "50736f70b434dcd5"
 		},
 		{
 			"name": "testFunction4",
@@ -125,7 +128,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "3ab8bc307d203933"
 		}
 	]
 }

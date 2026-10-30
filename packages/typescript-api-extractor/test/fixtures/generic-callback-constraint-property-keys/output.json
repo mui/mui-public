@@ -105,7 +105,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "aaada14a2e583541"
 		}
 	]
 }

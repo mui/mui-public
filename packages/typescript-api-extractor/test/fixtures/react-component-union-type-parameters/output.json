@@ -69,7 +69,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "5bfd0fc37eb8bdab"
 		},
 		{
 			"name": "SharedUnionComponent",
@@ -139,7 +140,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "2065b015feb3ec5f"
 		},
 		{
 			"name": "RenamedUnionComponent",
@@ -187,7 +189,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "eb7213dfc52a4138"
 		}
 	],
 	"imports": ["react"]

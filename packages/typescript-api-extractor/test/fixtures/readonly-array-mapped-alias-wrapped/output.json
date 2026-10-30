@@ -57,7 +57,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "fc0c3b1193cfeb5e"
 		},
 		{
 			"name": "Wrapped",
@@ -179,7 +180,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "4a023375fb6f4ae6"
 		}
 	]
 }

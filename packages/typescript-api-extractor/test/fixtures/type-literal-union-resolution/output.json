@@ -267,7 +267,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "249dc5caaf65d5da"
 		},
 		{
 			"name": "acceptsLiteralUnionParameters",
@@ -473,7 +474,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "99358e7d00086bea"
 		},
 		{
 			"name": "acceptsKeyofProp",
@@ -544,7 +546,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "270a98a698bfae48"
 		}
 	]
 }

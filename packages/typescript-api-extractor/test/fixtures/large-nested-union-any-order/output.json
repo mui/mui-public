@@ -119,7 +119,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "a9d5ac855848c9bb"
 		},
 		{
 			"name": "LargeNestedUnionAnyFirst",
@@ -239,7 +240,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "82fd5eddbddfa521"
 		},
 		{
 			"name": "LargeNestedUnionAnySecond",
@@ -359,7 +361,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "61c08f289681909a"
 		}
 	]
 }

@@ -7,10 +7,13 @@ import { isInternalSymbolName } from './common';
 import { getDocumentationFromSymbol } from './documentationParser';
 import { resolveExportDescriptors } from './exportDescriptors';
 import type { ExportDescriptor } from './exportDescriptors';
+import type { ParsedExport } from './declarationIds';
 import { resolveType } from './typeResolver';
 
 /**
- * Converts one TypeScript module export symbol into output `ExportNode`s.
+ * Converts one TypeScript module export symbol into output `ExportNode`s, each
+ * paired with the symbol it was resolved from so the module parser can tell
+ * which exports share a declaration.
  *
  * Example: `export { ComponentRoot as Root }` becomes a descriptor for `Root`
  * plus descriptors for merged namespace members such as `Root.Props`.
@@ -20,13 +23,13 @@ export function parseExport(
   parserContext: ScopedParserContext,
   parentNamespaces: string[] = [],
   containerSymbol?: ts.Symbol,
-): ExportNode[] | undefined {
+): ParsedExport[] {
   const descriptors = resolveExportDescriptors(exportSymbol, parserContext, {
     parentNamespaces,
     containerSymbol,
   });
   if (!descriptors) {
-    return undefined;
+    return [];
   }
 
   const nodesByDescriptor = new Map<ExportDescriptor, ExportNode[] | undefined>();
@@ -38,9 +41,9 @@ export function parseExport(
   // separate because merged namespace members historically resolved before
   // their owner export, and TypeScript's lazy type/cache behavior can make that
   // observable in authored union member order.
-  const exports = descriptors.flatMap((descriptor) => nodesByDescriptor.get(descriptor) ?? []);
-
-  return exports.length > 0 ? exports : undefined;
+  return descriptors.flatMap((descriptor) =>
+    (nodesByDescriptor.get(descriptor) ?? []).map((node) => ({ node, symbol: descriptor.symbol })),
+  );
 }
 
 /**

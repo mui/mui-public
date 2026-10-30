@@ -131,7 +131,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "4a0b7eb91617ce91"
 		},
 		{
 			"name": "aliasedIntersection",
@@ -266,7 +267,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "adc450bd77eebb22"
 		},
 		{
 			"name": "intersectionWithMethod",
@@ -385,7 +387,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "8db28097d3f8267a"
 		}
 	]
 }

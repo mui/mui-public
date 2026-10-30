@@ -81,7 +81,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "b3c8bdc9785def06"
 		},
 		{
 			"name": "NestedUnionReorder",
@@ -159,7 +160,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "5f9b4d0cacc86bc5"
 		},
 		{
 			"name": "NotEquivalent",
@@ -301,7 +303,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "272b9b809184ee4c"
 		}
 	]
 }

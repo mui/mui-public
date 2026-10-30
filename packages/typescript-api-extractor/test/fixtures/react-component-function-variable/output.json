@@ -47,7 +47,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "ffb6318a74f889fe"
 		},
 		{
 			"name": "TestComponent2",
@@ -143,7 +144,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "4a1932fabdf029ee"
 		},
 		{
 			"name": "TestComponent3",
@@ -239,7 +241,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "d29b0c11aefc07ad"
 		}
 	],
 	"imports": ["react"]

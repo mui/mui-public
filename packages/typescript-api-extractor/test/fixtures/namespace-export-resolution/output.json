@@ -140,7 +140,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "bd69979f8b4383d6"
 		},
 		{
 			"name": "acceptsNamespacedType",
@@ -183,7 +184,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "9ac6ef2b63d8cbb9"
 		},
 		{
 			"name": "Root.rootFunction",
@@ -205,7 +207,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "99e2139e9b17e880"
 		},
 		{
 			"name": "Root.Sub.nestedParams",
@@ -347,7 +350,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "1db1b0f500dae578"
 		},
 		{
 			"name": "Root.Sub.NestedComponent",
@@ -361,7 +365,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "bdf75797b20eca19"
 		},
 		{
 			"name": "Root.Sub.useHook",
@@ -400,7 +405,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "38bd72f4cf2aaad4"
 		},
 		{
 			"name": "Root.Sub.Params",
@@ -521,7 +527,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "d55d480cb3f912e2"
 		},
 		{
 			"name": "Root.Sub.Grade",
@@ -544,7 +551,8 @@
 			},
 			"isValue": true,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "3e03f29f5164389b"
 		},
 		{
 			"name": "Root.NamespacedType",
@@ -567,7 +575,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "70592d98afd85427"
 		},
 		{
 			"name": "Other.Orientation",
@@ -590,7 +599,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "1ab800f7a33c7e8c"
 		}
 	]
 }

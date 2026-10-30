@@ -414,7 +414,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "983f8ad2a0ac2e92"
 		},
 		{
 			"name": "GenericHTMLProps",
@@ -521,7 +522,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "d7f680b0b5ed5454"
 		}
 	],
 	"imports": ["react"]

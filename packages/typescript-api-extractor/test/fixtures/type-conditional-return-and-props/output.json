@@ -52,7 +52,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "3acbc949111cdef7"
 		},
 		{
 			"name": "ConditionalPropsComponent",
@@ -133,7 +134,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "53311de93e4e0ddd"
 		}
 	]
 }

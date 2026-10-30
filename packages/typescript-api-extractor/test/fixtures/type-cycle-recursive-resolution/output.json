@@ -83,7 +83,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "6522afed4ef7806c"
 		},
 		{
 			"name": "testUnion",
@@ -171,7 +172,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "ae01a1d2d2cbcccd"
 		},
 		{
 			"name": "testIntersection",
@@ -260,7 +262,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "619f5148f47ded04"
 		},
 		{
 			"name": "testArray",
@@ -322,7 +325,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "cd82498a5d07c676"
 		},
 		{
 			"name": "testTuple",
@@ -387,7 +391,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "994988fc30e54b63"
 		},
 		{
 			"name": "TestObject1",
@@ -493,7 +498,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "c5f1a53f79a265aa"
 		},
 		{
 			"name": "TestObject2",
@@ -578,7 +584,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "d69133554adce186"
 		}
 	]
 }

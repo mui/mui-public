@@ -29,7 +29,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "bb5628cbc681a53d"
 		},
 		{
 			"name": "Interface2",
@@ -51,7 +52,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "a159e5b9fe9354a2"
 		},
 		{
 			"name": "Interface2Alias",
@@ -73,7 +75,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "a159e5b9fe9354a2"
 		},
 		{
 			"name": "default",
@@ -112,7 +115,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "1ad88d7db8294fa3"
 		}
 	]
 }

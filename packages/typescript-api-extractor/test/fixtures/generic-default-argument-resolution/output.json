@@ -50,7 +50,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "19b964795ff7a25b"
 		},
 		{
 			"name": "stringParam",
@@ -101,7 +102,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "909f44e37adbc348"
 		},
 		{
 			"name": "numberParam",
@@ -152,7 +154,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "8af3fc60aa079850"
 		},
 		{
 			"name": "genericParam",
@@ -209,7 +212,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "07f51390a0625cd9"
 		},
 		{
 			"name": "defaultPair",
@@ -275,7 +279,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "cfa688794a89fec9"
 		},
 		{
 			"name": "stringPair",
@@ -341,7 +346,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "bb7084e9b80df8cb"
 		},
 		{
 			"name": "numberPair",
@@ -407,7 +413,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "b48da26b9d21dbcc"
 		},
 		{
 			"name": "partialStringPair",
@@ -473,7 +480,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "c0d4072d4e6e8259"
 		},
 		{
 			"name": "partialNumberPair",
@@ -539,7 +547,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "ad3c071eca27e0f3"
 		}
 	]
 }

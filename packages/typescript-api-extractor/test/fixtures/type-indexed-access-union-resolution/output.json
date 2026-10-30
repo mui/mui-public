@@ -45,7 +45,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "353594b9bd1eba79"
 		},
 		{
 			"name": "Props",
@@ -100,7 +101,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "6b136e3e13f8ac97"
 		}
 	]
 }

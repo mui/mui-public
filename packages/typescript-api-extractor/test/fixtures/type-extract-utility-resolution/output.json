@@ -9,7 +9,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "8e2520c11c5ed813"
 		},
 		{
 			"name": "StringValues",
@@ -19,7 +20,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "e2dc867be771d2da"
 		},
 		{
 			"name": "KeepStrings",
@@ -38,7 +40,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "990852425d8cb52d"
 		}
 	]
 }

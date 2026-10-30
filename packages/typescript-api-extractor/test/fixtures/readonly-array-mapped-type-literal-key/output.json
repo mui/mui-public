@@ -59,7 +59,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "e03ea8fc79fa8525"
 		},
 		{
 			"name": "ParametricData",
@@ -85,7 +86,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "9b5aa8a37bc35df4"
 		}
 	]
 }

@@ -113,7 +113,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "88effc9eb9e67773"
 		}
 	]
 }

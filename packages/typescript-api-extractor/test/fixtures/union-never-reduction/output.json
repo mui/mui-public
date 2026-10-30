@@ -41,7 +41,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "a1d3fa73bda851aa"
 		},
 		{
 			"name": "OnValueChange",
@@ -108,7 +109,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "bb4be82c68524bcd"
 		}
 	]
 }

@@ -351,7 +351,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "f93ba51ce3f8f2a5"
 		},
 		{
 			"name": "PackageRange",
@@ -372,7 +373,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "01b26af4e34baf99"
 		}
 	],
 	"imports": ["augmenting-lib", "shadow-lib", "@scope/widgets"]

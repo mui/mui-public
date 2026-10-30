@@ -34,7 +34,8 @@
 			],
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "619ae07c4d8d8a43"
 		},
 		{
 			"name": "MultiExtendedProps",
@@ -80,7 +81,8 @@
 			],
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "3c438c32c3e5c39c"
 		},
 		{
 			"name": "AlertDialogProps",
@@ -116,7 +118,8 @@
 			],
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "6945dee9f3816efe"
 		},
 		{
 			"name": "Dialog",
@@ -126,7 +129,8 @@
 			},
 			"isValue": false,
 			"isType": false,
-			"isNamespace": true
+			"isNamespace": true,
+			"declarationId": "1f559eb547828d79"
 		},
 		{
 			"name": "Dialog.Props",
@@ -149,7 +153,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "c8d08959e8aef845"
 		}
 	]
 }

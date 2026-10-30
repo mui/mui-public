@@ -54,7 +54,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "5856acb033a95b05"
 		},
 		{
 			"name": "Anchor",
@@ -92,7 +93,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "1aecb5f19b929b44"
 		},
 		{
 			"name": "Padding",
@@ -112,7 +114,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "9806febd926a7bac"
 		},
 		{
 			"name": "NestedRect",
@@ -133,7 +136,8 @@
 			"reexportedFrom": "Rect",
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "7473fd1e53f0f9a8"
 		},
 		{
 			"name": "PositioningProps",
@@ -322,7 +326,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "4a018e1dff17d73f"
 		}
 	],
 	"imports": ["external-lib", "external-lib-wrapper"]

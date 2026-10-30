@@ -49,7 +49,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "4474513d9da043ed"
 		}
 	]
 }

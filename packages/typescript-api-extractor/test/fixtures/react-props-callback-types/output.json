@@ -171,7 +171,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "ec177016bac4df10"
 		}
 	],
 	"imports": ["react"]

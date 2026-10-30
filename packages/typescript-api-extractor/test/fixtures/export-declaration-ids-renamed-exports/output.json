@@ -1,0 +1,191 @@
+{
+	"name": "test/fixtures/export-declaration-ids-renamed-exports/input",
+	"exports": [
+		{
+			"name": "default",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "parseValue"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"name": "text",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "number"
+						}
+					}
+				]
+			},
+			"documentation": {
+				"description": "Parses a value.",
+				"tags": []
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false,
+			"declarationId": "bc498e6a3c5c3254"
+		},
+		{
+			"name": "format",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "formatValue"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "number"
+								},
+								"name": "value",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						}
+					}
+				]
+			},
+			"documentation": {
+				"description": "Formats a value.",
+				"tags": []
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false,
+			"declarationId": "9e7c70f5a1593201"
+		},
+		{
+			"name": "formatValue",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "formatValue"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "number"
+								},
+								"name": "value",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						}
+					}
+				]
+			},
+			"documentation": {
+				"description": "Formats a value.",
+				"tags": []
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false,
+			"declarationId": "9e7c70f5a1593201"
+		},
+		{
+			"name": "parseValue",
+			"type": {
+				"kind": "function",
+				"typeName": {
+					"name": "parseValue"
+				},
+				"callSignatures": [
+					{
+						"parameters": [
+							{
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"name": "text",
+								"optional": false
+							}
+						],
+						"returnValueType": {
+							"kind": "intrinsic",
+							"intrinsic": "number"
+						}
+					}
+				]
+			},
+			"documentation": {
+				"description": "Parses a value.",
+				"tags": []
+			},
+			"isValue": true,
+			"isType": false,
+			"isNamespace": false,
+			"declarationId": "bc498e6a3c5c3254"
+		},
+		{
+			"name": "Status",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "Status"
+				},
+				"types": [
+					{
+						"kind": "literal",
+						"value": "\"idle\""
+					},
+					{
+						"kind": "literal",
+						"value": "\"busy\""
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false,
+			"declarationId": "3e1a5b1b6259d8a4"
+		},
+		{
+			"name": "State",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "Status"
+				},
+				"types": [
+					{
+						"kind": "literal",
+						"value": "\"idle\""
+					},
+					{
+						"kind": "literal",
+						"value": "\"busy\""
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false,
+			"declarationId": "3e1a5b1b6259d8a4"
+		}
+	]
+}

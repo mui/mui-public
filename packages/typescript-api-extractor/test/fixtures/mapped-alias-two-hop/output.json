@@ -57,7 +57,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "7591f6fde7a8548b"
 		},
 		{
 			"name": "Middle",
@@ -115,7 +116,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "ee5d05e0629bfef6"
 		},
 		{
 			"name": "Outer",
@@ -173,7 +175,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "e252285a6b1201f2"
 		},
 		{
 			"name": "UseOuter",
@@ -216,7 +219,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "2a436521d0e404de"
 		}
 	]
 }

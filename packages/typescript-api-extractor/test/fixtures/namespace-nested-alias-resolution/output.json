@@ -55,7 +55,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "22607cbaf0911b8b"
 		},
 		{
 			"name": "Root.Foo",
@@ -78,7 +79,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "732655b7e4a8b539"
 		},
 		{
 			"name": "Root.Nested.Foo",
@@ -101,7 +103,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "48bfbfa93d2bea00"
 		},
 		{
 			"name": "Root.Props",
@@ -158,7 +161,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "c0dcfb2fef48fada"
 		}
 	],
 	"imports": ["./types"]

@@ -67,7 +67,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "cd3b8b9cfcdc62f1"
 		}
 	],
 	"imports": ["./external-types"]

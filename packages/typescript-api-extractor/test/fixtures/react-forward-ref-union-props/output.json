@@ -468,7 +468,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "40ca609c6e7481ef"
 		}
 	],
 	"imports": ["react"]

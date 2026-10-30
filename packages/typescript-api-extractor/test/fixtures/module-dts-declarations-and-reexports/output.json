@@ -95,7 +95,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "4d85ad7fb92a869c"
 		},
 		{
 			"name": "wrapValue",
@@ -191,7 +192,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "55cf5f5450dbd9b7"
 		},
 		{
 			"name": "FormattedProperty",
@@ -230,7 +232,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "083aed5fb5e2bb5a"
 		},
 		{
 			"name": "FormattedParameter",
@@ -277,7 +280,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "d41bcab0154c0a40"
 		},
 		{
 			"name": "TypeContainer",
@@ -347,7 +351,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "0342dd4137838199"
 		},
 		{
 			"name": "ProcessingStatus",
@@ -382,7 +387,8 @@
 			},
 			"isValue": true,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "bbe691178612f7c5"
 		},
 		{
 			"name": "formatType",
@@ -441,7 +447,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "b68928f6e1a70151"
 		},
 		{
 			"name": "parseParameters",
@@ -511,7 +518,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "b37fbba3de4e56d8"
 		}
 	],
 	"imports": ["./source.js"]

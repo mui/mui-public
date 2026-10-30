@@ -53,6 +53,18 @@ export class ExportNode implements DeclarationSpaces {
   /** See {@link DeclarationSpaces.isNamespace}. */
   declare public readonly isNamespace: boolean;
 
+  /**
+   * An opaque id of the declaration this export resolves to. Exports of a module
+   * that reach the same declaration under different names carry the same id.
+   *
+   * For example, a merged `DialogTrigger` const, interface, and namespace
+   * exported both as `Dialog.Trigger` (through `export * as Dialog`) and as
+   * `DialogTrigger` (through `export type *`) gives both exports one id. Compare
+   * ids only for equality. Absent when the export does not resolve to a
+   * declaration. The module parser sets it once every export of the module is known.
+   */
+  public declarationId?: string;
+
   constructor(
     public name: string,
     public type: AnyType,

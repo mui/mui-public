@@ -79,7 +79,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "72aa41c47f9463f3"
 		},
 		{
 			"name": "Outer",
@@ -189,7 +190,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "b33aaa320ac83b78"
 		}
 	]
 }

@@ -80,7 +80,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "f2fd8dc17fbf72c7"
 		}
 	],
 	"imports": ["react"]

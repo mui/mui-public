@@ -61,7 +61,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "8eb6abc02bc05cd0"
 		},
 		{
 			"name": "testFunction",
@@ -175,7 +176,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "5fd679d30703c630"
 		}
 	],
 	"imports": ["react"]

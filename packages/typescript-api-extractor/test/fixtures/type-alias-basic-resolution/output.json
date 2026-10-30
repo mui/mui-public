@@ -248,7 +248,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "572a7635cb9b0200"
 		},
 		{
 			"name": "AliasContainer",
@@ -469,7 +470,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "1fa7aba56df5c3d2"
 		}
 	]
 }

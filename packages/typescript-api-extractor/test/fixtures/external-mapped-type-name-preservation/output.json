@@ -50,7 +50,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "8f3ce4aa90905f3c"
 		}
 	],
 	"imports": ["floating-ui"]

@@ -85,7 +85,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "60c814e8a6519997"
 		},
 		{
 			"name": "Use",
@@ -163,7 +164,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "d83e3de4f0c6ac09"
 		}
 	]
 }

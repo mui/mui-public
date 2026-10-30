@@ -20,7 +20,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "28c0fbe900560331"
 		},
 		{
 			"name": "expandoFunction",
@@ -41,7 +42,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "206ad3c1002b2541"
 		},
 		{
 			"name": "fnWithNs",
@@ -62,7 +64,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": true
+			"isNamespace": true,
+			"declarationId": "e5a2177cd78cd3a1"
 		},
 		{
 			"name": "fnWithNs.Nested",
@@ -76,7 +79,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "eb17955beb3773d9"
 		},
 		{
 			"name": "PlainAlias",
@@ -86,7 +90,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "5ebcff692374efc0"
 		},
 		{
 			"name": "annotatedConstant",
@@ -96,7 +101,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "e17635129f440af2"
 		},
 		{
 			"name": "plainConstant",
@@ -106,7 +112,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "fa6374624f1edd9d"
 		},
 		{
 			"name": "PlainClass",
@@ -136,7 +143,8 @@
 			},
 			"isValue": true,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "e4c2971886b6bbfd"
 		},
 		{
 			"name": "PlainEnum",
@@ -154,7 +162,8 @@
 			},
 			"isValue": true,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "38832f1049cb1d3a"
 		},
 		{
 			"name": "PlainInterface",
@@ -176,7 +185,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "12631e5b9ab3c761"
 		},
 		{
 			"name": "Merged",
@@ -198,7 +208,8 @@
 			},
 			"isValue": true,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "44e48947a7c1b289"
 		},
 		{
 			"name": "mergedTarget",
@@ -219,7 +230,8 @@
 			},
 			"isValue": true,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "e693f3c53558ffc0"
 		},
 		{
 			"name": "TypesNamespace",
@@ -229,7 +241,8 @@
 			},
 			"isValue": false,
 			"isType": false,
-			"isNamespace": true
+			"isNamespace": true,
+			"declarationId": "abee0a8b59dce865"
 		},
 		{
 			"name": "TypesNamespace.Nested",
@@ -243,7 +256,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "2de8474fbaebb3e7"
 		},
 		{
 			"name": "nsFn",
@@ -264,7 +278,8 @@
 			},
 			"isValue": false,
 			"isType": false,
-			"isNamespace": true
+			"isNamespace": true,
+			"declarationId": "3b03786d98af5baf"
 		},
 		{
 			"name": "nsFn.inner",
@@ -278,7 +293,8 @@
 			},
 			"isValue": false,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "0429ab66f2bd8e24"
 		},
 		{
 			"name": "typeOnlyImported",
@@ -299,7 +315,8 @@
 			},
 			"isValue": false,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "9981900234dc9cfc"
 		},
 		{
 			"name": "ReexportedAlias",
@@ -309,7 +326,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "71ff9686c67e97cb"
 		},
 		{
 			"name": "ReexportedClass",
@@ -339,7 +357,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "b7abc25eeda79381"
 		},
 		{
 			"name": "reexportedValue",
@@ -349,7 +368,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "9965c232d56fa347"
 		},
 		{
 			"name": "TypeOnlyNamespace.mergedTarget",
@@ -371,7 +391,8 @@
 			},
 			"isValue": false,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "2b24d90fc8ee45b0"
 		},
 		{
 			"name": "TypeOnlyNamespace.typeOnlyImported",
@@ -393,7 +414,8 @@
 			},
 			"isValue": false,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "9981900234dc9cfc"
 		},
 		{
 			"name": "TypeOnlyNamespace.ReexportedAlias",
@@ -407,7 +429,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "71ff9686c67e97cb"
 		},
 		{
 			"name": "TypeOnlyNamespace.reexportedValue",
@@ -421,7 +444,8 @@
 			},
 			"isValue": false,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "9965c232d56fa347"
 		},
 		{
 			"name": "TypeOnlyNamespace.ReexportedClass",
@@ -452,7 +476,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "b7abc25eeda79381"
 		},
 		{
 			"name": "ValueNamespace.mergedTarget",
@@ -474,7 +499,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "2b24d90fc8ee45b0"
 		},
 		{
 			"name": "ValueNamespace.typeOnlyImported",
@@ -496,7 +522,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "9981900234dc9cfc"
 		},
 		{
 			"name": "ValueNamespace.ReexportedAlias",
@@ -510,7 +537,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "71ff9686c67e97cb"
 		},
 		{
 			"name": "ValueNamespace.reexportedValue",
@@ -524,7 +552,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "9965c232d56fa347"
 		},
 		{
 			"name": "ValueNamespace.ReexportedClass",
@@ -555,7 +584,8 @@
 			},
 			"isValue": true,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "b7abc25eeda79381"
 		},
 		{
 			"name": "default",
@@ -585,7 +615,8 @@
 			},
 			"isValue": true,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "52f5076b8b063fff"
 		},
 		{
 			"name": "StarEnum",
@@ -603,7 +634,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "a46bc8aa72c82198"
 		},
 		{
 			"name": "DualStarEnum",
@@ -621,7 +653,8 @@
 			},
 			"isValue": true,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "f7329fcb5995f5b1"
 		}
 	],
 	"imports": ["./helpers", "./helpers"]

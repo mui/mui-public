@@ -18,6 +18,7 @@ interface ExportNode {
   isValue: boolean;
   isType: boolean;
   isNamespace: boolean;
+  declarationId?: string;
 }
 ```
 
@@ -55,6 +56,30 @@ a local value merged with a type-only import keeps its value. Otherwise the valu
 space is masked, and an export left with nothing but a value, such as a function
 or variable with any namespace merged onto it, is omitted. A re-export from an
 unresolvable module gets the checker's fallback: a value of type `any`.
+
+## Declaration Ids
+
+`declarationId` identifies the declaration an export resolves to. A module can
+reach one declaration under several export names, for example a component
+exported as a namespace member and again through a type-only star export:
+
+```typescript
+export * as Dialog from './index.parts'; // export { DialogTrigger as Trigger } from './DialogTrigger';
+export type * from './DialogTrigger';
+```
+
+Every name is emitted, and `Dialog.Trigger` and `DialogTrigger` carry the same
+`declarationId`, as do `Dialog.Trigger.Props` and `DialogTrigger.Props`. Exports
+share a declaration when they resolve to the same symbol after following imports
+and re-exports, so merged declarations (a `const`, an `interface`, and a
+`namespace` of one name) count as one. A type alias that names another type
+(`type Props = DialogTriggerProps`) is a declaration of its own. An import with
+declarations merged onto it where it is imported, such as an imported function
+with a local interface of the same name, is a declaration of its own too.
+
+The id is opaque: compare ids only for equality. It is stable across runs as a
+best effort, with no guarantee. Exports the checker cannot resolve, such as
+re-exports from a missing module, have no `declarationId`.
 
 ## Type Operators
 

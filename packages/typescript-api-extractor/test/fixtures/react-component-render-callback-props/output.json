@@ -246,7 +246,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "cf85e062f859f4a3"
 		},
 		{
 			"name": "AccordionHeaderProps",
@@ -515,7 +516,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "15a130219ab8cf0b"
 		}
 	],
 	"imports": ["react"]

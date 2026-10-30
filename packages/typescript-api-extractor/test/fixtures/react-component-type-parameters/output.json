@@ -27,7 +27,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "5a824ba2902e42a8"
 		},
 		{
 			"name": "NonGenericComponent",
@@ -49,7 +50,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "724c03750948872b"
 		},
 		{
 			"name": "ConstrainedComponent",
@@ -140,7 +142,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "1fcf26fa8d6ec00b"
 		}
 	],
 	"imports": ["react"]

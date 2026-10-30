@@ -37,7 +37,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "dc0d75fe1b8ff1c7"
 		},
 		{
 			"name": "Wrap",
@@ -59,7 +60,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "e4f54de9cc23d2ec"
 		},
 		{
 			"name": "Result",
@@ -141,7 +143,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "eef2682342cfe5fd"
 		}
 	]
 }

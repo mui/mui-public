@@ -277,7 +277,8 @@
 			},
 			"isValue": true,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "55aab762018cf8cf"
 		},
 		{
 			"name": "ParameterPropertyClass",
@@ -350,7 +351,8 @@
 			},
 			"isValue": true,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "ec85bd3b67471072"
 		},
 		{
 			"name": "GetterOnlyClass",
@@ -402,7 +404,8 @@
 			},
 			"isValue": true,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "4aa0c000187e4fcd"
 		},
 		{
 			"name": "OverloadedMethods",
@@ -532,7 +535,8 @@
 			},
 			"isValue": true,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "7642b2ea10a45989"
 		},
 		{
 			"name": "FunctionPropertyClass",
@@ -627,7 +631,8 @@
 			},
 			"isValue": true,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "30e3c8f2eb0d5fd2"
 		},
 		{
 			"name": "StaticMembersClass",
@@ -731,7 +736,8 @@
 			},
 			"isValue": true,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "25ae935d227f211f"
 		},
 		{
 			"name": "VisibilityTagsClass",
@@ -793,7 +799,8 @@
 			},
 			"isValue": true,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "e0be400dae84d330"
 		},
 		{
 			"name": "EcmaPrivateClass",
@@ -849,7 +856,8 @@
 			},
 			"isValue": true,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "cb061d97a8e3fee1"
 		},
 		{
 			"name": "Constructable",
@@ -866,7 +874,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "5d44c3b3b7dc56e2"
 		},
 		{
 			"name": "ConstructableType",
@@ -883,7 +892,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "9700729351ceb721"
 		}
 	]
 }

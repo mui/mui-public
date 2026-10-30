@@ -50,7 +50,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "65489d2204f2d1b0"
 		},
 		{
 			"name": "DifferentConstraintsComponent",
@@ -76,7 +77,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "728aa0e427dd1459"
 		},
 		{
 			"name": "PartiallyGenericComponent",
@@ -124,7 +126,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "849b7f867e4ee9fa"
 		},
 		{
 			"name": "DifferentDefaultsComponent",
@@ -159,7 +162,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "23920d17c3315d5d"
 		},
 		{
 			"name": "NestedGenericConstraintsComponent",
@@ -225,7 +229,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "0a5293332f16fce3"
 		}
 	],
 	"imports": ["react"]

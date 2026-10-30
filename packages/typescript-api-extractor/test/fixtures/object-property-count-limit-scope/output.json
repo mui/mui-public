@@ -945,7 +945,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "7e71d4447816852b"
 		},
 		{
 			"name": "ManyComponentProps",
@@ -1924,7 +1925,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "10f32e31156fa9af"
 		}
 	],
 	"imports": ["react"]

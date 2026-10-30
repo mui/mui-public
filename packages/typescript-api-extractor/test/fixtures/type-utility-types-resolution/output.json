@@ -120,7 +120,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "3ba1dcac9a44e3e9"
 		},
 		{
 			"name": "acceptsOmittedProps",
@@ -232,7 +233,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "e5bc01226d63c9dc"
 		},
 		{
 			"name": "acceptsParameterTuple",
@@ -358,7 +360,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "e47a51bae0ae5c84"
 		},
 		{
 			"name": "acceptsReturnType",
@@ -388,7 +391,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "7f470286a2f3524c"
 		}
 	]
 }

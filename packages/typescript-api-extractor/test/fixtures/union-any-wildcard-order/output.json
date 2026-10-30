@@ -47,7 +47,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "26772690fdd980bd"
 		},
 		{
 			"name": "AnyWildcardDedup",
@@ -91,7 +92,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "10133c4d18575fe4"
 		},
 		{
 			"name": "AnyWildcardDedupReversed",
@@ -135,7 +137,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "d0ab6a8620e9072c"
 		},
 		{
 			"name": "NotEquivalent",
@@ -209,7 +212,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "120abcd1dccb678e"
 		}
 	]
 }

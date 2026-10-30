@@ -2385,7 +2385,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": true
+			"isNamespace": true,
+			"declarationId": "764454ad7f7ab8a7"
 		},
 		{
 			"name": "BaseUIComponent1.Props",
@@ -2981,7 +2982,8 @@
 			],
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "2bf2043be0dd9092"
 		},
 		{
 			"name": "BaseUIComponent1.State",
@@ -3004,7 +3006,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "7d5a0f27f5377466"
 		},
 		{
 			"name": "BaseUIComponent1.Actions",
@@ -3035,7 +3038,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "f1a5dc9fd991ec3d"
 		},
 		{
 			"name": "BaseUIComponent1.Value",
@@ -3049,7 +3053,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "7fa59a55d1cfd217"
 		},
 		{
 			"name": "BaseUIComponent1Value",
@@ -3068,7 +3073,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "141a03ae3233967c"
 		},
 		{
 			"name": "BaseUIComponent2",
@@ -4930,7 +4936,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": true
+			"isNamespace": true,
+			"declarationId": "d85d5ee1c5c0e47a"
 		},
 		{
 			"name": "BaseUIComponent2.Props",
@@ -5395,7 +5402,8 @@
 			],
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "72e38782b6cd914c"
 		},
 		{
 			"name": "BaseUIComponent2.State",
@@ -5409,7 +5417,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "4ce2dbf2c9e73363"
 		},
 		{
 			"name": "ComponentRenderFn",
@@ -5438,7 +5447,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "b63bcf3880c00c77"
 		}
 	],
 	"imports": ["react"]

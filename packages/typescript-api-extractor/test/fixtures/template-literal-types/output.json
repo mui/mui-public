@@ -49,7 +49,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "d3992e9427bac803"
 		},
 		{
 			"name": "Fraction",
@@ -65,7 +66,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "38a2f5a428700702"
 		},
 		{
 			"name": "DataAttribute",
@@ -81,7 +83,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "7c14abc1fb4161cf"
 		},
 		{
 			"name": "TrackMinimum",
@@ -116,7 +119,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "9194ebbcff359bda"
 		},
 		{
 			"name": "Placement",
@@ -147,7 +151,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "f2d4074c8dece607"
 		},
 		{
 			"name": "Nested",
@@ -163,7 +168,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "e537e6937d24b392"
 		},
 		{
 			"name": "Multiple",
@@ -183,7 +189,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "cc5e37123d2fd018"
 		},
 		{
 			"name": "Props",
@@ -253,7 +260,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "5c7213d648af8665"
 		}
 	]
 }

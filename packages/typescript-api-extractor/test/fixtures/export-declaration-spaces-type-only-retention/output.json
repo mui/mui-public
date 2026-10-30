@@ -20,7 +20,8 @@
 			},
 			"isValue": true,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "f523b2403d92a0f3"
 		},
 		{
 			"name": "chainedFunction",
@@ -41,7 +42,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": true
+			"isNamespace": true,
+			"declarationId": "ef176246c2079548"
 		},
 		{
 			"name": "chainedFunction.Nested",
@@ -55,7 +57,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "d9616a4eab2e9c95"
 		},
 		{
 			"name": "TypesNamespace.Member",
@@ -78,7 +81,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "8b963593fb20b2b0"
 		}
 	]
 }

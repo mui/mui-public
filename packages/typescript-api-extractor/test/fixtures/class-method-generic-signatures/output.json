@@ -263,7 +263,8 @@
 			},
 			"isValue": true,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "bd633b3d2739133f"
 		}
 	]
 }

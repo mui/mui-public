@@ -67,7 +67,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "be833328c4361452"
 		},
 		{
 			"name": "requiredAlias",
@@ -117,7 +118,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "3ffa79402048435d"
 		},
 		{
 			"name": "inlinePartial",
@@ -223,7 +225,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "8e545511198d2aa2"
 		},
 		{
 			"name": "inlineRequired",
@@ -311,7 +314,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "b961ff255c461074"
 		}
 	]
 }

@@ -67,7 +67,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "fd30037fdbaa30e7"
 		},
 		{
 			"name": "acceptsNamedObjectTypes",
@@ -140,7 +141,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "59cdb60d2c3cd3ae"
 		},
 		{
 			"name": "acceptsObjectProps",
@@ -271,7 +273,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "4ebea157783ac9a7"
 		}
 	]
 }

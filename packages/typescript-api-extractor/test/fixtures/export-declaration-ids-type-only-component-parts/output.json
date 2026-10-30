@@ -1,0 +1,613 @@
+{
+	"name": "test/fixtures/export-declaration-ids-type-only-component-parts/input",
+	"exports": [
+		{
+			"name": "Dialog.Trigger",
+			"type": {
+				"kind": "component",
+				"typeName": {
+					"name": "Trigger",
+					"namespaces": ["Dialog"]
+				},
+				"props": [
+					{
+						"name": "payload",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"name": "Payload",
+									"kind": "typeParameter"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "The payload passed to the dialog when it opens.",
+							"tags": []
+						},
+						"optional": true
+					},
+					{
+						"name": "className",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "function",
+									"callSignatures": [
+										{
+											"parameters": [
+												{
+													"type": {
+														"kind": "object",
+														"typeName": {
+															"name": "DialogTriggerState"
+														},
+														"properties": [
+															{
+																"name": "open",
+																"type": {
+																	"kind": "intrinsic",
+																	"intrinsic": "boolean"
+																},
+																"documentation": {
+																	"description": "Whether the dialog is open.",
+																	"tags": []
+																},
+																"optional": false
+															}
+														]
+													},
+													"name": "state",
+													"optional": false
+												}
+											],
+											"returnValueType": {
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											}
+										}
+									]
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "Returns the class name for the current state.",
+							"tags": []
+						},
+						"optional": true
+					}
+				],
+				"typeParameters": [
+					{
+						"name": "Payload",
+						"kind": "typeParameter"
+					}
+				]
+			},
+			"documentation": {
+				"description": "Opens the dialog.",
+				"tags": []
+			},
+			"reexportedFrom": "DialogTrigger",
+			"isValue": true,
+			"isType": true,
+			"isNamespace": true,
+			"declarationId": "6ce477ea25f01dfc"
+		},
+		{
+			"name": "Dialog.Trigger.Props",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Props",
+					"namespaces": ["Dialog", "Trigger"],
+					"typeArguments": [
+						{
+							"type": {
+								"name": "Payload",
+								"defaultValue": {
+									"kind": "intrinsic",
+									"intrinsic": "unknown"
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [
+					{
+						"name": "payload",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"name": "Payload",
+									"defaultValue": {
+										"kind": "intrinsic",
+										"intrinsic": "unknown"
+									},
+									"kind": "typeParameter"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "The payload passed to the dialog when it opens.",
+							"tags": []
+						},
+						"optional": true
+					},
+					{
+						"name": "className",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "function",
+									"callSignatures": [
+										{
+											"parameters": [
+												{
+													"type": {
+														"kind": "object",
+														"typeName": {
+															"name": "DialogTriggerState"
+														},
+														"properties": [
+															{
+																"name": "open",
+																"type": {
+																	"kind": "intrinsic",
+																	"intrinsic": "boolean"
+																},
+																"documentation": {
+																	"description": "Whether the dialog is open.",
+																	"tags": []
+																},
+																"optional": false
+															}
+														]
+													},
+													"name": "state",
+													"optional": false
+												}
+											],
+											"returnValueType": {
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											}
+										}
+									]
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "Returns the class name for the current state.",
+							"tags": []
+						},
+						"optional": true
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false,
+			"declarationId": "eef700b67e47f64a"
+		},
+		{
+			"name": "Dialog.Trigger.State",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "State",
+					"namespaces": ["Dialog", "Trigger"]
+				},
+				"properties": [
+					{
+						"name": "open",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "boolean"
+						},
+						"documentation": {
+							"description": "Whether the dialog is open.",
+							"tags": []
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false,
+			"declarationId": "313e8ee91dcb5252"
+		},
+		{
+			"name": "DialogTriggerState",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "DialogTriggerState"
+				},
+				"properties": [
+					{
+						"name": "open",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "boolean"
+						},
+						"documentation": {
+							"description": "Whether the dialog is open.",
+							"tags": []
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false,
+			"declarationId": "ab4b946ebab00b62"
+		},
+		{
+			"name": "DialogTriggerProps",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "DialogTriggerProps",
+					"typeArguments": [
+						{
+							"type": {
+								"name": "Payload",
+								"defaultValue": {
+									"kind": "intrinsic",
+									"intrinsic": "unknown"
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [
+					{
+						"name": "payload",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"name": "Payload",
+									"defaultValue": {
+										"kind": "intrinsic",
+										"intrinsic": "unknown"
+									},
+									"kind": "typeParameter"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "The payload passed to the dialog when it opens.",
+							"tags": []
+						},
+						"optional": true
+					},
+					{
+						"name": "className",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "function",
+									"callSignatures": [
+										{
+											"parameters": [
+												{
+													"type": {
+														"kind": "object",
+														"typeName": {
+															"name": "DialogTriggerState"
+														},
+														"properties": [
+															{
+																"name": "open",
+																"type": {
+																	"kind": "intrinsic",
+																	"intrinsic": "boolean"
+																},
+																"documentation": {
+																	"description": "Whether the dialog is open.",
+																	"tags": []
+																},
+																"optional": false
+															}
+														]
+													},
+													"name": "state",
+													"optional": false
+												}
+											],
+											"returnValueType": {
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											}
+										}
+									]
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "Returns the class name for the current state.",
+							"tags": []
+						},
+						"optional": true
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false,
+			"declarationId": "f6bdaa29f622e234"
+		},
+		{
+			"name": "DialogTrigger",
+			"type": {
+				"kind": "component",
+				"typeName": {
+					"name": "DialogTrigger"
+				},
+				"props": [
+					{
+						"name": "payload",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"name": "Payload",
+									"kind": "typeParameter"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "The payload passed to the dialog when it opens.",
+							"tags": []
+						},
+						"optional": true
+					},
+					{
+						"name": "className",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "function",
+									"callSignatures": [
+										{
+											"parameters": [
+												{
+													"type": {
+														"kind": "object",
+														"typeName": {
+															"name": "DialogTriggerState"
+														},
+														"properties": [
+															{
+																"name": "open",
+																"type": {
+																	"kind": "intrinsic",
+																	"intrinsic": "boolean"
+																},
+																"documentation": {
+																	"description": "Whether the dialog is open.",
+																	"tags": []
+																},
+																"optional": false
+															}
+														]
+													},
+													"name": "state",
+													"optional": false
+												}
+											],
+											"returnValueType": {
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											}
+										}
+									]
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "Returns the class name for the current state.",
+							"tags": []
+						},
+						"optional": true
+					}
+				],
+				"typeParameters": [
+					{
+						"name": "Payload",
+						"kind": "typeParameter"
+					}
+				]
+			},
+			"documentation": {
+				"description": "Opens the dialog.",
+				"tags": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": true,
+			"declarationId": "6ce477ea25f01dfc"
+		},
+		{
+			"name": "DialogTrigger.Props",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Props",
+					"namespaces": ["DialogTrigger"],
+					"typeArguments": [
+						{
+							"type": {
+								"name": "Payload",
+								"defaultValue": {
+									"kind": "intrinsic",
+									"intrinsic": "unknown"
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [
+					{
+						"name": "payload",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"name": "Payload",
+									"defaultValue": {
+										"kind": "intrinsic",
+										"intrinsic": "unknown"
+									},
+									"kind": "typeParameter"
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "The payload passed to the dialog when it opens.",
+							"tags": []
+						},
+						"optional": true
+					},
+					{
+						"name": "className",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "function",
+									"callSignatures": [
+										{
+											"parameters": [
+												{
+													"type": {
+														"kind": "object",
+														"typeName": {
+															"name": "DialogTriggerState"
+														},
+														"properties": [
+															{
+																"name": "open",
+																"type": {
+																	"kind": "intrinsic",
+																	"intrinsic": "boolean"
+																},
+																"documentation": {
+																	"description": "Whether the dialog is open.",
+																	"tags": []
+																},
+																"optional": false
+															}
+														]
+													},
+													"name": "state",
+													"optional": false
+												}
+											],
+											"returnValueType": {
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											}
+										}
+									]
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"documentation": {
+							"description": "Returns the class name for the current state.",
+							"tags": []
+						},
+						"optional": true
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false,
+			"declarationId": "eef700b67e47f64a"
+		},
+		{
+			"name": "DialogTrigger.State",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "State",
+					"namespaces": ["DialogTrigger"]
+				},
+				"properties": [
+					{
+						"name": "open",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "boolean"
+						},
+						"documentation": {
+							"description": "Whether the dialog is open.",
+							"tags": []
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false,
+			"declarationId": "313e8ee91dcb5252"
+		}
+	]
+}

@@ -97,7 +97,8 @@
 			"reexportedFrom": "AlertDialogRoot",
 			"isValue": true,
 			"isType": false,
-			"isNamespace": true
+			"isNamespace": true,
+			"declarationId": "8ff4022f2e037a9c"
 		},
 		{
 			"name": "AlertDialog.Root.Props",
@@ -195,7 +196,8 @@
 			],
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "7431169aa33d3c6c"
 		},
 		{
 			"name": "AlertDialog.Trigger",
@@ -255,7 +257,8 @@
 			"reexportedFrom": "DialogTrigger",
 			"isValue": true,
 			"isType": false,
-			"isNamespace": true
+			"isNamespace": true,
+			"declarationId": "0bdb723b75683a5d"
 		},
 		{
 			"name": "AlertDialog.Trigger.Props",
@@ -315,7 +318,8 @@
 			],
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "10445d3d4d5a865e"
 		},
 		{
 			"name": "AlertDialog.Backdrop",
@@ -356,7 +360,8 @@
 			"reexportedFrom": "DialogBackdrop",
 			"isValue": true,
 			"isType": false,
-			"isNamespace": true
+			"isNamespace": true,
+			"declarationId": "23bbf65834cf5257"
 		},
 		{
 			"name": "AlertDialog.Backdrop.Props",
@@ -397,7 +402,8 @@
 			],
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "8e216532117fcdcb"
 		}
 	]
 }

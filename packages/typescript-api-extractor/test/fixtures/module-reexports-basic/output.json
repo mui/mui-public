@@ -20,7 +20,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "0a34594ff2a123dc"
 		},
 		{
 			"name": "Root",
@@ -68,7 +69,8 @@
 			"reexportedFrom": "RootComponent",
 			"isValue": true,
 			"isType": false,
-			"isNamespace": true
+			"isNamespace": true,
+			"declarationId": "a13dd4d63e9a1708"
 		},
 		{
 			"name": "Root.Props",
@@ -116,7 +118,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "9bc8949900598958"
 		},
 		{
 			"name": "Root.State",
@@ -143,7 +146,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "3977c315cb7554b3"
 		},
 		{
 			"name": "RootProps",
@@ -190,7 +194,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "d875f208c49e6e15"
 		},
 		{
 			"name": "RootState",
@@ -216,7 +221,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "44b7daf32e0af3d9"
 		},
 		{
 			"name": "Source.RootComponent",
@@ -264,7 +270,8 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": true
+			"isNamespace": true,
+			"declarationId": "a13dd4d63e9a1708"
 		},
 		{
 			"name": "Source.RootComponent.Props",
@@ -312,7 +319,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "9bc8949900598958"
 		},
 		{
 			"name": "Source.RootComponent.State",
@@ -339,7 +347,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "3977c315cb7554b3"
 		},
 		{
 			"name": "Source.RootProps",
@@ -387,7 +396,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "d875f208c49e6e15"
 		},
 		{
 			"name": "Source.RootState",
@@ -414,7 +424,8 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "44b7daf32e0af3d9"
 		}
 	]
 }
