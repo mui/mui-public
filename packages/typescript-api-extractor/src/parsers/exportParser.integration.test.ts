@@ -187,6 +187,12 @@ function createDeclarationIdSources(root: string): Record<string, string> {
       "export * as Parts from './parts';",
       "export type * from './trigger';",
       "export { other, trigger as renamedTrigger } from './trigger';",
+      "export type * as Geometry from './point';",
+      "export { Point } from './point';",
+      "export * as Shapes from './shapes';",
+      "export type * from './rectangle';",
+      "export { format as formatValue, format, default, parse } from './format';",
+      "export type { Status, Status as State } from './format';",
     ].join('\n'),
     [`${root}/parts.ts`]: "export { trigger as Trigger } from './trigger';",
     [`${root}/trigger.ts`]: [
@@ -194,6 +200,15 @@ function createDeclarationIdSources(root: string): Record<string, string> {
       'export interface trigger { (): string }',
       'export namespace trigger { export type Props = { id: string } }',
       "export const other = (): string => 'other';",
+    ].join('\n'),
+    [`${root}/point.ts`]: 'export class Point { x = 0; }',
+    [`${root}/rectangle.ts`]: 'export type Rectangle = { width: number };',
+    [`${root}/shapes.ts`]: "export type { Rectangle as Rect } from './rectangle';",
+    [`${root}/format.ts`]: [
+      'export function format(value: number): string { return String(value); }',
+      'export default function parse(text: string): number { return Number(text); }',
+      'export { parse };',
+      "export type Status = 'idle' | 'busy';",
     ].join('\n'),
   };
 }
@@ -203,6 +218,11 @@ it('gives exports reaching one declaration the same declaration id', () => {
     ['Parts.Trigger', 'renamedTrigger', 'trigger'],
     ['Parts.Trigger.Props', 'renamedTrigger.Props', 'trigger.Props'],
     ['other'],
+    ['Geometry.Point', 'Point'],
+    ['Shapes.Rect', 'Rectangle'],
+    ['formatValue', 'format'],
+    ['default', 'parse'],
+    ['Status', 'State'],
   ]);
 });
 
