@@ -22,7 +22,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"declarationId": "dc0d75fe1b8ff1c7"
 				},
 				"types": [
 					{
@@ -38,7 +39,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "dc0d75fe1b8ff1c7"
+			"declarationId": "dc0d75fe1b8ff1c7",
+			"declaredName": "Rest"
 		},
 		{
 			"name": "Wrap",
@@ -54,14 +56,16 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"declarationId": "e4f54de9cc23d2ec"
 				},
 				"properties": []
 			},
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "e4f54de9cc23d2ec"
+			"declarationId": "e4f54de9cc23d2ec",
+			"declaredName": "Wrap"
 		},
 		{
 			"name": "Result",
@@ -94,7 +98,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"declarationId": "e4f54de9cc23d2ec"
 				},
 				"properties": [
 					{
@@ -144,7 +149,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "eef2682342cfe5fd"
+			"declarationId": "eef2682342cfe5fd",
+			"declaredName": "Result"
 		}
 	]
 }

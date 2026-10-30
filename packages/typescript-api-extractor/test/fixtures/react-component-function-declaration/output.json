@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "DeclaredComponent"
+					"name": "DeclaredComponent",
+					"declarationId": "4143be517ff3b0fe"
 				},
 				"props": [
 					{
@@ -31,7 +32,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "4143be517ff3b0fe"
+			"declarationId": "4143be517ff3b0fe",
+			"declaredName": "DeclaredComponent"
 		}
 	]
 }

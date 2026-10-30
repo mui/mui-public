@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "Comp"
+					"name": "Comp",
+					"declarationId": "b3fbb340a69479ac"
 				},
 				"callSignatures": [
 					{
@@ -15,7 +16,8 @@
 								"type": {
 									"kind": "object",
 									"typeName": {
-										"name": "Props"
+										"name": "Props",
+										"declarationId": "5196e8fd2818422e"
 									},
 									"properties": [
 										{
@@ -23,7 +25,8 @@
 											"type": {
 												"kind": "object",
 												"typeName": {
-													"name": "Rect"
+													"name": "Rect",
+													"declarationId": "cdd7b11dc13ad5f5"
 												},
 												"properties": [
 													{
@@ -78,14 +81,16 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "b3fbb340a69479ac"
+			"declarationId": "b3fbb340a69479ac",
+			"declaredName": "Comp"
 		},
 		{
 			"name": "Props",
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "Props"
+					"name": "Props",
+					"declarationId": "5196e8fd2818422e"
 				},
 				"properties": [
 					{
@@ -93,7 +98,8 @@
 						"type": {
 							"kind": "object",
 							"typeName": {
-								"name": "Rect"
+								"name": "Rect",
+								"declarationId": "cdd7b11dc13ad5f5"
 							},
 							"properties": [
 								{
@@ -137,7 +143,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "5196e8fd2818422e"
+			"declarationId": "5196e8fd2818422e",
+			"declaredName": "Props"
 		}
 	]
 }

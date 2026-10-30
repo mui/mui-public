@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "processType"
+					"name": "processType",
+					"declarationId": "4d85ad7fb92a869c"
 				},
 				"callSignatures": [
 					{
@@ -15,7 +16,8 @@
 								"type": {
 									"kind": "object",
 									"typeName": {
-										"name": "FormattedParameter"
+										"name": "FormattedParameter",
+										"declarationId": "d41bcab0154c0a40"
 									},
 									"properties": [
 										{
@@ -60,7 +62,8 @@
 						"returnValueType": {
 							"kind": "object",
 							"typeName": {
-								"name": "FormattedProperty"
+								"name": "FormattedProperty",
+								"declarationId": "083aed5fb5e2bb5a"
 							},
 							"properties": [
 								{
@@ -96,14 +99,16 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "4d85ad7fb92a869c"
+			"declarationId": "4d85ad7fb92a869c",
+			"declaredName": "processType"
 		},
 		{
 			"name": "wrapValue",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "wrapValue"
+					"name": "wrapValue",
+					"declarationId": "55cf5f5450dbd9b7"
 				},
 				"callSignatures": [
 					{
@@ -129,7 +134,8 @@
 										},
 										"equalToDefault": false
 									}
-								]
+								],
+								"declarationId": "0342dd4137838199"
 							},
 							"properties": [
 								{
@@ -193,14 +199,16 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "55cf5f5450dbd9b7"
+			"declarationId": "55cf5f5450dbd9b7",
+			"declaredName": "wrapValue"
 		},
 		{
 			"name": "FormattedProperty",
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "FormattedProperty"
+					"name": "FormattedProperty",
+					"declarationId": "083aed5fb5e2bb5a"
 				},
 				"properties": [
 					{
@@ -233,14 +241,16 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "083aed5fb5e2bb5a"
+			"declarationId": "083aed5fb5e2bb5a",
+			"declaredName": "FormattedProperty"
 		},
 		{
 			"name": "FormattedParameter",
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "FormattedParameter"
+					"name": "FormattedParameter",
+					"declarationId": "d41bcab0154c0a40"
 				},
 				"properties": [
 					{
@@ -281,7 +291,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "d41bcab0154c0a40"
+			"declarationId": "d41bcab0154c0a40",
+			"declaredName": "FormattedParameter"
 		},
 		{
 			"name": "TypeContainer",
@@ -297,7 +308,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"declarationId": "0342dd4137838199"
 				},
 				"properties": [
 					{
@@ -352,7 +364,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "0342dd4137838199"
+			"declarationId": "0342dd4137838199",
+			"declaredName": "Container"
 		},
 		{
 			"name": "ProcessingStatus",
@@ -388,14 +401,16 @@
 			"isValue": true,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "bbe691178612f7c5"
+			"declarationId": "bbe691178612f7c5",
+			"declaredName": "ProcessingStatus"
 		},
 		{
 			"name": "formatType",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "formatType"
+					"name": "formatType",
+					"declarationId": "b68928f6e1a70151"
 				},
 				"callSignatures": [
 					{
@@ -412,7 +427,8 @@
 						"returnValueType": {
 							"kind": "object",
 							"typeName": {
-								"name": "FormattedProperty"
+								"name": "FormattedProperty",
+								"declarationId": "083aed5fb5e2bb5a"
 							},
 							"properties": [
 								{
@@ -448,14 +464,16 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "b68928f6e1a70151"
+			"declarationId": "b68928f6e1a70151",
+			"declaredName": "formatType"
 		},
 		{
 			"name": "parseParameters",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "parseParameters"
+					"name": "parseParameters",
+					"declarationId": "b37fbba3de4e56d8"
 				},
 				"callSignatures": [
 					{
@@ -474,7 +492,8 @@
 							"elementType": {
 								"kind": "object",
 								"typeName": {
-									"name": "FormattedParameter"
+									"name": "FormattedParameter",
+									"declarationId": "d41bcab0154c0a40"
 								},
 								"properties": [
 									{
@@ -519,7 +538,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "b37fbba3de4e56d8"
+			"declarationId": "b37fbba3de4e56d8",
+			"declaredName": "parseParameters"
 		}
 	],
 	"imports": ["./source.js"]

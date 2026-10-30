@@ -4,6 +4,7 @@ import { ModuleNode } from '../models';
 import type { ScopedParserContext } from '../parserContext';
 import { assignDeclarationIds } from './declarationIds';
 import type { ParsedExport } from './declarationIds';
+import { getDeclarationIdContext } from './common';
 import { parseExport } from './exportParser';
 import { applyExportTransforms } from './exportTransforms';
 import { ParserError } from '../ParserError';
@@ -38,8 +39,7 @@ export function parseModule(sourceFile: ts.SourceFile, context: ScopedParserCont
       );
       const parsedModuleExports = assignDeclarationIds(
         transformedExports.map((node, index) => ({ node, symbol: parsedExports[index].symbol })),
-        checker,
-        compilerOptions.rootDir!,
+        getDeclarationIdContext(context),
       );
 
       const relativeModulePath = path

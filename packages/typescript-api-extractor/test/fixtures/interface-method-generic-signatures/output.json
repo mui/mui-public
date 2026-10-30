@@ -23,7 +23,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"declarationId": "3972e46b3f9a80ac"
 				},
 				"properties": [
 					{
@@ -62,7 +63,8 @@
 															},
 															"equalToDefault": false
 														}
-													]
+													],
+													"declarationId": "422c2679c5583221"
 												},
 												"properties": [
 													{
@@ -187,7 +189,8 @@
 															},
 															"equalToDefault": false
 														}
-													]
+													],
+													"declarationId": "422c2679c5583221"
 												},
 												"properties": [
 													{
@@ -333,7 +336,8 @@
 															},
 															"equalToDefault": false
 														}
-													]
+													],
+													"declarationId": "422c2679c5583221"
 												},
 												"properties": [
 													{
@@ -444,7 +448,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "3972e46b3f9a80ac"
+			"declarationId": "3972e46b3f9a80ac",
+			"declaredName": "Manager"
 		}
 	]
 }

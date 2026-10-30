@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "TestComponent"
+					"name": "TestComponent",
+					"declarationId": "96ab7f1bf05333a1"
 				},
 				"props": [
 					{
@@ -48,7 +49,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "ffb6318a74f889fe"
+			"declarationId": "ffb6318a74f889fe",
+			"declaredName": "TestComponent1"
 		},
 		{
 			"name": "TestComponent2",
@@ -62,7 +64,8 @@
 							"type": {
 								"kind": "object",
 								"typeName": {
-									"name": "Props"
+									"name": "Props",
+									"declarationId": "fc893eb73bd88553"
 								},
 								"properties": [
 									{
@@ -145,7 +148,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "4a1932fabdf029ee"
+			"declarationId": "4a1932fabdf029ee",
+			"declaredName": "TestComponent2"
 		},
 		{
 			"name": "TestComponent3",
@@ -159,7 +163,8 @@
 							"type": {
 								"kind": "object",
 								"typeName": {
-									"name": "Props"
+									"name": "Props",
+									"declarationId": "fc893eb73bd88553"
 								},
 								"properties": [
 									{
@@ -242,7 +247,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "d29b0c11aefc07ad"
+			"declarationId": "d29b0c11aefc07ad",
+			"declaredName": "TestComponent3"
 		}
 	],
 	"imports": ["react"]

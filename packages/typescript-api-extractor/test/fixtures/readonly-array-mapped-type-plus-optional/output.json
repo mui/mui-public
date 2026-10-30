@@ -36,7 +36,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"declarationId": "f3846ce2682832f1"
 				},
 				"elementType": {
 					"kind": "object",
@@ -68,7 +69,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "f3846ce2682832f1"
+			"declarationId": "f3846ce2682832f1",
+			"declaredName": "Data"
 		}
 	]
 }

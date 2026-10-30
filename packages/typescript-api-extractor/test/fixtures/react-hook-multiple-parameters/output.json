@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "useHook"
+					"name": "useHook",
+					"declarationId": "9fe0bf6fdeadf437"
 				},
 				"callSignatures": [
 					{
@@ -56,7 +57,8 @@
 								"type": {
 									"kind": "union",
 									"typeName": {
-										"name": "Severity"
+										"name": "Severity",
+										"declarationId": "9c18fd01e7d423fe"
 									},
 									"types": [
 										{
@@ -93,7 +95,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "9fe0bf6fdeadf437"
+			"declarationId": "9fe0bf6fdeadf437",
+			"declaredName": "useHook"
 		}
 	]
 }

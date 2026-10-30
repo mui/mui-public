@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "mergedFunction"
+					"name": "mergedFunction",
+					"declarationId": "1a0c0934e14153ba"
 				},
 				"callSignatures": [
 					{
@@ -21,14 +22,16 @@
 			"isValue": true,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "9503f643730cc6dd"
+			"declarationId": "9503f643730cc6dd",
+			"declaredName": "mergedFunction"
 		},
 		{
 			"name": "chainedFunction",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "chainedFunction"
+					"name": "chainedFunction",
+					"declarationId": "97a006d7b814e916"
 				},
 				"callSignatures": [
 					{
@@ -43,7 +46,8 @@
 			"isValue": true,
 			"isType": true,
 			"isNamespace": true,
-			"declarationId": "3f4eea813624dec8"
+			"declarationId": "3f4eea813624dec8",
+			"declaredName": "chainedFunction"
 		},
 		{
 			"name": "chainedFunction.Nested",
@@ -52,13 +56,15 @@
 				"value": "\"nested\"",
 				"typeName": {
 					"name": "Nested",
-					"namespaces": ["chainedFunction"]
+					"namespaces": ["chainedFunction"],
+					"declarationId": "acec0786326e53e1"
 				}
 			},
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "acec0786326e53e1"
+			"declarationId": "acec0786326e53e1",
+			"declaredName": "Nested"
 		},
 		{
 			"name": "MergedConstant",
@@ -78,7 +84,8 @@
 			"isValue": true,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "af71e12d62fae3cb"
+			"declarationId": "af71e12d62fae3cb",
+			"declaredName": "MergedConstant"
 		},
 		{
 			"name": "api",

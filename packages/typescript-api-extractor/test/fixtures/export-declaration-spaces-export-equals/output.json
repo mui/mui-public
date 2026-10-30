@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "class",
 				"typeName": {
-					"name": "Service"
+					"name": "Service",
+					"declarationId": "7ee2834bff15aa8f"
 				},
 				"constructSignatures": [
 					{
@@ -30,14 +31,16 @@
 			"isValue": true,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "7ee2834bff15aa8f"
+			"declarationId": "7ee2834bff15aa8f",
+			"declaredName": "Service"
 		},
 		{
 			"name": "TypeOnlyService",
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "Service"
+					"name": "Service",
+					"declarationId": "7ee2834bff15aa8f"
 				},
 				"properties": [
 					{
@@ -53,7 +56,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "7ee2834bff15aa8f"
+			"declarationId": "7ee2834bff15aa8f",
+			"declaredName": "Service"
 		}
 	],
 	"imports": ["./legacy", "./legacy"]

@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "LiteralPropsComponent"
+					"name": "LiteralPropsComponent",
+					"declarationId": "9e042c3e9426e907"
 				},
 				"props": [
 					{
@@ -46,7 +47,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "9e042c3e9426e907"
+			"declarationId": "9e042c3e9426e907",
+			"declaredName": "LiteralPropsComponent"
 		}
 	],
 	"imports": ["react"]

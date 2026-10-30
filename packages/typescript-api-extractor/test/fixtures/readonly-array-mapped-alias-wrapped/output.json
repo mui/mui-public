@@ -30,7 +30,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"declarationId": "fc0c3b1193cfeb5e"
 				},
 				"properties": [],
 				"indexSignature": {
@@ -58,7 +59,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "fc0c3b1193cfeb5e"
+			"declarationId": "fc0c3b1193cfeb5e",
+			"declaredName": "MapAlias"
 		},
 		{
 			"name": "Wrapped",
@@ -95,7 +97,8 @@
 											},
 											"equalToDefault": false
 										}
-									]
+									],
+									"declarationId": "fc0c3b1193cfeb5e"
 								},
 								"properties": [],
 								"indexSignature": {
@@ -122,7 +125,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"declarationId": "4a023375fb6f4ae6"
 				},
 				"elementType": {
 					"kind": "object",
@@ -151,7 +155,8 @@
 								},
 								"equalToDefault": false
 							}
-						]
+						],
+						"declarationId": "fc0c3b1193cfeb5e"
 					},
 					"properties": [],
 					"indexSignature": {
@@ -181,7 +186,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "4a023375fb6f4ae6"
+			"declarationId": "4a023375fb6f4ae6",
+			"declaredName": "Wrapped"
 		}
 	]
 }

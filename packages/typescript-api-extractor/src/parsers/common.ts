@@ -3,11 +3,14 @@ import type { TypeArgument } from '../models/typeName';
 import { TypeName } from '../models/typeName';
 import { resolveType } from './typeResolver';
 import type { ScopedParserContext } from '../parserContext';
+import type { ParserContext } from '../parser';
 import {
   containsKeyofTypeOperatorOrAlias,
   substituteTypeParameterTypeNode,
 } from './typeResolvers/typeOperatorTypeNodes';
 import { getReferenceEntityName } from './typeResolvers/referencedTypeAlias';
+import { getReferencedDeclarationId } from './declarationIds';
+import type { DeclarationIdContext } from './declarationIds';
 
 /**
  * Known TypeScript compiler-generated internal symbol names.
@@ -135,12 +138,50 @@ export function getFullNameWithSymbol(
   }
 
   return {
-    typeName: new TypeName(
+    typeName: createTypeName(
+      named.symbol,
+      context,
       named.name,
       namespaces.length > 0 ? namespaces : undefined,
       typeArguments.length > 0 ? typeArguments : undefined,
     ),
     symbol: named.symbol,
+  };
+}
+
+/**
+ * Creates the `TypeName` of a type named after `symbol`, with the id of the
+ * declaration it refers to. Parsers create every `TypeName` here or through
+ * `copyTypeName` (enforced by lint), so none loses its declaration. Pass no symbol
+ * for a name that doesn't come from one, such as a type parameter.
+ */
+export function createTypeName(
+  symbol: ts.Symbol | undefined,
+  context: ParserContext,
+  name: string,
+  namespaces?: readonly string[],
+  typeArguments?: readonly TypeArgument[],
+): TypeName {
+  return new TypeName(
+    name,
+    namespaces,
+    typeArguments,
+    getReferencedDeclarationId(symbol, getDeclarationIdContext(context)),
+  );
+}
+
+/**
+ * Copies a `TypeName` of the same declaration, optionally under another name.
+ */
+export function copyTypeName(typeName: TypeName, name = typeName.name): TypeName {
+  return new TypeName(name, typeName.namespaces, typeName.typeArguments, typeName.declarationId);
+}
+
+export function getDeclarationIdContext(context: ParserContext): DeclarationIdContext {
+  return {
+    checker: context.checker,
+    program: context.program,
+    rootDir: context.compilerOptions.rootDir!,
   };
 }
 

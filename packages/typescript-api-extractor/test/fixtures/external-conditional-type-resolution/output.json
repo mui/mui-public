@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "Props"
+					"name": "Props",
+					"declarationId": "cd3b8b9cfcdc62f1"
 				},
 				"properties": [
 					{
@@ -68,7 +69,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "cd3b8b9cfcdc62f1"
+			"declarationId": "cd3b8b9cfcdc62f1",
+			"declaredName": "Props"
 		}
 	],
 	"imports": ["./external-types"]

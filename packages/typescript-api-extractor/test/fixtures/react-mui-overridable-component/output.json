@@ -842,7 +842,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "d2e516f9112ce0ee"
+			"declarationId": "d2e516f9112ce0ee",
+			"declaredName": "Component"
 		}
 	],
 	"imports": ["react"]

@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "acceptsIndexSignatures"
+					"name": "acceptsIndexSignatures",
+					"declarationId": "86f73c12ba84d315"
 				},
 				"callSignatures": [
 					{
@@ -79,14 +80,16 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "86f73c12ba84d315"
+			"declarationId": "86f73c12ba84d315",
+			"declaredName": "acceptsIndexSignatures"
 		},
 		{
 			"name": "returnsIndexSignature",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "returnsIndexSignature"
+					"name": "returnsIndexSignature",
+					"declarationId": "65f670c56a3df401"
 				},
 				"callSignatures": [
 					{
@@ -109,14 +112,16 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "65f670c56a3df401"
+			"declarationId": "65f670c56a3df401",
+			"declaredName": "returnsIndexSignature"
 		},
 		{
 			"name": "MyComponent",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "MyComponent"
+					"name": "MyComponent",
+					"declarationId": "f41939dc1983a3b8"
 				},
 				"callSignatures": [
 					{
@@ -166,14 +171,16 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "f41939dc1983a3b8"
+			"declarationId": "f41939dc1983a3b8",
+			"declaredName": "MyComponent"
 		},
 		{
 			"name": "StringIndexType",
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "StringIndexType"
+					"name": "StringIndexType",
+					"declarationId": "2cc3bdb8fd30b741"
 				},
 				"properties": [],
 				"indexSignature": {
@@ -188,14 +195,16 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "2cc3bdb8fd30b741"
+			"declarationId": "2cc3bdb8fd30b741",
+			"declaredName": "StringIndexType"
 		},
 		{
 			"name": "NumberIndexType",
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "NumberIndexType"
+					"name": "NumberIndexType",
+					"declarationId": "88ff82714ed5a00f"
 				},
 				"properties": [],
 				"indexSignature": {
@@ -210,14 +219,16 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "88ff82714ed5a00f"
+			"declarationId": "88ff82714ed5a00f",
+			"declaredName": "NumberIndexType"
 		},
 		{
 			"name": "TypeWithCustomKeyName",
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "TypeWithCustomKeyName"
+					"name": "TypeWithCustomKeyName",
+					"declarationId": "e9f02102d6e4cf23"
 				},
 				"properties": [],
 				"indexSignature": {
@@ -232,14 +243,16 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "e9f02102d6e4cf23"
+			"declarationId": "e9f02102d6e4cf23",
+			"declaredName": "TypeWithCustomKeyName"
 		},
 		{
 			"name": "TypeWithNestedCustomKey",
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "TypeWithNestedCustomKey"
+					"name": "TypeWithNestedCustomKey",
+					"declarationId": "7ad241850b32fe87"
 				},
 				"properties": [],
 				"indexSignature": {
@@ -263,14 +276,16 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "7ad241850b32fe87"
+			"declarationId": "7ad241850b32fe87",
+			"declaredName": "TypeWithNestedCustomKey"
 		},
 		{
 			"name": "SimpleIndex",
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "SimpleIndex"
+					"name": "SimpleIndex",
+					"declarationId": "b1a60c5aa72c951c"
 				},
 				"properties": [],
 				"indexSignature": {
@@ -285,14 +300,16 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "b1a60c5aa72c951c"
+			"declarationId": "b1a60c5aa72c951c",
+			"declaredName": "SimpleIndex"
 		},
 		{
 			"name": "VariantExtraFiles",
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "VariantExtraFiles"
+					"name": "VariantExtraFiles",
+					"declarationId": "76bf527df05ea181"
 				},
 				"properties": [],
 				"indexSignature": {
@@ -325,14 +342,16 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "76bf527df05ea181"
+			"declarationId": "76bf527df05ea181",
+			"declaredName": "VariantExtraFiles"
 		},
 		{
 			"name": "OuterType",
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "OuterType"
+					"name": "OuterType",
+					"declarationId": "014c5212ed78359e"
 				},
 				"properties": [
 					{
@@ -356,14 +375,16 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "014c5212ed78359e"
+			"declarationId": "014c5212ed78359e",
+			"declaredName": "OuterType"
 		},
 		{
 			"name": "MixedType",
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "MixedType"
+					"name": "MixedType",
+					"declarationId": "fa18e50ea4666c16"
 				},
 				"properties": [
 					{
@@ -396,14 +417,16 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "fa18e50ea4666c16"
+			"declarationId": "fa18e50ea4666c16",
+			"declaredName": "MixedType"
 		},
 		{
 			"name": "IndexedInterface",
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "IndexedInterface"
+					"name": "IndexedInterface",
+					"declarationId": "ad8914b6e0e0ba02"
 				},
 				"properties": [],
 				"indexSignature": {
@@ -418,14 +441,16 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "ad8914b6e0e0ba02"
+			"declarationId": "ad8914b6e0e0ba02",
+			"declaredName": "IndexedInterface"
 		},
 		{
 			"name": "MyType",
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "HelperType"
+					"name": "HelperType",
+					"declarationId": "c201ed343ed43fbf"
 				},
 				"properties": [],
 				"indexSignature": {
@@ -458,14 +483,16 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "17a8812878dc0140"
+			"declarationId": "c201ed343ed43fbf",
+			"declaredName": "HelperType"
 		},
 		{
 			"name": "HelperType",
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "HelperType"
+					"name": "HelperType",
+					"declarationId": "c201ed343ed43fbf"
 				},
 				"properties": [],
 				"indexSignature": {
@@ -498,14 +525,16 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "c201ed343ed43fbf"
+			"declarationId": "c201ed343ed43fbf",
+			"declaredName": "HelperType"
 		},
 		{
 			"name": "MyInterface",
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "MyInterface"
+					"name": "MyInterface",
+					"declarationId": "04abe61489bdf9bc"
 				},
 				"properties": [
 					{
@@ -513,7 +542,8 @@
 						"type": {
 							"kind": "object",
 							"typeName": {
-								"name": "HelperType"
+								"name": "HelperType",
+								"declarationId": "c201ed343ed43fbf"
 							},
 							"properties": [],
 							"indexSignature": {
@@ -550,7 +580,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "04abe61489bdf9bc"
+			"declarationId": "04abe61489bdf9bc",
+			"declaredName": "MyInterface"
 		}
 	],
 	"imports": ["./helper"]

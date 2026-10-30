@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "defaultParam"
+					"name": "defaultParam",
+					"declarationId": "19b964795ff7a25b"
 				},
 				"callSignatures": [
 					{
@@ -24,7 +25,8 @@
 												},
 												"equalToDefault": true
 											}
-										]
+										],
+										"declarationId": "13a8648812f883e5"
 									},
 									"properties": [
 										{
@@ -51,14 +53,16 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "19b964795ff7a25b"
+			"declarationId": "19b964795ff7a25b",
+			"declaredName": "defaultParam"
 		},
 		{
 			"name": "stringParam",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "stringParam"
+					"name": "stringParam",
+					"declarationId": "909f44e37adbc348"
 				},
 				"callSignatures": [
 					{
@@ -76,7 +80,8 @@
 												},
 												"equalToDefault": true
 											}
-										]
+										],
+										"declarationId": "13a8648812f883e5"
 									},
 									"properties": [
 										{
@@ -103,14 +108,16 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "909f44e37adbc348"
+			"declarationId": "909f44e37adbc348",
+			"declaredName": "stringParam"
 		},
 		{
 			"name": "numberParam",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "numberParam"
+					"name": "numberParam",
+					"declarationId": "8af3fc60aa079850"
 				},
 				"callSignatures": [
 					{
@@ -128,7 +135,8 @@
 												},
 												"equalToDefault": false
 											}
-										]
+										],
+										"declarationId": "13a8648812f883e5"
 									},
 									"properties": [
 										{
@@ -155,14 +163,16 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "8af3fc60aa079850"
+			"declarationId": "8af3fc60aa079850",
+			"declaredName": "numberParam"
 		},
 		{
 			"name": "genericParam",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "genericParam"
+					"name": "genericParam",
+					"declarationId": "07f51390a0625cd9"
 				},
 				"callSignatures": [
 					{
@@ -180,7 +190,8 @@
 												},
 												"equalToDefault": false
 											}
-										]
+										],
+										"declarationId": "13a8648812f883e5"
 									},
 									"properties": [
 										{
@@ -213,14 +224,16 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "07f51390a0625cd9"
+			"declarationId": "07f51390a0625cd9",
+			"declaredName": "genericParam"
 		},
 		{
 			"name": "defaultPair",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "defaultPair"
+					"name": "defaultPair",
+					"declarationId": "cfa688794a89fec9"
 				},
 				"callSignatures": [
 					{
@@ -245,7 +258,8 @@
 												},
 												"equalToDefault": true
 											}
-										]
+										],
+										"declarationId": "86186aeabcdff4f6"
 									},
 									"properties": [
 										{
@@ -280,14 +294,16 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "cfa688794a89fec9"
+			"declarationId": "cfa688794a89fec9",
+			"declaredName": "defaultPair"
 		},
 		{
 			"name": "stringPair",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "stringPair"
+					"name": "stringPair",
+					"declarationId": "bb7084e9b80df8cb"
 				},
 				"callSignatures": [
 					{
@@ -312,7 +328,8 @@
 												},
 												"equalToDefault": false
 											}
-										]
+										],
+										"declarationId": "86186aeabcdff4f6"
 									},
 									"properties": [
 										{
@@ -347,14 +364,16 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "bb7084e9b80df8cb"
+			"declarationId": "bb7084e9b80df8cb",
+			"declaredName": "stringPair"
 		},
 		{
 			"name": "numberPair",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "numberPair"
+					"name": "numberPair",
+					"declarationId": "b48da26b9d21dbcc"
 				},
 				"callSignatures": [
 					{
@@ -379,7 +398,8 @@
 												},
 												"equalToDefault": true
 											}
-										]
+										],
+										"declarationId": "86186aeabcdff4f6"
 									},
 									"properties": [
 										{
@@ -414,14 +434,16 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "b48da26b9d21dbcc"
+			"declarationId": "b48da26b9d21dbcc",
+			"declaredName": "numberPair"
 		},
 		{
 			"name": "partialStringPair",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "partialStringPair"
+					"name": "partialStringPair",
+					"declarationId": "c0d4072d4e6e8259"
 				},
 				"callSignatures": [
 					{
@@ -446,7 +468,8 @@
 												},
 												"equalToDefault": true
 											}
-										]
+										],
+										"declarationId": "86186aeabcdff4f6"
 									},
 									"properties": [
 										{
@@ -481,14 +504,16 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "c0d4072d4e6e8259"
+			"declarationId": "c0d4072d4e6e8259",
+			"declaredName": "partialStringPair"
 		},
 		{
 			"name": "partialNumberPair",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "partialNumberPair"
+					"name": "partialNumberPair",
+					"declarationId": "ad3c071eca27e0f3"
 				},
 				"callSignatures": [
 					{
@@ -513,7 +538,8 @@
 												},
 												"equalToDefault": true
 											}
-										]
+										],
+										"declarationId": "86186aeabcdff4f6"
 									},
 									"properties": [
 										{
@@ -548,7 +574,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "ad3c071eca27e0f3"
+			"declarationId": "ad3c071eca27e0f3",
+			"declaredName": "partialNumberPair"
 		}
 	]
 }

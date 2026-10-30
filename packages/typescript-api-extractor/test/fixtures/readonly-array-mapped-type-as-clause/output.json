@@ -15,7 +15,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"declarationId": "fcb0b015033339e2"
 				},
 				"elementType": {
 					"kind": "object",
@@ -26,7 +27,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "fcb0b015033339e2"
+			"declarationId": "fcb0b015033339e2",
+			"declaredName": "Data"
 		}
 	]
 }

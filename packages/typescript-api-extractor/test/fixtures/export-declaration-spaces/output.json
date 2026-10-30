@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "plainFunction"
+					"name": "plainFunction",
+					"declarationId": "28c0fbe900560331"
 				},
 				"callSignatures": [
 					{
@@ -21,14 +22,16 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "28c0fbe900560331"
+			"declarationId": "28c0fbe900560331",
+			"declaredName": "plainFunction"
 		},
 		{
 			"name": "expandoFunction",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "expandoFunction"
+					"name": "expandoFunction",
+					"declarationId": "206ad3c1002b2541"
 				},
 				"callSignatures": [
 					{
@@ -43,14 +46,16 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "206ad3c1002b2541"
+			"declarationId": "206ad3c1002b2541",
+			"declaredName": "expandoFunction"
 		},
 		{
 			"name": "fnWithNs",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "fnWithNs"
+					"name": "fnWithNs",
+					"declarationId": "e5a2177cd78cd3a1"
 				},
 				"callSignatures": [
 					{
@@ -65,7 +70,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": true,
-			"declarationId": "e5a2177cd78cd3a1"
+			"declarationId": "e5a2177cd78cd3a1",
+			"declaredName": "fnWithNs"
 		},
 		{
 			"name": "fnWithNs.Nested",
@@ -74,13 +80,15 @@
 				"value": "\"nested\"",
 				"typeName": {
 					"name": "Nested",
-					"namespaces": ["fnWithNs"]
+					"namespaces": ["fnWithNs"],
+					"declarationId": "eb17955beb3773d9"
 				}
 			},
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "eb17955beb3773d9"
+			"declarationId": "eb17955beb3773d9",
+			"declaredName": "Nested"
 		},
 		{
 			"name": "PlainAlias",
@@ -91,7 +99,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "5ebcff692374efc0"
+			"declarationId": "5ebcff692374efc0",
+			"declaredName": "PlainAlias"
 		},
 		{
 			"name": "annotatedConstant",
@@ -102,7 +111,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "e17635129f440af2"
+			"declarationId": "e17635129f440af2",
+			"declaredName": "annotatedConstant"
 		},
 		{
 			"name": "plainConstant",
@@ -113,14 +123,16 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "fa6374624f1edd9d"
+			"declarationId": "fa6374624f1edd9d",
+			"declaredName": "plainConstant"
 		},
 		{
 			"name": "PlainClass",
 			"type": {
 				"kind": "class",
 				"typeName": {
-					"name": "PlainClass"
+					"name": "PlainClass",
+					"declarationId": "e4c2971886b6bbfd"
 				},
 				"constructSignatures": [
 					{
@@ -144,13 +156,15 @@
 			"isValue": true,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "e4c2971886b6bbfd"
+			"declarationId": "e4c2971886b6bbfd",
+			"declaredName": "PlainClass"
 		},
 		{
 			"name": "PlainEnum",
 			"type": {
 				"typeName": {
-					"name": "PlainEnum"
+					"name": "PlainEnum",
+					"declarationId": "38832f1049cb1d3a"
 				},
 				"members": [
 					{
@@ -163,14 +177,16 @@
 			"isValue": true,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "38832f1049cb1d3a"
+			"declarationId": "38832f1049cb1d3a",
+			"declaredName": "PlainEnum"
 		},
 		{
 			"name": "PlainInterface",
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "PlainInterface"
+					"name": "PlainInterface",
+					"declarationId": "12631e5b9ab3c761"
 				},
 				"properties": [
 					{
@@ -186,14 +202,16 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "12631e5b9ab3c761"
+			"declarationId": "12631e5b9ab3c761",
+			"declaredName": "PlainInterface"
 		},
 		{
 			"name": "Merged",
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "Merged"
+					"name": "Merged",
+					"declarationId": "44e48947a7c1b289"
 				},
 				"properties": [
 					{
@@ -209,14 +227,16 @@
 			"isValue": true,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "44e48947a7c1b289"
+			"declarationId": "44e48947a7c1b289",
+			"declaredName": "Merged"
 		},
 		{
 			"name": "mergedTarget",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "mergedTarget"
+					"name": "mergedTarget",
+					"declarationId": "2b24d90fc8ee45b0"
 				},
 				"callSignatures": [
 					{
@@ -231,7 +251,8 @@
 			"isValue": true,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "e693f3c53558ffc0"
+			"declarationId": "e693f3c53558ffc0",
+			"declaredName": "mergedTarget"
 		},
 		{
 			"name": "TypesNamespace",
@@ -242,7 +263,8 @@
 			"isValue": false,
 			"isType": false,
 			"isNamespace": true,
-			"declarationId": "abee0a8b59dce865"
+			"declarationId": "abee0a8b59dce865",
+			"declaredName": "TypesNamespace"
 		},
 		{
 			"name": "TypesNamespace.Nested",
@@ -251,20 +273,23 @@
 				"value": "\"nested\"",
 				"typeName": {
 					"name": "Nested",
-					"namespaces": ["TypesNamespace"]
+					"namespaces": ["TypesNamespace"],
+					"declarationId": "2de8474fbaebb3e7"
 				}
 			},
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "2de8474fbaebb3e7"
+			"declarationId": "2de8474fbaebb3e7",
+			"declaredName": "Nested"
 		},
 		{
 			"name": "nsFn",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "nsFn"
+					"name": "nsFn",
+					"declarationId": "3b03786d98af5baf"
 				},
 				"callSignatures": [
 					{
@@ -279,7 +304,8 @@
 			"isValue": false,
 			"isType": false,
 			"isNamespace": true,
-			"declarationId": "3b03786d98af5baf"
+			"declarationId": "3b03786d98af5baf",
+			"declaredName": "nsFn"
 		},
 		{
 			"name": "nsFn.inner",
@@ -288,20 +314,23 @@
 				"value": "\"inner\"",
 				"typeName": {
 					"name": "inner",
-					"namespaces": ["nsFn"]
+					"namespaces": ["nsFn"],
+					"declarationId": "0429ab66f2bd8e24"
 				}
 			},
 			"isValue": false,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "0429ab66f2bd8e24"
+			"declarationId": "0429ab66f2bd8e24",
+			"declaredName": "inner"
 		},
 		{
 			"name": "typeOnlyImported",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "typeOnlyImported"
+					"name": "typeOnlyImported",
+					"declarationId": "9981900234dc9cfc"
 				},
 				"callSignatures": [
 					{
@@ -316,7 +345,8 @@
 			"isValue": false,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "9981900234dc9cfc"
+			"declarationId": "9981900234dc9cfc",
+			"declaredName": "typeOnlyImported"
 		},
 		{
 			"name": "ReexportedAlias",
@@ -327,14 +357,16 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "71ff9686c67e97cb"
+			"declarationId": "71ff9686c67e97cb",
+			"declaredName": "ReexportedAlias"
 		},
 		{
 			"name": "ReexportedClass",
 			"type": {
 				"kind": "class",
 				"typeName": {
-					"name": "ReexportedClass"
+					"name": "ReexportedClass",
+					"declarationId": "b7abc25eeda79381"
 				},
 				"constructSignatures": [
 					{
@@ -358,7 +390,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "b7abc25eeda79381"
+			"declarationId": "b7abc25eeda79381",
+			"declaredName": "ReexportedClass"
 		},
 		{
 			"name": "reexportedValue",
@@ -369,7 +402,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "9965c232d56fa347"
+			"declarationId": "9965c232d56fa347",
+			"declaredName": "reexportedValue"
 		},
 		{
 			"name": "TypeOnlyNamespace.mergedTarget",
@@ -377,7 +411,8 @@
 				"kind": "function",
 				"typeName": {
 					"name": "mergedTarget",
-					"namespaces": ["TypeOnlyNamespace"]
+					"namespaces": ["TypeOnlyNamespace"],
+					"declarationId": "2b24d90fc8ee45b0"
 				},
 				"callSignatures": [
 					{
@@ -392,7 +427,8 @@
 			"isValue": false,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "2b24d90fc8ee45b0"
+			"declarationId": "2b24d90fc8ee45b0",
+			"declaredName": "mergedTarget"
 		},
 		{
 			"name": "TypeOnlyNamespace.typeOnlyImported",
@@ -400,7 +436,8 @@
 				"kind": "function",
 				"typeName": {
 					"name": "typeOnlyImported",
-					"namespaces": ["TypeOnlyNamespace"]
+					"namespaces": ["TypeOnlyNamespace"],
+					"declarationId": "9981900234dc9cfc"
 				},
 				"callSignatures": [
 					{
@@ -415,7 +452,8 @@
 			"isValue": false,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "9981900234dc9cfc"
+			"declarationId": "9981900234dc9cfc",
+			"declaredName": "typeOnlyImported"
 		},
 		{
 			"name": "TypeOnlyNamespace.ReexportedAlias",
@@ -424,13 +462,15 @@
 				"value": "\"reexported\"",
 				"typeName": {
 					"name": "ReexportedAlias",
-					"namespaces": ["TypeOnlyNamespace"]
+					"namespaces": ["TypeOnlyNamespace"],
+					"declarationId": "71ff9686c67e97cb"
 				}
 			},
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "71ff9686c67e97cb"
+			"declarationId": "71ff9686c67e97cb",
+			"declaredName": "ReexportedAlias"
 		},
 		{
 			"name": "TypeOnlyNamespace.reexportedValue",
@@ -439,13 +479,15 @@
 				"value": "\"reexported\"",
 				"typeName": {
 					"name": "reexportedValue",
-					"namespaces": ["TypeOnlyNamespace"]
+					"namespaces": ["TypeOnlyNamespace"],
+					"declarationId": "9965c232d56fa347"
 				}
 			},
 			"isValue": false,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "9965c232d56fa347"
+			"declarationId": "9965c232d56fa347",
+			"declaredName": "reexportedValue"
 		},
 		{
 			"name": "TypeOnlyNamespace.ReexportedClass",
@@ -453,7 +495,8 @@
 				"kind": "class",
 				"typeName": {
 					"name": "ReexportedClass",
-					"namespaces": ["TypeOnlyNamespace"]
+					"namespaces": ["TypeOnlyNamespace"],
+					"declarationId": "b7abc25eeda79381"
 				},
 				"constructSignatures": [
 					{
@@ -477,7 +520,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "b7abc25eeda79381"
+			"declarationId": "b7abc25eeda79381",
+			"declaredName": "ReexportedClass"
 		},
 		{
 			"name": "ValueNamespace.mergedTarget",
@@ -485,7 +529,8 @@
 				"kind": "function",
 				"typeName": {
 					"name": "mergedTarget",
-					"namespaces": ["ValueNamespace"]
+					"namespaces": ["ValueNamespace"],
+					"declarationId": "2b24d90fc8ee45b0"
 				},
 				"callSignatures": [
 					{
@@ -500,7 +545,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "2b24d90fc8ee45b0"
+			"declarationId": "2b24d90fc8ee45b0",
+			"declaredName": "mergedTarget"
 		},
 		{
 			"name": "ValueNamespace.typeOnlyImported",
@@ -508,7 +554,8 @@
 				"kind": "function",
 				"typeName": {
 					"name": "typeOnlyImported",
-					"namespaces": ["ValueNamespace"]
+					"namespaces": ["ValueNamespace"],
+					"declarationId": "9981900234dc9cfc"
 				},
 				"callSignatures": [
 					{
@@ -523,7 +570,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "9981900234dc9cfc"
+			"declarationId": "9981900234dc9cfc",
+			"declaredName": "typeOnlyImported"
 		},
 		{
 			"name": "ValueNamespace.ReexportedAlias",
@@ -532,13 +580,15 @@
 				"value": "\"reexported\"",
 				"typeName": {
 					"name": "ReexportedAlias",
-					"namespaces": ["ValueNamespace"]
+					"namespaces": ["ValueNamespace"],
+					"declarationId": "71ff9686c67e97cb"
 				}
 			},
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "71ff9686c67e97cb"
+			"declarationId": "71ff9686c67e97cb",
+			"declaredName": "ReexportedAlias"
 		},
 		{
 			"name": "ValueNamespace.reexportedValue",
@@ -547,13 +597,15 @@
 				"value": "\"reexported\"",
 				"typeName": {
 					"name": "reexportedValue",
-					"namespaces": ["ValueNamespace"]
+					"namespaces": ["ValueNamespace"],
+					"declarationId": "9965c232d56fa347"
 				}
 			},
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "9965c232d56fa347"
+			"declarationId": "9965c232d56fa347",
+			"declaredName": "reexportedValue"
 		},
 		{
 			"name": "ValueNamespace.ReexportedClass",
@@ -561,7 +613,8 @@
 				"kind": "class",
 				"typeName": {
 					"name": "ReexportedClass",
-					"namespaces": ["ValueNamespace"]
+					"namespaces": ["ValueNamespace"],
+					"declarationId": "b7abc25eeda79381"
 				},
 				"constructSignatures": [
 					{
@@ -585,14 +638,16 @@
 			"isValue": true,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "b7abc25eeda79381"
+			"declarationId": "b7abc25eeda79381",
+			"declaredName": "ReexportedClass"
 		},
 		{
 			"name": "default",
 			"type": {
 				"kind": "class",
 				"typeName": {
-					"name": "default"
+					"name": "default",
+					"declarationId": "52f5076b8b063fff"
 				},
 				"constructSignatures": [
 					{
@@ -616,13 +671,15 @@
 			"isValue": true,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "52f5076b8b063fff"
+			"declarationId": "52f5076b8b063fff",
+			"declaredName": "DefaultClass"
 		},
 		{
 			"name": "StarEnum",
 			"type": {
 				"typeName": {
-					"name": "StarEnum"
+					"name": "StarEnum",
+					"declarationId": "a46bc8aa72c82198"
 				},
 				"members": [
 					{
@@ -635,13 +692,15 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "a46bc8aa72c82198"
+			"declarationId": "a46bc8aa72c82198",
+			"declaredName": "StarEnum"
 		},
 		{
 			"name": "DualStarEnum",
 			"type": {
 				"typeName": {
-					"name": "DualStarEnum"
+					"name": "DualStarEnum",
+					"declarationId": "f7329fcb5995f5b1"
 				},
 				"members": [
 					{
@@ -654,7 +713,8 @@
 			"isValue": true,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "f7329fcb5995f5b1"
+			"declarationId": "f7329fcb5995f5b1",
+			"declaredName": "DualStarEnum"
 		}
 	],
 	"imports": ["./helpers", "./helpers"]

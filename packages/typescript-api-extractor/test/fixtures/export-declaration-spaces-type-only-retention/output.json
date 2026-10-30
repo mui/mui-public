@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "directlyMergedFunction"
+					"name": "directlyMergedFunction",
+					"declarationId": "f523b2403d92a0f3"
 				},
 				"callSignatures": [
 					{
@@ -21,14 +22,16 @@
 			"isValue": true,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "f523b2403d92a0f3"
+			"declarationId": "f523b2403d92a0f3",
+			"declaredName": "directlyMergedFunction"
 		},
 		{
 			"name": "chainedFunction",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "chainedFunction"
+					"name": "chainedFunction",
+					"declarationId": "4660a2ae17827ec4"
 				},
 				"callSignatures": [
 					{
@@ -43,7 +46,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": true,
-			"declarationId": "ef176246c2079548"
+			"declarationId": "ef176246c2079548",
+			"declaredName": "chainedFunction"
 		},
 		{
 			"name": "chainedFunction.Nested",
@@ -52,13 +56,15 @@
 				"value": "\"nested\"",
 				"typeName": {
 					"name": "Nested",
-					"namespaces": ["chainedFunction"]
+					"namespaces": ["chainedFunction"],
+					"declarationId": "d9616a4eab2e9c95"
 				}
 			},
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "d9616a4eab2e9c95"
+			"declarationId": "d9616a4eab2e9c95",
+			"declaredName": "Nested"
 		},
 		{
 			"name": "TypesNamespace.Member",
@@ -66,7 +72,8 @@
 				"kind": "object",
 				"typeName": {
 					"name": "Member",
-					"namespaces": ["TypesNamespace"]
+					"namespaces": ["TypesNamespace"],
+					"declarationId": "8b963593fb20b2b0"
 				},
 				"properties": [
 					{
@@ -82,7 +89,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "8b963593fb20b2b0"
+			"declarationId": "8b963593fb20b2b0",
+			"declaredName": "Member"
 		}
 	]
 }

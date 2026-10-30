@@ -6,7 +6,8 @@
 			"type": {
 				"typeName": {
 					"name": "BarrelEnum",
-					"namespaces": ["TypeOnlyBarrelNamespace"]
+					"namespaces": ["TypeOnlyBarrelNamespace"],
+					"declarationId": "516df4bc84f98592"
 				},
 				"members": [
 					{
@@ -19,14 +20,16 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "516df4bc84f98592"
+			"declarationId": "516df4bc84f98592",
+			"declaredName": "BarrelEnum"
 		},
 		{
 			"name": "TypeOnlyBarrelNamespace.NamespaceEnum",
 			"type": {
 				"typeName": {
 					"name": "NamespaceEnum",
-					"namespaces": ["TypeOnlyBarrelNamespace"]
+					"namespaces": ["TypeOnlyBarrelNamespace"],
+					"declarationId": "19e5d4e4b3c20dfa"
 				},
 				"members": [
 					{
@@ -39,7 +42,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "19e5d4e4b3c20dfa"
+			"declarationId": "19e5d4e4b3c20dfa",
+			"declaredName": "NamespaceEnum"
 		},
 		{
 			"name": "TypeOnlyBarrelNamespace.BarrelClass",
@@ -47,7 +51,8 @@
 				"kind": "class",
 				"typeName": {
 					"name": "BarrelClass",
-					"namespaces": ["TypeOnlyBarrelNamespace"]
+					"namespaces": ["TypeOnlyBarrelNamespace"],
+					"declarationId": "7afffc75b5e5ef83"
 				},
 				"constructSignatures": [
 					{
@@ -71,14 +76,16 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "7afffc75b5e5ef83"
+			"declarationId": "7afffc75b5e5ef83",
+			"declaredName": "BarrelClass"
 		},
 		{
 			"name": "ValueBarrelNamespace.BarrelEnum",
 			"type": {
 				"typeName": {
 					"name": "BarrelEnum",
-					"namespaces": ["ValueBarrelNamespace"]
+					"namespaces": ["ValueBarrelNamespace"],
+					"declarationId": "516df4bc84f98592"
 				},
 				"members": [
 					{
@@ -91,14 +98,16 @@
 			"isValue": true,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "516df4bc84f98592"
+			"declarationId": "516df4bc84f98592",
+			"declaredName": "BarrelEnum"
 		},
 		{
 			"name": "ValueBarrelNamespace.NamespaceEnum",
 			"type": {
 				"typeName": {
 					"name": "NamespaceEnum",
-					"namespaces": ["ValueBarrelNamespace"]
+					"namespaces": ["ValueBarrelNamespace"],
+					"declarationId": "19e5d4e4b3c20dfa"
 				},
 				"members": [
 					{
@@ -111,7 +120,8 @@
 			"isValue": true,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "19e5d4e4b3c20dfa"
+			"declarationId": "19e5d4e4b3c20dfa",
+			"declaredName": "NamespaceEnum"
 		},
 		{
 			"name": "ValueBarrelNamespace.barrelFunction",
@@ -119,7 +129,8 @@
 				"kind": "function",
 				"typeName": {
 					"name": "barrelFunction",
-					"namespaces": ["ValueBarrelNamespace"]
+					"namespaces": ["ValueBarrelNamespace"],
+					"declarationId": "9135caa8759ca92e"
 				},
 				"callSignatures": [
 					{
@@ -134,7 +145,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "9135caa8759ca92e"
+			"declarationId": "9135caa8759ca92e",
+			"declaredName": "barrelFunction"
 		},
 		{
 			"name": "ValueBarrelNamespace.BarrelClass",
@@ -142,7 +154,8 @@
 				"kind": "class",
 				"typeName": {
 					"name": "BarrelClass",
-					"namespaces": ["ValueBarrelNamespace"]
+					"namespaces": ["ValueBarrelNamespace"],
+					"declarationId": "7afffc75b5e5ef83"
 				},
 				"constructSignatures": [
 					{
@@ -166,13 +179,15 @@
 			"isValue": true,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "7afffc75b5e5ef83"
+			"declarationId": "7afffc75b5e5ef83",
+			"declaredName": "BarrelClass"
 		},
 		{
 			"name": "BarrelEnum",
 			"type": {
 				"typeName": {
-					"name": "BarrelEnum"
+					"name": "BarrelEnum",
+					"declarationId": "516df4bc84f98592"
 				},
 				"members": [
 					{
@@ -185,13 +200,15 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "516df4bc84f98592"
+			"declarationId": "516df4bc84f98592",
+			"declaredName": "BarrelEnum"
 		},
 		{
 			"name": "NamespaceEnum",
 			"type": {
 				"typeName": {
-					"name": "NamespaceEnum"
+					"name": "NamespaceEnum",
+					"declarationId": "19e5d4e4b3c20dfa"
 				},
 				"members": [
 					{
@@ -204,14 +221,16 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "19e5d4e4b3c20dfa"
+			"declarationId": "19e5d4e4b3c20dfa",
+			"declaredName": "NamespaceEnum"
 		},
 		{
 			"name": "BarrelClass",
 			"type": {
 				"kind": "class",
 				"typeName": {
-					"name": "BarrelClass"
+					"name": "BarrelClass",
+					"declarationId": "7afffc75b5e5ef83"
 				},
 				"constructSignatures": [
 					{
@@ -235,14 +254,16 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "7afffc75b5e5ef83"
+			"declarationId": "7afffc75b5e5ef83",
+			"declaredName": "BarrelClass"
 		},
 		{
 			"name": "BarrelProps",
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "BarrelProps"
+					"name": "BarrelProps",
+					"declarationId": "956c611b8d7f860b"
 				},
 				"properties": [
 					{
@@ -258,14 +279,16 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "956c611b8d7f860b"
+			"declarationId": "956c611b8d7f860b",
+			"declaredName": "BarrelProps"
 		},
 		{
 			"name": "DualPathClass",
 			"type": {
 				"kind": "class",
 				"typeName": {
-					"name": "DualPathClass"
+					"name": "DualPathClass",
+					"declarationId": "600fd180d6c04368"
 				},
 				"constructSignatures": [
 					{
@@ -289,14 +312,16 @@
 			"isValue": true,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "600fd180d6c04368"
+			"declarationId": "600fd180d6c04368",
+			"declaredName": "DualPathClass"
 		},
 		{
 			"name": "ReexportedBarrelClass",
 			"type": {
 				"kind": "class",
 				"typeName": {
-					"name": "ReexportedBarrelClass"
+					"name": "ReexportedBarrelClass",
+					"declarationId": "4fff0c9d610460ef"
 				},
 				"constructSignatures": [
 					{
@@ -320,7 +345,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "4fff0c9d610460ef"
+			"declarationId": "4fff0c9d610460ef",
+			"declaredName": "ReexportedBarrelClass"
 		}
 	]
 }

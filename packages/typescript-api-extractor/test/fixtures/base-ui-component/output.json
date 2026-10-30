@@ -23,7 +23,8 @@
 														"kind": "object",
 														"typeName": {
 															"name": "Props",
-															"namespaces": ["BaseUIComponent1"]
+															"namespaces": ["BaseUIComponent1"],
+															"declarationId": "2bf2043be0dd9092"
 														},
 														"properties": [
 															{
@@ -32,7 +33,8 @@
 																	"kind": "intrinsic",
 																	"typeName": {
 																		"name": "Value",
-																		"namespaces": ["BaseUIComponent1"]
+																		"namespaces": ["BaseUIComponent1"],
+																		"declarationId": "141a03ae3233967c"
 																	},
 																	"intrinsic": "any"
 																},
@@ -53,7 +55,8 @@
 																								"kind": "intrinsic",
 																								"typeName": {
 																									"name": "Value",
-																									"namespaces": ["BaseUIComponent1"]
+																									"namespaces": ["BaseUIComponent1"],
+																									"declarationId": "141a03ae3233967c"
 																								},
 																								"intrinsic": "any"
 																							},
@@ -92,7 +95,8 @@
 																							"kind": "object",
 																							"typeName": {
 																								"name": "Actions",
-																								"namespaces": ["BaseUIComponent1"]
+																								"namespaces": ["BaseUIComponent1"],
+																								"declarationId": "f1a5dc9fd991ec3d"
 																							},
 																							"properties": [
 																								{
@@ -149,7 +153,8 @@
 																								"kind": "object",
 																								"typeName": {
 																									"name": "State",
-																									"namespaces": ["BaseUIComponent1"]
+																									"namespaces": ["BaseUIComponent1"],
+																									"declarationId": "7d5a0f27f5377466"
 																								},
 																								"properties": [
 																									{
@@ -278,7 +283,8 @@
 																										},
 																										"equalToDefault": true
 																									}
-																								]
+																								],
+																								"declarationId": "0404a1fc7f2c2c65"
 																							},
 																							"types": [
 																								{
@@ -383,7 +389,8 @@
 																							"kind": "object",
 																							"typeName": {
 																								"name": "State",
-																								"namespaces": ["BaseUIComponent1"]
+																								"namespaces": ["BaseUIComponent1"],
+																								"declarationId": "7d5a0f27f5377466"
 																							},
 																							"properties": [
 																								{
@@ -398,7 +405,8 @@
 																						},
 																						"equalToDefault": false
 																					}
-																				]
+																				],
+																				"declarationId": "b63bcf3880c00c77"
 																			},
 																			"callSignatures": [
 																				{
@@ -416,7 +424,8 @@
 																											},
 																											"equalToDefault": true
 																										}
-																									]
+																									],
+																									"declarationId": "0404a1fc7f2c2c65"
 																								},
 																								"types": [
 																									{
@@ -522,7 +531,8 @@
 																								"kind": "object",
 																								"typeName": {
 																									"name": "State",
-																									"namespaces": ["BaseUIComponent1"]
+																									"namespaces": ["BaseUIComponent1"],
+																									"declarationId": "7d5a0f27f5377466"
 																								},
 																								"properties": [
 																									{
@@ -635,7 +645,8 @@
 																				"kind": "object",
 																				"typeName": {
 																					"name": "State",
-																					"namespaces": ["BaseUIComponent1"]
+																					"namespaces": ["BaseUIComponent1"],
+																					"declarationId": "7d5a0f27f5377466"
 																				},
 																				"properties": [
 																					{
@@ -673,7 +684,8 @@
 													"kind": "intrinsic",
 													"typeName": {
 														"name": "Value",
-														"namespaces": ["BaseUIComponent1"]
+														"namespaces": ["BaseUIComponent1"],
+														"declarationId": "141a03ae3233967c"
 													},
 													"intrinsic": "any"
 												},
@@ -694,7 +706,8 @@
 																				"kind": "intrinsic",
 																				"typeName": {
 																					"name": "Value",
-																					"namespaces": ["BaseUIComponent1"]
+																					"namespaces": ["BaseUIComponent1"],
+																					"declarationId": "141a03ae3233967c"
 																				},
 																				"intrinsic": "any"
 																			},
@@ -733,7 +746,8 @@
 																			"kind": "object",
 																			"typeName": {
 																				"name": "Actions",
-																				"namespaces": ["BaseUIComponent1"]
+																				"namespaces": ["BaseUIComponent1"],
+																				"declarationId": "f1a5dc9fd991ec3d"
 																			},
 																			"properties": [
 																				{
@@ -868,7 +882,8 @@
 																						},
 																						"equalToDefault": true
 																					}
-																				]
+																				],
+																				"declarationId": "0404a1fc7f2c2c65"
 																			},
 																			"types": [
 																				{
@@ -973,7 +988,8 @@
 																			"kind": "object",
 																			"typeName": {
 																				"name": "State",
-																				"namespaces": ["BaseUIComponent1"]
+																				"namespaces": ["BaseUIComponent1"],
+																				"declarationId": "7d5a0f27f5377466"
 																			},
 																			"properties": [
 																				{
@@ -988,7 +1004,8 @@
 																		},
 																		"equalToDefault": false
 																	}
-																]
+																],
+																"declarationId": "b63bcf3880c00c77"
 															},
 															"callSignatures": [
 																{
@@ -1006,7 +1023,8 @@
 																							},
 																							"equalToDefault": true
 																						}
-																					]
+																					],
+																					"declarationId": "0404a1fc7f2c2c65"
 																				},
 																				"types": [
 																					{
@@ -1112,7 +1130,8 @@
 																				"kind": "object",
 																				"typeName": {
 																					"name": "State",
-																					"namespaces": ["BaseUIComponent1"]
+																					"namespaces": ["BaseUIComponent1"],
+																					"declarationId": "7d5a0f27f5377466"
 																				},
 																				"properties": [
 																					{
@@ -1241,7 +1260,8 @@
 																		"kind": "object",
 																		"typeName": {
 																			"name": "State",
-																			"namespaces": ["BaseUIComponent1"]
+																			"namespaces": ["BaseUIComponent1"],
+																			"declarationId": "7d5a0f27f5377466"
 																		},
 																		"properties": [
 																			{
@@ -1279,7 +1299,8 @@
 											"kind": "intrinsic",
 											"typeName": {
 												"name": "Value",
-												"namespaces": ["BaseUIComponent1"]
+												"namespaces": ["BaseUIComponent1"],
+												"declarationId": "141a03ae3233967c"
 											},
 											"intrinsic": "any"
 										},
@@ -1300,7 +1321,8 @@
 																		"kind": "intrinsic",
 																		"typeName": {
 																			"name": "Value",
-																			"namespaces": ["BaseUIComponent1"]
+																			"namespaces": ["BaseUIComponent1"],
+																			"declarationId": "141a03ae3233967c"
 																		},
 																		"intrinsic": "any"
 																	},
@@ -1339,7 +1361,8 @@
 																	"kind": "object",
 																	"typeName": {
 																		"name": "Actions",
-																		"namespaces": ["BaseUIComponent1"]
+																		"namespaces": ["BaseUIComponent1"],
+																		"declarationId": "f1a5dc9fd991ec3d"
 																	},
 																	"properties": [
 																		{
@@ -1474,7 +1497,8 @@
 																				},
 																				"equalToDefault": true
 																			}
-																		]
+																		],
+																		"declarationId": "0404a1fc7f2c2c65"
 																	},
 																	"types": [
 																		{
@@ -1579,7 +1603,8 @@
 																	"kind": "object",
 																	"typeName": {
 																		"name": "State",
-																		"namespaces": ["BaseUIComponent1"]
+																		"namespaces": ["BaseUIComponent1"],
+																		"declarationId": "7d5a0f27f5377466"
 																	},
 																	"properties": [
 																		{
@@ -1594,7 +1619,8 @@
 																},
 																"equalToDefault": false
 															}
-														]
+														],
+														"declarationId": "b63bcf3880c00c77"
 													},
 													"callSignatures": [
 														{
@@ -1612,7 +1638,8 @@
 																					},
 																					"equalToDefault": true
 																				}
-																			]
+																			],
+																			"declarationId": "0404a1fc7f2c2c65"
 																		},
 																		"types": [
 																			{
@@ -1718,7 +1745,8 @@
 																		"kind": "object",
 																		"typeName": {
 																			"name": "State",
-																			"namespaces": ["BaseUIComponent1"]
+																			"namespaces": ["BaseUIComponent1"],
+																			"declarationId": "7d5a0f27f5377466"
 																		},
 																		"properties": [
 																			{
@@ -1824,7 +1852,8 @@
 														"kind": "object",
 														"typeName": {
 															"name": "State",
-															"namespaces": ["BaseUIComponent1"]
+															"namespaces": ["BaseUIComponent1"],
+															"declarationId": "7d5a0f27f5377466"
 														},
 														"properties": [
 															{
@@ -1862,7 +1891,8 @@
 							"kind": "intrinsic",
 							"typeName": {
 								"name": "Value",
-								"namespaces": ["BaseUIComponent1"]
+								"namespaces": ["BaseUIComponent1"],
+								"declarationId": "141a03ae3233967c"
 							},
 							"intrinsic": "any"
 						},
@@ -1883,7 +1913,8 @@
 														"kind": "intrinsic",
 														"typeName": {
 															"name": "Value",
-															"namespaces": ["BaseUIComponent1"]
+															"namespaces": ["BaseUIComponent1"],
+															"declarationId": "141a03ae3233967c"
 														},
 														"intrinsic": "any"
 													},
@@ -1922,7 +1953,8 @@
 													"kind": "object",
 													"typeName": {
 														"name": "Actions",
-														"namespaces": ["BaseUIComponent1"]
+														"namespaces": ["BaseUIComponent1"],
+														"declarationId": "f1a5dc9fd991ec3d"
 													},
 													"properties": [
 														{
@@ -2057,7 +2089,8 @@
 																},
 																"equalToDefault": true
 															}
-														]
+														],
+														"declarationId": "0404a1fc7f2c2c65"
 													},
 													"types": [
 														{
@@ -2162,7 +2195,8 @@
 													"kind": "object",
 													"typeName": {
 														"name": "State",
-														"namespaces": ["BaseUIComponent1"]
+														"namespaces": ["BaseUIComponent1"],
+														"declarationId": "7d5a0f27f5377466"
 													},
 													"properties": [
 														{
@@ -2177,7 +2211,8 @@
 												},
 												"equalToDefault": false
 											}
-										]
+										],
+										"declarationId": "b63bcf3880c00c77"
 									},
 									"callSignatures": [
 										{
@@ -2195,7 +2230,8 @@
 																	},
 																	"equalToDefault": true
 																}
-															]
+															],
+															"declarationId": "0404a1fc7f2c2c65"
 														},
 														"types": [
 															{
@@ -2301,7 +2337,8 @@
 														"kind": "object",
 														"typeName": {
 															"name": "State",
-															"namespaces": ["BaseUIComponent1"]
+															"namespaces": ["BaseUIComponent1"],
+															"declarationId": "7d5a0f27f5377466"
 														},
 														"properties": [
 															{
@@ -2386,7 +2423,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": true,
-			"declarationId": "764454ad7f7ab8a7"
+			"declarationId": "764454ad7f7ab8a7",
+			"declaredName": "BaseUIComponent1"
 		},
 		{
 			"name": "BaseUIComponent1.Props",
@@ -2394,7 +2432,8 @@
 				"kind": "object",
 				"typeName": {
 					"name": "Props",
-					"namespaces": ["BaseUIComponent1"]
+					"namespaces": ["BaseUIComponent1"],
+					"declarationId": "2bf2043be0dd9092"
 				},
 				"properties": [
 					{
@@ -2403,7 +2442,8 @@
 							"kind": "intrinsic",
 							"typeName": {
 								"name": "Value",
-								"namespaces": ["BaseUIComponent1"]
+								"namespaces": ["BaseUIComponent1"],
+								"declarationId": "141a03ae3233967c"
 							},
 							"intrinsic": "any"
 						},
@@ -2424,7 +2464,8 @@
 														"kind": "intrinsic",
 														"typeName": {
 															"name": "Value",
-															"namespaces": ["BaseUIComponent1"]
+															"namespaces": ["BaseUIComponent1"],
+															"declarationId": "141a03ae3233967c"
 														},
 														"intrinsic": "any"
 													},
@@ -2463,7 +2504,8 @@
 													"kind": "object",
 													"typeName": {
 														"name": "Actions",
-														"namespaces": ["BaseUIComponent1"]
+														"namespaces": ["BaseUIComponent1"],
+														"declarationId": "f1a5dc9fd991ec3d"
 													},
 													"properties": [
 														{
@@ -2520,7 +2562,8 @@
 														"kind": "object",
 														"typeName": {
 															"name": "State",
-															"namespaces": ["BaseUIComponent1"]
+															"namespaces": ["BaseUIComponent1"],
+															"declarationId": "7d5a0f27f5377466"
 														},
 														"properties": [
 															{
@@ -2649,7 +2692,8 @@
 																},
 																"equalToDefault": true
 															}
-														]
+														],
+														"declarationId": "0404a1fc7f2c2c65"
 													},
 													"types": [
 														{
@@ -2754,7 +2798,8 @@
 													"kind": "object",
 													"typeName": {
 														"name": "State",
-														"namespaces": ["BaseUIComponent1"]
+														"namespaces": ["BaseUIComponent1"],
+														"declarationId": "7d5a0f27f5377466"
 													},
 													"properties": [
 														{
@@ -2769,7 +2814,8 @@
 												},
 												"equalToDefault": false
 											}
-										]
+										],
+										"declarationId": "b63bcf3880c00c77"
 									},
 									"callSignatures": [
 										{
@@ -2787,7 +2833,8 @@
 																	},
 																	"equalToDefault": true
 																}
-															]
+															],
+															"declarationId": "0404a1fc7f2c2c65"
 														},
 														"types": [
 															{
@@ -2893,7 +2940,8 @@
 														"kind": "object",
 														"typeName": {
 															"name": "State",
-															"namespaces": ["BaseUIComponent1"]
+															"namespaces": ["BaseUIComponent1"],
+															"declarationId": "7d5a0f27f5377466"
 														},
 														"properties": [
 															{
@@ -2983,7 +3031,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "2bf2043be0dd9092"
+			"declarationId": "2bf2043be0dd9092",
+			"declaredName": "Props"
 		},
 		{
 			"name": "BaseUIComponent1.State",
@@ -2991,7 +3040,8 @@
 				"kind": "object",
 				"typeName": {
 					"name": "State",
-					"namespaces": ["BaseUIComponent1"]
+					"namespaces": ["BaseUIComponent1"],
+					"declarationId": "7d5a0f27f5377466"
 				},
 				"properties": [
 					{
@@ -3007,7 +3057,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "7d5a0f27f5377466"
+			"declarationId": "7d5a0f27f5377466",
+			"declaredName": "State"
 		},
 		{
 			"name": "BaseUIComponent1.Actions",
@@ -3015,7 +3066,8 @@
 				"kind": "object",
 				"typeName": {
 					"name": "Actions",
-					"namespaces": ["BaseUIComponent1"]
+					"namespaces": ["BaseUIComponent1"],
+					"declarationId": "f1a5dc9fd991ec3d"
 				},
 				"properties": [
 					{
@@ -3039,7 +3091,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "f1a5dc9fd991ec3d"
+			"declarationId": "f1a5dc9fd991ec3d",
+			"declaredName": "Actions"
 		},
 		{
 			"name": "BaseUIComponent1.Value",
@@ -3047,14 +3100,16 @@
 				"kind": "intrinsic",
 				"typeName": {
 					"name": "Value",
-					"namespaces": ["BaseUIComponent1"]
+					"namespaces": ["BaseUIComponent1"],
+					"declarationId": "141a03ae3233967c"
 				},
 				"intrinsic": "any"
 			},
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "7fa59a55d1cfd217"
+			"declarationId": "141a03ae3233967c",
+			"declaredName": "BaseUIComponent1Value"
 		},
 		{
 			"name": "BaseUIComponent1Value",
@@ -3074,7 +3129,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "141a03ae3233967c"
+			"declarationId": "141a03ae3233967c",
+			"declaredName": "BaseUIComponent1Value"
 		},
 		{
 			"name": "BaseUIComponent2",
@@ -3098,7 +3154,8 @@
 														"kind": "object",
 														"typeName": {
 															"name": "Props",
-															"namespaces": ["BaseUIComponent2"]
+															"namespaces": ["BaseUIComponent2"],
+															"declarationId": "72e38782b6cd914c"
 														},
 														"properties": [
 															{
@@ -3120,7 +3177,8 @@
 																								"kind": "object",
 																								"typeName": {
 																									"name": "State",
-																									"namespaces": ["BaseUIComponent2"]
+																									"namespaces": ["BaseUIComponent2"],
+																									"declarationId": "4ce2dbf2c9e73363"
 																								},
 																								"properties": []
 																							},
@@ -3240,7 +3298,8 @@
 																										},
 																										"equalToDefault": true
 																									}
-																								]
+																								],
+																								"declarationId": "0404a1fc7f2c2c65"
 																							},
 																							"types": [
 																								{
@@ -3345,13 +3404,15 @@
 																							"kind": "object",
 																							"typeName": {
 																								"name": "State",
-																								"namespaces": ["BaseUIComponent2"]
+																								"namespaces": ["BaseUIComponent2"],
+																								"declarationId": "4ce2dbf2c9e73363"
 																							},
 																							"properties": []
 																						},
 																						"equalToDefault": false
 																					}
-																				]
+																				],
+																				"declarationId": "b63bcf3880c00c77"
 																			},
 																			"callSignatures": [
 																				{
@@ -3369,7 +3430,8 @@
 																											},
 																											"equalToDefault": true
 																										}
-																									]
+																									],
+																									"declarationId": "0404a1fc7f2c2c65"
 																								},
 																								"types": [
 																									{
@@ -3475,7 +3537,8 @@
 																								"kind": "object",
 																								"typeName": {
 																									"name": "State",
-																									"namespaces": ["BaseUIComponent2"]
+																									"namespaces": ["BaseUIComponent2"],
+																									"declarationId": "4ce2dbf2c9e73363"
 																								},
 																								"properties": []
 																							},
@@ -3579,7 +3642,8 @@
 																				"kind": "object",
 																				"typeName": {
 																					"name": "State",
-																					"namespaces": ["BaseUIComponent2"]
+																					"namespaces": ["BaseUIComponent2"],
+																					"declarationId": "4ce2dbf2c9e73363"
 																				},
 																				"properties": []
 																			},
@@ -3699,7 +3763,8 @@
 																						},
 																						"equalToDefault": true
 																					}
-																				]
+																				],
+																				"declarationId": "0404a1fc7f2c2c65"
 																			},
 																			"types": [
 																				{
@@ -3804,13 +3869,15 @@
 																			"kind": "object",
 																			"typeName": {
 																				"name": "State",
-																				"namespaces": ["BaseUIComponent2"]
+																				"namespaces": ["BaseUIComponent2"],
+																				"declarationId": "4ce2dbf2c9e73363"
 																			},
 																			"properties": []
 																		},
 																		"equalToDefault": false
 																	}
-																]
+																],
+																"declarationId": "b63bcf3880c00c77"
 															},
 															"callSignatures": [
 																{
@@ -3828,7 +3895,8 @@
 																							},
 																							"equalToDefault": true
 																						}
-																					]
+																					],
+																					"declarationId": "0404a1fc7f2c2c65"
 																				},
 																				"types": [
 																					{
@@ -3934,7 +4002,8 @@
 																				"kind": "object",
 																				"typeName": {
 																					"name": "State",
-																					"namespaces": ["BaseUIComponent2"]
+																					"namespaces": ["BaseUIComponent2"],
+																					"declarationId": "4ce2dbf2c9e73363"
 																				},
 																				"properties": []
 																			},
@@ -4054,7 +4123,8 @@
 																		"kind": "object",
 																		"typeName": {
 																			"name": "State",
-																			"namespaces": ["BaseUIComponent2"]
+																			"namespaces": ["BaseUIComponent2"],
+																			"declarationId": "4ce2dbf2c9e73363"
 																		},
 																		"properties": []
 																	},
@@ -4174,7 +4244,8 @@
 																				},
 																				"equalToDefault": true
 																			}
-																		]
+																		],
+																		"declarationId": "0404a1fc7f2c2c65"
 																	},
 																	"types": [
 																		{
@@ -4279,13 +4350,15 @@
 																	"kind": "object",
 																	"typeName": {
 																		"name": "State",
-																		"namespaces": ["BaseUIComponent2"]
+																		"namespaces": ["BaseUIComponent2"],
+																		"declarationId": "4ce2dbf2c9e73363"
 																	},
 																	"properties": []
 																},
 																"equalToDefault": false
 															}
-														]
+														],
+														"declarationId": "b63bcf3880c00c77"
 													},
 													"callSignatures": [
 														{
@@ -4303,7 +4376,8 @@
 																					},
 																					"equalToDefault": true
 																				}
-																			]
+																			],
+																			"declarationId": "0404a1fc7f2c2c65"
 																		},
 																		"types": [
 																			{
@@ -4409,7 +4483,8 @@
 																		"kind": "object",
 																		"typeName": {
 																			"name": "State",
-																			"namespaces": ["BaseUIComponent2"]
+																			"namespaces": ["BaseUIComponent2"],
+																			"declarationId": "4ce2dbf2c9e73363"
 																		},
 																		"properties": []
 																	},
@@ -4506,7 +4581,8 @@
 														"kind": "object",
 														"typeName": {
 															"name": "State",
-															"namespaces": ["BaseUIComponent2"]
+															"namespaces": ["BaseUIComponent2"],
+															"declarationId": "4ce2dbf2c9e73363"
 														},
 														"properties": []
 													},
@@ -4626,7 +4702,8 @@
 																},
 																"equalToDefault": true
 															}
-														]
+														],
+														"declarationId": "0404a1fc7f2c2c65"
 													},
 													"types": [
 														{
@@ -4731,13 +4808,15 @@
 													"kind": "object",
 													"typeName": {
 														"name": "State",
-														"namespaces": ["BaseUIComponent2"]
+														"namespaces": ["BaseUIComponent2"],
+														"declarationId": "4ce2dbf2c9e73363"
 													},
 													"properties": []
 												},
 												"equalToDefault": false
 											}
-										]
+										],
+										"declarationId": "b63bcf3880c00c77"
 									},
 									"callSignatures": [
 										{
@@ -4755,7 +4834,8 @@
 																	},
 																	"equalToDefault": true
 																}
-															]
+															],
+															"declarationId": "0404a1fc7f2c2c65"
 														},
 														"types": [
 															{
@@ -4861,7 +4941,8 @@
 														"kind": "object",
 														"typeName": {
 															"name": "State",
-															"namespaces": ["BaseUIComponent2"]
+															"namespaces": ["BaseUIComponent2"],
+															"declarationId": "4ce2dbf2c9e73363"
 														},
 														"properties": []
 													},
@@ -4937,7 +5018,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": true,
-			"declarationId": "d85d5ee1c5c0e47a"
+			"declarationId": "d85d5ee1c5c0e47a",
+			"declaredName": "BaseUIComponent2"
 		},
 		{
 			"name": "BaseUIComponent2.Props",
@@ -4945,7 +5027,8 @@
 				"kind": "object",
 				"typeName": {
 					"name": "Props",
-					"namespaces": ["BaseUIComponent2"]
+					"namespaces": ["BaseUIComponent2"],
+					"declarationId": "72e38782b6cd914c"
 				},
 				"properties": [
 					{
@@ -4967,7 +5050,8 @@
 														"kind": "object",
 														"typeName": {
 															"name": "State",
-															"namespaces": ["BaseUIComponent2"]
+															"namespaces": ["BaseUIComponent2"],
+															"declarationId": "4ce2dbf2c9e73363"
 														},
 														"properties": []
 													},
@@ -5087,7 +5171,8 @@
 																},
 																"equalToDefault": true
 															}
-														]
+														],
+														"declarationId": "0404a1fc7f2c2c65"
 													},
 													"types": [
 														{
@@ -5192,13 +5277,15 @@
 													"kind": "object",
 													"typeName": {
 														"name": "State",
-														"namespaces": ["BaseUIComponent2"]
+														"namespaces": ["BaseUIComponent2"],
+														"declarationId": "4ce2dbf2c9e73363"
 													},
 													"properties": []
 												},
 												"equalToDefault": false
 											}
-										]
+										],
+										"declarationId": "b63bcf3880c00c77"
 									},
 									"callSignatures": [
 										{
@@ -5216,7 +5303,8 @@
 																	},
 																	"equalToDefault": true
 																}
-															]
+															],
+															"declarationId": "0404a1fc7f2c2c65"
 														},
 														"types": [
 															{
@@ -5322,7 +5410,8 @@
 														"kind": "object",
 														"typeName": {
 															"name": "State",
-															"namespaces": ["BaseUIComponent2"]
+															"namespaces": ["BaseUIComponent2"],
+															"declarationId": "4ce2dbf2c9e73363"
 														},
 														"properties": []
 													},
@@ -5403,7 +5492,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "72e38782b6cd914c"
+			"declarationId": "72e38782b6cd914c",
+			"declaredName": "Props"
 		},
 		{
 			"name": "BaseUIComponent2.State",
@@ -5411,14 +5501,16 @@
 				"kind": "object",
 				"typeName": {
 					"name": "State",
-					"namespaces": ["BaseUIComponent2"]
+					"namespaces": ["BaseUIComponent2"],
+					"declarationId": "4ce2dbf2c9e73363"
 				},
 				"properties": []
 			},
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "4ce2dbf2c9e73363"
+			"declarationId": "4ce2dbf2c9e73363",
+			"declaredName": "State"
 		},
 		{
 			"name": "ComponentRenderFn",
@@ -5441,14 +5533,16 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"declarationId": "b63bcf3880c00c77"
 				},
 				"props": []
 			},
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "b63bcf3880c00c77"
+			"declarationId": "b63bcf3880c00c77",
+			"declaredName": "ComponentRenderFn"
 		}
 	],
 	"imports": ["react"]

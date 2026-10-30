@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "f"
+					"name": "f",
+					"declarationId": "43978fc2d84c733b"
 				},
 				"callSignatures": [
 					{
@@ -15,7 +16,8 @@
 								"type": {
 									"kind": "object",
 									"typeName": {
-										"name": "Params"
+										"name": "Params",
+										"declarationId": "bfd70f112f02304d"
 									},
 									"properties": [
 										{
@@ -29,7 +31,8 @@
 															"type": {
 																"kind": "object",
 																"typeName": {
-																	"name": "Alias"
+																	"name": "Alias",
+																	"declarationId": "f03bf326a6e2eacf"
 																},
 																"properties": [
 																	{
@@ -44,7 +47,8 @@
 															},
 															"equalToDefault": false
 														}
-													]
+													],
+													"declarationId": "600af321f3945d5b"
 												},
 												"properties": [
 													{
@@ -52,7 +56,8 @@
 														"type": {
 															"kind": "object",
 															"typeName": {
-																"name": "Obj"
+																"name": "Obj",
+																"declarationId": "f03bf326a6e2eacf"
 															},
 															"properties": [
 																{
@@ -87,7 +92,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "43978fc2d84c733b"
+			"declarationId": "43978fc2d84c733b",
+			"declaredName": "f"
 		}
 	]
 }

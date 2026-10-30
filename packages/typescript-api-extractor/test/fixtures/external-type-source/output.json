@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "SourceProps"
+					"name": "SourceProps",
+					"declarationId": "f93ba51ce3f8f2a5"
 				},
 				"properties": [
 					{
@@ -352,7 +353,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "f93ba51ce3f8f2a5"
+			"declarationId": "f93ba51ce3f8f2a5",
+			"declaredName": "SourceProps"
 		},
 		{
 			"name": "PackageRange",
@@ -374,7 +376,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "01b26af4e34baf99"
+			"declarationId": "01b26af4e34baf99",
+			"declaredName": "PackageRange"
 		}
 	],
 	"imports": ["augmenting-lib", "shadow-lib", "@scope/widgets"]

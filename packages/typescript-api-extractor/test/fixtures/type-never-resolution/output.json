@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "fail"
+					"name": "fail",
+					"declarationId": "06111857d0dcbf12"
 				},
 				"callSignatures": [
 					{
@@ -30,7 +31,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "06111857d0dcbf12"
+			"declarationId": "06111857d0dcbf12",
+			"declaredName": "fail"
 		},
 		{
 			"name": "Impossible",
@@ -41,7 +43,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "cd43271f66dacff8"
+			"declarationId": "cd43271f66dacff8",
+			"declaredName": "Impossible"
 		}
 	]
 }

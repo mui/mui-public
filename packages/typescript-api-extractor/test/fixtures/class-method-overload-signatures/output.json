@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "class",
 				"typeName": {
-					"name": "Formatter"
+					"name": "Formatter",
+					"declarationId": "e7c34547f17192ac"
 				},
 				"constructSignatures": [
 					{
@@ -240,7 +241,8 @@
 			"isValue": true,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "e7c34547f17192ac"
+			"declarationId": "e7c34547f17192ac",
+			"declaredName": "Formatter"
 		}
 	]
 }

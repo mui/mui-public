@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "Boundary"
+					"name": "Boundary",
+					"declarationId": "8f3ce4aa90905f3c"
 				},
 				"types": [
 					{
@@ -51,7 +52,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "8f3ce4aa90905f3c"
+			"declarationId": "8f3ce4aa90905f3c",
+			"declaredName": "Boundary"
 		}
 	],
 	"imports": ["floating-ui"]

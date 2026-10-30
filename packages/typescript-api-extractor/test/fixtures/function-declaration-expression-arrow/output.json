@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "declaration"
+					"name": "declaration",
+					"declarationId": "c5e0e1ad20773a3e"
 				},
 				"callSignatures": [
 					{
@@ -15,7 +16,8 @@
 								"type": {
 									"kind": "object",
 									"typeName": {
-										"name": "Parameters"
+										"name": "Parameters",
+										"declarationId": "42286505a34a82b5"
 									},
 									"properties": [
 										{
@@ -42,7 +44,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "c5e0e1ad20773a3e"
+			"declarationId": "c5e0e1ad20773a3e",
+			"declaredName": "declaration"
 		},
 		{
 			"name": "greetAsExpression",
@@ -55,7 +58,8 @@
 								"type": {
 									"kind": "object",
 									"typeName": {
-										"name": "Parameters"
+										"name": "Parameters",
+										"declarationId": "42286505a34a82b5"
 									},
 									"properties": [
 										{
@@ -82,7 +86,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "8ae658e97d165a2b"
+			"declarationId": "8ae658e97d165a2b",
+			"declaredName": "greetAsExpression"
 		},
 		{
 			"name": "greetAsArrowFunction",
@@ -95,7 +100,8 @@
 								"type": {
 									"kind": "object",
 									"typeName": {
-										"name": "Parameters"
+										"name": "Parameters",
+										"declarationId": "42286505a34a82b5"
 									},
 									"properties": [
 										{
@@ -122,7 +128,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "2fdb0da7b5f5bce5"
+			"declarationId": "2fdb0da7b5f5bce5",
+			"declaredName": "greetAsArrowFunction"
 		}
 	]
 }

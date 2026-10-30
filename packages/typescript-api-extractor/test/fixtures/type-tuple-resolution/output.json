@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "testFunction1"
+					"name": "testFunction1",
+					"declarationId": "067df23f492d1dcb"
 				},
 				"callSignatures": [
 					{
@@ -30,14 +31,16 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "067df23f492d1dcb"
+			"declarationId": "067df23f492d1dcb",
+			"declaredName": "testFunction1"
 		},
 		{
 			"name": "testFunction2",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "testFunction2"
+					"name": "testFunction2",
+					"declarationId": "db8c2e92b53ccc84"
 				},
 				"callSignatures": [
 					{
@@ -61,14 +64,16 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "db8c2e92b53ccc84"
+			"declarationId": "db8c2e92b53ccc84",
+			"declaredName": "testFunction2"
 		},
 		{
 			"name": "testFunction3",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "testFunction3"
+					"name": "testFunction3",
+					"declarationId": "50736f70b434dcd5"
 				},
 				"callSignatures": [
 					{
@@ -76,7 +81,8 @@
 						"returnValueType": {
 							"kind": "tuple",
 							"typeName": {
-								"name": "TupleType"
+								"name": "TupleType",
+								"declarationId": "c4250ecb73495fa2"
 							},
 							"types": [
 								{
@@ -95,14 +101,16 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "50736f70b434dcd5"
+			"declarationId": "50736f70b434dcd5",
+			"declaredName": "testFunction3"
 		},
 		{
 			"name": "testFunction4",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "testFunction4"
+					"name": "testFunction4",
+					"declarationId": "3ab8bc307d203933"
 				},
 				"callSignatures": [
 					{
@@ -110,7 +118,8 @@
 						"returnValueType": {
 							"kind": "tuple",
 							"typeName": {
-								"name": "NamedTupleType"
+								"name": "NamedTupleType",
+								"declarationId": "cfac94be24885357"
 							},
 							"types": [
 								{
@@ -129,7 +138,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "3ab8bc307d203933"
+			"declarationId": "3ab8bc307d203933",
+			"declaredName": "testFunction4"
 		}
 	]
 }

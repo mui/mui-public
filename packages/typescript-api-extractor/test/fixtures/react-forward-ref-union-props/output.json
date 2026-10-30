@@ -19,7 +19,8 @@
 											{
 												"kind": "object",
 												"typeName": {
-													"name": "ButtonNativeProps"
+													"name": "ButtonNativeProps",
+													"declarationId": "9c5ca91ff6b8bc3d"
 												},
 												"properties": [
 													{
@@ -212,7 +213,8 @@
 											{
 												"kind": "object",
 												"typeName": {
-													"name": "ButtonNonNativeProps"
+													"name": "ButtonNonNativeProps",
+													"declarationId": "285b1ec53bef5692"
 												},
 												"properties": [
 													{
@@ -469,7 +471,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "40ca609c6e7481ef"
+			"declarationId": "40ca609c6e7481ef",
+			"declaredName": "Button"
 		}
 	],
 	"imports": ["react"]

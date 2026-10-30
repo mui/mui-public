@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "GenericFunctionComponent"
+					"name": "GenericFunctionComponent",
+					"declarationId": "5a824ba2902e42a8"
 				},
 				"props": [
 					{
@@ -28,14 +29,16 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "5a824ba2902e42a8"
+			"declarationId": "5a824ba2902e42a8",
+			"declaredName": "GenericFunctionComponent"
 		},
 		{
 			"name": "NonGenericComponent",
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "NonGenericComponent"
+					"name": "NonGenericComponent",
+					"declarationId": "724c03750948872b"
 				},
 				"props": [
 					{
@@ -51,7 +54,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "724c03750948872b"
+			"declarationId": "724c03750948872b",
+			"declaredName": "NonGenericComponent"
 		},
 		{
 			"name": "ConstrainedComponent",
@@ -143,7 +147,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "1fcf26fa8d6ec00b"
+			"declarationId": "1fcf26fa8d6ec00b",
+			"declaredName": "ConstrainedComponent"
 		}
 	],
 	"imports": ["react"]

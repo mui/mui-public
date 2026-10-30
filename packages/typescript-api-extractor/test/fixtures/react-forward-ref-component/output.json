@@ -16,7 +16,8 @@
 									{
 										"kind": "object",
 										"typeName": {
-											"name": "Props"
+											"name": "Props",
+											"declarationId": "170324d09ba3f020"
 										},
 										"properties": [
 											{
@@ -167,7 +168,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "66f2aa0bd7562f30"
+			"declarationId": "66f2aa0bd7562f30",
+			"declaredName": "TestComponent"
 		}
 	],
 	"imports": ["react"]

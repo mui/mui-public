@@ -5,7 +5,8 @@
 			"name": "Side",
 			"type": {
 				"typeName": {
-					"name": "Side"
+					"name": "Side",
+					"declarationId": "9712f59602989ee5"
 				},
 				"members": [
 					{
@@ -38,13 +39,15 @@
 			"isValue": true,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "9712f59602989ee5"
+			"declarationId": "9712f59602989ee5",
+			"declaredName": "Side"
 		},
 		{
 			"name": "Flags",
 			"type": {
 				"typeName": {
-					"name": "Flags"
+					"name": "Flags",
+					"declarationId": "830abc22f3d3f559"
 				},
 				"members": [
 					{
@@ -73,13 +76,15 @@
 			"isValue": true,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "830abc22f3d3f559"
+			"declarationId": "830abc22f3d3f559",
+			"declaredName": "Flags"
 		},
 		{
 			"name": "DegenerateN",
 			"type": {
 				"typeName": {
-					"name": "DegenerateN"
+					"name": "DegenerateN",
+					"declarationId": "72884f34b3f334d7"
 				},
 				"members": [
 					{
@@ -92,13 +97,15 @@
 			"isValue": true,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "72884f34b3f334d7"
+			"declarationId": "72884f34b3f334d7",
+			"declaredName": "DegenerateN"
 		},
 		{
 			"name": "DegenerateS",
 			"type": {
 				"typeName": {
-					"name": "DegenerateS"
+					"name": "DegenerateS",
+					"declarationId": "3fc34c16f3e7f1ce"
 				},
 				"members": [
 					{
@@ -111,7 +118,8 @@
 			"isValue": true,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "3fc34c16f3e7f1ce"
+			"declarationId": "3fc34c16f3e7f1ce",
+			"declaredName": "DegenerateS"
 		}
 	]
 }

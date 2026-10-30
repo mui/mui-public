@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "AlphaEquivAlias"
+					"name": "AlphaEquivAlias",
+					"declarationId": "0922a5d57fa215ef"
 				},
 				"types": [
 					{
@@ -35,7 +36,8 @@
 												},
 												"equalToDefault": false
 											}
-										]
+										],
+										"declarationId": "9d5801e9d2318532"
 									},
 									"callSignatures": [
 										{
@@ -70,14 +72,16 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "0922a5d57fa215ef"
+			"declarationId": "0922a5d57fa215ef",
+			"declaredName": "AlphaEquivAlias"
 		},
 		{
 			"name": "AlphaEquivAliasConstrained",
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "AlphaEquivAliasConstrained"
+					"name": "AlphaEquivAliasConstrained",
+					"declarationId": "da71cc353edb9062"
 				},
 				"types": [
 					{
@@ -114,7 +118,8 @@
 												},
 												"equalToDefault": false
 											}
-										]
+										],
+										"declarationId": "9d5801e9d2318532"
 									},
 									"callSignatures": [
 										{
@@ -161,14 +166,16 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "da71cc353edb9062"
+			"declarationId": "da71cc353edb9062",
+			"declaredName": "AlphaEquivAliasConstrained"
 		},
 		{
 			"name": "NonEquivAliasDifferentConstraints",
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "NonEquivAliasDifferentConstraints"
+					"name": "NonEquivAliasDifferentConstraints",
+					"declarationId": "e31ad0c8d62a59b9"
 				},
 				"types": [
 					{
@@ -205,7 +212,8 @@
 												},
 												"equalToDefault": false
 											}
-										]
+										],
+										"declarationId": "9d5801e9d2318532"
 									},
 									"callSignatures": [
 										{
@@ -277,7 +285,8 @@
 												},
 												"equalToDefault": false
 											}
-										]
+										],
+										"declarationId": "9d5801e9d2318532"
 									},
 									"callSignatures": [
 										{
@@ -324,7 +333,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "e31ad0c8d62a59b9"
+			"declarationId": "e31ad0c8d62a59b9",
+			"declaredName": "NonEquivAliasDifferentConstraints"
 		}
 	]
 }

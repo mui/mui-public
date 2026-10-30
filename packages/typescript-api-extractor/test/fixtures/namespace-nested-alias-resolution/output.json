@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "NamespacedAliasComponent"
+					"name": "NamespacedAliasComponent",
+					"declarationId": "22607cbaf0911b8b"
 				},
 				"props": [
 					{
@@ -15,7 +16,8 @@
 							"kind": "union",
 							"typeName": {
 								"name": "Foo",
-								"namespaces": ["Root"]
+								"namespaces": ["Root"],
+								"declarationId": "97f8800d222d2026"
 							},
 							"types": [
 								{
@@ -36,7 +38,8 @@
 							"kind": "union",
 							"typeName": {
 								"name": "Foo",
-								"namespaces": ["Root", "Nested"]
+								"namespaces": ["Root", "Nested"],
+								"declarationId": "97f8800d222d2026"
 							},
 							"types": [
 								{
@@ -56,7 +59,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "22607cbaf0911b8b"
+			"declarationId": "22607cbaf0911b8b",
+			"declaredName": "NamespacedAliasComponent"
 		},
 		{
 			"name": "Root.Foo",
@@ -64,7 +68,8 @@
 				"kind": "union",
 				"typeName": {
 					"name": "Foo",
-					"namespaces": ["Root"]
+					"namespaces": ["Root"],
+					"declarationId": "97f8800d222d2026"
 				},
 				"types": [
 					{
@@ -80,7 +85,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "732655b7e4a8b539"
+			"declarationId": "97f8800d222d2026",
+			"declaredName": "Foo"
 		},
 		{
 			"name": "Root.Nested.Foo",
@@ -88,7 +94,8 @@
 				"kind": "union",
 				"typeName": {
 					"name": "Foo",
-					"namespaces": ["Root", "Nested"]
+					"namespaces": ["Root", "Nested"],
+					"declarationId": "97f8800d222d2026"
 				},
 				"types": [
 					{
@@ -104,7 +111,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "48bfbfa93d2bea00"
+			"declarationId": "97f8800d222d2026",
+			"declaredName": "Foo"
 		},
 		{
 			"name": "Root.Props",
@@ -112,7 +120,8 @@
 				"kind": "object",
 				"typeName": {
 					"name": "Props",
-					"namespaces": ["Root"]
+					"namespaces": ["Root"],
+					"declarationId": "c0dcfb2fef48fada"
 				},
 				"properties": [
 					{
@@ -121,7 +130,8 @@
 							"kind": "union",
 							"typeName": {
 								"name": "Foo",
-								"namespaces": ["Root"]
+								"namespaces": ["Root"],
+								"declarationId": "97f8800d222d2026"
 							},
 							"types": [
 								{
@@ -142,7 +152,8 @@
 							"kind": "union",
 							"typeName": {
 								"name": "Foo",
-								"namespaces": ["Root", "Nested"]
+								"namespaces": ["Root", "Nested"],
+								"declarationId": "97f8800d222d2026"
 							},
 							"types": [
 								{
@@ -162,7 +173,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "c0dcfb2fef48fada"
+			"declarationId": "c0dcfb2fef48fada",
+			"declaredName": "Props"
 		}
 	],
 	"imports": ["./types"]

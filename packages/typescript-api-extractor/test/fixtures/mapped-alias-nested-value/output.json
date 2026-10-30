@@ -30,7 +30,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"declarationId": "3e3a11f3548514d2"
 				},
 				"properties": [],
 				"indexSignature": {
@@ -67,7 +68,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "3e3a11f3548514d2"
+			"declarationId": "3e3a11f3548514d2",
+			"declaredName": "MapAlias"
 		},
 		{
 			"name": "Wrapped",
@@ -98,7 +100,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"declarationId": "3e3a11f3548514d2"
 				},
 				"properties": [],
 				"indexSignature": {
@@ -135,7 +138,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "abb87066028ae5fe"
+			"declarationId": "abb87066028ae5fe",
+			"declaredName": "Wrapped"
 		},
 		{
 			"name": "UseWrapped",
@@ -155,7 +159,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"declarationId": "abb87066028ae5fe"
 				},
 				"properties": [],
 				"indexSignature": {
@@ -188,7 +193,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "ab2f528c8f57422b"
+			"declarationId": "ab2f528c8f57422b",
+			"declaredName": "UseWrapped"
 		}
 	]
 }

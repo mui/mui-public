@@ -30,7 +30,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"declarationId": "7591f6fde7a8548b"
 				},
 				"properties": [],
 				"indexSignature": {
@@ -58,7 +59,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "7591f6fde7a8548b"
+			"declarationId": "7591f6fde7a8548b",
+			"declaredName": "Inner"
 		},
 		{
 			"name": "Middle",
@@ -89,7 +91,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"declarationId": "7591f6fde7a8548b"
 				},
 				"properties": [],
 				"indexSignature": {
@@ -117,7 +120,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "ee5d05e0629bfef6"
+			"declarationId": "ee5d05e0629bfef6",
+			"declaredName": "Middle"
 		},
 		{
 			"name": "Outer",
@@ -148,7 +152,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"declarationId": "ee5d05e0629bfef6"
 				},
 				"properties": [],
 				"indexSignature": {
@@ -176,7 +181,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "e252285a6b1201f2"
+			"declarationId": "e252285a6b1201f2",
+			"declaredName": "Outer"
 		},
 		{
 			"name": "UseOuter",
@@ -196,7 +202,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"declarationId": "e252285a6b1201f2"
 				},
 				"properties": [],
 				"indexSignature": {
@@ -220,7 +227,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "2a436521d0e404de"
+			"declarationId": "2a436521d0e404de",
+			"declaredName": "UseOuter"
 		}
 	]
 }

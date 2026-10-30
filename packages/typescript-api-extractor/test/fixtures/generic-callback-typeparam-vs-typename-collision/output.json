@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "Colliding"
+					"name": "Colliding",
+					"declarationId": "7f7067f4c1274c4c"
 				},
 				"types": [
 					{
@@ -25,7 +26,8 @@
 														"type": {
 															"kind": "object",
 															"typeName": {
-																"name": "T"
+																"name": "T",
+																"declarationId": "bcc46ca88fbd5b24"
 															},
 															"properties": []
 														},
@@ -49,7 +51,8 @@
 												"type": {
 													"kind": "object",
 													"typeName": {
-														"name": "T"
+														"name": "T",
+														"declarationId": "bcc46ca88fbd5b24"
 													},
 													"properties": []
 												},
@@ -101,7 +104,8 @@
 														"type": {
 															"kind": "object",
 															"typeName": {
-																"name": "T"
+																"name": "T",
+																"declarationId": "681e788f5a084c38"
 															},
 															"properties": [
 																{
@@ -134,7 +138,8 @@
 												"type": {
 													"kind": "object",
 													"typeName": {
-														"name": "T"
+														"name": "T",
+														"declarationId": "681e788f5a084c38"
 													},
 													"properties": [
 														{
@@ -164,7 +169,8 @@
 													"type": {
 														"kind": "object",
 														"typeName": {
-															"name": "T"
+															"name": "T",
+															"declarationId": "681e788f5a084c38"
 														},
 														"properties": [
 															{
@@ -192,14 +198,16 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "7f7067f4c1274c4c"
+			"declarationId": "7f7067f4c1274c4c",
+			"declaredName": "Colliding"
 		},
 		{
 			"name": "AlphaEquiv",
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "AlphaEquiv"
+					"name": "AlphaEquiv",
+					"declarationId": "abda106683537f8c"
 				},
 				"types": [
 					{
@@ -218,7 +226,8 @@
 														"type": {
 															"kind": "object",
 															"typeName": {
-																"name": "T"
+																"name": "T",
+																"declarationId": "681e788f5a084c38"
 															},
 															"properties": [
 																{
@@ -251,7 +260,8 @@
 												"type": {
 													"kind": "object",
 													"typeName": {
-														"name": "T"
+														"name": "T",
+														"declarationId": "681e788f5a084c38"
 													},
 													"properties": [
 														{
@@ -281,7 +291,8 @@
 													"type": {
 														"kind": "object",
 														"typeName": {
-															"name": "T"
+															"name": "T",
+															"declarationId": "681e788f5a084c38"
 														},
 														"properties": [
 															{
@@ -309,7 +320,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "abda106683537f8c"
+			"declarationId": "abda106683537f8c",
+			"declaredName": "AlphaEquiv"
 		}
 	]
 }

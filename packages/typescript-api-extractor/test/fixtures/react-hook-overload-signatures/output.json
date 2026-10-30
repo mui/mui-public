@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "useHook"
+					"name": "useHook",
+					"declarationId": "eddb66fb65aac88a"
 				},
 				"callSignatures": [
 					{
@@ -58,7 +59,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "eddb66fb65aac88a"
+			"declarationId": "eddb66fb65aac88a",
+			"declaredName": "useHook"
 		}
 	]
 }

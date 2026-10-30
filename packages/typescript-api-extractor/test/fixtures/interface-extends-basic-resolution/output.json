@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "ExtendedProps"
+					"name": "ExtendedProps",
+					"declarationId": "619ae07c4d8d8a43"
 				},
 				"properties": [
 					{
@@ -35,14 +36,16 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "619ae07c4d8d8a43"
+			"declarationId": "619ae07c4d8d8a43",
+			"declaredName": "ExtendedProps"
 		},
 		{
 			"name": "MultiExtendedProps",
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "MultiExtendedProps"
+					"name": "MultiExtendedProps",
+					"declarationId": "3c438c32c3e5c39c"
 				},
 				"properties": [
 					{
@@ -82,14 +85,16 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "3c438c32c3e5c39c"
+			"declarationId": "3c438c32c3e5c39c",
+			"declaredName": "MultiExtendedProps"
 		},
 		{
 			"name": "AlertDialogProps",
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "AlertDialogProps"
+					"name": "AlertDialogProps",
+					"declarationId": "6945dee9f3816efe"
 				},
 				"properties": [
 					{
@@ -119,7 +124,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "6945dee9f3816efe"
+			"declarationId": "6945dee9f3816efe",
+			"declaredName": "AlertDialogProps"
 		},
 		{
 			"name": "Dialog",
@@ -130,7 +136,8 @@
 			"isValue": false,
 			"isType": false,
 			"isNamespace": true,
-			"declarationId": "1f559eb547828d79"
+			"declarationId": "1f559eb547828d79",
+			"declaredName": "Dialog"
 		},
 		{
 			"name": "Dialog.Props",
@@ -138,7 +145,8 @@
 				"kind": "object",
 				"typeName": {
 					"name": "Props",
-					"namespaces": ["Dialog"]
+					"namespaces": ["Dialog"],
+					"declarationId": "eb16776d426a31f6"
 				},
 				"properties": [
 					{
@@ -154,7 +162,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "c8d08959e8aef845"
+			"declarationId": "eb16776d426a31f6",
+			"declaredName": "DialogProps"
 		}
 	]
 }

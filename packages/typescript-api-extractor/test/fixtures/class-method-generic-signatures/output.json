@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "class",
 				"typeName": {
-					"name": "Repository"
+					"name": "Repository",
+					"declarationId": "bd633b3d2739133f"
 				},
 				"constructSignatures": [
 					{
@@ -199,7 +200,8 @@
 														},
 														"equalToDefault": false
 													}
-												]
+												],
+												"declarationId": "bd633b3d2739133f"
 											},
 											"properties": []
 										},
@@ -237,7 +239,8 @@
 												},
 												"equalToDefault": false
 											}
-										]
+										],
+										"declarationId": "bd633b3d2739133f"
 									},
 									"properties": []
 								},
@@ -264,7 +267,8 @@
 			"isValue": true,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "bd633b3d2739133f"
+			"declarationId": "bd633b3d2739133f",
+			"declaredName": "Repository"
 		}
 	]
 }

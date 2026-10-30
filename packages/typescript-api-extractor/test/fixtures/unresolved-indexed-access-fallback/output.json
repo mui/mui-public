@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "IndexedAccessFallback"
+					"name": "IndexedAccessFallback",
+					"declarationId": "330ac5ef1884005e"
 				},
 				"callSignatures": [
 					{
@@ -57,7 +58,8 @@
 												},
 												"equalToDefault": false
 											}
-										]
+										],
+										"declarationId": "84334ed7371e3d98"
 									},
 									"intrinsic": "any"
 								},
@@ -111,7 +113,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "330ac5ef1884005e"
+			"declarationId": "330ac5ef1884005e",
+			"declaredName": "IndexedAccessFallback"
 		}
 	]
 }

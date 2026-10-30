@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "CollapseViaAny"
+					"name": "CollapseViaAny",
+					"declarationId": "b3c8bdc9785def06"
 				},
 				"types": [
 					{
@@ -82,14 +83,16 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "b3c8bdc9785def06"
+			"declarationId": "b3c8bdc9785def06",
+			"declaredName": "CollapseViaAny"
 		},
 		{
 			"name": "NestedUnionReorder",
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "NestedUnionReorder"
+					"name": "NestedUnionReorder",
+					"declarationId": "5f9b4d0cacc86bc5"
 				},
 				"types": [
 					{
@@ -161,14 +164,16 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "5f9b4d0cacc86bc5"
+			"declarationId": "5f9b4d0cacc86bc5",
+			"declaredName": "NestedUnionReorder"
 		},
 		{
 			"name": "NotEquivalent",
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "NotEquivalent"
+					"name": "NotEquivalent",
+					"declarationId": "272b9b809184ee4c"
 				},
 				"types": [
 					{
@@ -304,7 +309,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "272b9b809184ee4c"
+			"declarationId": "272b9b809184ee4c",
+			"declaredName": "NotEquivalent"
 		}
 	]
 }

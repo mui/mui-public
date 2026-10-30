@@ -1,9 +1,9 @@
 import type ts from 'typescript';
-import { ExportNode, TypeName, withTypeName } from '../models';
-import type { AnyType } from '../models';
+import { ExportNode, withTypeName } from '../models';
+import type { AnyType, TypeName } from '../models';
 import { ParserError } from '../ParserError';
 import type { ScopedParserContext } from '../parserContext';
-import { isInternalSymbolName } from './common';
+import { createTypeName, isInternalSymbolName } from './common';
 import { getDocumentationFromSymbol } from './documentationParser';
 import { resolveExportDescriptors } from './exportDescriptors';
 import type { ExportDescriptor } from './exportDescriptors';
@@ -78,7 +78,7 @@ function createExportNodesFromDescriptor(
           return undefined;
         }
 
-        parsedType = applyExportTypeNameContext(parsedType, descriptor);
+        parsedType = applyExportTypeNameContext(parsedType, descriptor, parserContext);
         const exportName =
           descriptor.parentNamespaces.length > 0
             ? [...descriptor.parentNamespaces, descriptor.name].join('.')
@@ -114,6 +114,7 @@ function createExportNodesFromDescriptor(
 function applyExportTypeNameContext<T extends AnyType>(
   parsedType: T,
   descriptor: ExportDescriptor,
+  parserContext: ScopedParserContext,
 ): T {
   if (!('typeName' in parsedType)) {
     return parsedType;
@@ -125,7 +126,13 @@ function applyExportTypeNameContext<T extends AnyType>(
   // Fix type names for resolved anonymous/internal symbols. Re-exported aliases
   // can otherwise lose their authored export name and surface as `__type`.
   if (typeName?.name != null && isInternalSymbolName(typeName.name)) {
-    typeName = new TypeName(descriptor.name, typeName.namespaces, typeName.typeArguments);
+    typeName = createTypeName(
+      descriptor.symbol,
+      parserContext,
+      descriptor.name,
+      typeName.namespaces,
+      typeName.typeArguments,
+    );
     typeNameChanged = true;
   }
 
@@ -137,7 +144,13 @@ function applyExportTypeNameContext<T extends AnyType>(
     // export parser first replaced `__type` with the public member name and
     // then overwrote the namespace, so `export * as NS` exposed `NS.member`
     // even for anonymous external object declarations.
-    typeName = new TypeName(descriptor.name, descriptor.parentNamespaces, typeName?.typeArguments);
+    typeName = createTypeName(
+      descriptor.symbol,
+      parserContext,
+      descriptor.name,
+      descriptor.parentNamespaces,
+      typeName?.typeArguments,
+    );
     typeNameChanged = true;
   }
 

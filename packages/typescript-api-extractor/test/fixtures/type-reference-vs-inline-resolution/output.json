@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "referenceTypes"
+					"name": "referenceTypes",
+					"declarationId": "d9500ac3070b322f"
 				},
 				"callSignatures": [
 					{
@@ -15,7 +16,8 @@
 								"type": {
 									"kind": "object",
 									"typeName": {
-										"name": "CustomInterface"
+										"name": "CustomInterface",
+										"declarationId": "716f7ed818845b72"
 									},
 									"properties": [
 										{
@@ -35,7 +37,8 @@
 								"type": {
 									"kind": "object",
 									"typeName": {
-										"name": "CustomType"
+										"name": "CustomType",
+										"declarationId": "cd9d436a2cfed3a9"
 									},
 									"properties": [
 										{
@@ -58,7 +61,8 @@
 								{
 									"kind": "object",
 									"typeName": {
-										"name": "CustomInterface"
+										"name": "CustomInterface",
+										"declarationId": "716f7ed818845b72"
 									},
 									"properties": [
 										{
@@ -74,7 +78,8 @@
 								{
 									"kind": "object",
 									"typeName": {
-										"name": "CustomType"
+										"name": "CustomType",
+										"declarationId": "cd9d436a2cfed3a9"
 									},
 									"properties": [
 										{
@@ -95,14 +100,16 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "d9500ac3070b322f"
+			"declarationId": "d9500ac3070b322f",
+			"declaredName": "referenceTypes"
 		},
 		{
 			"name": "inlineTypes",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "inlineTypes"
+					"name": "inlineTypes",
+					"declarationId": "62338902dd36564a"
 				},
 				"callSignatures": [
 					{
@@ -152,7 +159,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "62338902dd36564a"
+			"declarationId": "62338902dd36564a",
+			"declaredName": "inlineTypes"
 		}
 	]
 }

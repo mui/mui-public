@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "Outer"
+					"name": "Outer",
+					"declarationId": "53c4e31b00e72121"
 				},
 				"types": [
 					{
@@ -88,7 +89,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "53c4e31b00e72121"
+			"declarationId": "53c4e31b00e72121",
+			"declaredName": "Outer"
 		}
 	]
 }

@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "GenericComponent"
+					"name": "GenericComponent",
+					"declarationId": "46c12f86170cb10e"
 				},
 				"props": [
 					{
@@ -233,7 +234,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "46c12f86170cb10e"
+			"declarationId": "46c12f86170cb10e",
+			"declaredName": "GenericComponent"
 		}
 	],
 	"imports": ["react"]

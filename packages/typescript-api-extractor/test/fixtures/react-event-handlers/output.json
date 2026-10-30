@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "EventHandlersComponent"
+					"name": "EventHandlersComponent",
+					"declarationId": "20dd401bb9aa370e"
 				},
 				"props": [
 					{
@@ -152,7 +153,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "20dd401bb9aa370e"
+			"declarationId": "20dd401bb9aa370e",
+			"declaredName": "EventHandlersComponent"
 		}
 	],
 	"imports": ["react"]

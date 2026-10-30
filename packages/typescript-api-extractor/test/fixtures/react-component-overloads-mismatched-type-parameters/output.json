@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "DifferentNamesComponent"
+					"name": "DifferentNamesComponent",
+					"declarationId": "65489d2204f2d1b0"
 				},
 				"props": [
 					{
@@ -51,14 +52,16 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "65489d2204f2d1b0"
+			"declarationId": "65489d2204f2d1b0",
+			"declaredName": "DifferentNamesComponent"
 		},
 		{
 			"name": "DifferentConstraintsComponent",
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "DifferentConstraintsComponent"
+					"name": "DifferentConstraintsComponent",
+					"declarationId": "728aa0e427dd1459"
 				},
 				"props": [
 					{
@@ -78,14 +81,16 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "728aa0e427dd1459"
+			"declarationId": "728aa0e427dd1459",
+			"declaredName": "DifferentConstraintsComponent"
 		},
 		{
 			"name": "PartiallyGenericComponent",
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "PartiallyGenericComponent"
+					"name": "PartiallyGenericComponent",
+					"declarationId": "849b7f867e4ee9fa"
 				},
 				"props": [
 					{
@@ -127,14 +132,16 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "849b7f867e4ee9fa"
+			"declarationId": "849b7f867e4ee9fa",
+			"declaredName": "PartiallyGenericComponent"
 		},
 		{
 			"name": "DifferentDefaultsComponent",
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "DifferentDefaultsComponent"
+					"name": "DifferentDefaultsComponent",
+					"declarationId": "23920d17c3315d5d"
 				},
 				"props": [
 					{
@@ -163,14 +170,16 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "23920d17c3315d5d"
+			"declarationId": "23920d17c3315d5d",
+			"declaredName": "DifferentDefaultsComponent"
 		},
 		{
 			"name": "NestedGenericConstraintsComponent",
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "NestedGenericConstraintsComponent"
+					"name": "NestedGenericConstraintsComponent",
+					"declarationId": "0a5293332f16fce3"
 				},
 				"props": [
 					{
@@ -230,7 +239,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "0a5293332f16fce3"
+			"declarationId": "0a5293332f16fce3",
+			"declaredName": "NestedGenericConstraintsComponent"
 		}
 	],
 	"imports": ["react"]

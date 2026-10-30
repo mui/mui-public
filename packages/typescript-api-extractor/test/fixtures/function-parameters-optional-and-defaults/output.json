@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "optionalParameters"
+					"name": "optionalParameters",
+					"declarationId": "25ea60ff99a18f8b"
 				},
 				"callSignatures": [
 					{
@@ -81,7 +82,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "25ea60ff99a18f8b"
+			"declarationId": "25ea60ff99a18f8b",
+			"declaredName": "optionalParameters"
 		}
 	]
 }

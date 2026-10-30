@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "OrderIndependent"
+					"name": "OrderIndependent",
+					"declarationId": "26772690fdd980bd"
 				},
 				"types": [
 					{
@@ -48,14 +49,16 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "26772690fdd980bd"
+			"declarationId": "26772690fdd980bd",
+			"declaredName": "OrderIndependent"
 		},
 		{
 			"name": "AnyWildcardDedup",
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "AnyWildcardDedup"
+					"name": "AnyWildcardDedup",
+					"declarationId": "10133c4d18575fe4"
 				},
 				"types": [
 					{
@@ -93,14 +96,16 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "10133c4d18575fe4"
+			"declarationId": "10133c4d18575fe4",
+			"declaredName": "AnyWildcardDedup"
 		},
 		{
 			"name": "AnyWildcardDedupReversed",
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "AnyWildcardDedupReversed"
+					"name": "AnyWildcardDedupReversed",
+					"declarationId": "d0ab6a8620e9072c"
 				},
 				"types": [
 					{
@@ -138,14 +143,16 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "d0ab6a8620e9072c"
+			"declarationId": "d0ab6a8620e9072c",
+			"declaredName": "AnyWildcardDedupReversed"
 		},
 		{
 			"name": "NotEquivalent",
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "NotEquivalent"
+					"name": "NotEquivalent",
+					"declarationId": "120abcd1dccb678e"
 				},
 				"types": [
 					{
@@ -213,7 +220,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "120abcd1dccb678e"
+			"declarationId": "120abcd1dccb678e",
+			"declaredName": "NotEquivalent"
 		}
 	]
 }

@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "localFunction"
+					"name": "localFunction",
+					"declarationId": "0a34594ff2a123dc"
 				},
 				"callSignatures": [
 					{
@@ -21,14 +22,16 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "0a34594ff2a123dc"
+			"declarationId": "0a34594ff2a123dc",
+			"declaredName": "localFunction"
 		},
 		{
 			"name": "Root",
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "RootComponent"
+					"name": "RootComponent",
+					"declarationId": "a13dd4d63e9a1708"
 				},
 				"props": [
 					{
@@ -70,7 +73,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": true,
-			"declarationId": "a13dd4d63e9a1708"
+			"declarationId": "a13dd4d63e9a1708",
+			"declaredName": "RootComponent"
 		},
 		{
 			"name": "Root.Props",
@@ -78,7 +82,8 @@
 				"kind": "object",
 				"typeName": {
 					"name": "Props",
-					"namespaces": ["Root"]
+					"namespaces": ["Root"],
+					"declarationId": "d875f208c49e6e15"
 				},
 				"properties": [
 					{
@@ -119,7 +124,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "9bc8949900598958"
+			"declarationId": "d875f208c49e6e15",
+			"declaredName": "RootProps"
 		},
 		{
 			"name": "Root.State",
@@ -127,7 +133,8 @@
 				"kind": "union",
 				"typeName": {
 					"name": "State",
-					"namespaces": ["Root"]
+					"namespaces": ["Root"],
+					"declarationId": "44b7daf32e0af3d9"
 				},
 				"types": [
 					{
@@ -147,14 +154,16 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "3977c315cb7554b3"
+			"declarationId": "44b7daf32e0af3d9",
+			"declaredName": "RootState"
 		},
 		{
 			"name": "RootProps",
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "RootProps"
+					"name": "RootProps",
+					"declarationId": "d875f208c49e6e15"
 				},
 				"properties": [
 					{
@@ -195,14 +204,16 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "d875f208c49e6e15"
+			"declarationId": "d875f208c49e6e15",
+			"declaredName": "RootProps"
 		},
 		{
 			"name": "RootState",
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "RootState"
+					"name": "RootState",
+					"declarationId": "44b7daf32e0af3d9"
 				},
 				"types": [
 					{
@@ -222,7 +233,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "44b7daf32e0af3d9"
+			"declarationId": "44b7daf32e0af3d9",
+			"declaredName": "RootState"
 		},
 		{
 			"name": "Source.RootComponent",
@@ -230,7 +242,8 @@
 				"kind": "component",
 				"typeName": {
 					"name": "RootComponent",
-					"namespaces": ["Source"]
+					"namespaces": ["Source"],
+					"declarationId": "a13dd4d63e9a1708"
 				},
 				"props": [
 					{
@@ -271,7 +284,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": true,
-			"declarationId": "a13dd4d63e9a1708"
+			"declarationId": "a13dd4d63e9a1708",
+			"declaredName": "RootComponent"
 		},
 		{
 			"name": "Source.RootComponent.Props",
@@ -279,7 +293,8 @@
 				"kind": "object",
 				"typeName": {
 					"name": "Props",
-					"namespaces": ["Source", "RootComponent"]
+					"namespaces": ["Source", "RootComponent"],
+					"declarationId": "d875f208c49e6e15"
 				},
 				"properties": [
 					{
@@ -320,7 +335,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "9bc8949900598958"
+			"declarationId": "d875f208c49e6e15",
+			"declaredName": "RootProps"
 		},
 		{
 			"name": "Source.RootComponent.State",
@@ -328,7 +344,8 @@
 				"kind": "union",
 				"typeName": {
 					"name": "State",
-					"namespaces": ["Source", "RootComponent"]
+					"namespaces": ["Source", "RootComponent"],
+					"declarationId": "44b7daf32e0af3d9"
 				},
 				"types": [
 					{
@@ -348,7 +365,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "3977c315cb7554b3"
+			"declarationId": "44b7daf32e0af3d9",
+			"declaredName": "RootState"
 		},
 		{
 			"name": "Source.RootProps",
@@ -356,7 +374,8 @@
 				"kind": "object",
 				"typeName": {
 					"name": "RootProps",
-					"namespaces": ["Source"]
+					"namespaces": ["Source"],
+					"declarationId": "d875f208c49e6e15"
 				},
 				"properties": [
 					{
@@ -397,7 +416,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "d875f208c49e6e15"
+			"declarationId": "d875f208c49e6e15",
+			"declaredName": "RootProps"
 		},
 		{
 			"name": "Source.RootState",
@@ -405,7 +425,8 @@
 				"kind": "union",
 				"typeName": {
 					"name": "RootState",
-					"namespaces": ["Source"]
+					"namespaces": ["Source"],
+					"declarationId": "44b7daf32e0af3d9"
 				},
 				"types": [
 					{
@@ -425,7 +446,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "44b7daf32e0af3d9"
+			"declarationId": "44b7daf32e0af3d9",
+			"declaredName": "RootState"
 		}
 	]
 }

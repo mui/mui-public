@@ -264,6 +264,111 @@ it('gives an import with a declaration merged onto it a declaration id of its ow
   ).toEqual([['target'], ['importedTarget']]);
 });
 
+it('gives a plain rename the id of the type it renames', () => {
+  expect(
+    groupByDeclarationId({
+      '/virtual/renames/index.ts': "export type * from './types';",
+      '/virtual/renames/types.ts': [
+        'export interface State { open: boolean }',
+        'export type Same = State;',
+        'export interface Box<T = unknown> { value: T }',
+        'export type Wrapped<T = unknown> = Box<T>;',
+        'export type Defaulted<T = string> = Box<T>;',
+        'export type Fixed = Box<string>;',
+        'export interface Pair<First, Second = First> { first: First; second: Second }',
+        'export type SamePair<First, Second = First> = Pair<First, Second>;',
+        'export interface Entry<Key extends string> { key: Key }',
+        'export type DefaultEntry<Key extends string = string> = Entry<Key>;',
+        'export type Element = HTMLElement;',
+      ].join('\n'),
+    }),
+  ).toEqual([
+    ['State', 'Same'],
+    ['Box', 'Wrapped'],
+    ['Defaulted'],
+    ['Fixed'],
+    ['Pair', 'SamePair'],
+    ['Entry', 'DefaultEntry'],
+    ['Element'],
+  ]);
+});
+
+it('gives same-named declarations of different ambient modules their own ids', () => {
+  expect(
+    groupByDeclarationId({
+      '/virtual/ambient-names/index.ts': [
+        "export type { Props as AProps } from 'pkg-a';",
+        "export type { Props as BProps } from 'pkg-b';",
+      ].join('\n'),
+      '/virtual/ambient-names/modules.d.ts': [
+        "declare module 'pkg-a' { export interface Props { a: string } }",
+        "declare module 'pkg-b' { export interface Props { b: number } }",
+      ].join('\n'),
+    }),
+  ).toEqual([['AProps'], ['BProps']]);
+});
+
+it('gives exports typed by an ambient module that stands in for many modules no id', () => {
+  const filePath = '/virtual/ambient-stand-ins/index.ts';
+  const moduleDefinition = parseFromProgram(
+    filePath,
+    createInMemoryProgram({
+      [filePath]: [
+        "export { default as logoUrl } from './logo.svg';",
+        "export { default as iconUrl } from './icon.svg';",
+        "export { createStore, useStore } from 'untyped-store';",
+      ].join('\n'),
+      '/virtual/ambient-stand-ins/modules.d.ts': [
+        "declare module '*.svg' { const src: string; export default src; }",
+        "declare module 'untyped-store';",
+      ].join('\n'),
+    }),
+  );
+
+  expect(
+    moduleDefinition.exports.map(({ name, declarationId }) => ({ name, declarationId })),
+  ).toEqual([
+    { name: 'logoUrl', declarationId: undefined },
+    { name: 'iconUrl', declarationId: undefined },
+    { name: 'createStore', declarationId: undefined },
+    { name: 'useStore', declarationId: undefined },
+  ]);
+});
+
+it('gives a type reference the id of the declaration it names', () => {
+  const filePath = '/virtual/reference-ids/index.ts';
+  const { exports } = parseFromProgram(
+    filePath,
+    createInMemoryProgram({
+      [filePath]: "export type { Holder, State as PublicState } from './types';",
+      '/virtual/reference-ids/types.ts': [
+        'export interface State { open: boolean }',
+        'type LocalName = State;',
+        'interface Hidden { open: boolean }',
+        'export interface Holder { state: State; renamed: LocalName; hidden: Hidden; element: HTMLElement }',
+      ].join('\n'),
+    }),
+  );
+  const holder = exports.find(({ name }) => name === 'Holder')!.type;
+  const getReferenceId = (propertyName: string) => {
+    const property =
+      holder.kind === 'object'
+        ? holder.properties.find(({ name }) => name === propertyName)
+        : undefined;
+    return property && 'typeName' in property.type
+      ? property.type.typeName?.declarationId
+      : undefined;
+  };
+  const stateId = exports.find(({ name }) => name === 'PublicState')!.declarationId;
+
+  expect(stateId).toBeDefined();
+  expect(getReferenceId('state')).toBe(stateId);
+  expect(getReferenceId('renamed')).toBe(stateId);
+  expect(getReferenceId('hidden')).toBeDefined();
+  expect(getReferenceId('hidden')).not.toBe(stateId);
+  expect(getReferenceId('element')).toBeUndefined();
+});
+
 it('reads a default import of an `export =` module from the assignment itself', () => {
   const filePath = '/virtual/export-equals-default.ts';
   const moduleDefinition = parseFromProgram(

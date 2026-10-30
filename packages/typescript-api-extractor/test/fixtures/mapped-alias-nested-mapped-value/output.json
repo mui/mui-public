@@ -41,7 +41,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"declarationId": "60c814e8a6519997"
 				},
 				"properties": [],
 				"indexSignature": {
@@ -86,7 +87,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "60c814e8a6519997"
+			"declarationId": "60c814e8a6519997",
+			"declaredName": "Outer"
 		},
 		{
 			"name": "Use",
@@ -124,7 +126,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"declarationId": "60c814e8a6519997"
 				},
 				"properties": [],
 				"indexSignature": {
@@ -165,7 +168,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "d83e3de4f0c6ac09"
+			"declarationId": "d83e3de4f0c6ac09",
+			"declaredName": "Use"
 		}
 	]
 }

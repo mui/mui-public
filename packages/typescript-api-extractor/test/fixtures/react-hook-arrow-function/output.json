@@ -12,7 +12,8 @@
 								"type": {
 									"kind": "object",
 									"typeName": {
-										"name": "HookParameters"
+										"name": "HookParameters",
+										"declarationId": "c6b95d2abb8c7716"
 									},
 									"properties": [
 										{
@@ -65,7 +66,8 @@
 						"returnValueType": {
 							"kind": "object",
 							"typeName": {
-								"name": "HookReturnValue"
+								"name": "HookReturnValue",
+								"declarationId": "799208211f5bdfc8"
 							},
 							"properties": [
 								{
@@ -165,7 +167,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "5a31c177abc74cd9"
+			"declarationId": "5a31c177abc74cd9",
+			"declaredName": "useHook"
 		}
 	],
 	"imports": ["react"]

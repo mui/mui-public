@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "IntersectionOrderIndependent"
+					"name": "IntersectionOrderIndependent",
+					"declarationId": "3125739e05043bbc"
 				},
 				"types": [
 					{
@@ -21,7 +22,8 @@
 												{
 													"kind": "object",
 													"typeName": {
-														"name": "A"
+														"name": "A",
+														"declarationId": "fca8fab41035e6ba"
 													},
 													"properties": [
 														{
@@ -37,7 +39,8 @@
 												{
 													"kind": "object",
 													"typeName": {
-														"name": "B"
+														"name": "B",
+														"declarationId": "9823d9404634fb5f"
 													},
 													"properties": [
 														{
@@ -86,14 +89,16 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "3125739e05043bbc"
+			"declarationId": "3125739e05043bbc",
+			"declaredName": "IntersectionOrderIndependent"
 		},
 		{
 			"name": "IntersectionNotEquivalent",
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "IntersectionNotEquivalent"
+					"name": "IntersectionNotEquivalent",
+					"declarationId": "0efec1974fead11a"
 				},
 				"types": [
 					{
@@ -108,7 +113,8 @@
 												{
 													"kind": "object",
 													"typeName": {
-														"name": "A"
+														"name": "A",
+														"declarationId": "fca8fab41035e6ba"
 													},
 													"properties": [
 														{
@@ -124,7 +130,8 @@
 												{
 													"kind": "object",
 													"typeName": {
-														"name": "B"
+														"name": "B",
+														"declarationId": "9823d9404634fb5f"
 													},
 													"properties": [
 														{
@@ -180,7 +187,8 @@
 												{
 													"kind": "object",
 													"typeName": {
-														"name": "A"
+														"name": "A",
+														"declarationId": "fca8fab41035e6ba"
 													},
 													"properties": [
 														{
@@ -196,7 +204,8 @@
 												{
 													"kind": "object",
 													"typeName": {
-														"name": "C"
+														"name": "C",
+														"declarationId": "a41437e73f9c2d1d"
 													},
 													"properties": [
 														{
@@ -245,7 +254,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "0efec1974fead11a"
+			"declarationId": "0efec1974fead11a",
+			"declaredName": "IntersectionNotEquivalent"
 		}
 	]
 }

@@ -160,7 +160,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "03e95e989f06f2f2"
+			"declarationId": "03e95e989f06f2f2",
+			"declaredName": "Toolbar"
 		},
 		{
 			"name": "OptionalToolbar",
@@ -180,7 +181,8 @@
 											{
 												"kind": "object",
 												"typeName": {
-													"name": "ToolbarProps"
+													"name": "ToolbarProps",
+													"declarationId": "020b82f22c7785f5"
 												},
 												"properties": [
 													{
@@ -301,7 +303,8 @@
 												{
 													"kind": "object",
 													"typeName": {
-														"name": "ToolbarProps"
+														"name": "ToolbarProps",
+														"declarationId": "020b82f22c7785f5"
 													},
 													"properties": [
 														{
@@ -439,7 +442,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "c3e08b88c764eb7a"
+			"declarationId": "c3e08b88c764eb7a",
+			"declaredName": "OptionalToolbar"
 		}
 	],
 	"imports": ["react"]

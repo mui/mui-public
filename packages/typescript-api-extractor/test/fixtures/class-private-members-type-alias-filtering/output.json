@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "Internal"
+					"name": "Internal",
+					"declarationId": "581936cea781359b"
 				},
 				"properties": [
 					{
@@ -22,7 +23,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "e239c9a3e0f2c678"
+			"declarationId": "581936cea781359b",
+			"declaredName": "Internal"
 		}
 	]
 }

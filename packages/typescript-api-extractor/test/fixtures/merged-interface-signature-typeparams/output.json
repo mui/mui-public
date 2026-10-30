@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "MergedCall"
+					"name": "MergedCall",
+					"declarationId": "ec133cdba05dd576"
 				},
 				"callSignatures": [
 					{
@@ -106,7 +107,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "0d62b5c13644375c"
+			"declarationId": "ec133cdba05dd576",
+			"declaredName": "MergedCall"
 		}
 	]
 }

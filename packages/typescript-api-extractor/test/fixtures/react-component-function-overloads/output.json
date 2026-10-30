@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "OverloadedComponent"
+					"name": "OverloadedComponent",
+					"declarationId": "968033588261caad"
 				},
 				"props": [
 					{
@@ -107,7 +108,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "968033588261caad"
+			"declarationId": "968033588261caad",
+			"declaredName": "OverloadedComponent"
 		}
 	],
 	"imports": ["react"]

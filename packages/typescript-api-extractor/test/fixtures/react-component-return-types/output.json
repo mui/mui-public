@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "NamespacedElement"
+					"name": "NamespacedElement",
+					"declarationId": "59a29773a2d75c85"
 				},
 				"props": [
 					{
@@ -31,14 +32,16 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "59a29773a2d75c85"
+			"declarationId": "59a29773a2d75c85",
+			"declaredName": "NamespacedElement"
 		},
 		{
 			"name": "BareElement",
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "BareElement"
+					"name": "BareElement",
+					"declarationId": "5d9c0fe1b05e4720"
 				},
 				"props": [
 					{
@@ -63,14 +66,16 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "5d9c0fe1b05e4720"
+			"declarationId": "5d9c0fe1b05e4720",
+			"declaredName": "BareElement"
 		},
 		{
 			"name": "GenericElement",
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "GenericElement"
+					"name": "GenericElement",
+					"declarationId": "920244c7779471ab"
 				},
 				"props": [
 					{
@@ -95,14 +100,16 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "920244c7779471ab"
+			"declarationId": "920244c7779471ab",
+			"declaredName": "GenericElement"
 		},
 		{
 			"name": "BareNode",
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "BareNode"
+					"name": "BareNode",
+					"declarationId": "dad16a41070f237a"
 				},
 				"props": [
 					{
@@ -127,14 +134,16 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "dad16a41070f237a"
+			"declarationId": "dad16a41070f237a",
+			"declaredName": "BareNode"
 		},
 		{
 			"name": "NullableElement",
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "NullableElement"
+					"name": "NullableElement",
+					"declarationId": "bbadc94be94a4818"
 				},
 				"props": [
 					{
@@ -159,14 +168,16 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "bbadc94be94a4818"
+			"declarationId": "bbadc94be94a4818",
+			"declaredName": "NullableElement"
 		},
 		{
 			"name": "InferredElement",
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "InferredElement"
+					"name": "InferredElement",
+					"declarationId": "4aa13a1c4f3c6837"
 				},
 				"props": [
 					{
@@ -191,14 +202,16 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "4aa13a1c4f3c6837"
+			"declarationId": "4aa13a1c4f3c6837",
+			"declaredName": "InferredElement"
 		},
 		{
 			"name": "LocalElementType",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "LocalElementType"
+					"name": "LocalElementType",
+					"declarationId": "c05a0c790a170b4b"
 				},
 				"callSignatures": [
 					{
@@ -233,7 +246,8 @@
 						"returnValueType": {
 							"kind": "object",
 							"typeName": {
-								"name": "ListElement"
+								"name": "ListElement",
+								"declarationId": "3c5e3333e4bbf932"
 							},
 							"properties": [
 								{
@@ -256,14 +270,16 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "c05a0c790a170b4b"
+			"declarationId": "c05a0c790a170b4b",
+			"declaredName": "LocalElementType"
 		},
 		{
 			"name": "DomElementType",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "DomElementType"
+					"name": "DomElementType",
+					"declarationId": "e55f8d2a30a5f114"
 				},
 				"callSignatures": [
 					{
@@ -315,7 +331,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "e55f8d2a30a5f114"
+			"declarationId": "e55f8d2a30a5f114",
+			"declaredName": "DomElementType"
 		}
 	],
 	"imports": ["react", "react"]

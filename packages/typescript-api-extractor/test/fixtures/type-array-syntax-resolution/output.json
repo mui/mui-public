@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "acceptsArrayProps"
+					"name": "acceptsArrayProps",
+					"declarationId": "07af75489809f89e"
 				},
 				"callSignatures": [
 					{
@@ -15,7 +16,8 @@
 								"type": {
 									"kind": "object",
 									"typeName": {
-										"name": "Params"
+										"name": "Params",
+										"declarationId": "c5167509efc4c4df"
 									},
 									"properties": [
 										{
@@ -96,14 +98,16 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "07af75489809f89e"
+			"declarationId": "07af75489809f89e",
+			"declaredName": "acceptsArrayProps"
 		},
 		{
 			"name": "acceptsArrayParameters",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "acceptsArrayParameters"
+					"name": "acceptsArrayParameters",
+					"declarationId": "c82f9f9a0973f9ce"
 				},
 				"callSignatures": [
 					{
@@ -141,7 +145,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "c82f9f9a0973f9ce"
+			"declarationId": "c82f9f9a0973f9ce",
+			"declaredName": "acceptsArrayParameters"
 		}
 	]
 }

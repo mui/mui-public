@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "Fn"
+					"name": "Fn",
+					"declarationId": "c648553eb903aff2"
 				},
 				"types": [
 					{
@@ -70,7 +71,8 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false,
-			"declarationId": "c648553eb903aff2"
+			"declarationId": "c648553eb903aff2",
+			"declaredName": "Fn"
 		}
 	]
 }

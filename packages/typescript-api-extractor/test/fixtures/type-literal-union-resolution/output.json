@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "acceptsLiteralUnionProps"
+					"name": "acceptsLiteralUnionProps",
+					"declarationId": "249dc5caaf65d5da"
 				},
 				"callSignatures": [
 					{
@@ -15,7 +16,8 @@
 								"type": {
 									"kind": "object",
 									"typeName": {
-										"name": "Params"
+										"name": "Params",
+										"declarationId": "2617843b95f0076e"
 									},
 									"properties": [
 										{
@@ -65,7 +67,8 @@
 											"type": {
 												"kind": "union",
 												"typeName": {
-													"name": "StringUnion"
+													"name": "StringUnion",
+													"declarationId": "20b2cfe979df7bc6"
 												},
 												"types": [
 													{
@@ -89,7 +92,8 @@
 											"type": {
 												"kind": "union",
 												"typeName": {
-													"name": "NumberUnion"
+													"name": "NumberUnion",
+													"declarationId": "d0a72ac8dcd1a54d"
 												},
 												"types": [
 													{
@@ -122,7 +126,8 @@
 																		{
 																			"kind": "union",
 																			"typeName": {
-																				"name": "StringUnion"
+																				"name": "StringUnion",
+																				"declarationId": "20b2cfe979df7bc6"
 																			},
 																			"types": [
 																				{
@@ -166,7 +171,8 @@
 													{
 														"kind": "union",
 														"typeName": {
-															"name": "StringUnion"
+															"name": "StringUnion",
+															"declarationId": "20b2cfe979df7bc6"
 														},
 														"types": [
 															{
@@ -186,7 +192,8 @@
 													{
 														"kind": "union",
 														"typeName": {
-															"name": "NumberUnion"
+															"name": "NumberUnion",
+															"declarationId": "d0a72ac8dcd1a54d"
 														},
 														"types": [
 															{
@@ -215,13 +222,15 @@
 													{
 														"kind": "union",
 														"typeName": {
-															"name": "IndirectStringUnion"
+															"name": "IndirectStringUnion",
+															"declarationId": "e3d953906d36e9f6"
 														},
 														"types": [
 															{
 																"kind": "union",
 																"typeName": {
-																	"name": "StringUnion"
+																	"name": "StringUnion",
+																	"declarationId": "20b2cfe979df7bc6"
 																},
 																"types": [
 																	{
@@ -268,14 +277,16 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "249dc5caaf65d5da"
+			"declarationId": "249dc5caaf65d5da",
+			"declaredName": "acceptsLiteralUnionProps"
 		},
 		{
 			"name": "acceptsLiteralUnionParameters",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "acceptsLiteralUnionParameters"
+					"name": "acceptsLiteralUnionParameters",
+					"declarationId": "99358e7d00086bea"
 				},
 				"callSignatures": [
 					{
@@ -326,7 +337,8 @@
 								"type": {
 									"kind": "union",
 									"typeName": {
-										"name": "StringUnion"
+										"name": "StringUnion",
+										"declarationId": "20b2cfe979df7bc6"
 									},
 									"types": [
 										{
@@ -350,7 +362,8 @@
 								"type": {
 									"kind": "union",
 									"typeName": {
-										"name": "NumberUnion"
+										"name": "NumberUnion",
+										"declarationId": "d0a72ac8dcd1a54d"
 									},
 									"types": [
 										{
@@ -377,7 +390,8 @@
 										{
 											"kind": "union",
 											"typeName": {
-												"name": "StringUnion"
+												"name": "StringUnion",
+												"declarationId": "20b2cfe979df7bc6"
 											},
 											"types": [
 												{
@@ -397,7 +411,8 @@
 										{
 											"kind": "union",
 											"typeName": {
-												"name": "NumberUnion"
+												"name": "NumberUnion",
+												"declarationId": "d0a72ac8dcd1a54d"
 											},
 											"types": [
 												{
@@ -426,13 +441,15 @@
 										{
 											"kind": "union",
 											"typeName": {
-												"name": "IndirectStringUnion"
+												"name": "IndirectStringUnion",
+												"declarationId": "e3d953906d36e9f6"
 											},
 											"types": [
 												{
 													"kind": "union",
 													"typeName": {
-														"name": "StringUnion"
+														"name": "StringUnion",
+														"declarationId": "20b2cfe979df7bc6"
 													},
 													"types": [
 														{
@@ -475,14 +492,16 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "99358e7d00086bea"
+			"declarationId": "99358e7d00086bea",
+			"declaredName": "acceptsLiteralUnionParameters"
 		},
 		{
 			"name": "acceptsKeyofProp",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "acceptsKeyofProp"
+					"name": "acceptsKeyofProp",
+					"declarationId": "270a98a698bfae48"
 				},
 				"callSignatures": [
 					{
@@ -494,7 +513,8 @@
 									"type": {
 										"kind": "object",
 										"typeName": {
-											"name": "Params"
+											"name": "Params",
+											"declarationId": "2617843b95f0076e"
 										},
 										"properties": []
 									},
@@ -547,7 +567,8 @@
 			"isValue": true,
 			"isType": false,
 			"isNamespace": false,
-			"declarationId": "270a98a698bfae48"
+			"declarationId": "270a98a698bfae48",
+			"declaredName": "acceptsKeyofProp"
 		}
 	]
 }
