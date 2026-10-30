@@ -289,8 +289,6 @@ type LoadServerTypesMetaOptions = {
 type LoadServerTypesMetaResult = {
   /** All dependencies that should be watched for changes */
   allDependencies: string[];
-  /** Type name map from variant processing */
-  typeNameMap?: Record<string, string>;
   /**
    * External types discovered during formatting.
    * These are types referenced in props/params that are not publicly exported,
@@ -321,8 +319,6 @@ type LoadServerTypesMetaResult = {
    * to only show types from that specific module.
    */
   variantTypeNames: Record<string, string[]>;
-  /** Maps variant names to the typeNameMap entries naming the types each variant lists. */
-  variantTypeNameMaps: Record<string, Record<string, string>>;
 };
 ```
 
@@ -388,8 +384,20 @@ type TypesMeta = (
 ) & {
   name: string;
   slug?: string;
-  /** Alternative names this type can be looked up by (e.g., flat export name like "AccordionRootState") */
+  /**
+   * The other names the type is exported under, which it can also be looked up by: flat
+   * spellings of a namespaced name (`AccordionRootProps` for `Accordion.Root.Props`) and
+   * other exports of the same declaration (`compressString` for `compressHast`). types.md
+   * lists them under the type's section.
+   */
   aliases?: string[];
+  /**
+   * An opaque id of the declaration the type documents, from the extractor's
+   * `ExportNode.declarationId`. Compare ids only for equality; they are stable across runs
+   * as a best effort, with no guarantee. types.md does not record it, so types read back
+   * from types.md have none.
+   */
+  declarationId?: string;
 };
 ```
 

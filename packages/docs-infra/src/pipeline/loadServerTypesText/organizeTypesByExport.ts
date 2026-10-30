@@ -12,6 +12,8 @@ export interface BaseTypeMeta {
   name: string;
   type: 'component' | 'hook' | 'function' | 'class' | 'raw';
   slug?: string;
+  /** The other names the type is exported under */
+  aliases?: string[];
   data: unknown;
 }
 
@@ -35,10 +37,33 @@ export interface OrganizeTypesResult<T extends BaseTypeMeta> {
    * to only show types from that specific module.
    */
   variantTypeNames: Record<string, string[]>;
-  /**
-   * Maps variant names to the typeNameMap entries naming the types each variant lists.
-   */
-  variantTypeNameMaps: Record<string, Record<string, string>>;
+}
+
+/**
+ * Maps each other name a type is exported under (its `aliases`) to the type's name, in
+ * the order of the names.
+ */
+export function collectOtherNames<T extends BaseTypeMeta>(
+  organized: Pick<
+    OrganizeTypesResult<T>,
+    'exports' | 'additionalTypes' | 'variantOnlyAdditionalTypes'
+  >,
+): Map<string, string> {
+  const types = [
+    ...Object.values(organized.exports).flatMap(({ type, additionalTypes }) => [
+      type,
+      ...additionalTypes,
+    ]),
+    ...organized.additionalTypes,
+    ...Object.values(organized.variantOnlyAdditionalTypes).flat(),
+  ];
+  return new Map(
+    types
+      .flatMap((typeMeta) =>
+        (typeMeta.aliases ?? []).map((otherName): [string, string] => [otherName, typeMeta.name]),
+      )
+      .sort(([left], [right]) => (left < right ? -1 : 1)),
+  );
 }
 
 /**
@@ -52,12 +77,10 @@ export interface OrganizeTypesResult<T extends BaseTypeMeta> {
  * Each type is also assigned a `slug` for anchor linking (e.g., "trigger" or "trigger.props").
  *
  * @param variantData - The variant data containing types per variant
- * @param typeNameMap - Optional map from flat names to dotted names
  * @returns Exports and additionalTypes organized by export name
  */
 export function organizeTypesByExport<T extends BaseTypeMeta>(
-  variantData: Record<string, { types: T[]; typeNameMap?: Record<string, string> }>,
-  typeNameMap?: Record<string, string>,
+  variantData: Record<string, { types: T[] }>,
   ordering?: OrderingConfig,
 ): OrganizeTypesResult<T> {
   const namespaceParts = ordering?.namespaceParts ?? defaultNamespaceParts;
@@ -66,19 +89,6 @@ export function organizeTypesByExport<T extends BaseTypeMeta>(
   const variantTypeNames: Record<string, string[]> = {};
   for (const [variantName, variant] of Object.entries(variantData)) {
     variantTypeNames[variantName] = variant.types.map((t) => t.name);
-  }
-
-  // Build a mapping from variant name to the typeNameMap entries naming its types: another
-  // name belongs to the variants that document the type it names
-  const variantTypeNameMaps: Record<string, Record<string, string>> = {};
-  for (const [variantName, typeNames] of Object.entries(variantTypeNames)) {
-    const variantTypeNameSet = new Set(typeNames);
-    const variantTypeNameMap = Object.fromEntries(
-      Object.entries(typeNameMap ?? {}).filter(([, typeName]) => variantTypeNameSet.has(typeName)),
-    );
-    if (Object.keys(variantTypeNameMap).length > 0) {
-      variantTypeNameMaps[variantName] = variantTypeNameMap;
-    }
   }
 
   // Collect all types from ALL variants and deduplicate by name
@@ -106,7 +116,6 @@ export function organizeTypesByExport<T extends BaseTypeMeta>(
       additionalTypes: [],
       variantOnlyAdditionalTypes: {},
       variantTypeNames,
-      variantTypeNameMaps,
     };
   }
 
@@ -267,11 +276,12 @@ export function organizeTypesByExport<T extends BaseTypeMeta>(
   }
 
   // Filter out flat types from topLevelAdditionalTypes that have namespaced equivalents
-  // e.g., if typeNameMap has "AccordionTriggerState" -> "Accordion.Trigger.State",
+  // e.g., if "Accordion.Trigger.State" is also exported as "AccordionTriggerState",
   // filter out AccordionTriggerState since Accordion.Trigger.State is already in exports
-  let filteredAdditionalTypes = typeNameMap
-    ? topLevelAdditionalTypes.filter((typeMeta) => !typeNameMap[typeMeta.name])
-    : topLevelAdditionalTypes;
+  const otherNames = new Set(allTypes.flatMap((typeMeta) => typeMeta.aliases ?? []));
+  let filteredAdditionalTypes = topLevelAdditionalTypes.filter(
+    (typeMeta) => !otherNames.has(typeMeta.name),
+  );
 
   // Filter out non-namespaced types when a namespaced version exists.
   // e.g., if we have both "Orientation" and "Toolbar.Orientation", keep only "Toolbar.Orientation"
@@ -361,6 +371,5 @@ export function organizeTypesByExport<T extends BaseTypeMeta>(
     additionalTypes: sharedAdditionalTypes,
     variantOnlyAdditionalTypes,
     variantTypeNames,
-    variantTypeNameMaps,
   };
 }

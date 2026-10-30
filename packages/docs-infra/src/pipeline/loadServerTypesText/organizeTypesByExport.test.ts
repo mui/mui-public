@@ -283,22 +283,18 @@ describe('organizeTypesByExport', () => {
     });
   });
 
-  describe('typeNameMap filtering', () => {
-    it('should filter out flat types that have namespaced equivalents', () => {
+  describe('other names filtering', () => {
+    it('should filter out flat types that another type is also exported as', () => {
       const rootComponent = createComponentMeta('Accordion.Root');
-      const rootState = createRawMeta('Accordion.Root.State');
+      const rootState = {
+        ...createRawMeta('Accordion.Root.State'),
+        aliases: ['AccordionRootState'],
+      };
       const flatState = createRawMeta('AccordionRootState');
 
-      const typeNameMap = {
-        AccordionRootState: 'Accordion.Root.State',
-      };
-
-      const result = organizeTypesByExport(
-        {
-          Default: { types: [rootComponent, rootState, flatState] },
-        },
-        typeNameMap,
-      );
+      const result = organizeTypesByExport({
+        Default: { types: [rootComponent, rootState, flatState] },
+      });
 
       // flatState should be filtered out since it has a namespaced equivalent
       expect(result.additionalTypes).toEqual([]);
@@ -312,12 +308,9 @@ describe('organizeTypesByExport', () => {
       const buttonComponent = createComponentMeta('Button');
       const inputType = createRawMeta('InputType');
 
-      const result = organizeTypesByExport(
-        {
-          Default: { types: [buttonComponent, inputType] },
-        },
-        {}, // Empty typeNameMap
-      );
+      const result = organizeTypesByExport({
+        Default: { types: [buttonComponent, inputType] },
+      });
 
       // InputType should remain since it has no namespaced equivalent
       expect(result.additionalTypes).toHaveLength(1);

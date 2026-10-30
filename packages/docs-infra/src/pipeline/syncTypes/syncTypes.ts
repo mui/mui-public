@@ -293,7 +293,6 @@ export async function syncTypes(options: SyncTypesOptions): Promise<TypesSourceD
 
   const {
     allDependencies,
-    typeNameMap,
     externalTypes,
     externalTypeLinks,
     resourceName,
@@ -301,7 +300,6 @@ export async function syncTypes(options: SyncTypesOptions): Promise<TypesSourceD
     additionalTypes: organizedAdditionalTypes,
     variantOnlyAdditionalTypes: organizedVariantOnlyAdditionalTypes,
     variantTypeNames,
-    variantTypeNameMaps,
   } = typesMetaResult;
 
   currentMark = performanceMeasure(
@@ -320,9 +318,7 @@ export async function syncTypes(options: SyncTypesOptions): Promise<TypesSourceD
       additionalTypes: organizedAdditionalTypes,
       variantOnlyAdditionalTypes: organizedVariantOnlyAdditionalTypes,
       variantTypeNames,
-      variantTypeNameMaps,
     },
-    typeNameMap,
     externalTypes,
     externalTypeLinks,
     path: relativePath,
@@ -358,9 +354,7 @@ export async function syncTypes(options: SyncTypesOptions): Promise<TypesSourceD
       variantOnlyAdditionalTypes: organizedVariantOnlyAdditionalTypes,
       externalTypes,
       externalTypeLinks,
-      typeNameMap: typeNameMap ?? {},
       variantTypeNames,
-      variantTypeNameMaps,
       allDependencies: [typesMarkdownPath],
       updated: false,
     });
@@ -451,9 +445,7 @@ export async function syncTypes(options: SyncTypesOptions): Promise<TypesSourceD
     externalTypes,
     externalTypeLinks,
     allDependencies: dependencies,
-    typeNameMap: typeNameMap ?? {},
     variantTypeNames,
-    variantTypeNameMaps,
     updated,
   };
 }

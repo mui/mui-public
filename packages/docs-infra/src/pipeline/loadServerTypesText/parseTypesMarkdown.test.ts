@@ -37,9 +37,7 @@ describe('loadServerTypesText', () => {
           },
           "externalTypeLinks": {},
           "externalTypes": {},
-          "typeNameMap": {},
           "variantOnlyAdditionalTypes": {},
-          "variantTypeNameMaps": {},
           "variantTypeNames": {
             "Default": [
               "Button",
@@ -100,9 +98,7 @@ A clickable button component
           },
           "externalTypeLinks": {},
           "externalTypes": {},
-          "typeNameMap": {},
           "variantOnlyAdditionalTypes": {},
-          "variantTypeNameMaps": {},
           "variantTypeNames": {
             "Default": [
               "Button",
@@ -193,9 +189,7 @@ A clickable button component
           },
           "externalTypeLinks": {},
           "externalTypes": {},
-          "typeNameMap": {},
           "variantOnlyAdditionalTypes": {},
-          "variantTypeNameMaps": {},
           "variantTypeNames": {
             "Default": [
               "Button",
@@ -294,9 +288,7 @@ A clickable button component
           },
           "externalTypeLinks": {},
           "externalTypes": {},
-          "typeNameMap": {},
           "variantOnlyAdditionalTypes": {},
-          "variantTypeNameMaps": {},
           "variantTypeNames": {
             "Default": [
               "Value",
@@ -365,9 +357,7 @@ A clickable button component
           },
           "externalTypeLinks": {},
           "externalTypes": {},
-          "typeNameMap": {},
           "variantOnlyAdditionalTypes": {},
-          "variantTypeNameMaps": {},
           "variantTypeNames": {
             "Default": [
               "Button",
@@ -457,9 +447,7 @@ A clickable button component
           },
           "externalTypeLinks": {},
           "externalTypes": {},
-          "typeNameMap": {},
           "variantOnlyAdditionalTypes": {},
-          "variantTypeNameMaps": {},
           "variantTypeNames": {
             "Default": [
               "Button",
@@ -584,9 +572,7 @@ A fully-featured button
           },
           "externalTypeLinks": {},
           "externalTypes": {},
-          "typeNameMap": {},
           "variantOnlyAdditionalTypes": {},
-          "variantTypeNameMaps": {},
           "variantTypeNames": {
             "Default": [
               "CompleteButton",
@@ -635,9 +621,7 @@ type ReturnValue = number;
           },
           "externalTypeLinks": {},
           "externalTypes": {},
-          "typeNameMap": {},
           "variantOnlyAdditionalTypes": {},
-          "variantTypeNameMaps": {},
           "variantTypeNames": {
             "Default": [
               "useCounter",
@@ -703,9 +687,7 @@ type ReturnValue = number;
           },
           "externalTypeLinks": {},
           "externalTypes": {},
-          "typeNameMap": {},
           "variantOnlyAdditionalTypes": {},
-          "variantTypeNameMaps": {},
           "variantTypeNames": {
             "Default": [
               "useCounter",
@@ -805,9 +787,7 @@ type ReturnValue = number;
           },
           "externalTypeLinks": {},
           "externalTypes": {},
-          "typeNameMap": {},
           "variantOnlyAdditionalTypes": {},
-          "variantTypeNameMaps": {},
           "variantTypeNames": {
             "Default": [
               "useCounter",
@@ -929,9 +909,7 @@ type ReturnValue = React.ReactElement;
           },
           "externalTypeLinks": {},
           "externalTypes": {},
-          "typeNameMap": {},
           "variantOnlyAdditionalTypes": {},
-          "variantTypeNameMaps": {},
           "variantTypeNames": {
             "Default": [
               "useCounter",
@@ -999,9 +977,7 @@ type AccordionRootState = {
           "exports": {},
           "externalTypeLinks": {},
           "externalTypes": {},
-          "typeNameMap": {},
           "variantOnlyAdditionalTypes": {},
-          "variantTypeNameMaps": {},
           "variantTypeNames": {
             "Default": [
               "Accordion.Root.State",
@@ -1079,9 +1055,7 @@ Re-export of [Root](#root) props.
           "exports": {},
           "externalTypeLinks": {},
           "externalTypes": {},
-          "typeNameMap": {},
           "variantOnlyAdditionalTypes": {},
-          "variantTypeNameMaps": {},
           "variantTypeNames": {
             "Default": [
               "Root.Props",
@@ -1233,9 +1207,7 @@ The trigger element
           },
           "externalTypeLinks": {},
           "externalTypes": {},
-          "typeNameMap": {},
           "variantOnlyAdditionalTypes": {},
-          "variantTypeNameMaps": {},
           "variantTypeNames": {
             "Default": [
               "Root",
@@ -1372,9 +1344,7 @@ type Align = 'start' | 'center' | 'end';
           },
           "externalTypeLinks": {},
           "externalTypes": {},
-          "typeNameMap": {},
           "variantOnlyAdditionalTypes": {},
-          "variantTypeNameMaps": {},
           "variantTypeNames": {
             "Default": [
               "Button",
@@ -1474,9 +1444,7 @@ type ReturnValue = number;
           },
           "externalTypeLinks": {},
           "externalTypes": {},
-          "typeNameMap": {},
           "variantOnlyAdditionalTypes": {},
-          "variantTypeNameMaps": {},
           "variantTypeNames": {
             "Default": [
               "useCounter",
@@ -1504,9 +1472,7 @@ type ReturnValue = number;
           "exports": {},
           "externalTypeLinks": {},
           "externalTypes": {},
-          "typeNameMap": {},
           "variantOnlyAdditionalTypes": {},
-          "variantTypeNameMaps": {},
           "variantTypeNames": {
             "Default": [],
           },
@@ -1573,9 +1539,7 @@ type ReturnValue = number;
           },
           "externalTypeLinks": {},
           "externalTypes": {},
-          "typeNameMap": {},
           "variantOnlyAdditionalTypes": {},
-          "variantTypeNameMaps": {},
           "variantTypeNames": {
             "Default": [
               "Button",
@@ -1627,9 +1591,7 @@ type ReturnValue = number;
           },
           "externalTypeLinks": {},
           "externalTypes": {},
-          "typeNameMap": {},
           "variantOnlyAdditionalTypes": {},
-          "variantTypeNameMaps": {},
           "variantTypeNames": {
             "Default": [
               "Button",
@@ -1672,8 +1634,8 @@ type ReturnValue = number;
     });
   });
 
-  describe('typeNameMap parsing', () => {
-    it('should parse typeNameMap from Canonical Types section', async () => {
+  describe('Canonical Types parsing', () => {
+    it('should read the names of a Canonical Types section into the named types', async () => {
       const markdown = `# Accordion API
 
 [//]: types.ts '<-- Autogenerated By (do not edit the following markdown directly)'
@@ -1690,18 +1652,14 @@ type ReturnValue = number;
 
 ## Canonical Types
 
-- \`Accordion.Root.State\`: \`AccordionRootState\`
+- \`Accordion.Root\`: \`AccordionRoot\`
 - \`Accordion.Trigger.State\`: \`AccordionTriggerState\`
 `;
 
       const result = await parseTypesMarkdown(markdown);
 
-      expect(result.typeNameMap).toMatchInlineSnapshot(`
-        {
-          "AccordionRootState": "Accordion.Root.State",
-          "AccordionTriggerState": "Accordion.Trigger.State",
-        }
-      `);
+      // A name of a type without a section has nothing to look up
+      expect(result.exports.Root.type.aliases).toEqual(['AccordionRoot']);
     });
 
     it('should parse canonical types from a wrapped list item', async () => {
@@ -1713,20 +1671,17 @@ type ReturnValue = number;
 
 ## Canonical Types
 
-- \`Button.State\`:
-  \`ButtonState\`,
-  \`LegacyButtonState\`
+- \`Button\`:
+  \`ButtonRoot\`,
+  \`LegacyButton\`
 `;
 
       const result = await parseTypesMarkdown(markdown);
 
-      expect(result.typeNameMap).toEqual({
-        ButtonState: 'Button.State',
-        LegacyButtonState: 'Button.State',
-      });
+      expect(result.exports.Button.type.aliases).toEqual(['ButtonRoot', 'LegacyButton']);
     });
 
-    it('should return empty typeNameMap when not present', async () => {
+    it('should leave types without other names when not present', async () => {
       const markdown = `# Button API
 
 [//]: types.ts '<-- Autogenerated By (do not edit the following markdown directly)'
@@ -1738,7 +1693,7 @@ type ReturnValue = number;
 
       const result = await parseTypesMarkdown(markdown);
 
-      expect(result.typeNameMap).toEqual({});
+      expect(result.exports.Button.type.aliases).toBeUndefined();
     });
   });
 
@@ -1889,56 +1844,10 @@ Groups all parts of the accordion.
 
       const result = await parseTypesMarkdown(markdown);
 
-      expect(result.typeNameMap).toEqual({
-        AccordionRoot: 'Accordion.Root',
-        accordionRoot: 'Accordion.Root',
-      });
       expect(result.exports.Root.type.aliases).toEqual(['AccordionRoot', 'accordionRoot']);
       expect(result.exports.Root.type.data.descriptionText).toBe(
         'Groups all parts of the accordion.',
       );
-      expect(result.variantTypeNameMaps.Default).toEqual(result.typeNameMap);
-    });
-
-    it('should give each variant the other names of the types it documents', async () => {
-      const markdown = `# Select API
-
-[//]: types.ts '<-- Autogenerated By (do not edit the following markdown directly)'
-
-## API Reference
-
-### Select.Root
-
-Also exported as \`SelectRoot\`.
-
-**Select.Root Props:**
-
-| Prop | Type     | Default | Description |
-| :--- | :------- | :------ | :---------- |
-| open | \`boolean\` | false   | Open state  |
-
-### Select.Trigger
-
-Also exported as \`SelectTrigger\`.
-
-**Select.Trigger Props:**
-
-| Prop     | Type     | Default | Description |
-| :------- | :------- | :------ | :---------- |
-| disabled | \`boolean\` | false   | Disabled    |
-
-## Export Groups
-
-- \`CssModules\`: \`Select.Root\`
-- \`Tailwind\`: \`Select.Root\`, \`Select.Trigger\`
-`;
-
-      const result = await parseTypesMarkdown(markdown);
-
-      expect(result.variantTypeNameMaps).toEqual({
-        CssModules: { SelectRoot: 'Select.Root' },
-        Tailwind: { SelectRoot: 'Select.Root', SelectTrigger: 'Select.Trigger' },
-      });
     });
 
     it('should read the names of a Canonical Types section of an older types.md', async () => {
@@ -1970,11 +1879,7 @@ Maps \`Canonical\`: \`Alias\` — Use Canonical when its namespace is already im
 
       const result = await parseTypesMarkdown(markdown);
 
-      expect(result.typeNameMap).toEqual({
-        SelectRoot: 'Select.Root',
-        SelectTriggerState: 'Select.Trigger.State',
-      });
-      expect(result.variantTypeNameMaps).toEqual({ CssModules: { SelectRoot: 'Select.Root' } });
+      expect(result.exports.Root.type.aliases).toEqual(['SelectRoot']);
     });
 
     it('should handle missing types in variantTypes gracefully', async () => {

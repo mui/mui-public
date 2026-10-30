@@ -423,8 +423,6 @@ type LoadServerTypesResult = {
   variantTypeNames: Record<string, string[]>;
   /** All dependencies that should be watched for changes */
   allDependencies: string[];
-  /** Type name map from variant processing */
-  typeNameMap?: Record<string, string>;
   /**
    * Platform-scoped anchor maps for linking type references in code.
    * Keys include both dotted names ("Accordion.Trigger") and flat names ("AccordionTrigger").

@@ -38,6 +38,18 @@ function createRawTypeMeta(
 }
 
 /**
+ * Lists each name of `typeNameMap` as another name of the type it maps to.
+ */
+function withOtherNames(types: TypesMeta[], typeNameMap: Record<string, string>): TypesMeta[] {
+  return types.map((typeMeta) => {
+    const otherNames = Object.keys(typeNameMap)
+      .filter((otherName) => typeNameMap[otherName] === typeMeta.name)
+      .sort();
+    return otherNames.length > 0 ? { ...typeMeta, aliases: otherNames } : typeMeta;
+  });
+}
+
+/**
  * Helper to create GenerateTypesMarkdownOptions from flat types array.
  * This bridges the old test format to the new options-based API.
  */
@@ -47,12 +59,11 @@ function createOptions(
   typeNameMap: Record<string, string> = {},
   externalTypes: Record<string, string> = {},
 ): GenerateTypesMarkdownOptions {
-  const variantData = { Default: { types, typeNameMap } };
-  const organized = organizeTypesByExport(variantData, typeNameMap);
+  const variantData = { Default: { types: withOtherNames(types, typeNameMap) } };
+  const organized = organizeTypesByExport(variantData);
   return {
     name,
     organized,
-    typeNameMap,
     externalTypes,
   };
 }
@@ -65,13 +76,19 @@ function createOptionsWithVariants(
   types: TypesMeta[],
   typeNameMap: Record<string, string>,
   externalTypes: Record<string, string>,
-  variantData: Record<string, { types: TypesMeta[]; typeNameMap?: Record<string, string> }>,
+  variantData: Record<string, { types: TypesMeta[] }>,
 ): GenerateTypesMarkdownOptions {
-  const organized = organizeTypesByExport(variantData, typeNameMap);
+  const organized = organizeTypesByExport(
+    Object.fromEntries(
+      Object.entries(variantData).map(([variantName, variant]) => [
+        variantName,
+        { types: withOtherNames(variant.types, typeNameMap) },
+      ]),
+    ),
+  );
   return {
     name,
     organized,
-    typeNameMap,
     externalTypes,
   };
 }

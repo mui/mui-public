@@ -13,7 +13,7 @@ A function for parsing `types.md` files back into structured type metadata. This
 - Variant metadata (Export Groups section) and the other names each type is exported under
 - Links for built-in types (External Type Links section)
 
-Both `loadServerTypesText` and [`loadServerTypesMeta`](../load-server-types-meta/page.mdx) extend `OrganizeTypesResult<TypesMeta>` and share the same core fields (`exports`, `additionalTypes`, `externalTypes`, `externalTypeLinks`, `typeNameMap`, `allDependencies`). This shared shape (`TypesSourceData`) is the contract consumed by [`loadServerTypes`](../load-server-types/page.mdx), which accepts either function's output and applies highlighting on top.
+Both `loadServerTypesText` and [`loadServerTypesMeta`](../load-server-types-meta/page.mdx) extend `OrganizeTypesResult<TypesMeta>` and share the same core fields (`exports`, `additionalTypes`, `externalTypes`, `externalTypeLinks`, `allDependencies`). This shared shape (`TypesSourceData`) is the contract consumed by [`loadServerTypes`](../load-server-types/page.mdx), which accepts either function's output and applies highlighting on top.
 
 This is useful for:
 
@@ -34,7 +34,7 @@ result.exports; // Record<string, { type: TypesMeta; additionalTypes: TypesMeta[
 result.additionalTypes; // TypesMeta[] — top-level non-namespaced types
 result.externalTypes; // Record<string, string> — external type definitions
 result.variantTypeNames; // Record<string, string[]> — variant → type names
-result.typeNameMap; // Record<string, string> — flat name → dotted name
+result.exports.Root.type.aliases; // string[] | undefined — the other names Root is exported under
 result.allDependencies; // string[] — file paths to watch
 ```
 
@@ -103,14 +103,18 @@ type TypeName = string | number;
 ### Embedded Metadata
 
 A type's section lists the other names the type is exported under, such as the flat
-`AccordionTriggerProps` for `Accordion.Trigger.Props`, right under its heading. They make up
-`typeNameMap`:
+`AccordionTriggerProps` for `Accordion.Trigger.Props`, after its description. They are read back
+into the type's `aliases`:
 
 ```markdown
 ### Accordion.Trigger.Props
 
+Re-export of [Trigger](#trigger) props.
+
 Also exported as `AccordionTrigger.Props`, `AccordionTriggerProps`.
 ```
+
+Types read from `types.md` have no `declarationId`: it is not written there.
 
 Variant metadata is stored in a dedicated H2 section:
 
@@ -123,8 +127,8 @@ Variant metadata is stored in a dedicated H2 section:
 - `Shared`
 ```
 
-Each variant's `variantTypeNameMaps` entry holds the names of the types it lists. A
-`## Canonical Types` section, which older `types.md` files list the names in, is still read.
+A `## Canonical Types` section, which older `types.md` files list the other names in, is
+still read into the `aliases` of the types it names.
 
 **External Type Links** maps the built-in types the page prints to their docs, which [`enhanceCodeTypes`](../enhance-code-types/page.mdx#externallinks-option) links them to:
 

@@ -25,16 +25,14 @@ const TYPES_MARKDOWN = `# Button API
 
 const cacheRef = { cacheDir: CACHE_DIR, namespace: 'types-text', cacheKey: 'components/button' };
 
-function fakeData(typeNameMap: Record<string, string>): TypesSourceData {
+function fakeData(externalTypes: Record<string, string>): TypesSourceData {
   return {
     exports: {},
     additionalTypes: [],
     variantOnlyAdditionalTypes: {},
     variantTypeNames: {},
-    variantTypeNameMaps: {},
-    externalTypes: {},
+    externalTypes,
     externalTypeLinks: {},
-    typeNameMap,
     allDependencies: [TYPES_PATH],
     updated: false,
   };
@@ -63,7 +61,7 @@ describe('loadServerTypesText caching', () => {
       rootContext: TEST_DIR,
     });
     // The sentinel could never come from parsing the markdown, proving the parse was skipped.
-    expect(result.typeNameMap).toEqual({ CACHED: 'yes' });
+    expect(result.externalTypes).toEqual({ CACHED: 'yes' });
   });
 
   it('parses on a miss and writes the cache with the content hash', async () => {
@@ -92,7 +90,7 @@ describe('loadServerTypesText caching', () => {
       rootContext: TEST_DIR,
     });
     expect(result.exports.Button).toBeDefined();
-    expect(result.typeNameMap).not.toHaveProperty('STALE');
+    expect(result.externalTypes).not.toHaveProperty('STALE');
   });
 
   it('does not read or write a cache when cacheDir is unset', async () => {
@@ -121,16 +119,10 @@ describe('loadServerTypesText caching', () => {
       },
     );
     expect(result.exports.Button).toBeDefined();
-    expect(result.typeNameMap).not.toHaveProperty('NO_ORDER');
+    expect(result.externalTypes).not.toHaveProperty('NO_ORDER');
   });
 
   it('round-trips the other names of each type through types.md', async () => {
-    const typeNameMap = {
-      'DialogTrigger.Props': 'Dialog.Trigger.Props',
-      DialogTriggerProps: 'Dialog.Trigger.Props',
-      ButtonRoot: 'Button',
-      default: 'Button',
-    };
     const sourceData: TypesSourceData = {
       exports: {
         Button: {
@@ -140,6 +132,8 @@ describe('loadServerTypesText caching', () => {
             data: { name: 'Button', props: {}, dataAttributes: {}, cssVariables: {} },
             // A flat spelling and a rename
             aliases: ['ButtonRoot', 'default'],
+            // Not written to types.md, so not part of what parsing it gives
+            declarationId: 'button-declaration',
           },
           additionalTypes: [],
         },
@@ -161,15 +155,10 @@ describe('loadServerTypesText caching', () => {
       variantOnlyAdditionalTypes: {},
       externalTypes: {},
       externalTypeLinks: {},
-      typeNameMap: Object.fromEntries(
-        Object.entries(typeNameMap).sort(([left], [right]) => (left < right ? -1 : 1)),
-      ),
-      variantTypeNameMaps: {},
       variantTypeNames: { Default: ['Button', 'Dialog.Trigger.Props'] },
       allDependencies: [TYPES_PATH],
       updated: false,
     };
-    sourceData.variantTypeNameMaps = { Default: sourceData.typeNameMap };
 
     const markdown = await generateTypesMarkdown({
       name: 'Button API',
@@ -177,10 +166,8 @@ describe('loadServerTypesText caching', () => {
         exports: sourceData.exports,
         additionalTypes: sourceData.additionalTypes,
         variantOnlyAdditionalTypes: sourceData.variantOnlyAdditionalTypes,
-        variantTypeNameMaps: sourceData.variantTypeNameMaps,
         variantTypeNames: sourceData.variantTypeNames,
       },
-      typeNameMap: sourceData.typeNameMap,
     });
     expect(markdown).toContain('### Button\n\nAlso exported as `ButtonRoot`, `default`.\n');
     expect(markdown).toContain(
@@ -224,8 +211,6 @@ describe('loadServerTypesText caching', () => {
         'Intl.NumberFormat':
           'https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Intl/NumberFormat',
       },
-      typeNameMap: {},
-      variantTypeNameMaps: {},
       variantTypeNames: { Default: ['Button'] },
       allDependencies: [TYPES_PATH],
       updated: false,
@@ -237,10 +222,8 @@ describe('loadServerTypesText caching', () => {
         exports: sourceData.exports,
         additionalTypes: sourceData.additionalTypes,
         variantOnlyAdditionalTypes: sourceData.variantOnlyAdditionalTypes,
-        variantTypeNameMaps: sourceData.variantTypeNameMaps,
         variantTypeNames: sourceData.variantTypeNames,
       },
-      typeNameMap: sourceData.typeNameMap,
       externalTypes: sourceData.externalTypes,
       externalTypeLinks: sourceData.externalTypeLinks,
     });
