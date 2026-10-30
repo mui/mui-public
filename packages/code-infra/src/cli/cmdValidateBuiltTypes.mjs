@@ -255,7 +255,7 @@ async function validateBuiltTypes({ workspaceRoot, tempDir }) {
     async (pkg) => {
       const tarball = path.join(tarballDir, `${toFileStem(pkg.name)}.tgz`);
       await $({ cwd: pkg.path })`pnpm pack --out ${tarball}`;
-      return { tarball, manifest: await readPackedManifest(tarball) };
+      return { tarball, manifest: await readPackedManifest(tarball), dir: pkg.path };
     },
     { concurrency: os.availableParallelism() },
   );
@@ -266,14 +266,38 @@ async function validateBuiltTypes({ workspaceRoot, tempDir }) {
   );
   const packageNames = Object.keys(tarballs);
   // Consumers provide every peer, optional ones included, at a version in range of every package.
+  // The versions the workspace installed for its packages come first: they are fixed by the
+  // lockfile, so a new upstream release can't change the outcome until the workspace updates.
+  const declaredPeers = packed.flatMap(({ manifest, dir }) =>
+    Object.entries(manifest.peerDependencies ?? {})
+      .filter(([name, range]) => range && !tarballs[name])
+      .map(([name, range]) => ({ name, range: /** @type {string} */ (range), dir })),
+  );
+  const installedPeers = await Promise.all(
+    declaredPeers.map(({ name, dir }) =>
+      readPackageJson(path.join(dir, 'node_modules', name)).then(
+        ({ name: installedName, version }) =>
+          // An aliased install, such as `typescript: npm:@typescript/typescript6@6.0.2`.
+          installedName === name ? version : `npm:${installedName}@${version}`,
+        () => undefined,
+      ),
+    ),
+  );
+  /** @type {Record<string, string>} */
+  const peerRanges = {};
+  for (const { name, range } of declaredPeers) {
+    peerRanges[name] = peerRanges[name] ? intersectRanges(name, peerRanges[name], range) : range;
+  }
   /** @type {Record<string, string>} */
   const peers = {};
-  for (const { manifest } of packed) {
-    for (const [name, range] of Object.entries(manifest.peerDependencies ?? {})) {
-      if (range && !tarballs[name]) {
-        peers[name] = peers[name] ? intersectRanges(name, peers[name], range) : range;
-      }
-    }
+  for (const [name, range] of Object.entries(peerRanges)) {
+    const installed = installedPeers.find(
+      (spec, index) =>
+        spec &&
+        declaredPeers[index].name === name &&
+        semver.satisfies(spec.slice(spec.lastIndexOf('@') + 1), range),
+    );
+    peers[name] = installed ?? range;
   }
   // Installed as in any project that uses Node packages, but not made ambient: a program only loads
   // Node types when declarations reference them, so they don't reach sources that shouldn't see them.
