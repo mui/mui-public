@@ -5,13 +5,13 @@ const nextConfig = {
     return [
       {
         // Render also serves production on its own hostname, which years of PR
-        // comments link to. Send visitors to the canonical domain instead, but
-        // leave /api alone: CI posts reports there, not every client re-sends a
-        // POST body after a redirect, and the QR images in old comments load
-        // from it. Previews have their own hostnames and never match.
-        source: '/:path((?!api/).*)',
+        // comments link to. Send everything there to the canonical domain. This
+        // includes /api: QR images in old comments still load, as their signature
+        // doesn't depend on the host and GitHub's image proxy follows the 308.
+        // Previews have their own hostnames and never match.
+        source: '/:path*',
         has: [{ type: 'host', value: 'code-infra-dashboard\\.onrender\\.com' }],
-        destination: 'https://frontend-public.mui.com/:path',
+        destination: 'https://frontend-public.mui.com/:path*',
         permanent: true,
       },
     ];
