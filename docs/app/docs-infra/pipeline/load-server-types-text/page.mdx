@@ -10,7 +10,7 @@ A function for parsing `types.md` files back into structured type metadata. This
 - Props, parameters, properties, data attributes, CSS variables, and return value tables
 - Prop/parameter examples and references
 - External types section
-- Variant metadata (Export Groups and Canonical Types sections)
+- Variant metadata (Export Groups section) and the other names each type is exported under
 - Links for built-in types (External Type Links section)
 
 Both `loadServerTypesText` and [`loadServerTypesMeta`](../load-server-types-meta/page.mdx) extend `OrganizeTypesResult<TypesMeta>` and share the same core fields (`exports`, `additionalTypes`, `externalTypes`, `externalTypeLinks`, `typeNameMap`, `allDependencies`). This shared shape (`TypesSourceData`) is the contract consumed by [`loadServerTypes`](../load-server-types/page.mdx), which accepts either function's output and applies highlighting on top.
@@ -102,7 +102,17 @@ type TypeName = string | number;
 
 ### Embedded Metadata
 
-Variant and type name mapping metadata is stored in dedicated H2 sections:
+A type's section lists the other names the type is exported under, such as the flat
+`AccordionTriggerProps` for `Accordion.Trigger.Props`, right under its heading. They make up
+`typeNameMap`:
+
+```markdown
+### Accordion.Trigger.Props
+
+Also exported as `AccordionTrigger.Props`, `AccordionTriggerProps`.
+```
+
+Variant metadata is stored in a dedicated H2 section:
 
 **Export Groups** lists which types belong to each variant:
 
@@ -113,14 +123,8 @@ Variant and type name mapping metadata is stored in dedicated H2 sections:
 - `Shared`
 ```
 
-**Canonical Types** maps flat names to canonical dotted names, optionally scoped to variants:
-
-```markdown
-## Canonical Types
-
-- `Accordion.Trigger` (`Default`): `AccordionTrigger`
-- `Accordion.Root`: `AccordionRoot`
-```
+Each variant's `variantTypeNameMaps` entry holds the names of the types it lists. A
+`## Canonical Types` section, which older `types.md` files list the names in, is still read.
 
 **External Type Links** maps the built-in types the page prints to their docs, which [`enhanceCodeTypes`](../enhance-code-types/page.mdx#externallinks-option) links them to:
 

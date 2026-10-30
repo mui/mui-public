@@ -2275,7 +2275,7 @@ describe('generateTypesMarkdown', () => {
   });
 
   describe('typeNameMap embedding', () => {
-    it('should embed typeNameMap as Canonical Types section when provided', async () => {
+    it('should list the other names of each type under its heading', async () => {
       const componentMeta: ComponentTypeMeta = {
         name: 'Root',
         props: {},
@@ -2322,13 +2322,14 @@ describe('generateTypesMarkdown', () => {
         createOptions('Accordion API', typesMeta, typeNameMap),
       );
 
-      // Should have Canonical Types section with inverted mapping
-      expect(result).toContain('## Canonical Types');
-      expect(result).toContain('- `Accordion.Root.State`: `AccordionRootState`');
-      expect(result).toContain('- `Accordion.Trigger.State`: `AccordionTriggerState`');
+      expect(result).toContain('### Root.State\n\nAlso exported as `AccordionRootState`.\n');
+      expect(result).toContain(
+        '### Accordion.Trigger.State\n\nAlso exported as `AccordionTriggerState`.\n',
+      );
+      expect(result).not.toContain('Canonical Types');
     });
 
-    it('should not embed Canonical Types section when typeNameMap is empty', async () => {
+    it('should not list other names when typeNameMap is empty', async () => {
       const componentMeta: ComponentTypeMeta = {
         name: 'Button',
         props: {},
@@ -2340,7 +2341,7 @@ describe('generateTypesMarkdown', () => {
 
       const result = await generateTypesMarkdown(createOptions('Button API', typesMeta, {}));
 
-      expect(result).not.toContain('Canonical Types');
+      expect(result).not.toContain('Also exported as');
     });
   });
 
@@ -2385,7 +2386,7 @@ describe('generateTypesMarkdown', () => {
       expect(result).toContain('- `Tailwind`: `Button`, `IconButton`');
     });
 
-    it('should embed Export Groups and Canonical Types with variant annotations when variants have typeNameMaps', async () => {
+    it('should embed Export Groups and list other names when variants have typeNameMaps', async () => {
       const rootMeta: ComponentTypeMeta = {
         name: 'Root',
         props: {},
@@ -2468,12 +2469,9 @@ describe('generateTypesMarkdown', () => {
       expect(result).toContain('`Accordion.Root`');
       expect(result).toContain('`Tailwind`');
 
-      // Should have Canonical Types section
-      expect(result).toContain('## Canonical Types');
-      expect(result).toContain('`Accordion.Root.State`');
-      expect(result).toContain('`AccordionRootState`');
-      expect(result).toContain('`Accordion.Trigger.State`');
-      expect(result).toContain('`AccordionTriggerState`');
+      expect(result).toContain('Also exported as `AccordionRootState`.');
+      expect(result).toContain('Also exported as `AccordionTriggerState`.');
+      expect(result).not.toContain('Canonical Types');
     });
 
     it('should not embed variant metadata when only Default variant exists', async () => {

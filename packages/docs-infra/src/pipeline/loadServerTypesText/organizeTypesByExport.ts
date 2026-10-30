@@ -36,8 +36,7 @@ export interface OrganizeTypesResult<T extends BaseTypeMeta> {
    */
   variantTypeNames: Record<string, string[]>;
   /**
-   * Maps variant names to their per-variant typeNameMaps.
-   * Used for Canonical Types annotations showing which variants contain each type.
+   * Maps variant names to the typeNameMap entries naming the types each variant lists.
    */
   variantTypeNameMaps: Record<string, Record<string, string>>;
 }
@@ -69,11 +68,16 @@ export function organizeTypesByExport<T extends BaseTypeMeta>(
     variantTypeNames[variantName] = variant.types.map((t) => t.name);
   }
 
-  // Build a mapping from variant name to its typeNameMap
+  // Build a mapping from variant name to the typeNameMap entries naming its types: another
+  // name belongs to the variants that document the type it names
   const variantTypeNameMaps: Record<string, Record<string, string>> = {};
-  for (const [variantName, variant] of Object.entries(variantData)) {
-    if (variant.typeNameMap && Object.keys(variant.typeNameMap).length > 0) {
-      variantTypeNameMaps[variantName] = variant.typeNameMap;
+  for (const [variantName, typeNames] of Object.entries(variantTypeNames)) {
+    const variantTypeNameSet = new Set(typeNames);
+    const variantTypeNameMap = Object.fromEntries(
+      Object.entries(typeNameMap ?? {}).filter(([, typeName]) => variantTypeNameSet.has(typeName)),
+    );
+    if (Object.keys(variantTypeNameMap).length > 0) {
+      variantTypeNameMaps[variantName] = variantTypeNameMap;
     }
   }
 

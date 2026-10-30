@@ -285,7 +285,12 @@ export async function loadServerTypesMeta(
   // This map is used to rewrite type references (e.g., Dialog.Trigger.State -> AlertDialog.Trigger.State)
   const allRawExports = Object.values(rawVariantData).flatMap((v) => v.exports);
   const allExportNames = Array.from(new Set(allRawExports.map((exp) => exp.name)));
-  const typeCompatibilityMap = buildTypeCompatibilityMap(allRawExports, allExportNames);
+  // Aliases are public exports too, so types extending one are not rewritten to the extender.
+  const allAliasNames = Object.values(rawVariantData).flatMap((v) => Object.keys(v.aliases ?? {}));
+  const typeCompatibilityMap = buildTypeCompatibilityMap(allRawExports, [
+    ...allExportNames,
+    ...allAliasNames,
+  ]);
 
   // Build merged typeNameMap from all variants for type string rewriting
   // typeNameMap maps flat names like "AlertDialogTriggerState" to dotted names like "AlertDialog.Trigger.State"
@@ -423,7 +428,13 @@ export async function loadServerTypesMeta(
         }),
       );
 
-      variantData[variantName] = { types, typeNameMap: variantResult.typeNameMap };
+      // Formatting rewrites map entries even in descriptions, so aliases (`default`) join
+      // only now, turning the map into the list of every name a documented type has.
+      const typeNameMap =
+        variantResult.aliases === undefined
+          ? variantResult.typeNameMap
+          : { ...variantResult.typeNameMap, ...variantResult.aliases };
+      variantData[variantName] = { types, typeNameMap };
     }),
   );
 
@@ -570,26 +581,24 @@ export async function loadServerTypesMeta(
     return !existingDottedNames.has(dottedName);
   });
 
-  // Attach aliases from typeNameMap to namespaced types so they can also be looked up by their flat name
-  // e.g., "Accordion.Item.ChangeEventDetails" gets alias "AccordionItemChangeEventDetails"
-  // The flat name is confirmed to be a real export (typeNameMap only contains verified exports)
+  // Attach aliases from typeNameMap to the types they name so they can also be looked up by
+  // those names, e.g., "Accordion.Item.ChangeEventDetails" gets alias "AccordionItemChangeEventDetails",
+  // and "compressHast" gets alias "compressString"
+  // Every name is confirmed to be a real export (typeNameMap only contains verified exports)
   const dottedToFlatNames = new Map<string, string[]>();
   for (const [flatName, dottedName] of Object.entries(mergedTypeNameMap)) {
-    // Only add aliases for flat names that were actually filtered out (i.e., the dotted version exists)
-    if (existingDottedNames.has(dottedName)) {
-      const existing = dottedToFlatNames.get(dottedName);
-      if (existing) {
-        existing.push(flatName);
-      } else {
-        dottedToFlatNames.set(dottedName, [flatName]);
-      }
+    const existing = dottedToFlatNames.get(dottedName);
+    if (existing) {
+      existing.push(flatName);
+    } else {
+      dottedToFlatNames.set(dottedName, [flatName]);
     }
   }
   if (dottedToFlatNames.size > 0) {
     allTypes = allTypes.map((typeMeta) => {
       const flatAliases = dottedToFlatNames.get(typeMeta.name);
       if (flatAliases) {
-        return { ...typeMeta, aliases: flatAliases };
+        return { ...typeMeta, aliases: flatAliases.sort() };
       }
       return typeMeta;
     });
@@ -670,8 +679,16 @@ export async function loadServerTypesMeta(
     });
   }
 
-  // Get typeNameMap from first variant (they should all be the same)
-  const typeNameMap = Object.values(variantData)[0]?.typeNameMap;
+  // The other names of the documented types, sorted by name: what the types' sections list
+  // in types.md, so parsing it back gives the same map
+  const documentedTypeNames = new Set(allTypes.map((typeMeta) => typeMeta.name));
+  const documentedTypeNameEntries = Object.entries(mergedTypeNameMap)
+    .filter(([, typeName]) => documentedTypeNames.has(typeName))
+    .sort(([left], [right]) => (left < right ? -1 : 1));
+  const typeNameMap =
+    documentedTypeNameEntries.length > 0
+      ? Object.fromEntries(documentedTypeNameEntries)
+      : undefined;
 
   // External types were collected during formatting — no separate filtering needed.
   // The collection happens in formatType() which only encounters types that appear

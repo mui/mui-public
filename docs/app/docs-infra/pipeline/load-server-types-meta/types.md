@@ -321,10 +321,7 @@ type LoadServerTypesMetaResult = {
    * to only show types from that specific module.
    */
   variantTypeNames: Record<string, string[]>;
-  /**
-   * Maps variant names to their per-variant typeNameMaps.
-   * Used for Canonical Types annotations showing which variants contain each type.
-   */
+  /** Maps variant names to the typeNameMap entries naming the types each variant lists. */
   variantTypeNameMaps: Record<string, Record<string, string>>;
 };
 ```

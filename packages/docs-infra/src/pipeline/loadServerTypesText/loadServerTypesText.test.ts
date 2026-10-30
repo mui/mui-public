@@ -124,6 +124,79 @@ describe('loadServerTypesText caching', () => {
     expect(result.typeNameMap).not.toHaveProperty('NO_ORDER');
   });
 
+  it('round-trips the other names of each type through types.md', async () => {
+    const typeNameMap = {
+      'DialogTrigger.Props': 'Dialog.Trigger.Props',
+      DialogTriggerProps: 'Dialog.Trigger.Props',
+      ButtonRoot: 'Button',
+      default: 'Button',
+    };
+    const sourceData: TypesSourceData = {
+      exports: {
+        Button: {
+          type: {
+            type: 'component',
+            name: 'Button',
+            data: { name: 'Button', props: {}, dataAttributes: {}, cssVariables: {} },
+            // A flat spelling and a rename
+            aliases: ['ButtonRoot', 'default'],
+          },
+          additionalTypes: [],
+        },
+      },
+      additionalTypes: [
+        {
+          type: 'raw',
+          name: 'Dialog.Trigger.Props',
+          data: {
+            name: 'Dialog.Trigger.Props',
+            formattedCode: 'type DialogTriggerProps = { open: boolean };',
+            descriptionText: 'The props of the trigger.',
+            description: await parseMarkdownToHast('The props of the trigger.'),
+          },
+          // A namespace member reached through another namespace, and a flat spelling
+          aliases: ['DialogTrigger.Props', 'DialogTriggerProps'],
+        },
+      ],
+      variantOnlyAdditionalTypes: {},
+      externalTypes: {},
+      externalTypeLinks: {},
+      typeNameMap: Object.fromEntries(
+        Object.entries(typeNameMap).sort(([left], [right]) => (left < right ? -1 : 1)),
+      ),
+      variantTypeNameMaps: {},
+      variantTypeNames: { Default: ['Button', 'Dialog.Trigger.Props'] },
+      allDependencies: [TYPES_PATH],
+      updated: false,
+    };
+    sourceData.variantTypeNameMaps = { Default: sourceData.typeNameMap };
+
+    const markdown = await generateTypesMarkdown({
+      name: 'Button API',
+      organized: {
+        exports: sourceData.exports,
+        additionalTypes: sourceData.additionalTypes,
+        variantOnlyAdditionalTypes: sourceData.variantOnlyAdditionalTypes,
+        variantTypeNameMaps: sourceData.variantTypeNameMaps,
+        variantTypeNames: sourceData.variantTypeNames,
+      },
+      typeNameMap: sourceData.typeNameMap,
+    });
+    expect(markdown).toContain('### Button\n\nAlso exported as `ButtonRoot`, `default`.\n');
+    expect(markdown).toContain(
+      '### Dialog.Trigger.Props\n\nThe props of the trigger.\n\nAlso exported as `DialogTrigger.Props`, `DialogTriggerProps`.\n\n```typescript\n',
+    );
+    expect(markdown).not.toContain('Canonical Types');
+
+    await mkdir(join(TEST_DIR, 'src', 'app', 'components', 'button'), { recursive: true });
+    await writeFile(TYPES_PATH, markdown, 'utf-8');
+
+    const coldParsed = await loadServerTypesText(pathToFileURL(TYPES_PATH).href);
+    expect(JSON.stringify(normalizeTypesSourceDataForCache(sourceData))).toBe(
+      JSON.stringify(coldParsed),
+    );
+  });
+
   it('normalizes source-derived data to match a cached cold parse byte-for-byte', async () => {
     const sourceData: TypesSourceData = {
       exports: {

@@ -631,7 +631,6 @@ export async function parseTypesMarkdown(content: string, ordering?: OrderingCon
   const externalTypeLinks: Record<string, string> = {};
   const parsedVariantTypes: Record<string, string[]> = {};
   const typeNameMap: Record<string, string> = {};
-  const parsedVariantTypeNameMapKeys: Record<string, string[]> = {};
 
   // Track current context
   let currentH3Name: string | null = null;
@@ -647,6 +646,7 @@ export async function parseTypesMarkdown(content: string, ordering?: OrderingCon
   let currentReturnValueDescriptionNode: RootContent | null = null;
   let currentCodeBlock: string | null = null;
   let isReExport = false;
+  let currentOtherNames: string[] = [];
   let lastBoldHeadingType: string | null = null;
   let lastPropExampleName: string | null = null;
   let lastParamExampleName: string | null = null;
@@ -777,6 +777,14 @@ export async function parseTypesMarkdown(content: string, ordering?: OrderingCon
       allTypes.push({ type: 'raw', name: currentH3Name, data: rawMeta });
     }
 
+    // Each other name the type is exported under looks the type up
+    if (currentOtherNames.length > 0) {
+      allTypes[allTypes.length - 1].aliases = currentOtherNames;
+      for (const otherName of currentOtherNames) {
+        typeNameMap[otherName] = currentH3Name;
+      }
+    }
+
     // Reset state
     currentH3Name = null;
     currentDescription = [];
@@ -791,6 +799,7 @@ export async function parseTypesMarkdown(content: string, ordering?: OrderingCon
     currentReturnValueDescriptionNode = null;
     currentCodeBlock = null;
     isReExport = false;
+    currentOtherNames = [];
     lastBoldHeadingType = null;
     lastPropExampleName = null;
     lastParamExampleName = null;
@@ -874,17 +883,15 @@ export async function parseTypesMarkdown(content: string, ordering?: OrderingCon
               separatorIndex === -1 ? [variantName] : namesAfterSeparator;
           }
         } else {
-          const [canonicalName, ...variants] = namesBeforeSeparator;
+          // The Canonical Types list of types.md files generated before each section
+          // listed its own other names. Its variant annotations are derivable from the
+          // export groups, so only the names are read.
+          const [canonicalName] = namesBeforeSeparator;
           if (!canonicalName || separatorIndex === -1) {
             continue;
           }
           for (const flatName of namesAfterSeparator) {
             typeNameMap[flatName] = canonicalName;
-          }
-          for (const variant of variants) {
-            const keys = parsedVariantTypeNameMapKeys[variant] ?? [];
-            keys.push(...namesAfterSeparator);
-            parsedVariantTypeNameMapKeys[variant] = keys;
           }
         }
       }
@@ -980,8 +987,10 @@ export async function parseTypesMarkdown(content: string, ordering?: OrderingCon
       // Note: isBoldHeading already checked paragraphs and returned early if true
       if ('children' in node && node.type !== 'blockquote') {
         const text = extractTextWithLinks(node.children as RootContent[]);
-        // Check for re-export pattern
-        if (text.startsWith('Re-export of ')) {
+        // The other names the type is exported under: "Also exported as `A`, `B`."
+        if (text.startsWith('Also exported as ') && currentOtherNames.length === 0) {
+          currentOtherNames = extractInlineCodeValues(node.children as PhrasingContent[]);
+        } else if (text.startsWith('Re-export of ')) {
           isReExport = true;
           currentDescription.push(text);
           currentDescriptionNodes.push(node);
@@ -1011,8 +1020,6 @@ export async function parseTypesMarkdown(content: string, ordering?: OrderingCon
   flushSection();
 
   const variantTypes = Object.keys(parsedVariantTypes).length > 0 ? parsedVariantTypes : null;
-  const variantTypeNameMapKeys =
-    Object.keys(parsedVariantTypeNameMapKeys).length > 0 ? parsedVariantTypeNameMapKeys : null;
 
   // Convert all description mdast nodes to HAST in parallel
   await convertDescriptions(descriptionTargets);
@@ -1047,35 +1054,20 @@ export async function parseTypesMarkdown(content: string, ordering?: OrderingCon
         })
         .filter((t): t is TypesMeta => t !== undefined);
 
-      // Derive per-variant typeNameMap by filtering the merged typeNameMap using the keys
-      let variantTypeNameMap: Record<string, string> | undefined;
-      const keys = variantTypeNameMapKeys?.[variantName];
-      if (keys && keys.length > 0) {
-        variantTypeNameMap = {};
-        for (const key of keys) {
-          if (key in typeNameMap) {
-            variantTypeNameMap[key] = typeNameMap[key];
-          }
-        }
-      }
-
-      variantData[variantName] = {
-        types,
-        typeNameMap: variantTypeNameMap,
-      };
+      variantData[variantName] = { types };
     }
   } else {
     // No variant metadata - create a single "Default" variant with all types
-    variantData = {
-      Default: {
-        types: allTypes,
-        typeNameMap: Object.keys(typeNameMap).length > 0 ? typeNameMap : undefined,
-      },
-    };
+    variantData = { Default: { types: allTypes } };
   }
 
+  // Sorted by name, as the types' sections are generated from
+  const sortedTypeNameMap = Object.fromEntries(
+    Object.entries(typeNameMap).sort(([left], [right]) => (left < right ? -1 : 1)),
+  );
+
   // Organize types into exports structure for UI consumption
-  const organized = organizeTypesByExport(variantData, typeNameMap, ordering);
+  const organized = organizeTypesByExport(variantData, sortedTypeNameMap, ordering);
 
   return {
     exports: organized.exports,
@@ -1083,7 +1075,7 @@ export async function parseTypesMarkdown(content: string, ordering?: OrderingCon
     variantOnlyAdditionalTypes: organized.variantOnlyAdditionalTypes,
     externalTypes,
     externalTypeLinks,
-    typeNameMap,
+    typeNameMap: sortedTypeNameMap,
     variantTypeNameMaps: organized.variantTypeNameMaps,
     variantTypeNames: organized.variantTypeNames,
   };
