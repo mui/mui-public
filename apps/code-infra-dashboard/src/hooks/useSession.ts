@@ -46,7 +46,7 @@ export async function signOut(): Promise<void> {
   if (!response.ok) {
     throw new Error(`Signing out failed with ${response.status}.`);
   }
-  // Sign-in is a full navigation too; reloading drops every response that was
-  // fetched as the signed-in user along with the rest of the tab's cache.
+  // Reloading drops the in-memory query cache, which holds data fetched as the
+  // signed-in user. Sign-in is a full navigation for the same reason.
   window.location.reload();
 }

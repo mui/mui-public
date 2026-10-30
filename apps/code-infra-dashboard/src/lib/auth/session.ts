@@ -1,7 +1,7 @@
 import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
 import { z } from 'zod/v4';
-import { BASE_COOKIE_OPTIONS } from './config';
+import { BASE_COOKIE_OPTIONS, getOAuthClient } from './config';
 
 const SESSION_COOKIE = 'mui_dashboard_session';
 
@@ -57,15 +57,22 @@ export async function writeSession(session: Session, tokenExpiresAt?: string): P
 /**
  * Returns null for anyone who is not signed in, including when the cookie is
  * expired, tampered with, or sealed under a rotated SESSION_SECRET: iron-session
- * opens all of those as an empty session.
+ * opens all of those as an empty session. Also null wherever sign-in isn't
+ * configured, as there is no secret to open the cookie with.
  */
 export async function readSession(): Promise<Session | null> {
+  if (!getOAuthClient()) {
+    return null;
+  }
   const cookie = await openSessionCookie();
   const parsed = sessionSchema.safeParse(cookie.github);
   return parsed.success ? parsed.data : null;
 }
 
 export async function clearSession(): Promise<void> {
+  if (!getOAuthClient()) {
+    return;
+  }
   const cookie = await openSessionCookie();
   cookie.destroy();
 }

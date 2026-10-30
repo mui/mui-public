@@ -9,9 +9,8 @@ import { clearSession, readSession } from '@/lib/auth/session';
  * POST so that a link or prefetch can't sign someone out, and same-origin only so
  * that another site's auto-submitting form can't either.
  *
- * The token is revoked, not just forgotten: a copy of the cookie taken earlier
- * would otherwise keep working until it expires, and with non-expiring tokens the
- * token itself would never stop working. Only this one token is revoked, so other
+ * The token is revoked, not just forgotten: a copy of the cookie would otherwise
+ * keep working until it expires, and a non-expiring token never stops working. Only this one token is revoked, so other
  * clients the user signed into with the same GitHub App keep theirs.
  */
 export async function POST(request: NextRequest) {

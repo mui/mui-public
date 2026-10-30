@@ -29,7 +29,7 @@ describe('describeGitHubError', () => {
       Response.json({ message: 'Server Error' }, { status: 502 }),
     );
 
-    // Logging the error itself is what leaked the secret.
+    // The raw error carries the secret, so logging it would leak it.
     expect(inspect(error, { depth: 10 })).toContain('very-secret-value');
     expect(describeGitHubError(error)).not.toContain('very-secret-value');
     expect(describeGitHubError(error)).toContain('502');

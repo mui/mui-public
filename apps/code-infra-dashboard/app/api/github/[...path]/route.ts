@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { getOAuthClient, isCrossOriginRequest } from '@/lib/auth/config';
+import { isCrossOriginRequest } from '@/lib/auth/config';
 import { clearSession, readSession } from '@/lib/auth/session';
 
 const GITHUB_API_ORIGIN = 'https://api.github.com';
 const USER_AGENT = 'mui-code-infra-dashboard';
+const PROXY_PATH = '/api/github';
 
 /**
  * `if-none-match` and `if-modified-since` are the point of this list: a
@@ -66,8 +67,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pat
     );
   }
 
-  // Without sign-in configured there can be no session, and reading one would throw.
-  const session = getOAuthClient() ? await readSession() : null;
+  const session = await readSession();
   if (!session) {
     return NextResponse.json({ message: 'Not signed in to GitHub.' }, { status: 401 });
   }
@@ -89,15 +89,14 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pat
   upstreamHeaders.set('user-agent', USER_AGENT);
   upstreamHeaders.set('authorization', `Bearer ${session.token}`);
 
-  // Redirects are followed here rather than handed to the browser: GitHub
-  // redirects renamed and transferred repositories to another api.github.com
-  // URL, which the browser would request directly, without the token.
+  // Redirects go back to the browser, so downloads such as tarballs are fetched
+  // from their own host rather than relayed through here.
   // Tied to the browser's request, so a closed tab also abandons the GitHub call.
   const upstreamResponse = await fetch(upstreamUrl, {
     method: request.method,
     headers: upstreamHeaders,
     cache: 'no-store',
-    redirect: 'follow',
+    redirect: 'manual',
     signal: request.signal,
   });
 
@@ -114,6 +113,20 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pat
   // reuse is revalidated against GitHub with the current visitor's token.
   responseHeaders.set('cache-control', 'private, max-age=0, must-revalidate');
   responseHeaders.set('vary', 'Accept');
+
+  const location = upstreamResponse.headers.get('location');
+  if (location) {
+    // GitHub redirects renamed and transferred repositories to another
+    // api.github.com URL. Point those back at this proxy, so the browser doesn't
+    // follow them without the token.
+    const target = new URL(location, upstreamUrl);
+    responseHeaders.set(
+      'location',
+      target.origin === GITHUB_API_ORIGIN
+        ? `${PROXY_PATH}${target.pathname}${target.search}`
+        : target.href,
+    );
+  }
 
   return new Response(upstreamResponse.body, {
     status: upstreamResponse.status,

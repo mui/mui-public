@@ -49,6 +49,11 @@ describe('GET /api/auth/login', () => {
   });
 
   it('is unavailable without sign-in configured', async () => {
+    vi.stubEnv('DASHBOARD_ORIGIN', undefined);
+    vi.stubEnv('GITHUB_OAUTH_CLIENT_ID', undefined);
+    vi.stubEnv('GITHUB_OAUTH_CLIENT_SECRET', undefined);
+    vi.stubEnv('SESSION_SECRET', undefined);
+
     const response = await GET(loginRequest('/'));
 
     expect(response.status).toBe(503);
