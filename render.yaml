@@ -29,6 +29,11 @@ services:
         value: 22
       - key: QR_CODE_SECRET
         generateValue: true
+      # The canonical origin: PR comment links and QR codes use it. Without it
+      # they fall back to the onrender.com host. Previews ignore it and use their
+      # own URL (see src/constants.ts).
+      - key: DASHBOARD_ORIGIN
+        value: https://frontend-public.mui.com
       - fromGroup: code-infra-dashboard AWS user
       - fromGroup: X-license-code-infra
       - fromGroup: CircleCI API token

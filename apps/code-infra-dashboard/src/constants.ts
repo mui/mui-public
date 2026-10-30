@@ -1,6 +1,10 @@
 import { formatMaterialUiDocPath } from '@/lib/ciReports/formatMaterialUiDocPath';
 
 export const DASHBOARD_ORIGIN =
+  // A Render preview inherits production's DASHBOARD_ORIGIN, but the links and
+  // signed QR codes it produces must point back at itself: production rejects a
+  // QR code signed with the preview's own secret.
+  (process.env.IS_PULL_REQUEST === 'true' && process.env.RENDER_EXTERNAL_URL) ||
   process.env.DASHBOARD_ORIGIN ||
   process.env.RENDER_EXTERNAL_URL ||
   'https://frontend-public.mui.com';
