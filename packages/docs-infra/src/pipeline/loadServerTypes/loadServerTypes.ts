@@ -22,6 +22,7 @@ import type { SyncTypesOptions } from '../syncTypes';
 import { loadServerTypesText } from '../loadServerTypesText';
 import type { TypesSourceData } from '../loadServerTypesText';
 import { resolveTypesCacheKey } from '../loadServerTypesText/resolveTypesCacheKey';
+import { collectOtherNames } from '../loadServerTypesText/organizeTypesByExport';
 import { CACHE_SCHEMA_VERSION, withFileCache } from '../cacheUtils';
 import type { FileCacheRef } from '../cacheUtils';
 import type { FormattedProperty, TypesMeta } from '../loadServerTypesMeta';
@@ -99,8 +100,6 @@ export interface LoadServerTypesResult {
   variantTypeNames: Record<string, string[]>;
   /** All dependencies that should be watched for changes */
   allDependencies: string[];
-  /** Type name map from variant processing */
-  typeNameMap?: Record<string, string>;
   /**
    * Platform-scoped anchor maps for linking type references in code.
    * Keys include both dotted names ("Accordion.Trigger") and flat names ("AccordionTrigger").
@@ -431,19 +430,17 @@ async function enhanceTypes(
     }
   }
 
-  // Add flat name mappings from typeNameMap
-  if (syncResult.typeNameMap) {
-    for (const [flatName, dottedName] of Object.entries(syncResult.typeNameMap)) {
-      const dottedAnchor = anchorMap[dottedName];
-      if (dottedAnchor) {
-        anchorMap[flatName] = dottedAnchor;
-      }
-      // Also map parameter keys for flat names (e.g., "AccordionRoot[0]" from "Accordion.Root[0]")
-      let i = 0;
-      while (anchorMap[`${dottedName}[${i}]`]) {
-        anchorMap[`${flatName}[${i}]`] = anchorMap[`${dottedName}[${i}]`];
-        i += 1;
-      }
+  // Add the other names each type is exported under (e.g., "AccordionRoot" for "Accordion.Root")
+  for (const [otherName, typeName] of collectOtherNames(syncResult)) {
+    const typeAnchor = anchorMap[typeName];
+    if (typeAnchor) {
+      anchorMap[otherName] = typeAnchor;
+    }
+    // Also map parameter keys for other names (e.g., "AccordionRoot[0]" from "Accordion.Root[0]")
+    let i = 0;
+    while (anchorMap[`${typeName}[${i}]`]) {
+      anchorMap[`${otherName}[${i}]`] = anchorMap[`${typeName}[${i}]`];
+      i += 1;
     }
   }
 
@@ -459,7 +456,6 @@ async function enhanceTypes(
     additionalTypes,
     variantOnlyAdditionalTypes,
     variantTypeNames,
-    typeNameMap: syncResult.typeNameMap,
     anchorMap: { js: anchorMap },
     externalTypeLinks: syncResult.externalTypeLinks ?? {},
   };

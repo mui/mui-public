@@ -8,7 +8,7 @@ import { createOptimizedProgram } from './createOptimizedProgram';
 import { augmentComponentsWithInheritedProps } from './inheritedExternalProps';
 import type { InheritedExternalPropsConfig } from './inheritedExternalProps';
 import { findConstantNamespaces, foldConstantNamespaces } from './constantGroups';
-import { dropTypeOnlyDuplicates } from './dropTypeOnlyDuplicates';
+import { resolveExportAliases } from './exportAliases';
 import { PARSER_OPTIONS } from './constants';
 import { extractJSDocText, isJSDocNodeArray } from './extractJSDocText';
 import { PerformanceTracker } from './performanceTracking';
@@ -24,7 +24,7 @@ import { nameMark } from '../loadPrecomputedCodeHighlighter/performanceLogger';
  */
 function stripFunctions<T>(
   value: T,
-  documentedNames?: Set<string>,
+  documentedNames?: ReadonlyMap<string, string>,
   visited = new WeakMap<object, unknown>(),
 ): T {
   // Primitives, null, undefined - return as-is
@@ -67,21 +67,25 @@ function stripFunctions<T>(
 
 /**
  * Collects every symbol name documented on this page - all exports and resolved
- * types across all variants. `{@link}` references are linked only when they hit
- * this set, since those are the names that get a heading (and thus an anchor).
+ * types across all variants - mapped to the name whose heading it links to.
+ * `{@link}` references are linked only when they hit this map, since those are the
+ * names that get a heading (and thus an anchor). An alias links to the heading of its
+ * canonical export.
  */
-function collectDocumentedNames(variantData: Record<string, VariantResult>): Set<string> {
-  const names = new Set<string>();
+function collectDocumentedNames(variantData: Record<string, VariantResult>): Map<string, string> {
+  const names = new Map<string, string>();
   const addName = (name: string | undefined) => {
     if (!name) {
       return;
     }
-    names.add(name);
+    names.set(name, name);
     // Namespaced exports (e.g. "Menu.Root") are also referenced by their flat
     // ("MenuRoot") and leaf ("Root") forms in {@link} comments.
     if (name.includes('.')) {
-      names.add(name.replaceAll('.', ''));
-      names.add(name.slice(name.lastIndexOf('.') + 1));
+      const flatName = name.replaceAll('.', '');
+      const leafName = name.slice(name.lastIndexOf('.') + 1);
+      names.set(flatName, flatName);
+      names.set(leafName, leafName);
     }
   };
 
@@ -93,6 +97,14 @@ function collectDocumentedNames(variantData: Record<string, VariantResult>): Set
       for (const [flatName, dottedName] of Object.entries(variant.typeNameMap)) {
         addName(flatName);
         addName(dottedName);
+      }
+    }
+  }
+
+  for (const variant of Object.values(variantData)) {
+    for (const [aliasName, canonicalName] of Object.entries(variant.aliases ?? {})) {
+      if (!names.has(aliasName)) {
+        names.set(aliasName, canonicalName);
       }
     }
   }
@@ -287,6 +299,8 @@ export interface VariantResult {
   constantNamespaces: string[];
   namespaces: string[];
   typeNameMap?: Record<string, string>; // Maps flat type names to dotted names (serializable across worker boundary)
+  /** Names of the exports the extractor marks as aliases, mapped to their canonical export's name */
+  aliases?: Record<string, string>;
 }
 
 export interface WorkerRequest {
@@ -379,13 +393,14 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
           // type aliases, and re-exports properly
           const parsed = parseFromProgram(entrypoint, program, PARSER_OPTIONS);
 
+          // Exports reaching another export's declaration under a second name are
+          // documented once, under the canonical name.
+          const { exports: canonicalExports, aliases } = resolveExportAliases(parsed.exports);
+
           // Modules of constants exported as a namespace (`export * as ButtonDataAttributes`)
           // arrive flattened into one export per member; document each as a single group.
           const constantNamespaces = findConstantNamespaces(entrypoint, program);
-          const exports = foldConstantNamespaces(
-            dropTypeOnlyDuplicates(parsed.exports),
-            constantNamespaces,
-          );
+          const exports = foldConstantNamespaces(canonicalExports, constantNamespaces);
 
           // Re-add configured props that the parser dropped because they are
           // inherited from an externally declared type in node_modules
@@ -451,6 +466,7 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
               // Convert Map to Record for serialization across worker boundary
               typeNameMap:
                 mergedTypeNameMap.size > 0 ? Object.fromEntries(mergedTypeNameMap) : undefined,
+              aliases: aliases.size > 0 ? Object.fromEntries(aliases) : undefined,
             },
             dependencies,
           };

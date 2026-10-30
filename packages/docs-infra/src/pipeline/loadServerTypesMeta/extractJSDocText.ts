@@ -7,14 +7,14 @@
  * that live on another page, from producing dangling `#anchor` links that fail
  * the docs link checker.
  *
- * When `documentedNames` is omitted every reference is linked (legacy behavior,
- * used only when no documented-name set is threaded through).
+ * `documentedNames` maps each documented name to the name of the heading it links
+ * to, which differs for an alias of another export. When it is omitted every
+ * reference is linked to its own name (legacy behavior, used only when no
+ * documented names are threaded through).
  */
-function renderJSDocLink(symbol: string, documentedNames?: Set<string>): string {
-  if (!documentedNames || documentedNames.has(symbol)) {
-    return `[\`${symbol}\`](#${symbol.toLowerCase()})`;
-  }
-  return `\`${symbol}\``;
+function renderJSDocLink(symbol: string, documentedNames?: ReadonlyMap<string, string>): string {
+  const target = documentedNames ? documentedNames.get(symbol) : symbol;
+  return target === undefined ? `\`${symbol}\`` : `[\`${symbol}\`](#${target.toLowerCase()})`;
 }
 
 /**
@@ -25,7 +25,10 @@ function renderJSDocLink(symbol: string, documentedNames?: Set<string>): string 
  * while link nodes carry the referenced symbol in `name.escapedText`. Link nodes
  * are turned into markdown via {@link renderJSDocLink}, gated on `documentedNames`.
  */
-export function extractJSDocText(nodes: unknown[], documentedNames?: Set<string>): string {
+export function extractJSDocText(
+  nodes: unknown[],
+  documentedNames?: ReadonlyMap<string, string>,
+): string {
   return nodes
     .map((node) => {
       if (typeof node === 'object' && node !== null) {

@@ -19,7 +19,7 @@ describe('extractJSDocText', () => {
   });
 
   it('links a {@link} reference when the symbol is documented on the page', () => {
-    const documented = new Set(['resolveChunkRender']);
+    const documented = new Map([['resolveChunkRender', 'resolveChunkRender']]);
     expect(extractJSDocText([text('routes via '), link('resolveChunkRender')], documented)).toBe(
       'routes via [`resolveChunkRender`](#resolvechunkrender)',
     );
@@ -28,14 +28,14 @@ describe('extractJSDocText', () => {
   it('renders a {@link} reference as a code span when the symbol is not documented', () => {
     // `buildChunkRenderInputs` is an internal helper with no heading on the page,
     // so linking it would produce a dangling `#anchor`.
-    const documented = new Set(['resolveChunkRender']);
+    const documented = new Map([['resolveChunkRender', 'resolveChunkRender']]);
     expect(extractJSDocText([text('evaluates '), link('buildChunkRenderInputs')], documented)).toBe(
       'evaluates `buildChunkRenderInputs`',
     );
   });
 
   it('mixes linked and code-span references within one description', () => {
-    const documented = new Set(['resolveChunkRender']);
+    const documented = new Map([['resolveChunkRender', 'resolveChunkRender']]);
     expect(
       extractJSDocText(
         [link('resolveChunkRender'), text(' wraps '), link('CodeHighlighterChunk')],

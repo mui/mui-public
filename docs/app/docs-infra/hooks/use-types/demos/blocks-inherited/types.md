@@ -21,7 +21,11 @@ Renders a `<button>` element.
 
 Re-export of [Trigger](#trigger) props.
 
+Also exported as `AlertDialogTriggerProps`.
+
 ### Trigger.State
+
+Also exported as `AlertDialogTriggerState`.
 
 ```typescript
 type AlertDialogTriggerState = {
@@ -50,16 +54,10 @@ Renders a `<button>` element.
 
 Re-export of [Close](#close) props.
 
+Also exported as `AlertDialogCloseProps`.
+
 ## Export Groups
 
 - `AlertDialog.Trigger`: `AlertDialog.Trigger`, `AlertDialog.Trigger.Props`, `AlertDialog.Trigger.State`
 - `AlertDialog.Close`: `AlertDialog.Close`, `AlertDialog.Close.Props`
 - `Default`: `AlertDialogCloseProps`, `AlertDialogTriggerProps`, `AlertDialogTriggerState`
-
-## Canonical Types
-
-Maps `Canonical`: `Alias` — Use Canonical when its namespace is already imported; otherwise use Alias.
-
-- `AlertDialog.Trigger.Props`: `AlertDialogTriggerProps`
-- `AlertDialog.Trigger.State`: `AlertDialogTriggerState`
-- `AlertDialog.Close.Props`: `AlertDialogCloseProps`

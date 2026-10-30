@@ -52,47 +52,34 @@ export type {
   DescriptionReplacement,
 };
 
-export type TypesMeta =
-  | {
-      type: 'class';
-      name: string;
-      slug?: string;
-      /** Alternative names this type can be looked up by (e.g., flat export name like "AccordionRootState") */
-      aliases?: string[];
-      data: ClassTypeMeta;
-    }
-  | {
-      type: 'component';
-      name: string;
-      slug?: string;
-      /** Alternative names this type can be looked up by (e.g., flat export name like "AccordionRootProps") */
-      aliases?: string[];
-      data: ComponentTypeMeta;
-    }
-  | {
-      type: 'hook';
-      name: string;
-      slug?: string;
-      /** Alternative names this type can be looked up by */
-      aliases?: string[];
-      data: HookTypeMeta;
-    }
-  | {
-      type: 'function';
-      name: string;
-      slug?: string;
-      /** Alternative names this type can be looked up by */
-      aliases?: string[];
-      data: FunctionTypeMeta;
-    }
-  | {
-      type: 'raw';
-      name: string;
-      slug?: string;
-      /** Alternative names this type can be looked up by (e.g., flat export name like "AccordionRootState") */
-      aliases?: string[];
-      data: RawTypeMeta;
-    };
+/** The fields every documented type has, whatever its kind. */
+interface TypesMetaBase {
+  name: string;
+  slug?: string;
+  /**
+   * The other names the type is exported under, which it can also be looked up by: flat
+   * spellings of a namespaced name (`AccordionRootProps` for `Accordion.Root.Props`) and
+   * other exports of the same declaration (`compressString` for `compressHast`). types.md
+   * lists them under the type's section.
+   */
+  aliases?: string[];
+  /**
+   * An opaque id of the declaration the type documents, from the extractor's
+   * `ExportNode.declarationId`. Compare ids only for equality; they are stable across runs
+   * as a best effort, with no guarantee. types.md does not record it, so types read back
+   * from types.md have none.
+   */
+  declarationId?: string;
+}
+
+export type TypesMeta = TypesMetaBase &
+  (
+    | { type: 'class'; data: ClassTypeMeta }
+    | { type: 'component'; data: ComponentTypeMeta }
+    | { type: 'hook'; data: HookTypeMeta }
+    | { type: 'function'; data: FunctionTypeMeta }
+    | { type: 'raw'; data: RawTypeMeta }
+  );
 
 const functionName = 'Load Server Types Meta';
 
@@ -149,8 +136,6 @@ export interface LoadServerTypesMetaOptions {
 export interface LoadServerTypesMetaResult extends OrganizeTypesResult<TypesMeta> {
   /** All dependencies that should be watched for changes */
   allDependencies: string[];
-  /** Type name map from variant processing */
-  typeNameMap?: Record<string, string>;
   /**
    * External types discovered during formatting.
    * These are types referenced in props/params that are not publicly exported,
@@ -267,8 +252,7 @@ export async function loadServerTypesMeta(
   const allDependencies = workerResult.allDependencies || [];
 
   // Format the raw exports from the worker into TypesMeta
-  const variantData: Record<string, { types: TypesMeta[]; typeNameMap?: Record<string, string> }> =
-    {};
+  const variantData: Record<string, { types: TypesMeta[] }> = {};
 
   // Create external types collector — shared across all formatting calls.
   // External types are collected during formatting as type names are encountered
@@ -285,7 +269,12 @@ export async function loadServerTypesMeta(
   // This map is used to rewrite type references (e.g., Dialog.Trigger.State -> AlertDialog.Trigger.State)
   const allRawExports = Object.values(rawVariantData).flatMap((v) => v.exports);
   const allExportNames = Array.from(new Set(allRawExports.map((exp) => exp.name)));
-  const typeCompatibilityMap = buildTypeCompatibilityMap(allRawExports, allExportNames);
+  // Aliases are public exports too, so types extending one are not rewritten to the extender.
+  const allAliasNames = Object.values(rawVariantData).flatMap((v) => Object.keys(v.aliases ?? {}));
+  const typeCompatibilityMap = buildTypeCompatibilityMap(allRawExports, [
+    ...allExportNames,
+    ...allAliasNames,
+  ]);
 
   // Build merged typeNameMap from all variants for type string rewriting
   // typeNameMap maps flat names like "AlertDialogTriggerState" to dotted names like "AlertDialog.Trigger.State"
@@ -423,7 +412,12 @@ export async function loadServerTypesMeta(
         }),
       );
 
-      variantData[variantName] = { types, typeNameMap: variantResult.typeNameMap };
+      variantData[variantName] = {
+        types: types.map((typeMeta, index) => {
+          const { declarationId } = variantResult.exports[index];
+          return declarationId === undefined ? typeMeta : { ...typeMeta, declarationId };
+        }),
+      };
     }),
   );
 
@@ -490,10 +484,7 @@ export async function loadServerTypesMeta(
         }
 
         if (!groupedVariantData[groupName]) {
-          groupedVariantData[groupName] = {
-            types: [],
-            typeNameMap: defaultData.typeNameMap,
-          };
+          groupedVariantData[groupName] = { types: [] };
         }
         groupedVariantData[groupName].types.push(typeMeta);
       }
@@ -532,14 +523,13 @@ export async function loadServerTypesMeta(
   });
   allTypes = Array.from(typesByName.values());
 
-  // Merge typeNameMaps from all variants for filtering
-  // typeNameMap maps flat names like "AccordionItemChangeEventReason" to dotted names like "Accordion.Item.ChangeEventReason"
+  // Merge the other names each type is exported under from all variants: its flat spellings
+  // ("AccordionItemChangeEventReason" for "Accordion.Item.ChangeEventReason") and the exports
+  // reaching the same declaration ("compressString" for "compressHast")
   // While variants typically have identical mappings (they parse the same source), merging ensures completeness
   const mergedTypeNameMap: Record<string, string> = {};
-  for (const variant of Object.values(variantData)) {
-    if (variant.typeNameMap) {
-      Object.assign(mergedTypeNameMap, variant.typeNameMap);
-    }
+  for (const variant of Object.values(rawVariantData)) {
+    Object.assign(mergedTypeNameMap, variant.typeNameMap, variant.aliases);
   }
 
   // Filter out flat-named types when a corresponding namespaced version exists
@@ -570,26 +560,24 @@ export async function loadServerTypesMeta(
     return !existingDottedNames.has(dottedName);
   });
 
-  // Attach aliases from typeNameMap to namespaced types so they can also be looked up by their flat name
-  // e.g., "Accordion.Item.ChangeEventDetails" gets alias "AccordionItemChangeEventDetails"
-  // The flat name is confirmed to be a real export (typeNameMap only contains verified exports)
+  // Attach aliases from typeNameMap to the types they name so they can also be looked up by
+  // those names, e.g., "Accordion.Item.ChangeEventDetails" gets alias "AccordionItemChangeEventDetails",
+  // and "compressHast" gets alias "compressString"
+  // Every name is confirmed to be a real export (typeNameMap only contains verified exports)
   const dottedToFlatNames = new Map<string, string[]>();
   for (const [flatName, dottedName] of Object.entries(mergedTypeNameMap)) {
-    // Only add aliases for flat names that were actually filtered out (i.e., the dotted version exists)
-    if (existingDottedNames.has(dottedName)) {
-      const existing = dottedToFlatNames.get(dottedName);
-      if (existing) {
-        existing.push(flatName);
-      } else {
-        dottedToFlatNames.set(dottedName, [flatName]);
-      }
+    const existing = dottedToFlatNames.get(dottedName);
+    if (existing) {
+      existing.push(flatName);
+    } else {
+      dottedToFlatNames.set(dottedName, [flatName]);
     }
   }
   if (dottedToFlatNames.size > 0) {
     allTypes = allTypes.map((typeMeta) => {
       const flatAliases = dottedToFlatNames.get(typeMeta.name);
       if (flatAliases) {
-        return { ...typeMeta, aliases: flatAliases };
+        return { ...typeMeta, aliases: flatAliases.sort() };
       }
       return typeMeta;
     });
@@ -638,8 +626,7 @@ export async function loadServerTypesMeta(
           : componentName;
         // Mark this as a re-export by updating the data
         return {
-          type: 'raw' as const,
-          name: typeMeta.name,
+          ...typeMeta,
           data: {
             ...typeMeta.data,
             reExportOf: {
@@ -669,9 +656,6 @@ export async function loadServerTypesMeta(
       return updated ?? typeMeta;
     });
   }
-
-  // Get typeNameMap from first variant (they should all be the same)
-  const typeNameMap = Object.values(variantData)[0]?.typeNameMap;
 
   // External types were collected during formatting — no separate filtering needed.
   // The collection happens in formatType() which only encounters types that appear
@@ -705,11 +689,10 @@ export async function loadServerTypesMeta(
   );
 
   // Organize types into exports structure for UI consumption
-  const organized = organizeTypesByExport(variantData, typeNameMap, options.ordering);
+  const organized = organizeTypesByExport(variantData, options.ordering);
 
   return {
     allDependencies,
-    typeNameMap,
     externalTypes,
     externalTypeLinks,
     resourceName,
@@ -717,6 +700,5 @@ export async function loadServerTypesMeta(
     additionalTypes: organized.additionalTypes,
     variantOnlyAdditionalTypes: organized.variantOnlyAdditionalTypes,
     variantTypeNames: organized.variantTypeNames,
-    variantTypeNameMaps: organized.variantTypeNameMaps,
   };
 }

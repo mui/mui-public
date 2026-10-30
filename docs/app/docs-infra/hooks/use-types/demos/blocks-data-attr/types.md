@@ -29,7 +29,11 @@ A simple component that displays a title and optional children.
 
 Re-export of [Root](#root) props.
 
+Also exported as `ComponentRootProps`.
+
 ### Root.State
+
+Also exported as `ComponentRootState`.
 
 ```typescript
 type ComponentRootState = {
@@ -41,6 +45,8 @@ type ComponentRootState = {
 ```
 
 ### Root.ChangeEventDetails
+
+Also exported as `ComponentRootChangeEventDetails`.
 
 ```typescript
 type ComponentRootChangeEventDetails = {
@@ -75,7 +81,11 @@ A simple component that displays a title and optional children.
 
 Re-export of [Part](#part) props.
 
+Also exported as `ComponentPartProps`.
+
 ### Part.State
+
+Also exported as `ComponentPartState`.
 
 ```typescript
 type ComponentPartState = {
@@ -146,13 +156,3 @@ type InputType =
 - `Component.Root`: `Component.Root`, `Component.Root.State`, `Component.Root.Props`, `Component.Root.ChangeEventDetails`
 - `Component.Part`: `Component.Part`, `Component.Part.State`, `Component.Part.Props`
 - `Default`: `ComponentRootDataAttributes`, `ComponentPartDataAttributes`, `ComponentRootState`, `ComponentRootChangeEventDetails`, `ComponentRootProps`, `ComponentPartState`, `ComponentPartProps`, `InputType`
-
-## Canonical Types
-
-Maps `Canonical`: `Alias` — Use Canonical when its namespace is already imported; otherwise use Alias.
-
-- `Component.Root.State`: `ComponentRootState`
-- `Component.Root.Props`: `ComponentRootProps`
-- `Component.Root.ChangeEventDetails`: `ComponentRootChangeEventDetails`
-- `Component.Part.State`: `ComponentPartState`
-- `Component.Part.Props`: `ComponentPartProps`
