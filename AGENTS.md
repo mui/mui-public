@@ -1,6 +1,6 @@
 # MUI Public Repository
 
-MUI Public is a monorepo containing public packages and applications for the MUI ecosystem. This repository uses pnpm workspaces and includes various build tools, Babel plugins, bundle analyzers, and web applications built with React/Vite.
+MUI Public is a monorepo containing public packages and applications for the MUI ecosystem. This repository uses pnpm workspaces and includes various build tools, Babel plugins, bundle analyzers, and React web applications.
 
 Always reference these instructions first and fallback to search or bash commands only when you encounter unexpected information that does not match the info here.
 
@@ -35,12 +35,13 @@ Always reference these instructions first and fallback to search or bash command
 
 ### Run Applications
 
-- **Code Infra Dashboard** (Next.js app):
+- **Code Infra Dashboard** (Next.js app, deployed as a Node web service on Render -- see `render.yaml`):
   - **ALWAYS run the bootstrapping steps first**
-  - Build: `pnpm -F ./apps/code-infra-dashboard run build` -- takes 5 seconds
+  - Build: `pnpm -F ./apps/code-infra-dashboard run build` -- needs `GITHUB_TOKEN` (or the GitHub App vars) in `.env.local`, because the `/kpis` pages are prerendered against the GitHub API and anonymous requests hit the rate limit.
   - Dev server: `pnpm -F ./apps/code-infra-dashboard run dev` -- runs on http://localhost:3000
   - Production URL: `https://frontend-public.mui.com`
   - PR preview URLs follow the pattern: `https://code-infra-dashboard-pr-{number}.onrender.com`
+  - Optional GitHub sign-in: unset by default, so the app runs anonymously. Set `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET`, `SESSION_SECRET` and `DASHBOARD_ORIGIN` to enable it locally -- see `.env.example`.
 
 ## Validation
 

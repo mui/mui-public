@@ -1,6 +1,6 @@
-import { useInfiniteQuery } from '@tanstack/react-query';
 import type { GitHubPRInfo } from './useGitHubPR';
-import { octokit, parseRepo } from '../utils/github';
+import { parseRepo } from '../utils/github';
+import { useGitHubInfiniteQuery } from './useGitHubQuery';
 
 export interface UseGitHubPRs {
   prs: GitHubPRInfo[];
@@ -18,9 +18,9 @@ export interface UseGitHubPRs {
  */
 export function useGitHubPRs(repo: string, initialLimit: number = 5): UseGitHubPRs {
   const { data, isLoading, isFetchingNextPage, hasNextPage, error, fetchNextPage } =
-    useInfiniteQuery({
+    useGitHubInfiniteQuery({
       queryKey: ['github-prs', repo],
-      queryFn: async ({ pageParam = 1 }): Promise<GitHubPRInfo[]> => {
+      queryFn: async (octokit, { pageParam }): Promise<GitHubPRInfo[]> => {
         const { owner, repo: repoName } = parseRepo(repo);
         // First page uses the initial limit, subsequent pages use 10
         const perPage = pageParam === 1 ? initialLimit : 10;
