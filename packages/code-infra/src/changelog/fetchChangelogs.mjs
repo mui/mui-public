@@ -3,7 +3,12 @@ import { throttling } from '@octokit/plugin-throttling';
 import { Octokit } from '@octokit/rest';
 import { mapAsync } from 'es-toolkit/array';
 
-import { persistentAuthStrategy } from '../utils/github.mjs';
+import { persistentAuthStrategy, getRateLimitRetryTime } from '../utils/github.mjs';
+
+const HTTP_NOT_FOUND = 404;
+const HTTP_FORBIDDEN = 403;
+const MIN_MERGE_PARENTS = 2;
+const AUTHOR_SUFFIX = /\s+\(@[\w-]+\)(?=\s+\(#\d+\)\s*$)/m;
 
 const ThrottledOctokit = Octokit.plugin(throttling, retry);
 
@@ -102,38 +107,86 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
     });
   }
 
+  /** @type {Map<string, Promise<'team' | 'contributor'>>} */
+  const authorMemberships = new Map();
+
+  /** @param {string} login @param {AbortSignal} signal @returns {Promise<'team' | 'contributor'>} */
+  async function checkMembership(login, signal) {
+    try {
+      await octokit.orgs.checkMembershipForUser({ org, username: login, request: { signal } });
+      return 'team';
+    } catch (error) {
+      if (getRateLimitRetryTime(error)) {
+        throw error;
+      }
+      if (error instanceof Error && 'status' in error) {
+        if (error.status === HTTP_NOT_FOUND) {
+          return 'contributor';
+        }
+        if (error.status === HTTP_FORBIDDEN) {
+          console.warn(`Cannot check membership for @${login}; treating as community.`);
+          return 'contributor';
+        }
+      }
+      throw error;
+    }
+  }
+
+  /** @param {string} login @param {AbortSignal} signal @returns {Promise<'team' | 'contributor'>} */
+  async function getMembershipAssociation(login, signal) {
+    if (login === org) {
+      return 'team';
+    }
+    if (login.endsWith('[bot]')) {
+      return 'contributor';
+    }
+    let association = authorMemberships.get(login);
+    if (!association) {
+      association = checkMembership(login, signal);
+      authorMemberships.set(login, association);
+    }
+    return association;
+  }
+
   /**
    * @param {Commits[number]} commit
    * @param {AbortSignal} signal
    * @returns {Promise<FetchedCommitDetails | null>}
    */
   const fetchCommitDetails = async (commit, signal) => {
-    const matches = [...commit.commit.message.matchAll(/#(\d+)/g)];
-    // The PR number is always the last match.
-    // Sometimes the PR titles include an issue number like this:
-    // [tag] PR title (#00001) (#00002)
-    const prMatch = matches.at(-1);
+    // Squash and merge subjects identify PRs; issue references in prose do not.
+    const subject = commit.commit.message.split('\n')[0];
+    const prMatch =
+      subject.match(/\(#(\d+)\)\s*$/) ?? subject.match(/^Merge pull request #(\d+)\b/);
+    const isMerge = (commit.parents?.length ?? 0) >= MIN_MERGE_PARENTS;
     if (!prMatch) {
-      return null;
+      return isMerge ? null : directCommit(commit, signal);
     }
 
-    const prNumber = parseInt(prMatch[1], 10);
+    const prNumber = Number(prMatch[1]);
 
-    const pr = await octokit.pulls.get({
-      owner: org,
-      repo,
-      pull_number: prNumber,
-      headers: {
-        Accept: 'application/vnd.github.text+json',
-      },
-      request: { signal },
-    });
+    let pr;
+    try {
+      pr = await octokit.pulls.get({
+        owner: org,
+        repo,
+        pull_number: prNumber,
+        headers: { Accept: 'application/vnd.github.text+json' },
+        request: { signal },
+      });
+    } catch (error) {
+      if (error instanceof Error && 'status' in error && error.status === HTTP_NOT_FOUND) {
+        return isMerge ? null : directCommit(commit, signal);
+      }
+      throw error;
+    }
 
     const labels = pr.data.labels.map((label) => label.name);
 
-    return /** @type {FetchedCommitDetails} */ ({
+    /** @type {FetchedCommitDetails} */
+    const details = {
       sha: commit.sha,
-      message: commit.commit.message,
+      message: isMerge ? `${pr.data.title} (#${prNumber})` : commit.commit.message,
       labels,
       prNumber,
       html_url: pr.data.html_url,
@@ -146,9 +199,82 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
           }
         : null,
       prTitle: pr.data.title,
-      prBody: pr.data.body,
-    });
+      prBody: pr.data.body ?? '',
+    };
+
+    const isCherryPick = labels.includes('cherry-pick') || labels.includes('backport');
+    if (!isCherryPick) {
+      return details;
+    }
+    if (!details.author?.login.endsWith('[bot]')) {
+      details.message = details.message.replace(AUTHOR_SUFFIX, '');
+      return details;
+    }
+
+    // Only structured backport references or an explicit title suffix establish attribution.
+    const originalRef = details.prBody.match(
+      /(?:cherry[- ]pick(?:ed)?(?: from| of)?|original(?: pull request| pr)?)\s*:?\s*(?:https:\/\/github\.com\/([^/\s]+)\/([^/\s]+)\/pull\/|#)(\d+)/i,
+    );
+    const originalLogin = details.prTitle.match(/\(@([\w-]+)\)\s*$/)?.[1];
+    if (originalRef) {
+      const owner = originalRef[1] ?? org;
+      const originalRepo = originalRef[2] ?? repo;
+      const number = Number(originalRef[3]);
+      if (owner !== org || originalRepo !== repo || number !== prNumber) {
+        try {
+          const original = await octokit.pulls.get({
+            owner,
+            repo: originalRepo,
+            pull_number: number,
+            request: { signal },
+          });
+          if (original.data.user?.login) {
+            details.author = {
+              login: original.data.user.login,
+              association: getAuthorAssociation(original.data.author_association),
+            };
+          }
+        } catch (error) {
+          if (!(error instanceof Error && 'status' in error && error.status === HTTP_NOT_FOUND)) {
+            throw error;
+          }
+        }
+      }
+    }
+    if (details.author?.login.endsWith('[bot]') && originalLogin) {
+      details.author = {
+        login: originalLogin,
+        association: await getMembershipAssociation(originalLogin, signal),
+      };
+    }
+
+    if (details.author?.login.endsWith('[bot]')) {
+      console.warn(
+        `Cannot resolve original author for cherry-pick #${prNumber}; retaining @${details.author.login}.`,
+      );
+    } else {
+      details.message = details.message.replace(AUTHOR_SUFFIX, '');
+    }
+    return details;
   };
+
+  /** @param {Commits[number]} commit @param {AbortSignal} signal @returns {Promise<FetchedCommitDetails>} */
+  async function directCommit(commit, signal) {
+    const login = commit.author?.login;
+    const association = login ? await getMembershipAssociation(login, signal) : 'contributor';
+    return {
+      sha: commit.sha,
+      message: commit.commit.message,
+      labels: [],
+      prNumber: null,
+      html_url: commit.html_url,
+      author: login ? { login, association } : null,
+      mergedAt: commit.commit.author?.date ?? null,
+      createdAt: commit.commit.author?.date ?? null,
+      prTitle: '',
+      prBody: '',
+    };
+  }
 
   // `mapAsync` rejects on the first error but still runs every queued callback.
   // Aborted once it settles, which cancels requests in flight and skips the ones not started yet.
@@ -171,10 +297,83 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
       },
       { concurrency: 10 },
     );
-    return commits.filter((entry) => entry !== null);
+    return omitMergedChildren(
+      results,
+      commits.filter((entry) => entry !== null),
+    );
   } finally {
     controller.abort();
   }
+}
+
+/**
+ * A merge PR represents its branch changes once; changes already on the mainline stay visible.
+ * @param {Awaited<ReturnType<OctokitType['repos']['compareCommits']>>['data']['commits']} source
+ * @param {FetchedCommitDetails[]} commits
+ */
+function omitMergedChildren(source, commits) {
+  const graph = new Map(source.map((commit) => [commit.sha, commit]));
+  /** @param {string} sha */
+  function ancestors(sha) {
+    const seen = new Set();
+    const pending = [sha];
+    while (pending.length > 0) {
+      const current = pending.pop();
+      if (!current || seen.has(current) || !graph.has(current)) {
+        continue;
+      }
+      seen.add(current);
+      pending.push(...(graph.get(current)?.parents ?? []).map((parent) => parent.sha));
+    }
+    return seen;
+  }
+
+  const entries = new Map(commits.map((commit) => [commit.sha, commit]));
+  const children = new Map(source.map((commit) => [commit.sha, 0]));
+  for (const commit of source) {
+    for (const parent of commit.parents ?? []) {
+      if (children.has(parent.sha)) {
+        children.set(parent.sha, (children.get(parent.sha) ?? 0) + 1);
+      }
+    }
+  }
+
+  // Visit descendants first so a suppressed sync PR cannot hide independent mainline work.
+  const pending = source
+    .filter((commit) => children.get(commit.sha) === 0)
+    .map((commit) => commit.sha);
+  const suppressed = new Set();
+  while (pending.length > 0) {
+    const sha = pending.pop();
+    if (!sha) {
+      continue;
+    }
+    const parents = graph.get(sha)?.parents ?? [];
+    for (const parent of parents) {
+      const count = children.get(parent.sha);
+      if (count === undefined) {
+        continue;
+      }
+      children.set(parent.sha, count - 1);
+      if (count === 1) {
+        pending.push(parent.sha);
+      }
+    }
+
+    const commit = entries.get(sha);
+    if (suppressed.has(sha) || commit?.prNumber == null || parents.length < MIN_MERGE_PARENTS) {
+      continue;
+    }
+    const mainline = ancestors(parents[0].sha);
+    for (const parent of parents.slice(1)) {
+      for (const sha of ancestors(parent.sha)) {
+        if (!mainline.has(sha)) {
+          suppressed.add(sha);
+        }
+      }
+    }
+  }
+  return commits.filter((commit) => !suppressed.has(commit.sha));
 }
 
 /**
