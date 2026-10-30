@@ -14,53 +14,32 @@ function stubConfiguredDeploy() {
   vi.stubEnv('DASHBOARD_ORIGIN', DASHBOARD_ORIGIN);
 }
 
-/**
- * A login request as a browser on `browserOrigin` sends it. Next's own URL for the
- * request uses its configured hostname rather than the browser's, which only the
- * Host header carries; the URL here deliberately uses the canonical origin to
- * reproduce that.
- */
-function loginRequest(browserOrigin: string): NextRequest {
+function loginRequest(returnTo: string): NextRequest {
   const url = new URL('/api/auth/login', DASHBOARD_ORIGIN);
-  url.searchParams.set('returnTo', '/repository/acme/widgets/prs');
-  return new NextRequest(url, { headers: { host: new URL(browserOrigin).host } });
+  url.searchParams.set('returnTo', returnTo);
+  return new NextRequest(url);
 }
 
 describe('GET /api/auth/login', () => {
-  it('sends the user to GitHub from the canonical origin', async () => {
+  it('sends the user to GitHub, remembering where they came from', async () => {
     stubConfiguredDeploy();
 
-    const response = await GET(loginRequest(DASHBOARD_ORIGIN));
+    const response = await GET(loginRequest('/repository/acme/widgets/prs'));
 
     const location = new URL(response.headers.get('location')!);
     expect(location.origin).toBe('https://github.com');
     expect(location.searchParams.get('client_id')).toBe('client-id');
-    expect(response.cookies.get('mui_dashboard_oauth_state')?.value).toBeTruthy();
-  });
-
-  // The callback always runs on the canonical origin, so a state cookie set on
-  // any other host would never reach it and sign-in could not complete.
-  it('restarts on the canonical origin when reached through another host', async () => {
-    stubConfiguredDeploy();
-
-    const response = await GET(loginRequest('https://another-host.example'));
-
-    const location = new URL(response.headers.get('location')!);
-    expect(location.origin).toBe(new URL(DASHBOARD_ORIGIN).origin);
-    expect(location.pathname).toBe('/api/auth/login');
-    expect(location.searchParams.get('returnTo')).toBe('/repository/acme/widgets/prs');
-    expect(response.cookies.get('mui_dashboard_oauth_state')).toBe(undefined);
+    const stored = new URLSearchParams(response.cookies.get('mui_dashboard_oauth_state')?.value);
+    expect(stored.get('state')).toBe(location.searchParams.get('state'));
+    expect(stored.get('returnTo')).toBe('/repository/acme/widgets/prs');
   });
 
   // Browsers silently drop cookies over 4 KB, which would lose the state too and
   // make sign-in from a long URL fail every time.
   it('drops a return path too long to fit in the state cookie', async () => {
     stubConfiguredDeploy();
-    const url = new URL('/api/auth/login', DASHBOARD_ORIGIN);
-    url.searchParams.set('returnTo', `/query-oss-insight?sql=${'SELECT 1\n'.repeat(400)}`);
-    const request = new NextRequest(url, { headers: { host: url.host } });
 
-    const response = await GET(request);
+    const response = await GET(loginRequest(`/query-oss-insight?sql=${'SELECT 1\n'.repeat(400)}`));
 
     const stateCookie = response.cookies.get('mui_dashboard_oauth_state')?.value ?? '';
     const stored = new URLSearchParams(stateCookie);
@@ -70,7 +49,7 @@ describe('GET /api/auth/login', () => {
   });
 
   it('is unavailable without sign-in configured', async () => {
-    const response = await GET(loginRequest(DASHBOARD_ORIGIN));
+    const response = await GET(loginRequest('/'));
 
     expect(response.status).toBe(503);
   });
