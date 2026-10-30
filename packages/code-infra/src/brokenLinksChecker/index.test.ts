@@ -329,7 +329,7 @@ describe('Broken Links Checker', () => {
     await crawl({
       startCommand: `node ${wrapperPath} ${servePath} ${fixtureDir} -p ${port}`,
       host,
-      seedUrls: ['/valid.html'],
+      seedUrls: ['/no-links.html'],
     });
 
     await vi.waitFor(() => expect(fetch(host)).rejects.toThrow('fetch failed'), { timeout: 5000 });
