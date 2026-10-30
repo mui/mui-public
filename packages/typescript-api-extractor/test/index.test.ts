@@ -8,6 +8,11 @@ import { loadConfig, parseFromProgram } from '../src';
 const regenerateOutput = process.env.UPDATE_OUTPUT === 'true';
 const fixturesDir = path.resolve(__dirname, 'fixtures');
 
+// Every fixture shares one program, and some output depends on what the checker evaluated
+// earlier: TypeScript orders union members (and the `keyof`, `Pick` and `Omit` results built
+// from them) by internal type id, which is assigned on first use. Sorting keeps parse order,
+// and with it the expected output, stable. Extraction independent of checker history is a
+// known gap, deliberately left open; do not drop the sort until it is closed.
 let testCases = fs
   .globSync('**/input.{d.ts,ts,tsx}', { cwd: fixturesDir })
   .sort()
