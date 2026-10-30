@@ -15,7 +15,7 @@ function getDetailsUrl(
   baseCommit: string,
   headCommit: string,
 ) {
-  const url = new URL(`${DASHBOARD_ORIGIN}/size-comparison/${repo}/diff`);
+  const url = new URL(`/size-comparison/${repo}/diff`, DASHBOARD_ORIGIN);
   url.searchParams.set('sha', headCommit);
   url.searchParams.set('base', baseCommit);
   url.searchParams.set('prNumber', String(prNumber));

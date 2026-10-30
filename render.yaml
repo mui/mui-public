@@ -29,6 +29,13 @@ services:
         value: 22
       - key: QR_CODE_SECRET
         generateValue: true
+      # The canonical origin, https://frontend-public.mui.com, set on the production
+      # service in the Render dashboard. PR comment links and QR codes use it.
+      # `sync: false` keeps it out of preview environments, which then fall back to
+      # their own RENDER_EXTERNAL_URL: production would reject QR codes signed with
+      # a preview's secret.
+      - key: DASHBOARD_ORIGIN
+        sync: false
       - fromGroup: code-infra-dashboard AWS user
       - fromGroup: X-license-code-infra
       - fromGroup: CircleCI API token
