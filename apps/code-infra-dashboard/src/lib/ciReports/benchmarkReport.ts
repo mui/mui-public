@@ -15,7 +15,7 @@ function generateBenchmarkRunSection(
   { repo, prNumber, commitSha }: ReportOptions,
   report: BenchmarkRunReport,
 ): ReportResult {
-  const runUrl = new URL(`${DASHBOARD_ORIGIN}/benchmark-run/${repo}`);
+  const runUrl = new URL(`/benchmark-run/${repo}`, DASHBOARD_ORIGIN);
   runUrl.searchParams.set('sha', commitSha);
   // The details view reads this to title the page and link back to the PR overview.
   runUrl.searchParams.set('prNumber', String(prNumber));
@@ -78,7 +78,7 @@ export async function generateBenchmarkReport(
   const baseUpload = useInlinedBase ? inlinedBase : fetchedBaseUpload;
   const comparison = compareBenchmarkReports(headReport, baseUpload ?? null);
 
-  const detailsUrl = new URL(`${DASHBOARD_ORIGIN}/benchmark-details/${repo}`);
+  const detailsUrl = new URL(`/benchmark-details/${repo}`, DASHBOARD_ORIGIN);
   detailsUrl.searchParams.set('sha', commitSha);
   // When we inlined the base, omit the `base` query param so the dashboard
   // defaults to the inlined copy rather than re-fetching by sha.
