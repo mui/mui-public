@@ -80,7 +80,7 @@ describe('processTypes', () => {
     expect(matchConstantGroups(variant.exports).targets.get('DialogTriggerDataAttributes')).toEqual(
       { component: 'Dialog.Trigger', kind: 'dataAttributes' },
     );
-    expect(variant.typeNameMap).toMatchObject({
+    expect(variant.aliases).toMatchObject({
       DialogTriggerProps: 'Dialog.Trigger.Props',
       DialogTriggerState: 'Dialog.Trigger.State',
     });

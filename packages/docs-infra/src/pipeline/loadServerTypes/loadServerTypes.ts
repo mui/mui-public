@@ -4,6 +4,7 @@ import { toKebabCase } from '../loaderUtils/toKebabCase';
 import { nameMark, performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { highlightTypes } from './highlightTypes';
 import { highlightTypesMeta } from './highlightTypesMeta';
+import { computeTypeSlug, findComponentPrefix } from './typeSlugs';
 import type {
   HighlightedTypesMeta,
   HighlightedComponentTypeMeta,
@@ -219,28 +220,10 @@ async function enhanceTypes(
   },
 ): Promise<Omit<LoadServerTypesResult, 'allDependencies'>> {
   // Compute slugs for all types
-  // Determine the common component prefix from the first dotted name (e.g., "Accordion")
-  let componentPrefix = '';
-  for (const exportData of Object.values(syncResult.exports)) {
-    if (exportData.type.name.includes('.')) {
-      componentPrefix = exportData.type.name.split('.')[0];
-      break;
-    }
-  }
-
-  const computeSlug = (name: string): string => {
-    if (name.includes('.')) {
-      const parts = name.split('.');
-      if (parts[0] === componentPrefix && parts.length > 1) {
-        // Strip the component prefix, keep the rest
-        return parts.slice(1).join('.').toLowerCase();
-      }
-      // No prefix match, use the full name
-      return name.toLowerCase();
-    }
-    // Non-dotted name: use as-is
-    return name.toLowerCase();
-  };
+  const componentPrefix = findComponentPrefix(
+    Object.values(syncResult.exports).map((exportData) => exportData.type.name),
+  );
+  const computeSlug = (name: string): string => computeTypeSlug(name, componentPrefix);
 
   // Assign slugs to all types in exports
   for (const exportData of Object.values(syncResult.exports)) {

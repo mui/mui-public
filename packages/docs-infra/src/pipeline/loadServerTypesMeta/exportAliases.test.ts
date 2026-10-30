@@ -63,10 +63,9 @@ async function formatPropTypes(variant: VariantResult, componentName: string) {
     throw new Error(`${componentName} is not a component`);
   }
   const exportNames = variant.exports.map((node) => node.name);
-  const data = await formatComponentData(component, variant.typeNameMap ?? {}, {
+  const data = await formatComponentData(component, {
     typeCompatibilityMap: buildTypeCompatibilityMap(variant.exports, exportNames),
     exportNames,
-    typeNameMap: variant.typeNameMap,
   });
   return {
     description: data.descriptionText,
@@ -128,13 +127,13 @@ describe('processTypes with export aliases', () => {
       'Dialog.Trigger.Props',
       'Dialog.Trigger.State',
       'DialogTriggerDataAttributes',
-      'DialogTriggerState',
-      'DialogTriggerProps',
     ]);
     expect(variant.aliases).toEqual({
       DialogTrigger: 'Dialog.Trigger',
       'DialogTrigger.Props': 'Dialog.Trigger.Props',
       'DialogTrigger.State': 'Dialog.Trigger.State',
+      DialogTriggerProps: 'Dialog.Trigger.Props',
+      DialogTriggerState: 'Dialog.Trigger.State',
     });
     expect(matchConstantGroups(variant.exports).targets).toEqual(
       new Map([
@@ -143,20 +142,16 @@ describe('processTypes with export aliases', () => {
     );
   });
 
-  it('points references to an alias at the canonical name', async () => {
+  it('names references to a declaration by its canonical export', async () => {
     const variant = await processSources(DIALOG_SOURCES);
 
-    expect(variant.typeNameMap).toEqual({
-      DialogTriggerProps: 'Dialog.Trigger.Props',
-      DialogTriggerState: 'Dialog.Trigger.State',
-    });
     expect((await formatPropTypes(variant, 'Dialog.Trigger')).props).toEqual({
       className: '((state: Dialog.Trigger.State) => string) | undefined',
       payload: 'Payload | undefined',
     });
   });
 
-  it('rewrites whole type references only, never a namespace member or a longer name', async () => {
+  it('names references by the declaration they refer to, not by their spelling', async () => {
     const variant = await processSources({
       'index.ts': `
         export * as Toolbar from './index.parts';
@@ -208,13 +203,53 @@ describe('processTypes with export aliases', () => {
       `,
     });
 
-    expect(variant.aliases).toEqual({ Orientation: 'Toolbar.Orientation' });
+    // `Toolbar.Root.Orientation` renames the `Orientation` the toolbar also exports flat and in
+    // its namespace, so all three are one type, documented under its most namespaced name
+    expect(variant.aliases).toEqual({
+      Orientation: 'Toolbar.Root.Orientation',
+      'Toolbar.Orientation': 'Toolbar.Root.Orientation',
+    });
     expect((await formatPropTypes(variant, 'Toolbar.Root')).props).toEqual({
       orientation: 'Toolbar.Root.Orientation | undefined',
     });
     expect((await formatPropTypes(variant, 'Toolbar.Separator')).props).toEqual({
-      orientation: 'Toolbar.Orientation | undefined',
+      orientation: 'Toolbar.Root.Orientation | undefined',
       options: 'OrientationOptions | undefined',
+    });
+  });
+
+  it('names a type a part extends by the part, when only its flat export extends it', async () => {
+    const variant = await processSources({
+      'index.ts': `
+        export * as Toolbar from './index.parts';
+        export type * from './ToolbarSeparator';
+      `,
+      'index.parts.ts': `export { ToolbarSeparator as Separator } from './ToolbarSeparator';`,
+      'Separator.ts': `
+        export interface SeparatorState { vertical: boolean }
+        export interface SeparatorProps { className?: (state: SeparatorState) => string }
+      `,
+      'ToolbarSeparator.ts': `
+        import type { ReactElement } from './react';
+        import type { SeparatorProps, SeparatorState } from './Separator';
+
+        export interface ToolbarSeparatorState extends SeparatorState {}
+        export interface ToolbarSeparatorProps extends SeparatorProps {}
+
+        /** Separates controls. */
+        export function ToolbarSeparator(props: ToolbarSeparatorProps): ReactElement {
+          return {};
+        }
+
+        export namespace ToolbarSeparator {
+          export type State = ToolbarSeparatorState;
+          export type Props = ToolbarSeparatorProps;
+        }
+      `,
+    });
+
+    expect((await formatPropTypes(variant, 'Toolbar.Separator')).props).toEqual({
+      className: '((state: Toolbar.Separator.State) => string) | undefined',
     });
   });
 
@@ -248,6 +283,107 @@ describe('processTypes with export aliases', () => {
     expect(useFilter.name).toBe('Autocomplete.useFilter');
     expect(isPublicFunction(useFilter)).toBe(true);
     expect(isPublicHook(useFilter)).toBe(false);
+  });
+
+  it('names a type the entrypoint re-exports under another name by that name', async () => {
+    const variant = await processSources({
+      'index.ts': `
+        export type { State as ToggleState, Holder as ToggleHolder } from './toggle';
+        export type { State as SwitchState, Holder as SwitchHolder } from './switch';
+        export type { Container } from './container';
+      `,
+      'toggle.ts': `
+        export interface State { on: boolean }
+        export interface Holder { state: State }
+      `,
+      'switch.ts': `
+        export interface State { checked: boolean }
+        export interface Holder { state: State }
+      `,
+      'container.ts': `
+        interface State { open: boolean }
+        export interface Container { state: State }
+      `,
+    });
+    const getStateTypeName = (exportName: string) => {
+      const type = variant.exports.find((node) => node.name === exportName)?.type;
+      const property = type?.kind === 'object' ? type.properties[0] : undefined;
+      return property && 'typeName' in property.type ? property.type.typeName?.name : undefined;
+    };
+
+    expect(getStateTypeName('ToggleHolder')).toBe('ToggleState');
+    expect(getStateTypeName('SwitchHolder')).toBe('SwitchState');
+    // Spelled like an export, but a declaration the entrypoint does not export
+    expect(getStateTypeName('Container')).toBe('State');
+  });
+
+  it('documents a namespace declared in two blocks once', async () => {
+    const variant = await processSources({
+      'index.ts': `export * from './Foo';`,
+      'Foo.ts': `
+        import type { ReactElement } from './react';
+
+        /** Shows foo. */
+        export function Foo(props: Foo.Props): ReactElement {
+          return {};
+        }
+        export namespace Foo {
+          export type Props = { label: string };
+        }
+        export namespace Foo {
+          export type State = { open: boolean };
+        }
+      `,
+    });
+
+    expect(variant.exports.map((node) => node.name)).toEqual(
+      expect.arrayContaining(['Foo', 'Foo.Props', 'Foo.State']),
+    );
+    expect(variant.aliases).toBeUndefined();
+  });
+
+  it('documents a default-exported component under the name it is declared with', async () => {
+    const variant = await processSources({
+      'index.ts': `
+        export { default } from './Button';
+        export * from './Button';
+      `,
+      'Button.ts': `
+        import type { ReactElement } from './react';
+
+        type Component<Props> = (props: Props) => ReactElement;
+
+        /** Presses things. */
+        export const Button: Component<{ label: string }> = () => ({});
+        export default Button;
+      `,
+    });
+
+    expect(variant.exports.map((node) => node.name)).toEqual(['Button']);
+    expect(variant.aliases).toEqual({ default: 'Button' });
+  });
+
+  it('links an alias in a description to the section of its namespaced export', async () => {
+    const variant = await processSources({
+      ...DIALOG_SOURCES,
+      'index.ts': `
+        export * as Dialog from './index.parts';
+        export type * from './DialogTrigger';
+        export { DialogTrigger as Opener } from './DialogTrigger';
+        export { DialogTriggerDataAttributes } from './DialogTriggerDataAttributes';
+      `,
+      'DialogTriggerDataAttributes.ts': `
+        /** Set on {@link Opener} while the dialog is open. */
+        export enum DialogTriggerDataAttributes {
+          popupOpen = 'data-popup-open',
+        }
+      `,
+    });
+
+    const attributes = variant.exports.find((node) => node.name === 'DialogTriggerDataAttributes');
+    expect(attributes?.documentation?.description).toBe(
+      'Set on [`Opener`](#trigger) while the dialog is open.',
+    );
   });
 
   it('documents a renamed export under its own name, without rewriting descriptions', async () => {

@@ -276,20 +276,9 @@ export async function loadServerTypesMeta(
     ...allAliasNames,
   ]);
 
-  // Build merged typeNameMap from all variants for type string rewriting
-  // typeNameMap maps flat names like "AlertDialogTriggerState" to dotted names like "AlertDialog.Trigger.State"
-  const mergedTypeNameMapForRewrite: Record<string, string> = {};
-  for (const variant of Object.values(rawVariantData)) {
-    if (variant.typeNameMap) {
-      Object.assign(mergedTypeNameMapForRewrite, variant.typeNameMap);
-    }
-  }
-
   const rewriteContext: TypeRewriteContext = {
     typeCompatibilityMap,
     exportNames: allExportNames,
-    typeNameMap:
-      Object.keys(mergedTypeNameMapForRewrite).length > 0 ? mergedTypeNameMapForRewrite : undefined,
   };
 
   // Process all variants in parallel
@@ -302,7 +291,6 @@ export async function loadServerTypesMeta(
         sources: collectedExternalTypeSources,
         allExports: variantResult.exports,
         pattern: externalTypesPatternRegex,
-        typeNameMap: variantResult.typeNameMap,
       };
 
       const constantGroups = matchConstantGroups(variantResult.exports);
@@ -312,18 +300,13 @@ export async function loadServerTypesMeta(
       const types = await Promise.all(
         variantResult.exports.map(async (exportNode): Promise<TypesMeta> => {
           if (isPublicComponent(exportNode)) {
-            const formattedData = await formatComponentData(
-              exportNode,
-              variantResult.typeNameMap || {},
-              rewriteContext,
-              {
-                formatting: formattingOptions,
-                externalTypes: externalTypesCollector,
-                ordering: options.ordering,
-                constantGroups: constantGroups.byComponent.get(exportNode.name),
-                descriptionReplacements: options.descriptionReplacements,
-              },
-            );
+            const formattedData = await formatComponentData(exportNode, rewriteContext, {
+              formatting: formattingOptions,
+              externalTypes: externalTypesCollector,
+              ordering: options.ordering,
+              constantGroups: constantGroups.byComponent.get(exportNode.name),
+              descriptionReplacements: options.descriptionReplacements,
+            });
 
             return {
               type: 'component',
@@ -333,16 +316,11 @@ export async function loadServerTypesMeta(
           }
 
           if (isPublicHook(exportNode)) {
-            const formattedData = await formatHookData(
-              exportNode,
-              variantResult.typeNameMap || {},
-              rewriteContext,
-              {
-                formatting: formattingOptions,
-                externalTypes: externalTypesCollector,
-                descriptionReplacements: options.descriptionReplacements,
-              },
-            );
+            const formattedData = await formatHookData(exportNode, rewriteContext, {
+              formatting: formattingOptions,
+              externalTypes: externalTypesCollector,
+              descriptionReplacements: options.descriptionReplacements,
+            });
 
             return {
               type: 'hook',
@@ -352,16 +330,11 @@ export async function loadServerTypesMeta(
           }
 
           if (isPublicFunction(exportNode)) {
-            const formattedData = await formatFunctionData(
-              exportNode,
-              variantResult.typeNameMap || {},
-              rewriteContext,
-              {
-                formatting: formattingOptions,
-                externalTypes: externalTypesCollector,
-                descriptionReplacements: options.descriptionReplacements,
-              },
-            );
+            const formattedData = await formatFunctionData(exportNode, rewriteContext, {
+              formatting: formattingOptions,
+              externalTypes: externalTypesCollector,
+              descriptionReplacements: options.descriptionReplacements,
+            });
 
             return {
               type: 'function',
@@ -371,16 +344,11 @@ export async function loadServerTypesMeta(
           }
 
           if (isPublicClass(exportNode)) {
-            const formattedData = await formatClassData(
-              exportNode,
-              variantResult.typeNameMap || {},
-              rewriteContext,
-              {
-                formatting: formattingOptions,
-                externalTypes: externalTypesCollector,
-                descriptionReplacements: options.descriptionReplacements,
-              },
-            );
+            const formattedData = await formatClassData(exportNode, rewriteContext, {
+              formatting: formattingOptions,
+              externalTypes: externalTypesCollector,
+              descriptionReplacements: options.descriptionReplacements,
+            });
 
             return {
               type: 'class',
@@ -390,19 +358,13 @@ export async function loadServerTypesMeta(
           }
 
           // For all other types (type aliases, interfaces, enums), format as raw
-          const formattedData = await formatRawData(
-            exportNode,
-            exportNode.name,
-            variantResult.typeNameMap || {},
-            rewriteContext,
-            {
-              formatting: formattingOptions,
-              externalTypes: externalTypesCollector,
-              descriptionReplacements: options.descriptionReplacements,
-              constantGroup: constantGroups.targets.get(exportNode.name),
-              constantNamespace: constantNamespaces.has(exportNode.name),
-            },
-          );
+          const formattedData = await formatRawData(exportNode, exportNode.name, rewriteContext, {
+            formatting: formattingOptions,
+            externalTypes: externalTypesCollector,
+            descriptionReplacements: options.descriptionReplacements,
+            constantGroup: constantGroups.targets.get(exportNode.name),
+            constantNamespace: constantNamespaces.has(exportNode.name),
+          });
 
           return {
             type: 'raw',
@@ -523,63 +485,21 @@ export async function loadServerTypesMeta(
   });
   allTypes = Array.from(typesByName.values());
 
-  // Merge the other names each type is exported under from all variants: its flat spellings
-  // ("AccordionItemChangeEventReason" for "Accordion.Item.ChangeEventReason") and the exports
-  // reaching the same declaration ("compressString" for "compressHast")
-  // While variants typically have identical mappings (they parse the same source), merging ensures completeness
-  const mergedTypeNameMap: Record<string, string> = {};
+  // Attach the other names each type is exported under, from all variants: the exports reaching
+  // the same declaration ("AccordionItemChangeEventDetails" for "Accordion.Item.ChangeEventDetails",
+  // "compressString" for "compressHast"), so they can also be looked up by those names
+  const otherNames = new Map<string, Set<string>>();
   for (const variant of Object.values(rawVariantData)) {
-    Object.assign(mergedTypeNameMap, variant.typeNameMap, variant.aliases);
-  }
-
-  // Filter out flat-named types when a corresponding namespaced version exists
-  // e.g., if we have "Accordion.Item.ChangeEventReason" (namespaced), filter out "AccordionItemChangeEventReason" (flat)
-  // Build a set of all dotted names that exist in allTypes
-  const existingDottedNames = new Set<string>();
-  for (const typeMeta of allTypes) {
-    if (typeMeta.name.includes('.')) {
-      existingDottedNames.add(typeMeta.name);
+    for (const [aliasName, canonicalName] of Object.entries(variant.aliases ?? {})) {
+      const names = otherNames.get(canonicalName) ?? new Set<string>();
+      names.add(aliasName);
+      otherNames.set(canonicalName, names);
     }
   }
-
-  // Filter out flat types that have a namespaced equivalent
-  allTypes = allTypes.filter((typeMeta) => {
-    // Keep namespaced types
-    if (typeMeta.name.includes('.')) {
-      return true;
-    }
-    // Check if this flat type has a corresponding dotted name in typeNameMap
-    const dottedName = mergedTypeNameMap[typeMeta.name];
-    if (!dottedName) {
-      // No mapping found, keep the type
-      return true;
-    }
-    // Check if the full dotted name exists in our types
-    // e.g., if typeNameMap says AccordionItemChangeEventReason → Accordion.Item.ChangeEventReason
-    // and we have Accordion.Item.ChangeEventReason in existingDottedNames, filter out the flat version
-    return !existingDottedNames.has(dottedName);
-  });
-
-  // Attach aliases from typeNameMap to the types they name so they can also be looked up by
-  // those names, e.g., "Accordion.Item.ChangeEventDetails" gets alias "AccordionItemChangeEventDetails",
-  // and "compressHast" gets alias "compressString"
-  // Every name is confirmed to be a real export (typeNameMap only contains verified exports)
-  const dottedToFlatNames = new Map<string, string[]>();
-  for (const [flatName, dottedName] of Object.entries(mergedTypeNameMap)) {
-    const existing = dottedToFlatNames.get(dottedName);
-    if (existing) {
-      existing.push(flatName);
-    } else {
-      dottedToFlatNames.set(dottedName, [flatName]);
-    }
-  }
-  if (dottedToFlatNames.size > 0) {
+  if (otherNames.size > 0) {
     allTypes = allTypes.map((typeMeta) => {
-      const flatAliases = dottedToFlatNames.get(typeMeta.name);
-      if (flatAliases) {
-        return { ...typeMeta, aliases: flatAliases.sort() };
-      }
-      return typeMeta;
+      const aliases = otherNames.get(typeMeta.name);
+      return aliases ? { ...typeMeta, aliases: [...aliases].sort() } : typeMeta;
     });
   }
 

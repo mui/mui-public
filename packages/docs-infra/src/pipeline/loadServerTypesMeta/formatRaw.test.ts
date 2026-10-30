@@ -20,12 +20,10 @@ const defaultRewriteContext: TypeRewriteContext = {
 function createRewriteContext(
   exportNames: string[],
   allExports: tae.ExportNode[] = [],
-  typeNameMap?: Record<string, string>,
 ): TypeRewriteContext {
   return {
     typeCompatibilityMap: buildTypeCompatibilityMap(allExports, exportNames),
     exportNames,
-    typeNameMap,
   };
 }
 
@@ -148,7 +146,6 @@ describe('formatRaw', () => {
         const result = await formatRawData(
           createTypeAliasExport('ButtonState', '{ disabled: boolean }'),
           'Button.State',
-          {},
           defaultRewriteContext,
         );
 
@@ -163,7 +160,6 @@ describe('formatRaw', () => {
             description: 'The state of the button',
           }),
           'Button.State',
-          {},
           defaultRewriteContext,
         );
 
@@ -176,7 +172,6 @@ describe('formatRaw', () => {
         const result = await formatRawData(
           createTypeAliasExport('State', '{ open: boolean }'),
           'Toolbar.Root.State',
-          {},
           defaultRewriteContext,
         );
 
@@ -192,7 +187,6 @@ describe('formatRaw', () => {
         const result = await formatRawData(
           createEnumExport('ButtonDataAttributes', [{ name: 'disabled', value: 'data-disabled' }]),
           'ButtonDataAttributes',
-          {},
           defaultRewriteContext,
           { constantGroup: { component: 'Button', kind: 'dataAttributes' } },
         );
@@ -206,7 +200,6 @@ describe('formatRaw', () => {
         const result = await formatRawData(
           createEnumExport('SliderCssVariables', [{ name: 'trackColor', value: '--track-color' }]),
           'SliderCssVariables',
-          {},
           defaultRewriteContext,
           { constantGroup: { component: 'Slider', kind: 'cssVariables' } },
         );
@@ -220,7 +213,6 @@ describe('formatRaw', () => {
         const result = await formatRawData(
           createEnumExport('ButtonDataAttributes', [{ name: 'disabled', value: 'data-disabled' }]),
           'Button.DataAttributes',
-          {},
           defaultRewriteContext,
         );
 
@@ -238,7 +230,6 @@ describe('formatRaw', () => {
             { name: 'Right', value: 'right' },
           ]),
           'Direction',
-          {},
           defaultRewriteContext,
         );
 
@@ -257,7 +248,6 @@ describe('formatRaw', () => {
             { name: 'Depth', value: 2 },
           ]),
           'Direction',
-          {},
           defaultRewriteContext,
         );
 
@@ -275,7 +265,6 @@ describe('formatRaw', () => {
         const result = await formatRawData(
           createEnumExport('Flags', [{ name: 'Known', value: 1 }, { name: 'Computed' }]),
           'Flags',
-          {},
           defaultRewriteContext,
         );
 
@@ -306,7 +295,7 @@ describe('formatRaw', () => {
           findConstantNamespaces(entrypoint, program),
         );
 
-        const result = await formatRawData(group, group.name, {}, defaultRewriteContext, {
+        const result = await formatRawData(group, group.name, defaultRewriteContext, {
           constantNamespace: true,
         });
 
@@ -331,7 +320,6 @@ describe('formatRaw', () => {
             { name: 'Inactive', value: 0, documentation: { description: 'The item is inactive' } },
           ]),
           'Status',
-          {},
           defaultRewriteContext,
         );
 
@@ -346,7 +334,6 @@ describe('formatRaw', () => {
             description: 'Direction enum\n\nDocumentation: https://example.com',
           }),
           'Direction',
-          {},
           defaultRewriteContext,
           {
             descriptionReplacements: [
@@ -375,7 +362,6 @@ describe('formatRaw', () => {
             },
           ]),
           'Status',
-          {},
           defaultRewriteContext,
           {
             descriptionReplacements: [
@@ -391,38 +377,17 @@ describe('formatRaw', () => {
 
     describe('type name rewriting', () => {
       it('should NOT rewrite formattedCode (preserves valid TypeScript syntax)', async () => {
-        const rewriteContext = createRewriteContext(['ButtonState', 'Button.State'], [], {
-          ButtonState: 'Button.State',
-        });
+        const rewriteContext = createRewriteContext(['ButtonState', 'Button.State']);
 
         const result = await formatRawData(
           createTypeAliasExport('ButtonState', '{ disabled: boolean }'),
           'Button.State',
-          { ButtonState: 'Button.State' },
           rewriteContext,
         );
 
         // formattedCode should still use ButtonState, not Button.State
         expect(result.formattedCode).toContain('type ButtonState');
         expect(result.formattedCode).not.toContain('type Button.State');
-      });
-
-      it('should rewrite type references in descriptionText', async () => {
-        const rewriteContext = createRewriteContext(['InputState', 'Input.State'], [], {
-          InputState: 'Input.State',
-        });
-
-        const result = await formatRawData(
-          createTypeAliasExport('InputValue', 'string', {
-            description: 'The value stored in InputState',
-          }),
-          'Input.Value',
-          { InputState: 'Input.State' },
-          rewriteContext,
-        );
-
-        // descriptionText should be rewritten
-        expect(result.descriptionText).toContain('Input.State');
       });
     });
 
@@ -440,7 +405,6 @@ describe('formatRaw', () => {
             ),
           ]),
           'Config',
-          {},
           defaultRewriteContext,
         );
 
@@ -454,7 +418,6 @@ describe('formatRaw', () => {
             createProperty('enabled', { kind: 'intrinsic', intrinsic: 'boolean' }),
           ]),
           'Config',
-          {},
           defaultRewriteContext,
         );
 
@@ -478,7 +441,6 @@ describe('formatRaw', () => {
             ),
           ]),
           'Config',
-          {},
           defaultRewriteContext,
         );
 
@@ -500,7 +462,6 @@ describe('formatRaw', () => {
             ),
           ]),
           'Config',
-          {},
           defaultRewriteContext,
         );
 
@@ -526,7 +487,6 @@ describe('formatRaw', () => {
             ),
           ]),
           'Config',
-          {},
           defaultRewriteContext,
         );
 
@@ -557,7 +517,6 @@ describe('formatRaw', () => {
             ),
           ]),
           'Config',
-          {},
           defaultRewriteContext,
         );
 
@@ -585,7 +544,6 @@ describe('formatRaw', () => {
             ),
           ]),
           'Options',
-          {},
           defaultRewriteContext,
         );
 
@@ -623,7 +581,6 @@ describe('formatRaw', () => {
             ),
           ]),
           'Settings',
-          {},
           defaultRewriteContext,
         );
 
@@ -696,7 +653,6 @@ describe('formatRaw', () => {
             },
           } as any,
           'ContentProps',
-          {},
           defaultRewriteContext,
         );
 
@@ -788,7 +744,6 @@ describe('formatRaw', () => {
             },
           } as any,
           'Root.ChangeDetails',
-          {},
           defaultRewriteContext,
         );
 
@@ -814,7 +769,7 @@ describe('formatRaw', () => {
           'types.ts': 'export type SizeFraction = `${number}fr`;',
         });
 
-        const result = await formatRawData(exportNode, 'Size.Fraction', {}, defaultRewriteContext);
+        const result = await formatRawData(exportNode, 'Size.Fraction', defaultRewriteContext);
 
         expect(result.formattedCode).toBe('type SizeFraction = `${number}fr`;');
       });
@@ -828,7 +783,6 @@ describe('formatRaw', () => {
         createTypeAliasExport('ButtonProps', 'ButtonRootProps'),
         'Button.Props',
         { name: 'Button', slug: '#button', suffix: 'props' },
-        {},
         defaultRewriteContext,
       );
 
@@ -844,7 +798,6 @@ describe('formatRaw', () => {
         }),
         'Button.Props',
         { name: 'Button', slug: '#button', suffix: 'props' },
-        {},
         defaultRewriteContext,
       );
 
@@ -853,15 +806,12 @@ describe('formatRaw', () => {
     });
 
     it('should NOT rewrite formattedCode for re-exports', async () => {
-      const rewriteContext = createRewriteContext(['ButtonRootProps', 'Button.Root.Props'], [], {
-        ButtonRootProps: 'Button.Root.Props',
-      });
+      const rewriteContext = createRewriteContext(['ButtonRootProps', 'Button.Root.Props']);
 
       const result = await formatReExportData(
         createTypeAliasExport('ButtonProps', 'ButtonRootProps'),
         'Button.Props',
         { name: 'Button', slug: '#button', suffix: 'props' },
-        { ButtonRootProps: 'Button.Root.Props' },
         rewriteContext,
       );
 
@@ -896,7 +846,6 @@ describe('formatRaw', () => {
           ],
         ),
         'Container',
-        {},
         defaultRewriteContext,
       );
 
@@ -927,7 +876,6 @@ describe('formatRaw', () => {
           ],
         ),
         'Container',
-        {},
         defaultRewriteContext,
       );
 
@@ -958,7 +906,6 @@ describe('formatRaw', () => {
           ],
         ),
         'Container',
-        {},
         defaultRewriteContext,
       );
 
@@ -999,7 +946,6 @@ describe('formatRaw', () => {
           ],
         ),
         'Mapping',
-        {},
         defaultRewriteContext,
       );
 
@@ -1015,7 +961,6 @@ describe('formatRaw', () => {
           >,
         ]),
         'SimpleType',
-        {},
         defaultRewriteContext,
       );
 
@@ -1043,7 +988,6 @@ describe('formatRaw', () => {
           documentation: undefined,
         } as any,
         'Form.Values',
-        {},
         defaultRewriteContext,
       );
 
@@ -1070,7 +1014,6 @@ describe('formatRaw', () => {
           documentation: undefined,
         } as any,
         'Form.State',
-        {},
         defaultRewriteContext,
       );
 
@@ -1107,7 +1050,6 @@ describe('formatRaw', () => {
           documentation: undefined,
         } as any,
         'useRender.ElementProps',
-        {},
         defaultRewriteContext,
       );
 

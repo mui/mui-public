@@ -155,4 +155,4 @@ type InputType =
 
 - `Component.Root`: `Component.Root`, `Component.Root.State`, `Component.Root.Props`, `Component.Root.ChangeEventDetails`
 - `Component.Part`: `Component.Part`, `Component.Part.State`, `Component.Part.Props`
-- `Default`: `ComponentRootDataAttributes`, `ComponentPartDataAttributes`, `ComponentRootState`, `ComponentRootChangeEventDetails`, `ComponentRootProps`, `ComponentPartState`, `ComponentPartProps`, `InputType`
+- `Default`: `ComponentRootDataAttributes`, `ComponentPartDataAttributes`, `InputType`

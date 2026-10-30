@@ -372,12 +372,14 @@ export function abstractCreateTypes<T extends {}>(
   // Determine target export name outside component - it's static
   let targetExportName = exportName || singleComponentName || Object.keys(precompute.exports)[0];
 
-  // Handle default imports in single-component mode: when a component is imported
-  // via default import, singleComponentName is the local binding name (e.g., 'loadPrecomputedTypes')
-  // but the API extractor uses 'default' as the export key.
-  // Only apply in single-component mode to avoid mapping every key to 'default' in multiple mode.
-  if (!exportName && !(targetExportName in precompute.exports) && 'default' in precompute.exports) {
-    targetExportName = 'default';
+  // An export documented under another name is looked up through its aliases. A default import
+  // is named after its local binding (e.g., 'loadPrecomputedTypes'), so in single-component mode
+  // an unknown name falls back to the default export.
+  const exportKey =
+    findExportKey(precompute.exports, targetExportName) ??
+    (exportName ? undefined : findExportKey(precompute.exports, 'default'));
+  if (exportKey !== undefined) {
+    targetExportName = exportKey;
   }
 
   // For single component mode (createTypes), include global additional types
@@ -440,6 +442,16 @@ export function abstractCreateTypes<T extends {}>(
   return TypesComponent;
 }
 
+/**
+ * The key of the export documented under `name`, or of the one that is also exported as `name`.
+ */
+function findExportKey(exports: Record<string, ExportData>, name: string): string | undefined {
+  if (name in exports) {
+    return name;
+  }
+  return Object.keys(exports).find((key) => exports[key].type.aliases?.includes(name));
+}
+
 export function createTypesFactory<T extends {}>(options: AbstractCreateTypesOptions<T>) {
   /**
    * Creates a types table component for displaying TypeScript type information.
@@ -482,7 +494,13 @@ export function createMultipleTypesFactory<T extends {}>(options: AbstractCreate
             (k) => !exportKeys.includes(k) && meta.precompute!.variantTypeNames![k].length > 0,
           )
         : [];
-      keys = [...exportKeys, ...variantKeys] as (keyof K)[];
+      // Exports documented under another name are reachable by their other names too
+      const aliasKeys = exportKeys.flatMap((key) =>
+        (meta.precompute!.exports[key].type.aliases ?? []).filter(
+          (alias) => !exportKeys.includes(alias) && !variantKeys.includes(alias),
+        ),
+      );
+      keys = [...new Set([...exportKeys, ...variantKeys, ...aliasKeys])] as (keyof K)[];
     } else {
       keys = Object.keys(typeDef) as (keyof K)[];
     }

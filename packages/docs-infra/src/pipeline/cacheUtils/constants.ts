@@ -13,4 +13,4 @@ export const DEFAULT_CACHE_DIR = '.next/cache/docs-infra';
  * Bump this whenever such a change lands. Caches whose stored shape can change fold it into their
  * `getCacheContent`, which makes existing entries hash as stale and be recomputed in place.
  */
-export const CACHE_SCHEMA_VERSION = 2;
+export const CACHE_SCHEMA_VERSION = 3;

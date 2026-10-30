@@ -60,14 +60,12 @@ export interface FormatFunctionOptions {
  * Formats function export data into a structured metadata object.
  *
  * @param func - The function export node from typescript-api-extractor
- * @param typeNameMap - Map for transforming type names
  * @param rewriteContext - Context for type string rewriting including type compatibility map
  * @param options - Formatting options
  * @returns Formatted function metadata with parameters and return value
  */
 export async function formatFunctionData(
   func: tae.ExportNode & { type: tae.FunctionNode },
-  typeNameMap: Record<string, string>,
   rewriteContext: TypeRewriteContext,
   options: FormatFunctionOptions = {},
 ): Promise<FunctionTypeMeta> {
@@ -94,7 +92,6 @@ export async function formatFunctionData(
 
   const formattedParameters = await formatParameters(parameters, {
     exportNames,
-    typeNameMap,
     formatting,
     externalTypes,
     descriptionReplacements,
@@ -121,7 +118,6 @@ export async function formatFunctionData(
   ) {
     resultProperties = await formatProperties(parameters[0].type.properties, {
       exportNames,
-      typeNameMap,
       formatting,
       externalTypes,
       descriptionReplacements,
@@ -145,7 +141,6 @@ export async function formatFunctionData(
   if (shouldExpandReturnType) {
     formattedReturnValue = await formatProperties(returnType.properties, {
       exportNames,
-      typeNameMap,
       formatting,
       externalTypes,
       descriptionReplacements,
@@ -158,7 +153,6 @@ export async function formatFunctionData(
     returnValueText = formatType(signature.returnValueType, {
       expandObjects: shouldExpand,
       exportNames,
-      typeNameMap,
       externalTypesCollector: externalTypes,
     });
     formattedReturnValue = returnValueText;

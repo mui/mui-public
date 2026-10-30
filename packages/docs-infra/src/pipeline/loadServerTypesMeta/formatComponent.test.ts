@@ -69,7 +69,6 @@ describe('formatComponent', () => {
           type: { kind: 'component', props: [] },
           documentation: { description: 'A button' },
         } as any,
-        {},
         defaultRewriteContext,
       );
 
@@ -93,7 +92,6 @@ describe('formatComponent', () => {
           type: { kind: 'component', props: [] },
           documentation: { description: 'Input\n\nDocumentation: url' },
         } as any,
-        {},
         defaultRewriteContext,
         {
           descriptionReplacements: [
@@ -117,7 +115,6 @@ describe('formatComponent', () => {
     it('should find the data attributes matched to the component', async () => {
       const result = await formatComponentData(
         { name: 'Checkbox', type: { kind: 'component', props: [] } } as any,
-        {},
         defaultRewriteContext,
         {
           constantGroups: {
@@ -145,7 +142,6 @@ describe('formatComponent', () => {
     it('should find the CSS variables matched to the component', async () => {
       const result = await formatComponentData(
         { name: 'Slider', type: { kind: 'component', props: [] } } as any,
-        {},
         defaultRewriteContext,
         {
           constantGroups: {
@@ -191,7 +187,6 @@ describe('formatComponent', () => {
             ],
           },
         } as any,
-        {},
         defaultRewriteContext,
       );
 
@@ -225,7 +220,6 @@ describe('formatComponent', () => {
       const exportNames = ['Autocomplete.Root'];
       const result = await formatComponentData(
         component,
-        {},
         createRewriteContext(exportNames, [component, rootExport]),
       );
 
@@ -287,7 +281,6 @@ describe('formatComponent', () => {
       ];
       const result = await formatComponentData(
         component,
-        {},
         createRewriteContext(exportNames, [component, stateExport]),
       );
 
@@ -352,7 +345,6 @@ describe('formatComponent', () => {
       ];
       const result = await formatComponentData(
         component,
-        {},
         createRewriteContext(exportNames, [component, stateExport]),
       );
 
@@ -413,7 +405,6 @@ describe('formatComponent', () => {
       ];
       const result = await formatComponentData(
         component,
-        {},
         createRewriteContext(exportNames, [parentComponent, component]),
       );
 
@@ -477,7 +468,6 @@ describe('formatComponent', () => {
       ];
       const result = await formatComponentData(
         component,
-        {},
         createRewriteContext(exportNames, [component, stateExport]),
       );
 
@@ -534,7 +524,6 @@ describe('formatComponent', () => {
       const exportNames = ['AlertDialog.Trigger', 'AlertDialog.Trigger.Props'];
       const result = await formatComponentData(
         component,
-        {},
         createRewriteContext(exportNames, [component]),
       );
 

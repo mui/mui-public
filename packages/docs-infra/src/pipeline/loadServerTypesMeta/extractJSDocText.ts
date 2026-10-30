@@ -7,8 +7,8 @@
  * that live on another page, from producing dangling `#anchor` links that fail
  * the docs link checker.
  *
- * `documentedNames` maps each documented name to the name of the heading it links
- * to, which differs for an alias of another export. When it is omitted every
+ * `documentedNames` maps each documented name to the slug of the heading it links
+ * to, which is its canonical export's for an alias of another export. When it is omitted every
  * reference is linked to its own name (legacy behavior, used only when no
  * documented names are threaded through).
  */

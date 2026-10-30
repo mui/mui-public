@@ -2,7 +2,7 @@ import type { CompilerOptions } from 'typescript';
 // eslint-disable-next-line n/prefer-node-protocol
 import { fileURLToPath } from 'url';
 import { parseFromProgram } from '@mui/internal-typescript-api-extractor';
-import type { ExportNode, TypeName, AnyType } from '@mui/internal-typescript-api-extractor';
+import type { ExportNode } from '@mui/internal-typescript-api-extractor';
 import ts from 'typescript';
 import { createOptimizedProgram } from './createOptimizedProgram';
 import { augmentComponentsWithInheritedProps } from './inheritedExternalProps';
@@ -14,6 +14,7 @@ import { extractJSDocText, isJSDocNodeArray } from './extractJSDocText';
 import { PerformanceTracker } from './performanceTracking';
 import type { PerformanceLog } from './performanceTracking';
 import { nameMark } from '../loadPrecomputedCodeHighlighter/performanceLogger';
+import { computeTypeSlug, findComponentPrefix } from '../loadServerTypes/typeSlugs';
 
 /**
  * Strips functions from objects so they can cross the worker boundary.
@@ -66,46 +67,35 @@ function stripFunctions<T>(
 }
 
 /**
- * Collects every symbol name documented on this page - all exports and resolved
- * types across all variants - mapped to the name whose heading it links to.
- * `{@link}` references are linked only when they hit this map, since those are the
- * names that get a heading (and thus an anchor). An alias links to the heading of its
- * canonical export.
+ * Collects every symbol name documented on this page - all exports across all variants - mapped
+ * to the slug of the heading it links to. `{@link}` references are linked only when they hit
+ * this map, since those are the names that get a heading (and thus an anchor). An alias links to
+ * the heading of its canonical export.
  */
 function collectDocumentedNames(variantData: Record<string, VariantResult>): Map<string, string> {
+  const exportNames = Object.values(variantData).flatMap((variant) =>
+    variant.exports.map((node) => node.name),
+  );
+  const componentPrefix = findComponentPrefix(exportNames);
   const names = new Map<string, string>();
-  const addName = (name: string | undefined) => {
-    if (!name) {
-      return;
-    }
-    names.set(name, name);
-    // Namespaced exports (e.g. "Menu.Root") are also referenced by their flat
-    // ("MenuRoot") and leaf ("Root") forms in {@link} comments.
-    if (name.includes('.')) {
-      const flatName = name.replaceAll('.', '');
-      const leafName = name.slice(name.lastIndexOf('.') + 1);
-      names.set(flatName, flatName);
-      names.set(leafName, leafName);
+  const addName = (name: string, target: string) => {
+    if (!names.has(name)) {
+      names.set(name, computeTypeSlug(target, componentPrefix));
     }
   };
 
-  for (const variant of Object.values(variantData)) {
-    for (const node of variant.exports) {
-      addName(node.name);
-    }
-    if (variant.typeNameMap) {
-      for (const [flatName, dottedName] of Object.entries(variant.typeNameMap)) {
-        addName(flatName);
-        addName(dottedName);
-      }
+  for (const name of exportNames) {
+    addName(name, name);
+    // Namespaced exports (e.g. "Menu.Root") are also referenced by their flat
+    // ("MenuRoot") and leaf ("Root") forms in {@link} comments.
+    if (name.includes('.')) {
+      addName(name.replaceAll('.', ''), name);
+      addName(name.slice(name.lastIndexOf('.') + 1), name);
     }
   }
-
   for (const variant of Object.values(variantData)) {
     for (const [aliasName, canonicalName] of Object.entries(variant.aliases ?? {})) {
-      if (!names.has(aliasName)) {
-        names.set(aliasName, canonicalName);
-      }
+      addName(aliasName, canonicalName);
     }
   }
 
@@ -172,107 +162,6 @@ function collectSourceFileDependencies(
 }
 
 /**
- * Builds a mapping from flat type names to dotted namespace names.
- *
- * typescript-api-extractor now returns exports with proper dotted names like
- * "Component.Root.Props" directly. This function builds a map from the flat
- * equivalent names to the dotted names for type reference transformation.
- *
- * For each dotted export like "Component.Root.Props", we create a mapping:
- *   ComponentRootProps -> Component.Root.Props
- *
- * BUT only if the flat name is ALSO exported (e.g., there's an actual
- * `export type ComponentRootProps = ...` in the entrypoint).
- */
-function buildTypeNameMap(exports: ExportNode[]): Map<string, string> {
-  const typeNameMap = new Map<string, string>();
-
-  // Build a set of all export names
-  const exportNames = new Set(exports.map((exp) => exp.name));
-
-  for (const exp of exports) {
-    if (exp.name.includes('.')) {
-      // e.g., "Component.Root.Props" -> flatName "ComponentRootProps"
-      const flatName = exp.name.replace(/\./g, '');
-      // Only add if the flat name is ALSO an export
-      if (exportNames.has(flatName)) {
-        typeNameMap.set(flatName, exp.name);
-      }
-    }
-  }
-
-  return typeNameMap;
-}
-
-/**
- * Recursively collects all type references from a type tree.
- * This helps build a more complete typeNameMap by finding all referenced types.
- * Only adds entries if the flat name is also an export.
- */
-function collectTypeReferences(
-  type: AnyType,
-  typeNameMap: Map<string, string>,
-  exportNames: Set<string>,
-): void {
-  if (!type) {
-    return;
-  }
-
-  // Check if this type has a typeName with namespaces
-  if ('typeName' in type && type.typeName) {
-    const typeName = type.typeName as TypeName;
-    if (typeName.namespaces && typeName.namespaces.length > 0) {
-      const flatName = typeName.namespaces.join('') + typeName.name;
-      const dottedName = [...typeName.namespaces, typeName.name].join('.');
-
-      // Only add if the flat name is different from dotted name,
-      // it's not already in the map, AND it's actually an export
-      if (flatName !== dottedName && !typeNameMap.has(flatName) && exportNames.has(flatName)) {
-        typeNameMap.set(flatName, dottedName);
-      }
-    }
-  }
-
-  // Recursively process nested types
-  if ('types' in type && Array.isArray(type.types)) {
-    for (const t of type.types) {
-      collectTypeReferences(t, typeNameMap, exportNames);
-    }
-  }
-  if ('properties' in type && Array.isArray(type.properties)) {
-    for (const prop of type.properties) {
-      if ('type' in prop) {
-        collectTypeReferences(prop.type as AnyType, typeNameMap, exportNames);
-      }
-    }
-  }
-  if ('props' in type && Array.isArray(type.props)) {
-    for (const prop of type.props) {
-      if ('type' in prop) {
-        collectTypeReferences(prop.type as AnyType, typeNameMap, exportNames);
-      }
-    }
-  }
-  if ('callSignatures' in type && Array.isArray(type.callSignatures)) {
-    for (const sig of type.callSignatures) {
-      if ('parameters' in sig && Array.isArray(sig.parameters)) {
-        for (const param of sig.parameters) {
-          if ('type' in param) {
-            collectTypeReferences(param.type as AnyType, typeNameMap, exportNames);
-          }
-        }
-      }
-      if ('returnValue' in sig && sig.returnValue) {
-        const returnValue = sig.returnValue as { type?: AnyType };
-        if (returnValue.type) {
-          collectTypeReferences(returnValue.type, typeNameMap, exportNames);
-        }
-      }
-    }
-  }
-}
-
-/**
  * Extracts unique namespace names from exports.
  *
  * For example, from exports like ["Menu.Root", "Menu.Item", "Dialog.Root"],
@@ -298,7 +187,6 @@ export interface VariantResult {
   /** Names of the exports folded from namespaces of constants (see `findConstantNamespaces`) */
   constantNamespaces: string[];
   namespaces: string[];
-  typeNameMap?: Record<string, string>; // Maps flat type names to dotted names (serializable across worker boundary)
   /** Names of the exports the extractor marks as aliases, mapped to their canonical export's name */
   aliases?: Record<string, string>;
 }
@@ -414,20 +302,6 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
           // Extract namespaces from the exports (e.g., "Menu" from "Menu.Root")
           const namespaces = extractNamespaces(exports);
 
-          // Build a set of all export names for filtering
-          const exportNames = new Set(exports.map((exp) => exp.name));
-
-          // Build typeNameMap from exports (maps flat names to dotted names)
-          // Only includes entries where the flat name is also an export
-          const mergedTypeNameMap = buildTypeNameMap(exports);
-
-          // Also collect type references from all exports to build a more complete map
-          for (const exp of exports) {
-            if ('type' in exp && exp.type) {
-              collectTypeReferences(exp.type, mergedTypeNameMap, exportNames);
-            }
-          }
-
           // Get all source files that are dependencies of this entrypoint
           // Include files from the TypeScript program for hot reloading support
           // We collect only files imported by THIS entrypoint, not all files in the program
@@ -463,9 +337,6 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
               exports,
               constantNamespaces: Array.from(constantNamespaces.keys()),
               namespaces,
-              // Convert Map to Record for serialization across worker boundary
-              typeNameMap:
-                mergedTypeNameMap.size > 0 ? Object.fromEntries(mergedTypeNameMap) : undefined,
               aliases: aliases.size > 0 ? Object.fromEntries(aliases) : undefined,
             },
             dependencies,

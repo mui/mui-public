@@ -60,4 +60,3 @@ Also exported as `AlertDialogCloseProps`.
 
 - `AlertDialog.Trigger`: `AlertDialog.Trigger`, `AlertDialog.Trigger.Props`, `AlertDialog.Trigger.State`
 - `AlertDialog.Close`: `AlertDialog.Close`, `AlertDialog.Close.Props`
-- `Default`: `AlertDialogCloseProps`, `AlertDialogTriggerProps`, `AlertDialogTriggerState`
