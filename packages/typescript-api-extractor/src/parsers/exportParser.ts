@@ -14,12 +14,15 @@ import { resolveType } from './typeResolver';
  *
  * Example: `export { ComponentRoot as Root }` becomes a descriptor for `Root`
  * plus descriptors for merged namespace members such as `Root.Props`.
+ *
+ * @param exportSymbols - Receives each created export with the symbol it was resolved from.
  */
 export function parseExport(
   exportSymbol: ts.Symbol,
   parserContext: ScopedParserContext,
   parentNamespaces: string[] = [],
   containerSymbol?: ts.Symbol,
+  exportSymbols?: Map<ExportNode, ts.Symbol>,
 ): ExportNode[] | undefined {
   const descriptors = resolveExportDescriptors(exportSymbol, parserContext, {
     parentNamespaces,
@@ -31,7 +34,11 @@ export function parseExport(
 
   const nodesByDescriptor = new Map<ExportDescriptor, ExportNode[] | undefined>();
   for (const descriptor of getTypeResolutionOrderedDescriptors(descriptors)) {
-    nodesByDescriptor.set(descriptor, createExportNodesFromDescriptor(descriptor, parserContext));
+    const exportNodes = createExportNodesFromDescriptor(descriptor, parserContext);
+    nodesByDescriptor.set(descriptor, exportNodes);
+    for (const exportNode of exportNodes ?? []) {
+      exportSymbols?.set(exportNode, descriptor.symbol);
+    }
   }
 
   // Descriptor order is the emitted API order. Type-resolution order is kept

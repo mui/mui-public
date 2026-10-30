@@ -60,7 +60,8 @@
 																	}
 																]
 															},
-															"properties": []
+															"properties": [],
+															"propertiesOmitted": true
 														},
 														"optional": false
 													}
@@ -473,7 +474,8 @@
 																		}
 																	]
 																},
-																"properties": []
+																"properties": [],
+																"propertiesOmitted": true
 															},
 															"optional": false
 														}
@@ -562,7 +564,8 @@
 															}
 														]
 													},
-													"properties": []
+													"properties": [],
+													"propertiesOmitted": true
 												},
 												"optional": false
 											}

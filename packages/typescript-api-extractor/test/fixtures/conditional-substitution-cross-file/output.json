@@ -1,0 +1,83 @@
+{
+	"name": "test/fixtures/conditional-substitution-cross-file/input",
+	"exports": [
+		{
+			"name": "DataGridValue",
+			"type": {
+				"kind": "intrinsic",
+				"intrinsic": "any"
+			},
+			"isValue": false,
+			"isType": false,
+			"isNamespace": true
+		},
+		{
+			"name": "DataGridValue.Cell",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Cell",
+					"namespaces": ["DataGridValue"],
+					"typeArguments": [
+						{
+							"type": {
+								"name": "Row",
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						},
+						{
+							"type": {
+								"name": "Columns",
+								"constraint": {
+									"kind": "array",
+									"elementType": {
+										"kind": "object",
+										"properties": [
+											{
+												"name": "id",
+												"type": {
+													"kind": "intrinsic",
+													"intrinsic": "string"
+												},
+												"optional": false
+											}
+										]
+									},
+									"isReadonly": true
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [
+					{
+						"name": "row",
+						"type": {
+							"name": "Row",
+							"kind": "typeParameter"
+						},
+						"optional": false
+					},
+					{
+						"name": "columnId",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					}
+				]
+			},
+			"documentation": {
+				"description": "Forwards through two aliases to a condition on a helper private to another file.",
+				"tags": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}

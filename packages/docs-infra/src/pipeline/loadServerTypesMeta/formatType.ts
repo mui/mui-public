@@ -298,8 +298,23 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
       }
     }
 
-    // Check if all members are object types - if so, merge them into a single object
-    const allAreObjects = type.types.every((t) => isObjectType(t));
+    // Members without properties, like `Omit<T, keyof T>`, add nothing. When a single member
+    // is left the intersection is that member, so a named one reads as its name. An object
+    // whose properties were not expanded is not empty and stays.
+    const contentfulMembers = type.types.filter(
+      (member) =>
+        !isObjectType(member) ||
+        (member.properties ?? []).length > 0 ||
+        member.indexSignature ||
+        member.propertiesOmitted,
+    );
+    if (contentfulMembers.length === 1 && contentfulMembers.length < type.types.length) {
+      return formatType(contentfulMembers[0], options);
+    }
+
+    // Check if all members are object types - if so, merge them into a single object. A member
+    // whose properties were not expanded has none to merge, so the intersection is kept as is.
+    const allAreObjects = type.types.every((t) => isObjectType(t) && !t.propertiesOmitted);
     if (allAreObjects) {
       // Merge all properties from all object types. When the same property
       // name appears in more than one member of the intersection (e.g. when an

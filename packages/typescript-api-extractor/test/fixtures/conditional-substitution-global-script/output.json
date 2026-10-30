@@ -1,0 +1,57 @@
+{
+	"name": "test/fixtures/conditional-substitution-global-script/input",
+	"exports": [
+		{
+			"name": "Cell",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "ConditionalSubstitutionGlobalCell",
+					"typeArguments": [
+						{
+							"type": {
+								"name": "Columns",
+								"constraint": {
+									"kind": "array",
+									"elementType": {
+										"kind": "object",
+										"properties": [
+											{
+												"name": "id",
+												"type": {
+													"kind": "intrinsic",
+													"intrinsic": "string"
+												},
+												"optional": false
+											}
+										]
+									},
+									"isReadonly": true
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [
+					{
+						"name": "columnId",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					}
+				]
+			},
+			"documentation": {
+				"description": "Forwards to a conditional declared in a global script.",
+				"tags": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}
