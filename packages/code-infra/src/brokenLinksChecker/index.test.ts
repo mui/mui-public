@@ -1,6 +1,6 @@
 import path from 'node:path';
 import getPort from 'get-port';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   crawl,
@@ -319,5 +319,19 @@ describe('Broken Links Checker', () => {
       (issue): issue is HtmlValidateIssue => issue.type === 'html-validate',
     );
     expect(htmlValidateIssues).toEqual([]);
+  }, 30000);
+
+  it('stops the server when the start command does not forward signals to it', async () => {
+    const port = await getPort();
+    const host = `http://localhost:${port}`;
+    const wrapperPath = path.join(import.meta.dirname, '__fixtures__', 'no-signal-forwarding.mjs');
+
+    await crawl({
+      startCommand: `node ${wrapperPath} ${servePath} ${fixtureDir} -p ${port}`,
+      host,
+      seedUrls: ['/no-links.html'],
+    });
+
+    await vi.waitFor(() => expect(fetch(host)).rejects.toThrow('fetch failed'), { timeout: 5000 });
   }, 30000);
 });

@@ -630,6 +630,7 @@ export async function crawl(rawOptions) {
         stdout: 'pipe',
         stderr: 'pipe',
         cancelSignal: controller.signal,
+        killDescendants: true,
         env: {
           FORCE_COLOR: '1',
           ...process.env,
