@@ -8,7 +8,7 @@
     },
     {
       "groupName": "code-infra:devDependencies",
-      "matchDepTypes": ["devDependencies"],
+      "matchDepTypes": ["devDependencies", "pnpm.catalog.dev"],
       "matchUpdateTypes": ["minor", "patch"]
     }
   ]

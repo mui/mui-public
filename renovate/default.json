@@ -142,6 +142,11 @@
       "rangeStrategy": "widen"
     },
     {
+      "description": "Pin the dev pnpm catalog like :pinDevDependencies pins devDependencies. Keep runtime ranges out of it: published packages expose catalog values.",
+      "matchDepTypes": ["pnpm.catalog.dev"],
+      "rangeStrategy": "pin"
+    },
+    {
       "matchPackageNames": ["@mui/*"],
       "schedule": null,
       "minimumReleaseAge": null
