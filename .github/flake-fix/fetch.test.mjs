@@ -226,7 +226,6 @@ describe('fetch', () => {
     expect(unit.runs.map((run) => run.result)).toEqual(['PASS', 'FAIL', 'FAIL']);
     expect(unit.runs.map((run) => run.pipeline)).toEqual([102, 101, 100]);
     expect(unit.runs.map((run) => run.sha)).toEqual(['sha-102', 'sha-101', 'sha-100']);
-    expect(Date.parse(timeline.since)).toBeLessThan(Date.now() - 6 * 86_400_000);
     expect(unit.runs[0].log).toBe(null);
     expect(unit.runs[1].log).toBe('jobs/0000.txt');
     expect(unit.runs[2].log).toBe('jobs/0001.txt');

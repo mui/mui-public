@@ -36,35 +36,36 @@ function resolveCommit(repoDir, ref) {
   }
 }
 
+// merge-base exits 1 for "not an ancestor" and fails otherwise, e.g. on a commit it doesn't have.
 function isAncestor(repoDir, ancestor, descendant) {
   try {
     git(repoDir, ['merge-base', '--is-ancestor', ancestor, descendant]);
     return true;
-  } catch {
-    return false;
+  } catch (error) {
+    if (error.status === 1) {
+      return false;
+    }
+    throw error;
   }
 }
 
 // The claimed fix must be reachable from the first passing commit and not from the last failing
 // one: (lastFailure, firstPass]. Every commit has to be in the local history, so a shallow clone
 // that stops short of the range rejects the claim rather than guessing.
-function checkFix(repoDir, claimed, recovery) {
+function checkFix(repoDir, claimed, lastFailure, firstPass) {
   const sha = resolveCommit(repoDir, claimed);
-  const lastFailure = recovery.lastFailure.sha && resolveCommit(repoDir, recovery.lastFailure.sha);
-  const firstPass = recovery.firstPass.sha && resolveCommit(repoDir, recovery.firstPass.sha);
   if (!sha) {
-    return { accepted: false, reason: `${claimed} is not a commit in this checkout` };
+    return { rejectedFix: `${claimed} is not a commit in this checkout` };
   }
-  if (!lastFailure || !firstPass) {
-    return { accepted: false, reason: 'the recovery range is not in this checkout' };
+  const range = `${lastFailure}..${firstPass}`;
+  try {
+    if (isAncestor(repoDir, sha, firstPass) && !isAncestor(repoDir, sha, lastFailure)) {
+      return { fixedBy: sha };
+    }
+  } catch {
+    return { rejectedFix: `${range} is not in this checkout` };
   }
-  if (!isAncestor(repoDir, sha, firstPass) || isAncestor(repoDir, sha, lastFailure)) {
-    return {
-      accepted: false,
-      reason: `${claimed} is not in ${recovery.lastFailure.sha}..${recovery.firstPass.sha}`,
-    };
-  }
-  return { accepted: true, sha };
+  return { rejectedFix: `${claimed} is not in ${range}` };
 }
 
 // A fingerprint's class depends only on its own failures and the PASS runs around them. Any other
@@ -92,7 +93,7 @@ export function classify(timeline, fingerprints, { repoDir = process.cwd() } = {
         time: run.time,
         pipeline: run.pipeline,
         commit: run.commit,
-        sha: run.sha ?? null,
+        sha: run.sha,
         url: run.url,
       };
     };
@@ -116,23 +117,16 @@ export function classify(timeline, fingerprints, { repoDir = process.cwd() } = {
       const firstPass = greens.findLast((green) => green < newestFailure);
 
       let klass;
-      let recovery;
       let fix;
       if (group.external) {
         klass = 'EXTERNAL';
       } else if (greens.some((green) => green > newestFailure && green < oldestFailure)) {
         klass = 'FLAKY';
       } else if (firstPass !== undefined) {
-        klass = 'RECOVERED';
-        recovery = { lastFailure: evidence(newestFailure), firstPass: evidence(firstPass) };
         if (group.fixedBy) {
-          fix = checkFix(repoDir, group.fixedBy, recovery);
-          if (fix.accepted) {
-            klass = 'FIXED';
-          } else {
-            process.stderr.write(`${fingerprint}: fixedBy rejected — ${fix.reason}\n`);
-          }
+          fix = checkFix(repoDir, group.fixedBy, runs[newestFailure].sha, runs[firstPass].sha);
         }
+        klass = fix?.fixedBy ? 'FIXED' : 'RECOVERED';
       } else if (positions.length === 1) {
         // One failure, no pass since — could be a real break or a one-off; not enough to be sure.
         klass = 'UNCONFIRMED';
@@ -150,10 +144,8 @@ export function classify(timeline, fingerprints, { repoDir = process.cwd() } = {
         failureCount: positions.length,
         firstSeen: evidence(oldestFailure),
         lastSeen: { ...evidence(newestFailure), log: runs[newestFailure].log },
-        ...(recovery && { recovery }),
-        ...(fix?.accepted && { fixedBy: fix.sha }),
-        ...(fix &&
-          !fix.accepted && { rejectedFix: { claimed: group.fixedBy, reason: fix.reason } }),
+        ...(firstPass !== undefined && { firstPass: evidence(firstPass) }),
+        ...fix,
       });
     }
   }

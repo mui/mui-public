@@ -42,8 +42,8 @@ describe('classify', () => {
       .verdicts[0];
     expect(verdict.class).toBe('RECOVERED');
     expect(verdict.fixable).toBe(false);
-    expect(verdict.recovery.lastFailure.pipeline).toBe(101);
-    expect(verdict.recovery.firstPass.pipeline).toBe(102);
+    expect(verdict.lastSeen.pipeline).toBe(101);
+    expect(verdict.firstPass.pipeline).toBe(102);
     expect(verdict.failureCount).toBe(2);
     expect(verdict.lastSeen.pipeline).toBe(101); // newest failure
     expect(verdict.lastSeen.commit).toBe('c101'); // evidence carries the commit
@@ -57,7 +57,7 @@ describe('classify', () => {
     expect(verdict.class).toBe('RECOVERED');
     expect(verdict.fixedBy).toBeUndefined();
     // The fix range ends at the first pass after the failure, not the newest one.
-    expect(verdict.recovery.firstPass.pipeline).toBe(103);
+    expect(verdict.firstPass.pipeline).toBe(103);
   });
 
   it('STRUCTURAL: more than one failure, no recovery since', () => {
@@ -164,10 +164,10 @@ describe('classify', () => {
     });
 
     const withSha = (run, sha) => ({ ...run, sha });
-    const claim = (fixedBy) => {
+    const claim = (fixedBy, { lastFailure = shas.c2 } = {}) => {
       const runs = [
         withSha(pass(104), shas.c4),
-        withSha(fail(102, 'jobs/0000.txt'), shas.c2),
+        withSha(fail(102, 'jobs/0000.txt'), lastFailure),
         withSha(pass(101), shas.c1),
       ];
       const fingerprints = { groups: [{ fingerprint: 'boom', logs: ['jobs/0000.txt'], fixedBy }] };
@@ -190,12 +190,19 @@ describe('classify', () => {
         const verdict = claim(sha);
         expect(verdict.class).toBe('RECOVERED');
         expect(verdict.fixedBy).toBeUndefined();
-        expect(verdict.rejectedFix.claimed).toBe(sha);
+        expect(verdict.rejectedFix).toContain(sha);
       }
     });
 
     it('stays RECOVERED when the commit is not in the checkout', () => {
       expect(claim('0123456789abcdef0123456789abcdef01234567').class).toBe('RECOVERED');
+    });
+
+    it('stays RECOVERED when the range reaches past the checkout', () => {
+      // A shallow clone that stops short of the failing commit can't rule the claim out.
+      const verdict = claim(shas.c3, { lastFailure: '0123456789abcdef0123456789abcdef01234567' });
+      expect(verdict.class).toBe('RECOVERED');
+      expect(verdict.rejectedFix).toMatch(/not in this checkout/);
     });
 
     it('is ignored on an issue that has not recovered', () => {
