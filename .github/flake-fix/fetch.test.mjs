@@ -55,7 +55,7 @@ function scenarioModel(scenario) {
     };
   }
   if (scenario === 'timeline') {
-    // The `unit` job failed on two older commits, then passed on the newest — "already fixed".
+    // The `unit` job failed on two older commits, then passed on the newest — "recovered".
     return {
       pipelines: [
         makePipeline('pipe-3', 102, iso(0), 'newest green', [
@@ -105,7 +105,7 @@ function fakeCircleCI(scenario) {
           id: pipeline.id,
           number: pipeline.number,
           created_at: pipeline.createdAt,
-          vcs: { commit: { subject: pipeline.subject } },
+          vcs: { revision: `sha-${pipeline.number}`, commit: { subject: pipeline.subject } },
         })),
       });
       return;
@@ -221,10 +221,12 @@ describe('fetch', () => {
     const timeline = JSON.parse(fs.readFileSync(path.join(dataDir, 'timeline.json'), 'utf8'));
     const unit = timeline.jobs.find((job) => job.job === 'unit');
     expect(unit.workflow).toBe('test');
-    // The newest run passed; the two failures are older — the "already fixed" shape. The whole
+    // The newest run passed; the two failures are older — the "recovered" shape. The whole
     // point is that the PASS is present, newest first, alongside the failures.
     expect(unit.runs.map((run) => run.result)).toEqual(['PASS', 'FAIL', 'FAIL']);
     expect(unit.runs.map((run) => run.pipeline)).toEqual([102, 101, 100]);
+    expect(unit.runs.map((run) => run.sha)).toEqual(['sha-102', 'sha-101', 'sha-100']);
+    expect(Date.parse(timeline.since)).toBeLessThan(Date.now() - 6 * 86_400_000);
     expect(unit.runs[0].log).toBe(null);
     expect(unit.runs[1].log).toBe('jobs/0000.txt');
     expect(unit.runs[2].log).toBe('jobs/0001.txt');

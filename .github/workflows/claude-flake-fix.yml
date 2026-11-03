@@ -275,6 +275,22 @@ jobs:
           name: flake-data
           path: ${{ runner.temp }}/flake-data
 
+      - name: Fetch the history of the window
+        # The agent reads the commits between a failure and its recovery to judge whether one fixed
+        # it, and classify.mjs checks the commit it names against that range. The checkout above is
+        # shallow; deepen it to the window (with a few days' margin, since a commit's date can predate
+        # its pipeline) rather than cloning all of history. The token goes in a one-off header, never
+        # into the checkout's config.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REF: ${{ inputs.branch || github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          since=$(node -e 'const t = require(process.argv[1]); console.log(new Date(Date.parse(t.since) - 3 * 86400000).toISOString())' "$RUNNER_TEMP/flake-data/timeline.json")
+          auth=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" \
+            fetch --no-tags --shallow-since="$since" origin "$REF"
+
       - name: Download the prior-fix PRs
         # Lands prs.json next to the failure data for the agent to inspect. Best-effort — if the
         # prior-fixes job produced nothing, the agent proceeds as if no fix PRs were known.
@@ -361,15 +377,28 @@ jobs:
               than one group if its run failed for more than one reason.
               `grep -l '<fingerprint>' ${{ runner.temp }}/flake-data/jobs/*.txt` lists them.
 
-            (b) Classify — deterministically, not by eye. Run:
+            (b) Classify — the shape deterministically, not by eye. From the checkout, run:
               node ${{ runner.temp }}/classify.mjs ${{ runner.temp }}/flake-data/timeline.json ${{ runner.temp }}/flake-out/fingerprints.json ${{ runner.temp }}/flake-out/verdict.json
             That writes verdict.json — a `verdicts` array, most-worth-fixing first. Each entry has
             its class read from the shape of its job's timeline — STRUCTURAL (failing repeatedly, no
             pass since), UNCONFIRMED (a single failure — too little to tell a real break from a
-            one-off), FLAKY (fails and passes, up to now), FIXED (recovered), or EXTERNAL (your tag)
-            — a `fixable` flag (everything but FIXED and EXTERNAL), and its evidence: first/last seen
-            (with commit), failure count, and lastSeen.url (the last occurrence) and lastSeen.log.
-            Trust it; do not re-judge the shape yourself.
+            one-off), FLAKY (fails and passes, up to now), RECOVERED (a pass after its last failure),
+            or EXTERNAL (your tag) — a `fixable` flag (everything but RECOVERED, FIXED and EXTERNAL),
+            and its evidence: first/last seen (with commit and sha), failure count, and lastSeen.url
+            (the last occurrence) and lastSeen.log. Trust the shape; do not re-judge it yourself.
+
+            (c) Judge each RECOVERED entry: was it fixed, or did it just not fail again? The shape
+            can't tell — each commit runs once, so a flake that didn't fire again looks the same as
+            a fix. Its `recovery` names the last failing and the first passing commit; the fix, if
+            any, is one of `git log --stat <recovery.lastFailure.sha>..<recovery.firstPass.sha>`.
+            Read the commits there whose files could plausibly matter to this error — the failing
+            test, the code it exercises, its dependencies or toolchain — and look at the failing
+            commit too: a real break that was then fixed needs a cause as well. Name a fix only when
+            a commit's diff clearly addresses this error, not because it touches the same area or
+            happens to land in the range. If you find one, add `"fixedBy": "<sha>"` to that group in
+            fingerprints.json and re-run the command above; the classifier marks it FIXED only if
+            the commit is really in the range (a rejected claim stays RECOVERED and shows under
+            `rejectedFix`). Otherwise leave it RECOVERED — that is the honest answer, not a failure.
 
             From verdict.json, write ${{ runner.temp }}/flake-out/report.md — the short report posted
             as a comment on a tracking issue maintainers read at a glance. Plain GitHub-flavored
@@ -388,16 +417,19 @@ jobs:
             | 🟡 | **<short name>** — <one plain sentence>. Flaky, <how often>. [last occurrence](<url>) |
             | 🟠 | **<short name>** — <one plain sentence>. One failure so far. [last occurrence](<url>) |
 
-            Then a collapsed section for the rest: 🟢 recovered, 🔧 a problem whose fix PR has already
-            MERGED (link it "fix merged <PR>"), ⚪ not ours. Use the prs.json state to tell an open fix
-            (above, in hand) from a merged one (here). Drop a row class that has nothing, and drop the
+            Then a collapsed section for the rest: 🟢 FIXED (link its fixedBy commit as
+            ${{ github.server_url }}/${{ github.repository }}/commit/<sha>), 🔵 RECOVERED with no fix
+            found, 🔧 a problem whose fix PR has already MERGED (link it "fix merged <PR>"), ⚪ not
+            ours. Use the prs.json state to tell an open fix (above, in hand) from a merged one (here).
+            Never call a RECOVERED problem fixed. Drop a row class that has nothing, and drop the
             whole section if it would be empty.
 
             <details><summary>Resolved / not ours</summary>
 
             | | |
             | - | - |
-            | 🟢 | **<short name>** — <one plain sentence>. Already fixed. [last occurrence](<url>) |
+            | 🟢 | **<short name>** — <one plain sentence>. Fixed by [<short sha>](<commit url>). [last occurrence](<url>) |
+            | 🔵 | **<short name>** — <one plain sentence>. Passed since, no fix found — may be a flake, <how often>. [last occurrence](<url>) |
             | 🔧 | **<short name>** — <one plain sentence>. Fix merged <PR>. [last occurrence](<url>) |
             | ⚪ | **<short name>** — <one plain sentence>. Not ours, <how often>. [last occurrence](<url>) |
 
