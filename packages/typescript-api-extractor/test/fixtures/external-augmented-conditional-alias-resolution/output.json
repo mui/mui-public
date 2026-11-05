@@ -1,0 +1,84 @@
+{
+  "name": "test/fixtures/external-augmented-conditional-alias-resolution/input",
+  "exports": [
+    {
+      "name": "Props",
+      "type": {
+        "kind": "object",
+        "typeName": {
+          "name": "Props"
+        },
+        "properties": [
+          {
+            "name": "value",
+            "type": {
+              "kind": "union",
+              "types": [
+                {
+                  "kind": "external",
+                  "typeName": {
+                    "name": "Date"
+                  },
+                  "source": {
+                    "kind": "lib",
+                    "files": [
+                      "lib.es2015.symbol.wellknown.d.ts",
+                      "lib.es2020.date.d.ts",
+                      "lib.es5.d.ts",
+                      "lib.scripthost.d.ts"
+                    ]
+                  }
+                },
+                {
+                  "kind": "intrinsic",
+                  "intrinsic": "null"
+                }
+              ]
+            },
+            "documentation": {
+              "description": "The selected date.",
+              "tags": []
+            },
+            "optional": false
+          },
+          {
+            "name": "referenceDate",
+            "type": {
+              "kind": "union",
+              "types": [
+                {
+                  "kind": "external",
+                  "typeName": {
+                    "name": "Date"
+                  },
+                  "source": {
+                    "kind": "lib",
+                    "files": [
+                      "lib.es2015.symbol.wellknown.d.ts",
+                      "lib.es2020.date.d.ts",
+                      "lib.es5.d.ts",
+                      "lib.scripthost.d.ts"
+                    ]
+                  }
+                },
+                {
+                  "kind": "intrinsic",
+                  "intrinsic": "undefined"
+                }
+              ]
+            },
+            "documentation": {
+              "description": "The date to show when there is no value.",
+              "tags": []
+            },
+            "optional": true
+          }
+        ]
+      },
+      "isValue": false,
+      "isType": true,
+      "isNamespace": false
+    }
+  ],
+  "imports": ["date-lib", "date-lib/adapter"]
+}
