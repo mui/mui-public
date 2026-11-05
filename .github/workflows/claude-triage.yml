@@ -396,17 +396,22 @@ jobs:
             Write for the reporter, who already sees the thread:
             - Do not recap, summarize, or attribute the issue's comments or timeline, and do not
               name commenters. Mention a comment only when it changes the conclusion, and link it
-              instead of restating it. Link a comment only with its exact `url` from comments.json;
+              instead of restating it. Never refer to the thread or to comments by position or
+              time ("in the thread", "a later comment", "was proposed earlier", "as suggested
+              above"); a link is the only reference. Link a comment only with its exact `url` from comments.json;
               never write a comment link yourself, and never link the issue itself as a comment.
             - Next steps name the decision or information needed. Leave code changes, implementation
               steps, and tests to the handoff.
             - Check reporter-supplied code for errors before treating its result as evidence.
             - Do not report what you did not find: no duplicate, related issue or PR, prior
-              discussion, or documentation. Mention a search only when it found something, and
+              discussion, or documentation. This includes flat statements such as "No existing
+              issue or PR asks for this". Mention a search only when it found something, and
               link that. Never describe a search as "limited", "bounded", or "quick".
             - Do not mention workflow internals: the checkout, the read-only stage, search budgets,
               rate limits, or turn counts. Say what you could not verify once, in one sentence,
-              instead of repeating a disclaimer per claim.
+              instead of repeating a disclaimer per claim. Do not add "(unverified)",
+              "I haven't tested this" or similar to individual workarounds; one sentence covers
+              the whole comment.
             - Name a release line only when the issue, a linked source, or the checkout's package
               metadata states it; never guess versions or release plans.
             - Do not cite a link or comment you did not read.
