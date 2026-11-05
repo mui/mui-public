@@ -174,7 +174,7 @@
       "followTag": "canary"
     },
     {
-      "description": "material-ui publishes its internal packages to the canary tag only. Its latest tag is stale, so respectLatest blocks every major and the pins have to move by hand.",
+      "description": "material-ui publishes its internal packages to the canary tag. Follow it across prerelease majors, which ignoreUnstable otherwise blocks even when the current version is already newer than latest.",
       "matchPackageNames": ["@mui/internal-*"],
       "matchDatasources": ["npm"],
       "followTag": "canary"
