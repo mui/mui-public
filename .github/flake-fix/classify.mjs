@@ -1,25 +1,77 @@
 #!/usr/bin/env node
-// Deterministic issue classifier for the flake-fix agent.
+// Issue classifier for the flake-fix agent.
 //
 // The agent does the fuzzy part: it reads each failed run's log, groups the failures by their error
 // (a "fingerprint"), and tags any that are a named outside service being down. Given the timeline
-// (every run of each failing job, pass/fail, newest first) and those fingerprints, the class of
-// each fingerprint follows from where its failures sit among the passes:
+// (every run of each failing job, pass/fail, newest first) and those fingerprints, this settles
+// what the shape of the timeline can prove:
 //
 //   STRUCTURAL  — failed more than once with no pass since: a real, ongoing streak.
 //   UNCONFIRMED — a single failure with no pass since: too little to tell a real break from a
 //                 one-off, so worth a cautious look but not a confident bug.
 //   FLAKY       — a PASS sits between two of its failures.
-//   FIXED       — its failures are one unbroken run with a PASS after the last one.
+//   RECOVERED   — its failures are one unbroken run with a PASS after the last one.
 //   EXTERNAL    — the agent tagged it as an outside service; this wins over the shape.
+//
+// What the shape can't prove is whether a recovery was a fix. Master runs once per commit, so one
+// failure followed by passes looks the same whether the next commit fixed it or the test is a
+// low-rate flake that didn't fire again. Only the commits between the last failure and the first
+// pass can tell, so that is the agent's call: it names the fixing commit as `fixedBy` on the
+// fingerprint group, and a RECOVERED issue becomes FIXED only when git confirms that commit lies in
+// that range. Without one it stays RECOVERED — no claim that anything was fixed.
 
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
+function git(repoDir, args) {
+  return execFileSync('git', args, { cwd: repoDir, encoding: 'utf8', stdio: 'pipe' }).trim();
+}
+
+function resolveCommit(repoDir, ref) {
+  try {
+    return git(repoDir, ['rev-parse', '--verify', '--quiet', `${ref}^{commit}`]);
+  } catch {
+    return null;
+  }
+}
+
+// merge-base exits 1 for "not an ancestor" and fails otherwise, e.g. on a commit it doesn't have.
+function isAncestor(repoDir, ancestor, descendant) {
+  try {
+    git(repoDir, ['merge-base', '--is-ancestor', ancestor, descendant]);
+    return true;
+  } catch (error) {
+    if (error.status === 1) {
+      return false;
+    }
+    throw error;
+  }
+}
+
+// The claimed fix must be reachable from the first passing commit and not from the last failing
+// one: (lastFailure, firstPass]. Every commit has to be in the local history, so a shallow clone
+// that stops short of the range rejects the claim rather than guessing.
+function checkFix(repoDir, claimed, lastFailure, firstPass) {
+  const sha = resolveCommit(repoDir, claimed);
+  if (!sha) {
+    return { rejectedFix: `${claimed} is not a commit in this checkout` };
+  }
+  const range = `${lastFailure}..${firstPass}`;
+  try {
+    if (isAncestor(repoDir, sha, firstPass) && !isAncestor(repoDir, sha, lastFailure)) {
+      return { fixedBy: sha };
+    }
+  } catch {
+    return { rejectedFix: `${range} is not in this checkout` };
+  }
+  return { rejectedFix: `${claimed} is not in ${range}` };
+}
+
 // A fingerprint's class depends only on its own failures and the PASS runs around them. Any other
 // run — a different error, a skip, or a failure whose log was not downloaded — is no evidence
-// either way.
-export function classify(timeline, fingerprints) {
+// either way. `repoDir` is the git checkout a claimed fix is checked against.
+export function classify(timeline, fingerprints, { repoDir = process.cwd() } = {}) {
   // A single failure log can show more than one distinct error, so a log maps to every group that
   // claims it — not just one, or an overlapping error's occurrence would be lost.
   const groupsByLog = new Map();
@@ -37,7 +89,13 @@ export function classify(timeline, fingerprints) {
     const greens = [...runs.keys()].filter((index) => runs[index].result === 'PASS');
     const evidence = (position) => {
       const run = runs[position];
-      return { time: run.time, pipeline: run.pipeline, commit: run.commit, url: run.url };
+      return {
+        time: run.time,
+        pipeline: run.pipeline,
+        commit: run.commit,
+        sha: run.sha,
+        url: run.url,
+      };
     };
 
     // Group each failed run's position under its fingerprint in one newest-first pass, so the first
@@ -55,14 +113,20 @@ export function classify(timeline, fingerprints) {
     for (const [fingerprint, { group, positions }] of byFingerprint) {
       const newestFailure = positions[0];
       const oldestFailure = positions.at(-1);
+      // Newest first, so the first pass after the newest failure is the highest index below it.
+      const firstPass = greens.findLast((green) => green < newestFailure);
 
       let klass;
+      let fix;
       if (group.external) {
         klass = 'EXTERNAL';
       } else if (greens.some((green) => green > newestFailure && green < oldestFailure)) {
         klass = 'FLAKY';
-      } else if (greens.some((green) => green < newestFailure)) {
-        klass = 'FIXED';
+      } else if (firstPass !== undefined) {
+        if (group.fixedBy) {
+          fix = checkFix(repoDir, group.fixedBy, runs[newestFailure].sha, runs[firstPass].sha);
+        }
+        klass = fix?.fixedBy ? 'FIXED' : 'RECOVERED';
       } else if (positions.length === 1) {
         // One failure, no pass since — could be a real break or a one-off; not enough to be sure.
         klass = 'UNCONFIRMED';
@@ -75,18 +139,20 @@ export function classify(timeline, fingerprints) {
         job: job.job,
         workflow: job.workflow,
         class: klass,
-        // Everything but a clean recovery or an outside service is worth attempting a fix.
-        fixable: klass !== 'FIXED' && klass !== 'EXTERNAL',
+        // A recovery or an outside service has nothing left to fix; everything else is worth a try.
+        fixable: !['RECOVERED', 'FIXED', 'EXTERNAL'].includes(klass),
         failureCount: positions.length,
         firstSeen: evidence(oldestFailure),
         lastSeen: { ...evidence(newestFailure), log: runs[newestFailure].log },
+        ...(firstPass !== undefined && { firstPass: evidence(firstPass) }),
+        ...fix,
       });
     }
   }
 
   // Fixable first, structural ahead of flaky, then the most failures — so the agent's fix target is
   // at the top.
-  const rank = { STRUCTURAL: 0, FLAKY: 1, UNCONFIRMED: 2, FIXED: 3, EXTERNAL: 4 };
+  const rank = { STRUCTURAL: 0, FLAKY: 1, UNCONFIRMED: 2, RECOVERED: 3, FIXED: 4, EXTERNAL: 5 };
   verdicts.sort(
     (left, right) => rank[left.class] - rank[right.class] || right.failureCount - left.failureCount,
   );
