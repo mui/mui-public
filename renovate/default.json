@@ -174,6 +174,12 @@
       "followTag": "canary"
     },
     {
+      "description": "material-ui publishes its internal packages to the canary tag only. Its latest tag is stale, so respectLatest blocks every major and the pins have to move by hand.",
+      "matchPackageNames": ["@mui/internal-*"],
+      "matchDatasources": ["npm"],
+      "followTag": "canary"
+    },
+    {
       "groupName": "GitHub Actions",
       "matchManagers": ["github-actions"],
       "reviewers": ["team:infra"]
