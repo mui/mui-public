@@ -62,23 +62,14 @@ export function getParameterDocumentationFromSymbol(
   parameterSymbol: ts.Symbol,
   checker: ts.TypeChecker,
 ): Documentation | undefined {
-  const summary = parameterSymbol
-    .getDocumentationComment(checker)
-    .map((comment) => comment.text)
-    .join('\n')
+  const summary = ts
+    .displayPartsToString(parameterSymbol.getDocumentationComment(checker))
     .replace(/^[\s-*:]*/, '');
 
-  const rawTags = parameterSymbol.getJsDocTags(checker);
-  const docTags: DocumentationTag[] = rawTags
-    .filter((tag) => tag.name !== 'param')
-    .map((tag) => {
-      const text = tag.text?.map((part) => part.text).join(' ');
-      return {
-        name: tag.name,
-        value: text,
-      };
-    });
-  const visibility = getVisibilityFromTagNames(rawTags.map((tag) => tag.name));
+  const declaration = parameterSymbol.valueDeclaration;
+  const jsDocTags = declaration ? ts.getJSDocTags(declaration) : [];
+  const docTags = jsDocTags.filter((tag) => tag.tagName.text !== 'param').map(parseTag);
+  const visibility = getVisibilityFromTagNames(jsDocTags.map((tag) => tag.tagName.text));
 
   if (!summary.length && docTags.length === 0) {
     return undefined;
@@ -122,8 +113,29 @@ function parseTag(tag: ts.JSDocTag): DocumentationTag {
     };
   }
 
+  if (ts.isJSDocSeeTag(tag)) {
+    return {
+      name: tag.tagName.text,
+      value: getSeeTagValue(tag),
+    };
+  }
+
   return {
     name: tag.tagName.text,
-    value: typeof tag.comment === 'string' ? tag.comment : undefined,
+    value: ts.getTextOfJSDocComment(tag.comment),
   };
+}
+
+/**
+ * Reads an `@see` tag's text as written. TypeScript parses its first word as a
+ * name reference and keeps only the rest as the comment, so `@see
+ * https://example.com` arrives as name `https` and comment `://example.com`.
+ */
+function getSeeTagValue(tag: ts.JSDocSeeTag): string | undefined {
+  const text = tag
+    .getSourceFile()
+    .text.slice(tag.tagName.end, tag.end)
+    .replace(/\n[ \t]*\*[ \t]?/g, '\n')
+    .trim();
+  return text || undefined;
 }

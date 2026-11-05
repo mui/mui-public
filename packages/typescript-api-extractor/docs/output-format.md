@@ -56,6 +56,14 @@ space is masked, and an export left with nothing but a value, such as a function
 or variable with any namespace merged onto it, is omitted. A re-export from an
 unresolvable module gets the checker's fallback: a value of type `any`.
 
+## Documentation Tags
+
+`documentation.tags` lists the JSDoc block tags other than `@default`, `@param`,
+and the visibility tags. Each `value` is the tag text as written, with inline
+`{@link ...}` tags kept in their source form: `@see https://example.com` yields
+`https://example.com`, and `@see {@link https://example.com|Docs}` yields
+`{@link https://example.com|Docs}`.
+
 ## Type Operators
 
 Authored `keyof` expressions are represented without expanding away their syntax:
