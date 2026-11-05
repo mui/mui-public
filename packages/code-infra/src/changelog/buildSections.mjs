@@ -14,7 +14,7 @@
  * @returns {ChangelogSection[]} Ordered sections
  */
 export function buildSections(categorizedCommits, categorizationConfig, packageVersions) {
-  if (categorizationConfig.strategy === 'component') {
+  if (categorizationConfig.strategy === 'component' || categorizationConfig.strategy === 'flat') {
     return buildComponentSections(categorizedCommits, categorizationConfig);
   }
 
@@ -210,7 +210,7 @@ function buildPackageSections(categorizedCommits, categorizationConfig, packageV
     }
   }
 
-  if (fallbackKey) {
+  if (fallbackKey && (categorizedCommits.get(fallbackKey)?.length ?? 0) > 0) {
     sections.push({
       key: fallbackKey,
       level: 3,
