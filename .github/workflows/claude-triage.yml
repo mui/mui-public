@@ -235,6 +235,12 @@ jobs:
       pull-requests: read
       id-token: write
     steps:
+      - &setup-node
+        name: Set up Node.js for the inline scripts
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22.23.4
+          package-manager-cache: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.authorize.outputs.base }}
@@ -434,7 +440,7 @@ jobs:
         env:
           EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
           CLAUDE_OUTCOME: ${{ steps.claude.outcome }}
-        shell: node --experimental-default-type=module {0}
+        shell: node {0}
         run: |
           import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
           const directory = `${process.env.RUNNER_TEMP}/${process.env.PHASE}`;
@@ -498,6 +504,7 @@ jobs:
     outputs:
       url: ${{ steps.comment.outputs.url }}
     steps:
+      - *setup-node
       - continue-on-error: true
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -506,7 +513,7 @@ jobs:
       - &prepare-footers
         name: Prepare run footers outside Claude
         if: always()
-        shell: node --experimental-default-type=module {0}
+        shell: node {0}
         run: |
           import { lstatSync, readFileSync, writeFileSync } from 'node:fs';
           for (const phase of ['triage', 'fix']) {
@@ -820,6 +827,7 @@ jobs:
       pull-requests: write # open the draft PR
       issues: write
     steps:
+      - *setup-node
       - name: Download the untrusted proposal
         if: always() && needs.fix.result != 'skipped'
         continue-on-error: true
@@ -839,7 +847,7 @@ jobs:
         if: ${{ !cancelled() && needs.fix.result == 'success' && needs.fix.outputs.completed == 'true' && needs.fix.outputs.actionable == 'true' }}
         env:
           BASE_SHA: ${{ needs.authorize.outputs.base }}
-        shell: node --experimental-default-type=module {0}
+        shell: node {0}
         run: |
           import { appendFileSync, existsSync, lstatSync } from 'node:fs';
           import { execFileSync } from 'node:child_process';
@@ -947,7 +955,7 @@ jobs:
       - name: Record cancellation
         id: cancellation
         if: cancelled()
-        shell: node --experimental-default-type=module {0}
+        shell: node {0}
         run: |
           import { appendFileSync } from 'node:fs';
           appendFileSync(process.env.GITHUB_OUTPUT, 'cancelled=true\n');
