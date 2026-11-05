@@ -7,7 +7,8 @@
 				"kind": "component",
 				"typeName": {
 					"name": "Root",
-					"namespaces": ["AlertDialog"]
+					"namespaces": ["AlertDialog"],
+					"declarationId": "8ff4022f2e037a9c"
 				},
 				"props": [
 					{
@@ -97,7 +98,9 @@
 			"reexportedFrom": "AlertDialogRoot",
 			"isValue": true,
 			"isType": false,
-			"isNamespace": true
+			"isNamespace": true,
+			"declarationId": "8ff4022f2e037a9c",
+			"declaredName": "AlertDialogRoot"
 		},
 		{
 			"name": "AlertDialog.Root.Props",
@@ -105,7 +108,8 @@
 				"kind": "object",
 				"typeName": {
 					"name": "Props",
-					"namespaces": ["AlertDialog", "Root"]
+					"namespaces": ["AlertDialog", "Root"],
+					"declarationId": "7431169aa33d3c6c"
 				},
 				"properties": [
 					{
@@ -195,7 +199,9 @@
 			],
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "7431169aa33d3c6c",
+			"declaredName": "Props"
 		},
 		{
 			"name": "AlertDialog.Trigger",
@@ -203,7 +209,8 @@
 				"kind": "component",
 				"typeName": {
 					"name": "Trigger",
-					"namespaces": ["AlertDialog"]
+					"namespaces": ["AlertDialog"],
+					"declarationId": "0bdb723b75683a5d"
 				},
 				"props": [
 					{
@@ -255,7 +262,9 @@
 			"reexportedFrom": "DialogTrigger",
 			"isValue": true,
 			"isType": false,
-			"isNamespace": true
+			"isNamespace": true,
+			"declarationId": "0bdb723b75683a5d",
+			"declaredName": "DialogTrigger"
 		},
 		{
 			"name": "AlertDialog.Trigger.Props",
@@ -263,7 +272,8 @@
 				"kind": "object",
 				"typeName": {
 					"name": "Props",
-					"namespaces": ["AlertDialog", "Trigger"]
+					"namespaces": ["AlertDialog", "Trigger"],
+					"declarationId": "10445d3d4d5a865e"
 				},
 				"properties": [
 					{
@@ -315,7 +325,9 @@
 			],
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "10445d3d4d5a865e",
+			"declaredName": "Props"
 		},
 		{
 			"name": "AlertDialog.Backdrop",
@@ -323,7 +335,8 @@
 				"kind": "component",
 				"typeName": {
 					"name": "Backdrop",
-					"namespaces": ["AlertDialog"]
+					"namespaces": ["AlertDialog"],
+					"declarationId": "23bbf65834cf5257"
 				},
 				"props": [
 					{
@@ -356,7 +369,9 @@
 			"reexportedFrom": "DialogBackdrop",
 			"isValue": true,
 			"isType": false,
-			"isNamespace": true
+			"isNamespace": true,
+			"declarationId": "23bbf65834cf5257",
+			"declaredName": "DialogBackdrop"
 		},
 		{
 			"name": "AlertDialog.Backdrop.Props",
@@ -364,7 +379,8 @@
 				"kind": "object",
 				"typeName": {
 					"name": "Props",
-					"namespaces": ["AlertDialog", "Backdrop"]
+					"namespaces": ["AlertDialog", "Backdrop"],
+					"declarationId": "8e216532117fcdcb"
 				},
 				"properties": [
 					{
@@ -397,7 +413,9 @@
 			],
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "8e216532117fcdcb",
+			"declaredName": "Props"
 		}
 	]
 }

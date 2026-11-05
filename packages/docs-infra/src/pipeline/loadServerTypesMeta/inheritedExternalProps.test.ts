@@ -156,7 +156,6 @@ function formatProp(component: ComponentNode, propName: string): string {
   return formatType(prop.type, {
     removeUndefined: prop.optional,
     exportNames: exports.map((node) => node.name),
-    typeNameMap: { RootState: 'Root.State' },
   });
 }
 

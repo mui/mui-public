@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "acceptsNestedParams"
+					"name": "acceptsNestedParams",
+					"declarationId": "bd69979f8b4383d6"
 				},
 				"callSignatures": [
 					{
@@ -16,7 +17,8 @@
 									"kind": "object",
 									"typeName": {
 										"name": "Params",
-										"namespaces": ["Root", "Sub"]
+										"namespaces": ["Root", "Sub"],
+										"declarationId": "d55d480cb3f912e2"
 									},
 									"properties": [
 										{
@@ -24,7 +26,8 @@
 											"type": {
 												"typeName": {
 													"name": "Grade",
-													"namespaces": ["Root", "Sub"]
+													"namespaces": ["Root", "Sub"],
+													"declarationId": "3e03f29f5164389b"
 												},
 												"members": [
 													{
@@ -46,7 +49,8 @@
 												"kind": "union",
 												"typeName": {
 													"name": "NamespacedType",
-													"namespaces": ["Root"]
+													"namespaces": ["Root"],
+													"declarationId": "1b647017548bc332"
 												},
 												"types": [
 													{
@@ -69,7 +73,8 @@
 													{
 														"typeName": {
 															"name": "Grade",
-															"namespaces": ["Root", "Sub"]
+															"namespaces": ["Root", "Sub"],
+															"declarationId": "3e03f29f5164389b"
 														},
 														"members": [
 															{
@@ -97,14 +102,16 @@
 												"kind": "union",
 												"typeName": {
 													"name": "NamespacedType",
-													"namespaces": ["Root"]
+													"namespaces": ["Root"],
+													"declarationId": "1b647017548bc332"
 												},
 												"types": [
 													{
 														"kind": "union",
 														"typeName": {
 															"name": "NamespacedType",
-															"namespaces": ["Root"]
+															"namespaces": ["Root"],
+															"declarationId": "1b647017548bc332"
 														},
 														"types": [
 															{
@@ -140,14 +147,17 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "bd69979f8b4383d6",
+			"declaredName": "acceptsNestedParams"
 		},
 		{
 			"name": "acceptsNamespacedType",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "acceptsNamespacedType"
+					"name": "acceptsNamespacedType",
+					"declarationId": "9ac6ef2b63d8cbb9"
 				},
 				"callSignatures": [
 					{
@@ -157,7 +167,8 @@
 									"kind": "union",
 									"typeName": {
 										"name": "NamespacedType",
-										"namespaces": ["Root"]
+										"namespaces": ["Root"],
+										"declarationId": "1b647017548bc332"
 									},
 									"types": [
 										{
@@ -183,7 +194,9 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "9ac6ef2b63d8cbb9",
+			"declaredName": "acceptsNamespacedType"
 		},
 		{
 			"name": "Root.rootFunction",
@@ -191,7 +204,8 @@
 				"kind": "function",
 				"typeName": {
 					"name": "rootFunction",
-					"namespaces": ["Root"]
+					"namespaces": ["Root"],
+					"declarationId": "99e2139e9b17e880"
 				},
 				"callSignatures": [
 					{
@@ -205,7 +219,9 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "99e2139e9b17e880",
+			"declaredName": "rootFunction"
 		},
 		{
 			"name": "Root.Sub.nestedParams",
@@ -213,7 +229,8 @@
 				"kind": "function",
 				"typeName": {
 					"name": "nestedParams",
-					"namespaces": ["Root", "Sub"]
+					"namespaces": ["Root", "Sub"],
+					"declarationId": "1db1b0f500dae578"
 				},
 				"callSignatures": [
 					{
@@ -223,7 +240,8 @@
 									"kind": "object",
 									"typeName": {
 										"name": "Params",
-										"namespaces": ["Root", "Sub"]
+										"namespaces": ["Root", "Sub"],
+										"declarationId": "d55d480cb3f912e2"
 									},
 									"properties": [
 										{
@@ -231,7 +249,8 @@
 											"type": {
 												"typeName": {
 													"name": "Grade",
-													"namespaces": ["Root", "Sub"]
+													"namespaces": ["Root", "Sub"],
+													"declarationId": "3e03f29f5164389b"
 												},
 												"members": [
 													{
@@ -253,7 +272,8 @@
 												"kind": "union",
 												"typeName": {
 													"name": "NamespacedType",
-													"namespaces": ["Root"]
+													"namespaces": ["Root"],
+													"declarationId": "1b647017548bc332"
 												},
 												"types": [
 													{
@@ -276,7 +296,8 @@
 													{
 														"typeName": {
 															"name": "Grade",
-															"namespaces": ["Root", "Sub"]
+															"namespaces": ["Root", "Sub"],
+															"declarationId": "3e03f29f5164389b"
 														},
 														"members": [
 															{
@@ -304,14 +325,16 @@
 												"kind": "union",
 												"typeName": {
 													"name": "NamespacedType",
-													"namespaces": ["Root"]
+													"namespaces": ["Root"],
+													"declarationId": "1b647017548bc332"
 												},
 												"types": [
 													{
 														"kind": "union",
 														"typeName": {
 															"name": "NamespacedType",
-															"namespaces": ["Root"]
+															"namespaces": ["Root"],
+															"declarationId": "1b647017548bc332"
 														},
 														"types": [
 															{
@@ -347,7 +370,9 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "1db1b0f500dae578",
+			"declaredName": "nestedParams"
 		},
 		{
 			"name": "Root.Sub.NestedComponent",
@@ -355,13 +380,16 @@
 				"kind": "component",
 				"typeName": {
 					"name": "NestedComponent",
-					"namespaces": ["Root", "Sub"]
+					"namespaces": ["Root", "Sub"],
+					"declarationId": "bdf75797b20eca19"
 				},
 				"props": []
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "bdf75797b20eca19",
+			"declaredName": "NestedComponent"
 		},
 		{
 			"name": "Root.Sub.useHook",
@@ -369,7 +397,8 @@
 				"kind": "function",
 				"typeName": {
 					"name": "useHook",
-					"namespaces": ["Root", "Sub"]
+					"namespaces": ["Root", "Sub"],
+					"declarationId": "38bd72f4cf2aaad4"
 				},
 				"callSignatures": [
 					{
@@ -400,7 +429,9 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "38bd72f4cf2aaad4",
+			"declaredName": "useHook"
 		},
 		{
 			"name": "Root.Sub.Params",
@@ -408,7 +439,8 @@
 				"kind": "object",
 				"typeName": {
 					"name": "Params",
-					"namespaces": ["Root", "Sub"]
+					"namespaces": ["Root", "Sub"],
+					"declarationId": "d55d480cb3f912e2"
 				},
 				"properties": [
 					{
@@ -416,7 +448,8 @@
 						"type": {
 							"typeName": {
 								"name": "Grade",
-								"namespaces": ["Root", "Sub"]
+								"namespaces": ["Root", "Sub"],
+								"declarationId": "3e03f29f5164389b"
 							},
 							"members": [
 								{
@@ -438,7 +471,8 @@
 							"kind": "union",
 							"typeName": {
 								"name": "NamespacedType",
-								"namespaces": ["Root"]
+								"namespaces": ["Root"],
+								"declarationId": "1b647017548bc332"
 							},
 							"types": [
 								{
@@ -461,7 +495,8 @@
 								{
 									"typeName": {
 										"name": "Grade",
-										"namespaces": ["Root", "Sub"]
+										"namespaces": ["Root", "Sub"],
+										"declarationId": "3e03f29f5164389b"
 									},
 									"members": [
 										{
@@ -489,14 +524,16 @@
 							"kind": "union",
 							"typeName": {
 								"name": "NamespacedType",
-								"namespaces": ["Root"]
+								"namespaces": ["Root"],
+								"declarationId": "1b647017548bc332"
 							},
 							"types": [
 								{
 									"kind": "union",
 									"typeName": {
 										"name": "NamespacedType",
-										"namespaces": ["Root"]
+										"namespaces": ["Root"],
+										"declarationId": "1b647017548bc332"
 									},
 									"types": [
 										{
@@ -521,14 +558,17 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "d55d480cb3f912e2",
+			"declaredName": "Params"
 		},
 		{
 			"name": "Root.Sub.Grade",
 			"type": {
 				"typeName": {
 					"name": "Grade",
-					"namespaces": ["Root", "Sub"]
+					"namespaces": ["Root", "Sub"],
+					"declarationId": "3e03f29f5164389b"
 				},
 				"members": [
 					{
@@ -544,7 +584,9 @@
 			},
 			"isValue": true,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "3e03f29f5164389b",
+			"declaredName": "Grade"
 		},
 		{
 			"name": "Root.NamespacedType",
@@ -552,7 +594,8 @@
 				"kind": "union",
 				"typeName": {
 					"name": "NamespacedType",
-					"namespaces": ["Root"]
+					"namespaces": ["Root"],
+					"declarationId": "1b647017548bc332"
 				},
 				"types": [
 					{
@@ -567,7 +610,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "1b647017548bc332",
+			"declaredName": "OutsideType"
 		},
 		{
 			"name": "Other.Orientation",
@@ -575,7 +620,8 @@
 				"kind": "union",
 				"typeName": {
 					"name": "Orientation",
-					"namespaces": ["Other"]
+					"namespaces": ["Other"],
+					"declarationId": "1ab800f7a33c7e8c"
 				},
 				"types": [
 					{
@@ -590,7 +636,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "1ab800f7a33c7e8c",
+			"declaredName": "Orientation"
 		}
 	]
 }

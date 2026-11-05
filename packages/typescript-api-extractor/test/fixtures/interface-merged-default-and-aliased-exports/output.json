@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "Interface1"
+					"name": "Interface1",
+					"declarationId": "bb5628cbc681a53d"
 				},
 				"properties": [
 					{
@@ -29,14 +30,17 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "bb5628cbc681a53d",
+			"declaredName": "Interface1"
 		},
 		{
 			"name": "Interface2",
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "Interface2"
+					"name": "Interface2",
+					"declarationId": "a159e5b9fe9354a2"
 				},
 				"properties": [
 					{
@@ -51,14 +55,17 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "a159e5b9fe9354a2",
+			"declaredName": "Interface2"
 		},
 		{
 			"name": "Interface2Alias",
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "Interface2"
+					"name": "Interface2",
+					"declarationId": "a159e5b9fe9354a2"
 				},
 				"properties": [
 					{
@@ -73,14 +80,17 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "a159e5b9fe9354a2",
+			"declaredName": "Interface2"
 		},
 		{
 			"name": "default",
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "default"
+					"name": "default",
+					"declarationId": "1ad88d7db8294fa3"
 				},
 				"properties": [
 					{
@@ -112,7 +122,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "1ad88d7db8294fa3",
+			"declaredName": "DefaultInterface"
 		}
 	]
 }

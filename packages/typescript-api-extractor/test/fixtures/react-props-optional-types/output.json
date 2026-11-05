@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "OptionalPropsComponent"
+					"name": "OptionalPropsComponent",
+					"declarationId": "f2fd8dc17fbf72c7"
 				},
 				"props": [
 					{
@@ -80,7 +81,9 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "f2fd8dc17fbf72c7",
+			"declaredName": "OptionalPropsComponent"
 		}
 	],
 	"imports": ["react"]

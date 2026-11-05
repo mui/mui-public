@@ -3,7 +3,8 @@ import type ts from 'typescript';
 import type { ScopedParserContext } from '../../parserContext';
 import { FunctionNode } from '../../models';
 import type { AnyType } from '../../models';
-import { TypeName } from '../../models/typeName';
+import type { TypeName } from '../../models/typeName';
+import { copyTypeName } from '../common';
 import type {
   ResolveTypeInContext,
   TypeResolutionRequest,
@@ -51,10 +52,9 @@ function buildFunctionNodeFromType(
   // Keep the session-computed TypeName for every other callable so aliases
   // recovered from authored type nodes retain their namespace and type args.
   if (typeName?.name === 'default') {
-    typeName = new TypeName(
+    typeName = copyTypeName(
+      typeName,
       (symbol?.valueDeclaration as FunctionDeclaration | undefined)?.name?.getText() ?? 'default',
-      typeName.namespaces,
-      typeName.typeArguments,
     );
   }
 

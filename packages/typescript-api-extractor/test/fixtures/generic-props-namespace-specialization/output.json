@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "namespacedProps"
+					"name": "namespacedProps",
+					"declarationId": "983f8ad2a0ac2e92"
 				},
 				"callSignatures": [
 					{
@@ -16,7 +17,8 @@
 									"kind": "object",
 									"typeName": {
 										"name": "Props",
-										"namespaces": ["MyComponent"]
+										"namespaces": ["MyComponent"],
+										"declarationId": "fe47b57cb7fe153f"
 									},
 									"properties": [
 										{
@@ -38,7 +40,8 @@
 																			"kind": "object",
 																			"typeName": {
 																				"name": "State",
-																				"namespaces": ["MyComponent"]
+																				"namespaces": ["MyComponent"],
+																				"declarationId": "409e9ffef7ab5c2f"
 																			},
 																			"properties": [
 																				{
@@ -84,7 +87,8 @@
 																	"type": {
 																		"kind": "intersection",
 																		"typeName": {
-																			"name": "GenericHTMLProps"
+																			"name": "GenericHTMLProps",
+																			"declarationId": "d7f680b0b5ed5454"
 																		},
 																		"types": [
 																			{
@@ -189,7 +193,8 @@
 																		"kind": "object",
 																		"typeName": {
 																			"name": "State",
-																			"namespaces": ["MyComponent"]
+																			"namespaces": ["MyComponent"],
+																			"declarationId": "409e9ffef7ab5c2f"
 																		},
 																		"properties": [
 																			{
@@ -204,7 +209,8 @@
 																	},
 																	"equalToDefault": false
 																}
-															]
+															],
+															"declarationId": "5a039f57fc54a5b6"
 														},
 														"callSignatures": [
 															{
@@ -213,7 +219,8 @@
 																		"type": {
 																			"kind": "intersection",
 																			"typeName": {
-																				"name": "GenericHTMLProps"
+																				"name": "GenericHTMLProps",
+																				"declarationId": "d7f680b0b5ed5454"
 																			},
 																			"types": [
 																				{
@@ -319,7 +326,8 @@
 																			"kind": "object",
 																			"typeName": {
 																				"name": "State",
-																				"namespaces": ["MyComponent"]
+																				"namespaces": ["MyComponent"],
+																				"declarationId": "409e9ffef7ab5c2f"
 																			},
 																			"properties": [
 																				{
@@ -414,14 +422,17 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "983f8ad2a0ac2e92",
+			"declaredName": "namespacedProps"
 		},
 		{
 			"name": "GenericHTMLProps",
 			"type": {
 				"kind": "intersection",
 				"typeName": {
-					"name": "GenericHTMLProps"
+					"name": "GenericHTMLProps",
+					"declarationId": "d7f680b0b5ed5454"
 				},
 				"types": [
 					{
@@ -521,7 +532,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "d7f680b0b5ed5454",
+			"declaredName": "GenericHTMLProps"
 		}
 	],
 	"imports": ["react"]

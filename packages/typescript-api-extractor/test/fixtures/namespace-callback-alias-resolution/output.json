@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "NamespacedCallbackComponent"
+					"name": "NamespacedCallbackComponent",
+					"declarationId": "cfe71ea9ee756d33"
 				},
 				"props": [
 					{
@@ -24,7 +25,8 @@
 														"kind": "union",
 														"typeName": {
 															"name": "Alias",
-															"namespaces": ["RootNamespace"]
+															"namespaces": ["RootNamespace"],
+															"declarationId": "e4e71bef26201e74"
 														},
 														"types": [
 															{
@@ -60,7 +62,9 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "cfe71ea9ee756d33",
+			"declaredName": "NamespacedCallbackComponent"
 		}
 	]
 }

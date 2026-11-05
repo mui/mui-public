@@ -53,6 +53,26 @@ export class ExportNode implements DeclarationSpaces {
   /** See {@link DeclarationSpaces.isNamespace}. */
   declare public readonly isNamespace: boolean;
 
+  /**
+   * An opaque id of the declaration this export resolves to. Exports of a module
+   * that reach the same declaration under different names carry the same id.
+   *
+   * For example, a merged `DialogTrigger` const, interface, and namespace
+   * exported both as `Dialog.Trigger` (through `export * as Dialog`) and as
+   * `DialogTrigger` (through `export type *`) gives both exports one id. Compare
+   * ids only for equality. A plain rename (`type A = B`) shares the id of the
+   * type it renames. Absent when the export does not resolve to a declaration.
+   * The module parser sets it once every export of the module is known.
+   */
+  public declarationId?: string;
+
+  /**
+   * The name the declaration identified by `declarationId` is written with, such
+   * as `formatValue` for `export { formatValue as format }`, or `Button` for
+   * `export default Button`.
+   */
+  public declaredName?: string;
+
   constructor(
     public name: string,
     public type: AnyType,
@@ -81,7 +101,7 @@ export class ExportNode implements DeclarationSpaces {
   }
 
   withType(type: AnyType): ExportNode {
-    return new ExportNode(
+    const node = new ExportNode(
       this.name,
       type,
       this.documentation,
@@ -89,6 +109,13 @@ export class ExportNode implements DeclarationSpaces {
       this.reexportedFrom,
       this.extendsTypes,
     );
+    if (this.declarationId !== undefined) {
+      node.declarationId = this.declarationId;
+    }
+    if (this.declaredName !== undefined) {
+      node.declaredName = this.declaredName;
+    }
+    return node;
   }
 
   /**

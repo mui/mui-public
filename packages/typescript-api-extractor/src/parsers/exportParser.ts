@@ -1,16 +1,19 @@
 import type ts from 'typescript';
-import { ExportNode, TypeName, withTypeName } from '../models';
-import type { AnyType } from '../models';
+import { ExportNode, withTypeName } from '../models';
+import type { AnyType, TypeName } from '../models';
 import { ParserError } from '../ParserError';
 import type { ScopedParserContext } from '../parserContext';
-import { isInternalSymbolName } from './common';
+import { createTypeName, isInternalSymbolName } from './common';
 import { getDocumentationFromSymbol } from './documentationParser';
 import { resolveExportDescriptors } from './exportDescriptors';
 import type { ExportDescriptor } from './exportDescriptors';
+import type { ParsedExport } from './declarationIds';
 import { resolveType } from './typeResolver';
 
 /**
- * Converts one TypeScript module export symbol into output `ExportNode`s.
+ * Converts one TypeScript module export symbol into output `ExportNode`s, each
+ * paired with the symbol it was resolved from so the module parser can tell
+ * which exports share a declaration.
  *
  * Example: `export { ComponentRoot as Root }` becomes a descriptor for `Root`
  * plus descriptors for merged namespace members such as `Root.Props`.
@@ -20,13 +23,13 @@ export function parseExport(
   parserContext: ScopedParserContext,
   parentNamespaces: string[] = [],
   containerSymbol?: ts.Symbol,
-): ExportNode[] | undefined {
+): ParsedExport[] {
   const descriptors = resolveExportDescriptors(exportSymbol, parserContext, {
     parentNamespaces,
     containerSymbol,
   });
   if (!descriptors) {
-    return undefined;
+    return [];
   }
 
   const nodesByDescriptor = new Map<ExportDescriptor, ExportNode[] | undefined>();
@@ -38,9 +41,9 @@ export function parseExport(
   // separate because merged namespace members historically resolved before
   // their owner export, and TypeScript's lazy type/cache behavior can make that
   // observable in authored union member order.
-  const exports = descriptors.flatMap((descriptor) => nodesByDescriptor.get(descriptor) ?? []);
-
-  return exports.length > 0 ? exports : undefined;
+  return descriptors.flatMap((descriptor) =>
+    (nodesByDescriptor.get(descriptor) ?? []).map((node) => ({ node, symbol: descriptor.symbol })),
+  );
 }
 
 /**
@@ -75,7 +78,7 @@ function createExportNodesFromDescriptor(
           return undefined;
         }
 
-        parsedType = applyExportTypeNameContext(parsedType, descriptor);
+        parsedType = applyExportTypeNameContext(parsedType, descriptor, parserContext);
         const exportName =
           descriptor.parentNamespaces.length > 0
             ? [...descriptor.parentNamespaces, descriptor.name].join('.')
@@ -111,6 +114,7 @@ function createExportNodesFromDescriptor(
 function applyExportTypeNameContext<T extends AnyType>(
   parsedType: T,
   descriptor: ExportDescriptor,
+  parserContext: ScopedParserContext,
 ): T {
   if (!('typeName' in parsedType)) {
     return parsedType;
@@ -122,7 +126,13 @@ function applyExportTypeNameContext<T extends AnyType>(
   // Fix type names for resolved anonymous/internal symbols. Re-exported aliases
   // can otherwise lose their authored export name and surface as `__type`.
   if (typeName?.name != null && isInternalSymbolName(typeName.name)) {
-    typeName = new TypeName(descriptor.name, typeName.namespaces, typeName.typeArguments);
+    typeName = createTypeName(
+      descriptor.symbol,
+      parserContext,
+      descriptor.name,
+      typeName.namespaces,
+      typeName.typeArguments,
+    );
     typeNameChanged = true;
   }
 
@@ -134,7 +144,13 @@ function applyExportTypeNameContext<T extends AnyType>(
     // export parser first replaced `__type` with the public member name and
     // then overwrote the namespace, so `export * as NS` exposed `NS.member`
     // even for anonymous external object declarations.
-    typeName = new TypeName(descriptor.name, descriptor.parentNamespaces, typeName?.typeArguments);
+    typeName = createTypeName(
+      descriptor.symbol,
+      parserContext,
+      descriptor.name,
+      descriptor.parentNamespaces,
+      typeName?.typeArguments,
+    );
     typeNameChanged = true;
   }
 

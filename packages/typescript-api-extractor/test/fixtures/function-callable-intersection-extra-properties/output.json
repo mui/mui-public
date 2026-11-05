@@ -26,7 +26,9 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "b75c083c6e3103e2",
+			"declaredName": "testFunction"
 		},
 		{
 			"name": "TestComponent",
@@ -45,7 +47,9 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "7401820dd481545e",
+			"declaredName": "TestComponent"
 		}
 	],
 	"imports": ["react"]
