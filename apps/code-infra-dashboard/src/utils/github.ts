@@ -1,8 +1,35 @@
 import { Octokit } from '@octokit/rest';
 
-// Create a singleton Octokit instance
-// In production, you might want to add authentication here
-export const octokit: Octokit = new Octokit({});
+/**
+ * Signed out: straight to GitHub, on the visitor's own anonymous per-IP budget
+ * of 60 requests/hour. Routing anonymous traffic through our proxy instead would
+ * collapse every visitor onto the server's single IP and make that limit worse.
+ */
+export const anonymousOctokit: Octokit = new Octokit({});
+
+const GITHUB_API_ORIGIN = 'https://api.github.com';
+const GITHUB_PROXY_PATH = '/api/github';
+
+/**
+ * Redirects every request into the proxy at the transport level rather than via
+ * `baseUrl`: Octokit's pagination follows the absolute api.github.com URLs in
+ * GitHub's `Link` header verbatim, and those would bypass a `baseUrl`.
+ */
+function fetchThroughProxy(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const url = new URL(String(input));
+  if (url.origin === GITHUB_API_ORIGIN) {
+    url.protocol = window.location.protocol;
+    url.host = window.location.host;
+    url.pathname = `${GITHUB_PROXY_PATH}${url.pathname}`;
+  }
+  return fetch(url, init);
+}
+
+/**
+ * Signed in: through our own server, which attaches the user's GitHub token and
+ * lifts the limit to 5000 requests/hour.
+ */
+export const proxiedOctokit: Octokit = new Octokit({ request: { fetch: fetchThroughProxy } });
 
 // Helper to parse repo string "org/repo" into owner and repo
 export function parseRepo(input: string): { owner: string; repo: string } {
