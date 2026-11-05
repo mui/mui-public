@@ -1,7 +1,8 @@
 import path from 'node:path';
 import ts from 'typescript';
-import { expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { loadConfig, parseFromProgram } from '../../index';
+import type { ParserOptions } from '../../index';
 import { createInMemoryProgram } from '../../../test/support/inMemoryProgram';
 
 const fixturesDir = path.resolve(__dirname, '../../../test/fixtures');
@@ -107,4 +108,66 @@ it('lets a caller-supplied limit collapse even directly requested shapes', () =>
     'nested',
     'forced',
   ]);
+});
+
+describe('propertiesOmitted', () => {
+  const filePath = '/virtual/properties-omitted.ts';
+  const largeProperties = Array.from({ length: 51 }, (_, index) => `  p${index}: string;`);
+  const unexpandedObjectsProgram = createInMemoryProgram(
+    filePath,
+    `interface Small {
+  a: string;
+  b: number;
+}
+
+interface Large {
+${largeProperties.join('\n')}
+}
+
+export interface Holder {
+  small: Small;
+  large: Large;
+  emptied: Omit<Small, 'a' | 'b'>;
+}`,
+  );
+
+  const getHolderProperty = (options: ParserOptions, name: string) => {
+    const moduleDefinition = JSON.parse(
+      JSON.stringify(parseFromProgram(filePath, unexpandedObjectsProgram, options)),
+    );
+    const holder = moduleDefinition.exports.find(
+      (exportNode: { name: string }) => exportNode.name === 'Holder',
+    );
+    return holder.type.properties.find((property: { name: string }) => property.name === name).type;
+  };
+
+  it('marks an object left unexpanded by the property-count limit', () => {
+    expect(getHolderProperty({}, 'large')).toEqual({
+      kind: 'object',
+      typeName: { name: 'Large' },
+      properties: [],
+      propertiesOmitted: true,
+    });
+    expect(getHolderProperty({}, 'small')).not.toHaveProperty('propertiesOmitted');
+  });
+
+  it('marks an object shouldResolveObject declines to expand', () => {
+    expect(
+      getHolderProperty({ shouldResolveObject: ({ name }) => name !== 'Small' }, 'small'),
+    ).toEqual({
+      kind: 'object',
+      typeName: { name: 'Small' },
+      properties: [],
+      propertiesOmitted: true,
+    });
+  });
+
+  it('does not mark an object that has no properties', () => {
+    const emptied = getHolderProperty(
+      { shouldResolveObject: ({ name }) => name === 'Holder' },
+      'emptied',
+    );
+    expect(emptied).toMatchObject({ kind: 'object', properties: [] });
+    expect(emptied).not.toHaveProperty('propertiesOmitted');
+  });
 });

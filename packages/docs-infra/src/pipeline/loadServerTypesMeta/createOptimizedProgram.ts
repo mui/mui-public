@@ -224,6 +224,12 @@ class InMemoryLanguageServiceHost implements ts.LanguageServiceHost {
     return this.projectPath;
   }
 
+  // The language service treats paths as case-insensitive unless told otherwise, which
+  // diverges from the file system, and from compiler hosts, on case-sensitive platforms.
+  useCaseSensitiveFileNames(): boolean {
+    return ts.sys.useCaseSensitiveFileNames;
+  }
+
   getCompilationSettings(): ts.CompilerOptions {
     return this.options;
   }
@@ -360,7 +366,10 @@ function getOrCreateLanguageService(
 
   // Create new language service instance
   const host = new InMemoryLanguageServiceHost(projectPath, optimizedOptions);
-  const service = ts.createLanguageService(host, ts.createDocumentRegistry());
+  const service = ts.createLanguageService(
+    host,
+    ts.createDocumentRegistry(ts.sys.useCaseSensitiveFileNames, projectPath),
+  );
 
   const instance: LanguageServiceInstance = {
     host,

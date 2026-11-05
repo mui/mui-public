@@ -3,14 +3,16 @@ import ts from 'typescript';
 import type { ExportNode } from '../models';
 import { ModuleNode } from '../models';
 import type { ScopedParserContext } from '../parserContext';
+import { substituteConditionalExports } from './conditionalSubstitution';
 import { parseExport } from './exportParser';
 import { applyExportTransforms } from './exportTransforms';
 import { ParserError } from '../ParserError';
 
 /**
  * Parses a source file into a ModuleNode: resolves every module export, drops
- * values re-exported through `export type *`, then applies post-parse export
- * transforms such as the React component transform.
+ * values re-exported through `export type *`, resolves generic conditional
+ * aliases through their constraints, then applies post-parse export transforms
+ * such as the React component transform.
  */
 export function parseModule(sourceFile: ts.SourceFile, context: ScopedParserContext): ModuleNode {
   const { checker, compilerOptions } = context;
@@ -24,15 +26,26 @@ export function parseModule(sourceFile: ts.SourceFile, context: ScopedParserCont
 
       let parsedModuleExports: ExportNode[] = [];
       const exportedSymbols = checker.getExportsOfModule(sourceFileSymbol);
+      const exportSymbols = new Map<ExportNode, ts.Symbol>();
 
       for (const exportedSymbol of exportedSymbols) {
-        const parsedExports = parseExport(exportedSymbol, context, [], sourceFileSymbol);
+        const parsedExports = parseExport(
+          exportedSymbol,
+          context,
+          [],
+          sourceFileSymbol,
+          exportSymbols,
+        );
         if (!parsedExports) {
           continue;
         }
         parsedModuleExports.push(...parsedExports);
       }
 
+      const substitutedExports = substituteConditionalExports(exportSymbols, context);
+      parsedModuleExports = parsedModuleExports.map(
+        (exportNode) => substitutedExports.get(exportNode) ?? exportNode,
+      );
       parsedModuleExports = applyExportTransforms(parsedModuleExports, context);
 
       const relativeModulePath = path

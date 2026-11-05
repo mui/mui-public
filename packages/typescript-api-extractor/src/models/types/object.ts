@@ -14,17 +14,27 @@ export class ObjectNode implements TypeNode {
   declare public properties: PropertyNode[];
   declare public documentation: Documentation | undefined;
   declare public indexSignature: IndexSignatureNode | undefined;
+  /**
+   * `true` when the type has properties the parser deliberately did not resolve,
+   * so an empty `properties` list does not mean the type has none. Omitted when
+   * `properties` is complete.
+   */
+  declare public readonly propertiesOmitted?: true;
 
   constructor(
     typeName: TypeName | undefined,
     properties: PropertyNode[],
     documentation: Documentation | undefined,
     indexSignature?: IndexSignatureNode,
+    propertiesOmitted?: boolean,
   ) {
     this.typeName = typeName?.name ? typeName : undefined;
     this.properties = properties;
     this.documentation = documentation;
     this.indexSignature = indexSignature;
+    if (propertiesOmitted) {
+      this.propertiesOmitted = true;
+    }
   }
 
   toString(): string {

@@ -1,0 +1,492 @@
+{
+	"name": "test/fixtures/conditional-substitution-resolution/input",
+	"exports": [
+		{
+			"name": "Cell",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Cell",
+					"typeArguments": [
+						{
+							"type": {
+								"name": "Row",
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						},
+						{
+							"type": {
+								"name": "Columns",
+								"constraint": {
+									"kind": "array",
+									"elementType": {
+										"kind": "object",
+										"properties": [
+											{
+												"name": "id",
+												"type": {
+													"kind": "intrinsic",
+													"intrinsic": "string"
+												},
+												"optional": false
+											}
+										]
+									},
+									"isReadonly": true
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [
+					{
+						"name": "row",
+						"type": {
+							"name": "Row",
+							"kind": "typeParameter"
+						},
+						"optional": false
+					},
+					{
+						"name": "columnId",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					}
+				]
+			},
+			"documentation": {
+				"description": "Resolves through the constraint, the branch every type argument but `any` takes.",
+				"tags": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "DefaultedCell",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "DefaultedCell",
+					"typeArguments": [
+						{
+							"type": {
+								"name": "Row",
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						},
+						{
+							"type": {
+								"name": "Columns",
+								"constraint": {
+									"kind": "array",
+									"elementType": {
+										"kind": "object",
+										"properties": [
+											{
+												"name": "id",
+												"type": {
+													"kind": "intrinsic",
+													"intrinsic": "string"
+												},
+												"optional": false
+											}
+										]
+									},
+									"isReadonly": true
+								},
+								"defaultValue": {
+									"kind": "intrinsic",
+									"intrinsic": "any"
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [
+					{
+						"name": "row",
+						"type": {
+							"name": "Row",
+							"kind": "typeParameter"
+						},
+						"optional": false
+					},
+					{
+						"name": "columnId",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					}
+				]
+			},
+			"documentation": {
+				"description": "A default of `any` is ignored in favor of the constraint.",
+				"tags": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "InlineCell",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "InlineCell",
+					"typeArguments": [
+						{
+							"type": {
+								"name": "Columns",
+								"constraint": {
+									"kind": "array",
+									"elementType": {
+										"kind": "object",
+										"properties": [
+											{
+												"name": "id",
+												"type": {
+													"kind": "intrinsic",
+													"intrinsic": "string"
+												},
+												"optional": false
+											}
+										]
+									},
+									"isReadonly": true
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [
+					{
+						"name": "columnId",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					}
+				]
+			},
+			"documentation": {
+				"description": "The tested type parameter only appears on the extends side.",
+				"tags": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "IdCell",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "IdCell",
+					"typeArguments": [
+						{
+							"type": {
+								"name": "Columns",
+								"constraint": {
+									"kind": "array",
+									"elementType": {
+										"kind": "object",
+										"properties": [
+											{
+												"name": "id",
+												"type": {
+													"kind": "intrinsic",
+													"intrinsic": "string"
+												},
+												"optional": false
+											}
+										]
+									},
+									"isReadonly": true
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						},
+						{
+							"type": {
+								"name": "Id",
+								"constraint": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [
+					{
+						"name": "columnId",
+						"type": {
+							"name": "Id",
+							"constraint": {
+								"kind": "intrinsic",
+								"intrinsic": "string"
+							},
+							"kind": "typeParameter"
+						},
+						"optional": false
+					}
+				]
+			},
+			"documentation": {
+				"description": "A type parameter constrained by a tested one stays generic.",
+				"tags": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "RowCell",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Cell",
+					"typeArguments": [
+						{
+							"type": {
+								"name": "Row",
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						},
+						{
+							"type": {
+								"name": "Columns",
+								"constraint": {
+									"kind": "array",
+									"elementType": {
+										"kind": "object",
+										"properties": [
+											{
+												"name": "id",
+												"type": {
+													"kind": "intrinsic",
+													"intrinsic": "string"
+												},
+												"optional": false
+											}
+										]
+									},
+									"isReadonly": true
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [
+					{
+						"name": "row",
+						"type": {
+							"name": "Row",
+							"kind": "typeParameter"
+						},
+						"optional": false
+					},
+					{
+						"name": "columnId",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					}
+				]
+			},
+			"documentation": {
+				"description": "Resolves through the constraint, the branch every type argument but `any` takes.",
+				"tags": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "DataGrid.ColumnData",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "ColumnData",
+					"namespaces": ["DataGrid"]
+				},
+				"properties": [
+					{
+						"name": "id",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "DataGrid.RowCell",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "RowCell",
+					"namespaces": ["DataGrid"],
+					"typeArguments": [
+						{
+							"type": {
+								"name": "Row",
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						},
+						{
+							"type": {
+								"name": "Columns",
+								"constraint": {
+									"kind": "array",
+									"elementType": {
+										"kind": "object",
+										"typeName": {
+											"name": "ColumnData",
+											"namespaces": ["DataGrid"]
+										},
+										"properties": [
+											{
+												"name": "id",
+												"type": {
+													"kind": "intrinsic",
+													"intrinsic": "string"
+												},
+												"optional": false
+											}
+										]
+									},
+									"isReadonly": true
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [
+					{
+						"name": "row",
+						"type": {
+							"name": "Row",
+							"kind": "typeParameter"
+						},
+						"optional": false
+					},
+					{
+						"name": "columnId",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					}
+				]
+			},
+			"documentation": {
+				"description": "The constraint refers to a name only visible inside the namespace.",
+				"tags": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "DataGrid.Cell",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Cell",
+					"namespaces": ["DataGrid"],
+					"typeArguments": [
+						{
+							"type": {
+								"name": "Row",
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						},
+						{
+							"type": {
+								"name": "Columns",
+								"constraint": {
+									"kind": "array",
+									"elementType": {
+										"kind": "object",
+										"properties": [
+											{
+												"name": "id",
+												"type": {
+													"kind": "intrinsic",
+													"intrinsic": "string"
+												},
+												"optional": false
+											}
+										]
+									},
+									"isReadonly": true
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [
+					{
+						"name": "row",
+						"type": {
+							"name": "Row",
+							"kind": "typeParameter"
+						},
+						"optional": false
+					},
+					{
+						"name": "columnId",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					}
+				]
+			},
+			"documentation": {
+				"description": "Forwards its type parameters to a conditional alias.",
+				"tags": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}
