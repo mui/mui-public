@@ -603,8 +603,24 @@ const bodyBoundQueries =
 
 // @testing-library/react 12 (React 17) has no `renderHook`. This follows the v13 implementation.
 const renderHookFallback: typeof rtl.renderHook = (renderCallback, options = {}) => {
-  const { initialProps, ...renderOptions } = options;
+  const {
+    initialProps,
+    wrapper: Wrapper = React.Fragment,
+    reactStrictMode = rtl.getConfig().reactStrictMode,
+    ...renderOptions
+  } = options;
   const result = React.createRef() as { current: ReturnType<typeof renderCallback> };
+
+  // @testing-library/react 12 ignores `reactStrictMode`, including for the wrapper.
+  const wrapper = reactStrictMode
+    ? function StrictModeWrapper({ children }: { children?: React.ReactNode }) {
+        return (
+          <React.StrictMode>
+            <Wrapper>{children}</Wrapper>
+          </React.StrictMode>
+        );
+      }
+    : Wrapper;
 
   function TestComponent({ renderCallbackProps }: { renderCallbackProps: typeof initialProps }) {
     const pendingResult = renderCallback(renderCallbackProps!);
@@ -618,7 +634,7 @@ const renderHookFallback: typeof rtl.renderHook = (renderCallback, options = {})
 
   const { rerender: baseRerender, unmount } = testingLibraryRender(
     <TestComponent renderCallbackProps={initialProps} />,
-    renderOptions,
+    { ...renderOptions, wrapper },
   );
 
   function rerender(rerenderCallbackProps?: typeof initialProps) {

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
-import { createRenderer, renderHook } from './createRenderer';
+import { configure, createRenderer, renderHook } from './createRenderer';
 
 describe('createRenderer', () => {
   const { render } = createRenderer();
@@ -55,6 +55,46 @@ describe('createRenderer', () => {
 });
 
 describe('renderHook', () => {
+  it.each([false, true])('renders with `reactStrictMode: %s`', (reactStrictMode) => {
+    const renderSpy = vi.fn();
+    renderHook(() => renderSpy(), { reactStrictMode });
+
+    expect(renderSpy).toHaveBeenCalledTimes(reactStrictMode ? 2 : 1);
+  });
+
+  it('uses configured StrictMode unless explicitly overridden', ({ onTestFinished }) => {
+    configure({ reactStrictMode: true });
+    onTestFinished(() => configure({ reactStrictMode: false }));
+
+    const renderSpy = vi.fn();
+    renderHook(() => renderSpy());
+    expect(renderSpy).toHaveBeenCalledTimes(2);
+
+    renderSpy.mockClear();
+    renderHook(() => renderSpy(), { reactStrictMode: false });
+    expect(renderSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('preserves the wrapper and hook state when rerendering in StrictMode', () => {
+    const Context = React.createContext(0);
+    const wrapperRenderSpy = vi.fn();
+    function Wrapper({ children }) {
+      wrapperRenderSpy();
+      return <Context.Provider value={2}>{children}</Context.Provider>;
+    }
+
+    const { result, rerender } = renderHook(
+      ({ value }) => React.useState(value)[0] + value + React.useContext(Context),
+      { initialProps: { value: 1 }, wrapper: Wrapper, reactStrictMode: true },
+    );
+    expect(result.current).to.equal(4);
+    expect(wrapperRenderSpy).toHaveBeenCalledTimes(2);
+
+    rerender({ value: 2 });
+    expect(result.current).to.equal(5);
+    expect(wrapperRenderSpy).toHaveBeenCalledTimes(4);
+  });
+
   it('returns the latest result and rerenders with new props', () => {
     const { result, rerender } = renderHook(({ value }) => React.useState(value)[0] + value, {
       initialProps: { value: 1 },
