@@ -26,7 +26,7 @@
     "typescript": "tsc -noEmit"
   },
   "dependencies": {
-    "@babel/runtime": "^8.0.7",
+    "@babel/runtime": "^8.1.0",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.8",
@@ -34,7 +34,7 @@
     "assertion-error": "^2.0.1",
     "chai-dom": "^1.12.1",
     "dom-accessibility-api": "^0.7.1",
-    "es-toolkit": "^1.52.0",
+    "es-toolkit": "^1.53.1",
     "format-util": "^1.0.5",
     "prop-types": "^15.8.1",
     "vitest-fail-on-console": "^0.10.1"
