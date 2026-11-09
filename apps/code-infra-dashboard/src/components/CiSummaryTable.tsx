@@ -266,7 +266,9 @@ export default function CiWorkflowCard({ slug, workflow }: CiWorkflowCardProps) 
             sx={{
               minHeight: 0,
               p: 0,
-              '& .MuiAccordionSummary-content': { m: 0 },
+              justifyContent: 'flex-start',
+              gap: 0.5,
+              '& .MuiAccordionSummary-content': { m: 0, flexGrow: 0 },
             }}
           >
             <Typography
