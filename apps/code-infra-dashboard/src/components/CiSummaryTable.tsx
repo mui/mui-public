@@ -17,6 +17,7 @@ import { formatDuration, formatSuccessRate } from '../lib/ciAnalytics';
 const THRESHOLD_PCT = 5;
 const HIGH_RUNTIME_DELTA = 20;
 const LOW_SUCCESS_RATE = 0.85;
+const NO_DATA = '\u2014';
 
 type MetricSeverity = 'error' | 'warning' | null;
 
@@ -32,8 +33,8 @@ export interface WorkflowAnalysis {
   runtimeDelta: number;
   runtimeDeltaSeverity: MetricSeverity;
 
-  creditsPerRun: number | null;
-  creditsPerRunDelta: number | null;
+  creditsPerRun: number;
+  creditsPerRunDelta: number;
   creditsPerRunDeltaSeverity: MetricSeverity;
 }
 
@@ -53,16 +54,13 @@ function computeDeltas(week: PeriodSummary, month: PeriodSummary) {
   const monthSuccessPct = month.successRate * 100;
   const successDelta = weekSuccessPct - monthSuccessPct;
 
-  let creditsPerRunDelta: number | null = null;
-  let weekCreditsPerRun: number | null = null;
-  if (week.totalRuns > 0 && month.totalRuns > 0) {
-    weekCreditsPerRun = week.totalCredits / week.totalRuns;
-    const monthCreditsPerRun = month.totalCredits / month.totalRuns;
-    creditsPerRunDelta =
-      monthCreditsPerRun > 0
-        ? ((weekCreditsPerRun - monthCreditsPerRun) / monthCreditsPerRun) * 100
-        : 0;
-  }
+  // Callers guarantee `week.totalRuns > 0`, and week runs are a subset of month runs.
+  const weekCreditsPerRun = week.totalCredits / week.totalRuns;
+  const monthCreditsPerRun = month.totalCredits / month.totalRuns;
+  const creditsPerRunDelta =
+    monthCreditsPerRun > 0
+      ? ((weekCreditsPerRun - monthCreditsPerRun) / monthCreditsPerRun) * 100
+      : 0;
 
   let runtimeDelta = 0;
   if (month.avgSuccessDurationSecs > 0) {
@@ -98,7 +96,7 @@ export function computeWorkflowAnalysis(wf: WorkflowMetrics): WorkflowAnalysis |
     runtimeDeltaSeverity = 'warning';
   }
   const creditsPerRunDeltaSeverity: MetricSeverity =
-    creditsPerRunDelta != null && creditsPerRunDelta > THRESHOLD_PCT ? 'warning' : null;
+    creditsPerRunDelta > THRESHOLD_PCT ? 'warning' : null;
 
   let severity: MetricSeverity = null;
   if (
@@ -240,28 +238,15 @@ export default function CiWorkflowCard({ slug, workflow }: CiWorkflowCardProps) 
               deltaSeverity={analysis.runtimeDeltaSeverity}
               invert
             />
-            {analysis.creditsPerRunDelta != null && analysis.creditsPerRun != null ? (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <MetricRow
-                  label="Credits/run"
-                  value={Math.round(analysis.creditsPerRun).toLocaleString()}
-                  valueSeverity={null}
-                  valueTooltip={`Credits/run (master): ${Math.round(analysis.creditsPerRun).toLocaleString()}`}
-                  delta={analysis.creditsPerRunDelta}
-                  deltaSeverity={analysis.creditsPerRunDeltaSeverity}
-                  invert
-                />
-              </Box>
-            ) : (
-              <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
-                <Typography variant="body2" color="text.secondary" sx={{ minWidth: 100 }}>
-                  Credits/run
-                </Typography>
-                <Typography variant="body2" color="text.disabled" sx={{ fontStyle: 'italic' }}>
-                  Insufficient data
-                </Typography>
-              </Box>
-            )}
+            <MetricRow
+              label="Credits/run"
+              value={Math.round(analysis.creditsPerRun).toLocaleString()}
+              valueSeverity={null}
+              valueTooltip={`Credits/run (master): ${Math.round(analysis.creditsPerRun).toLocaleString()}`}
+              delta={analysis.creditsPerRunDelta}
+              deltaSeverity={analysis.creditsPerRunDeltaSeverity}
+              invert
+            />
           </Box>
         ) : (
           <Typography variant="body2" color="text.disabled" sx={{ fontStyle: 'italic' }}>
@@ -318,17 +303,17 @@ export default function CiWorkflowCard({ slug, workflow }: CiWorkflowCardProps) 
               <tbody>
                 <tr>
                   <th>Success rate</th>
-                  <td>{formatSuccessRate(week.successRate)}</td>
+                  <td>{analysis ? formatSuccessRate(week.successRate) : NO_DATA}</td>
                   <td>{formatSuccessRate(month.successRate)}</td>
                 </tr>
                 <tr>
                   <th>Avg runtime</th>
-                  <td>{formatDuration(week.avgDurationSecs)}</td>
+                  <td>{analysis ? formatDuration(week.avgDurationSecs) : NO_DATA}</td>
                   <td>{formatDuration(month.avgDurationSecs)}</td>
                 </tr>
                 <tr>
                   <th>Avg success runtime</th>
-                  <td>{formatDuration(week.avgSuccessDurationSecs)}</td>
+                  <td>{analysis ? formatDuration(week.avgSuccessDurationSecs) : NO_DATA}</td>
                   <td>{formatDuration(month.avgSuccessDurationSecs)}</td>
                 </tr>
                 <tr>
