@@ -17,7 +17,7 @@ import { formatDuration, formatSuccessRate } from '../lib/ciAnalytics';
 const THRESHOLD_PCT = 5;
 const HIGH_RUNTIME_DELTA = 20;
 const LOW_SUCCESS_RATE = 0.85;
-const NO_DATA = '\u2014';
+const NO_DATA = '—';
 
 type MetricSeverity = 'error' | 'warning' | null;
 
