@@ -206,6 +206,7 @@ export default function CiWorkflowCard({ slug, workflow }: CiWorkflowCardProps) 
     <Card
       variant="outlined"
       sx={{
+        height: '100%',
         borderColor,
         bgcolor: analysis?.severity ? `${analysis.severity}.50` : undefined,
       }}
