@@ -42,6 +42,13 @@ function formatDelta(delta: number): string {
   return `${sign}${delta.toFixed(1)}%`;
 }
 
+/**
+ * Rates and averages of a period without runs don't exist, so show a dash instead of the stored 0.
+ */
+function ifRuns(period: PeriodSummary, value: string): string {
+  return period.totalRuns > 0 ? value : '—';
+}
+
 function getCircleCiInsightsUrl(slug: string, workflow: string): string {
   // slug is e.g. "gh/mui/mui-x" → extract "mui/mui-x"
   const orgRepo = slug.replace(/^gh\//, '');
@@ -269,7 +276,6 @@ export default function CiWorkflowCard({ slug, workflow }: CiWorkflowCardProps) 
             sx={{
               minHeight: 0,
               p: 0,
-              justifyContent: 'flex-start',
               gap: 0.5,
               '& .MuiAccordionSummary-content': { m: 0, flexGrow: 0 },
             }}
@@ -307,18 +313,18 @@ export default function CiWorkflowCard({ slug, workflow }: CiWorkflowCardProps) 
               <tbody>
                 <tr>
                   <th>Success rate</th>
-                  <td>{analysis ? formatSuccessRate(week.successRate) : '—'}</td>
-                  <td>{formatSuccessRate(month.successRate)}</td>
+                  <td>{ifRuns(week, formatSuccessRate(week.successRate))}</td>
+                  <td>{ifRuns(month, formatSuccessRate(month.successRate))}</td>
                 </tr>
                 <tr>
                   <th>Avg runtime</th>
-                  <td>{analysis ? formatDuration(week.avgDurationSecs) : '—'}</td>
-                  <td>{formatDuration(month.avgDurationSecs)}</td>
+                  <td>{ifRuns(week, formatDuration(week.avgDurationSecs))}</td>
+                  <td>{ifRuns(month, formatDuration(month.avgDurationSecs))}</td>
                 </tr>
                 <tr>
                   <th>Avg success runtime</th>
-                  <td>{analysis ? formatDuration(week.avgSuccessDurationSecs) : '—'}</td>
-                  <td>{formatDuration(month.avgSuccessDurationSecs)}</td>
+                  <td>{ifRuns(week, formatDuration(week.avgSuccessDurationSecs))}</td>
+                  <td>{ifRuns(month, formatDuration(month.avgSuccessDurationSecs))}</td>
                 </tr>
                 <tr>
                   <th>Total credits</th>
