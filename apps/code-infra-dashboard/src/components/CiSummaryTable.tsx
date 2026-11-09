@@ -276,6 +276,8 @@ export default function CiWorkflowCard({ slug, workflow }: CiWorkflowCardProps) 
             sx={{
               minHeight: 0,
               p: 0,
+              // ButtonBase centers its content by default
+              justifyContent: 'flex-start',
               gap: 0.5,
               '& .MuiAccordionSummary-content': { m: 0, flexGrow: 0 },
             }}
