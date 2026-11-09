@@ -45,7 +45,6 @@ function buildMarkdownReport(
     warning: '\uD83D\uDFE1',
   };
   const GREEN = '\uD83D\uDFE2';
-  const WHITE = '\u26AA';
 
   const lines = projects
     .flatMap((project) =>
@@ -54,7 +53,7 @@ function buildMarkdownReport(
         const url = getCircleCiInsightsUrl(project.slug, wf.name);
         const label = `[${project.displayName} / ${wf.name}](${url})`;
         if (!analysis) {
-          return `  ${WHITE} ${label} \u2014 no runs`;
+          return `  ${GREEN} ${label} \u2014 no runs`;
         }
         const emoji = analysis.severity ? SEVERITY_EMOJI[analysis.severity] : GREEN;
         const success = formatSuccessRate(analysis.successRate);

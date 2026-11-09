@@ -10,6 +10,7 @@ import AccordionDetails from '@mui/material/AccordionDetails';
 import Link from '@mui/material/Link';
 import Typography from '@mui/material/Typography';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import Tooltip from '@mui/material/Tooltip';
 import type { WorkflowMetrics, PeriodSummary } from '../lib/ciAnalytics';
 import { formatDuration, formatSuccessRate } from '../lib/ciAnalytics';
@@ -197,17 +198,12 @@ export default function CiWorkflowCard({ slug, workflow }: CiWorkflowCardProps) 
   const analysis = computeWorkflowAnalysis(workflow);
   const { week, month } = workflow;
 
-  let borderColor = 'divider';
-  if (analysis) {
-    borderColor = analysis.severity ? `${analysis.severity}.main` : 'success.main';
-  }
-
   return (
     <Card
       variant="outlined"
       sx={{
         height: '100%',
-        borderColor,
+        borderColor: analysis?.severity ? `${analysis.severity}.main` : 'success.main',
         bgcolor: analysis?.severity ? `${analysis.severity}.50` : undefined,
       }}
     >
@@ -269,9 +265,17 @@ export default function CiWorkflowCard({ slug, workflow }: CiWorkflowCardProps) 
             )}
           </Box>
         ) : (
-          <Typography variant="body2" color="text.disabled" sx={{ fontStyle: 'italic' }}>
-            No runs on master in the last 7 days
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Typography variant="body2" color="text.disabled" sx={{ fontStyle: 'italic' }}>
+              No runs on master in the last 7 days
+            </Typography>
+            <Tooltip
+              disableInteractive
+              title="If commits landed on master this week, the pipeline may have stopped triggering"
+            >
+              <WarningAmberIcon fontSize="small" color="warning" />
+            </Tooltip>
+          </Box>
         )}
 
         <Accordion
