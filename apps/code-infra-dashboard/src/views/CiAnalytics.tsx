@@ -41,10 +41,10 @@ function buildMarkdownReport(
   dashboardSource: string,
 ): string {
   const SEVERITY_EMOJI: Record<string, string> = {
-    error: '\uD83D\uDD34',
-    warning: '\uD83D\uDFE1',
+    error: '🔴',
+    warning: '🟡',
   };
-  const GREEN = '\uD83D\uDFE2';
+  const GREEN = '🟢';
 
   const lines = projects
     .flatMap((project) =>
@@ -53,12 +53,12 @@ function buildMarkdownReport(
         const url = getCircleCiInsightsUrl(project.slug, wf.name);
         const label = `[${project.displayName} / ${wf.name}](${url})`;
         if (!analysis) {
-          return `  ${GREEN} ${label} \u2014 no runs`;
+          return `  ${GREEN} ${label} — no runs`;
         }
         const emoji = analysis.severity ? SEVERITY_EMOJI[analysis.severity] : GREEN;
         const success = formatSuccessRate(analysis.successRate);
         const runtime = formatDuration(analysis.runtimeSecs);
-        return `  ${emoji} ${label} \u2014 ${success} success, ${runtime}`;
+        return `  ${emoji} ${label} — ${success} success, ${runtime}`;
       }),
     )
     .join('\n');
