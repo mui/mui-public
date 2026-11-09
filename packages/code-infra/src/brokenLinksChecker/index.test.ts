@@ -1,6 +1,6 @@
 import path from 'node:path';
 import getPort from 'get-port';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import {
   crawl,
@@ -332,6 +332,6 @@ describe('Broken Links Checker', () => {
       seedUrls: ['/no-links.html'],
     });
 
-    await vi.waitFor(() => expect(fetch(host)).rejects.toThrow('fetch failed'), { timeout: 5000 });
+    await expect(fetch(host)).rejects.toThrow('fetch failed');
   }, 30000);
 });
