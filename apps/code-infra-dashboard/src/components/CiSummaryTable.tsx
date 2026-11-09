@@ -199,11 +199,13 @@ export default function CiWorkflowCard({ slug, workflow }: CiWorkflowCardProps) 
       variant="outlined"
       sx={{
         height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
         borderColor: analysis?.severity ? `${analysis.severity}.main` : 'success.main',
         bgcolor: analysis?.severity ? `${analysis.severity}.50` : undefined,
       }}
     >
-      <CardContent>
+      <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
         <Link
           href={getCircleCiInsightsUrl(slug, workflow.name)}
           target="_blank"
@@ -257,6 +259,7 @@ export default function CiWorkflowCard({ slug, workflow }: CiWorkflowCardProps) 
           disableGutters
           elevation={0}
           sx={{
+            mt: 'auto',
             '&::before': { display: 'none' },
             backgroundColor: 'transparent',
           }}
