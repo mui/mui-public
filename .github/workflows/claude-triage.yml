@@ -1,5 +1,6 @@
 # Callers select triggers and pass issue-number, mode, and optionally comment-id.
-# Human senders need write access unless an allowed label permits author/member replies.
+# Human senders need write access unless `ai: needs-triage` permits author/member replies.
+# An issue labeled `ai: triaged` gets no further runs, so triage replies once per issue.
 # Bots may request triage through issue labels.
 # Labeling automation must use an App token or PAT; GITHUB_TOKEN label events do not start workflows.
 # PRs are ignored.
@@ -100,13 +101,14 @@ jobs:
                 !['triage', 'fix'].includes(mode)) {
               throw new Error('Expected a positive issue-number, mode triage or fix, and a non-negative comment-id.');
             }
-            // Replies from the issue author, collaborators, or org members request triage only while one of these is present.
-            const commentLabels = ['ai: needs-triage', 'ai: triaged'];
             const actor = context.payload.sender;
             const { data: issue } = await github.rest.issues.get({
               ...context.repo, issue_number: issueNumber,
             });
             if (issue.pull_request) return;
+            const labels = issue.labels.map((label) => typeof label === 'string' ? label : label.name);
+            // Triage replies once per issue. Maintainers re-request by removing `ai: triaged` before labeling again.
+            if (labels.includes('ai: triaged')) return;
             const labeledCommentRequest = context.eventName === 'issue_comment';
 
             // Validate labeled replies before granting any permission exception.
@@ -130,9 +132,8 @@ jobs:
                 return;
               }
 
-              const hasAllowedLabel = issue.labels.some((label) =>
-                commentLabels.includes(typeof label === 'string' ? label : label.name));
-              if (!hasAllowedLabel) {
+              // Replies from the issue author, collaborators, or org members only retry a pending triage.
+              if (!labels.includes('ai: needs-triage')) {
                 return;
               }
             }
@@ -174,7 +175,6 @@ jobs:
               }
             })();
             fs.mkdirSync(`${process.env.RUNNER_TEMP}/request`);
-            const labels = issue.labels.map((label) => typeof label === 'string' ? label : label.name);
             fs.writeFileSync(`${process.env.RUNNER_TEMP}/request/issue.md`, [
               `# ${issue.title}`,
               '',
@@ -591,6 +591,14 @@ jobs:
             body += `\n---\nAgent-generated diagnosis; conclusions have not been independently verified. [Workflow run](${process.env.RUN_URL}).\n`;
             body += fs.readFileSync(`${process.env.RUNNER_TEMP}/triage-footer.md`, 'utf8');
             await core.summary.addRaw(body).write();
+            // Runs queued behind a successful triage of the same issue must not reply again.
+            const { data: issue } = await github.rest.issues.get({
+              ...context.repo, issue_number: Number(process.env.ISSUE_NUMBER),
+            });
+            if (issue.labels.some((label) => (typeof label === 'string' ? label : label.name) === 'ai: triaged')) {
+              core.notice('The issue was already triaged; skipping the reply.');
+              return;
+            }
             const { data: comment } = await github.rest.issues.createComment({
               ...context.repo, issue_number: Number(process.env.ISSUE_NUMBER), body,
             });
