@@ -1,6 +1,5 @@
-# Callers select triggers and pass issue-number, mode, and optionally comment-id.
-# Human senders need write access unless `ai: needs-triage` permits author/member replies.
-# An issue labeled `ai: triaged` gets no further runs, so triage replies once per issue.
+# Callers select triggers and pass issue-number and mode. Comments never start triage.
+# Human senders need write access. An issue labeled `ai: triaged` gets no further runs, so triage replies once per issue.
 # Bots may request triage through issue labels.
 # Labeling automation must use an App token or PAT; GITHUB_TOKEN label events do not start workflows.
 # PRs are ignored.
@@ -23,10 +22,6 @@ on:
         description: Operation to perform, triage or fix (fix currently runs triage only).
         type: string
         required: true
-      comment-id:
-        description: Optional issue comment to acknowledge and use as the discussion cutoff; zero includes all comments available when captured.
-        type: number
-        default: 0
       debug:
         description: Log full Claude output, including tool results, in Actions logs.
         type: boolean
@@ -77,7 +72,6 @@ jobs:
       issues: write
     outputs:
       allowed-bot: ${{ steps.request.outputs.allowed-bot }}
-      allowed-user: ${{ steps.request.outputs.allowed-user }}
       mode: ${{ steps.request.outputs.mode }}
       issue: ${{ steps.request.outputs.issue }}
       base: ${{ steps.request.outputs.base }}
@@ -88,18 +82,14 @@ jobs:
         env:
           ISSUE_NUMBER: ${{ inputs.issue-number }}
           REQUEST_MODE: ${{ inputs.mode }}
-          COMMENT_ID: ${{ inputs.comment-id }}
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const fs = require('node:fs');
             const issueNumber = Number(process.env.ISSUE_NUMBER);
             const mode = process.env.REQUEST_MODE;
-            const commentId = Number(process.env.COMMENT_ID);
-            if (!Number.isSafeInteger(issueNumber) || issueNumber <= 0 ||
-                !Number.isSafeInteger(commentId) || commentId < 0 ||
-                !['triage', 'fix'].includes(mode)) {
-              throw new Error('Expected a positive issue-number, mode triage or fix, and a non-negative comment-id.');
+            if (!Number.isSafeInteger(issueNumber) || issueNumber <= 0 || !['triage', 'fix'].includes(mode)) {
+              throw new Error('Expected a positive issue-number and mode triage or fix.');
             }
             const actor = context.payload.sender;
             const { data: issue } = await github.rest.issues.get({
@@ -109,44 +99,11 @@ jobs:
             const labels = issue.labels.map((label) => typeof label === 'string' ? label : label.name);
             // Triage replies once per issue. Maintainers re-request by removing `ai: triaged` before labeling again.
             if (labels.includes('ai: triaged')) return;
-            const labeledCommentRequest = context.eventName === 'issue_comment';
-
-            // Validate labeled replies before granting any permission exception.
-            if (labeledCommentRequest) {
-              const userType = 'User';
-              const { comment } = context.payload;
-
-              if (actor?.type !== userType) {
-                return;
-              }
-              if (context.payload.action !== 'created' || mode !== 'triage') {
-                return;
-              }
-              if (context.payload.issue?.number !== issueNumber) {
-                return;
-              }
-              if (commentId === 0 || comment?.id !== commentId) {
-                return;
-              }
-              if (comment?.user?.type !== userType || comment.user.login !== actor.login) {
-                return;
-              }
-
-              // Replies from the issue author, collaborators, or org members only retry a pending triage.
-              if (!labels.includes('ai: needs-triage')) {
-                return;
-              }
-            }
-
-            // GitHub supplies author_association; comment text cannot confer repository/org access.
-            const authorizedCommentRequest = labeledCommentRequest &&
-              (issue.user?.login === actor.login ||
-               ['OWNER', 'MEMBER', 'COLLABORATOR'].includes(context.payload.comment.author_association));
             // GitHub enforces label-write access for the bot that produced this event.
             const botLabelRequest = actor?.type === 'Bot' && context.eventName === 'issues' &&
               context.payload.action === 'labeled' && context.payload.issue?.number === issueNumber &&
-              mode === 'triage' && commentId === 0;
-            if (!botLabelRequest && !authorizedCommentRequest) {
+              mode === 'triage';
+            if (!botLabelRequest) {
               if (actor?.type !== 'User') return;
               const { data: access } = await github.rest.repos.getCollaboratorPermissionLevel({
                 ...context.repo, username: actor.login,
@@ -160,20 +117,6 @@ jobs:
             const comments = await github.paginate(github.rest.issues.listComments, {
               ...context.repo, issue_number: issue.number, per_page: 100,
             });
-            if (commentId && !comments.some((entry) => entry.id === commentId)) {
-              throw new Error('The comment-id does not belong to the requested issue.');
-            }
-            // Only comment-triggered requests have an acknowledgement target.
-            const reaction = (async () => {
-              if (!commentId) return;
-              try {
-                await github.rest.reactions.createForIssueComment({
-                  ...context.repo, comment_id: commentId, content: 'eyes',
-                });
-              } catch (error) {
-                core.warning(`Could not acknowledge the comment: ${error.message}`);
-              }
-            })();
             fs.mkdirSync(`${process.env.RUNNER_TEMP}/request`);
             fs.writeFileSync(`${process.env.RUNNER_TEMP}/request/issue.md`, [
               `# ${issue.title}`,
@@ -192,17 +135,14 @@ jobs:
               '',
             ].join('\n'));
             fs.writeFileSync(`${process.env.RUNNER_TEMP}/request/comments.json`, JSON.stringify(
-              comments.filter((entry) => !commentId || entry.id <= commentId)
-                .map((entry) => ({ author: entry.user?.login ?? null, url: entry.html_url, body: entry.body })),
+              comments.map((entry) => ({ author: entry.user?.login ?? null, url: entry.html_url, body: entry.body })),
               null, 2,
             ));
             core.setOutput('allowed-bot', botLabelRequest ? actor.login : '');
-            core.setOutput('allowed-user', authorizedCommentRequest ? actor.login : '');
             core.setOutput('mode', mode);
             core.setOutput('issue', issue.number);
             core.setOutput('base', branch.commit.sha);
             core.setOutput('branch', repository.default_branch);
-            await reaction;
       - name: Upload the issue snapshot
         if: steps.request.outputs.mode != ''
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -280,7 +220,6 @@ jobs:
         with:
           github_token: ${{ github.token }} # Use this job's read-only token instead of minting an App token.
           allowed_bots: ${{ needs.authorize.outputs.allowed-bot }} # Forward only the bot approved by authorization.
-          allowed_non_write_users: ${{ needs.authorize.outputs.allowed-user }} # Forward only the human reply approved by authorization.
           show_full_output: ${{ inputs.debug }}
           anthropic_federation_rule_id: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID }}
           anthropic_organization_id: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
