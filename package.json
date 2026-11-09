@@ -64,7 +64,7 @@
     "baseline-browser-mapping": "2.11.35",
     "pkg-pr-new": "0.0.93",
     "playwright": "1.65.0",
-    "stylelint": "17.16.0",
+    "stylelint": "18.0.0",
     "vitest": "5.1.0"
   },
   "config": {

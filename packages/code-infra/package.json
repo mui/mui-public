@@ -144,7 +144,7 @@
     "remark-rehype": "^11.1.2",
     "resolve-pkg-maps": "^1.0.0",
     "semver": "^7.8.6",
-    "stylelint-config-standard": "^40.0.0",
+    "stylelint-config-standard": "^41.0.0",
     "typescript-eslint": "^8.72.0",
     "unified": "^11.0.5",
     "unified-lint-rule": "^3.0.1",
