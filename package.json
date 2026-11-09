@@ -15,7 +15,7 @@
     "test:browser": "pnpm -F \"./docs\" run docs-infra browser --workspace --script test:browser:unconfined --playwright-version 1.60.0 --",
     "test:browser:unconfined": "vitest --config vitest.config.browser.mts",
     "test:e2e": "pnpm -F \"./docs\" run test:e2e",
-    "stylelint": "stylelint --reportInvalidScopeDisables --reportNeedlessDisables \"**/*.?(c|m)[jt]s?(x)\" \"**/*.css\" --ignore-path .lintignore",
+    "stylelint": "stylelint --report-invalid-scope-disables --report-needless-disables \"**/*.?(c|m)[jt]s?(x)\" \"**/*.css\" --ignore-path .lintignore",
     "valelint": "pnpm code-infra vale sync --vale-version $npm_package_config_valeVersion && git ls-files | grep -E \"\\.(md|mdx)$\" | xargs pnpm code-infra vale --vale-version $npm_package_config_valeVersion --filter='.Level==\"error\"'",
     "vale:fix": "pnpm valelint --auto-fix all",
     "typescript": "pnpm -r run typescript",
@@ -64,7 +64,7 @@
     "baseline-browser-mapping": "2.11.35",
     "pkg-pr-new": "0.0.93",
     "playwright": "1.65.0",
-    "stylelint": "17.16.0",
+    "stylelint": "18.0.0",
     "vitest": "5.1.0"
   },
   "config": {
