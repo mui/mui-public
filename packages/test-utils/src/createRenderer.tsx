@@ -122,29 +122,29 @@ interface DataAttributes {
   [key: `data-${string}`]: string;
 }
 
+// @testing-library/react 12 (React 17) ignores `reactStrictMode`.
+// Like v16, put StrictMode outside the wrapper.
+function withStrictMode(Wrapper: React.JSXElementConstructor<{ children: React.ReactNode }>) {
+  return function StrictModeWrapper({ children }: { children?: React.ReactNode }) {
+    return (
+      <React.StrictMode>
+        <Wrapper>{children}</Wrapper>
+      </React.StrictMode>
+    );
+  };
+}
+
 function render(
   element: React.ReactElement<DataAttributes>,
   configuration: ClientRenderConfiguration,
 ): MuiRenderResult {
-  const { container, hydrate, wrapper: Wrapper, reactStrictMode } = configuration;
-
-  // @testing-library/react 12 (React 17) ignores `reactStrictMode`.
-  const wrapper =
-    reactStrictMode && reactMajor < 18
-      ? function StrictModeWrapper({ children }: { children?: React.ReactNode }) {
-          return (
-            <React.StrictMode>
-              <Wrapper>{children}</Wrapper>
-            </React.StrictMode>
-          );
-        }
-      : Wrapper;
+  const { container, hydrate, wrapper, reactStrictMode } = configuration;
 
   const testingLibraryRenderResult = testingLibraryRender(element, {
     container,
     hydrate,
     queries: { ...queries, ...customQueries },
-    wrapper,
+    wrapper: reactStrictMode && reactMajor < 18 ? withStrictMode(wrapper) : wrapper,
     reactStrictMode,
   });
   const result: MuiRenderResult = {
@@ -605,22 +605,11 @@ const bodyBoundQueries =
 const renderHookFallback: typeof rtl.renderHook = (renderCallback, options = {}) => {
   const {
     initialProps,
-    wrapper: Wrapper = React.Fragment,
+    wrapper = React.Fragment,
     reactStrictMode = rtl.getConfig().reactStrictMode,
     ...renderOptions
   } = options;
   const result = React.createRef() as { current: ReturnType<typeof renderCallback> };
-
-  // @testing-library/react 12 ignores `reactStrictMode`, including for the wrapper.
-  const wrapper = reactStrictMode
-    ? function StrictModeWrapper({ children }: { children?: React.ReactNode }) {
-        return (
-          <React.StrictMode>
-            <Wrapper>{children}</Wrapper>
-          </React.StrictMode>
-        );
-      }
-    : Wrapper;
 
   function TestComponent({ renderCallbackProps }: { renderCallbackProps: typeof initialProps }) {
     const pendingResult = renderCallback(renderCallbackProps!);
@@ -634,7 +623,7 @@ const renderHookFallback: typeof rtl.renderHook = (renderCallback, options = {})
 
   const { rerender: baseRerender, unmount } = testingLibraryRender(
     <TestComponent renderCallbackProps={initialProps} />,
-    { ...renderOptions, wrapper },
+    { ...renderOptions, wrapper: reactStrictMode ? withStrictMode(wrapper) : wrapper },
   );
 
   function rerender(rerenderCallbackProps?: typeof initialProps) {
