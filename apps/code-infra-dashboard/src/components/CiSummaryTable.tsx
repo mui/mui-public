@@ -75,7 +75,15 @@ function computeDeltas(week: PeriodSummary, month: PeriodSummary) {
   return { successDelta, runtimeDelta, creditsPerRunDelta, weekCreditsPerRun };
 }
 
-export function computeWorkflowAnalysis(wf: WorkflowMetrics): WorkflowAnalysis {
+/**
+ * Returns `null` when the workflow had no runs in the last 7 days: rates and averages of an empty
+ * period are not zero, they don't exist.
+ */
+export function computeWorkflowAnalysis(wf: WorkflowMetrics): WorkflowAnalysis | null {
+  if (wf.week.totalRuns === 0) {
+    return null;
+  }
+
   const { successDelta, runtimeDelta, creditsPerRunDelta, weekCreditsPerRun } = computeDeltas(
     wf.week,
     wf.month,
@@ -189,12 +197,17 @@ export default function CiWorkflowCard({ slug, workflow }: CiWorkflowCardProps) 
   const analysis = computeWorkflowAnalysis(workflow);
   const { week, month } = workflow;
 
+  let borderColor = 'divider';
+  if (analysis) {
+    borderColor = analysis.severity ? `${analysis.severity}.main` : 'success.main';
+  }
+
   return (
     <Card
       variant="outlined"
       sx={{
-        borderColor: analysis.severity ? `${analysis.severity}.main` : 'success.main',
-        bgcolor: analysis.severity ? `${analysis.severity}.50` : undefined,
+        borderColor,
+        bgcolor: analysis?.severity ? `${analysis.severity}.50` : undefined,
       }}
     >
       <CardContent>
@@ -208,51 +221,57 @@ export default function CiWorkflowCard({ slug, workflow }: CiWorkflowCardProps) 
           {slug} / {workflow.name}
         </Link>
 
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-          <MetricRow
-            label="Success"
-            value={formatSuccessRate(analysis.successRate)}
-            valueSeverity={analysis.successSeverity}
-            valueTooltip={
-              analysis.successSeverity
-                ? `Success rate ${formatSuccessRate(analysis.successRate)} is below ${LOW_SUCCESS_RATE * 100}%`
-                : `Success rate: ${formatSuccessRate(analysis.successRate)}`
-            }
-            delta={analysis.successDelta}
-            deltaSeverity={analysis.successDeltaSeverity}
-          />
-          <MetricRow
-            label="Runtime"
-            value={formatDuration(analysis.runtimeSecs)}
-            valueSeverity={null}
-            valueTooltip={`Runtime: ${formatDuration(analysis.runtimeSecs)}`}
-            delta={analysis.runtimeDelta}
-            deltaSeverity={analysis.runtimeDeltaSeverity}
-            invert
-          />
-          {analysis.creditsPerRunDelta != null && analysis.creditsPerRun != null ? (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <MetricRow
-                label="Credits/run"
-                value={Math.round(analysis.creditsPerRun).toLocaleString()}
-                valueSeverity={null}
-                valueTooltip={`Credits/run (master): ${Math.round(analysis.creditsPerRun).toLocaleString()}`}
-                delta={analysis.creditsPerRunDelta}
-                deltaSeverity={analysis.creditsPerRunDeltaSeverity}
-                invert
-              />
-            </Box>
-          ) : (
-            <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
-              <Typography variant="body2" color="text.secondary" sx={{ minWidth: 100 }}>
-                Credits/run
-              </Typography>
-              <Typography variant="body2" color="text.disabled" sx={{ fontStyle: 'italic' }}>
-                Insufficient data
-              </Typography>
-            </Box>
-          )}
-        </Box>
+        {analysis ? (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+            <MetricRow
+              label="Success"
+              value={formatSuccessRate(analysis.successRate)}
+              valueSeverity={analysis.successSeverity}
+              valueTooltip={
+                analysis.successSeverity
+                  ? `Success rate ${formatSuccessRate(analysis.successRate)} is below ${LOW_SUCCESS_RATE * 100}%`
+                  : `Success rate: ${formatSuccessRate(analysis.successRate)}`
+              }
+              delta={analysis.successDelta}
+              deltaSeverity={analysis.successDeltaSeverity}
+            />
+            <MetricRow
+              label="Runtime"
+              value={formatDuration(analysis.runtimeSecs)}
+              valueSeverity={null}
+              valueTooltip={`Runtime: ${formatDuration(analysis.runtimeSecs)}`}
+              delta={analysis.runtimeDelta}
+              deltaSeverity={analysis.runtimeDeltaSeverity}
+              invert
+            />
+            {analysis.creditsPerRunDelta != null && analysis.creditsPerRun != null ? (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <MetricRow
+                  label="Credits/run"
+                  value={Math.round(analysis.creditsPerRun).toLocaleString()}
+                  valueSeverity={null}
+                  valueTooltip={`Credits/run (master): ${Math.round(analysis.creditsPerRun).toLocaleString()}`}
+                  delta={analysis.creditsPerRunDelta}
+                  deltaSeverity={analysis.creditsPerRunDeltaSeverity}
+                  invert
+                />
+              </Box>
+            ) : (
+              <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ minWidth: 100 }}>
+                  Credits/run
+                </Typography>
+                <Typography variant="body2" color="text.disabled" sx={{ fontStyle: 'italic' }}>
+                  Insufficient data
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        ) : (
+          <Typography variant="body2" color="text.disabled" sx={{ fontStyle: 'italic' }}>
+            No runs on master in the last 7 days
+          </Typography>
+        )}
 
         <Accordion
           disableGutters

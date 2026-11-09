@@ -45,16 +45,21 @@ function buildMarkdownReport(
     warning: '\uD83D\uDFE1',
   };
   const GREEN = '\uD83D\uDFE2';
+  const WHITE = '\u26AA';
 
   const lines = projects
     .flatMap((project) =>
       project.workflows.map((wf) => {
         const analysis = computeWorkflowAnalysis(wf);
+        const url = getCircleCiInsightsUrl(project.slug, wf.name);
+        const label = `[${project.displayName} / ${wf.name}](${url})`;
+        if (!analysis) {
+          return `  ${WHITE} ${label} \u2014 no runs`;
+        }
         const emoji = analysis.severity ? SEVERITY_EMOJI[analysis.severity] : GREEN;
         const success = formatSuccessRate(analysis.successRate);
         const runtime = formatDuration(analysis.runtimeSecs);
-        const url = getCircleCiInsightsUrl(project.slug, wf.name);
-        return `  ${emoji} [${project.displayName} / ${wf.name}](${url}) \u2014 ${success} success, ${runtime}`;
+        return `  ${emoji} ${label} \u2014 ${success} success, ${runtime}`;
       }),
     )
     .join('\n');
