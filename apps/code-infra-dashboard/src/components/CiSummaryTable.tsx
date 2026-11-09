@@ -17,7 +17,6 @@ import { formatDuration, formatSuccessRate } from '../lib/ciAnalytics';
 const THRESHOLD_PCT = 5;
 const HIGH_RUNTIME_DELTA = 20;
 const LOW_SUCCESS_RATE = 0.85;
-const NO_DATA = '—';
 
 type MetricSeverity = 'error' | 'warning' | null;
 
@@ -303,17 +302,17 @@ export default function CiWorkflowCard({ slug, workflow }: CiWorkflowCardProps) 
               <tbody>
                 <tr>
                   <th>Success rate</th>
-                  <td>{analysis ? formatSuccessRate(week.successRate) : NO_DATA}</td>
+                  <td>{analysis ? formatSuccessRate(week.successRate) : '—'}</td>
                   <td>{formatSuccessRate(month.successRate)}</td>
                 </tr>
                 <tr>
                   <th>Avg runtime</th>
-                  <td>{analysis ? formatDuration(week.avgDurationSecs) : NO_DATA}</td>
+                  <td>{analysis ? formatDuration(week.avgDurationSecs) : '—'}</td>
                   <td>{formatDuration(month.avgDurationSecs)}</td>
                 </tr>
                 <tr>
                   <th>Avg success runtime</th>
-                  <td>{analysis ? formatDuration(week.avgSuccessDurationSecs) : NO_DATA}</td>
+                  <td>{analysis ? formatDuration(week.avgSuccessDurationSecs) : '—'}</td>
                   <td>{formatDuration(month.avgSuccessDurationSecs)}</td>
                 </tr>
                 <tr>
