@@ -621,7 +621,7 @@ export async function crawl(rawOptions) {
 
   /** @type {AbortController | null} */
   let controller = null;
-  /** @type {Promise<void> | null} */
+  /** @type {Promise<unknown> | null} */
   let serverExited = null;
 
   try {
@@ -646,10 +646,7 @@ export async function crawl(rawOptions) {
       // Settles once the whole process tree has exited: descendants inherit the
       // stdout/stderr pipes, so execa waits for them too, and escalates to SIGKILL
       // after `forceKillAfterDelay` when a server is slow to shut down.
-      serverExited = appProcess.then(
-        () => {},
-        () => {},
-      );
+      serverExited = appProcess.catch(() => {});
 
       // Poll the first page we are about to crawl (resolved against host) so we
       // wait for the actual entry point to be serveable rather than the
