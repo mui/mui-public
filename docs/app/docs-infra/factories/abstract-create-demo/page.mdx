@@ -13,6 +13,37 @@ Demo factories created with `abstractCreateDemo` automatically integrate with:
 - **[`useCode`](../../hooks/use-code/page.mdx)**: For code-only interfaces
 - **[`loadPrecomputedCodeHighlighter`](../../pipeline/load-precomputed-code-highlighter/page.mdx)**: For optimized loading
 
+### Keep the preview mounted
+
+Set `DemoContentFrame` alongside `DemoContentLoading` when loading and interactive
+content share a stateful preview. The frame receives the initial loading props and
+`children`, which changes from loading chrome to interactive chrome. Keep the preview
+in the frame; render only chrome from the loading and content components. The frame
+is used when an initial loading fallback is available. Direct content rendering
+without a loading fallback, including `skipFallback`, keeps its existing behavior.
+
+```tsx
+function DemoFrame({ component, children }: ContentFrameProps<{}>) {
+  return (
+    <section>
+      {component}
+      {children}
+    </section>
+  );
+}
+
+const createDemo = createDemoFactory({
+  DemoContent,
+  DemoContentLoading,
+  DemoContentFrame: DemoFrame,
+});
+```
+
+Import `ContentFrameProps` from `@mui/internal-docs-infra/CodeHighlighter/types`.
+The frame stays under the code and demo controller contexts. Its component identity remains
+stable while source data and lazy content load; use a consumer-owned context to
+publish interactive toolbar, selected-preview and reset state to the frame.
+
 ## Factory Function Requirements
 
 At the fundamental level, the [`loadPrecomputedCodeHighlighter`](../../pipeline/load-precomputed-code-highlighter/page.mdx) function expects factory functions with these signatures:

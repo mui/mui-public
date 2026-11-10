@@ -4,6 +4,7 @@ import type {
   CodeHighlighterBaseProps,
   CodeHighlighterClientProps,
   ContentProps,
+  ContentLoadingProps,
 } from './types';
 import type { CompressedFallback } from './fallbackFormat';
 import { replaceUrlPrefix } from '../pipeline/loaderUtils/applyUrlPrefix';
@@ -73,7 +74,15 @@ export function createClientProps<T extends {}>(
       : undefined),
   } as ContentProps<T>;
 
+  const frame =
+    props.ContentFrame &&
+    !props.skipFallback &&
+    React.isValidElement<ContentLoadingProps<T>>(props.fallback) ? (
+      <props.ContentFrame {...props.fallback.props}>{null}</props.ContentFrame>
+    ) : undefined;
+
   return {
+    frame,
     url,
     code,
     precompute,

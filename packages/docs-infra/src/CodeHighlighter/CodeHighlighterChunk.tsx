@@ -63,6 +63,9 @@ function CodeHighlighterChunkContent(props: CodeHighlighterChunkContentProps): R
 function CodeHighlighterChunkLoading(
   props: CoordinatedChunkLoadingProps<CodeHighlighterChunkUserProps, Code>,
 ): React.ReactElement {
+  if (props.ContentFrame && !props.skipFallback) {
+    return <CodeHighlighterChunkContent {...props} loading={false} />;
+  }
   return <React.Fragment>{props.fallback ?? null}</React.Fragment>;
 }
 

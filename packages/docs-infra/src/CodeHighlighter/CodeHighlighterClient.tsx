@@ -1792,6 +1792,23 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     </CodeHighlighterContext.Provider>
   );
 
+  // Changing provider ancestry here remounts stateful previews.
+  if (props.frame) {
+    return (
+      <CodeHighlighterContext.Provider value={context}>
+        <CoordinatedFallbackContext.Provider
+          value={showFallback ? coordinatedFallbackContext : undefined}
+        >
+          <CodeHighlighterFallbackContext.Provider value={fallbackContext}>
+            <CoordinatedContentContext.Provider value={contentContext}>
+              {React.cloneElement(props.frame, {}, showFallback ? props.fallback : contentChildren)}
+            </CoordinatedContentContext.Provider>
+          </CodeHighlighterFallbackContext.Provider>
+        </CoordinatedFallbackContext.Provider>
+      </CodeHighlighterContext.Provider>
+    );
+  }
+
   // Show the fallback OR the content (swap on data-readiness). The content loads
   // its own chunk after the swap, covered by the fallback it inherits via context.
   return showFallback ? fallbackNode : contentNode;
