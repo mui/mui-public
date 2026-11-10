@@ -633,7 +633,8 @@ const renderHookFallback: typeof rtl.renderHook = (renderCallback, options = {})
   return { result, rerender, unmount };
 };
 
-export const renderHook: typeof rtl.renderHook = rtl.renderHook ?? renderHookFallback;
+export const renderHook: typeof rtl.renderHook =
+  reactMajor < 18 ? renderHookFallback : rtl.renderHook;
 
 export {
   configure,
