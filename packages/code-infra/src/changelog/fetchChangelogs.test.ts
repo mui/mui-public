@@ -550,3 +550,50 @@ it.each([
     expect(membershipRequests).toHaveLength(1);
   },
 );
+
+it('detects cherry-picks using configured labels', async () => {
+  const octokit = new Octokit({
+    request: {
+      fetch: async (input: Parameters<typeof fetch>[0]) => {
+        const url = new URL(input instanceof Request ? input.url : String(input));
+        let data;
+        if (url.pathname.includes('/compare/')) {
+          data = {
+            url: url.href,
+            total_commits: 1,
+            commits: [{ sha: 'picked', commit: { message: 'Fix behavior (@original) (#2)' } }],
+          };
+        } else if (url.pathname === '/repos/mui/test/pulls/2') {
+          data = {
+            title: 'Fix behavior (@original)',
+            labels: [{ name: 'type: port' }],
+            body: '',
+            user: { login: 'github-actions[bot]' },
+            author_association: 'NONE',
+            html_url: url.href,
+            merged_at: null,
+            created_at: null,
+          };
+        } else if (url.pathname.includes('/members/')) {
+          return new Response(null, { status: NO_CONTENT });
+        } else {
+          throw new Error(`Unexpected request: ${url}`);
+        }
+        return Object.defineProperty(Response.json(data, { status: OK }), 'url', {
+          value: url.href,
+        });
+      },
+    },
+  });
+  const options = { octokit, repo: 'test', lastRelease: 'v1', release: 'HEAD' };
+
+  const [defaults] = await fetchCommitsBetweenRefs(options);
+  expect(defaults.author?.login).toBe('github-actions[bot]');
+
+  const [configured] = await fetchCommitsBetweenRefs({
+    ...options,
+    cherryPickLabels: ['type: port'],
+  });
+  expect(configured.author).toEqual({ login: 'original', association: 'team' });
+  expect(configured.message).toBe('Fix behavior (#2)');
+});

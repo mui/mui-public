@@ -566,3 +566,66 @@ it.each(['omit', 'include'])(
     );
   },
 );
+
+it('compares package versions for a workspace nested inside the repository', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'changelog-nested-'));
+  onTestFinished(() => fs.rm(root, { recursive: true, force: true }));
+  const cwd = path.join(root, 'workspace');
+  await fs.mkdir(cwd);
+  await fs.writeFile(
+    path.join(cwd, 'package.json'),
+    JSON.stringify({ name: 'fixture', private: true, version: '2.0.0' }),
+  );
+  await fs.writeFile(path.join(cwd, 'pnpm-workspace.yaml'), "packages: ['packages/*']");
+  await Promise.all(
+    ['unchanged', 'bumped'].map(async (name) => {
+      const directory = path.join(cwd, 'packages', name);
+      await fs.mkdir(directory, { recursive: true });
+      await fs.writeFile(
+        path.join(directory, 'package.json'),
+        JSON.stringify({ name: `@test/${name}`, version: '1.0.0' }),
+      );
+    }),
+  );
+  const git = (...args: string[]) => execa('git', args, { cwd: root, env: gitEnv });
+  await git('init');
+  await git('add', '.');
+  await git('-c', 'core.hooksPath=/dev/null', 'commit', '-m', 'Initial packages');
+  await git('tag', 'v1');
+  await fs.writeFile(
+    path.join(cwd, 'packages/bumped/package.json'),
+    JSON.stringify({ name: '@test/bumped', version: '2.0.0' }),
+  );
+  const octokit = new Octokit({
+    request: {
+      fetch: async (input: Parameters<typeof fetch>[0]) => {
+        const url = new URL(input instanceof Request ? input.url : String(input));
+        return Object.defineProperty(
+          Response.json({ url: url.href, commits: [], total_commits: 0 }, { status: OK }),
+          'url',
+          { value: url.href },
+        );
+      },
+    },
+  });
+  const result = await generateChangelog({
+    cwd,
+    repo: 'test',
+    octokit,
+    lastRelease: 'v1',
+    release: 'v2',
+    config: {
+      categorization: {
+        strategy: 'package',
+        labels: {},
+        sections: { fallbackSection: 'Other' },
+        packageNaming: {
+          omitUnchanged: true,
+          mappings: { unchanged: '@test/unchanged', bumped: '@test/bumped' },
+        },
+      },
+    },
+  });
+  expect(result.markdown).toContain('@test/bumped@2.0.0');
+  expect(result.markdown).not.toContain('@test/unchanged');
+});

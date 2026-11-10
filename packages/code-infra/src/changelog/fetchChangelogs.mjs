@@ -9,6 +9,7 @@ const HTTP_NOT_FOUND = 404;
 const HTTP_FORBIDDEN = 403;
 const MIN_MERGE_PARENTS = 2;
 const AUTHOR_SUFFIX = /\s+\(@[\w-]+\)(?=\s+\(#\d+\)\s*$)/m;
+const DEFAULT_CHERRY_PICK_LABELS = ['cherry-pick', 'backport'];
 
 const ThrottledOctokit = Octokit.plugin(throttling, retry);
 
@@ -39,6 +40,7 @@ function shouldRetryRateLimit(retryAfter, options, octokit, retryCount) {
  * @property {string} lastRelease
  * @property {string} release
  * @property {string} [org='mui'] - GitHub organization name, defaults to 'mui'
+ * @property {string[]} [cherryPickLabels] - Labels marking cherry-pick PRs whose original author should be credited
  * @property {(progress: { phase: string; count: number; total: number }) => void} [onProgress] - Called as commits are listed and their pull request details are fetched
  */
 
@@ -67,6 +69,7 @@ export async function fetchCommitsBetweenRefs(opts) {
     lastRelease: opts.lastRelease,
     release: opts.release,
     org: opts.org ?? 'mui',
+    cherryPickLabels: opts.cherryPickLabels,
     onProgress: opts.onProgress,
   });
 }
@@ -80,7 +83,15 @@ export async function fetchCommitsBetweenRefs(opts) {
  *
  * @returns {Promise<FetchedCommitDetails[]>}
  */
-async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mui', onProgress }) {
+async function fetchCommitsRest({
+  octokit,
+  repo,
+  lastRelease,
+  release,
+  org = 'mui',
+  cherryPickLabels = DEFAULT_CHERRY_PICK_LABELS,
+  onProgress,
+}) {
   /**
    * @typedef {Awaited<ReturnType<Octokit['repos']['compareCommits']>>['data']['commits']} Commits
    */
@@ -202,7 +213,7 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
       prBody: pr.data.body ?? '',
     };
 
-    const isCherryPick = labels.includes('cherry-pick') || labels.includes('backport');
+    const isCherryPick = labels.some((label) => cherryPickLabels.includes(label));
     if (!isCherryPick) {
       return details;
     }
