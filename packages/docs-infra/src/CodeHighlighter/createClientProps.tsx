@@ -18,6 +18,22 @@ export interface CreateClientPropsOptions<T extends {}> extends CodeHighlighterB
   residualFallbacks?: CompressedFallback;
 }
 
+function createFrame<T extends {}>(props: CreateClientPropsOptions<T>) {
+  if (!props.ContentFrame) {
+    return undefined;
+  }
+
+  if (props.skipFallback) {
+    return undefined;
+  }
+
+  if (!React.isValidElement<ContentLoadingProps<T>>(props.fallback)) {
+    return undefined;
+  }
+
+  return <props.ContentFrame {...props.fallback.props}>{null}</props.ContentFrame>;
+}
+
 /**
  * Assemble the props for the `'use client'` `CodeHighlighterClient` from the
  * server/isomorphic props: rewrite the top-level URL to its hosted form, pre-render
@@ -74,15 +90,8 @@ export function createClientProps<T extends {}>(
       : undefined),
   } as ContentProps<T>;
 
-  const frame =
-    props.ContentFrame &&
-    !props.skipFallback &&
-    React.isValidElement<ContentLoadingProps<T>>(props.fallback) ? (
-      <props.ContentFrame {...props.fallback.props}>{null}</props.ContentFrame>
-    ) : undefined;
-
   return {
-    frame,
+    frame: createFrame(props),
     url,
     code,
     precompute,
