@@ -105,6 +105,30 @@ describe('benchmarkPlugin', () => {
       });
     });
 
+    it('builds only the pages of the files the caller selects', async () => {
+      // The `benchmark` CLI builds the pages of the files it measures: a page it doesn't measure
+      // could import what the baseline lacks, and fail the whole build.
+      const harnessDir = await makeHarness({
+        benchFiles: ['button/button.bench.tsx', 'grid/grid.bench.tsx'],
+      });
+
+      const config = await callConfig(harnessDir, 'build', {
+        benchmark: { files: ['grid/grid.bench.tsx'] },
+      });
+
+      expect(config.build.rolldownOptions.input).toEqual({
+        '__bench__/grid-grid': path.join(harnessDir, 'src', '__bench__', 'grid-grid.html'),
+      });
+    });
+
+    it('refuses a selected file that does not exist', async () => {
+      const harnessDir = await makeHarness();
+
+      await expect(
+        callConfig(harnessDir, 'build', { benchmark: { files: ['grid/grid.bench.tsx'] } }),
+      ).rejects.toThrow(/No benchmark file grid\/grid\.bench\.tsx/);
+    });
+
     it('refuses a harness without benchmark files', async () => {
       const harnessDir = await makeHarness({ benchFiles: [] });
 

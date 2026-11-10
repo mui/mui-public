@@ -9,6 +9,7 @@ import {
   isTemplateLiteralType,
   isTypeOperatorType,
   isTypeQueryType,
+  isArrayType,
 } from './typeGuards';
 import { isBuiltInTypeName } from './builtInTypes';
 import { groupType, UNION_OR_INTERSECTION } from './precedence';
@@ -34,12 +35,76 @@ export interface ExternalTypeMeta {
 export interface ExternalTypesCollector {
   /** Map to accumulate results (type name -> ExternalTypeMeta) */
   collected: Map<string, ExternalTypeMeta>;
+  /**
+   * Where the external types in the formatted output are declared, keyed by the name they are
+   * printed as. `null` marks a name printed for types from different declarations.
+   */
+  sources: Map<string, tae.ExternalTypeSource | null>;
   /** All exports in the module, used to identify own types */
   allExports: tae.ExportNode[];
   /** Optional pattern to filter which external types to include */
   pattern?: RegExp;
   /** Map of original export names to dotted display names, used to identify renamed own types */
   typeNameMap?: Record<string, string>;
+}
+
+function withoutTypeArguments(printedName: string): string {
+  const typeArgumentsStart = printedName.indexOf('<');
+  return typeArgumentsStart === -1 ? printedName : printedName.slice(0, typeArgumentsStart);
+}
+
+/**
+ * Records where an external type printed as `printedName` is declared, so the name can be
+ * linked to that declaration's docs. A name printed for two different declarations, such as
+ * the DOM `Range` and a package's `Range`, cannot tell them apart and is marked ambiguous.
+ */
+export function collectExternalTypeSource(
+  printedName: string,
+  source: tae.ExternalTypeSource | undefined,
+  collector: ExternalTypesCollector,
+): void {
+  if (!source) {
+    return;
+  }
+  const name = withoutTypeArguments(printedName);
+  const existing = collector.sources.get(name);
+  if (existing === undefined) {
+    collector.sources.set(name, source);
+  } else if (existing !== null && JSON.stringify(existing) !== JSON.stringify(source)) {
+    collector.sources.set(name, null);
+  }
+}
+
+/**
+ * Records that a project's own type is printed as `printedName`. The occurrences of a name
+ * cannot be told apart, so an external type printed the same way is left unlinked too.
+ */
+export function collectOwnTypeName(printedName: string, collector: ExternalTypesCollector): void {
+  collector.sources.set(withoutTypeArguments(printedName), null);
+}
+
+/**
+ * The source of a union named after the one external type it adds `undefined` or `null` to,
+ * as the extractor names optional props of an external type: `Intl.NumberFormat | undefined`
+ * keeps the name `Intl.NumberFormat`. An alias of its own, such as
+ * `type MaybeElement = HTMLElement | null`, is not that type and has no source.
+ */
+export function getNamedUnionSource(type: tae.UnionNode): tae.ExternalTypeSource | undefined {
+  const members = type.types.filter(
+    (member) =>
+      !(
+        isIntrinsicType(member) &&
+        (member.intrinsic === 'undefined' || member.intrinsic === 'null')
+      ),
+  );
+  const [member] = members;
+  if (members.length !== 1 || !isExternalType(member) || !type.typeName) {
+    return undefined;
+  }
+  const sameName =
+    member.typeName.name === type.typeName.name &&
+    (member.typeName.namespaces ?? []).join('.') === (type.typeName.namespaces ?? []).join('.');
+  return sameName ? member.source : undefined;
 }
 
 /**
@@ -145,6 +210,11 @@ export function formatExternalTypeDefinition(type: tae.AnyType): string {
 
   if (isExternalType(type)) {
     return type.typeName.name;
+  }
+
+  if (isArrayType(type)) {
+    const elementType = formatExternalTypeDefinition(type.elementType);
+    return elementType.includes(' ') ? `(${elementType})[]` : `${elementType}[]`;
   }
 
   if (isObjectType(type)) {

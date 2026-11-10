@@ -58,14 +58,19 @@ function readLiteralConstant(
 }
 
 /**
- * Reads a module's exports as constant values, when it exports nothing but literal constants.
+ * Reads a module's exports as constant values, when its value exports are nothing but literal
+ * constants. Type-only exports, such as a union of the constants, are typing helpers and are
+ * skipped rather than disqualifying the module.
  */
 function readConstantModule(
   moduleSymbol: ts.Symbol,
   checker: ts.TypeChecker,
 ): Map<string, ConstantValue> | undefined {
   const values = new Map<string, ConstantValue>();
-  const members = checker.getExportsOfModule(moduleSymbol);
+  const members = checker
+    .getExportsOfModule(moduleSymbol)
+    // eslint-disable-next-line no-bitwise -- TypeScript symbol flags are a bitmask
+    .filter((member) => resolveAlias(member, checker).flags & ts.SymbolFlags.Value);
   const isConstantModule =
     members.length > 0 &&
     members.every((member) => {
@@ -81,7 +86,7 @@ function readConstantModule(
 }
 
 /**
- * Finds the entrypoint's namespace exports whose module holds nothing but literal constants,
+ * Finds the entrypoint's namespace exports whose module's value exports are all literal constants,
  * e.g. `export * as ButtonDataAttributes from './ButtonDataAttributes'`, with their values.
  * Namespaces nested in other namespace exports are found too, under their dotted path
  * (`Toolbar.ButtonDataAttributes`).

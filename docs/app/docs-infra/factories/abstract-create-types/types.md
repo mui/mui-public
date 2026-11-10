@@ -236,6 +236,7 @@ type TypesTableMeta = {
     variantTypeNames?: Record<string, string[]>;
     singleComponentName?: string;
     anchorMap?: { js?: Record<string, string>; css?: Record<string, string> };
+    externalTypeLinks?: Record<string, string>;
   };
   name?: string;
   displayName?: string;

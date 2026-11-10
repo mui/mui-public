@@ -27,7 +27,7 @@
     "node": ">=22.12.0"
   },
   "dependencies": {
-    "@babel/runtime": "^8.0.7"
+    "@babel/runtime": "^8.1.0"
   },
   "peerDependencies": {
     "typescript": "^5.8 || ^6.0"

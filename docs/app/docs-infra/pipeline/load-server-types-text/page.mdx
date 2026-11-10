@@ -11,8 +11,9 @@ A function for parsing `types.md` files back into structured type metadata. This
 - Prop/parameter examples and references
 - External types section
 - Variant metadata (Export Groups and Canonical Types sections)
+- Links for built-in types (External Type Links section)
 
-Both `loadServerTypesText` and [`loadServerTypesMeta`](../load-server-types-meta/page.mdx) extend `OrganizeTypesResult<TypesMeta>` and share the same core fields (`exports`, `additionalTypes`, `externalTypes`, `typeNameMap`, `allDependencies`). This shared shape (`TypesSourceData`) is the contract consumed by [`loadServerTypes`](../load-server-types/page.mdx), which accepts either function's output and applies highlighting on top.
+Both `loadServerTypesText` and [`loadServerTypesMeta`](../load-server-types-meta/page.mdx) extend `OrganizeTypesResult<TypesMeta>` and share the same core fields (`exports`, `additionalTypes`, `externalTypes`, `externalTypeLinks`, `typeNameMap`, `allDependencies`). This shared shape (`TypesSourceData`) is the contract consumed by [`loadServerTypes`](../load-server-types/page.mdx), which accepts either function's output and applies highlighting on top.
 
 This is useful for:
 
@@ -119,6 +120,14 @@ Variant and type name mapping metadata is stored in dedicated H2 sections:
 
 - `Accordion.Trigger` (`Default`): `AccordionTrigger`
 - `Accordion.Root`: `AccordionRoot`
+```
+
+**External Type Links** maps the built-in types the page prints to their docs, which [`enhanceCodeTypes`](../enhance-code-types/page.mdx#externallinks-option) links them to:
+
+```markdown
+## External Type Links
+
+- `HTMLElement`: <https://developer.mozilla.org/docs/Web/API/HTMLElement>
 ```
 
 ## Types

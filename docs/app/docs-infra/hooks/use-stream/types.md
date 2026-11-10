@@ -252,3 +252,11 @@ type UseStreamResult<P> = {
 - `useStream`: `useStream`, `useStreamController`, `streamChunks`, `UseStreamOptions`, `UseStreamResult`, `ChunkSnapshot`, `UseStreamControllerOptions`, `UseStreamControllerResult`, `StreamSource`, `StreamUrlsResult`
 - `useStreamController`: `useStream`, `useStreamController`, `streamChunks`, `UseStreamOptions`, `UseStreamResult`, `ChunkSnapshot`, `UseStreamControllerOptions`, `UseStreamControllerResult`, `StreamSource`, `StreamUrlsResult`
 - `streamChunks`: `useStream`, `useStreamController`, `streamChunks`, `UseStreamOptions`, `UseStreamResult`, `ChunkSnapshot`, `UseStreamControllerOptions`, `UseStreamControllerResult`, `StreamSource`, `StreamUrlsResult`
+
+## External Type Links
+
+Maps `Type`: `URL` — the docs of a built-in type the page references.
+
+- `AbortSignal`: <https://developer.mozilla.org/docs/Web/API/AbortSignal>
+- `Promise`: <https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Promise>
+- `URL`: <https://developer.mozilla.org/docs/Web/API/URL>

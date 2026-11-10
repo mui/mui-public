@@ -5,6 +5,7 @@ import { PARSER_OPTIONS } from './constants';
 
 const ROOT = '/virtual';
 const LIB_PATH = `${ROOT}/lib.d.ts`;
+const INSTALLED_LIB_PATH = `${ROOT}/node_modules/typescript/lib/lib.d.ts`;
 
 export interface ParseTestSourcesOptions {
   /**
@@ -14,6 +15,11 @@ export interface ParseTestSourcesOptions {
    * Omit to parse without a standard library at all.
    */
   lib?: string;
+  /**
+   * Places `lib` where TypeScript installs its libraries, under `node_modules`, so the parser
+   * treats its types as external with a declaration source, as it does a real build's lib types.
+   */
+  installedLib?: boolean;
   /** Overrides merged over the pipeline's own extraction policy. */
   parserOptions?: tae.ParserOptions;
 }
@@ -33,7 +39,7 @@ export function parseTestSources(
   sources: Record<string, string>,
   options: ParseTestSourcesOptions = {},
 ): tae.ExportNode[] {
-  const { program, entrypoint } = createTestProgram(sources, options.lib);
+  const { program, entrypoint } = createTestProgram(sources, options.lib, options.installedLib);
 
   return parseFromProgram(entrypoint, program, {
     ...PARSER_OPTIONS,
@@ -49,11 +55,13 @@ export function parseTestSources(
 export function createTestProgram(
   sources: Record<string, string>,
   lib?: string,
+  installedLib = false,
 ): { program: ts.Program; entrypoint: string } {
   const sourceFiles = new Map<string, ts.SourceFile>();
 
+  const libPath = installedLib ? INSTALLED_LIB_PATH : LIB_PATH;
   if (lib !== undefined) {
-    sourceFiles.set(LIB_PATH, ts.createSourceFile(LIB_PATH, lib, ts.ScriptTarget.ESNext, true));
+    sourceFiles.set(libPath, ts.createSourceFile(libPath, lib, ts.ScriptTarget.ESNext, true));
   }
 
   const entryPaths: string[] = [];
@@ -65,7 +73,7 @@ export function createTestProgram(
 
   const host: ts.CompilerHost = {
     getSourceFile: (fileName) => sourceFiles.get(fileName),
-    getDefaultLibFileName: () => LIB_PATH,
+    getDefaultLibFileName: () => libPath,
     writeFile: () => {},
     getCurrentDirectory: () => ROOT,
     getCanonicalFileName: (fileName) => fileName,

@@ -560,7 +560,11 @@ change — which commit moved a number reads off the chart rather than out of a 
 Both sides are built the same way: packed to tarballs, in parallel, and installed the way a consumer
 gets them, so neither resolves the library through a workspace link. The benchmark files themselves
 stay on the current branch and only the built library changes between refs — so a commit whose public
-API differs from today's benchmarks will fail that ref's build, with the error surfaced.
+API differs from today's benchmarks will fail that ref's build, with the error surfaced. Only the
+pages of the files the run selected are built, so that takes a change to an API those files import.
+To keep a pull request's run working through one, keep the old API for a commit, or accept the failed
+run. A run whose pages don't build still writes its report, with every selected file failed and the
+build error as the reason, so the pull request comment says why.
 
 Packed builds are cached by commit SHA under `.benchmark/packed/`, so repeating a comparison against
 the same commit skips the rebuild; the working tree is never cached. In CI, cache that directory

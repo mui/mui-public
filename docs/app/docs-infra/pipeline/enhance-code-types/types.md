@@ -55,6 +55,15 @@ type EnhanceCodeTypesOptions = {
     css?: Record<string, string>;
   };
   /**
+   * Links for types documented elsewhere, keyed by the name they are printed as in
+   * JavaScript and TypeScript code, such as `HTMLElement` →
+   * `https://developer.mozilla.org/docs/Web/API/HTMLElement`. Consulted after `linkMap`.
+   *
+   * Only the type name itself is linked. External links never act as owners for
+   * property or parameter anchors.
+   */
+  externalLinks?: Record<string, string>;
+  /**
    * When set, the plugin emits a custom component element instead of an `<a>` tag
    * for type/export name references.
    * The custom element receives `href` and `name` (the matched identifier) as properties.

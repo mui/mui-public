@@ -16,6 +16,7 @@ function createCollector(
 ): ExternalTypesCollector {
   return {
     collected: new Map<string, ExternalTypeMeta>(),
+    sources: new Map(),
     allExports,
     pattern,
   };

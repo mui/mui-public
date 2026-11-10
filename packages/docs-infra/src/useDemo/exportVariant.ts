@@ -288,7 +288,7 @@ export interface ExportConfig {
     globals?: VariantExtraFiles,
   ) => { variant?: VariantCode; globals?: VariantExtraFiles } | undefined;
   /**
-   * Version overrides for core packages (react, react-dom, @types/react, @types/react-dom)
+   * Version overrides for exported packages, including React and its type packages.
    * @example
    * versions: {
    *   '@types/react': '^19',
@@ -299,7 +299,8 @@ export interface ExportConfig {
    */
   versions?: Record<string, string>;
   /**
-   * Custom dependency resolution function
+   * Resolves imported packages and their peers, including packages pinned in `versions`.
+   * `importedModules` contains the complete imports belonging to each package.
    * @example
    * resolveDependencies: (packageName, envVars) => {
    *   if (packageName === '@mui/material') {
@@ -311,6 +312,7 @@ export interface ExportConfig {
   resolveDependencies?: (
     packageName: string,
     envVars?: Record<string, string>,
+    importedModules?: string[],
   ) => Record<string, string>;
 }
 
@@ -468,23 +470,31 @@ export function exportVariant(
   // Check if they're providing their own framework
   const isFramework = 'frameworkFiles' in config;
 
-  const externalPackages = externalsToPackages(processedVariantCode.externals || []);
+  const importedModules = processedVariantCode.externals || [];
+  const externalPackages = externalsToPackages(importedModules);
   const variantDeps = Object.keys(externalPackages).reduce(
     (acc, pkg) => {
-      // Check if we have a specific version for this package first
-      if (versions[pkg]) {
-        acc[pkg] = versions[pkg];
-      } else if (resolveDependencies) {
-        const resolvedDeps = resolveDependencies(pkg);
-        Object.assign(acc, resolvedDeps);
+      const packageImports = importedModules.filter(
+        (name) => name === pkg || name.startsWith(`${pkg}/`),
+      );
+      if (resolveDependencies) {
+        Object.assign(acc, resolveDependencies(pkg, undefined, packageImports));
       } else {
-        // Simple fallback: just use 'latest' for each package
         acc[pkg] = 'latest';
+      }
+      if (versions[pkg] !== undefined) {
+        acc[pkg] = versions[pkg];
       }
       return acc;
     },
     {} as Record<string, string>,
   );
+
+  for (const pkg of Object.keys(variantDeps)) {
+    if (versions[pkg] !== undefined) {
+      variantDeps[pkg] = versions[pkg];
+    }
+  }
 
   // Collect metadata files to be generated
   const metadataFiles: VariantExtraFiles = {};

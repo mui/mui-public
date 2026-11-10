@@ -376,20 +376,19 @@ type ExportConfig = {
     globals?: VariantExtraFiles,
   ) => { variant?: VariantCode; globals?: VariantExtraFiles } | undefined;
   /**
-   * Version overrides for core packages (react, react-dom,
-   * @types /react,
-   * @types /react-dom)
+   * Version overrides for exported packages, including React and its type packages.
    * @example
    * versions: {
-   * '@types/react': '^19',
-   * '@types/react-dom': '^19',
-   * react: '^19',
-   * 'react-dom': '^19',
+   *   '@types/react': '^19',
+   *   '@types/react-dom': '^19',
+   *   react: '^19',
+   *   'react-dom': '^19',
    * }
    */
   versions?: Record<string, string>;
   /**
-   * Custom dependency resolution function
+   * Resolves imported packages and their peers, including packages pinned in `versions`.
+   * `importedModules` contains the complete imports belonging to each package.
    * @example
    * resolveDependencies: (packageName, envVars) => {
    *   if (packageName === '@mui/material') {
@@ -401,6 +400,7 @@ type ExportConfig = {
   resolveDependencies?: (
     packageName: string,
     envVars?: Record<string, string>,
+    importedModules?: string[],
   ) => Record<string, string>;
 };
 ```
@@ -510,3 +510,11 @@ type SourceEnhancer = (
   fileName: string,
 ) => { data?: unknown | undefined } | Promise;
 ```
+
+## External Type Links
+
+Maps `Type`: `URL` — the docs of a built-in type the page references.
+
+- `HTMLButtonElement`: <https://developer.mozilla.org/docs/Web/API/HTMLButtonElement>
+- `HTMLFormElement`: <https://developer.mozilla.org/docs/Web/API/HTMLFormElement>
+- `Promise`: <https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Promise>

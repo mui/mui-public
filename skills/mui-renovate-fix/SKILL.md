@@ -1,15 +1,15 @@
 ---
 name: mui-renovate-fix
 description:
-  Fix a Renovate dependency-update PR with the minimal compatible code adaptation, extracting
-  a dependency bump from a grouped PR only when the fix requires the new version. Use when a Renovate
-  PR has failing checks or requires migration for a breaking dependency update.
+  Fix a Renovate dependency-update PR. Use when a Renovate PR has failing checks or requires
+  migration for a breaking dependency update.
 ---
 
 # Renovate PR fix
 
-Prefer a source-only fix that works with both the current and target dependency versions. Keep
-fixes separate from grouped Renovate updates; extract a bump only when compatibility requires it.
+Choose the best adaptation, never a worse one (compatibility shims, preserving an outdated contract,
+working around the new API) to avoid a dependency bump. Keep fixes separate from grouped Renovate
+updates.
 
 ## Inputs
 
@@ -50,9 +50,10 @@ Evaluate CI attribution and dependency compatibility independently:
 
 ## Choose where the fix belongs
 
-Determine whether the adaptation works with both the version on the default branch and the
-Renovate target version. Validate both under otherwise identical conditions before calling it
-backwards compatible.
+Design the adaptation you would write if the target version were already in place, then determine
+whether it also works with the version on the default branch. Validate both under otherwise
+identical conditions before calling it backwards compatible; if it doesn't work there, it requires
+the new version.
 
 - **Works with both versions:** branch off the default branch and open a source-only draft PR.
   Leave dependency manifests and the lockfile unchanged. Test the target version in a disposable
@@ -67,8 +68,8 @@ backwards compatible.
 
 ## Build the fix
 
-- Apply the smallest adaptation that is correct, guided by the confirmed diagnosis, the failing
-  output, and the dependency's changelog for the version range.
+- Apply the adaptation designed above, guided by the confirmed diagnosis, the failing output, and
+  the dependency's changelog for the version range.
 - When a bump is needed, use the repo's package-manager conventions — in MUI repos:
   `pnpm -F <workspace> update '<dep>@<version>'` per affected workspace, then `pnpm dedupe`. Never
   hand-edit `package.json`.

@@ -51,6 +51,8 @@ This is the shared contract consumed by loadServerTypes.
 type TypesSourceData = {
   /** External types discovered in the file */
   externalTypes: Record<string, string>;
+  /** Links for the built-in types referenced in the file, keyed by printed name */
+  externalTypeLinks: Record<string, string>;
   /**
    * Type name map (merged across all variants).
    * Maps flat names (like "AccordionTriggerState") to dotted names (like "Accordion.Trigger.State").
@@ -83,3 +85,9 @@ type TypesSourceData = {
   variantTypeNameMaps: Record<string, Record<string, string>>;
 };
 ```
+
+## External Type Links
+
+Maps `Type`: `URL` — the docs of a built-in type the page references.
+
+- `Promise`: <https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Promise>

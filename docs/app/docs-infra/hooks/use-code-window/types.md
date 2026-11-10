@@ -131,3 +131,10 @@ type UseCodeWindowResult<
   anchorScroll: (direction: 'collapse' | 'expand') => void;
 };
 ```
+
+## External Type Links
+
+Maps `Type`: `URL` — the docs of a built-in type the page references.
+
+- `HTMLDivElement`: <https://developer.mozilla.org/docs/Web/API/HTMLDivElement>
+- `HTMLElement`: <https://developer.mozilla.org/docs/Web/API/HTMLElement>

@@ -113,3 +113,10 @@ type StoreAtMode = 'canonical' | 'import' | 'flat';
 ```typescript
 type LoadSource = (url: string) => Promise;
 ```
+
+## External Type Links
+
+Maps `Type`: `URL` — the docs of a built-in type the page references.
+
+- `Map`: <https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Map>
+- `Promise`: <https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Promise>

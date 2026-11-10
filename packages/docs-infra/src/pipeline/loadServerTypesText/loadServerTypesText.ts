@@ -19,6 +19,8 @@ import type { OrderingConfig } from './order';
 export interface TypesSourceData extends OrganizeTypesResult<TypesMeta> {
   /** External types discovered in the file */
   externalTypes: Record<string, string>;
+  /** Links for the built-in types referenced in the file, keyed by printed name */
+  externalTypeLinks: Record<string, string>;
   /**
    * Type name map (merged across all variants).
    * Maps flat names (like "AccordionTriggerState") to dotted names (like "Accordion.Trigger.State").
