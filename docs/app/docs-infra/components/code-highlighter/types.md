@@ -26,7 +26,7 @@ never reaches the path that renders precomputed content.
 | collapseToEmpty         | `boolean`                                      | -         | Render-time "collapse to empty": collapse the code block to an empty window so&#xA;the whole block is hidden until expanded. Threaded into `contentProps` and&#xA;consumed by `useCode`/`<Pre>`. Runtime-only — the precomputed HAST is&#xA;unchanged.                                                                                                                                                                                                                                                                  |
 | initialExpanded         | `boolean`                                      | -         | Whether the (collapsible) code block starts expanded. Threaded into&#xA;`contentProps` so both `useCode` and the loading fallback honor it.                                                                                                                                                                                                                                                                                                                                                                             |
 | Content\*               | `React.ComponentType<ContentProps<{}>>`        | -         | Component to render the code content and preview                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| ContentFrame            | `React.ComponentType<ContentFrameProps<{}>>`   | -         | Keep the preview shell mounted while loading and interactive chrome change.                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ContentFrame            | `React.ComponentType<ContentFrameProps<{}>>`   | -         | Client Component that keeps the preview shell mounted while loading and&#xA;interactive chrome change. Requires `ContentLoading`.                                                                                                                                                                                                                                                                                                                                                                                       |
 | ContentLoading          | `React.ComponentType<ContentLoadingProps<{}>>` | -         | Component to show while code is being loaded or processed                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | code                    | `Code`                                         | -         | Static code content with variants and metadata                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | components              | `Components`                                   | -         | React components for live preview alongside code                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
@@ -526,7 +526,10 @@ type CodeHighlighterBaseProps<T extends {}> = {
    * `loadSource` into hosted URLs before they reach the client.
    */
   urlPrefix?: { from: string; to: string };
-  /** Keep the preview shell mounted while loading and interactive chrome change. */
+  /**
+   * Client Component that keeps the preview shell mounted while loading and
+   * interactive chrome change. Requires `ContentLoading`.
+   */
   ContentFrame?: React.ComponentType<ContentFrameProps<T>>;
   /** Component to render the code content and preview */
   Content: React.ComponentType<ContentProps<T>>;
@@ -760,7 +763,10 @@ type CodeHighlighterProps<T extends {}> = {
    * `loadSource` into hosted URLs before they reach the client.
    */
   urlPrefix?: { from: string; to: string };
-  /** Keep the preview shell mounted while loading and interactive chrome change. */
+  /**
+   * Client Component that keeps the preview shell mounted while loading and
+   * interactive chrome change. Requires `ContentLoading`.
+   */
   ContentFrame?: React.ComponentType<ContentFrameProps<T>>;
   /** Component to render the code content and preview */
   Content: React.ComponentType<ContentProps<T>>;
@@ -852,7 +858,10 @@ Component and rendering props.
 
 ```typescript
 type CodeRenderingProps<T extends {}> = {
-  /** Keep the preview shell mounted while loading and interactive chrome change. */
+  /**
+   * Client Component that keeps the preview shell mounted while loading and
+   * interactive chrome change. Requires `ContentLoading`.
+   */
   ContentFrame?: React.ComponentType<ContentFrameProps<T>>;
   /** Component to render the code content and preview */
   Content: React.ComponentType<ContentProps<T>>;
@@ -879,7 +888,9 @@ type Components = { [key: string]: React.ReactNode };
 
 ### ContentFrameProps
 
-A persistent shell surrounding loading and interactive content.
+A persistent shell surrounding loading and interactive content. It must be a
+Client Component. `component` follows the selected variant and its live preview;
+every other prop is the initial loading snapshot and does not update on the client.
 
 ```typescript
 type ContentFrameProps<T extends {}> = ContentLoadingVariant &

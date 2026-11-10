@@ -1794,6 +1794,11 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
 
   // Changing provider ancestry here remounts stateful previews.
   if (props.frame) {
+    // A Server Component frame reaches the client as its rendered output, so cloning
+    // it would overwrite the preview it placed in its own children.
+    if (typeof props.frame.type === 'string' || props.frame.type === React.Fragment) {
+      throw new Errors.ErrorCodeHighlighterClientServerContentFrame();
+    }
     return (
       <CodeHighlighterContext.Provider value={context}>
         <CoordinatedFallbackContext.Provider
@@ -1801,7 +1806,11 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
         >
           <CodeHighlighterFallbackContext.Provider value={fallbackContext}>
             <CoordinatedContentContext.Provider value={contentContext}>
-              {React.cloneElement(props.frame, {}, showFallback ? props.fallback : contentChildren)}
+              {React.cloneElement(
+                props.frame,
+                { component: bridgedComponents?.[variantName] },
+                showFallback ? props.fallback : contentChildren,
+              )}
             </CoordinatedContentContext.Provider>
           </CodeHighlighterFallbackContext.Provider>
         </CoordinatedFallbackContext.Provider>

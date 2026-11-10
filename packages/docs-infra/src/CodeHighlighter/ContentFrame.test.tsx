@@ -1,14 +1,21 @@
 /** @vitest-environment jsdom */
 /* eslint-disable testing-library/render-result-naming-convention -- ReactDOMServer returns HTML. */
 import * as React from 'react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
+// eslint-disable-next-line import/extensions
+import { cleanup } from '@testing-library/react/pure.js';
 import * as ReactDOMServer from 'react-dom/server';
 import { CodeHighlighter } from './CodeHighlighter';
 import { CodeHighlighterClient } from './CodeHighlighterClient';
 import { CodeHighlighterChunk } from './CodeHighlighterChunk';
 import { createClientProps } from './createClientProps';
+import * as Errors from './errors';
 import { useCodeFallback } from './useCodeFallback';
+import {
+  useCodeHighlighterContext,
+  useCodeHighlighterContextOptional,
+} from './CodeHighlighterContext';
 import { LazyContent } from '../CoordinatedLazy/LazyContent';
 import { createDemoFactory } from '../abstractCreateDemo/abstractCreateDemo';
 import type { Code, ContentFrameProps, ContentLoadingProps } from './types';
@@ -30,6 +37,10 @@ function Chrome() {
 }
 
 describe('CodeHighlighter persistent frame', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   it('forwards the frame and initial loading metadata from demo factories', () => {
     function Frame(props: ContentFrameProps<{}>) {
       useCodeFallback(props);
@@ -304,5 +315,83 @@ describe('CodeHighlighter persistent frame', () => {
     expect(screen.queryByRole('textbox')).toBeNull();
     expect(unmounts).toBe(1);
     view.unmount();
+    container.remove();
+  });
+
+  it('renders only the frame and loading element in the streamed placeholder', () => {
+    function Frame(props: ContentFrameProps<{}>) {
+      const highlighter = useCodeHighlighterContextOptional();
+      return (
+        <section aria-label="Streamed frame" data-highlighter={highlighter ? '' : undefined}>
+          {props.component}
+          {props.children}
+        </section>
+      );
+    }
+    const markup = ReactDOMServer.renderToString(
+      <CodeHighlighter
+        precompute={{ Default: { fileName: 'Demo.tsx', source: 'const demo = 1;' } }}
+        components={{ Default: <span>Streamed preview</span> }}
+        Content={Chrome}
+        ContentLoading={Loading}
+        ContentFrame={Frame}
+        highlightAfter="stream"
+        loadSource={async () => ({ source: 'const demo = 1;' })}
+      />,
+    );
+    expect(markup).toContain('Streamed preview');
+    expect(markup).toContain('Loading chrome');
+    expect(markup).not.toContain('data-highlighter');
+  });
+
+  it('renders the selected variant preview from a server-built frame', async () => {
+    const variants: Code = {
+      Default: code.Default,
+      Other: {
+        fileName: 'Other.tsx',
+        source: { type: 'root', children: [{ type: 'text', value: 'other' }] },
+      },
+    };
+    function Frame(props: ContentFrameProps<{}>) {
+      return (
+        <section>
+          {props.component}
+          {props.children}
+        </section>
+      );
+    }
+    function SwitchChrome() {
+      const { setSelection } = useCodeHighlighterContext();
+      return (
+        <button type="button" onClick={() => setSelection?.({ variant: 'Other' })}>
+          Switch
+        </button>
+      );
+    }
+    const props = createClientProps({
+      precompute: variants,
+      components: { Default: <span>Default preview</span>, Other: <span>Other preview</span> },
+      Content: SwitchChrome,
+      ContentFrame: Frame,
+      fallback: <Loading component={<span>Default preview</span>} initialVariant="Default" />,
+      initialVariant: 'Default',
+    });
+    render(<CodeHighlighterClient {...props} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Switch' }));
+    expect(screen.getByText('Other preview')).toBeTruthy();
+    expect(screen.queryByText('Default preview')).toBeNull();
+  });
+
+  it('rejects a frame that arrives already rendered', () => {
+    const props = createClientProps({
+      precompute: code,
+      Content: Chrome,
+      fallback: <Loading component={null} />,
+    });
+    expect(() =>
+      ReactDOMServer.renderToString(
+        <CodeHighlighterClient {...props} frame={<section>{null}</section>} />,
+      ),
+    ).toThrow(Errors.ErrorCodeHighlighterClientServerContentFrame);
   });
 });

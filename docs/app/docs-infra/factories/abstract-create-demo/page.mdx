@@ -18,11 +18,15 @@ Demo factories created with `abstractCreateDemo` automatically integrate with:
 Set `DemoContentFrame` alongside `DemoContentLoading` when loading and interactive
 content share a stateful preview. The frame receives the initial loading props and
 `children`, which changes from loading chrome to interactive chrome. Keep the preview
-in the frame; render only chrome from the loading and content components. The frame
-is used when an initial loading fallback is available. Direct content rendering
-without a loading fallback, including `skipFallback`, keeps its existing behavior.
+in the frame; render only chrome from the loading and content components.
+
+The frame must be a Client Component, like `DemoContentLoading`. It is used only when
+`DemoContentLoading` prepares an initial loading fallback; without one, including
+`skipFallback`, content renders directly and the frame is ignored.
 
 ```tsx
+'use client';
+
 function DemoFrame({ component, children }: ContentFrameProps<{}>) {
   return (
     <section>
@@ -41,8 +45,12 @@ const createDemo = createDemoFactory({
 
 Import `ContentFrameProps` from `@mui/internal-docs-infra/CodeHighlighter/types`.
 The frame stays under the code and demo controller contexts. Its component identity remains
-stable while source data and lazy content load; use a consumer-owned context to
-publish interactive toolbar, selected-preview and reset state to the frame.
+stable while source data and lazy content load on the client. `component` follows the
+selected variant and its live preview; the other props keep their initial values. Use a
+consumer-owned context to publish interactive toolbar and reset state to the frame.
+
+With `highlightAfter: 'stream'`, the frame first renders inside the streamed
+placeholder and mounts again when the server finishes loading the source.
 
 ## Factory Function Requirements
 

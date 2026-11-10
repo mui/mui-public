@@ -647,14 +647,21 @@ export interface CodeFunctionProps {
   urlPrefix?: { from: string; to: string };
 }
 
-/** A persistent shell surrounding loading and interactive content. */
+/**
+ * A persistent shell surrounding loading and interactive content. It must be a
+ * Client Component. `component` follows the selected variant and its live preview;
+ * every other prop is the initial loading snapshot and does not update on the client.
+ */
 export type ContentFrameProps<T extends {}> = ContentLoadingProps<T> & {
   children: React.ReactNode;
 };
 
 /** Component and rendering props. */
 export interface CodeRenderingProps<T extends {}> {
-  /** Keep the preview shell mounted while loading and interactive chrome change. */
+  /**
+   * Client Component that keeps the preview shell mounted while loading and
+   * interactive chrome change. Requires `ContentLoading`.
+   */
   ContentFrame?: React.ComponentType<ContentFrameProps<T>>;
   /** Component to render the code content and preview */
   Content: React.ComponentType<ContentProps<T>>;
@@ -667,7 +674,7 @@ export interface CodeRenderingProps<T extends {}> {
  */
 export interface CodeClientRenderingProps {
   /** Pre-rendered persistent shell, seeded from the initial loading metadata. */
-  frame?: React.ReactElement<{ children: React.ReactNode }>;
+  frame?: React.ReactElement<Pick<ContentFrameProps<{}>, 'children' | 'component'>>;
   /** The CodeContent component that renders the code display and syntax highlighting */
   children: React.ReactNode;
   /** Loading placeholder shown while code is being processed */
