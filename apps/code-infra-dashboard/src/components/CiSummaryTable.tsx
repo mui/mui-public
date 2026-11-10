@@ -11,8 +11,8 @@ import Link from '@mui/material/Link';
 import Typography from '@mui/material/Typography';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import Tooltip from '@mui/material/Tooltip';
-import type { WorkflowMetrics, PeriodSummary } from '../lib/ciAnalytics';
-import { formatDuration, formatSuccessRate } from '../lib/ciAnalytics';
+import type { WorkflowMetrics } from '../lib/ciAnalytics';
+import { formatDuration, formatSuccessRate, hasRuns, hasSuccesses } from '../lib/ciAnalytics';
 
 const THRESHOLD_PCT = 5;
 const HIGH_RUNTIME_DELTA = 20;
@@ -43,9 +43,6 @@ function formatDelta(delta: number): string {
   return `${sign}${delta.toFixed(1)}%`;
 }
 
-/**
- * Rates and averages over no runs don't exist, so show a dash instead of the stored 0.
- */
 function orDash(hasData: boolean, value: string): string {
   return hasData ? value : '—';
 }
@@ -56,12 +53,19 @@ function getCircleCiInsightsUrl(slug: string, workflow: string): string {
   return `https://app.circleci.com/insights/github/${orgRepo}/workflows/${workflow}/overview?branch=master`;
 }
 
-function computeDeltas(week: PeriodSummary, month: PeriodSummary) {
-  const weekSuccessPct = week.successRate * 100;
-  const monthSuccessPct = month.successRate * 100;
-  const successDelta = weekSuccessPct - monthSuccessPct;
+/**
+ * Returns `null` when the workflow had no runs in the last 7 days: rates and averages of an empty
+ * period are not zero, they don't exist.
+ */
+export function computeWorkflowAnalysis(wf: WorkflowMetrics): WorkflowAnalysis | null {
+  const { week, month } = wf;
+  if (!hasRuns(week)) {
+    return null;
+  }
 
-  // Callers guarantee `week.totalRuns > 0`, and week runs are a subset of month runs.
+  const successDelta = week.successRate * 100 - month.successRate * 100;
+
+  // Week runs are a subset of month runs, so the month has runs, and successes when the week does.
   const weekCreditsPerRun = week.totalCredits / week.totalRuns;
   const monthCreditsPerRun = month.totalCredits / month.totalRuns;
   const creditsPerRunDelta =
@@ -69,38 +73,21 @@ function computeDeltas(week: PeriodSummary, month: PeriodSummary) {
       ? ((weekCreditsPerRun - monthCreditsPerRun) / monthCreditsPerRun) * 100
       : 0;
 
-  // A success this week is also a success this month, so both averages exist.
+  const runtimeSecs = hasSuccesses(week) ? week.avgSuccessDurationSecs : null;
   const runtimeDelta =
-    week.successRate > 0
-      ? ((week.avgSuccessDurationSecs - month.avgSuccessDurationSecs) /
-          month.avgSuccessDurationSecs) *
-        100
-      : null;
+    runtimeSecs === null
+      ? null
+      : ((runtimeSecs - month.avgSuccessDurationSecs) / month.avgSuccessDurationSecs) * 100;
 
-  return { successDelta, runtimeDelta, creditsPerRunDelta, weekCreditsPerRun };
-}
-
-/**
- * Returns `null` when the workflow had no runs in the last 7 days: rates and averages of an empty
- * period are not zero, they don't exist.
- */
-export function computeWorkflowAnalysis(wf: WorkflowMetrics): WorkflowAnalysis | null {
-  if (wf.week.totalRuns === 0) {
-    return null;
-  }
-
-  const { successDelta, runtimeDelta, creditsPerRunDelta, weekCreditsPerRun } = computeDeltas(
-    wf.week,
-    wf.month,
-  );
-
-  const successSeverity: MetricSeverity = wf.week.successRate < LOW_SUCCESS_RATE ? 'error' : null;
+  const successSeverity: MetricSeverity = week.successRate < LOW_SUCCESS_RATE ? 'error' : null;
   const successDeltaSeverity: MetricSeverity = successDelta < -THRESHOLD_PCT ? 'error' : null;
   let runtimeDeltaSeverity: MetricSeverity = null;
-  if (runtimeDelta !== null && runtimeDelta > HIGH_RUNTIME_DELTA) {
-    runtimeDeltaSeverity = 'error';
-  } else if (runtimeDelta !== null && runtimeDelta > THRESHOLD_PCT) {
-    runtimeDeltaSeverity = 'warning';
+  if (runtimeDelta !== null) {
+    if (runtimeDelta > HIGH_RUNTIME_DELTA) {
+      runtimeDeltaSeverity = 'error';
+    } else if (runtimeDelta > THRESHOLD_PCT) {
+      runtimeDeltaSeverity = 'warning';
+    }
   }
   const creditsPerRunDeltaSeverity: MetricSeverity =
     creditsPerRunDelta > THRESHOLD_PCT ? 'warning' : null;
@@ -118,11 +105,11 @@ export function computeWorkflowAnalysis(wf: WorkflowMetrics): WorkflowAnalysis |
 
   return {
     severity,
-    successRate: wf.week.successRate,
+    successRate: week.successRate,
     successSeverity,
     successDelta,
     successDeltaSeverity,
-    runtimeSecs: wf.week.successRate > 0 ? wf.week.avgSuccessDurationSecs : null,
+    runtimeSecs,
     runtimeDelta,
     runtimeDeltaSeverity,
     creditsPerRun: weekCreditsPerRun,
@@ -226,6 +213,7 @@ interface CiWorkflowCardProps {
 export default function CiWorkflowCard({ slug, workflow }: CiWorkflowCardProps) {
   const analysis = computeWorkflowAnalysis(workflow);
   const { week, month } = workflow;
+  const runtime = analysis?.runtimeSecs == null ? null : formatDuration(analysis.runtimeSecs);
 
   return (
     <Card
@@ -265,12 +253,12 @@ export default function CiWorkflowCard({ slug, workflow }: CiWorkflowCardProps) 
             />
             <MetricRow
               label="Runtime"
-              value={analysis.runtimeSecs === null ? '—' : formatDuration(analysis.runtimeSecs)}
+              value={runtime ?? '—'}
               valueSeverity={null}
               valueTooltip={
-                analysis.runtimeSecs === null
+                runtime === null
                   ? 'No successful runs on master in the last 7 days'
-                  : `Runtime: ${formatDuration(analysis.runtimeSecs)}`
+                  : `Runtime: ${runtime}`
               }
               delta={analysis.runtimeDelta}
               deltaSeverity={analysis.runtimeDeltaSeverity}
@@ -345,21 +333,19 @@ export default function CiWorkflowCard({ slug, workflow }: CiWorkflowCardProps) 
               <tbody>
                 <tr>
                   <th>Success rate</th>
-                  <td>{orDash(week.totalRuns > 0, formatSuccessRate(week.successRate))}</td>
-                  <td>{orDash(month.totalRuns > 0, formatSuccessRate(month.successRate))}</td>
+                  <td>{orDash(hasRuns(week), formatSuccessRate(week.successRate))}</td>
+                  <td>{orDash(hasRuns(month), formatSuccessRate(month.successRate))}</td>
                 </tr>
                 <tr>
                   <th>Avg runtime</th>
-                  <td>{orDash(week.totalRuns > 0, formatDuration(week.avgDurationSecs))}</td>
-                  <td>{orDash(month.totalRuns > 0, formatDuration(month.avgDurationSecs))}</td>
+                  <td>{orDash(hasRuns(week), formatDuration(week.avgDurationSecs))}</td>
+                  <td>{orDash(hasRuns(month), formatDuration(month.avgDurationSecs))}</td>
                 </tr>
                 <tr>
                   <th>Avg success runtime</th>
+                  <td>{orDash(hasSuccesses(week), formatDuration(week.avgSuccessDurationSecs))}</td>
                   <td>
-                    {orDash(week.successRate > 0, formatDuration(week.avgSuccessDurationSecs))}
-                  </td>
-                  <td>
-                    {orDash(month.successRate > 0, formatDuration(month.avgSuccessDurationSecs))}
+                    {orDash(hasSuccesses(month), formatDuration(month.avgSuccessDurationSecs))}
                   </td>
                 </tr>
                 <tr>
