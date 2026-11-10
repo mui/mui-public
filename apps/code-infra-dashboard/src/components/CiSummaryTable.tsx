@@ -28,8 +28,9 @@ export interface WorkflowAnalysis {
   successDelta: number;
   successDeltaSeverity: MetricSeverity;
 
-  runtimeSecs: number;
-  runtimeDelta: number;
+  /** `null` when no run succeeded in the last 7 days. */
+  runtimeSecs: number | null;
+  runtimeDelta: number | null;
   runtimeDeltaSeverity: MetricSeverity;
 
   creditsPerRun: number;
@@ -43,10 +44,10 @@ function formatDelta(delta: number): string {
 }
 
 /**
- * Rates and averages of a period without runs don't exist, so show a dash instead of the stored 0.
+ * Rates and averages over no runs don't exist, so show a dash instead of the stored 0.
  */
-function ifRuns(period: PeriodSummary, value: string): string {
-  return period.totalRuns > 0 ? value : '—';
+function orDash(hasData: boolean, value: string): string {
+  return hasData ? value : '—';
 }
 
 function getCircleCiInsightsUrl(slug: string, workflow: string): string {
@@ -68,13 +69,13 @@ function computeDeltas(week: PeriodSummary, month: PeriodSummary) {
       ? ((weekCreditsPerRun - monthCreditsPerRun) / monthCreditsPerRun) * 100
       : 0;
 
-  let runtimeDelta = 0;
-  if (month.avgSuccessDurationSecs > 0) {
-    runtimeDelta =
-      ((week.avgSuccessDurationSecs - month.avgSuccessDurationSecs) /
-        month.avgSuccessDurationSecs) *
-      100;
-  }
+  // A success this week is also a success this month, so both averages exist.
+  const runtimeDelta =
+    week.successRate > 0
+      ? ((week.avgSuccessDurationSecs - month.avgSuccessDurationSecs) /
+          month.avgSuccessDurationSecs) *
+        100
+      : null;
 
   return { successDelta, runtimeDelta, creditsPerRunDelta, weekCreditsPerRun };
 }
@@ -96,9 +97,9 @@ export function computeWorkflowAnalysis(wf: WorkflowMetrics): WorkflowAnalysis |
   const successSeverity: MetricSeverity = wf.week.successRate < LOW_SUCCESS_RATE ? 'error' : null;
   const successDeltaSeverity: MetricSeverity = successDelta < -THRESHOLD_PCT ? 'error' : null;
   let runtimeDeltaSeverity: MetricSeverity = null;
-  if (runtimeDelta > HIGH_RUNTIME_DELTA) {
+  if (runtimeDelta !== null && runtimeDelta > HIGH_RUNTIME_DELTA) {
     runtimeDeltaSeverity = 'error';
-  } else if (runtimeDelta > THRESHOLD_PCT) {
+  } else if (runtimeDelta !== null && runtimeDelta > THRESHOLD_PCT) {
     runtimeDeltaSeverity = 'warning';
   }
   const creditsPerRunDeltaSeverity: MetricSeverity =
@@ -121,7 +122,7 @@ export function computeWorkflowAnalysis(wf: WorkflowMetrics): WorkflowAnalysis |
     successSeverity,
     successDelta,
     successDeltaSeverity,
-    runtimeSecs: wf.week.avgSuccessDurationSecs,
+    runtimeSecs: wf.week.successRate > 0 ? wf.week.avgSuccessDurationSecs : null,
     runtimeDelta,
     runtimeDeltaSeverity,
     creditsPerRun: weekCreditsPerRun,
@@ -130,25 +131,17 @@ export function computeWorkflowAnalysis(wf: WorkflowMetrics): WorkflowAnalysis |
   };
 }
 
-function MetricRow({
-  label,
-  value,
-  valueSeverity,
-  valueTooltip,
+function DeltaLabel({
   delta,
   deltaSeverity,
+  valueSeverity,
   invert,
 }: {
-  label: string;
-  value: React.ReactNode;
-  valueSeverity: MetricSeverity;
-  valueTooltip: string;
   delta: number;
   deltaSeverity: MetricSeverity;
+  valueSeverity: MetricSeverity;
   invert?: boolean;
 }) {
-  const valueColor = valueSeverity ? `${valueSeverity}.main` : undefined;
-
   let deltaColor: string;
   let deltaTooltip: string;
   if (valueSeverity) {
@@ -167,6 +160,39 @@ function MetricRow({
     deltaTooltip = `${formatDelta(delta)} vs 30d${isGood ? ' — improved' : ''}`;
   }
 
+  return (
+    <React.Fragment>
+      <Tooltip disableInteractive title={deltaTooltip}>
+        <Typography component="span" variant="body2" sx={{ color: deltaColor }}>
+          {formatDelta(delta)}
+        </Typography>
+      </Tooltip>
+      <Typography component="span" variant="body2" color="text.secondary">
+        vs. 30d
+      </Typography>
+    </React.Fragment>
+  );
+}
+
+function MetricRow({
+  label,
+  value,
+  valueSeverity,
+  valueTooltip,
+  delta,
+  deltaSeverity,
+  invert,
+}: {
+  label: string;
+  value: React.ReactNode;
+  valueSeverity: MetricSeverity;
+  valueTooltip: string;
+  delta: number | null;
+  deltaSeverity: MetricSeverity;
+  invert?: boolean;
+}) {
+  const valueColor = valueSeverity ? `${valueSeverity}.main` : undefined;
+
   const valueEl = (
     <Tooltip disableInteractive title={valueTooltip}>
       <Typography variant="body1" sx={{ fontWeight: 'bold', color: valueColor }}>
@@ -180,14 +206,14 @@ function MetricRow({
         {label}
       </Typography>
       {valueEl}
-      <Tooltip disableInteractive title={deltaTooltip}>
-        <Typography component="span" variant="body2" sx={{ color: deltaColor }}>
-          {formatDelta(delta)}
-        </Typography>
-      </Tooltip>
-      <Typography component="span" variant="body2" color="text.secondary">
-        vs. 30d
-      </Typography>
+      {delta === null ? null : (
+        <DeltaLabel
+          delta={delta}
+          deltaSeverity={deltaSeverity}
+          valueSeverity={valueSeverity}
+          invert={invert}
+        />
+      )}
     </Box>
   );
 }
@@ -239,9 +265,13 @@ export default function CiWorkflowCard({ slug, workflow }: CiWorkflowCardProps) 
             />
             <MetricRow
               label="Runtime"
-              value={formatDuration(analysis.runtimeSecs)}
+              value={analysis.runtimeSecs === null ? '—' : formatDuration(analysis.runtimeSecs)}
               valueSeverity={null}
-              valueTooltip={`Runtime: ${formatDuration(analysis.runtimeSecs)}`}
+              valueTooltip={
+                analysis.runtimeSecs === null
+                  ? 'No successful runs on master in the last 7 days'
+                  : `Runtime: ${formatDuration(analysis.runtimeSecs)}`
+              }
               delta={analysis.runtimeDelta}
               deltaSeverity={analysis.runtimeDeltaSeverity}
               invert
@@ -315,18 +345,22 @@ export default function CiWorkflowCard({ slug, workflow }: CiWorkflowCardProps) 
               <tbody>
                 <tr>
                   <th>Success rate</th>
-                  <td>{ifRuns(week, formatSuccessRate(week.successRate))}</td>
-                  <td>{ifRuns(month, formatSuccessRate(month.successRate))}</td>
+                  <td>{orDash(week.totalRuns > 0, formatSuccessRate(week.successRate))}</td>
+                  <td>{orDash(month.totalRuns > 0, formatSuccessRate(month.successRate))}</td>
                 </tr>
                 <tr>
                   <th>Avg runtime</th>
-                  <td>{ifRuns(week, formatDuration(week.avgDurationSecs))}</td>
-                  <td>{ifRuns(month, formatDuration(month.avgDurationSecs))}</td>
+                  <td>{orDash(week.totalRuns > 0, formatDuration(week.avgDurationSecs))}</td>
+                  <td>{orDash(month.totalRuns > 0, formatDuration(month.avgDurationSecs))}</td>
                 </tr>
                 <tr>
                   <th>Avg success runtime</th>
-                  <td>{ifRuns(week, formatDuration(week.avgSuccessDurationSecs))}</td>
-                  <td>{ifRuns(month, formatDuration(month.avgSuccessDurationSecs))}</td>
+                  <td>
+                    {orDash(week.successRate > 0, formatDuration(week.avgSuccessDurationSecs))}
+                  </td>
+                  <td>
+                    {orDash(month.successRate > 0, formatDuration(month.avgSuccessDurationSecs))}
+                  </td>
                 </tr>
                 <tr>
                   <th>Total credits</th>

@@ -57,8 +57,9 @@ function buildMarkdownReport(
         }
         const emoji = analysis.severity ? SEVERITY_EMOJI[analysis.severity] : GREEN;
         const success = formatSuccessRate(analysis.successRate);
-        const runtime = formatDuration(analysis.runtimeSecs);
-        return `  ${emoji} ${label} — ${success} success, ${runtime}`;
+        const runtime =
+          analysis.runtimeSecs === null ? '' : `, ${formatDuration(analysis.runtimeSecs)}`;
+        return `  ${emoji} ${label} — ${success} success${runtime}`;
       }),
     )
     .join('\n');
