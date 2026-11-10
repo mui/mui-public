@@ -47,7 +47,10 @@ export default /** @type {import('eslint').Rule.RuleModule} */ ({
         return null;
       }
 
-      const firstToken = context.sourceCode.ast.body[0];
+      const firstToken = context.sourceCode.getFirstToken(context.sourceCode.ast);
+      if (!firstToken) {
+        return null;
+      }
       return fixer.insertTextBefore(firstToken, "'use client';\n");
     }
 
