@@ -811,8 +811,8 @@ importers:
         specifier: ^11.18.0
         version: 11.18.0(vitest@5.1.0)
       minimatch:
-        specifier: ^10.2.6
-        version: 10.2.6
+        specifier: ^11.0.0
+        version: 11.0.5
       node-html-parser:
         specifier: ^9.0.7
         version: 9.0.7
