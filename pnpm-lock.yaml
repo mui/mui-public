@@ -1075,6 +1075,9 @@ importers:
       remark-parse:
         specifier: ^11.0.0
         version: 11.0.0(supports-color@9.4.0)
+      remark-rehype:
+        specifier: ^11.1.2
+        version: 11.1.2
       remark-stringify:
         specifier: ^11.0.0
         version: 11.0.0
@@ -1166,9 +1169,6 @@ importers:
       rehype-stringify:
         specifier: 10.0.1
         version: 10.0.1
-      remark-rehype:
-        specifier: 11.1.2
-        version: 11.1.2
     publishDirectory: build
 
   packages/netlify-cache:

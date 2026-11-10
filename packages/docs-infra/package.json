@@ -145,6 +145,7 @@
     "remark-gfm": "^4.0.1",
     "remark-mdx": "^3.1.1",
     "remark-parse": "^11.0.0",
+    "remark-rehype": "^11.1.2",
     "remark-stringify": "^11.0.0",
     "remark-typography": "^0.8.11",
     "sucrase": "^3.35.1",
@@ -176,8 +177,7 @@
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "rehype-parse": "9.0.1",
-    "rehype-stringify": "10.0.1",
-    "remark-rehype": "11.1.2"
+    "rehype-stringify": "10.0.1"
   },
   "peerDependencies": {
     "@types/react": "^17.0.0 || ^18.0.0 || ^19.0.0",
