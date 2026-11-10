@@ -134,7 +134,7 @@ export interface PackageNamingConfig {
 export interface CategorizationConfig {
   /**
    * Primary categorization strategy.
-   * - 'flat': One list with resolved scope prefixes (Core)
+   * - 'flat': One list with resolved scope prefixes
    * - 'component': Group by component name (For new repos with 1 or 2 packages)
    * - 'package': Group by package name (For established repos with multiple packages)
    */
@@ -287,6 +287,11 @@ export type PluralizedMessage =
 export interface ContributorsConfig {
   /** Credit all fetched commits or only displayed commits (default). */
   source?: 'all' | 'filtered';
+  /**
+   * PR labels marking cherry-picks; their original author is credited instead of the picker.
+   * @default ['cherry-pick', 'backport']
+   */
+  cherryPickLabels?: string[];
   /**
    * Disable the contributors section entirely.
    * @default false

@@ -32,6 +32,8 @@ Repository configs control output, package routing, filters and contributor poli
 `contributors.source: 'all'` credits fetched changes even when entry filters exclude them;
 use `excludeAuthorsFromContributors` to exclude credit separately.
 Explicit author filters still apply after cherry-pick attribution is resolved.
+PRs labeled `cherry-pick` or `backport` credit their original author; set
+`contributors.cherryPickLabels` to use other labels.
 
 Run release generation with an organization-member user's token that can read organization
 memberships. Fine-grained tokens need the organization's

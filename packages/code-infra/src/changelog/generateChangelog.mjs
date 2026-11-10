@@ -46,6 +46,7 @@ export async function generateChangelog(options = {}) {
       org: options.org ?? repository.owner,
       lastRelease: release.lastRelease,
       release: release.release,
+      cherryPickLabels: config.contributors?.cherryPickLabels,
       octokit: options.octokit,
     });
   } catch (error) {
@@ -158,7 +159,7 @@ async function getPackageVersions(cwd, lastRelease, config) {
           .relative(cwd, path.join(pkg.path, 'package.json'))
           .split(path.sep)
           .join('/');
-        const previous = await execa('git', ['show', `${lastRelease}:${manifest}`], {
+        const previous = await execa('git', ['show', `${lastRelease}:./${manifest}`], {
           cwd,
           reject: false,
         });
