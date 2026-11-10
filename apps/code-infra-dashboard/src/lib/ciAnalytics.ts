@@ -26,6 +26,18 @@ export interface PeriodSummary {
   totalRuns: number;
 }
 
+// Snapshots store 0 for rates and averages over no runs. These tell that apart from a real 0.
+
+/** Whether `successRate` and `avgDurationSecs` exist. */
+export function hasRuns(period: PeriodSummary): boolean {
+  return period.totalRuns > 0;
+}
+
+/** Whether `avgSuccessDurationSecs` exists. */
+export function hasSuccesses(period: PeriodSummary): boolean {
+  return period.successRate > 0;
+}
+
 const RAW_BASE = 'https://raw.githubusercontent.com/mui/mui-public/ci-data/ci-reports';
 
 export function getSnapshotUrl(timestamp: string): string {
