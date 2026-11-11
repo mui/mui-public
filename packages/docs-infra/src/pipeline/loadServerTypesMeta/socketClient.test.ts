@@ -178,4 +178,49 @@ describe('SocketClient', () => {
       vi.unstubAllEnvs();
     }
   });
+
+  it('keeps multi-byte characters split across response chunks', async () => {
+    const socketDir = await mkdtemp(join(tmpdir(), 'docs-infra-types-'));
+    vi.stubEnv('MUI_DOCS_INFRA_SOCKET_DIR', socketDir);
+    const socketPath = getSocketPath();
+    const error = 'markup — so';
+    const server = createServer((socket) => {
+      socket.once('data', (data) => {
+        const { id } = JSON.parse(data.toString());
+        const response = Buffer.from(
+          `${JSON.stringify({ id, type: 'success', data: { success: true, error } })}\n`,
+        );
+        const splitAt = response.indexOf('—') + 1;
+        socket.write(response.subarray(0, splitAt));
+        setTimeout(() => socket.write(response.subarray(splitAt)), 10);
+      });
+    });
+    const client = new SocketClient();
+
+    await ensureSocketDir();
+    await new Promise<void>((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(socketPath, resolve);
+    });
+
+    try {
+      await client.connect(500);
+      const response = await client.sendRequest({
+        projectPath: '',
+        compilerOptions: {},
+        resolvedVariantMap: [],
+        dependencies: [],
+        rootContextDir: '/',
+        relativePath: '',
+      });
+      expect(response.error).toBe(error);
+    } finally {
+      client.close();
+      await new Promise<void>((resolve) => {
+        server.close(() => resolve());
+      });
+      await rm(socketDir, { recursive: true, force: true });
+      vi.unstubAllEnvs();
+    }
+  });
 });
