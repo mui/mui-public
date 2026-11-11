@@ -46,6 +46,7 @@ import { CoordinatedContentContext } from '../CoordinatedLazy/CoordinatedContent
 import { requestIdle } from '../useCoordinated/scheduleTasks';
 import { scheduleDeferredPrecompute } from './scheduleDeferredPrecompute';
 import * as Errors from './errors';
+import { ContentFrameProvider } from './useContentFrame';
 
 const DEBUG = false; // Set to true for debugging purposes
 
@@ -1770,7 +1771,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   const fallbackNode = (
     <CoordinatedFallbackContext.Provider value={coordinatedFallbackContext}>
       <CodeHighlighterFallbackContext.Provider value={fallbackContext}>
-        {props.fallback}
+        <ContentFrameProvider framed={false}>{props.fallback}</ContentFrameProvider>
       </CodeHighlighterFallbackContext.Provider>
     </CoordinatedFallbackContext.Provider>
   );
@@ -1787,10 +1788,38 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   const contentNode = (
     <CodeHighlighterContext.Provider value={context}>
       <CoordinatedContentContext.Provider value={contentContext}>
-        {contentChildren}
+        <ContentFrameProvider framed={false}>{contentChildren}</ContentFrameProvider>
       </CoordinatedContentContext.Provider>
     </CodeHighlighterContext.Provider>
   );
+
+  // Changing provider ancestry here remounts stateful previews.
+  if (props.frame) {
+    // A Server Component frame reaches the client as its rendered output, so cloning
+    // it would overwrite the preview it placed in its own children.
+    if (typeof props.frame.type === 'string' || props.frame.type === React.Fragment) {
+      throw new Errors.ErrorCodeHighlighterClientServerContentFrame();
+    }
+    return (
+      <CodeHighlighterContext.Provider value={context}>
+        <CoordinatedFallbackContext.Provider
+          value={showFallback ? coordinatedFallbackContext : undefined}
+        >
+          <CodeHighlighterFallbackContext.Provider value={fallbackContext}>
+            <CoordinatedContentContext.Provider value={contentContext}>
+              {React.cloneElement(
+                props.frame,
+                { component: bridgedComponents?.[variantName] },
+                <ContentFrameProvider framed>
+                  {showFallback ? props.fallback : contentChildren}
+                </ContentFrameProvider>,
+              )}
+            </CoordinatedContentContext.Provider>
+          </CodeHighlighterFallbackContext.Provider>
+        </CoordinatedFallbackContext.Provider>
+      </CodeHighlighterContext.Provider>
+    );
+  }
 
   // Show the fallback OR the content (swap on data-readiness). The content loads
   // its own chunk after the swap, covered by the fallback it inherits via context.
