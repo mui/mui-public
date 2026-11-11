@@ -9,6 +9,7 @@ import type { CompressedFallback } from './fallbackFormat';
 import { createClientProps, createContentFrame } from './createClientProps';
 import type { CreateClientPropsOptions } from './createClientProps';
 import { CodeHighlighterClient } from './CodeHighlighterClient';
+import { ContentFrameProvider } from './useContentFrame';
 
 /**
  * The user props the CodeHighlighter chunk threads to its content + loaders. It
@@ -63,11 +64,14 @@ function CodeHighlighterChunkContent(props: CodeHighlighterChunkContentProps): R
 function CodeHighlighterChunkLoading(
   props: CoordinatedChunkLoadingProps<CodeHighlighterChunkUserProps, Code>,
 ): React.ReactElement {
-  const frame = createContentFrame(props, props.fallback);
+  const frame = createContentFrame(
+    props,
+    <ContentFrameProvider framed>{props.fallback}</ContentFrameProvider>,
+  );
   if (frame) {
     return frame;
   }
-  return <React.Fragment>{props.fallback ?? null}</React.Fragment>;
+  return <ContentFrameProvider framed={false}>{props.fallback ?? null}</ContentFrameProvider>;
 }
 
 /**

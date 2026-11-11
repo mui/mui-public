@@ -251,6 +251,18 @@ so this hook simply passes props through.
 type ReturnValue = UseCodeFallbackResult;
 ```
 
+### useContentFrame
+
+Hook for `Content` and `ContentLoading` components to detect a surrounding
+`ContentFrame`. When `framed` is `true`, the frame renders the preview, so the
+component should render only its chrome.
+
+**useContentFrame Return Value:**
+
+```tsx
+type ReturnValue = UseContentFrameResult;
+```
+
 ## Additional Types
 
 ### UseCodeFallbackResult
@@ -294,6 +306,15 @@ type UseCodeFallbackResult = {
    * keeps this false until its scheduler starts, so both requests run together.
    */
   canLoadContent?: boolean;
+};
+```
+
+### UseContentFrameResult
+
+```typescript
+type UseContentFrameResult = {
+  /** Whether a `ContentFrame` surrounds this content and renders the preview. */
+  framed: boolean;
 };
 ```
 
@@ -1396,7 +1417,7 @@ type VariantSource = string | HastRoot | { hastJson: string } | { hastCompressed
 
 ## Export Groups
 
-- `CodeHighlighter`: `useCodeFallback`, `UseCodeFallbackResult`, `mergeComments`, `CodeHighlighter`
+- `CodeHighlighter`: `useCodeFallback`, `UseCodeFallbackResult`, `useContentFrame`, `UseContentFrameResult`, `mergeComments`, `CodeHighlighter`
 - `CodeHighlighterTypes`: `Components`, `EditableSourceProjection`, `Transforms`, `ExternalImportItem`, `Externals`, `HastRoot`, `VariantSource`, `VariantExtraFiles`, `VariantCode`, `Code`, `CollapseMap`, `ControlledVariantExtraFiles`, `ControlledVariantCode`, `ControlledCode`, `ContentProps`, `Fallbacks`, `ContentLoadingFile`, `ContentLoadingVariant`, `BaseContentLoadingProps`, `ContentLoadingProps`, `LoadCodeMeta`, `LoadVariantMeta`, `LoadSource`, `TransformSource`, `ParseSource`, `SourceTransformer`, `SourceTransformers`, `SourceComments`, `SourceEnhancer`, `SourceEnhancers`, `LoadFileOptions`, `LoadVariantOptions`, `LoadFallbackCodeOptions`, `CodeIdentityProps`, `CodeContentProps`, `CodeLoadingProps`, `CodeFunctionProps`, `ContentFrameProps`, `CodeRenderingProps`, `CodeClientRenderingProps`, `CodeHighlighterBaseProps`, `CodeHighlighterClientProps`, `CodeHighlighterProps`
 
 ## External Type Links

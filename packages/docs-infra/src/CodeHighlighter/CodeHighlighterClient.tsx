@@ -46,6 +46,7 @@ import { CoordinatedContentContext } from '../CoordinatedLazy/CoordinatedContent
 import { requestIdle } from '../useCoordinated/scheduleTasks';
 import { scheduleDeferredPrecompute } from './scheduleDeferredPrecompute';
 import * as Errors from './errors';
+import { ContentFrameProvider } from './useContentFrame';
 
 const DEBUG = false; // Set to true for debugging purposes
 
@@ -1770,7 +1771,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   const fallbackNode = (
     <CoordinatedFallbackContext.Provider value={coordinatedFallbackContext}>
       <CodeHighlighterFallbackContext.Provider value={fallbackContext}>
-        {props.fallback}
+        <ContentFrameProvider framed={false}>{props.fallback}</ContentFrameProvider>
       </CodeHighlighterFallbackContext.Provider>
     </CoordinatedFallbackContext.Provider>
   );
@@ -1787,7 +1788,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   const contentNode = (
     <CodeHighlighterContext.Provider value={context}>
       <CoordinatedContentContext.Provider value={contentContext}>
-        {contentChildren}
+        <ContentFrameProvider framed={false}>{contentChildren}</ContentFrameProvider>
       </CoordinatedContentContext.Provider>
     </CodeHighlighterContext.Provider>
   );
@@ -1809,7 +1810,9 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
               {React.cloneElement(
                 props.frame,
                 { component: bridgedComponents?.[variantName] },
-                showFallback ? props.fallback : contentChildren,
+                <ContentFrameProvider framed>
+                  {showFallback ? props.fallback : contentChildren}
+                </ContentFrameProvider>,
               )}
             </CoordinatedContentContext.Provider>
           </CodeHighlighterFallbackContext.Provider>

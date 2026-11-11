@@ -12,6 +12,7 @@ import { CodeHighlighterChunk } from './CodeHighlighterChunk';
 import { createClientProps } from './createClientProps';
 import * as Errors from './errors';
 import { useCodeFallback } from './useCodeFallback';
+import { useContentFrame } from './useContentFrame';
 import {
   useCodeHighlighterContext,
   useCodeHighlighterContextOptional,
@@ -30,6 +31,12 @@ const code: Code = {
 function Loading(props: ContentLoadingProps<{}>) {
   useCodeFallback(props);
   return <span>Loading chrome</span>;
+}
+
+function FramedLoading(props: ContentLoadingProps<{}>) {
+  useCodeFallback(props);
+  const { framed } = useContentFrame();
+  return <span>{framed ? 'Framed loading chrome' : 'Unframed loading chrome'}</span>;
 }
 
 function Chrome() {
@@ -231,11 +238,9 @@ describe('CodeHighlighter persistent frame', () => {
       return <input aria-label="Demo value" defaultValue="initial" />;
     }
 
-    const frameContext = React.createContext(false);
-
     function LoadingChrome(props: ContentLoadingProps<{}>) {
       useCodeFallback(props);
-      const framed = React.useContext(frameContext);
+      const { framed } = useContentFrame();
       return (
         <React.Fragment>
           {!framed && props.component}
@@ -245,7 +250,7 @@ describe('CodeHighlighter persistent frame', () => {
     }
 
     function LiveChrome() {
-      const framed = React.useContext(frameContext);
+      const { framed } = useContentFrame();
       return (
         <React.Fragment>
           {!framed && <Preview />}
@@ -258,12 +263,10 @@ describe('CodeHighlighter persistent frame', () => {
       useCodeFallback(props);
       const { component, children } = props;
       return (
-        <frameContext.Provider value>
-          <section aria-label={props.name}>
-            {component}
-            {children}
-          </section>
-        </frameContext.Provider>
+        <section aria-label={props.name}>
+          {component}
+          {children}
+        </section>
       );
     }
 
@@ -333,14 +336,14 @@ describe('CodeHighlighter persistent frame', () => {
         precompute={{ Default: { fileName: 'Demo.tsx', source: 'const demo = 1;' } }}
         components={{ Default: <span>Streamed preview</span> }}
         Content={Chrome}
-        ContentLoading={Loading}
+        ContentLoading={FramedLoading}
         ContentFrame={Frame}
         highlightAfter="stream"
         loadSource={async () => ({ source: 'const demo = 1;' })}
       />,
     );
     expect(markup).toContain('Streamed preview');
-    expect(markup).toContain('Loading chrome');
+    expect(markup).toContain('Framed loading chrome');
     expect(markup).not.toContain('data-highlighter');
   });
 
@@ -380,6 +383,75 @@ describe('CodeHighlighter persistent frame', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Switch' }));
     expect(screen.getByText('Other preview')).toBeTruthy();
     expect(screen.queryByText('Default preview')).toBeNull();
+  });
+
+  it('tells content and loading components whether a frame renders the preview', async () => {
+    function FramedChrome() {
+      const { framed } = useContentFrame();
+      return <button type="button">{framed ? 'Framed chrome' : 'Unframed chrome'}</button>;
+    }
+    function Frame(props: ContentFrameProps<{}>) {
+      return <section>{props.children}</section>;
+    }
+    const markup = ReactDOMServer.renderToString(
+      <CodeHighlighter
+        precompute={code}
+        components={{ Default: <span>Preview</span> }}
+        Content={FramedChrome}
+        ContentLoading={FramedLoading}
+        ContentFrame={Frame}
+      />,
+    );
+    expect(markup).toContain('Framed loading chrome');
+    render(
+      <CodeHighlighter
+        precompute={code}
+        components={{ Default: <span>Preview</span> }}
+        Content={FramedChrome}
+        ContentLoading={FramedLoading}
+        ContentFrame={Frame}
+      />,
+    );
+    expect(await screen.findByRole('button', { name: 'Framed chrome' })).toBeTruthy();
+    cleanup();
+    render(
+      <CodeHighlighter
+        precompute={code}
+        components={{ Default: <span>Preview</span> }}
+        Content={FramedChrome}
+        ContentLoading={FramedLoading}
+      />,
+    );
+    expect(await screen.findByRole('button', { name: 'Unframed chrome' })).toBeTruthy();
+  });
+
+  it('does not mark a nested highlighter as framed', async () => {
+    function NestedChrome() {
+      const { framed } = useContentFrame();
+      return <button type="button">{framed ? 'Nested framed' : 'Nested unframed'}</button>;
+    }
+    function OuterChrome() {
+      return (
+        <CodeHighlighter
+          precompute={code}
+          components={{ Default: <span>Nested preview</span> }}
+          Content={NestedChrome}
+        />
+      );
+    }
+    function Frame(props: ContentFrameProps<{}>) {
+      return <section>{props.children}</section>;
+    }
+    render(
+      <CodeHighlighter
+        precompute={code}
+        components={{ Default: <span>Preview</span> }}
+        Content={OuterChrome}
+        ContentLoading={FramedLoading}
+        ContentFrame={Frame}
+      />,
+    );
+    expect(await screen.findByRole('button', { name: 'Nested unframed' })).toBeTruthy();
   });
 
   it('rejects a frame that arrives already rendered', () => {
