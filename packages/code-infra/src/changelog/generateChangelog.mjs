@@ -84,21 +84,27 @@ export async function generateChangelog(options = {}) {
       ...Object.values(config.categorization.labels.categoryOverrides ?? {}),
       config.categorization.sections.fallbackSection,
     ]);
+    /** @param {import('./types.ts').ChangelogSection} section */
+    function isAvailable(section) {
+      if (!section.pkgInfo || genericSections.has(section.key) || versions?.has(section.key)) {
+        return true;
+      }
+      const entries = section.subsections?.flatMap((child) => child.commits) ?? section.commits;
+      if (entries.length > 0) {
+        console.warn(
+          `Omitting ${entries.length} entries for unavailable package ${section.key}: ${entries.map((commit) => commit.prNumber ?? commit.sha.slice(0, 7)).join(', ')}.`,
+        );
+      }
+      return false;
+    }
     builtSections = builtSections.flatMap((section) => {
+      if (!isAvailable(section)) {
+        return [];
+      }
       if (!section.subsections) {
         return [section];
       }
-      const subsections = section.subsections.filter((subsection) => {
-        if (genericSections.has(subsection.key) || versions.has(subsection.key)) {
-          return true;
-        }
-        if (subsection.commits.length > 0) {
-          console.warn(
-            `Omitting ${subsection.commits.length} entries for unavailable package ${subsection.key}: ${subsection.commits.map((commit) => commit.prNumber ?? commit.sha.slice(0, 7)).join(', ')}.`,
-          );
-        }
-        return false;
-      });
+      const subsections = section.subsections.filter(isAvailable);
       return subsections.length > 0 ? [{ ...section, subsections }] : [];
     });
   }

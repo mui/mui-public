@@ -5,6 +5,8 @@
  * @typedef {import('./types.ts').PlanInheritanceConfig} PlanInheritanceConfig
  */
 
+const CHANGES_TITLE = 'Changes';
+
 /**
  * Builds ordered changelog sections from categorized commits.
  *
@@ -14,15 +16,69 @@
  * @returns {ChangelogSection[]} Ordered sections
  */
 export function buildSections(categorizedCommits, categorizationConfig, packageVersions) {
+  let sections;
   if (categorizationConfig.strategy === 'component' || categorizationConfig.strategy === 'flat') {
-    return buildComponentSections(categorizedCommits, categorizationConfig);
+    sections = buildComponentSections(categorizedCommits, categorizationConfig);
+  } else if (categorizationConfig.strategy === 'package') {
+    sections = buildPackageSections(categorizedCommits, categorizationConfig, packageVersions);
+  } else {
+    throw new Error(`Unknown categorization strategy: ${categorizationConfig.strategy}`);
   }
 
-  if (categorizationConfig.strategy === 'package') {
-    return buildPackageSections(categorizedCommits, categorizationConfig, packageVersions);
+  if (
+    categorizationConfig.strategy === 'flat' ||
+    !categorizationConfig.sections.groupByFlags?.length
+  ) {
+    return sections;
+  }
+  return sections.map((section) => groupByFlags(section, categorizationConfig));
+}
+
+/**
+ * @param {ChangelogSection} section
+ * @param {CategorizationConfig} config
+ * @returns {ChangelogSection}
+ */
+function groupByFlags(section, config) {
+  if (section.subsections) {
+    return {
+      ...section,
+      subsections: section.subsections.map((child) => groupByFlags(child, config)),
+    };
+  }
+  const flags = config.sections.groupByFlags ?? [];
+  if (!section.commits.some((commit) => flags.some((flag) => commit.parsed.flags.includes(flag)))) {
+    return section;
   }
 
-  throw new Error(`Unknown categorization strategy: ${categorizationConfig.strategy}`);
+  const groups = new Map(flags.map((flag) => [flag, /** @type {CategorizedCommit[]} */ ([])]));
+  /** @type {CategorizedCommit[]} */
+  const changes = [];
+  for (const commit of section.commits) {
+    const flag = flags.find((candidate) => commit.parsed.flags.includes(candidate));
+    if (flag) {
+      groups.get(flag)?.push(commit);
+    } else {
+      changes.push(commit);
+    }
+  }
+  const subsections = [...groups]
+    .filter(([, commits]) => commits.length > 0)
+    .map(([flag, commits]) => ({
+      key: config.labels.flags?.[flag]?.name ?? flag,
+      level: section.level + 1,
+      commits,
+      pkgInfo: null,
+    }));
+  if (changes.length > 0) {
+    subsections.push({
+      key: CHANGES_TITLE,
+      level: section.level + 1,
+      commits: changes,
+      pkgInfo: null,
+    });
+  }
+  return { ...section, commits: [], subsections };
 }
 
 /**
@@ -217,6 +273,15 @@ function buildPackageSections(categorizedCommits, categorizationConfig, packageV
       commits: categorizedCommits.get(fallbackKey) || [],
       pkgInfo: null,
     });
+  }
+  if (categorizationConfig.packageNaming?.layout === 'package') {
+    return sections.flatMap((section) =>
+      section.subsections
+        ? section.subsections
+            .filter((child) => child.commits.length > 0)
+            .map((child) => ({ ...child, level: section.level }))
+        : [section],
+    );
   }
   return sections;
 }

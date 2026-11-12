@@ -29,6 +29,12 @@ The default config is `scripts/changelog.config.mjs` inside `--cwd`.
 An explicit `--config` path is relative to the process working directory.
 
 Repository configs control output, package routing, filters and contributor policy.
+Set `categorization.packageNaming.layout: 'package'` for populated packages as top-level
+headings; the default groups packages under product headings with plan subsections.
+Set `categorization.sections.groupByFlags: ['breaking change']` to split flagged entries
+into subsections named by `categorization.labels.flags`, with remaining entries under Changes.
+Sections without matching flags keep a single list.
+
 `contributors.source: 'all'` credits fetched changes even when entry filters exclude them;
 use `excludeAuthorsFromContributors` to exclude credit separately.
 Explicit author filters still apply after cherry-pick attribution is resolved.
