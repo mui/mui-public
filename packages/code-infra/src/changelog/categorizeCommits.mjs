@@ -150,7 +150,7 @@ function getCategoryKeysForPackage(commit, config) {
       const planPackage = config.packageNaming.plans[plan][basePackage];
       if (!planPackage) {
         throw new Error(
-          `No ${plan} plan package mapping found for base package "${basePackage}" in commit #${commit.prNumber}`,
+          `No ${plan} plan package mapping found for base package "${basePackage}" in commit ${commit.prNumber === null ? commit.sha : `#${commit.prNumber}`}`,
         );
       }
       keys.push({

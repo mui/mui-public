@@ -597,3 +597,41 @@ it('detects cherry-picks using configured labels', async () => {
   expect(configured.author).toEqual({ login: 'original', association: 'team' });
   expect(configured.message).toBe('Fix behavior (#2)');
 });
+
+it('warns once when no direct author is a visible organization member', async () => {
+  const commits = ['first', 'second'].map((login) => ({
+    sha: `${login}-sha`,
+    commit: { message: `Change by ${login}`, author: { date: DATE } },
+    author: { login },
+    html_url: `https://github.com/mui/test/commit/${login}-sha`,
+  }));
+  const octokit = new Octokit({
+    request: {
+      fetch: async (input: Parameters<typeof fetch>[0]) => {
+        const url = new URL(input instanceof Request ? input.url : String(input));
+        if (url.pathname.includes('/members/')) {
+          return Response.json({ message: 'Not Found' }, { status: NOT_FOUND });
+        }
+        return Object.defineProperty(
+          Response.json({ url: url.href, commits, total_commits: 2 }, { status: OK }),
+          'url',
+          { value: url.href },
+        );
+      },
+    },
+  });
+  const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  onTestFinished(() => warning.mockRestore());
+  const result = await fetchCommitsBetweenRefs({
+    octokit,
+    repo: 'test',
+    lastRelease: 'v1',
+    release: 'HEAD',
+  });
+  expect(result.map((commit) => commit.author?.association)).toEqual([
+    'contributor',
+    'contributor',
+  ]);
+  expect(warning).toHaveBeenCalledTimes(1);
+  expect(warning).toHaveBeenCalledWith(expect.stringContaining('None of 2 direct authors'));
+});

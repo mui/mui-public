@@ -4,6 +4,7 @@ import { execa } from 'execa';
 import { getWorkspacePackages } from '../utils/pnpm.mjs';
 import { findLatestTaggedVersion, getRepositoryInfo, getCurrentGitSha } from '../utils/git.mjs';
 import { loadChangelogConfig } from './loadChangelogConfig.mjs';
+import { validateChangelogConfig } from './validateChangelogConfig.mjs';
 import { buildSections } from './buildSections.mjs';
 import { categorizeCommits } from './categorizeCommits.mjs';
 import { fetchCommitsBetweenRefs } from './fetchChangelogs.mjs';
@@ -21,10 +22,14 @@ const HTTP_NOT_FOUND = 404;
  */
 export async function generateChangelog(options = {}) {
   const cwd = await fs.realpath(options.cwd ?? process.cwd());
-  const config =
-    typeof options.config === 'object'
-      ? options.config
-      : await loadChangelogConfig(options.config ?? DEFAULT_CONFIG, cwd);
+  /** @type {import('./types.ts').ChangelogConfig} */
+  let config;
+  if (typeof options.config === 'object') {
+    validateChangelogConfig(options.config);
+    config = options.config;
+  } else {
+    config = await loadChangelogConfig(options.config ?? DEFAULT_CONFIG, cwd);
+  }
   const repository = options.repo
     ? { repo: options.repo, owner: options.org ?? 'mui' }
     : await getRepositoryInfo(cwd);
@@ -83,9 +88,17 @@ export async function generateChangelog(options = {}) {
       if (!section.subsections) {
         return [section];
       }
-      const subsections = section.subsections.filter(
-        (subsection) => genericSections.has(subsection.key) || versions.has(subsection.key),
-      );
+      const subsections = section.subsections.filter((subsection) => {
+        if (genericSections.has(subsection.key) || versions.has(subsection.key)) {
+          return true;
+        }
+        if (subsection.commits.length > 0) {
+          console.warn(
+            `Omitting ${subsection.commits.length} entries for unavailable package ${subsection.key}: ${subsection.commits.map((commit) => commit.prNumber ?? commit.sha.slice(0, 7)).join(', ')}.`,
+          );
+        }
+        return false;
+      });
       return subsections.length > 0 ? [{ ...section, subsections }] : [];
     });
   }
@@ -151,6 +164,11 @@ async function getPackageVersions(cwd, lastRelease, config) {
     ...Object.values(naming.mappings),
     ...Object.values(naming.plans ?? {}).flatMap((plans) => Object.values(plans)),
   ]);
+  for (const name of configuredPackages) {
+    if (!versions.has(name)) {
+      unchanged.add(name);
+    }
+  }
   await Promise.all(
     packages
       .filter((pkg) => configuredPackages.has(pkg.name))

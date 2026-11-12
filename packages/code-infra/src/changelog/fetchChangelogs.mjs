@@ -120,9 +120,12 @@ async function fetchCommitsRest({
 
   /** @type {Map<string, Promise<'team' | 'contributor'>>} */
   const authorMemberships = new Map();
+  let membershipChecks = 0;
+  let membershipMisses = 0;
 
   /** @param {string} login @param {AbortSignal} signal @returns {Promise<'team' | 'contributor'>} */
   async function checkMembership(login, signal) {
+    membershipChecks += 1;
     try {
       await octokit.orgs.checkMembershipForUser({ org, username: login, request: { signal } });
       return 'team';
@@ -132,6 +135,7 @@ async function fetchCommitsRest({
       }
       if (error instanceof Error && 'status' in error) {
         if (error.status === HTTP_NOT_FOUND) {
+          membershipMisses += 1;
           return 'contributor';
         }
         if (error.status === HTTP_FORBIDDEN) {
@@ -145,9 +149,6 @@ async function fetchCommitsRest({
 
   /** @param {string} login @param {AbortSignal} signal @returns {Promise<'team' | 'contributor'>} */
   async function getMembershipAssociation(login, signal) {
-    if (login === org) {
-      return 'team';
-    }
     if (login.endsWith('[bot]')) {
       return 'contributor';
     }
@@ -280,6 +281,7 @@ async function fetchCommitsRest({
       prNumber: null,
       html_url: commit.html_url,
       author: login ? { login, association } : null,
+      authorName: commit.commit.author?.name,
       mergedAt: commit.commit.author?.date ?? null,
       createdAt: commit.commit.author?.date ?? null,
       prTitle: '',
@@ -308,6 +310,11 @@ async function fetchCommitsRest({
       },
       { concurrency: 10 },
     );
+    if (membershipChecks > 1 && membershipMisses === membershipChecks) {
+      console.warn(
+        `None of ${membershipChecks} direct authors are visible members of ${org}; all are credited as community. Use a token from an organization member that can read memberships.`,
+      );
+    }
     return omitMergedChildren(
       results,
       commits.filter((entry) => entry !== null),

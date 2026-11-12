@@ -14,6 +14,8 @@ export interface FetchedCommitDetails {
     login: string;
     association: 'team' | 'first_timer' | 'contributor';
   } | null;
+  /** Git author name, used when a direct commit has no linked GitHub account. */
+  authorName?: string;
   mergedAt: string | null;
   createdAt: string | null;
   prTitle: string;
