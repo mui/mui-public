@@ -537,6 +537,8 @@ it.each(['omit', 'include'])(
         },
       },
     });
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    onTestFinished(() => warning.mockRestore());
     const result = await generateChangelog({
       cwd,
       repo: 'test',
@@ -563,6 +565,10 @@ it.each(['omit', 'include'])(
       availability === 'omit'
         ? ['@test/extra', '@test/widget']
         : ['@test/extra', '@test/missing', '@test/private', '@test/widget'],
+    );
+    const omitted = availability === 'omit' ? ['@test/missing', '@test/private'] : [];
+    expect(warning.mock.calls.flat().sort()).toEqual(
+      omitted.map((name) => `Omitting 1 entries for unavailable package ${name}: 1.`),
     );
   },
 );
@@ -621,11 +627,79 @@ it('compares package versions for a workspace nested inside the repository', asy
         sections: { fallbackSection: 'Other' },
         packageNaming: {
           omitUnchanged: true,
-          mappings: { unchanged: '@test/unchanged', bumped: '@test/bumped' },
+          mappings: {
+            unchanged: '@test/unchanged',
+            bumped: '@test/bumped',
+            missing: '@test/missing',
+          },
         },
       },
     },
   });
   expect(result.markdown).toContain('@test/bumped@2.0.0');
   expect(result.markdown).not.toContain('@test/unchanged');
+  expect(result.markdown).not.toContain('@test/missing');
+});
+
+it('validates configuration objects like configuration files', async () => {
+  const { cwd } = await repository();
+  await expect(
+    generateChangelog({
+      cwd,
+      repo: 'test',
+      lastRelease: 'v0',
+      release: 'v1',
+      config: {
+        categorization: {
+          strategy: 'package',
+          labels: {},
+          sections: { fallbackSection: 'Other' },
+        },
+      },
+    }),
+  ).rejects.toThrow('categorization.packageNaming is required');
+});
+
+it('credits the git author of a direct commit without a linked GitHub account', async () => {
+  const { cwd } = await repository();
+  const octokit = new Octokit({
+    request: {
+      fetch: async (input: Parameters<typeof fetch>[0]) => {
+        const url = new URL(input instanceof Request ? input.url : String(input));
+        const commits = [
+          {
+            sha: 'abcdef1234',
+            html_url: 'https://github.com/mui/test/commit/abcdef1234',
+            author: null,
+            commit: {
+              message: 'Direct change',
+              author: { name: 'Jane Doe', date: RELEASE_DATE },
+            },
+          },
+        ];
+        return Object.defineProperty(
+          Response.json({ url: url.href, commits, total_commits: 1 }, { status: OK }),
+          'url',
+          { value: url.href },
+        );
+      },
+    },
+  });
+  const result = await generateChangelog({
+    cwd,
+    repo: 'test',
+    octokit,
+    lastRelease: 'v0',
+    release: 'v1',
+    config: {
+      ...flatConfig,
+      format: {
+        changelogMessage:
+          '{{message}} ([#{{prNumber}}]({{prUrl}})) by [@{{ author }}]({{authorUrl}})',
+      },
+    },
+  });
+  expect(result.markdown).toContain(
+    '- Direct change [abcdef1](https://github.com/mui/test/commit/abcdef1234) by [Jane Doe](https://github.com/mui/test/commit/abcdef1234)',
+  );
 });

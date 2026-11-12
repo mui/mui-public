@@ -323,14 +323,19 @@ function renderCommitMessage(commit, config) {
   }
 
   const login = commit.author?.login;
+  if (!login && commit.authorName) {
+    template = template
+      .replace(/\{\{\s*(\w+)\s*\}\}/g, '{{$1}}')
+      .replaceAll('@{{author}}', '{{author}}');
+  }
   return templateString(template, {
     message: cleanMessage,
     rawMessage,
     prNumber: commit.prNumber ?? '',
     sha: commit.sha.slice(0, SHORT_SHA_LENGTH),
     prUrl: commit.html_url,
-    author: commit.author?.login || 'unknown',
-    authorUrl: `https://github.com/${login}`,
+    author: login || commit.authorName || 'unknown',
+    authorUrl: login ? `https://github.com/${login}` : commit.html_url,
     scope: commit.parsed.scopes[0],
     plan: commit.parsed.plan,
     flagPrefix: commit.parsed.flags
