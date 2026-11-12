@@ -703,3 +703,84 @@ it('credits the git author of a direct commit without a linked GitHub account', 
     '- Direct change [abcdef1](https://github.com/mui/test/commit/abcdef1234) by [Jane Doe](https://github.com/mui/test/commit/abcdef1234)',
   );
 });
+
+it('renders populated packages with breaking-change groups and generic sections', async () => {
+  const { cwd } = await repository();
+  await fs.writeFile(path.join(cwd, 'pnpm-workspace.yaml'), "packages: ['packages/*']");
+  await Promise.all(
+    ['widget', 'empty', 'private'].map(async (name) => {
+      const directory = path.join(cwd, 'packages', name);
+      await fs.mkdir(directory, { recursive: true });
+      await fs.writeFile(
+        path.join(directory, 'package.json'),
+        JSON.stringify({ name: `@test/${name}`, version: '1.0.0', private: name === 'private' }),
+      );
+    }),
+  );
+  const pulls = [
+    { number: 1, title: 'Remove old API', labels: ['scope: widget', 'breaking change'] },
+    { number: 2, title: 'Fix widget', labels: ['scope: widget'] },
+    { number: 3, title: 'Explain migration', labels: ['docs'] },
+    { number: 4, title: 'Private implementation', labels: ['scope: private'] },
+  ];
+  const octokit = new Octokit({
+    request: {
+      fetch: async (input: Parameters<typeof fetch>[0]) => {
+        const url = new URL(input instanceof Request ? input.url : String(input));
+        const pull = pulls.find((p) => p.number === Number(url.pathname.split('/').at(-1)));
+        const data = url.pathname.includes('/compare/')
+          ? {
+              url: url.href,
+              total_commits: pulls.length,
+              commits: pulls.map((p) => ({
+                sha: `sha-${p.number}`,
+                commit: { message: `${p.title} (#${p.number})` },
+              })),
+            }
+          : {
+              ...pull,
+              labels: pull?.labels.map((name) => ({ name })),
+              user: { login: 'author' },
+              author_association: 'MEMBER',
+              merged_at: RELEASE_DATE,
+              created_at: RELEASE_DATE,
+              body: '',
+              html_url: url.href,
+            };
+        return Object.defineProperty(Response.json(data, { status: OK }), 'url', {
+          value: url.href,
+        });
+      },
+    },
+  });
+  const result = await generateChangelog({
+    cwd,
+    repo: 'test',
+    octokit,
+    lastRelease: 'v0',
+    release: 'v1',
+    config: {
+      format: { sectionTitle: { forPackage: '`{{package}}@{{version}}`' } },
+      categorization: {
+        strategy: 'package',
+        labels: {
+          categoryOverrides: { docs: 'Docs' },
+          flags: { 'breaking change': { name: 'Breaking Changes' } },
+        },
+        packageNaming: {
+          layout: 'package',
+          omitUnavailable: true,
+          mappings: { widget: '@test/widget', empty: '@test/empty', private: '@test/private' },
+          genericScopes: ['Docs'],
+        },
+        sections: { fallbackSection: 'Core', groupByFlags: ['breaking change'] },
+      },
+    },
+  });
+  expect(result.markdown).toMatch(/^### `@test\/widget@1.0.0`$/m);
+  expect(result.markdown).toContain('#### Breaking Changes\n\n- Remove old API (#1)');
+  expect(result.markdown).toContain('#### Changes\n\n- Fix widget (#2)');
+  expect(result.markdown).toContain('### Docs\n\n- Explain migration (#3)');
+  expect(result.markdown).not.toContain('@test/empty');
+  expect(result.markdown).not.toContain('@test/private');
+});

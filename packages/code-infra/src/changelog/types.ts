@@ -99,6 +99,8 @@ export interface LabelConfig {
  * Package naming configuration for package-first strategy.
  */
 export interface PackageNamingConfig {
+  /** Product groups with plan subsections (default), or populated packages as top-level sections. */
+  layout?: 'product' | 'package';
   /**
    * Explicit mapping from scope label value to package name.
    * Example: { 'data grid': '@mui/x-data-grid', 'charts': '@mui/x-charts' }
@@ -156,6 +158,8 @@ export interface CategorizationConfig {
    * Section ordering and titles.
    */
   sections: {
+    /** In categorized layouts, split flags into named subsections and other entries under Changes. */
+    groupByFlags?: string[];
     /**
      * Section ordering priority by title.
      * Maps section title to order index (lower values appear first).
