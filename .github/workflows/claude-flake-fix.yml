@@ -104,7 +104,8 @@ on:
         # Name of a GitHub Environment in the caller repo that holds the CircleCI token as a secret.
         # Setting it runs the fetch job in that environment, so the environment's deployment-branch
         # rule gates the token (e.g. master-only) and its CIRCLECI_TOKEN secret is what fetch reads.
-        # Blank runs fetch with no environment — for public projects read unauthenticated.
+        # Blank runs fetch with no token: CircleCI then answers 404 on workflow calls, even for a
+        # public project.
         type: string
         required: false
       debug:
@@ -157,9 +158,9 @@ jobs:
   fetch:
     needs: resolve-ref
     runs-on: ubuntu-latest
-    # Blank => no environment. When set, the environment's branch rule gates the CircleCI token and
-    # supplies it, so a non-allowed branch can't read it.
-    environment: ${{ inputs.circleci-token-environment }}
+    # The environment's branch rule gates the CircleCI token, so a non-allowed branch can't read it.
+    # mui-public's own schedule run has no inputs, so it names its environment here.
+    environment: ${{ inputs.circleci-token-environment || (github.repository == 'mui/mui-public' && 'flake-fix') || '' }}
     permissions: {} # holds only the CircleCI token (a secret), no GITHUB_TOKEN scopes
     outputs:
       classify: ${{ steps.fetch.outputs.classify }}

@@ -54,6 +54,37 @@ function scenarioModel(scenario) {
       logs: {},
     };
   }
+  // `null` workflows or jobs make the fake answer 404, as CircleCI does for a call without a token.
+  if (scenario === 'workflows-unreachable') {
+    return {
+      pipelines: [
+        makePipeline('pipe-2', 101, iso(0), 'second', null),
+        makePipeline('pipe-1', 100, iso(HOUR), 'first', null),
+      ],
+      logs: {},
+    };
+  }
+  if (scenario === 'some-workflows-unreachable') {
+    return {
+      pipelines: [
+        makePipeline('pipe-2', 101, iso(0), 'second', null),
+        makePipeline('pipe-1', 100, iso(HOUR), 'first', [
+          makeWorkflow('wf-1', 'build', 'success', iso(HOUR), [makeJob(5, 'lint', 'success')]),
+        ]),
+      ],
+      logs: {},
+    };
+  }
+  if (scenario === 'jobs-unreachable') {
+    return {
+      pipelines: [
+        makePipeline('pipe-1', 100, iso(0), 'fix the thing', [
+          makeWorkflow('wf-1', 'test', 'failed', iso(0), null),
+        ]),
+      ],
+      logs: {},
+    };
+  }
   if (scenario === 'timeline') {
     // The `unit` job failed on two older commits, then passed on the newest — "already fixed".
     return {
@@ -88,7 +119,7 @@ function fakeCircleCI(scenario) {
   const model = scenarioModel(scenario);
   const workflowsById = new Map();
   for (const pipeline of model.pipelines) {
-    for (const workflow of pipeline.workflows) {
+    for (const workflow of pipeline.workflows ?? []) {
       workflowsById.set(workflow.id, workflow);
     }
   }
@@ -113,6 +144,10 @@ function fakeCircleCI(scenario) {
     const workflowMatch = url.match(/^\/pipeline\/([^/]+)\/workflow$/);
     if (workflowMatch) {
       const pipeline = model.pipelines.find((entry) => entry.id === workflowMatch[1]);
+      if (pipeline?.workflows === null) {
+        response.writeHead(404).end();
+        return;
+      }
       json({
         items: (pipeline?.workflows ?? []).map((workflow) => ({
           id: workflow.id,
@@ -126,6 +161,10 @@ function fakeCircleCI(scenario) {
     const jobMatch = url.match(/^\/workflow\/([^/]+)\/job$/);
     if (jobMatch) {
       const workflow = workflowsById.get(jobMatch[1]);
+      if (workflow?.jobs === null) {
+        response.writeHead(404).end();
+        return;
+      }
       json({ items: workflow?.jobs ?? [] });
       return;
     }
@@ -256,5 +295,32 @@ describe('fetch', () => {
     const { code, classify } = await runFetch('no-failed-jobs');
     expect(code).toBe(0);
     expect(classify).toBe('classify=false');
+  });
+
+  it('reports no data, not clean, when no workflow list loads', async () => {
+    const { code, dataDir, classify } = await runFetch('workflows-unreachable');
+    expect(code).toBe(0);
+    expect(classify).toBe('classify=false');
+    const summary = fs.readFileSync(path.join(dataDir, 'summary.txt'), 'utf8');
+    expect(summary).toMatch(/no data/);
+    expect(summary).not.toMatch(/clean/);
+    expect(summary).toMatch(/HTTP 404 on \S+\/pipeline\/pipe-\d\/workflow/);
+  });
+
+  it('does not report clean when some workflow lists fail to load', async () => {
+    const { code, dataDir, classify } = await runFetch('some-workflows-unreachable');
+    expect(code).toBe(0);
+    expect(classify).toBe('classify=false');
+    const summary = fs.readFileSync(path.join(dataDir, 'summary.txt'), 'utf8');
+    expect(summary).not.toMatch(/clean/);
+    expect(summary).toMatch(/HTTP 404 on \S+\/pipeline\/pipe-2\/workflow/);
+  });
+
+  it('names the failed call when the job lists fail to load', async () => {
+    const { code, dataDir, classify } = await runFetch('jobs-unreachable');
+    expect(code).toBe(0);
+    expect(classify).toBe('classify=false');
+    const summary = fs.readFileSync(path.join(dataDir, 'summary.txt'), 'utf8');
+    expect(summary).toMatch(/HTTP 404 on \S+\/workflow\/wf-1\/job/);
   });
 });
