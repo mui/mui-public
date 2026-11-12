@@ -7,7 +7,15 @@ import {
   EXTENSION_TS,
 } from '@mui/internal-code-infra/eslint';
 import { lintJavascriptDemoFocus } from '@mui/internal-docs-infra/pipeline/lintJavascriptDemoFocus';
+import { lintMarkdownForceStatic } from '@mui/internal-docs-infra/pipeline/lintMarkdownForceStatic';
 import remarkConfig from './.remarkrc.mjs';
+
+const docsInfraPlugin = {
+  rules: {
+    'require-demo-focus': lintJavascriptDemoFocus,
+    'require-force-static': lintMarkdownForceStatic,
+  },
+};
 
 const config = defineConfig(
   createBaseConfig({
@@ -100,10 +108,19 @@ const config = defineConfig(
     // nested "demo of demo" structure, demos/<slug>/demo-*/page.tsx).
     ignores: ['docs/app/**/demos/*/page.tsx', 'docs/app/**/demos/*/page.jsx'],
     plugins: {
-      'docs-infra': { rules: { 'require-demo-focus': lintJavascriptDemoFocus } },
+      'docs-infra': docsInfraPlugin,
     },
     rules: {
       'docs-infra/require-demo-focus': ['error', { wrapReturn: true }],
+    },
+  },
+  {
+    files: ['docs/app/**/page.mdx'],
+    plugins: {
+      'docs-infra': docsInfraPlugin,
+    },
+    rules: {
+      'docs-infra/require-force-static': 'error',
     },
   },
   {

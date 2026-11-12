@@ -375,3 +375,5 @@ Always thread the signal through to `fetch`, downstream `AbortController`s, and 
 - **Inconsistent answers across peers on the same channel.** Peers that return `true` join the barrier; peers that return `false` are marked skipped and commit immediately. If you expect peers to land together, make sure every peer evaluates the same target with the same predicate (for example, read shared config rather than per-instance state).
 
 When in doubt, default to `true` (synchronized) for visible structural swaps and `false` only for purely cosmetic transitions where independent timing is acceptable.
+
+export const dynamic = 'force-static';

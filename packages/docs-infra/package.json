@@ -53,6 +53,7 @@
     "./pipeline/getFileConventions": "./src/pipeline/getFileConventions/index.ts",
     "./pipeline/hastUtils": "./src/pipeline/hastUtils/index.ts",
     "./pipeline/lintJavascriptDemoFocus": "./src/pipeline/lintJavascriptDemoFocus/index.ts",
+    "./pipeline/lintMarkdownForceStatic": "./src/pipeline/lintMarkdownForceStatic/index.ts",
     "./pipeline/loadIsomorphicCodeSource": "./src/pipeline/loadIsomorphicCodeSource/index.ts",
     "./pipeline/loadIsomorphicCodeVariant": "./src/pipeline/loadIsomorphicCodeVariant/index.ts",
     "./pipeline/loadPrecomputedCodeHighlighter": "./src/pipeline/loadPrecomputedCodeHighlighter/index.ts",

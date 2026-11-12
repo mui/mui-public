@@ -9,6 +9,7 @@
 - Enhance Code Types - ([Outline](#enhance-code-types), [Contents](./enhance-code-types/page.mdx))
 - HAST Utilities - ([Outline](#hast-utilities), [Contents](./hast-utils/page.mdx))
 - Lint JavaScript Demo Focus [New] - ([Outline](#lint-javascript-demo-focus), [Contents](./lint-javascript-demo-focus/page.mdx))
+- Lint Markdown Force Static [New] - ([Outline](#lint-markdown-force-static), [Contents](./lint-markdown-force-static/page.mdx))
 - Load Isomorphic Code Source - ([Outline](#load-isomorphic-code-source), [Contents](./load-isomorphic-code-source/page.mdx))
 - Load Isomorphic Code Variant - ([Outline](#load-isomorphic-code-variant), [Contents](./load-isomorphic-code-variant/page.mdx))
 - Load Precomputed Code Highlighter - ([Outline](#load-precomputed-code-highlighter), [Contents](./load-precomputed-code-highlighter/page.mdx))
@@ -375,6 +376,27 @@ An ESLint rule that automatically inserts `@focus` comments around the preview s
 </details>
 
 [Read more](./lint-javascript-demo-focus/page.mdx)
+
+## Lint Markdown Force Static
+
+An ESLint rule that requires `page.mdx` files to export `dynamic = 'force-static'`.
+
+<details>
+
+<summary>Outline</summary>
+
+- Sections:
+  - Overview
+    - Key Features
+  - Installation & Usage
+  - How It Works
+    - 1\. Missing export
+    - 2\. Other values
+  - Related
+
+</details>
+
+[Read more](./lint-markdown-force-static/page.mdx)
 
 ## Load Isomorphic Code Source
 
@@ -1634,3 +1656,5 @@ export const metadata =
       index: true,
     },
   });
+
+export const dynamic = 'force-static';

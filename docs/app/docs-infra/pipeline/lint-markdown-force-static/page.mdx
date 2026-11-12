@@ -1,0 +1,63 @@
+# Lint Markdown Force Static
+
+An ESLint rule that requires `page.mdx` files to export `dynamic = 'force-static'`.
+
+## Overview
+
+Documentation pages are meant to be rendered once at build time. Without an explicit route segment config, a single request-time API (such as `cookies()`, `headers()` or reading `searchParams`) used by a component on the page silently turns it into a dynamically rendered page. Exporting `dynamic = 'force-static'` makes Next.js fail the build or return empty values instead, so the regression is caught immediately.
+
+### Key Features
+
+- **Auto-fixable**: Run `eslint --fix` to append the export to every page that is missing it
+- **Corrects other values**: An exported `dynamic` with any value other than `'force-static'` is reported and replaced
+- **Ignores look-alikes**: Exports such as `dynamicParams` are not mistaken for the segment config
+- **Skips generated indexes**: Index pages written by [`syncPageIndex`](../sync-page-index/page.mdx) are rewritten on every run, so they are left alone
+
+## Installation & Usage
+
+Import the rule and wire it into your ESLint flat config. The rule works on MDX files parsed by [`eslint-plugin-mdx`](https://github.com/mdx-js/eslint-mdx), which exposes the ESM `export` statements of the document:
+
+```js
+// eslint.config.mjs
+import { lintMarkdownForceStatic } from '@mui/internal-docs-infra/pipeline/lintMarkdownForceStatic';
+
+export default [
+  {
+    files: ['docs/app/**/page.mdx'],
+    plugins: {
+      'docs-infra': { rules: { 'require-force-static': lintMarkdownForceStatic } },
+    },
+    rules: {
+      'docs-infra/require-force-static': 'error',
+    },
+  },
+];
+```
+
+## How It Works
+
+The rule looks for an `export const dynamic = ...` statement anywhere in the file.
+
+### 1. Missing export
+
+When the export is absent, the fix appends it to the end of the file:
+
+```mdx
+# Page
+
+Content.
+
+{/* After fix */}
+
+export const dynamic = 'force-static';
+```
+
+### 2. Other values
+
+When `dynamic` is exported with another value, such as `'force-dynamic'` or `'auto'`, the value is replaced with `'force-static'`. A page that intentionally needs dynamic rendering can opt out with an `eslint-disable` comment.
+
+## Related
+
+- [Next.js route segment config: `dynamic`](https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#dynamic)
+
+export const dynamic = 'force-static';
