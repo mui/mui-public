@@ -103,9 +103,11 @@ on:
       circleci-token-environment:
         # Name of a GitHub Environment in the caller repo that holds the CircleCI token as a secret.
         # Setting it runs the fetch job in that environment, so the environment's deployment-branch
-        # rule gates the token (e.g. master-only) and its CIRCLECI_TOKEN secret is what fetch reads.
-        # Blank runs fetch with no token: CircleCI then answers 404 on workflow calls, even for a
-        # public project.
+        # rule gates access to its CIRCLECI_TOKEN secret (e.g. master-only).
+        # Blank defaults to flake-fix in mui/mui-public and no environment elsewhere.
+        # A passed circleci-token secret takes precedence and works without an environment.
+        # Without circleci-token or CIRCLECI_TOKEN, fetch runs unauthenticated and CircleCI answers
+        # 404 on workflow calls, even for a public project.
         type: string
         required: false
       debug:
