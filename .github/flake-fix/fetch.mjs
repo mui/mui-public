@@ -263,13 +263,23 @@ async function main() {
   // Failed-workflow statuses include `error`/`unauthorized`: a workflow that never ran its jobs
   // (broken config, permissions) is still a failed week, not a green one.
   const FAILED_WF_STATUSES = new Set(['failed', 'failing', 'error', 'unauthorized']);
+  // Skipped calls, with the first error (status and URL, never the token) kept for reporting.
   let dropped = 0;
+  let firstDropError = '';
+  const recordDrop = (error) => {
+    dropped += 1;
+    firstDropError ||= error.message;
+  };
+  const dropNote = () =>
+    dropped > 0
+      ? ` ${dropped} CircleCI API calls failed, so data is missing (first: ${firstDropError}).`
+      : '';
   const workflowsByPipeline = await mapPool(pipelines, async (pipeline) => {
     try {
       const data = await httpGet(`${API}/pipeline/${pipeline.id}/workflow`, { token });
       return { pipeline, workflows: data.items ?? [] };
-    } catch {
-      dropped += 1;
+    } catch (error) {
+      recordDrop(error);
       return { pipeline, workflows: [] };
     }
   });
@@ -293,10 +303,21 @@ async function main() {
     FAILED_WF_STATUSES.has(workflow.status),
   );
 
-  if (allWorkflows.length === 0 || failedWorkflows.length === 0) {
+  // A week with skipped calls is not a clean week: CircleCI answers 404 on these calls without a
+  // token, so a missing token would otherwise read as "clean" forever.
+  if (allWorkflows.length === 0 && dropped > 0) {
     finishQuiet(
       outDir,
-      `CircleCI triage: clean (0/${allWorkflows.length} workflow runs failed on ${branch}).`,
+      `CircleCI triage: no data (0 workflows loaded from ${pipelines.length} pipelines on ${branch}).${dropNote()}${token ? '' : ' No CircleCI token is set.'}`,
+    );
+    return;
+  }
+  if (failedWorkflows.length === 0) {
+    finishQuiet(
+      outDir,
+      dropped > 0
+        ? `CircleCI triage: no failed workflow runs found (0/${allWorkflows.length} on ${branch}).${dropNote()}`
+        : `CircleCI triage: clean (0/${allWorkflows.length} workflow runs failed on ${branch}).`,
     );
     return;
   }
@@ -308,8 +329,8 @@ async function main() {
     try {
       const data = await httpGet(`${API}/workflow/${workflow.wfId}/job`, { token });
       return { workflow, jobs: data.items ?? [] };
-    } catch {
-      dropped += 1;
+    } catch (error) {
+      recordDrop(error);
       return { workflow, jobs: [] };
     }
   });
@@ -342,7 +363,7 @@ async function main() {
   if (allFailures.length === 0) {
     finishQuiet(
       outDir,
-      `CircleCI triage: ${failedWorkflows.length} failed workflow runs but no failed jobs found on ${branch}.`,
+      `CircleCI triage: ${failedWorkflows.length} failed workflow runs but no failed jobs found on ${branch}.${dropNote()}`,
     );
     return;
   }
@@ -478,9 +499,11 @@ async function main() {
     `wrote ${logged.length} job files + a timeline for ${failingJobs.size} job(s) (${failureRate}% of runs failed)`,
   );
   if (dropped > 0) {
-    logWarning(
-      `${dropped} CircleCI API calls failed and were skipped — this window is missing some data.`,
-    );
+    // The agent's report takes precedence over summary.txt, so publish needs a separate warning
+    // artifact when we still have enough data to classify.
+    const diagnostics = dropNote().trim();
+    fs.writeFileSync(path.join(outDir, 'diagnostics.txt'), `${diagnostics}\n`);
+    logWarning(diagnostics);
   }
   signalClassify(true);
 }

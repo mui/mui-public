@@ -103,8 +103,11 @@ on:
       circleci-token-environment:
         # Name of a GitHub Environment in the caller repo that holds the CircleCI token as a secret.
         # Setting it runs the fetch job in that environment, so the environment's deployment-branch
-        # rule gates the token (e.g. master-only) and its CIRCLECI_TOKEN secret is what fetch reads.
-        # Blank runs fetch with no environment — for public projects read unauthenticated.
+        # rule gates access to its CIRCLECI_TOKEN secret (e.g. master-only).
+        # Blank defaults to flake-fix in mui/mui-public and no environment elsewhere.
+        # A passed circleci-token secret takes precedence and works without an environment.
+        # Without circleci-token or CIRCLECI_TOKEN, fetch runs unauthenticated and CircleCI answers
+        # 404 on workflow calls, even for a public project.
         type: string
         required: false
       debug:
@@ -157,9 +160,9 @@ jobs:
   fetch:
     needs: resolve-ref
     runs-on: ubuntu-latest
-    # Blank => no environment. When set, the environment's branch rule gates the CircleCI token and
-    # supplies it, so a non-allowed branch can't read it.
-    environment: ${{ inputs.circleci-token-environment }}
+    # The environment's branch rule gates the CircleCI token, so a non-allowed branch can't read it.
+    # mui-public's own schedule run has no inputs, so it names its environment here.
+    environment: ${{ inputs.circleci-token-environment || (github.repository == 'mui/mui-public' && 'flake-fix') || '' }}
     permissions: {} # holds only the CircleCI token (a secret), no GITHUB_TOKEN scopes
     outputs:
       classify: ${{ steps.fetch.outputs.classify }}
@@ -616,6 +619,12 @@ jobs:
               fixText = ' — fix: _(dry run — a draft PR would open)_';
             }
             report = report.replaceAll('{{fix}}', fixText).trimEnd();
+
+            // Fetch diagnostics must survive even when the agent produced its own report.
+            const diagnostics = read('diagnostics.txt').trim();
+            if (diagnostics) {
+              report += `\n\n⚠️ ${diagnostics}`;
+            }
 
             // One footer line after a rule: the run, this run's agent cost, and the insights link.
             const marker = '<!-- flake-fix-report -->';

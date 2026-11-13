@@ -4,8 +4,9 @@
 // Run: pnpm test (this is a vitest project; see vitest.config.mts).
 
 import { createServer } from 'node:http';
-import { spawn } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { once } from 'node:events';
+import { promisify } from 'node:util';
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -13,6 +14,7 @@ import path from 'node:path';
 
 const FETCH = new URL('./fetch.mjs', import.meta.url).pathname;
 const HOUR = 3_600_000;
+const execFileAsync = promisify(execFile);
 
 const makeJob = (jobNumber, name, status) => ({ job_number: jobNumber, name, status });
 const makeWorkflow = (id, name, status, createdAt, jobs) => ({ id, name, status, createdAt, jobs });
@@ -54,6 +56,56 @@ function scenarioModel(scenario) {
       logs: {},
     };
   }
+  // `null` workflows or jobs make the fake answer 404, as CircleCI does for a call without a token.
+  if (scenario === 'workflows-unreachable') {
+    return {
+      pipelines: [
+        makePipeline('pipe-2', 101, iso(0), 'second', null),
+        makePipeline('pipe-1', 100, iso(HOUR), 'first', null),
+      ],
+      logs: {},
+    };
+  }
+  if (scenario === 'some-workflows-unreachable') {
+    return {
+      pipelines: [
+        makePipeline('pipe-2', 101, iso(0), 'second', null),
+        makePipeline('pipe-1', 100, iso(HOUR), 'first', [
+          makeWorkflow('wf-1', 'build', 'success', iso(HOUR), [makeJob(5, 'lint', 'success')]),
+        ]),
+      ],
+      logs: {},
+    };
+  }
+  if (scenario === 'jobs-unreachable') {
+    return {
+      pipelines: [
+        makePipeline('pipe-1', 100, iso(0), 'fix the thing', [
+          makeWorkflow('wf-1', 'test', 'failed', iso(0), null),
+        ]),
+      ],
+      logs: {},
+    };
+  }
+  if (scenario === 'partial-workflows' || scenario === 'partial-jobs') {
+    return {
+      pipelines: [
+        makePipeline(
+          'pipe-2',
+          101,
+          iso(0),
+          'newest run unavailable',
+          scenario === 'partial-workflows'
+            ? null
+            : [makeWorkflow('wf-2', 'test', 'success', iso(0), null)],
+        ),
+        makePipeline('pipe-1', 100, iso(HOUR), 'older failure', [
+          makeWorkflow('wf-1', 'test', 'failed', iso(HOUR), [makeJob(7, 'unit', 'failed')]),
+        ]),
+      ],
+      logs: { 7: 'FAIL: expected 1 to equal 2' },
+    };
+  }
   if (scenario === 'timeline') {
     // The `unit` job failed on two older commits, then passed on the newest — "already fixed".
     return {
@@ -88,7 +140,7 @@ function fakeCircleCI(scenario) {
   const model = scenarioModel(scenario);
   const workflowsById = new Map();
   for (const pipeline of model.pipelines) {
-    for (const workflow of pipeline.workflows) {
+    for (const workflow of pipeline.workflows ?? []) {
       workflowsById.set(workflow.id, workflow);
     }
   }
@@ -113,6 +165,10 @@ function fakeCircleCI(scenario) {
     const workflowMatch = url.match(/^\/pipeline\/([^/]+)\/workflow$/);
     if (workflowMatch) {
       const pipeline = model.pipelines.find((entry) => entry.id === workflowMatch[1]);
+      if (pipeline?.workflows === null) {
+        response.writeHead(404).end();
+        return;
+      }
       json({
         items: (pipeline?.workflows ?? []).map((workflow) => ({
           id: workflow.id,
@@ -126,6 +182,10 @@ function fakeCircleCI(scenario) {
     const jobMatch = url.match(/^\/workflow\/([^/]+)\/job$/);
     if (jobMatch) {
       const workflow = workflowsById.get(jobMatch[1]);
+      if (workflow?.jobs === null) {
+        response.writeHead(404).end();
+        return;
+      }
       json({ items: workflow?.jobs ?? [] });
       return;
     }
@@ -201,6 +261,52 @@ async function runFetch(scenario) {
   };
 }
 
+async function runPublish(dataDir) {
+  const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'flake-publish-'));
+  try {
+    fs.cpSync(dataDir, path.join(workspace, 'publish-input'), { recursive: true });
+    const stepSummary = path.join(workspace, 'step-summary.md');
+    fs.writeFileSync(stepSummary, '');
+
+    // Execute the actual final github-script step with the real Actions summary writer. Its
+    // dry-run path renders the same comment as publication without making GitHub API calls.
+    const workflow = fs.readFileSync(
+      new URL('../workflows/claude-flake-fix.yml', import.meta.url),
+      'utf8',
+    );
+    const reportStep = workflow.split('      - name: Post the report to the tracking issue\n')[1];
+    const script = reportStep.split('          script: |\n')[1].replace(/^ {12}/gm, '');
+    await execFileAsync(
+      process.execPath,
+      [
+        '-e',
+        `(async () => {
+          const core = await import('@actions/core');
+          ${script}
+        })().catch((error) => {
+          console.error(error);
+          process.exitCode = 1;
+        });`,
+      ],
+      {
+        cwd: new URL('../../', import.meta.url),
+        env: {
+          ...process.env,
+          GITHUB_WORKSPACE: workspace,
+          GITHUB_STEP_SUMMARY: stepSummary,
+          DRY_RUN: 'true',
+          PR_URL: '',
+          FIX_COMMIT: '',
+          RUN_URL: 'https://github.com/acme/widget/actions/runs/1',
+        },
+      },
+    );
+    return fs.readFileSync(stepSummary, 'utf8');
+  } finally {
+    fs.rmSync(workspace, { recursive: true, force: true });
+  }
+}
+
 describe('fetch', () => {
   it('writes a per-job file with header and log tail when a job fails', async () => {
     const { code, dataDir, classify } = await runFetch('failing');
@@ -257,4 +363,56 @@ describe('fetch', () => {
     expect(code).toBe(0);
     expect(classify).toBe('classify=false');
   });
+
+  it('reports no data, not clean, when no workflow list loads', async () => {
+    const { code, dataDir, classify } = await runFetch('workflows-unreachable');
+    expect(code).toBe(0);
+    expect(classify).toBe('classify=false');
+    const summary = fs.readFileSync(path.join(dataDir, 'summary.txt'), 'utf8');
+    expect(summary).toMatch(/no data/);
+    expect(summary).not.toMatch(/clean/);
+    expect(summary).toMatch(/HTTP 404 on \S+\/pipeline\/pipe-\d\/workflow/);
+  });
+
+  it('does not report clean when some workflow lists fail to load', async () => {
+    const { code, dataDir, classify } = await runFetch('some-workflows-unreachable');
+    expect(code).toBe(0);
+    expect(classify).toBe('classify=false');
+    const summary = fs.readFileSync(path.join(dataDir, 'summary.txt'), 'utf8');
+    expect(summary).not.toMatch(/clean/);
+    expect(summary).toMatch(/HTTP 404 on \S+\/pipeline\/pipe-2\/workflow/);
+  });
+
+  it('names the failed call when the job lists fail to load', async () => {
+    const { code, dataDir, classify } = await runFetch('jobs-unreachable');
+    expect(code).toBe(0);
+    expect(classify).toBe('classify=false');
+    const summary = fs.readFileSync(path.join(dataDir, 'summary.txt'), 'utf8');
+    expect(summary).toMatch(/HTTP 404 on \S+\/workflow\/wf-1\/job/);
+  });
+
+  it.each([
+    ['partial-workflows', /HTTP 404 on \S+\/pipeline\/pipe-2\/workflow/],
+    ['partial-jobs', /HTTP 404 on \S+\/workflow\/wf-2\/job/],
+  ])(
+    'publishes missing-data diagnostics alongside an agent report (%s)',
+    async (scenario, error) => {
+      const { code, dataDir, classify } = await runFetch(scenario);
+      expect(code).toBe(0);
+      expect(classify).toBe('classify=true');
+      expect(fs.readFileSync(path.join(dataDir, 'jobs', '0000.txt'), 'utf8')).toContain(
+        'FAIL: expected 1 to equal 2',
+      );
+      const agentReport = 'The unit test is still failing.';
+      const fallbackSummary = 'Fallback summary that the agent report supersedes.';
+      fs.writeFileSync(path.join(dataDir, 'report.md'), agentReport);
+      fs.writeFileSync(path.join(dataDir, 'summary.txt'), fallbackSummary);
+
+      const published = await runPublish(dataDir);
+      expect(published).toContain(agentReport);
+      expect(published).not.toContain(fallbackSummary);
+      expect(published).toContain('1 CircleCI API calls failed, so data is missing');
+      expect(published).toMatch(error);
+    },
+  );
 });
