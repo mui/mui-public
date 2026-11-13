@@ -80,6 +80,7 @@ The agent skills previously shipped with this package now live at the repository
 
 ## Upcoming tsdown builds
 
-`code-infra build-new` is a no-op placeholder. It loads tsdown without reading build
-configuration, compiling files or changing output. Continue using `code-infra build`
-for package builds.
+`code-infra build-new` is experimental. It compiles each `src` module to the
+`publishConfig.directory` with tsdown, keeping every package import external. It does not
+apply the Babel configuration or write declarations, `package.json` or extra files.
+Continue using `code-infra build` for package builds.
