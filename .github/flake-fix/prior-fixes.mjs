@@ -5,9 +5,10 @@
 // Kept: open PRs (a fix in flight) and PRs merged in the last 24h — a just-merged fix keeps showing
 // in the failure data until CI next runs, and that gap is exactly when the agent would waste its one
 // slot re-fixing it. A closed-but-unmerged PR (rejected fix) and older merges are dropped: the
-// former covers nothing, the latter have had time for CI to catch up (the flake reads as FIXED by
-// then). The agent judges overlap from each PR's own title and body — no fingerprint matching, which
-// the agent doesn't regenerate identically run to run.
+// former covers nothing, the latter have had time for CI to catch up (the flake reads as RECOVERED,
+// and the agent finds the merged fix in the recovery range). The agent judges overlap from each
+// PR's own title and body — no fingerprint matching, which the agent doesn't regenerate
+// identically run to run.
 
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
