@@ -16,7 +16,11 @@ it('compiles each source module to ESM and CJS', async () => {
       name: '@test/example',
       version: '1.0.0',
       type: 'module',
-      exports: { '.': './src/index.ts', './math/*': './src/math/*.ts' },
+      exports: {
+        '.': './src/index.ts',
+        './math/*': './src/math/*.ts',
+        './element': './src/math/element.js',
+      },
       publishConfig: { directory: 'build' },
     }),
     '.browserslistrc': BROWSERSLIST,
@@ -26,6 +30,7 @@ it('compiles each source module to ESM and CJS', async () => {
     'src/index.ts':
       "import base from 'external';\nexport { two } from './math/two';\nexport const value: number = base;",
     'src/math/two.ts': 'export const two = 2;',
+    'src/math/element.js': 'export const element = <div />;',
     'src/math/three.ts': 'export default 3;',
     'src/math/two.test.ts': 'throw new Error("test files must not be built");',
     'build/stale.js': 'stale',
@@ -36,7 +41,13 @@ it('compiles each source module to ESM and CJS', async () => {
   const outDir = path.join(cwd, 'build');
   const output = await fs.readdir(outDir, { recursive: true });
   expect(output).toEqual(
-    expect.arrayContaining(['index.js', 'index.cjs', 'math/two.js', 'math/two.cjs']),
+    expect.arrayContaining([
+      'index.js',
+      'index.cjs',
+      'math/two.js',
+      'math/two.cjs',
+      'math/element.js',
+    ]),
   );
   expect(output.filter((file) => /test|stale|node_modules/.test(file))).toEqual([]);
   expect(await fs.readFile(path.join(outDir, 'index.js'), 'utf8')).toContain('from "external"');
@@ -226,4 +237,54 @@ it.each([
   });
 
   await expect(execa(process.execPath, [cli, 'build-new'], { cwd })).rejects.toThrow(message);
+});
+
+it('applies the workspace Babel config on top of the base config', async () => {
+  const baseConfig = fileURLToPath(new URL('../babel-config.mjs', import.meta.url));
+  const root = await makeTempFiles({
+    'package.json': JSON.stringify({ private: true }),
+    'pnpm-workspace.yaml': 'packages:\n  - packages/*\n',
+    '.browserslistrc': BROWSERSLIST,
+    'babel.config.mjs': [
+      `import getBaseConfig from ${JSON.stringify(baseConfig)};`,
+      'export default function getBabelConfig(api) {',
+      '  const config = getBaseConfig(api);',
+      "  const plugins = config.plugins.filter(([, , name]) => name !== '@mui/internal-babel-plugin-display-name');",
+      "  if (process.env.NODE_ENV === 'production' && process.env.BABEL_ENV) {",
+      '    plugins.push(({ types: t }) => ({',
+      '      visitor: {',
+      '        Identifier(path) {',
+      "          if (path.node.name === '__RELEASE__' && path.isReferencedIdentifier()) {",
+      "            path.replaceWith(t.stringLiteral('released'));",
+      '          }',
+      '        },',
+      '      },',
+      '    }));',
+      '  }',
+      '  return { ...config, plugins };',
+      '}',
+    ].join('\n'),
+    'packages/example/package.json': JSON.stringify({
+      name: '@test/example',
+      version: '1.0.0',
+      type: 'module',
+      exports: { '.': './src/index.tsx' },
+      publishConfig: { directory: 'build' },
+    }),
+    'packages/example/src/index.tsx': [
+      "import * as React from 'react';",
+      'declare const __RELEASE__: string;',
+      'export const release = __RELEASE__;',
+      'export const Button = React.forwardRef<HTMLButtonElement>((props, ref) => <button ref={ref} />);',
+    ].join('\n'),
+  });
+  const cwd = path.join(root, 'packages/example');
+
+  await execa(process.execPath, [cli, 'build-new', '--bundle', 'esm'], { cwd });
+
+  const esm = await fs.readFile(path.join(cwd, 'build/index.js'), 'utf8');
+  expect(esm).toContain('const release = "released"');
+  expect(esm).not.toContain('displayName');
+  expect(esm).toMatch(/\/\*\s*[#@]__PURE__\s*\*\/ React\.forwardRef/);
+  expect(esm).toContain('/* @__PURE__ */ jsx("button"');
 });

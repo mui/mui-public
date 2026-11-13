@@ -1,32 +1,20 @@
 import { transformAsync } from '@babel/core';
-import pluginReactPureAnnotations from '@babel/plugin-transform-react-pure-annotations';
-import pluginDisplayName from '@mui/internal-babel-plugin-display-name';
-import pluginOptimizeClsx from 'babel-plugin-optimize-clsx';
-import pluginRemovePropTypes from 'babel-plugin-transform-react-remove-prop-types';
 
 const BABEL_FILES = /\.[cm]?[jt]sx?$/;
 const TS_FILES = /\.[cm]?tsx?$/;
 const TS_WITHOUT_JSX = /\.[cm]?ts$/;
 
+/** @type {NonNullable<import('@babel/core').InputOptions['caller']> & { compiler: import('../babel-config.mjs').Compiler }} */
+const CALLER = { name: 'code-infra build-new', compiler: 'oxc' };
+
 /**
- * Runs the MUI Babel plugins that have no Oxc equivalent. Oxc then strips types, compiles JSX
- * and lowers syntax.
- * @param {import('../cli/packageJson').PackageJson} packageJson
+ * Runs a Babel config in `oxc` mode: `getBaseConfig` keeps only the plugins Oxc has no
+ * equivalent for, and the config file adds its own. Oxc then strips types, compiles JSX and
+ * lowers syntax.
+ * @param {string} configFile
  * @returns {import('tsdown').Rolldown.Plugin}
  */
-export function babelPlugin(packageJson) {
-  const dependencies = packageJson.dependencies ?? {};
-  /** @type {import('@babel/core').PluginItem[]} */
-  const plugins = [pluginDisplayName];
-  if (dependencies['prop-types'] !== undefined) {
-    plugins.push([pluginRemovePropTypes, { mode: 'unsafe-wrap' }]);
-  }
-  if (dependencies.clsx !== undefined || dependencies.classnames !== undefined) {
-    plugins.push(pluginOptimizeClsx);
-  }
-  // Oxc only marks JSX as pure, not React calls such as `createContext()`.
-  plugins.push(pluginReactPureAnnotations);
-
+export function babelPlugin(configFile) {
   return {
     name: 'code-infra:babel',
     transform: {
@@ -42,11 +30,11 @@ export function babelPlugin(packageJson) {
         }
         const result = await transformAsync(code, {
           filename: id,
-          configFile: false,
+          configFile,
           babelrc: false,
+          caller: CALLER,
           sourceMaps: true,
           parserOpts: { plugins: syntax },
-          plugins,
         });
         if (!result?.code) {
           return null;
