@@ -1797,7 +1797,13 @@ function resolveConcreteTypeOperatorResult(
 
 function compactTypeOperatorOperand(type: AnyType): AnyType {
   if (type instanceof ObjectNode && type.typeName) {
-    return new ObjectNode(type.typeName, [], undefined, type.indexSignature);
+    return new ObjectNode(
+      type.typeName,
+      [],
+      undefined,
+      type.indexSignature,
+      type.properties.length > 0 || type.propertiesOmitted,
+    );
   }
 
   return type;

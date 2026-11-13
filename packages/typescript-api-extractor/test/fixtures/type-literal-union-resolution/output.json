@@ -494,7 +494,8 @@
 										"typeName": {
 											"name": "Params"
 										},
-										"properties": []
+										"properties": [],
+										"propertiesOmitted": true
 									},
 									"resolvedType": {
 										"kind": "union",

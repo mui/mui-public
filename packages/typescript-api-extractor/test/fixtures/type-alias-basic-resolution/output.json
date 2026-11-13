@@ -71,7 +71,8 @@
 									"typeName": {
 										"name": "AliasToGeneric"
 									},
-									"properties": []
+									"properties": [],
+									"propertiesOmitted": true
 								},
 								"name": "s",
 								"optional": false
@@ -185,7 +186,8 @@
 											"typeName": {
 												"name": "AliasToGeneric"
 											},
-											"properties": []
+											"properties": [],
+											"propertiesOmitted": true
 										},
 										{
 											"kind": "intrinsic",
@@ -319,7 +321,8 @@
 							"typeName": {
 								"name": "AliasToGeneric"
 							},
-							"properties": []
+							"properties": [],
+							"propertiesOmitted": true
 						},
 						"optional": false
 					},
@@ -433,7 +436,8 @@
 									"typeName": {
 										"name": "AliasToGeneric"
 									},
-									"properties": []
+									"properties": [],
+									"propertiesOmitted": true
 								},
 								{
 									"kind": "intrinsic",
