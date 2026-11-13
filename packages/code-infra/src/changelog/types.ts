@@ -1,3 +1,5 @@
+import type { Octokit } from '@octokit/rest';
+
 /**
  * Commit details fetched from GitHub including PR information and labels.
  */
@@ -5,12 +7,15 @@ export interface FetchedCommitDetails {
   sha: string;
   message: string;
   labels: string[];
-  prNumber: number;
+  /** Null for direct commits without a pull request. */
+  prNumber: number | null;
   html_url: string;
   author: {
     login: string;
     association: 'team' | 'first_timer' | 'contributor';
   } | null;
+  /** Git author name, used when a direct commit has no linked GitHub account. */
+  authorName?: string;
   mergedAt: string | null;
   createdAt: string | null;
   prTitle: string;
@@ -32,7 +37,11 @@ export interface ParsedLabels {
    */
   components: string[];
   plan?: string;
+  /** Title-derived tiers keyed by lowercase scope; explicit plan labels take precedence. */
+  scopePlans?: Record<string, string>;
   flags: string[];
+  /** Resolved bracket prefixes, including unrelated original prefixes. */
+  titlePrefixes?: string[];
   /**
    * Category override from a label (e.g., 'all components' -> 'General changes').
    * This overrides the normal categorization logic.
@@ -51,9 +60,16 @@ export interface CategorizedCommit extends FetchedCommitDetails {
  * Configuration for label parsing.
  */
 export interface LabelConfig {
-  plan: {
+  plan?: {
     values: string[];
   };
+  /**
+   * Bracket prefix -> canonical labels, e.g. { Grid: ['scope: grid'], grid: ['scope: grid'] }
+   * renders either equivalent spelling as [Grid], since Grid is listed first.
+   * Rendering keeps unmapped prefixes first, then prefers mappings with more labels.
+   * A plan in a scoped mapping applies only to that mapping's scopes.
+   */
+  titleMappings?: Record<string, string[]>;
   scope?: {
     prefix: string[];
   };
@@ -74,7 +90,7 @@ export interface LabelConfig {
   flags?: Record<
     string,
     {
-      name: string;
+      name?: string;
       prefix?: string;
       suffix?: string;
     }
@@ -86,11 +102,19 @@ export interface LabelConfig {
  * Package naming configuration for package-first strategy.
  */
 export interface PackageNamingConfig {
+  /** Product groups with plan subsections (default), or populated packages as top-level sections. */
+  layout?: 'product' | 'package';
   /**
    * Explicit mapping from scope label value to package name.
    * Example: { 'data grid': '@mui/x-data-grid', 'charts': '@mui/x-charts' }
    */
   mappings: Record<string, string>;
+  /** Only omit empty product groups when every configured tier version is unchanged. */
+  omitUnchanged?: boolean;
+  /** Omit private or absent packages when workspace manifests are available. */
+  omitUnavailable?: boolean;
+  /** Additional package destinations; ignored when a category override applies. */
+  additionalPackages?: (commit: CategorizedCommit) => string[];
 
   /**
    * Mappings for different plan variants.
@@ -136,6 +160,8 @@ export interface CategorizationConfig {
    * Section ordering and titles.
    */
   sections: {
+    /** Split flags into named subsections and other entries under Changes. */
+    groupByFlags?: string[];
     /**
      * Section ordering priority by title.
      * Maps section title to order index (lower values appear first).
@@ -178,6 +204,8 @@ export interface PlanInheritanceConfig {
  * Configuration for version and date formatting.
  */
 export interface FormatConfig {
+  /** Keep resolved bracket prefixes in each entry (default: omit prefixes). */
+  preservePrefixes?: boolean;
   /**
    * Version format template.
    * Use {{version}} placeholder, the value will be picked from workspace package.json.
@@ -202,13 +230,17 @@ export interface FormatConfig {
    * Format for PR and author attribution. Available placeholders:
    * - {{message}}: Commit message (cleaned up first line)
    * - {{rawMessage}}: Raw commit message (without cleanup and only the first line)
-   * - {{prNumber}}: Pull request number
-   * - {{prUrl}}: Pull request URL
+   * - {{prNumber}}: Pull request number (SHA for direct-commit string templates)
+   * - {{prUrl}}: Pull request or commit URL
+   * - {{sha}}: Short commit SHA
    * - {{author}}: Author username
    * - {{scope}}: Scope value
    * - {{plan}}: Plan value
    *
-   * @example '{{message}} (#[{{prNumber}}]({{prUrl}}) by @{{author}})'
+   * Function callbacks receive null prNumber for direct commits and must format their own links.
+   * String templates replace PR links with commit links for direct commits.
+   *
+   * @example '{{message}} ([#{{prNumber}}]({{prUrl}})) by @{{author}}'
    */
   changelogMessage?: string | ((commit: CategorizedCommit) => string);
   sectionTitle?: {
@@ -261,6 +293,13 @@ export type PluralizedMessage =
  * Configuration for contributors section.
  */
 export interface ContributorsConfig {
+  /** Credit all fetched commits or only displayed commits (default). */
+  source?: 'all' | 'filtered';
+  /**
+   * PR labels marking cherry-picks; their original author is credited instead of the picker.
+   * @default ['cherry-pick']
+   */
+  cherryPickLabels?: string[];
   /**
    * Disable the contributors section entirely.
    * @default false
@@ -300,7 +339,8 @@ export interface FilterConfig {
 
   /**
    * Exclude these authors from being shown in the intro thank you message.
-   * Supports string matching and regular expressions.
+   * Strings match exact logins; regular expressions match patterns.
+   * Applies independently of entry exclusions, including when contributors.source is 'all'.
    */
   excludeAuthorsFromContributors?: (RegExp | string)[];
 
@@ -378,7 +418,7 @@ export interface GenerateChangelogOptions {
   /**
    * Repository name (e.g., 'mui-x').
    */
-  repo: string;
+  repo?: string;
 
   /**
    * GitHub organization name (default: 'mui').
@@ -388,31 +428,41 @@ export interface GenerateChangelogOptions {
   /**
    * Last release tag or commit ref.
    */
-  lastRelease: string;
+  lastRelease?: string;
 
   /**
    * Current release tag or commit ref.
    */
-  release: string;
+  release?: string;
 
   /**
    * Version string for the changelog (e.g., '8.19.0').
    */
-  version: string;
+  version?: string;
 
   /**
    * Release date (will be formatted according to config).
    */
-  date: Date;
+  date?: Date;
 
   /**
-   * Changelog configuration (if not loading from file).
+   * Configuration object or file path; defaults to scripts/changelog.config.mjs.
    */
-  config: ChangelogConfig;
+  config?: ChangelogConfig | string;
   /**
    * Current working directory to run commands in.
    */
   cwd?: string;
+  /** Authenticated GitHub client, shared with release automation. */
+  octokit?: Octokit;
+}
+
+/** Resolved release metadata used by the renderer. */
+export interface ChangelogRelease {
+  lastRelease: string;
+  release: string;
+  version: string;
+  date: Date;
 }
 
 /**

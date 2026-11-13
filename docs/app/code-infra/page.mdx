@@ -18,4 +18,31 @@ npm install @mui/internal-code-infra
 
 ## Usage
 
-TODO
+### Changelog generation
+
+```bash
+pnpm code-infra generate-changelog --lastRelease v1.0.0
+```
+
+The default release is the local HEAD commit, including on maintenance branches.
+The default config is `scripts/changelog.config.mjs` inside `--cwd`.
+An explicit `--config` path is relative to the process working directory.
+
+Repository configs control output, package routing, filters and contributor policy.
+Set `categorization.packageNaming.layout: 'package'` for populated packages as top-level
+headings; the default groups packages under product headings with plan subsections.
+Set `categorization.sections.groupByFlags: ['breaking change']` to split flagged entries
+into subsections named by `categorization.labels.flags`, with remaining entries under Changes.
+Sections without matching flags keep a single list.
+
+A `titleMappings` alias containing a scope and a plan applies that plan only to its scopes.
+For example, `[DataGridPremium][charts][chat]` uses Premium for Data Grid and community
+packages for Charts and Chat. Explicit GitHub plan labels take precedence over title hints.
+In shared PRs, an unscoped plan label applies to products with a matching tier; other
+products keep their base package.
+
+`contributors.source: 'all'` credits fetched changes even when entry filters exclude them;
+use `excludeAuthorsFromContributors` to exclude credit separately.
+Explicit author filters still apply after cherry-pick attribution is resolved.
+PRs labeled `cherry-pick` credit their original author; set
+`contributors.cherryPickLabels` to use other labels.

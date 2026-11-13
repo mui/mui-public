@@ -1,6 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { validateChangelogConfig } from './validateChangelogConfig.mjs';
 
 /**
  * @typedef {import('./types.ts').ChangelogConfig} ChangelogConfig
@@ -42,7 +43,7 @@ export async function loadChangelogConfig(configPath, cwd = process.cwd()) {
     }
 
     // Validate config
-    validateConfig(config);
+    validateChangelogConfig(config);
 
     return config;
   } catch (error) {
@@ -51,49 +52,5 @@ export async function loadChangelogConfig(configPath, cwd = process.cwd()) {
     }
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`Failed to load changelog config: ${message}`);
-  }
-}
-
-/**
- * Validates changelog configuration.
- *
- * @param {ChangelogConfig} config - Configuration to validate
- * @throws {Error} If configuration is invalid
- */
-function validateConfig(config) {
-  const errors = [];
-
-  // Check required fields
-  if (!config.format) {
-    errors.push('Config must include "format" field');
-  }
-
-  if (!config.categorization) {
-    errors.push('Config must include "categorization" field');
-  }
-
-  // Validate categorization
-  if (config.categorization) {
-    if (!['component', 'package'].includes(config.categorization.strategy)) {
-      errors.push('categorization.strategy must be "component" or "package"');
-    }
-
-    if (config.categorization.strategy === 'package' && !config.categorization.packageNaming) {
-      errors.push('categorization.packageNaming is required when strategy is "package"');
-    }
-
-    if (config.categorization.packageNaming) {
-      if (!config.categorization.packageNaming.mappings) {
-        errors.push('categorization.packageNaming.mappings is required');
-      }
-
-      if (typeof config.categorization.packageNaming.mappings !== 'object') {
-        errors.push('categorization.packageNaming.mappings must be an object');
-      }
-    }
-  }
-
-  if (errors.length > 0) {
-    throw new Error(`Invalid changelog config:\n  - ${errors.join('\n  - ')}`);
   }
 }

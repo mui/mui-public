@@ -3,7 +3,12 @@ import { throttling } from '@octokit/plugin-throttling';
 import { Octokit } from '@octokit/rest';
 import { mapAsync } from 'es-toolkit/array';
 
-import { persistentAuthStrategy } from '../utils/github.mjs';
+import { persistentAuthStrategy, getRateLimitRetryTime } from '../utils/github.mjs';
+
+const HTTP_NOT_FOUND = 404;
+const HTTP_FORBIDDEN = 403;
+const AUTHOR_SUFFIX = /\s+\(@[\w-]+\)(?=\s+\(#\d+\)\s*$)/m;
+const DEFAULT_CHERRY_PICK_LABELS = ['cherry-pick'];
 
 const ThrottledOctokit = Octokit.plugin(throttling, retry);
 
@@ -34,6 +39,7 @@ function shouldRetryRateLimit(retryAfter, options, octokit, retryCount) {
  * @property {string} lastRelease
  * @property {string} release
  * @property {string} [org='mui'] - GitHub organization name, defaults to 'mui'
+ * @property {string[]} [cherryPickLabels] - Labels marking cherry-pick PRs whose original author should be credited
  * @property {(progress: { phase: string; count: number; total: number }) => void} [onProgress] - Called as commits are listed and their pull request details are fetched
  */
 
@@ -62,6 +68,7 @@ export async function fetchCommitsBetweenRefs(opts) {
     lastRelease: opts.lastRelease,
     release: opts.release,
     org: opts.org ?? 'mui',
+    cherryPickLabels: opts.cherryPickLabels,
     onProgress: opts.onProgress,
   });
 }
@@ -75,7 +82,15 @@ export async function fetchCommitsBetweenRefs(opts) {
  *
  * @returns {Promise<FetchedCommitDetails[]>}
  */
-async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mui', onProgress }) {
+async function fetchCommitsRest({
+  octokit,
+  repo,
+  lastRelease,
+  release,
+  org = 'mui',
+  cherryPickLabels = DEFAULT_CHERRY_PICK_LABELS,
+  onProgress,
+}) {
   /**
    * @typedef {Awaited<ReturnType<Octokit['repos']['compareCommits']>>['data']['commits']} Commits
    */
@@ -102,36 +117,82 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
     });
   }
 
+  /** @type {Map<string, Promise<'team' | 'contributor'>>} */
+  const authorMemberships = new Map();
+  let membershipChecks = 0;
+  let membershipMisses = 0;
+
+  /** @param {string} login @param {AbortSignal} signal @returns {Promise<'team' | 'contributor'>} */
+  async function checkMembership(login, signal) {
+    membershipChecks += 1;
+    try {
+      await octokit.orgs.checkMembershipForUser({ org, username: login, request: { signal } });
+      return 'team';
+    } catch (error) {
+      if (getRateLimitRetryTime(error)) {
+        throw error;
+      }
+      if (error instanceof Error && 'status' in error) {
+        if (error.status === HTTP_NOT_FOUND) {
+          membershipMisses += 1;
+          return 'contributor';
+        }
+        if (error.status === HTTP_FORBIDDEN) {
+          console.warn(`Cannot check membership for @${login}; treating as community.`);
+          return 'contributor';
+        }
+      }
+      throw error;
+    }
+  }
+
+  /** @param {string} login @param {AbortSignal} signal @returns {Promise<'team' | 'contributor'>} */
+  async function getMembershipAssociation(login, signal) {
+    if (login.endsWith('[bot]')) {
+      return 'contributor';
+    }
+    let association = authorMemberships.get(login);
+    if (!association) {
+      association = checkMembership(login, signal);
+      authorMemberships.set(login, association);
+    }
+    return association;
+  }
+
   /**
    * @param {Commits[number]} commit
    * @param {AbortSignal} signal
    * @returns {Promise<FetchedCommitDetails | null>}
    */
   const fetchCommitDetails = async (commit, signal) => {
-    const matches = [...commit.commit.message.matchAll(/#(\d+)/g)];
-    // The PR number is always the last match.
-    // Sometimes the PR titles include an issue number like this:
-    // [tag] PR title (#00001) (#00002)
-    const prMatch = matches.at(-1);
+    // Squash-merge subjects end with the PR number; issue references in prose do not.
+    const prMatch = commit.commit.message.split('\n')[0].match(/\(#(\d+)\)\s*$/);
     if (!prMatch) {
-      return null;
+      return directCommit(commit, signal);
     }
 
-    const prNumber = parseInt(prMatch[1], 10);
+    const prNumber = Number(prMatch[1]);
 
-    const pr = await octokit.pulls.get({
-      owner: org,
-      repo,
-      pull_number: prNumber,
-      headers: {
-        Accept: 'application/vnd.github.text+json',
-      },
-      request: { signal },
-    });
+    let pr;
+    try {
+      pr = await octokit.pulls.get({
+        owner: org,
+        repo,
+        pull_number: prNumber,
+        headers: { Accept: 'application/vnd.github.text+json' },
+        request: { signal },
+      });
+    } catch (error) {
+      if (error instanceof Error && 'status' in error && error.status === HTTP_NOT_FOUND) {
+        return directCommit(commit, signal);
+      }
+      throw error;
+    }
 
     const labels = pr.data.labels.map((label) => label.name);
 
-    return /** @type {FetchedCommitDetails} */ ({
+    /** @type {FetchedCommitDetails} */
+    const details = {
       sha: commit.sha,
       message: commit.commit.message,
       labels,
@@ -146,9 +207,83 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
           }
         : null,
       prTitle: pr.data.title,
-      prBody: pr.data.body,
-    });
+      prBody: pr.data.body ?? '',
+    };
+
+    const isCherryPick = labels.some((label) => cherryPickLabels.includes(label));
+    if (!isCherryPick) {
+      return details;
+    }
+    if (!details.author?.login.endsWith('[bot]')) {
+      details.message = details.message.replace(AUTHOR_SUFFIX, '');
+      return details;
+    }
+
+    // Only structured backport references or an explicit title suffix establish attribution.
+    const originalRef = details.prBody.match(
+      /(?:cherry[- ]pick(?:ed)?(?: from| of)?|original(?: pull request| pr)?)\s*:?\s*(?:https:\/\/github\.com\/([^/\s]+)\/([^/\s]+)\/pull\/|#)(\d+)/i,
+    );
+    const originalLogin = details.prTitle.match(/\(@([\w-]+)\)\s*$/)?.[1];
+    if (originalRef) {
+      const owner = originalRef[1] ?? org;
+      const originalRepo = originalRef[2] ?? repo;
+      const number = Number(originalRef[3]);
+      if (owner !== org || originalRepo !== repo || number !== prNumber) {
+        try {
+          const original = await octokit.pulls.get({
+            owner,
+            repo: originalRepo,
+            pull_number: number,
+            request: { signal },
+          });
+          if (original.data.user?.login) {
+            details.author = {
+              login: original.data.user.login,
+              association: getAuthorAssociation(original.data.author_association),
+            };
+          }
+        } catch (error) {
+          if (!(error instanceof Error && 'status' in error && error.status === HTTP_NOT_FOUND)) {
+            throw error;
+          }
+        }
+      }
+    }
+    if (details.author?.login.endsWith('[bot]') && originalLogin) {
+      details.author = {
+        login: originalLogin,
+        association: await getMembershipAssociation(originalLogin, signal),
+      };
+    }
+
+    if (details.author?.login.endsWith('[bot]')) {
+      console.warn(
+        `Cannot resolve original author for cherry-pick #${prNumber}; retaining @${details.author.login}.`,
+      );
+    } else {
+      details.message = details.message.replace(AUTHOR_SUFFIX, '');
+    }
+    return details;
   };
+
+  /** @param {Commits[number]} commit @param {AbortSignal} signal @returns {Promise<FetchedCommitDetails>} */
+  async function directCommit(commit, signal) {
+    const login = commit.author?.login;
+    const association = login ? await getMembershipAssociation(login, signal) : 'contributor';
+    return {
+      sha: commit.sha,
+      message: commit.commit.message,
+      labels: [],
+      prNumber: null,
+      html_url: commit.html_url,
+      author: login ? { login, association } : null,
+      authorName: commit.commit.author?.name,
+      mergedAt: commit.commit.author?.date ?? null,
+      createdAt: commit.commit.author?.date ?? null,
+      prTitle: '',
+      prBody: '',
+    };
+  }
 
   // `mapAsync` rejects on the first error but still runs every queued callback.
   // Aborted once it settles, which cancels requests in flight and skips the ones not started yet.
@@ -171,6 +306,11 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
       },
       { concurrency: 10 },
     );
+    if (membershipChecks > 1 && membershipMisses === membershipChecks) {
+      console.warn(
+        `None of ${membershipChecks} direct authors are visible members of ${org}; all are credited as community. Use a token from an organization member that can read memberships.`,
+      );
+    }
     return commits.filter((entry) => entry !== null);
   } finally {
     controller.abort();
