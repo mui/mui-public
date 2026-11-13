@@ -35,6 +35,12 @@ Set `categorization.sections.groupByFlags: ['breaking change']` to split flagged
 into subsections named by `categorization.labels.flags`, with remaining entries under Changes.
 Sections without matching flags keep a single list.
 
+A `titleMappings` alias containing a scope and a plan applies that plan only to its scopes.
+For example, `[DataGridPremium][charts][chat]` uses Premium for Data Grid and community
+packages for Charts and Chat. Explicit GitHub plan labels take precedence over title hints.
+In shared PRs, an unscoped plan label applies to products with a matching tier; other
+products keep their base package.
+
 `contributors.source: 'all'` credits fetched changes even when entry filters exclude them;
 use `excludeAuthorsFromContributors` to exclude credit separately.
 Explicit author filters still apply after cherry-pick attribution is resolved.
