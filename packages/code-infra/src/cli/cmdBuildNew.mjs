@@ -1,3 +1,4 @@
+import getTargets from '@babel/helper-compilation-targets';
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
@@ -10,6 +11,8 @@ import {
   getOutExtension,
   validatePkgJson,
 } from '../utils/build.mjs';
+import { getVersionEnvVariables } from '../utils/babel.mjs';
+import { babelPlugin } from '../utils/babelPlugin.mjs';
 import { getPublishedPkgJson } from '../utils/getPublishedPkgJson.mjs';
 
 /**
@@ -23,6 +26,47 @@ const SOURCE_EXTENSIONS = ['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs',
 
 /** @type {Record<import('../utils/build.mjs').BundleType, 'es' | 'cjs'>} */
 const FORMATS = { esm: 'es', cjs: 'cjs' };
+
+/** @type {Record<import('../utils/build.mjs').BundleType, string>} */
+const BROWSERSLIST_ENVS = { esm: 'stable', cjs: 'node' };
+
+// Oxc exports no compat table and accepts some engines it then ignores (android, ie, hermes,
+// rhino), so this lists the Babel target engines Oxc was verified to lower for.
+const OXC_ENGINES = new Set([
+  'chrome',
+  'edge',
+  'electron',
+  'firefox',
+  'ios',
+  'node',
+  'opera',
+  'safari',
+  'samsung',
+]);
+
+/**
+ * Resolves the bundle's browserslist environment the way `@babel/preset-env` does for
+ * `code-infra build`. Oxc can't lower for every engine Babel knows, so those fail instead of
+ * silently shipping less-compiled code.
+ * @param {string} cwd
+ * @param {import('../utils/build.mjs').BundleType} bundle
+ * @returns {string[]} Oxc targets.
+ */
+function getTarget(cwd, bundle) {
+  const env = BROWSERSLIST_ENVS[bundle];
+  const targets = Object.entries(getTargets({}, { configPath: cwd, browserslistEnv: env }));
+  if (targets.length === 0) {
+    throw new Error(`No browserslist targets found for the "${env}" environment.`);
+  }
+
+  const unsupported = targets.filter(([engine]) => !OXC_ENGINES.has(engine));
+  if (unsupported.length > 0) {
+    const engines = unsupported.map(([engine]) => engine).join(', ');
+    throw new Error(`Oxc cannot target ${engines} from the "${env}" browserslist environment.`);
+  }
+
+  return targets.map(([engine, version]) => `${engine}${version}`);
+}
 
 /**
  * @param {unknown} value
@@ -154,6 +198,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     const bundles = [...new Set(args.bundle)];
     const entry = await getEntry(packageJson, { cwd, packageType });
 
+    const versionEnv = getVersionEnvVariables(packageJson.version);
     const { build } = await import('tsdown');
     await build({
       cwd,
@@ -163,7 +208,12 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       root: SOURCE_DIR,
       outDir,
       clean: true,
-      format: bundles.map((bundle) => FORMATS[bundle]),
+      format: Object.fromEntries(
+        bundles.map((bundle) => [FORMATS[bundle], { target: getTarget(cwd, bundle) }]),
+      ),
+      env: { ...versionEnv, MUI_PRERELEASE: versionEnv.MUI_PRERELEASE ?? null },
+      envPrefix: [],
+      plugins: [babelPlugin(packageJson)],
       outExtensions: ({ format }) => ({
         js: getOutExtension(format === 'es' ? 'esm' : 'cjs', { packageType }),
       }),

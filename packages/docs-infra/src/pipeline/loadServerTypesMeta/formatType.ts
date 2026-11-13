@@ -694,8 +694,8 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
   // they are the only kinds expected to fall through here. Asserting that keeps a node kind
   // the parser gains later from silently documenting itself as the word `unknown`, which is
   // how preserved `keyof` operators went unnoticed through a parser upgrade.
-  // Parenthesized so this reads as an expression rather than a `type` alias declaration.
-  (type) satisfies tae.ClassNode | tae.ComponentNode | tae.EnumNode;
+  // `void` keeps this an expression: a statement starting with `type` parses as a type alias.
+  void (type satisfies tae.ClassNode | tae.ComponentNode | tae.EnumNode);
   return 'unknown';
 }
 

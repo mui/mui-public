@@ -8,6 +8,7 @@ import { expect, it } from 'vitest';
 import { makeTempFiles } from '../utils/testUtils.mjs';
 
 const cli = fileURLToPath(new URL('../../bin/code-infra.mjs', import.meta.url));
+const BROWSERSLIST = '[stable]\nchrome 100\n[node]\nnode 14.0\n';
 
 it('compiles each source module to ESM and CJS', async () => {
   const cwd = await makeTempFiles({
@@ -18,6 +19,7 @@ it('compiles each source module to ESM and CJS', async () => {
       exports: { '.': './src/index.ts', './math/*': './src/math/*.ts' },
       publishConfig: { directory: 'build' },
     }),
+    '.browserslistrc': BROWSERSLIST,
     'pnpm-workspace.yaml': 'packages: []\n',
     'node_modules/external/package.json': JSON.stringify({ name: 'external', main: 'index.js' }),
     'node_modules/external/index.js': 'module.exports = 40;',
@@ -52,6 +54,7 @@ it.each([
 ])('copies the same files as the Babel build for %s', async (...copy) => {
   const root = await makeTempFiles({
     'package.json': JSON.stringify({ private: true }),
+    '.browserslistrc': BROWSERSLIST,
     'pnpm-workspace.yaml': 'packages:\n  - packages/*\n',
     'babel.config.mjs': 'export default {};',
     LICENSE: 'Workspace license',
@@ -109,6 +112,7 @@ it.each([
 it('writes the same package.json as the Babel build', async () => {
   const root = await makeTempFiles({
     'package.json': JSON.stringify({ private: true }),
+    '.browserslistrc': BROWSERSLIST,
     'pnpm-workspace.yaml': 'packages:\n  - packages/*\n',
     'babel.config.mjs': 'export default {};',
     'packages/example/package.json': JSON.stringify({
@@ -150,4 +154,76 @@ it('writes the same package.json as the Babel build', async () => {
 
   expect(JSON.parse(legacy)).toHaveProperty('bin', { example: './cli.js' });
   expect(await fs.readFile(manifest, 'utf8')).toBe(legacy);
+});
+
+it('applies the MUI Babel plugins and native transforms', async () => {
+  const cwd = await makeTempFiles({
+    'package.json': JSON.stringify({
+      name: '@test/example',
+      version: '1.2.3',
+      type: 'module',
+      dependencies: { clsx: '*', 'prop-types': '*' },
+      exports: { '.': './src/index.tsx', './context': './src/context.ts' },
+      publishConfig: { directory: 'build' },
+    }),
+    'pnpm-workspace.yaml': 'packages: []\n',
+    '.browserslistrc': BROWSERSLIST,
+    'src/context.ts':
+      "import * as React from 'react';\nexport const Context = React.createContext(null);",
+    'src/index.tsx': [
+      "import * as React from 'react';",
+      "import PropTypes from 'prop-types';",
+      "import clsx from 'clsx';",
+      'const Button = React.forwardRef<HTMLButtonElement, { className?: string }>((props, ref) => (',
+      "  <button ref={ref} className={clsx('root', props.className)} />",
+      '));',
+      'export function Link(props: { href?: string }) {',
+      '  return <a href={props.href} />;',
+      '}',
+      'Link.propTypes = { href: PropTypes.string };',
+      'export const version = process.env.MUI_VERSION;',
+      'export const prerelease = process.env.MUI_PRERELEASE;',
+      'export const helper = (value?: { a: number }) => value?.a;',
+      'export default Button;',
+    ].join('\n'),
+  });
+
+  await execa(process.execPath, [cli, 'build-new'], { cwd });
+
+  /** @param {string} file */
+  const read = (file) => fs.readFile(path.join(cwd, 'build', file), 'utf8');
+  const [esm, cjs, context] = await Promise.all([
+    read('index.js'),
+    read('index.cjs'),
+    read('context.js'),
+  ]);
+  expect(context).toMatch(/\/\*\s*[#@]__PURE__\s*\*\/ React\.createContext/);
+  expect(esm).toMatch(/Button\.displayName = "Button"/);
+  expect(esm).toContain('process.env.NODE_ENV !== "production" && (Link.propTypes');
+  expect(esm).toContain('const version = "1.2.3"');
+  expect(esm).toContain('const prerelease = null');
+  expect(esm).toContain('from "react/jsx-runtime"');
+  expect(esm).toContain('value?.a');
+  expect(cjs).not.toContain('?.');
+});
+
+it.each([
+  ['[stable]\nop_mob 80\n[node]\nnode 14.0\n', /opera_mobile.*"stable"/],
+  ['[stable]\nie 11\n[node]\nnode 14.0\n', /ie.*"stable"/],
+  ['[stable]\nchrome 100\n', /No browserslist targets.*"node"/],
+])('rejects browserslist targets Oxc cannot honour: %j', async (browserslist, message) => {
+  const cwd = await makeTempFiles({
+    'package.json': JSON.stringify({
+      name: '@test/example',
+      version: '1.0.0',
+      type: 'module',
+      exports: { '.': './src/index.js' },
+      publishConfig: { directory: 'build' },
+    }),
+    'pnpm-workspace.yaml': 'packages: []\n',
+    '.browserslistrc': browserslist,
+    'src/index.js': 'export const value = 1;',
+  });
+
+  await expect(execa(process.execPath, [cli, 'build-new'], { cwd })).rejects.toThrow(message);
 });
