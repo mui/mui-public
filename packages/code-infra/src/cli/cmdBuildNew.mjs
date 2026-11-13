@@ -1,10 +1,5 @@
-import { transformAsync } from '@babel/core';
 import getTargets from '@babel/helper-compilation-targets';
-import pluginReactPureAnnotations from '@babel/plugin-transform-react-pure-annotations';
-import pluginDisplayName from '@mui/internal-babel-plugin-display-name';
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
-import pluginOptimizeClsx from 'babel-plugin-optimize-clsx';
-import pluginRemovePropTypes from 'babel-plugin-transform-react-remove-prop-types';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { isDynamicPattern } from 'globby';
@@ -17,6 +12,7 @@ import {
   validatePkgJson,
 } from '../utils/build.mjs';
 import { getVersionEnvVariables } from '../utils/babel.mjs';
+import { babelPlugin } from '../utils/babelPlugin.mjs';
 import { getPublishedPkgJson } from '../utils/getPublishedPkgJson.mjs';
 
 /**
@@ -49,10 +45,6 @@ const OXC_ENGINES = new Set([
   'samsung',
 ]);
 
-const BABEL_FILES = /\.[cm]?[jt]sx?$/;
-const TS_FILES = /\.[cm]?tsx?$/;
-const TS_WITHOUT_JSX = /\.[cm]?ts$/;
-
 /**
  * @param {string} cwd
  * @param {import('../utils/build.mjs').BundleType} bundle
@@ -66,58 +58,6 @@ function getTarget(cwd, bundle) {
   return Object.entries(targets)
     .filter(([engine]) => OXC_ENGINES.has(engine))
     .map(([engine, version]) => `${engine}${version}`);
-}
-
-/**
- * Runs the MUI Babel plugins that have no Oxc equivalent. Oxc then strips types, compiles JSX
- * and lowers syntax.
- * @param {import('./packageJson').PackageJson} packageJson
- * @returns {import('tsdown').Rolldown.Plugin}
- */
-function babelPlugin(packageJson) {
-  const dependencies = packageJson.dependencies ?? {};
-  /** @type {import('@babel/core').PluginItem[]} */
-  const plugins = [pluginDisplayName];
-  if (dependencies['prop-types'] !== undefined) {
-    plugins.push([pluginRemovePropTypes, { mode: 'unsafe-wrap' }]);
-  }
-  if (dependencies.clsx !== undefined || dependencies.classnames !== undefined) {
-    plugins.push(pluginOptimizeClsx);
-  }
-  // Oxc only marks JSX as pure, not React calls such as `createContext()`.
-  plugins.push(pluginReactPureAnnotations);
-
-  return {
-    name: 'code-infra:babel',
-    transform: {
-      filter: { id: { include: BABEL_FILES, exclude: /node_modules/ } },
-      async handler(code, id) {
-        /** @type {NonNullable<import('@babel/core').InputOptions['parserOpts']>['plugins']} */
-        const syntax = [];
-        if (TS_FILES.test(id)) {
-          syntax.push('typescript');
-        }
-        if (!TS_WITHOUT_JSX.test(id)) {
-          syntax.push('jsx');
-        }
-        const result = await transformAsync(code, {
-          filename: id,
-          configFile: false,
-          babelrc: false,
-          sourceMaps: true,
-          parserOpts: { plugins: syntax },
-          plugins,
-        });
-        if (!result?.code) {
-          return null;
-        }
-        return {
-          code: result.code,
-          map: /** @type {import('tsdown').Rolldown.SourceMapInput} */ (result.map),
-        };
-      },
-    },
-  };
 }
 
 /**
