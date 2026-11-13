@@ -95,4 +95,6 @@ files keep their implicit exports. A module another file imports with `import * 
 exports the namespace object as `<name>_exports`, which Rolldown adds in unbundled builds.
 The output is validated with publint, as in `code-infra build` (`--skipPublint` skips it).
 `--ignore` globs leave matching sources out of the build, as in `code-infra build`.
+`--skipMainCheck` and `--no-expand` work as in `code-infra build`; `--tsgo`, `--flat`,
+`--hasLargeFiles` and `--skipBabelRuntimeCheck` are accepted and ignored.
 Continue using `code-infra build` for package builds.
