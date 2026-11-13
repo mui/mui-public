@@ -50,8 +50,7 @@ it.each([
   ['./src/assets/**/*.txt', 'docs/*.md:docs', 'missing.txt'],
   ['src/assets/**/*.txt:public', 'src/assets'],
 ])('copies the same files as the Babel build for %s', async (...copy) => {
-  const root = await makeTempDir();
-  const files = {
+  const root = await makeTempFiles({
     'package.json': JSON.stringify({ private: true }),
     'pnpm-workspace.yaml': 'packages:\n  - packages/*\n',
     'babel.config.mjs': 'export default {};',
@@ -70,14 +69,7 @@ it.each([
     'packages/example/src/index.js': 'export const value = 42;',
     'packages/example/src/assets/example.txt': 'Asset',
     'packages/example/src/assets/nested/example.txt': 'Nested asset',
-  };
-  await Promise.all(
-    Object.entries(files).map(async ([name, contents]) => {
-      const file = path.join(root, name);
-      await fs.mkdir(path.dirname(file), { recursive: true });
-      await fs.writeFile(file, contents);
-    }),
-  );
+  });
   const cwd = path.join(root, 'packages/example');
   const outDir = path.join(cwd, 'build');
   const readCopied = async () => {
