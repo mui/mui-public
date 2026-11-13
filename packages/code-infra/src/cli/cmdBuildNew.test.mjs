@@ -16,7 +16,7 @@ it('compiles each source module to ESM and CJS', async () => {
       name: '@test/example',
       version: '1.0.0',
       type: 'module',
-      exports: { '.': './src/index.ts' },
+      exports: { '.': './src/index.ts', './math/*': './src/math/*.ts' },
       publishConfig: { directory: 'build' },
     }),
     'node_modules/external/package.json': JSON.stringify({ name: 'external', main: 'index.js' }),

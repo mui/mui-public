@@ -1,8 +1,13 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { globby } from 'globby';
 
-import { BASE_IGNORES, getOutExtension, validatePkgJson } from '../utils/build.mjs';
+import {
+  createPackageBin,
+  createPackageExports,
+  createPackageImports,
+  getOutExtension,
+  validatePkgJson,
+} from '../utils/build.mjs';
 
 /**
  * @typedef {Object} Args
@@ -10,10 +15,64 @@ import { BASE_IGNORES, getOutExtension, validatePkgJson } from '../utils/build.m
  */
 
 const SOURCE_DIR = 'src';
-const SOURCE_GLOB = `${SOURCE_DIR}/**/*.{js,ts,tsx}`;
+const SOURCE_EXTENSIONS = ['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs'];
 
 /** @type {Record<import('../utils/build.mjs').BundleType, 'es' | 'cjs'>} */
 const FORMATS = { esm: 'es', cjs: 'cjs' };
+
+/**
+ * @param {unknown} value
+ * @returns {string[]}
+ */
+function getLeaves(value) {
+  if (typeof value === 'string') {
+    return [value];
+  }
+  if (!value || typeof value !== 'object') {
+    return [];
+  }
+  return Object.values(value).flatMap(getLeaves);
+}
+
+/**
+ * Resolves the source modules behind the ESM paths `code-infra build` would publish.
+ * @param {import('./packageJson').PackageJson} packageJson
+ * @param {{ cwd: string; outDir: string; packageType: 'module' | 'commonjs' }} options
+ * @returns {Promise<Record<string, string>>}
+ */
+async function getEntry(packageJson, { cwd, outDir, packageType }) {
+  /** @type {import('../utils/build.mjs').BundleType[]} */
+  const bundles = ['esm'];
+  const [{ exports }, imports, bin] = await Promise.all([
+    createPackageExports(packageJson.exports, { bundles, cwd, outputDir: outDir, packageType }),
+    createPackageImports(packageJson.imports, { bundles, cwd, packageType }),
+    createPackageBin(packageJson.bin, { bundles, cwd, packageType }),
+  ]);
+
+  const extension = getOutExtension('esm', { packageType });
+  const names = new Set(
+    getLeaves([exports, imports, bin])
+      .filter((leaf) => leaf.startsWith('./') && leaf.endsWith(extension))
+      .map((leaf) => leaf.slice('./'.length, -extension.length)),
+  );
+
+  const entries = await Promise.all(
+    [...names].map(async (name) => {
+      const candidates = SOURCE_EXTENSIONS.map((ext) => path.join(SOURCE_DIR, `${name}${ext}`));
+      const found = await Promise.all(
+        candidates.map((file) =>
+          fs.stat(path.join(cwd, file)).then(
+            (stats) => stats.isFile(),
+            () => false,
+          ),
+        ),
+      );
+      const source = candidates.find((_, index) => found[index]);
+      return source ? [[name, source]] : [];
+    }),
+  );
+  return Object.fromEntries(entries.flat());
+}
 
 export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
   command: 'build-new',
@@ -33,7 +92,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
 
     const outDir = path.join(cwd, packageJson.publishConfig.directory);
     const packageType = packageJson.type === 'module' ? 'module' : 'commonjs';
-    const entry = await globby(SOURCE_GLOB, { cwd, ignore: BASE_IGNORES });
+    const entry = await getEntry(packageJson, { cwd, outDir, packageType });
 
     const { build } = await import('tsdown');
     await build({
