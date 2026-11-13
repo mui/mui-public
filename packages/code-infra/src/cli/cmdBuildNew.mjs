@@ -27,6 +27,8 @@ const SOURCE_EXTENSIONS = ['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs',
 /** @type {Record<import('../utils/build.mjs').BundleType, 'es' | 'cjs'>} */
 const FORMATS = { esm: 'es', cjs: 'cjs' };
 
+const BABEL_CONFIG_FILES = ['babel.config.js', 'babel.config.mjs'];
+
 /** @type {Record<import('../utils/build.mjs').BundleType, string>} */
 const BROWSERSLIST_ENVS = { esm: 'stable', cjs: 'node' };
 
@@ -66,6 +68,49 @@ function getTarget(cwd, bundle) {
   }
 
   return targets.map(([engine, version]) => `${engine}${version}`);
+}
+
+/**
+ * The workspace Babel config `code-infra build` uses, or the base config without one.
+ * @param {string} cwd
+ * @returns {Promise<string>}
+ */
+async function getBabelConfigFile(cwd) {
+  const workspaceDir = await findWorkspaceDir(cwd);
+  if (!workspaceDir) {
+    throw new Error('Workspace directory not found');
+  }
+  for (const name of BABEL_CONFIG_FILES) {
+    const file = path.join(workspaceDir, name);
+    // eslint-disable-next-line no-await-in-loop
+    if (await exists(file)) {
+      return file;
+    }
+  }
+  return path.join(import.meta.dirname, '../babel-config.mjs');
+}
+
+/**
+ * The environment `code-infra build` gives Babel; workspace configs branch on it.
+ * @param {import('./packageJson').PackageJson} packageJson
+ * @param {import('../utils/build.mjs').BundleType[]} bundles
+ * @returns {Record<string, string>}
+ */
+function getBabelEnv(packageJson, bundles) {
+  const dependencies = packageJson.dependencies ?? {};
+  /** @type {Record<string, string>} */
+  const env = {
+    NODE_ENV: 'production',
+    // One Babel pass serves every format, so configs see the first bundle's environment.
+    BABEL_ENV: BROWSERSLIST_ENVS[bundles[0]],
+  };
+  if (dependencies['prop-types'] !== undefined) {
+    env.MUI_REMOVE_PROP_TYPES = 'true';
+  }
+  if (dependencies.clsx !== undefined || dependencies.classnames !== undefined) {
+    env.MUI_OPTIMIZE_CLSX = 'true';
+  }
+  return env;
 }
 
 /**
@@ -199,6 +244,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     const entry = await getEntry(packageJson, { cwd, packageType });
 
     const versionEnv = getVersionEnvVariables(packageJson.version);
+    Object.assign(process.env, getBabelEnv(packageJson, bundles));
     const { build } = await import('tsdown');
     await build({
       cwd,
@@ -213,7 +259,9 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       ),
       env: { ...versionEnv, MUI_PRERELEASE: versionEnv.MUI_PRERELEASE ?? null },
       envPrefix: [],
-      plugins: [babelPlugin(packageJson)],
+      // `code-infra build` compiles JSX in `.js` files too.
+      loader: { '.js': 'jsx' },
+      plugins: [babelPlugin(await getBabelConfigFile(cwd))],
       outExtensions: ({ format }) => ({
         js: getOutExtension(format === 'es' ? 'esm' : 'cjs', { packageType }),
       }),
