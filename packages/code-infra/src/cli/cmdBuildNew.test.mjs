@@ -209,6 +209,7 @@ it('applies the MUI Babel plugins and native transforms', async () => {
 
 it.each([
   ['[stable]\nop_mob 80\n[node]\nnode 14.0\n', /opera_mobile.*"stable"/],
+  ['[stable]\nie 11\n[node]\nnode 14.0\n', /ie.*"stable"/],
   ['[stable]\nchrome 100\n', /No browserslist targets.*"node"/],
 ])('rejects browserslist targets Oxc cannot honour: %j', async (browserslist, message) => {
   const cwd = await makeTempFiles({

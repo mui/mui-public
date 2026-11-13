@@ -30,17 +30,16 @@ const FORMATS = { esm: 'es', cjs: 'cjs' };
 /** @type {Record<import('../utils/build.mjs').BundleType, string>} */
 const BROWSERSLIST_ENVS = { esm: 'stable', cjs: 'node' };
 
+// Oxc exports no compat table and accepts some engines it then ignores (android, ie, hermes,
+// rhino), so this lists the Babel target engines Oxc was verified to lower for.
 const OXC_ENGINES = new Set([
   'chrome',
-  'deno',
   'edge',
+  'electron',
   'firefox',
-  'hermes',
-  'ie',
   'ios',
   'node',
   'opera',
-  'rhino',
   'safari',
   'samsung',
 ]);
