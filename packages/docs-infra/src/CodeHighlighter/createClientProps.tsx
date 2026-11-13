@@ -4,6 +4,8 @@ import type {
   CodeHighlighterBaseProps,
   CodeHighlighterClientProps,
   ContentProps,
+  ContentFrameProps,
+  ContentLoadingProps,
 } from './types';
 import type { CompressedFallback } from './fallbackFormat';
 import { replaceUrlPrefix } from '../pipeline/loaderUtils/applyUrlPrefix';
@@ -15,6 +17,25 @@ export interface CreateClientPropsOptions<T extends {}> extends CodeHighlighterB
   skipFallback?: boolean;
   processedGlobalsCode?: Array<Code>;
   residualFallbacks?: CompressedFallback;
+}
+
+/**
+ * Render the `ContentFrame` with the initial loading props, or `undefined` when no
+ * frame applies (no `ContentFrame`, a skipped fallback, or no prepared fallback).
+ */
+export function createContentFrame<T extends {}>(
+  props: Pick<CreateClientPropsOptions<T>, 'ContentFrame' | 'fallback' | 'skipFallback'>,
+  children: React.ReactNode,
+): React.ReactElement<ContentFrameProps<T>> | undefined {
+  if (!props.ContentFrame || props.skipFallback) {
+    return undefined;
+  }
+
+  if (!React.isValidElement<ContentLoadingProps<T>>(props.fallback)) {
+    return undefined;
+  }
+
+  return <props.ContentFrame {...props.fallback.props}>{children}</props.ContentFrame>;
 }
 
 /**
@@ -74,6 +95,7 @@ export function createClientProps<T extends {}>(
   } as ContentProps<T>;
 
   return {
+    frame: createContentFrame(props, null),
     url,
     code,
     precompute,

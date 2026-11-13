@@ -289,6 +289,16 @@ export class ErrorCodeHighlighterClientMissingFallbackHoist extends ErrorCodeHig
   }
 }
 
+export class ErrorCodeHighlighterClientServerContentFrame extends ErrorCodeHighlighterClientValidation {
+  constructor() {
+    super(
+      `ContentFrame must be a Client Component - The frame arrived already rendered, so its ` +
+        `children and preview cannot be replaced while content loads. Add \`'use client'\` to the ` +
+        `module that defines the ContentFrame.`,
+    );
+  }
+}
+
 export class ErrorCodeHighlighterClientDynamicContentRequiresFallback extends ErrorCodeHighlighterClientValidation {
   constructor() {
     super(
