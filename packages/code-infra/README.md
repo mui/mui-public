@@ -77,3 +77,9 @@ After following these steps, the `Publish` workflow can be invoked again.
 ## Agent skills
 
 The agent skills previously shipped with this package now live at the repository root. See [Install instructions](../../README.md#agent-skills).
+
+## Upcoming tsdown builds
+
+`code-infra build-new` is a no-op placeholder. It loads tsdown without reading build
+configuration, compiling files or changing output. Continue using `code-infra build`
+for package builds.
