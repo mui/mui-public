@@ -205,6 +205,40 @@ it('ignores the same sources as the Babel build', async () => {
   expect(await fs.readFile(path.join(outDir, 'package.json'), 'utf8')).toBe(legacy);
 });
 
+it('accepts the Babel build flags consumers pass', async () => {
+  const root = await makeTempFiles({
+    'package.json': JSON.stringify({ private: true }),
+    '.browserslistrc': BROWSERSLIST,
+    'pnpm-workspace.yaml': 'packages:\n  - packages/*\n',
+    'babel.config.mjs': 'export default {};',
+    'packages/example/package.json': JSON.stringify({
+      name: '@test/example',
+      version: '1.0.0',
+      main: './src/index.js',
+      dependencies: {},
+      exports: { '.': './src/index.js', './*': './src/*.js' },
+      publishConfig: { directory: 'build' },
+    }),
+    'packages/example/src/index.js': "export { one } from './one.js';",
+    'packages/example/src/one.js': 'export const one = 1;',
+  });
+  const cwd = path.join(root, 'packages/example');
+  const manifest = path.join(cwd, 'build/package.json');
+  const args = [
+    ...['--bundle', 'cjs', '--no-buildTypes', '--skipPublint', '--skipMainCheck', '--no-expand'],
+    ...['--tsgo', '--flat', '--hasLargeFiles', '--skipBabelRuntimeCheck'],
+  ];
+
+  await execa(process.execPath, [cli, 'build', ...args], { cwd });
+  const legacy = await fs.readFile(manifest, 'utf8');
+  await fs.rm(path.dirname(manifest), { recursive: true });
+
+  await execa(process.execPath, [cli, 'build-new', ...args], { cwd });
+
+  expect(JSON.parse(legacy).exports).toHaveProperty(['./*']);
+  expect(await fs.readFile(manifest, 'utf8')).toBe(legacy);
+});
+
 it('applies the MUI Babel plugins and native transforms', async () => {
   const cwd = await makeTempFiles({
     'package.json': JSON.stringify({

@@ -25,6 +25,8 @@ import { validateWithPublint } from '../utils/publint.mjs';
  * @property {boolean} buildTypes
  * @property {boolean} skipPublint
  * @property {string[]} ignore
+ * @property {boolean} skipMainCheck
+ * @property {boolean} expand
  */
 
 const SOURCE_DIR = 'src';
@@ -204,6 +206,12 @@ async function getEntry(packageJson, { cwd, packageType, ignore }) {
 
 const DOCUMENTS = ['README.md', 'LICENSE', 'CHANGELOG.md'];
 
+/** A `code-infra build` flag that has no effect on tsdown builds. */
+const UNUSED_FLAG = /** @type {const} */ ({
+  type: 'boolean',
+  deprecated: 'It has no effect on build-new.',
+});
+
 /** @param {string} file */
 function exists(file) {
   return fs.stat(file).then(
@@ -283,11 +291,28 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         type: 'string',
         default: /** @type {string[]} */ ([]),
         description: 'Extra source globs not to build.',
+      })
+      .option('skipMainCheck', {
+        type: 'boolean',
+        default: false,
+        description: 'Skip checking for main field in package.json.',
+      })
+      .option('expand', {
+        type: 'boolean',
+        default: true,
+        description:
+          'Enumerate glob patterns in the package.json "exports"/"imports" into concrete entries. Use --no-expand to keep them as Node runtime subpath patterns.',
+      })
+      .options({
+        tsgo: UNUSED_FLAG,
+        flat: UNUSED_FLAG,
+        hasLargeFiles: UNUSED_FLAG,
+        skipBabelRuntimeCheck: UNUSED_FLAG,
       }),
   async handler(args) {
     const cwd = process.cwd();
     const packageJson = JSON.parse(await fs.readFile(path.join(cwd, 'package.json'), 'utf8'));
-    validatePkgJson(packageJson);
+    validatePkgJson(packageJson, { skipMainCheck: args.skipMainCheck });
 
     const outDir = path.join(cwd, packageJson.publishConfig.directory);
     const packageType = packageJson.type === 'module' ? 'module' : 'commonjs';
@@ -340,6 +365,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       outputDir: outDir,
       cwd,
       addTypes: args.buildTypes,
+      expand: args.expand,
       packageType,
     });
     await fs.writeFile(
