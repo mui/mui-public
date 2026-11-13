@@ -1,5 +1,7 @@
+import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { isDynamicPattern } from 'globby';
 
 import {
   createPackageBin,
@@ -12,6 +14,7 @@ import {
 /**
  * @typedef {Object} Args
  * @property {import('../utils/build.mjs').BundleType[]} bundle
+ * @property {string[]} copy
  */
 
 const SOURCE_DIR = 'src';
@@ -74,17 +77,72 @@ async function getEntry(packageJson, { cwd, outDir, packageType }) {
   return Object.fromEntries(entries.flat());
 }
 
+const DOCUMENTS = ['README.md', 'LICENSE', 'CHANGELOG.md'];
+
+/** @param {string} file */
+function exists(file) {
+  return fs.stat(file).then(
+    () => true,
+    () => false,
+  );
+}
+
+/**
+ * Matches `code-infra build`: package documents fall back to the workspace root, `source:target`
+ * globs drop the first source directory, and missing literal paths are skipped.
+ * @param {string} cwd
+ * @param {string} outDir
+ * @param {string[]} globs
+ * @returns {Promise<import('tsdown').UserConfig['copy']>}
+ */
+async function getCopy(cwd, outDir, globs) {
+  const workspaceDir = await findWorkspaceDir(cwd);
+  if (!workspaceDir) {
+    throw new Error('Workspace directory not found');
+  }
+
+  const documents = await Promise.all(
+    DOCUMENTS.map(async (name) => {
+      const local = path.join(cwd, name);
+      if (await exists(local)) {
+        return [{ from: local, to: outDir }];
+      }
+      const root = path.join(workspaceDir, name);
+      return (await exists(root)) ? [{ from: root, to: outDir }] : [];
+    }),
+  );
+
+  const extras = await Promise.all(
+    globs.map(async (glob) => {
+      const [from, target = ''] = glob.split(':');
+      if (!isDynamicPattern(from) && !(await exists(path.resolve(cwd, from)))) {
+        return [];
+      }
+      return [{ from, to: path.join(outDir, target), flatten: false }];
+    }),
+  );
+
+  return [...documents, ...extras].flat();
+}
+
 export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
   command: 'build-new',
-  describe: 'Experimental tsdown build. Compiles JavaScript only.',
+  describe: 'Experimental tsdown build. Compiles JavaScript and copies files.',
   builder: (yargs) =>
-    yargs.option('bundle', {
-      array: true,
-      type: 'string',
-      choices: /** @type {const} */ (['esm', 'cjs']),
-      default: /** @type {import('../utils/build.mjs').BundleType[]} */ (['esm', 'cjs']),
-      description: 'Bundles to output.',
-    }),
+    yargs
+      .option('bundle', {
+        array: true,
+        type: 'string',
+        choices: /** @type {const} */ (['esm', 'cjs']),
+        default: /** @type {import('../utils/build.mjs').BundleType[]} */ (['esm', 'cjs']),
+        description: 'Bundles to output.',
+      })
+      .option('copy', {
+        array: true,
+        type: 'string',
+        default: /** @type {string[]} */ ([]),
+        description: 'Files to copy to the output directory, as `glob` or `glob:target`.',
+      }),
   async handler(args) {
     const cwd = process.cwd();
     const packageJson = JSON.parse(await fs.readFile(path.join(cwd, 'package.json'), 'utf8'));
@@ -112,6 +170,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       dts: false,
       exports: false,
       report: false,
+      copy: await getCopy(cwd, outDir, args.copy),
       logLevel: 'warn',
     });
   },

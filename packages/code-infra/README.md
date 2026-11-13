@@ -83,6 +83,7 @@ The agent skills previously shipped with this package now live at the repository
 `code-infra build-new` is experimental. It compiles the `src` modules behind the package's
 `exports`, `imports` and `bin`, plus every module they import, to the `publishConfig.directory`
 with tsdown, keeping every package import external. Modules loaded only at runtime, such as
-workers, must be listed in `exports` or `imports`. It does not
-apply the Babel configuration or write declarations, `package.json` or extra files.
+workers, must be listed in `exports` or `imports`. It copies files with tsdown's `copy` option
+using the same `--copy` rules as `code-infra build`. It does not apply the Babel configuration
+or write declarations or `package.json`.
 Continue using `code-infra build` for package builds.
