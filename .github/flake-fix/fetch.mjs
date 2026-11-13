@@ -263,7 +263,7 @@ async function main() {
   // Failed-workflow statuses include `error`/`unauthorized`: a workflow that never ran its jobs
   // (broken config, permissions) is still a failed week, not a green one.
   const FAILED_WF_STATUSES = new Set(['failed', 'failing', 'error', 'unauthorized']);
-  // Skipped calls, with the first error (status and URL, never the token) kept for the summary.
+  // Skipped calls, with the first error (status and URL, never the token) kept for reporting.
   let dropped = 0;
   let firstDropError = '';
   const recordDrop = (error) => {
@@ -499,7 +499,11 @@ async function main() {
     `wrote ${logged.length} job files + a timeline for ${failingJobs.size} job(s) (${failureRate}% of runs failed)`,
   );
   if (dropped > 0) {
-    logWarning(dropNote().trim());
+    // The agent's report takes precedence over summary.txt, so publish needs a separate warning
+    // artifact when we still have enough data to classify.
+    const diagnostics = dropNote().trim();
+    fs.writeFileSync(path.join(outDir, 'diagnostics.txt'), `${diagnostics}\n`);
+    logWarning(diagnostics);
   }
   signalClassify(true);
 }

@@ -620,6 +620,12 @@ jobs:
             }
             report = report.replaceAll('{{fix}}', fixText).trimEnd();
 
+            // Fetch diagnostics must survive even when the agent produced its own report.
+            const diagnostics = read('diagnostics.txt').trim();
+            if (diagnostics) {
+              report += `\n\n⚠️ ${diagnostics}`;
+            }
+
             // One footer line after a rule: the run, this run's agent cost, and the insights link.
             const marker = '<!-- flake-fix-report -->';
             const footer = [`[run](${process.env.RUN_URL})`];
