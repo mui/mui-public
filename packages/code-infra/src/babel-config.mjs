@@ -14,8 +14,20 @@ import pluginTransformInlineEnvVars from './babelPluginInlineEnvironmentVariable
 // Plain TypeScript, ie. files that can't contain JSX.
 const TS_WITHOUT_JSX = /\.[cm]?ts$/;
 
+// Work `code-infra build-new` leaves to Oxc and Rolldown.
+const OXC_HANDLED_PLUGINS = new Set([
+  '@babel/plugin-transform-runtime',
+  'babel-plugin-transform-inline-environment-variables',
+  'babel-plugin-transform-import-meta',
+  '@mui/internal-babel-plugin-resolve-imports',
+]);
+
 /**
  * @typedef {'annotation' | 'syntax' | 'infer' | 'all'} ReactCompilationMode
+ */
+
+/**
+ * @typedef {'babel' | 'oxc'} Compiler
  */
 
 /**
@@ -30,6 +42,7 @@ const TS_WITHOUT_JSX = /\.[cm]?ts$/;
  * @param {string} [param0.reactCompilerReactVersion]
  * @param {ReactCompilationMode} [param0.reactCompilerMode]
  * @param {{ allowedCallees?: Record<string, string[]> }} [param0.displayName] - Options for the display name plugin.
+ * @param {Compiler} [param0.compiler] - `oxc` keeps only the plugins Oxc has no equivalent for.
  * @returns {import('@babel/core').InputOptions} The base Babel configuration.
  */
 export function getBaseConfig({
@@ -43,6 +56,7 @@ export function getBaseConfig({
   reactCompilerReactVersion,
   reactCompilerMode,
   displayName,
+  compiler = 'babel',
 }) {
   /**
    * @type {import('@babel/preset-env').Options}
@@ -124,7 +138,8 @@ export function getBaseConfig({
     ]);
   }
 
-  return {
+  /** @type {import('@babel/core').InputOptions} */
+  const config = {
     assumptions: {
       noDocumentAll: true,
       // With our case these assumptions are safe, and the
@@ -170,6 +185,21 @@ export function getBaseConfig({
       },
     ],
   };
+  if (compiler === 'babel') {
+    return config;
+  }
+
+  return {
+    assumptions: config.assumptions,
+    ignore: config.ignore,
+    plugins: [
+      ...plugins.filter(
+        (plugin) => !OXC_HANDLED_PLUGINS.has(/** @type {[unknown, unknown, string]} */ (plugin)[2]),
+      ),
+      // Oxc only marks JSX as pure, not React calls such as `createContext()`.
+      [pluginReactPureAnnotations, {}, '@babel/plugin-transform-react-pure-annotations'],
+    ],
+  };
 }
 
 /**
@@ -188,12 +218,16 @@ export default function getBabelConfig(api) {
   let bundle;
   /** @type {boolean} */
   let noResolveImports;
+  /** @type {Compiler} */
+  let compiler = 'babel';
 
   if (api.env) {
     // legacy
     bundle = api.env(['regressions', 'stable']) ? 'esm' : 'cjs';
     // eslint-disable-next-line mui/consistent-production-guard
     noResolveImports = api.env('test') || process.env.NODE_ENV === 'test';
+    compiler =
+      api.caller((caller) => /** @type {{ compiler?: Compiler }} */ (caller)?.compiler) ?? compiler;
   } else {
     bundle = api.bundle || 'esm';
     noResolveImports = api.noResolveImports || false;
@@ -211,5 +245,6 @@ export default function getBabelConfig(api) {
     noResolveImports,
     reactCompilerReactVersion: process.env.MUI_REACT_COMPILER_REACT_VERSION,
     reactCompilerMode: /** @type {ReactCompilationMode} */ (process.env.MUI_REACT_COMPILER_MODE),
+    compiler,
   });
 }
