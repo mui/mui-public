@@ -5,13 +5,12 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { execa } from 'execa';
 import { expect, it } from 'vitest';
 
-import { makeTempDir } from '../utils/testUtils.mjs';
+import { makeTempFiles } from '../utils/testUtils.mjs';
 
 const cli = fileURLToPath(new URL('../../bin/code-infra.mjs', import.meta.url));
 
 it('compiles each source module to ESM and CJS', async () => {
-  const cwd = await makeTempDir();
-  const files = {
+  const cwd = await makeTempFiles({
     'package.json': JSON.stringify({
       name: '@test/example',
       version: '1.0.0',
@@ -27,14 +26,7 @@ it('compiles each source module to ESM and CJS', async () => {
     'src/math/three.ts': 'export default 3;',
     'src/math/two.test.ts': 'throw new Error("test files must not be built");',
     'build/stale.js': 'stale',
-  };
-  await Promise.all(
-    Object.entries(files).map(async ([name, contents]) => {
-      const file = path.join(cwd, name);
-      await fs.mkdir(path.dirname(file), { recursive: true });
-      await fs.writeFile(file, contents);
-    }),
-  );
+  });
 
   await execa(process.execPath, [cli, 'build-new'], { cwd });
 
