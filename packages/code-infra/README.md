@@ -89,5 +89,8 @@ using the same `--copy` rules as `code-infra build`. It writes the same `package
 `stable` (ESM) and `node` (CJS) browserslist environments, and `MUI_VERSION` variables are
 inlined. Babel runs the workspace `babel.config.js` with `getBaseConfig` reduced to the MUI
 plugins Oxc lacks: display names, React pure annotations, prop-types removal and clsx
-optimization. It does not write declarations.
+optimization. Declarations come from tsdown's `dts` with the workspace TypeScript 7 `tsc`
+and the package's `tsconfig.build.json` (`--no-buildTypes` skips them); hand-written `.d.ts`
+files keep their implicit exports. A module another file imports with `import * as` also
+exports the namespace object as `<name>_exports`, which Rolldown adds in unbundled builds.
 Continue using `code-infra build` for package builds.
