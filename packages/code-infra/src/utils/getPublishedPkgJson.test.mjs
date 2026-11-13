@@ -1,19 +1,17 @@
-import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { expect, it } from 'vitest';
 
 import { getPublishedPkgJson } from './getPublishedPkgJson.mjs';
-import { makeTempDir } from './testUtils.mjs';
+import { makeTempFiles } from './testUtils.mjs';
 
 it('returns the published manifest without changing the source', async () => {
-  const cwd = await makeTempDir();
+  const cwd = await makeTempFiles({
+    'src/index.ts': '',
+    'src/cli.ts': '',
+    'build/index.js': '',
+    'build/cli.js': '',
+  });
   const outputDir = path.join(cwd, 'build');
-  await Promise.all(
-    ['src/index.ts', 'src/cli.ts', 'build/index.js', 'build/cli.js'].map(async (file) => {
-      await fs.mkdir(path.dirname(path.join(cwd, file)), { recursive: true });
-      await fs.writeFile(path.join(cwd, file), '');
-    }),
-  );
   /** @type {import('../cli/packageJson').PackageJson} */
   const source = {
     name: '@test/example',
