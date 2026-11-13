@@ -178,6 +178,7 @@ it('applies the MUI Babel plugins and native transforms', async () => {
       '}',
       'Link.propTypes = { href: PropTypes.string };',
       'export const version = process.env.MUI_VERSION;',
+      'export const prerelease = process.env.MUI_PRERELEASE;',
       'export const helper = (value?: { a: number }) => value?.a;',
       'export default Button;',
     ].join('\n'),
@@ -196,6 +197,7 @@ it('applies the MUI Babel plugins and native transforms', async () => {
   expect(esm).toMatch(/Button\.displayName = "Button"/);
   expect(esm).toContain('process.env.NODE_ENV !== "production" && (Link.propTypes');
   expect(esm).toContain('const version = "1.2.3"');
+  expect(esm).toContain('const prerelease = null');
   expect(esm).toContain('from "react/jsx-runtime"');
   expect(esm).toContain('value?.a');
   expect(cjs).not.toContain('?.');

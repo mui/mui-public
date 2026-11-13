@@ -190,6 +190,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     const bundles = [...new Set(args.bundle)];
     const entry = await getEntry(packageJson, { cwd, packageType });
 
+    const versionEnv = getVersionEnvVariables(packageJson.version);
     const { build } = await import('tsdown');
     await build({
       cwd,
@@ -202,12 +203,8 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       format: Object.fromEntries(
         bundles.map((bundle) => [FORMATS[bundle], { target: getTarget(cwd, bundle) }]),
       ),
-      define: Object.fromEntries(
-        Object.entries(getVersionEnvVariables(packageJson.version)).map(([name, value]) => [
-          `process.env.${name}`,
-          value === undefined ? 'undefined' : JSON.stringify(value),
-        ]),
-      ),
+      env: { ...versionEnv, MUI_PRERELEASE: versionEnv.MUI_PRERELEASE ?? null },
+      envPrefix: [],
       plugins: [babelPlugin(packageJson)],
       outExtensions: ({ format }) => ({
         js: getOutExtension(format === 'es' ? 'esm' : 'cjs', { packageType }),
