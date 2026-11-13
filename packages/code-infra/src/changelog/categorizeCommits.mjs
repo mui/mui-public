@@ -109,7 +109,7 @@ function getCategoryKeysForComponent(commit, config) {
  * @throws {Error} If scope is required but missing, or mapping not found
  */
 function getCategoryKeysForPackage(commit, config) {
-  const { scopes, plan } = commit.parsed;
+  const { scopes } = commit.parsed;
 
   // If no scopes, use fallback
   if (scopes.length === 0) {
@@ -142,10 +142,20 @@ function getCategoryKeysForPackage(commit, config) {
       continue;
     }
 
+    const scopePlan = commit.parsed.scopePlans?.[scope.toLowerCase()];
+    const plan = scopePlan ?? commit.parsed.plan;
+
     // Apply plan if specified
     if (plan && config.packageNaming.plans && config.packageNaming.plans[plan]) {
-      const planPackage = config.packageNaming.plans[plan][basePackage];
+      const planPackages = config.packageNaming.plans[plan];
+      const planPackage = planPackages[basePackage];
       if (!planPackage) {
+        const mappings = config.packageNaming.mappings;
+        // A shared PR's unscoped tier can belong to another product.
+        if (!scopePlan && scopes.some((other) => planPackages[mappings[other]])) {
+          keys.push({ scope, category: basePackage });
+          continue;
+        }
         throw new Error(
           `No ${plan} plan package mapping found for base package "${basePackage}" in commit ${commit.prNumber === null ? commit.sha : `#${commit.prNumber}`}`,
         );
