@@ -7,14 +7,8 @@ import { sep as posixSep } from 'node:path/posix';
 import * as semver from 'semver';
 import { mapAsync } from 'es-toolkit/array';
 
-import {
-  createPackageBin,
-  createPackageExports,
-  createPackageImports,
-  getOutExtension,
-  validateEnginesNode,
-  validatePkgJson,
-} from '../utils/build.mjs';
+import { getOutExtension, validateEnginesNode, validatePkgJson } from '../utils/build.mjs';
+import { getPublishedPkgJson } from '../utils/getPublishedPkgJson.mjs';
 import { readPnpmConfig } from '../utils/pnpm.mjs';
 
 /**
@@ -78,87 +72,6 @@ ${content}`,
     { encoding: 'utf8' },
   );
   console.log(`License added to ${file}`);
-}
-
-/**
- * @param {Object} param0
- * @param {import('./packageJson').PackageJson} param0.packageJson - The package.json content.
- * @param {import('../utils/build.mjs').BundleType[]} param0.bundles
- * @param {string} param0.outputDir
- * @param {string} param0.cwd
- * @param {boolean} param0.addTypes - Whether to add type declarations for the package.
- * @param {boolean} [param0.expand] - Whether to enumerate glob patterns into concrete entries.
- * @param {'module' | 'commonjs'} param0.packageType - The package.json type field.
- */
-async function writePackageJson({
-  packageJson,
-  bundles,
-  outputDir,
-  cwd,
-  addTypes = false,
-  expand = true,
-  packageType,
-}) {
-  delete packageJson.scripts;
-  delete packageJson.publishConfig?.directory;
-  delete packageJson.devDependencies;
-
-  const resolvedPackageType = packageType || packageJson.type || 'commonjs';
-  packageJson.type = resolvedPackageType;
-
-  const originalExports = packageJson.exports;
-  delete packageJson.exports;
-  const originalImports = packageJson.imports;
-  delete packageJson.imports;
-  const originalBin = packageJson.bin;
-  delete packageJson.bin;
-
-  const [{ exports: packageExports, main, types }, packageImports] = await Promise.all([
-    createPackageExports(originalExports, {
-      bundles,
-      outputDir,
-      cwd,
-      addTypes,
-      expand,
-      packageType: resolvedPackageType,
-    }),
-    originalImports
-      ? createPackageImports(originalImports, {
-          bundles,
-          cwd,
-          outputDir,
-          addTypes,
-          expand,
-          packageType: resolvedPackageType,
-        })
-      : Promise.resolve(undefined),
-  ]);
-
-  packageJson.exports = packageExports;
-  if (packageImports) {
-    packageJson.imports = packageImports;
-  }
-  if (main) {
-    packageJson.main = main;
-  }
-  if (types) {
-    packageJson.types = types;
-  }
-
-  const bin = await createPackageBin(originalBin, {
-    bundles,
-    cwd,
-    packageType: resolvedPackageType,
-  });
-  if (bin) {
-    packageJson.bin = bin;
-  }
-
-  await fs.writeFile(
-    path.join(outputDir, 'package.json'),
-    JSON.stringify(packageJson, null, 2),
-    'utf-8',
-  );
 }
 
 export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
@@ -382,7 +295,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       return;
     }
 
-    await writePackageJson({
+    const publishedPkgJson = await getPublishedPkgJson({
       cwd,
       packageJson,
       bundles,
@@ -391,6 +304,11 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       expand: args.expand,
       packageType,
     });
+    await fs.writeFile(
+      path.join(buildDir, 'package.json'),
+      JSON.stringify(publishedPkgJson, null, 2),
+      'utf-8',
+    );
 
     await copyHandler({
       cwd,
