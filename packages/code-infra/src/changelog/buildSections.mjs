@@ -17,7 +17,7 @@ const CHANGES_TITLE = 'Changes';
  */
 export function buildSections(categorizedCommits, categorizationConfig, packageVersions) {
   let sections;
-  if (categorizationConfig.strategy === 'component' || categorizationConfig.strategy === 'flat') {
+  if (categorizationConfig.strategy === 'component') {
     sections = buildComponentSections(categorizedCommits, categorizationConfig);
   } else if (categorizationConfig.strategy === 'package') {
     sections = buildPackageSections(categorizedCommits, categorizationConfig, packageVersions);
@@ -25,10 +25,7 @@ export function buildSections(categorizedCommits, categorizationConfig, packageV
     throw new Error(`Unknown categorization strategy: ${categorizationConfig.strategy}`);
   }
 
-  if (
-    categorizationConfig.strategy === 'flat' ||
-    !categorizationConfig.sections.groupByFlags?.length
-  ) {
+  if (!categorizationConfig.sections.groupByFlags?.length) {
     return sections;
   }
   return sections.map((section) => groupByFlags(section, categorizationConfig));

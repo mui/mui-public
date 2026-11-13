@@ -21,7 +21,7 @@ const gitEnv = {
   GIT_CONFIG_SYSTEM: '/dev/null',
 };
 
-it('generates package and flat entries through the same API', async () => {
+it('generates package entries through the public API', async () => {
   const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'changelog-'));
   onTestFinished(() => fs.rm(cwd, { recursive: true, force: true }));
   await fs.writeFile(
@@ -234,17 +234,11 @@ it('generates package and flat entries through the same API', async () => {
   });
   expect(withoutDirect.sections.some((section) => section.key === 'Other')).toBe(false);
 
-  const flat = await generateChangelog({
+  const filtered = await generateChangelog({
     ...options,
-    config: {
-      ...config,
-      contributors: { source: 'filtered' },
-      categorization: { ...config.categorization, strategy: 'flat' },
-    },
+    config: { ...config, contributors: { source: 'filtered' } },
   });
-  expect(flat.markdown).not.toContain('###');
-  expect(flat.markdown.match(/Fix behavior \(#1\)/g)).toHaveLength(1);
-  expect(flat.contributors.all).not.toContain('hidden');
+  expect(filtered.contributors.all).not.toContain('hidden');
 
   const configPath = path.join(cwd, 'changelog.config.mjs');
   await fs.writeFile(configPath, `export default ${JSON.stringify(config)}`);
@@ -257,10 +251,10 @@ it('generates package and flat entries through the same API', async () => {
   expect(fromDefault.markdown).toBe(result.markdown);
 });
 
-const flatConfig: ChangelogConfig = {
+const componentConfig: ChangelogConfig = {
   format: { changelogMessage: '{{scope}}: {{message}} (#{{prNumber}}) @{{author}}' },
   categorization: {
-    strategy: 'flat',
+    strategy: 'component',
     labels: {
       titleMappings: { Grid: ['scope: grid'] },
       categoryOverrides: { internal: 'Core' },
@@ -294,7 +288,7 @@ async function repository() {
   return { cwd, sha: (await git('rev-parse', 'HEAD')).stdout };
 }
 
-it('renders title scopes and one flat list despite category overrides', async () => {
+it('renders title scopes and routes category overrides to their own section', async () => {
   const { cwd } = await repository();
   const octokit = new Octokit({
     request: {
@@ -329,14 +323,20 @@ it('renders title scopes and one flat list despite category overrides', async ()
   const result = await generateChangelog({
     cwd,
     repo: 'test',
-    config: flatConfig,
+    config: componentConfig,
     octokit,
     lastRelease: 'v0',
     release: 'v1',
   });
   expect(result.markdown).toContain('grid: Change 2 (#2) @author');
-  expect(result.sections).toHaveLength(1);
-  expect(result.sections[0].commits).toHaveLength(2);
+  expect(
+    Object.fromEntries(
+      result.sections.map((section) => [
+        section.key,
+        section.commits.map((commit) => commit.prNumber),
+      ]),
+    ),
+  ).toEqual({ Core: [1], Changes: [2] });
 });
 
 it.each([
@@ -374,7 +374,7 @@ it.each([
     cwd,
     repo: 'test',
     config: {
-      ...flatConfig,
+      ...componentConfig,
       format: { changelogMessage },
     },
     octokit,
@@ -405,7 +405,7 @@ it.each([undefined, 'HEAD'])('resolves local HEAD for release %s', async (releas
   await generateChangelog({
     cwd,
     repo: 'test',
-    config: flatConfig,
+    config: componentConfig,
     octokit,
     lastRelease: 'v0',
     release,
@@ -462,9 +462,9 @@ it('warns when unchanged-package comparison lacks a local base ref', async () =>
     lastRelease: 'remote-only',
     release: 'v1',
     config: {
-      ...flatConfig,
+      ...componentConfig,
       categorization: {
-        ...flatConfig.categorization,
+        ...componentConfig.categorization,
         strategy: 'package',
         packageNaming: { omitUnchanged: true, mappings: { widget: '@test/widget' } },
       },
@@ -482,13 +482,13 @@ it('explains a failed comparison against local HEAD without masking explicit ref
     request: { fetch: async () => Response.json({ message: 'Not Found' }, { status: NOT_FOUND }) },
   });
   await expect(
-    generateChangelog({ cwd, repo: 'test', config: flatConfig, octokit, lastRelease: 'v0' }),
+    generateChangelog({ cwd, repo: 'test', config: componentConfig, octokit, lastRelease: 'v0' }),
   ).rejects.toThrow('Push HEAD or pass --release');
   await expect(
     generateChangelog({
       cwd,
       repo: 'test',
-      config: flatConfig,
+      config: componentConfig,
       octokit,
       lastRelease: 'v0',
       release: 'v1',
@@ -692,7 +692,7 @@ it('credits the git author of a direct commit without a linked GitHub account', 
     lastRelease: 'v0',
     release: 'v1',
     config: {
-      ...flatConfig,
+      ...componentConfig,
       format: {
         changelogMessage:
           '{{message}} ([#{{prNumber}}]({{prUrl}})) by [@{{ author }}]({{authorUrl}})',

@@ -138,11 +138,10 @@ export interface PackageNamingConfig {
 export interface CategorizationConfig {
   /**
    * Primary categorization strategy.
-   * - 'flat': One list with resolved scope prefixes
    * - 'component': Group by component name (For new repos with 1 or 2 packages)
    * - 'package': Group by package name (For established repos with multiple packages)
    */
-  strategy: 'component' | 'package' | 'flat';
+  strategy: 'component' | 'package';
 
   /**
    * Label configuration for parsing commit labels.
@@ -158,7 +157,7 @@ export interface CategorizationConfig {
    * Section ordering and titles.
    */
   sections: {
-    /** In categorized layouts, split flags into named subsections and other entries under Changes. */
+    /** Split flags into named subsections and other entries under Changes. */
     groupByFlags?: string[];
     /**
      * Section ordering priority by title.
@@ -295,7 +294,7 @@ export interface ContributorsConfig {
   source?: 'all' | 'filtered';
   /**
    * PR labels marking cherry-picks; their original author is credited instead of the picker.
-   * @default ['cherry-pick', 'backport']
+   * @default ['cherry-pick']
    */
   cherryPickLabels?: string[];
   /**

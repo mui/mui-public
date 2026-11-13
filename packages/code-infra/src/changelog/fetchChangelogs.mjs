@@ -9,7 +9,7 @@ const HTTP_NOT_FOUND = 404;
 const HTTP_FORBIDDEN = 403;
 const MIN_MERGE_PARENTS = 2;
 const AUTHOR_SUFFIX = /\s+\(@[\w-]+\)(?=\s+\(#\d+\)\s*$)/m;
-const DEFAULT_CHERRY_PICK_LABELS = ['cherry-pick', 'backport'];
+const DEFAULT_CHERRY_PICK_LABELS = ['cherry-pick'];
 
 const ThrottledOctokit = Octokit.plugin(throttling, retry);
 

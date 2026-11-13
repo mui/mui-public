@@ -35,9 +35,10 @@ export function categorizeCommits(commits, config) {
     }
 
     // Add commit to all relevant categories
-    for (const categoryKey of new Set(
+    const uniqueCategoryKeys = new Set(
       categoryKeys.map((key) => (typeof key === 'string' ? key : key.category)),
-    )) {
+    );
+    for (const categoryKey of uniqueCategoryKeys) {
       if (!categories.has(categoryKey)) {
         categories.set(categoryKey, []);
       }
@@ -59,10 +60,6 @@ export function categorizeCommits(commits, config) {
  * @throws {Error} If required labels are missing or mappings not found
  */
 function getCategoryKeys(commit, config) {
-  if (config.strategy === 'flat') {
-    return [config.sections.fallbackSection];
-  }
-
   // Check for category override first (e.g., 'all components' -> 'General changes')
   if (commit.parsed.categoryOverride) {
     return [commit.parsed.categoryOverride];

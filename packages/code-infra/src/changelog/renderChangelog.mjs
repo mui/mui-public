@@ -194,10 +194,7 @@ function renderSection(section, config, lines, parentSection) {
     });
   }
 
-  if (
-    config.categorization.strategy !== 'flat' &&
-    (!parentSection || section.key !== parentSection.key)
-  ) {
+  if (!parentSection || section.key !== parentSection.key) {
     lines.push(`${heading} ${title.trimEnd()}`);
     lines.push('');
   }
