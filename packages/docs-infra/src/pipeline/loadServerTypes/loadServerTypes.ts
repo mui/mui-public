@@ -4,6 +4,7 @@ import { toKebabCase } from '../loaderUtils/toKebabCase';
 import { nameMark, performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { highlightTypes } from './highlightTypes';
 import { highlightTypesMeta } from './highlightTypesMeta';
+import { computeTypeSlug, findComponentPrefix } from './typeSlugs';
 import type {
   HighlightedTypesMeta,
   HighlightedComponentTypeMeta,
@@ -22,6 +23,7 @@ import type { SyncTypesOptions } from '../syncTypes';
 import { loadServerTypesText } from '../loadServerTypesText';
 import type { TypesSourceData } from '../loadServerTypesText';
 import { resolveTypesCacheKey } from '../loadServerTypesText/resolveTypesCacheKey';
+import { collectOtherNames } from '../loadServerTypesText/organizeTypesByExport';
 import { CACHE_SCHEMA_VERSION, withFileCache } from '../cacheUtils';
 import type { FileCacheRef } from '../cacheUtils';
 import type { FormattedProperty, TypesMeta } from '../loadServerTypesMeta';
@@ -99,8 +101,6 @@ export interface LoadServerTypesResult {
   variantTypeNames: Record<string, string[]>;
   /** All dependencies that should be watched for changes */
   allDependencies: string[];
-  /** Type name map from variant processing */
-  typeNameMap?: Record<string, string>;
   /**
    * Platform-scoped anchor maps for linking type references in code.
    * Keys include both dotted names ("Accordion.Trigger") and flat names ("AccordionTrigger").
@@ -220,28 +220,10 @@ async function enhanceTypes(
   },
 ): Promise<Omit<LoadServerTypesResult, 'allDependencies'>> {
   // Compute slugs for all types
-  // Determine the common component prefix from the first dotted name (e.g., "Accordion")
-  let componentPrefix = '';
-  for (const exportData of Object.values(syncResult.exports)) {
-    if (exportData.type.name.includes('.')) {
-      componentPrefix = exportData.type.name.split('.')[0];
-      break;
-    }
-  }
-
-  const computeSlug = (name: string): string => {
-    if (name.includes('.')) {
-      const parts = name.split('.');
-      if (parts[0] === componentPrefix && parts.length > 1) {
-        // Strip the component prefix, keep the rest
-        return parts.slice(1).join('.').toLowerCase();
-      }
-      // No prefix match, use the full name
-      return name.toLowerCase();
-    }
-    // Non-dotted name: use as-is
-    return name.toLowerCase();
-  };
+  const componentPrefix = findComponentPrefix(
+    Object.values(syncResult.exports).map((exportData) => exportData.type.name),
+  );
+  const computeSlug = (name: string): string => computeTypeSlug(name, componentPrefix);
 
   // Assign slugs to all types in exports
   for (const exportData of Object.values(syncResult.exports)) {
@@ -431,19 +413,17 @@ async function enhanceTypes(
     }
   }
 
-  // Add flat name mappings from typeNameMap
-  if (syncResult.typeNameMap) {
-    for (const [flatName, dottedName] of Object.entries(syncResult.typeNameMap)) {
-      const dottedAnchor = anchorMap[dottedName];
-      if (dottedAnchor) {
-        anchorMap[flatName] = dottedAnchor;
-      }
-      // Also map parameter keys for flat names (e.g., "AccordionRoot[0]" from "Accordion.Root[0]")
-      let i = 0;
-      while (anchorMap[`${dottedName}[${i}]`]) {
-        anchorMap[`${flatName}[${i}]`] = anchorMap[`${dottedName}[${i}]`];
-        i += 1;
-      }
+  // Add the other names each type is exported under (e.g., "AccordionRoot" for "Accordion.Root")
+  for (const [otherName, typeName] of collectOtherNames(syncResult)) {
+    const typeAnchor = anchorMap[typeName];
+    if (typeAnchor) {
+      anchorMap[otherName] = typeAnchor;
+    }
+    // Also map parameter keys for other names (e.g., "AccordionRoot[0]" from "Accordion.Root[0]")
+    let i = 0;
+    while (anchorMap[`${typeName}[${i}]`]) {
+      anchorMap[`${otherName}[${i}]`] = anchorMap[`${typeName}[${i}]`];
+      i += 1;
     }
   }
 
@@ -459,7 +439,6 @@ async function enhanceTypes(
     additionalTypes,
     variantOnlyAdditionalTypes,
     variantTypeNames,
-    typeNameMap: syncResult.typeNameMap,
     anchorMap: { js: anchorMap },
     externalTypeLinks: syncResult.externalTypeLinks ?? {},
   };

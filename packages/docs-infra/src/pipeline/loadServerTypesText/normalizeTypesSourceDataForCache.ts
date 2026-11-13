@@ -22,7 +22,9 @@ function stripPositionFields(value: unknown): unknown {
   return result;
 }
 
-function normalizeTypeMetaForCache(typeMeta: TypesMeta): TypesMeta {
+function normalizeTypeMetaForCache(typeMetaWithId: TypesMeta): TypesMeta {
+  // types.md does not record declaration ids, so a type read back from it has none
+  const { declarationId, ...typeMeta } = typeMetaWithId;
   if (typeMeta.type === 'component') {
     const { name, props, dataAttributes, cssVariables, descriptionText, description, ...rest } =
       typeMeta.data;
@@ -116,8 +118,6 @@ export function normalizeTypesSourceDataForCache(data: TypesSourceData): TypesSo
     variantOnlyAdditionalTypes: normalizeVariantOnlyTypesForCache(data.variantOnlyAdditionalTypes),
     externalTypes: data.externalTypes,
     externalTypeLinks: data.externalTypeLinks,
-    typeNameMap: data.typeNameMap,
-    variantTypeNameMaps: data.variantTypeNameMaps,
     variantTypeNames: data.variantTypeNames,
     allDependencies: data.allDependencies,
     updated: data.updated,

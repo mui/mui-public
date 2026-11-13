@@ -11,16 +11,11 @@ import type * as tae from '@mui/internal-typescript-api-extractor';
 export type TypeCompatibilityMap = Map<string, string>;
 
 /**
- * Builds a map from original type names to their canonical export names.
+ * Builds a map from the names of extended types to the exports extending them.
  *
- * This map is built from two sources:
- * 1. `reexportedFrom` - when an export is re-exported with a different name
- *    e.g., `export { DialogTrigger as Trigger }` -> "DialogTrigger" -> "AlertDialog.Trigger"
- * 2. `extendsTypes` - when an interface extends another type
- *    e.g., `interface AlertDialogRootProps extends Dialog.Props` -> "Dialog.Props" -> "AlertDialog.Root.Props"
- *
- * The map allows type references in the original namespace to be rewritten
- * to the canonical namespace in the documentation.
+ * `interface AlertDialogRootProps extends Dialog.Props {}` declares a type of its own, so type
+ * references keep naming `Dialog.Props`; this map rewrites them to the name of the export that
+ * stands for it on the page, "Dialog.Props" -> "AlertDialog.Root.Props".
  */
 export function buildTypeCompatibilityMap(
   allExports: tae.ExportNode[],
@@ -32,22 +27,6 @@ export function buildTypeCompatibilityMap(
   for (const exp of allExports) {
     const exportName = exp.name;
     const exportIsDotted = exportName.includes('.');
-
-    // Handle reexportedFrom: maps the original component name to the new export name
-    // e.g., AlertDialog.Trigger with reexportedFrom: "DialogTrigger"
-    //   means AlertDialog.Trigger is a re-export of DialogTrigger
-    //   -> "DialogTrigger" -> "AlertDialog.Trigger"
-    // Child type mappings (e.g., DialogTrigger.State -> AlertDialog.Trigger.State)
-    // are handled by extendsTypes on those child exports.
-    const reexportedFrom = (exp as tae.ExportNode & { reexportedFrom?: string }).reexportedFrom;
-    if (reexportedFrom && reexportedFrom !== exportName) {
-      const existingMapping = map.get(reexportedFrom);
-      // Prefer dotted names over flat names for canonical mappings
-      // e.g., prefer "Toolbar.Separator" over "ToolbarSeparator"
-      if (!existingMapping || (exportIsDotted && !existingMapping.includes('.'))) {
-        map.set(reexportedFrom, exportName);
-      }
-    }
 
     // Handle extendsTypes: maps the extended type names to this export
     // e.g., AlertDialogRootProps with extendsTypes: [{ name: "Dialog.Props", resolvedName: "DialogProps" }]
@@ -105,8 +84,6 @@ export interface TypeRewriteContext {
   typeCompatibilityMap: TypeCompatibilityMap;
   /** Available export names in the current module for namespace resolution */
   exportNames: string[];
-  /** Map from flat type names to dotted names (e.g., AlertDialogTriggerState -> AlertDialog.Trigger.State) */
-  typeNameMap?: Record<string, string>;
 }
 
 /**
@@ -167,7 +144,7 @@ function replaceAtWordBoundary(text: string, search: string, replacement: string
  * Handles internal suffix normalization and inherited namespace transformations.
  */
 function rewriteTypeValue(value: string, context: TypeRewriteContext): string {
-  const { typeCompatibilityMap, exportNames, typeNameMap } = context;
+  const { typeCompatibilityMap, exportNames } = context;
 
   let next = value.replaceAll('.RootInternal', '.Root');
 
@@ -185,34 +162,12 @@ function rewriteTypeValue(value: string, context: TypeRewriteContext): string {
     const canonicalNameExists =
       exportNames.includes(canonicalName) || typeCompatibilityMap.has(originalName);
 
-    // Get the final dotted name that this canonical name would transform to
-    // e.g., if canonicalName is "ToolbarSeparatorState" and typeNameMap has
-    // "ToolbarSeparatorState" -> "Toolbar.Separator.State", use the dotted version
-    const finalDottedName = typeNameMap?.[canonicalName] || canonicalName;
-
-    // Skip if the text already contains the final dotted name with a namespace prefix
+    // Skip if the text already contains the canonical name with a namespace prefix
     // e.g., if text has "Toolbar.Separator.State", don't replace "Separator.State"
-    // because it would create "Toolbar.ToolbarSeparatorState" which then becomes
-    // "Toolbar.Toolbar.Separator.State"
-    const alreadyHasDottedName = finalDottedName.includes('.') && next.includes(finalDottedName);
+    const alreadyHasDottedName = canonicalName.includes('.') && next.includes(canonicalName);
 
     if (canonicalNameExists && next.includes(originalName) && !alreadyHasDottedName) {
       next = replaceAtWordBoundary(next, originalName, canonicalName);
-    }
-  }
-
-  // After applying compatibility mappings, convert flat type names to dotted names
-  // e.g., "AlertDialogTriggerState" -> "AlertDialog.Trigger.State"
-  if (typeNameMap) {
-    // Sort by key length (longest first) to avoid partial matches
-    const sortedTypeNameEntries = Object.entries(typeNameMap).sort(
-      (a, b) => b[0].length - a[0].length,
-    );
-
-    for (const [flatName, dottedName] of sortedTypeNameEntries) {
-      if (next.includes(flatName)) {
-        next = replaceAtWordBoundary(next, flatName, dottedName);
-      }
     }
   }
 

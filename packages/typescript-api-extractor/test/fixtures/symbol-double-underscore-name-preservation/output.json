@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "useNamed"
+					"name": "useNamed",
+					"declarationId": "78860547d0f9532b"
 				},
 				"callSignatures": [
 					{
@@ -15,7 +16,8 @@
 								"type": {
 									"kind": "object",
 									"typeName": {
-										"name": "__Named"
+										"name": "__Named",
+										"declarationId": "db50ffca5e97970a"
 									},
 									"properties": [
 										{
@@ -35,7 +37,8 @@
 						"returnValueType": {
 							"kind": "object",
 							"typeName": {
-								"name": "__Named"
+								"name": "__Named",
+								"declarationId": "db50ffca5e97970a"
 							},
 							"properties": [
 								{
@@ -53,14 +56,17 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "78860547d0f9532b",
+			"declaredName": "useNamed"
 		},
 		{
 			"name": "__Named",
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "__Named"
+					"name": "__Named",
+					"declarationId": "db50ffca5e97970a"
 				},
 				"properties": [
 					{
@@ -75,7 +81,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "db50ffca5e97970a",
+			"declaredName": "__Named"
 		}
 	]
 }

@@ -109,7 +109,7 @@ describe('formatHook', () => {
         documentation: { description: 'A button hook' },
       });
 
-      const result = await formatHookData(hook, {}, defaultRewriteContext);
+      const result = await formatHookData(hook, defaultRewriteContext);
 
       expect(result.name).toBe('useButton');
       expect(result.description).toMatchObject({
@@ -140,7 +140,7 @@ describe('formatHook', () => {
         documentation: { description: 'Input hook\n\nDocumentation: url' },
       });
 
-      const result = await formatHookData(hook, {}, defaultRewriteContext, {
+      const result = await formatHookData(hook, defaultRewriteContext, {
         descriptionReplacements: [
           { pattern: '\\n\\nDocumentation:.*$', replacement: '', flags: 'm' },
         ],
@@ -179,7 +179,7 @@ describe('formatHook', () => {
         },
       });
 
-      const result = await formatHookData(hook, {}, defaultRewriteContext);
+      const result = await formatHookData(hook, defaultRewriteContext);
 
       expect(result.parameters!.find((p) => p.name === 'initial')!).toBeDefined();
       // Parameter type is now plain text (HAST generation deferred to highlightTypesMeta)
@@ -227,7 +227,7 @@ describe('formatHook', () => {
         },
       });
 
-      const result = await formatHookData(hook, {}, defaultRewriteContext);
+      const result = await formatHookData(hook, defaultRewriteContext);
 
       // Anonymous object parameters are always expanded into properties
       expect(result.expandedProperties).toBeDefined();
@@ -249,7 +249,7 @@ describe('formatHook', () => {
         },
       });
 
-      const result = await formatHookData(hook, {}, defaultRewriteContext);
+      const result = await formatHookData(hook, defaultRewriteContext);
 
       // returnValue is now plain string for simple types (HAST generation deferred to highlightTypesMeta)
       expect(typeof result.returnValue).toBe('string');
@@ -283,7 +283,7 @@ describe('formatHook', () => {
         },
       });
 
-      const result = await formatHookData(hook, {}, defaultRewriteContext);
+      const result = await formatHookData(hook, defaultRewriteContext);
 
       // With type guards, the return value is correctly formatted as an object
       // with individual properties extracted from the ObjectNode structure.

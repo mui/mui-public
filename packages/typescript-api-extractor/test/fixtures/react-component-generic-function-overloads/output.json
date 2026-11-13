@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "GenericOverloadedComponent"
+					"name": "GenericOverloadedComponent",
+					"declarationId": "fe76abb8dff557f2"
 				},
 				"props": [
 					{
@@ -112,7 +113,9 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "fe76abb8dff557f2",
+			"declaredName": "GenericOverloadedComponent"
 		}
 	],
 	"imports": ["react"]

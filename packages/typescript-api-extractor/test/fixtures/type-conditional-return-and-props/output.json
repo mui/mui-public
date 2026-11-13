@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "conditionalReturn"
+					"name": "conditionalReturn",
+					"declarationId": "3acbc949111cdef7"
 				},
 				"callSignatures": [
 					{
@@ -52,14 +53,17 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "3acbc949111cdef7",
+			"declaredName": "conditionalReturn"
 		},
 		{
 			"name": "ConditionalPropsComponent",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "ConditionalPropsComponent"
+					"name": "ConditionalPropsComponent",
+					"declarationId": "53311de93e4e0ddd"
 				},
 				"callSignatures": [
 					{
@@ -81,7 +85,8 @@
 												},
 												"equalToDefault": false
 											}
-										]
+										],
+										"declarationId": "54c996b9a601d699"
 									},
 									"properties": [
 										{
@@ -133,7 +138,9 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "53311de93e4e0ddd",
+			"declaredName": "ConditionalPropsComponent"
 		}
 	]
 }

@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "class",
 				"typeName": {
-					"name": "Container"
+					"name": "Container",
+					"declarationId": "55aab762018cf8cf"
 				},
 				"constructSignatures": [
 					{
@@ -277,14 +278,17 @@
 			},
 			"isValue": true,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "55aab762018cf8cf",
+			"declaredName": "Container"
 		},
 		{
 			"name": "ParameterPropertyClass",
 			"type": {
 				"kind": "class",
 				"typeName": {
-					"name": "ParameterPropertyClass"
+					"name": "ParameterPropertyClass",
+					"declarationId": "ec85bd3b67471072"
 				},
 				"constructSignatures": [
 					{
@@ -350,14 +354,17 @@
 			},
 			"isValue": true,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "ec85bd3b67471072",
+			"declaredName": "ParameterPropertyClass"
 		},
 		{
 			"name": "GetterOnlyClass",
 			"type": {
 				"kind": "class",
 				"typeName": {
-					"name": "GetterOnlyClass"
+					"name": "GetterOnlyClass",
+					"declarationId": "4aa0c000187e4fcd"
 				},
 				"constructSignatures": [
 					{
@@ -402,14 +409,17 @@
 			},
 			"isValue": true,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "4aa0c000187e4fcd",
+			"declaredName": "GetterOnlyClass"
 		},
 		{
 			"name": "OverloadedMethods",
 			"type": {
 				"kind": "class",
 				"typeName": {
-					"name": "OverloadedMethods"
+					"name": "OverloadedMethods",
+					"declarationId": "7642b2ea10a45989"
 				},
 				"constructSignatures": [
 					{
@@ -532,14 +542,17 @@
 			},
 			"isValue": true,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "7642b2ea10a45989",
+			"declaredName": "OverloadedMethods"
 		},
 		{
 			"name": "FunctionPropertyClass",
 			"type": {
 				"kind": "class",
 				"typeName": {
-					"name": "FunctionPropertyClass"
+					"name": "FunctionPropertyClass",
+					"declarationId": "30e3c8f2eb0d5fd2"
 				},
 				"constructSignatures": [
 					{
@@ -627,14 +640,17 @@
 			},
 			"isValue": true,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "30e3c8f2eb0d5fd2",
+			"declaredName": "FunctionPropertyClass"
 		},
 		{
 			"name": "StaticMembersClass",
 			"type": {
 				"kind": "class",
 				"typeName": {
-					"name": "StaticMembersClass"
+					"name": "StaticMembersClass",
+					"declarationId": "25ae935d227f211f"
 				},
 				"constructSignatures": [
 					{
@@ -703,7 +719,8 @@
 								"returnValueType": {
 									"kind": "object",
 									"typeName": {
-										"name": "StaticMembersClass"
+										"name": "StaticMembersClass",
+										"declarationId": "25ae935d227f211f"
 									},
 									"properties": [
 										{
@@ -731,14 +748,17 @@
 			},
 			"isValue": true,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "25ae935d227f211f",
+			"declaredName": "StaticMembersClass"
 		},
 		{
 			"name": "VisibilityTagsClass",
 			"type": {
 				"kind": "class",
 				"typeName": {
-					"name": "VisibilityTagsClass"
+					"name": "VisibilityTagsClass",
+					"declarationId": "e0be400dae84d330"
 				},
 				"constructSignatures": [
 					{
@@ -793,14 +813,17 @@
 			},
 			"isValue": true,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "e0be400dae84d330",
+			"declaredName": "VisibilityTagsClass"
 		},
 		{
 			"name": "EcmaPrivateClass",
 			"type": {
 				"kind": "class",
 				"typeName": {
-					"name": "EcmaPrivateClass"
+					"name": "EcmaPrivateClass",
+					"declarationId": "cb061d97a8e3fee1"
 				},
 				"constructSignatures": [
 					{
@@ -849,14 +872,17 @@
 			},
 			"isValue": true,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "cb061d97a8e3fee1",
+			"declaredName": "EcmaPrivateClass"
 		},
 		{
 			"name": "Constructable",
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "Constructable"
+					"name": "Constructable",
+					"declarationId": "5d44c3b3b7dc56e2"
 				},
 				"properties": []
 			},
@@ -866,14 +892,17 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "5d44c3b3b7dc56e2",
+			"declaredName": "Constructable"
 		},
 		{
 			"name": "ConstructableType",
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "ConstructableType"
+					"name": "ConstructableType",
+					"declarationId": "9700729351ceb721"
 				},
 				"properties": []
 			},
@@ -883,7 +912,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "9700729351ceb721",
+			"declaredName": "ConstructableType"
 		}
 	]
 }

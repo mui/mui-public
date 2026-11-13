@@ -51,7 +51,6 @@ export interface FormatHookOptions {
 
 export async function formatHookData(
   hook: tae.ExportNode & { type: tae.FunctionNode },
-  typeNameMap: Record<string, string>,
   rewriteContext: TypeRewriteContext,
   options: FormatHookOptions = {},
 ): Promise<HookTypeMeta> {
@@ -85,7 +84,6 @@ export async function formatHookData(
   ) {
     formattedProperties = await formatProperties(parameters[0].type.properties, {
       exportNames,
-      typeNameMap,
       formatting,
       externalTypes,
       descriptionReplacements,
@@ -93,7 +91,6 @@ export async function formatHookData(
   } else {
     formattedParameters = await formatParameters(parameters, {
       exportNames,
-      typeNameMap,
       formatting,
       externalTypes,
       descriptionReplacements,
@@ -124,7 +121,6 @@ export async function formatHookData(
   if (shouldExpandReturnType) {
     formattedReturnValue = await formatProperties(returnType.properties, {
       exportNames,
-      typeNameMap,
       formatting,
       externalTypes,
       descriptionReplacements,
@@ -136,7 +132,6 @@ export async function formatHookData(
     returnValueText = formatType(signature.returnValueType, {
       expandObjects: shouldExpand,
       exportNames,
-      typeNameMap,
       externalTypesCollector: externalTypes,
     });
     formattedReturnValue = returnValueText;
