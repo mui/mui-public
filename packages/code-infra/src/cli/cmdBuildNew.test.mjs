@@ -174,6 +174,37 @@ it('writes the same package.json as the Babel build', async () => {
   expect(await fs.readFile(manifest, 'utf8')).toBe(legacy);
 });
 
+it('ignores the same sources as the Babel build', async () => {
+  const root = await makeTempFiles({
+    'package.json': JSON.stringify({ private: true }),
+    '.browserslistrc': BROWSERSLIST,
+    'pnpm-workspace.yaml': 'packages:\n  - packages/*\n',
+    'babel.config.mjs': 'export default {};',
+    'packages/example/package.json': JSON.stringify({
+      name: '@test/example',
+      version: '1.0.0',
+      type: 'module',
+      dependencies: {},
+      exports: { './*': './src/*.js' },
+      publishConfig: { directory: 'build' },
+    }),
+    'packages/example/src/one.js': 'export const one = 1;',
+    'packages/example/src/one.bench.js': 'export const bench = 1;',
+  });
+  const cwd = path.join(root, 'packages/example');
+  const outDir = path.join(cwd, 'build');
+  const args = ['--bundle', 'esm', '--no-buildTypes', '--skipPublint', '--ignore', '**/*.bench.js'];
+
+  await execa(process.execPath, [cli, 'build', ...args, '--skipBabelRuntimeCheck'], { cwd });
+  const legacy = await fs.readFile(path.join(outDir, 'package.json'), 'utf8');
+  await fs.rm(outDir, { recursive: true });
+
+  await execa(process.execPath, [cli, 'build-new', ...args], { cwd });
+
+  expect(await fs.readdir(outDir)).not.toContain('one.bench.js');
+  expect(await fs.readFile(path.join(outDir, 'package.json'), 'utf8')).toBe(legacy);
+});
+
 it('applies the MUI Babel plugins and native transforms', async () => {
   const cwd = await makeTempFiles({
     'package.json': JSON.stringify({
