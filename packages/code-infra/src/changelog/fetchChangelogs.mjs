@@ -7,7 +7,6 @@ import { persistentAuthStrategy, getRateLimitRetryTime } from '../utils/github.m
 
 const HTTP_NOT_FOUND = 404;
 const HTTP_FORBIDDEN = 403;
-const MIN_MERGE_PARENTS = 2;
 const AUTHOR_SUFFIX = /\s+\(@[\w-]+\)(?=\s+\(#\d+\)\s*$)/m;
 const DEFAULT_CHERRY_PICK_LABELS = ['cherry-pick'];
 
@@ -166,13 +165,10 @@ async function fetchCommitsRest({
    * @returns {Promise<FetchedCommitDetails | null>}
    */
   const fetchCommitDetails = async (commit, signal) => {
-    // Squash and merge subjects identify PRs; issue references in prose do not.
-    const subject = commit.commit.message.split('\n')[0];
-    const prMatch =
-      subject.match(/\(#(\d+)\)\s*$/) ?? subject.match(/^Merge pull request #(\d+)\b/);
-    const isMerge = (commit.parents?.length ?? 0) >= MIN_MERGE_PARENTS;
+    // Squash-merge subjects end with the PR number; issue references in prose do not.
+    const prMatch = commit.commit.message.split('\n')[0].match(/\(#(\d+)\)\s*$/);
     if (!prMatch) {
-      return isMerge ? null : directCommit(commit, signal);
+      return directCommit(commit, signal);
     }
 
     const prNumber = Number(prMatch[1]);
@@ -188,7 +184,7 @@ async function fetchCommitsRest({
       });
     } catch (error) {
       if (error instanceof Error && 'status' in error && error.status === HTTP_NOT_FOUND) {
-        return isMerge ? null : directCommit(commit, signal);
+        return directCommit(commit, signal);
       }
       throw error;
     }
@@ -198,7 +194,7 @@ async function fetchCommitsRest({
     /** @type {FetchedCommitDetails} */
     const details = {
       sha: commit.sha,
-      message: isMerge ? `${pr.data.title} (#${prNumber})` : commit.commit.message,
+      message: commit.commit.message,
       labels,
       prNumber,
       html_url: pr.data.html_url,
@@ -315,83 +311,10 @@ async function fetchCommitsRest({
         `None of ${membershipChecks} direct authors are visible members of ${org}; all are credited as community. Use a token from an organization member that can read memberships.`,
       );
     }
-    return omitMergedChildren(
-      results,
-      commits.filter((entry) => entry !== null),
-    );
+    return commits.filter((entry) => entry !== null);
   } finally {
     controller.abort();
   }
-}
-
-/**
- * A merge PR represents its branch changes once; changes already on the mainline stay visible.
- * @param {Awaited<ReturnType<OctokitType['repos']['compareCommits']>>['data']['commits']} source
- * @param {FetchedCommitDetails[]} commits
- */
-function omitMergedChildren(source, commits) {
-  const graph = new Map(source.map((commit) => [commit.sha, commit]));
-  /** @param {string} sha */
-  function ancestors(sha) {
-    const seen = new Set();
-    const pending = [sha];
-    while (pending.length > 0) {
-      const current = pending.pop();
-      if (!current || seen.has(current) || !graph.has(current)) {
-        continue;
-      }
-      seen.add(current);
-      pending.push(...(graph.get(current)?.parents ?? []).map((parent) => parent.sha));
-    }
-    return seen;
-  }
-
-  const entries = new Map(commits.map((commit) => [commit.sha, commit]));
-  const children = new Map(source.map((commit) => [commit.sha, 0]));
-  for (const commit of source) {
-    for (const parent of commit.parents ?? []) {
-      if (children.has(parent.sha)) {
-        children.set(parent.sha, (children.get(parent.sha) ?? 0) + 1);
-      }
-    }
-  }
-
-  // Visit descendants first so a suppressed sync PR cannot hide independent mainline work.
-  const pending = source
-    .filter((commit) => children.get(commit.sha) === 0)
-    .map((commit) => commit.sha);
-  const suppressed = new Set();
-  while (pending.length > 0) {
-    const sha = pending.pop();
-    if (!sha) {
-      continue;
-    }
-    const parents = graph.get(sha)?.parents ?? [];
-    for (const parent of parents) {
-      const count = children.get(parent.sha);
-      if (count === undefined) {
-        continue;
-      }
-      children.set(parent.sha, count - 1);
-      if (count === 1) {
-        pending.push(parent.sha);
-      }
-    }
-
-    const commit = entries.get(sha);
-    if (suppressed.has(sha) || commit?.prNumber == null || parents.length < MIN_MERGE_PARENTS) {
-      continue;
-    }
-    const mainline = ancestors(parents[0].sha);
-    for (const parent of parents.slice(1)) {
-      for (const sha of ancestors(parent.sha)) {
-        if (!mainline.has(sha)) {
-          suppressed.add(sha);
-        }
-      }
-    }
-  }
-  return commits.filter((commit) => !suppressed.has(commit.sha));
 }
 
 /**
