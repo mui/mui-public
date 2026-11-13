@@ -157,6 +157,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       import('tsdown'),
     ]);
 
+    const versionEnv = getVersionEnvVariables(packageJson.version);
     await build({
       cwd,
       config: false,
@@ -169,12 +170,8 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       format: Object.fromEntries(
         bundles.map((bundle) => [FORMATS[bundle], { target: getTarget(cwd, bundle) }]),
       ),
-      define: Object.fromEntries(
-        Object.entries(getVersionEnvVariables(packageJson.version)).map(([name, value]) => [
-          `process.env.${name}`,
-          value === undefined ? 'undefined' : JSON.stringify(value),
-        ]),
-      ),
+      env: { ...versionEnv, MUI_PRERELEASE: versionEnv.MUI_PRERELEASE ?? null },
+      envPrefix: [],
       plugins: [fileUrlEntriesPlugin(), babelPlugin(packageJson)],
       outExtensions: ({ format }) => ({
         js: getOutExtension(format === 'es' ? 'esm' : 'cjs', { packageType }),
