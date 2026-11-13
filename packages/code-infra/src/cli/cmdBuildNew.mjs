@@ -10,6 +10,7 @@ import {
   getOutExtension,
   validatePkgJson,
 } from '../utils/build.mjs';
+import { getPublishedPkgJson } from '../utils/getPublishedPkgJson.mjs';
 
 /**
  * @typedef {Object} Args
@@ -40,14 +41,14 @@ function getLeaves(value) {
 /**
  * Resolves the source modules behind the ESM paths `code-infra build` would publish.
  * @param {import('./packageJson').PackageJson} packageJson
- * @param {{ cwd: string; outDir: string; packageType: 'module' | 'commonjs' }} options
+ * @param {{ cwd: string; packageType: 'module' | 'commonjs' }} options
  * @returns {Promise<Record<string, string>>}
  */
-async function getEntry(packageJson, { cwd, outDir, packageType }) {
+async function getEntry(packageJson, { cwd, packageType }) {
   /** @type {import('../utils/build.mjs').BundleType[]} */
   const bundles = ['esm'];
   const [{ exports }, imports, bin] = await Promise.all([
-    createPackageExports(packageJson.exports, { bundles, cwd, outputDir: outDir, packageType }),
+    createPackageExports(packageJson.exports, { bundles, cwd, outputDir: cwd, packageType }),
     createPackageImports(packageJson.imports, { bundles, cwd, packageType }),
     createPackageBin(packageJson.bin, { bundles, cwd, packageType }),
   ]);
@@ -127,7 +128,7 @@ async function getCopy(cwd, outDir, globs) {
 
 export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
   command: 'build-new',
-  describe: 'Experimental tsdown build. Compiles JavaScript and copies files.',
+  describe: 'Experimental tsdown build. Compiles JavaScript, copies files and writes package.json.',
   builder: (yargs) =>
     yargs
       .option('bundle', {
@@ -150,7 +151,8 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
 
     const outDir = path.join(cwd, packageJson.publishConfig.directory);
     const packageType = packageJson.type === 'module' ? 'module' : 'commonjs';
-    const entry = await getEntry(packageJson, { cwd, outDir, packageType });
+    const bundles = [...new Set(args.bundle)];
+    const entry = await getEntry(packageJson, { cwd, packageType });
 
     const { build } = await import('tsdown');
     await build({
@@ -161,7 +163,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       root: SOURCE_DIR,
       outDir,
       clean: true,
-      format: [...new Set(args.bundle)].map((bundle) => FORMATS[bundle]),
+      format: bundles.map((bundle) => FORMATS[bundle]),
       outExtensions: ({ format }) => ({
         js: getOutExtension(format === 'es' ? 'esm' : 'cjs', { packageType }),
       }),
@@ -173,5 +175,19 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       copy: await getCopy(cwd, outDir, args.copy),
       logLevel: 'warn',
     });
+
+    const publishedPkgJson = await getPublishedPkgJson({
+      packageJson,
+      bundles,
+      outputDir: outDir,
+      cwd,
+      addTypes: false,
+      packageType,
+    });
+    await fs.writeFile(
+      path.join(outDir, 'package.json'),
+      JSON.stringify(publishedPkgJson, null, 2),
+      'utf-8',
+    );
   },
 });

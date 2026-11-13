@@ -105,3 +105,49 @@ it.each([
   expect(legacy).toHaveProperty('README.md', 'Package README');
   expect(await readCopied()).toEqual(legacy);
 });
+
+it('writes the same package.json as the Babel build', async () => {
+  const root = await makeTempFiles({
+    'package.json': JSON.stringify({ private: true }),
+    'pnpm-workspace.yaml': 'packages:\n  - packages/*\n',
+    'babel.config.mjs': 'export default {};',
+    'packages/example/package.json': JSON.stringify({
+      name: '@test/example',
+      version: '1.0.0',
+      type: 'module',
+      scripts: { build: 'code-infra build' },
+      dependencies: {},
+      devDependencies: { vitest: '*' },
+      exports: {
+        '.': './src/index.js',
+        './math/*': './src/math/*.js',
+        './package.json': './package.json',
+      },
+      imports: { '#cli': './src/cli.js' },
+      bin: { example: './src/cli.js' },
+      publishConfig: { access: 'public', directory: 'build' },
+    }),
+    'packages/example/src/index.js': "export { two } from './math/two.js';",
+    'packages/example/src/math/two.js': 'export const two = 2;',
+    'packages/example/src/cli.js': "import { two } from './math/two.js';\nconsole.log(two);",
+  });
+  const cwd = path.join(root, 'packages/example');
+  const manifest = path.join(cwd, 'build/package.json');
+  const bundle = ['--bundle', 'esm', 'cjs'];
+
+  const missing = /was not found in the build output/g;
+  const legacyRun = await execa(
+    process.execPath,
+    [cli, 'build', ...bundle, '--no-buildTypes', '--skipBabelRuntimeCheck', '--skipPublint'],
+    { cwd, all: true },
+  );
+  const legacy = await fs.readFile(manifest, 'utf8');
+  await fs.rm(path.dirname(manifest), { recursive: true });
+
+  const run = await execa(process.execPath, [cli, 'build-new', ...bundle], { cwd, all: true });
+
+  expect(run.all.match(missing)).toEqual(legacyRun.all.match(missing));
+
+  expect(JSON.parse(legacy)).toHaveProperty('bin', { example: './cli.js' });
+  expect(await fs.readFile(manifest, 'utf8')).toBe(legacy);
+});

@@ -84,6 +84,6 @@ The agent skills previously shipped with this package now live at the repository
 `exports`, `imports` and `bin`, plus every module they import, to the `publishConfig.directory`
 with tsdown, keeping every package import external. Modules loaded only at runtime, such as
 workers, must be listed in `exports` or `imports`. It copies files with tsdown's `copy` option
-using the same `--copy` rules as `code-infra build`. It does not apply the Babel configuration
-or write declarations or `package.json`.
+using the same `--copy` rules as `code-infra build`. It writes the same `package.json` as
+`code-infra build`. It does not apply the Babel configuration or write declarations.
 Continue using `code-infra build` for package builds.
