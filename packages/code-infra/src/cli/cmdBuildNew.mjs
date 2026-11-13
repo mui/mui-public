@@ -3,6 +3,7 @@ import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { isDynamicPattern } from 'globby';
+import { minimatch } from 'minimatch';
 
 import {
   createPackageBin,
@@ -23,6 +24,7 @@ import { validateWithPublint } from '../utils/publint.mjs';
  * @property {string[]} copy
  * @property {boolean} buildTypes
  * @property {boolean} skipPublint
+ * @property {string[]} ignore
  */
 
 const SOURCE_DIR = 'src';
@@ -160,10 +162,10 @@ function getLeaves(value) {
 /**
  * Resolves the source modules behind the ESM paths `code-infra build` would publish.
  * @param {import('./packageJson').PackageJson} packageJson
- * @param {{ cwd: string; packageType: 'module' | 'commonjs' }} options
+ * @param {{ cwd: string; packageType: 'module' | 'commonjs'; ignore: string[] }} options
  * @returns {Promise<Record<string, string>>}
  */
-async function getEntry(packageJson, { cwd, packageType }) {
+async function getEntry(packageJson, { cwd, packageType, ignore }) {
   /** @type {import('../utils/build.mjs').BundleType[]} */
   const bundles = ['esm'];
   const [{ exports }, imports, bin] = await Promise.all([
@@ -191,7 +193,10 @@ async function getEntry(packageJson, { cwd, packageType }) {
         ),
       );
       const source = candidates.find((_, index) => found[index]);
-      return source ? [[name, source]] : [];
+      if (!source || ignore.some((glob) => minimatch(source, glob))) {
+        return [];
+      }
+      return [[name, source]];
     }),
   );
   return Object.fromEntries(entries.flat());
@@ -272,6 +277,12 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         type: 'boolean',
         default: false,
         description: 'Skip validating the output directory with publint.',
+      })
+      .option('ignore', {
+        array: true,
+        type: 'string',
+        default: /** @type {string[]} */ ([]),
+        description: 'Extra source globs not to build.',
       }),
   async handler(args) {
     const cwd = process.cwd();
@@ -281,7 +292,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     const outDir = path.join(cwd, packageJson.publishConfig.directory);
     const packageType = packageJson.type === 'module' ? 'module' : 'commonjs';
     const bundles = [...new Set(args.bundle)];
-    const entry = await getEntry(packageJson, { cwd, packageType });
+    const entry = await getEntry(packageJson, { cwd, packageType, ignore: args.ignore });
 
     const versionEnv = getVersionEnvVariables(packageJson.version);
     Object.assign(process.env, getBabelEnv(packageJson, bundles));
