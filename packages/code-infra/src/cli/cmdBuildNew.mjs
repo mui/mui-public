@@ -13,12 +13,14 @@ import {
 } from '../utils/build.mjs';
 import { getVersionEnvVariables } from '../utils/babel.mjs';
 import { babelPlugin } from '../utils/babelPlugin.mjs';
+import { dtsExportsPlugin } from '../utils/dtsExportsPlugin.mjs';
 import { getPublishedPkgJson } from '../utils/getPublishedPkgJson.mjs';
 
 /**
  * @typedef {Object} Args
  * @property {import('../utils/build.mjs').BundleType[]} bundle
  * @property {string[]} copy
+ * @property {boolean} buildTypes
  */
 
 const SOURCE_DIR = 'src';
@@ -88,6 +90,32 @@ async function getBabelConfigFile(cwd) {
     }
   }
   return path.join(import.meta.dirname, '../babel-config.mjs');
+}
+
+/**
+ * @param {string} cwd
+ * @returns {Promise<string>} The `tsconfig.build.json` `code-infra build` emits declarations with.
+ */
+async function getTsconfig(cwd) {
+  const tsconfig = path.join(cwd, 'tsconfig.build.json');
+  if (!(await exists(tsconfig))) {
+    throw new Error(
+      `Unable to find a tsconfig to build types. Add 'tsconfig.build.json' to '${cwd}'.`,
+    );
+  }
+  return tsconfig;
+}
+
+/**
+ * @param {string} cwd
+ * @returns {Promise<string>} The workspace TypeScript 7 `tsc`, which rolldown-plugin-dts runs as `tsgo`.
+ */
+async function getTsc(cwd) {
+  const workspaceDir = await findWorkspaceDir(cwd);
+  if (!workspaceDir) {
+    throw new Error('Workspace directory not found');
+  }
+  return path.join(workspaceDir, 'node_modules', '.bin', 'tsc');
 }
 
 /**
@@ -232,6 +260,11 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         type: 'string',
         default: /** @type {string[]} */ ([]),
         description: 'Files to copy to the output directory, as `glob` or `glob:target`.',
+      })
+      .option('buildTypes', {
+        type: 'boolean',
+        default: true,
+        description: 'Whether to write declarations with the workspace TypeScript 7 `tsc`.',
       }),
   async handler(args) {
     const cwd = process.cwd();
@@ -262,12 +295,21 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       // `code-infra build` compiles JSX in `.js` files too.
       loader: { '.js': 'jsx' },
       plugins: [babelPlugin(await getBabelConfigFile(cwd))],
+      // tsdown leaves `plugins` out of its CJS declaration pass; `inputOptions` reaches every pass.
+      inputOptions: (options) => ({ ...options, plugins: [dtsExportsPlugin(), options.plugins] }),
       outExtensions: ({ format }) => ({
         js: getOutExtension(format === 'es' ? 'esm' : 'cjs', { packageType }),
       }),
       deps: { neverBundle: true },
       outputOptions: { exports: 'named' },
-      dts: false,
+      tsconfig: args.buildTypes ? await getTsconfig(cwd) : undefined,
+      // Keeps CJS declarations on `export default`, matching the named-exports JS interop.
+      cjsDefault: false,
+      // TODO: tsdown >=0.23.5 (rolldown-plugin-dts >=0.29) runs TS7 through its API, which needs
+      // TypeScript 7.1. Once it's stable, bump and replace `tsgo.path` with `tsgo.moduleUrl`.
+      dts: args.buildTypes
+        ? { generator: 'tsgo', tsgo: { path: await getTsc(cwd) }, sourcemap: false }
+        : false,
       exports: false,
       report: false,
       copy: await getCopy(cwd, outDir, args.copy),
@@ -279,7 +321,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       bundles,
       outputDir: outDir,
       cwd,
-      addTypes: false,
+      addTypes: args.buildTypes,
       packageType,
     });
     await fs.writeFile(
