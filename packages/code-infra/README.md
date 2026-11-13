@@ -85,5 +85,9 @@ The agent skills previously shipped with this package now live at the repository
 with tsdown, keeping every package import external. Modules loaded only at runtime, such as
 workers, must be listed in `exports` or `imports`. It copies files with tsdown's `copy` option
 using the same `--copy` rules as `code-infra build`. It writes the same `package.json` as
-`code-infra build`. It does not apply the Babel configuration or write declarations.
+`code-infra build`. Oxc strips types, compiles JSX and lowers syntax for the
+`stable` (ESM) and `node` (CJS) browserslist environments, and `MUI_VERSION` variables are
+inlined. Babel only runs the MUI plugins Oxc lacks: display names, React pure annotations,
+prop-types removal and clsx optimization. It ignores `babel.config.js` and does not write
+declarations.
 Continue using `code-infra build` for package builds.
