@@ -95,5 +95,5 @@ the package depends on; the build fails when the output imports them without tha
 Declarations come from tsdown's `dts` with the workspace TypeScript 7 `tsc` and the package's
 `tsconfig.build.json` (`--no-buildTypes` skips them); hand-written `.d.ts` files need explicit
 exports. A module another file imports with `import * as` also exports the namespace object as
-`<name>_exports`, which Rolldown adds in unbundled builds. Continue using `code-infra build` for
-package builds.
+`<name>_exports`, which Rolldown adds in unbundled builds. The output is validated with publint, as
+in `code-infra build`. Continue using `code-infra build` for package builds.
