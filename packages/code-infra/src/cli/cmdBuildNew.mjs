@@ -46,18 +46,27 @@ const OXC_ENGINES = new Set([
 ]);
 
 /**
+ * Resolves the bundle's browserslist environment the way `@babel/preset-env` does for
+ * `code-infra build`. Oxc can't lower for every engine Babel knows, so those fail instead of
+ * silently shipping less-compiled code.
  * @param {string} cwd
  * @param {import('../utils/build.mjs').BundleType} bundle
- * @returns {string[]} Oxc targets for the bundle's browserslist environment.
+ * @returns {string[]} Oxc targets.
  */
 function getTarget(cwd, bundle) {
-  const targets = getTargets(undefined, {
-    configPath: cwd,
-    browserslistEnv: BROWSERSLIST_ENVS[bundle],
-  });
-  return Object.entries(targets)
-    .filter(([engine]) => OXC_ENGINES.has(engine))
-    .map(([engine, version]) => `${engine}${version}`);
+  const env = BROWSERSLIST_ENVS[bundle];
+  const targets = Object.entries(getTargets({}, { configPath: cwd, browserslistEnv: env }));
+  if (targets.length === 0) {
+    throw new Error(`No browserslist targets found for the "${env}" environment.`);
+  }
+
+  const unsupported = targets.filter(([engine]) => !OXC_ENGINES.has(engine));
+  if (unsupported.length > 0) {
+    const engines = unsupported.map(([engine]) => engine).join(', ');
+    throw new Error(`Oxc cannot target ${engines} from the "${env}" browserslist environment.`);
+  }
+
+  return targets.map(([engine, version]) => `${engine}${version}`);
 }
 
 /**
