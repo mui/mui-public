@@ -93,4 +93,5 @@ optimization. Declarations come from tsdown's `dts` with the workspace TypeScrip
 and the package's `tsconfig.build.json` (`--no-buildTypes` skips them); hand-written `.d.ts`
 files keep their implicit exports. A module another file imports with `import * as` also
 exports the namespace object as `<name>_exports`, which Rolldown adds in unbundled builds.
+The output is validated with publint, as in `code-infra build` (`--skipPublint` skips it).
 Continue using `code-infra build` for package builds.

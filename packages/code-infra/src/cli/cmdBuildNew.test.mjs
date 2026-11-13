@@ -159,10 +159,14 @@ it('writes the same package.json as the Babel build', async () => {
   const legacy = await fs.readFile(manifest, 'utf8');
   await fs.rm(path.dirname(manifest), { recursive: true });
 
-  const run = await execa(process.execPath, [cli, 'build-new', '--no-buildTypes', ...bundle], {
-    cwd,
-    all: true,
-  });
+  const run = await execa(
+    process.execPath,
+    [cli, 'build-new', '--no-buildTypes', '--skipPublint', ...bundle],
+    {
+      cwd,
+      all: true,
+    },
+  );
 
   expect(run.all.match(missing)).toEqual(legacyRun.all.match(missing));
 
@@ -242,6 +246,26 @@ it.each([
   await expect(
     execa(process.execPath, [cli, 'build-new', '--no-buildTypes'], { cwd }),
   ).rejects.toThrow(message);
+});
+
+it('lints the output with publint unless skipped', async () => {
+  const cwd = await makeTempFiles({
+    'package.json': JSON.stringify({
+      name: '@test/example',
+      version: '1.0.0',
+      type: 'module',
+      browser: './missing.js',
+      exports: { '.': './src/index.js' },
+      publishConfig: { directory: 'build' },
+    }),
+    'pnpm-workspace.yaml': 'packages: []\n',
+    '.browserslistrc': BROWSERSLIST,
+    'src/index.js': 'export const value = 1;',
+  });
+  const args = [cli, 'build-new', '--no-buildTypes'];
+
+  await expect(execa(process.execPath, args, { cwd })).rejects.toThrow(/publint found 1 error/);
+  await expect(execa(process.execPath, [...args, '--skipPublint'], { cwd })).resolves.toBeDefined();
 });
 
 it('applies the workspace Babel config on top of the base config', async () => {
