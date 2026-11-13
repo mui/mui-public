@@ -15,12 +15,14 @@ import { getVersionEnvVariables } from '../utils/babel.mjs';
 import { babelPlugin } from '../utils/babelPlugin.mjs';
 import { dtsExportsPlugin } from '../utils/dtsExportsPlugin.mjs';
 import { getPublishedPkgJson } from '../utils/getPublishedPkgJson.mjs';
+import { validateWithPublint } from '../utils/publint.mjs';
 
 /**
  * @typedef {Object} Args
  * @property {import('../utils/build.mjs').BundleType[]} bundle
  * @property {string[]} copy
  * @property {boolean} buildTypes
+ * @property {boolean} skipPublint
  */
 
 const SOURCE_DIR = 'src';
@@ -265,6 +267,11 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         type: 'boolean',
         default: true,
         description: 'Whether to write declarations with the workspace TypeScript 7 `tsc`.',
+      })
+      .option('skipPublint', {
+        type: 'boolean',
+        default: false,
+        description: 'Skip validating the output directory with publint.',
       }),
   async handler(args) {
     const cwd = process.cwd();
@@ -329,5 +336,9 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       JSON.stringify(publishedPkgJson, null, 2),
       'utf-8',
     );
+
+    if (!args.skipPublint) {
+      await validateWithPublint(outDir);
+    }
   },
 });
