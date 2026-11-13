@@ -10,6 +10,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useSourceEditing, resetSourceEditingEngineCache } from './useSourceEditing';
 import type { Position } from './useSourceEditing';
+import { peekSourceEditingEngine } from './sourceEditingEngineCache';
 import type { CodeHighlighterContextType } from '../CodeHighlighter/CodeHighlighterContext';
 
 beforeEach(() => {
@@ -43,6 +44,42 @@ function renderCold() {
 }
 
 describe('useSourceEditing lazy engine (cold cache)', () => {
+  function renderEditable(editActivation?: 'eager' | 'interaction') {
+    const setCode = vi.fn();
+    const context: CodeHighlighterContextType = { code: {}, setCode, editActivation };
+    const view = renderHook(() =>
+      useSourceEditing({
+        context,
+        selectedVariantKey: 'Default',
+        effectiveCode: { Default: { fileName: 'App.tsx', source: 'old' } },
+        selectedVariant: { fileName: 'App.tsx', source: 'old' },
+      }),
+    );
+    return { ...view, setCode };
+  }
+
+  it('loads the interaction engine only when editing activates', async () => {
+    const { result, setCode } = renderEditable('interaction');
+    await vi.dynamicImportSettled();
+    expect(peekSourceEditingEngine()).toBeUndefined();
+    expect(setCode).not.toHaveBeenCalled();
+
+    act(() => result.current.activate?.());
+    await waitFor(() => expect(setCode).toHaveBeenCalledTimes(1));
+    expect(peekSourceEditingEngine()).toBeDefined();
+
+    act(() => result.current.setSource?.('new'));
+    expect(setCode).toHaveBeenCalledTimes(2);
+    const seeded = setCode.mock.calls[0][0](null);
+    const edited = setCode.mock.calls[1][0](seeded);
+    expect(edited.Default.source).toBe('new');
+  });
+
+  it('warms the engine on mount by default', async () => {
+    renderEditable();
+    await vi.dynamicImportSettled();
+    expect(peekSourceEditingEngine()).toBeDefined();
+  });
   it('seeds before a near-immediate first edit and keeps the original baseline', async () => {
     const { setCode, activate, setSource } = renderCold();
 
