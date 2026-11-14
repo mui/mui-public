@@ -296,7 +296,10 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       loader: { '.js': 'jsx' },
       plugins: [babelPlugin(await getBabelConfigFile(cwd))],
       // tsdown leaves `plugins` out of its CJS declaration pass; `inputOptions` reaches every pass.
-      inputOptions: (options) => ({ ...options, plugins: [dtsExportsPlugin(), options.plugins] }),
+      inputOptions: (options) => ({
+        ...options,
+        plugins: [dtsExportsPlugin(path.join(cwd, SOURCE_DIR)), options.plugins],
+      }),
       outExtensions: ({ format }) => ({
         js: getOutExtension(format === 'es' ? 'esm' : 'cjs', { packageType }),
       }),

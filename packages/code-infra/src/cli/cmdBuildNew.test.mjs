@@ -393,3 +393,53 @@ it('writes declarations matching the Babel build', async () => {
   expect(await read('Button.d.cts')).toContain('from "./size.cjs"');
   expect(await read('answer.d.cts')).not.toContain('export =');
 });
+
+it('keeps the global declarations a module imports', async () => {
+  const tsc = fileURLToPath(new URL('../../../../node_modules/.bin/tsc', import.meta.url));
+  const root = await makeTempFiles({
+    'package.json': JSON.stringify({ private: true }),
+    'pnpm-workspace.yaml': 'packages:\n  - packages/*\n',
+    '.browserslistrc': BROWSERSLIST,
+    'babel.config.mjs': 'export default {};',
+    'packages/example/package.json': JSON.stringify({
+      name: '@test/example',
+      version: '1.0.0',
+      type: 'module',
+      dependencies: {},
+      exports: { '.': './src/index.ts' },
+      publishConfig: { directory: 'build' },
+    }),
+    'packages/example/tsconfig.build.json': JSON.stringify({
+      compilerOptions: {
+        declaration: true,
+        emitDeclarationOnly: true,
+        strict: true,
+        module: 'nodenext',
+        moduleResolution: 'nodenext',
+        rootDir: './src',
+        outDir: 'build',
+      },
+      include: ['src/**/*'],
+    }),
+    'packages/example/src/index.ts': [
+      "import './ambient.js';",
+      "export const value: Shared = { value: 'a' };",
+    ].join('\n'),
+    'packages/example/src/ambient.js': '',
+    'packages/example/src/ambient.d.ts': 'interface Shared {\n  value: string;\n}',
+  });
+  await fs.mkdir(path.join(root, 'node_modules/.bin'), { recursive: true });
+  await fs.symlink(tsc, path.join(root, 'node_modules/.bin/tsc'));
+  const cwd = path.join(root, 'packages/example');
+
+  await execa(process.execPath, [cli, 'build-new'], { cwd });
+
+  const typecheck = execa(
+    tsc,
+    ['--noEmit', '--strict', '--module', 'nodenext', 'index.d.ts', 'index.d.cts'],
+    {
+      cwd: path.join(cwd, 'build'),
+    },
+  );
+  await expect(typecheck).resolves.toMatchObject({ exitCode: 0 });
+});
