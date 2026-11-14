@@ -94,4 +94,5 @@ and the package's `tsconfig.build.json` (`--no-buildTypes` skips them); hand-wri
 files keep their implicit exports. A module another file imports with `import * as` also
 exports the namespace object as `<name>_exports`, which Rolldown adds in unbundled builds.
 The output is validated with publint, as in `code-infra build` (`--skipPublint` skips it).
+`--ignore` globs leave matching sources out of the build, as in `code-infra build`.
 Continue using `code-infra build` for package builds.
