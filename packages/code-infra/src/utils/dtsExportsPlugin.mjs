@@ -1,9 +1,18 @@
 import { parseSync } from '@babel/core';
 import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
 
 const DTS_FILES = /\.d\.[cm]?ts$/;
 
 const EXPORT_LISTS = new Set(['ExportAllDeclaration', 'TSExportAssignment']);
+
+const MODULE_SYNTAX = new Set([
+  'ImportDeclaration',
+  'ExportAllDeclaration',
+  'ExportNamedDeclaration',
+  'ExportDefaultDeclaration',
+  'TSExportAssignment',
+]);
 
 const DECLARATIONS = new Set([
   'ClassDeclaration',
@@ -17,30 +26,78 @@ const DECLARATIONS = new Set([
 ]);
 
 /**
+ * @param {string} id
+ * @returns {Promise<{ code: string; body: import('@babel/core').types.Statement[] } | null>}
+ */
+async function parseDts(id) {
+  // rolldown-plugin-dts also loads ids for declarations it generates; those aren't on disk.
+  const code = await fs.readFile(id, 'utf8').catch(() => null);
+  if (code === null) {
+    return null;
+  }
+  const ast = parseSync(code, {
+    filename: id,
+    configFile: false,
+    babelrc: false,
+    parserOpts: { plugins: [['typescript', { dts: true }]] },
+  });
+  return { code, body: ast?.program.body ?? [] };
+}
+
+/** @param {import('@babel/core').types.Statement[]} body */
+function isScript(body) {
+  return !body.some(
+    (node) =>
+      MODULE_SYNTAX.has(node.type) ||
+      (node.type === 'TSImportEqualsDeclaration' &&
+        node.moduleReference.type === 'TSExternalModuleReference'),
+  );
+}
+
+/**
  * TypeScript exports every top-level declaration of a `.d.ts` module that has no export list,
  * export-all or export assignment. rolldown-plugin-dts appends `export {};`, which turns that off,
  * so hand-written declarations are made explicit before it reads them.
+ *
+ * A `.d.ts` without imports or exports declares globals, which bundling would make local. Imports
+ * of one stay external and the file is copied unchanged, as `code-infra build` does.
+ * @param {string} root The source directory output paths are relative to.
  * @returns {import('tsdown').Rolldown.Plugin}
  */
-export function dtsExportsPlugin() {
+export function dtsExportsPlugin(root) {
   return {
     name: 'code-infra:dts-exports',
+    resolveId: {
+      order: 'pre',
+      async handler(source, importer, options) {
+        if (!importer || !DTS_FILES.test(importer)) {
+          return null;
+        }
+        const resolved = await this.resolve(source, importer, { ...options, skipSelf: true });
+        if (!resolved || !DTS_FILES.test(resolved.id) || resolved.id.includes('node_modules')) {
+          return null;
+        }
+        const parsed = await parseDts(resolved.id);
+        if (!parsed || !isScript(parsed.body)) {
+          return null;
+        }
+        this.emitFile({
+          type: 'asset',
+          fileName: path.relative(root, resolved.id),
+          source: parsed.code,
+        });
+        return { id: source, external: true };
+      },
+    },
     load: {
       order: 'pre',
       filter: { id: { include: DTS_FILES, exclude: /node_modules/ } },
       async handler(id) {
-        // rolldown-plugin-dts also loads ids for declarations it generates; those aren't on disk.
-        const code = await fs.readFile(id, 'utf8').catch(() => null);
-        if (code === null) {
+        const parsed = await parseDts(id);
+        if (!parsed) {
           return null;
         }
-        const ast = parseSync(code, {
-          filename: id,
-          configFile: false,
-          babelrc: false,
-          parserOpts: { plugins: [['typescript', { dts: true }]] },
-        });
-        const body = ast?.program.body ?? [];
+        const { code, body } = parsed;
         const hasExportList = body.some(
           (node) =>
             EXPORT_LISTS.has(node.type) ||
