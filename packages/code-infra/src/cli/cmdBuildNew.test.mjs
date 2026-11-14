@@ -36,7 +36,7 @@ it('compiles each source module to ESM and CJS', async () => {
     'build/stale.js': 'stale',
   });
 
-  await execa(process.execPath, [cli, 'build-new'], { cwd });
+  await execa(process.execPath, [cli, 'build-new', '--no-buildTypes'], { cwd });
 
   const outDir = path.join(cwd, 'build');
   const output = await fs.readdir(outDir, { recursive: true });
@@ -114,7 +114,7 @@ it.each([
   );
   const legacy = await readCopied();
 
-  await execa(process.execPath, [cli, 'build-new', '--copy', ...copy], { cwd });
+  await execa(process.execPath, [cli, 'build-new', '--no-buildTypes', '--copy', ...copy], { cwd });
 
   expect(legacy).toHaveProperty('README.md', 'Package README');
   expect(await readCopied()).toEqual(legacy);
@@ -159,7 +159,10 @@ it('writes the same package.json as the Babel build', async () => {
   const legacy = await fs.readFile(manifest, 'utf8');
   await fs.rm(path.dirname(manifest), { recursive: true });
 
-  const run = await execa(process.execPath, [cli, 'build-new', ...bundle], { cwd, all: true });
+  const run = await execa(process.execPath, [cli, 'build-new', '--no-buildTypes', ...bundle], {
+    cwd,
+    all: true,
+  });
 
   expect(run.all.match(missing)).toEqual(legacyRun.all.match(missing));
 
@@ -199,7 +202,7 @@ it('applies the MUI Babel plugins and native transforms', async () => {
     ].join('\n'),
   });
 
-  await execa(process.execPath, [cli, 'build-new'], { cwd });
+  await execa(process.execPath, [cli, 'build-new', '--no-buildTypes'], { cwd });
 
   /** @param {string} file */
   const read = (file) => fs.readFile(path.join(cwd, 'build', file), 'utf8');
@@ -236,7 +239,9 @@ it.each([
     'src/index.js': 'export const value = 1;',
   });
 
-  await expect(execa(process.execPath, [cli, 'build-new'], { cwd })).rejects.toThrow(message);
+  await expect(
+    execa(process.execPath, [cli, 'build-new', '--no-buildTypes'], { cwd }),
+  ).rejects.toThrow(message);
 });
 
 it('applies the workspace Babel config on top of the base config', async () => {
@@ -280,11 +285,111 @@ it('applies the workspace Babel config on top of the base config', async () => {
   });
   const cwd = path.join(root, 'packages/example');
 
-  await execa(process.execPath, [cli, 'build-new', '--bundle', 'esm'], { cwd });
+  await execa(process.execPath, [cli, 'build-new', '--no-buildTypes', '--bundle', 'esm'], { cwd });
 
   const esm = await fs.readFile(path.join(cwd, 'build/index.js'), 'utf8');
   expect(esm).toContain('const release = "released"');
   expect(esm).not.toContain('displayName');
   expect(esm).toMatch(/\/\*\s*[#@]__PURE__\s*\*\/ React\.forwardRef/);
   expect(esm).toContain('/* @__PURE__ */ jsx("button"');
+});
+
+it('writes declarations matching the Babel build', async () => {
+  const tsc = fileURLToPath(new URL('../../../../node_modules/.bin/tsc', import.meta.url));
+  const baseConfig = fileURLToPath(new URL('../babel-config.mjs', import.meta.url));
+  const root = await makeTempFiles({
+    'package.json': JSON.stringify({ private: true }),
+    'pnpm-workspace.yaml': 'packages:\n  - packages/*\n',
+    '.browserslistrc': BROWSERSLIST,
+    'babel.config.mjs': `export { default } from ${JSON.stringify(baseConfig)};`,
+    'packages/example/package.json': JSON.stringify({
+      name: '@test/example',
+      version: '1.0.0',
+      type: 'module',
+      dependencies: {},
+      exports: {
+        '.': './src/index.ts',
+        './answer': './src/answer.ts',
+        './nothing': './src/nothing.ts',
+        './legacy': './src/legacy.js',
+        './Button': './src/Button.js',
+      },
+      publishConfig: { directory: 'build' },
+    }),
+    'packages/example/tsconfig.build.json': JSON.stringify({
+      compilerOptions: {
+        declaration: true,
+        emitDeclarationOnly: true,
+        allowJs: true,
+        strict: true,
+        skipLibCheck: true,
+        module: 'nodenext',
+        moduleResolution: 'nodenext',
+        rootDir: './src',
+        outDir: 'build',
+      },
+      include: ['src/**/*'],
+    }),
+    'packages/example/src/index.ts': [
+      "import type { ButtonProps } from './Button.js';",
+      'export const two: number = 2;',
+      "export const props: ButtonProps = { size: 'small' };",
+    ].join('\n'),
+    'packages/example/src/size.ts': "export type Size = 'small' | 'large';",
+    'packages/example/src/answer.ts': 'export default 42;',
+    'packages/example/src/nothing.ts': 'export default undefined;',
+    'packages/example/src/legacy.js': 'export default function legacy() {\n  return 1;\n}',
+    'packages/example/src/legacy.d.ts': [
+      'interface LegacyOptions {',
+      '  a: number;',
+      '}',
+      'export default function legacy(options?: LegacyOptions): number;',
+      "declare module 'external' {",
+      '  interface Augmented {}',
+      '}',
+    ].join('\n'),
+    'packages/example/src/Button.js': 'export default function Button() {\n  return null;\n}',
+    'packages/example/src/Button.d.ts': [
+      "import type { Size } from './size.js';",
+      'interface ButtonState {',
+      '  size: Size;',
+      '}',
+      'export interface ButtonProps {',
+      '  size?: ButtonState["size"];',
+      '}',
+      'declare const Button: (props: ButtonProps) => null;',
+      'export default Button;',
+    ].join('\n'),
+  });
+  await fs.mkdir(path.join(root, 'node_modules/.bin'), { recursive: true });
+  await fs.symlink(tsc, path.join(root, 'node_modules/.bin/tsc'));
+  const cwd = path.join(root, 'packages/example');
+  const manifest = path.join(cwd, 'build/package.json');
+
+  await execa(
+    process.execPath,
+    [cli, 'build', '--bundle', 'esm', 'cjs', '--tsgo', '--skipBabelRuntimeCheck', '--skipPublint'],
+    { cwd },
+  );
+  const legacy = await fs.readFile(manifest, 'utf8');
+  await fs.rm(path.dirname(manifest), { recursive: true });
+
+  await execa(process.execPath, [cli, 'build-new'], { cwd });
+
+  expect(JSON.parse(legacy).exports['./legacy'].require.types).toBe('./legacy.d.cts');
+  expect(await fs.readFile(manifest, 'utf8')).toBe(legacy);
+  const read = (/** @type {string} */ file) => fs.readFile(path.join(cwd, 'build', file), 'utf8');
+  const exported = (/** @type {string} */ name) =>
+    new RegExp(`export (interface ${name}|\\{[^}]*\\b${name}\\b)`);
+  for (const ext of ['ts', 'cts']) {
+    /* eslint-disable no-await-in-loop */
+    const legacyDts = await read(`legacy.d.${ext}`);
+    expect(legacyDts).toMatch(exported('LegacyOptions'));
+    expect(legacyDts).toMatch(/^declare module 'external'/m);
+    expect(await read(`Button.d.${ext}`)).not.toMatch(exported('ButtonState'));
+    /* eslint-enable no-await-in-loop */
+  }
+  expect(await read('index.d.ts')).toContain('from "./Button.js"');
+  expect(await read('Button.d.cts')).toContain('from "./size.cjs"');
+  expect(await read('answer.d.cts')).not.toContain('export =');
 });

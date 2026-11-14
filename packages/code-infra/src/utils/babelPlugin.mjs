@@ -18,7 +18,8 @@ export function babelPlugin(configFile) {
   return {
     name: 'code-infra:babel',
     transform: {
-      filter: { id: { include: BABEL_FILES, exclude: /node_modules/ } },
+      // rolldown-plugin-dts turns declarations into JS stubs Babel can't parse.
+      filter: { id: { include: BABEL_FILES, exclude: [/node_modules/, /\.d\.[cm]?ts$/] } },
       async handler(code, id) {
         /** @type {NonNullable<import('@babel/core').InputOptions['parserOpts']>['plugins']} */
         const syntax = [];
