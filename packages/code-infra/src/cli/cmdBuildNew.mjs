@@ -31,6 +31,10 @@ const BABEL_CONFIG_FILES = ['babel.config.js', 'babel.config.mjs'];
 
 const BABEL_RUNTIME = '@babel/runtime';
 
+const OXC_HELPERS = '@oxc-project/runtime/helpers/';
+// Oxc's legacy decorator helpers have no `@babel/runtime` equivalent, so Rolldown bundles them.
+const OXC_SHARED_HELPERS = /^@oxc-project\/runtime\/helpers\/(?!decorate)/;
+
 /** @type {Record<import('../utils/build.mjs').BundleType, string>} */
 const BROWSERSLIST_ENVS = { esm: 'stable', cjs: 'node' };
 
@@ -72,7 +76,7 @@ function getTarget(cwd, bundle) {
 }
 
 /**
- * The workspace Babel config `code-infra build` uses, or the base config without one.
+ * The workspace Babel config, or the base config without one.
  * @param {string} cwd
  * @returns {Promise<string>}
  */
@@ -105,7 +109,7 @@ async function getBabelRuntime(packageJson) {
 }
 
 /**
- * The environment `code-infra build` gives Babel; workspace configs branch on it.
+ * The environment Babel runs in; workspace configs branch on it.
  * @param {import('./packageJson').PackageJson} packageJson
  * @param {{ bundles: import('../utils/build.mjs').BundleType[]; babelRuntime: string | undefined; reactCompiler: 'on' | 'off' }} options
  * @returns {Record<string, string>}
@@ -150,7 +154,9 @@ function babelRuntimePlugin(babelRuntime) {
       const chunk = Object.values(bundle).find(
         (output) =>
           output.type === 'chunk' &&
-          output.imports.some((id) => id.startsWith(`${BABEL_RUNTIME}/`)),
+          output.imports.some(
+            (id) => id.startsWith(`${BABEL_RUNTIME}/`) || id.startsWith(OXC_HELPERS),
+          ),
       );
       if (!chunk) {
         return;
@@ -292,7 +298,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
           prerelease === undefined ? 'undefined' : JSON.stringify(prerelease),
       },
       envPrefix: [],
-      // `code-infra build` compiles JSX in `.js` files too.
+      // `.js` sources may contain JSX.
       loader: { '.js': 'jsx' },
       plugins: [
         fileUrlEntriesPlugin(),
@@ -304,11 +310,21 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       }),
       deps: { neverBundle: true },
       inputOptions: {
-        external: [PACKAGE_IMPORTS],
+        external: [PACKAGE_IMPORTS, OXC_SHARED_HELPERS],
         // tsdown otherwise takes `jsx` from the package's tsconfig, which may preserve JSX.
         transform: { jsx: { runtime: 'automatic' } },
       },
-      outputOptions: { exports: 'named' },
+      outputOptions: {
+        exports: 'named',
+        // Returning the id itself would print relative externals unresolved; `undefined` keeps
+        // Rolldown's own path for them.
+        paths: /** @type {(id: string) => string} */ (
+          (id) =>
+            id.startsWith(OXC_HELPERS)
+              ? `${BABEL_RUNTIME}/helpers/${id.slice(OXC_HELPERS.length)}`
+              : undefined
+        ),
+      },
       dts: false,
       exports: false,
       report: false,

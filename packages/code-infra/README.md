@@ -90,6 +90,6 @@ compiles JSX and lowers syntax for the `stable` (ESM) and `node` (CJS) browsersl
 and `MUI_VERSION` variables are inlined. Babel runs the workspace `babel.config.js` with
 `getBaseConfig` reduced to the MUI plugins Oxc lacks: display names, React pure annotations,
 prop-types removal and clsx optimization, plus the React compiler with `--enableReactCompiler`.
-Babel helpers are imported from the `@babel/runtime` version the package depends on; the build fails
-when the output imports them without that dependency. It does not write declarations. Continue using
-`code-infra build` for package builds.
+Babel helpers, and the helpers Oxc's lowering needs, are imported from the `@babel/runtime` version
+the package depends on; the build fails when the output imports them without that dependency. It
+does not write declarations. Continue using `code-infra build` for package builds.
