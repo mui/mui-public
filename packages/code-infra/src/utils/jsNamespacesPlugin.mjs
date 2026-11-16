@@ -33,19 +33,53 @@ function getName(node) {
   return node.type === 'Identifier' ? node.name : String(node.value);
 }
 
-/**
- * Whether `chunk` builds `name` with Rolldown's `__exportAll`, ie. it is the module's namespace.
- * @param {import('tsdown').Rolldown.OutputChunk | undefined} chunk
- * @param {string} name
- */
-function declaresNamespace(chunk, name) {
-  return Boolean(chunk?.code.includes(`var ${name} = /* @__PURE__ */ __exportAll(`));
-}
-
 /** @param {import('tsdown').Rolldown.OutputChunk} chunk */
 async function parseChunk(chunk) {
   const { program } = await parse(chunk.fileName, chunk.code, { lang: 'js' });
   return program.body;
+}
+
+/** @param {Name} node */
+function printName(node) {
+  return node.type === 'Identifier' ? node.name : JSON.stringify(node.value);
+}
+
+/**
+ * The `__exportAll()` namespaces of `chunk` whose members it all exports by name, so
+ * `import * as` can stand in for them. Rolldown can inline constants into the object instead.
+ * @param {import('tsdown').Rolldown.OutputChunk} chunk
+ */
+async function getNamespaces(chunk) {
+  const exported = new Set(chunk.exports);
+  /** @type {Set<string>} */
+  const namespaces = new Set();
+  for (const node of await parseChunk(chunk)) {
+    const declarator = node.type === 'VariableDeclaration' ? node.declarations[0] : null;
+    const init = declarator?.init;
+    if (
+      declarator?.id.type !== 'Identifier' ||
+      !GENERATED_NAMESPACE.test(declarator.id.name) ||
+      init?.type !== 'CallExpression' ||
+      init.callee.type !== 'Identifier' ||
+      init.callee.name !== '__exportAll' ||
+      init.arguments[0]?.type !== 'ObjectExpression'
+    ) {
+      continue;
+    }
+    const complete = init.arguments[0].properties.every(
+      (property) =>
+        property.type === 'Property' &&
+        !property.computed &&
+        (property.key.type === 'Identifier' || property.key.type === 'Literal') &&
+        exported.has(
+          property.key.type === 'Identifier' ? property.key.name : String(property.key.value),
+        ),
+    );
+    if (complete) {
+      namespaces.add(declarator.id.name);
+    }
+  }
+  return namespaces;
 }
 
 /**
@@ -212,9 +246,9 @@ async function dropUnusedImports(chunk) {
 
 /**
  * @param {import('tsdown').Rolldown.OutputChunk} chunk
- * @param {import('tsdown').Rolldown.OutputBundle} bundle
+ * @param {Map<string, Set<string>>} rewritable The rewritable namespaces, keyed by file name.
  */
-async function rewriteImports(chunk, bundle) {
+async function rewriteImports(chunk, rewritable) {
   /** @type {Edit[]} */
   const edits = [];
   for (const node of await parseChunk(chunk)) {
@@ -224,7 +258,9 @@ async function rewriteImports(chunk, bundle) {
     ) {
       continue;
     }
-    const target = bundle[path.posix.join(path.posix.dirname(chunk.fileName), node.source.value)];
+    const target = rewritable.get(
+      path.posix.join(path.posix.dirname(chunk.fileName), node.source.value),
+    );
     const source = JSON.stringify(node.source.value);
     const keyword = node.type === 'ImportDeclaration' ? 'import' : 'export';
     /** @type {string[]} */
@@ -241,17 +277,11 @@ async function rewriteImports(chunk, bundle) {
       }
       const [imported, alias] = binding;
       const name = imported ? getName(imported) : null;
-      if (
-        !name ||
-        !alias ||
-        !GENERATED_NAMESPACE.test(name) ||
-        target?.type !== 'chunk' ||
-        !declaresNamespace(target, name)
-      ) {
+      if (!name || !alias || !target?.has(name)) {
         rest.push(slice(chunk, specifier));
         continue;
       }
-      namespaces.push(`${keyword} * as ${getName(alias)} from ${source};`);
+      namespaces.push(`${keyword} * as ${printName(alias)} from ${source};`);
     }
     if (namespaces.length === 0) {
       continue;
@@ -283,7 +313,14 @@ export function jsNamespacesPlugin() {
         /** @returns {output is import('tsdown').Rolldown.OutputChunk} */
         (output) => output.type === 'chunk' && !DTS_FILES.test(output.fileName),
       );
-      await Promise.all(chunks.map((chunk) => rewriteImports(chunk, bundle)));
+      const namespaces = new Map(
+        await Promise.all(
+          chunks.map(
+            async (chunk) => /** @type {const} */ ([chunk.fileName, await getNamespaces(chunk)]),
+          ),
+        ),
+      );
+      await Promise.all(chunks.map((chunk) => rewriteImports(chunk, namespaces)));
       const imported = await getImportedNames(chunks);
       await Promise.all(
         chunks.map((chunk) =>
