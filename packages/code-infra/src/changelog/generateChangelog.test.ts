@@ -11,6 +11,7 @@ import type { ChangelogConfig } from './index.mjs';
 
 const OK = 200;
 const NOT_FOUND = 404;
+const TIER_PR = 24038;
 const RELEASE_DATE = '2026-10-01T00:00:00Z';
 const gitEnv = {
   GIT_AUTHOR_NAME: 'Fixture',
@@ -783,4 +784,155 @@ it('renders populated packages with breaking-change groups and generic sections'
   expect(result.markdown).toContain('### Docs\n\n- Explain migration (#3)');
   expect(result.markdown).not.toContain('@test/empty');
   expect(result.markdown).not.toContain('@test/private');
+});
+
+it.each([
+  {
+    title: '[charts][chat][DataGridPremium][scheduler]',
+    scopes: ['data grid', 'charts', 'scheduler', 'chat'],
+    labels: [],
+    packages: ['grid-premium', 'charts', 'scheduler', 'chat'],
+    prefixes: ['DataGridPremium', 'charts', 'scheduler', 'chat'],
+  },
+  {
+    title: '[DataGridPremium][charts-pro]',
+    scopes: ['data grid', 'charts'],
+    labels: [],
+    packages: ['grid-premium', 'charts-pro'],
+    prefixes: ['DataGridPremium', 'charts-pro'],
+  },
+  {
+    title: '[DataGridPremium][charts-premium]',
+    scopes: ['data grid', 'charts'],
+    labels: [],
+    packages: ['grid-premium', 'charts-premium'],
+    prefixes: ['DataGridPremium', 'charts-premium'],
+  },
+  {
+    title: '[DataGridPremium][charts]',
+    scopes: ['data grid', 'charts'],
+    labels: ['plan: premium', 'plan: pro'],
+    packages: ['grid-pro', 'charts-pro'],
+    prefixes: ['DataGridPro', 'charts-pro'],
+  },
+  {
+    title: '[DataGridPro][chat]',
+    scopes: ['data grid', 'chat'],
+    labels: ['plan: pro'],
+    packages: ['grid-pro', 'chat'],
+    prefixes: ['DataGridPro', 'chat'],
+  },
+  {
+    title: '[DataGridPremium][chat]',
+    scopes: ['chat'],
+    labels: [],
+    packages: ['chat'],
+    prefixes: ['chat'],
+  },
+])('routes product tiers independently for $title ($labels)', async (fixture) => {
+  const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'changelog-tiers-'));
+  onTestFinished(() => fs.rm(cwd, { recursive: true, force: true }));
+  await fs.writeFile(
+    path.join(cwd, 'package.json'),
+    JSON.stringify({ private: true, version: '1.0.0' }),
+  );
+  await fs.writeFile(path.join(cwd, 'pnpm-workspace.yaml'), "packages:\n  - 'packages/*'\n");
+  const packages = [
+    'grid',
+    'grid-pro',
+    'grid-premium',
+    'charts',
+    'charts-pro',
+    'charts-premium',
+    'scheduler',
+    'chat',
+  ];
+  await Promise.all(
+    packages.map(async (name) => {
+      const directory = path.join(cwd, 'packages', name);
+      await fs.mkdir(directory, { recursive: true });
+      await fs.writeFile(
+        path.join(directory, 'package.json'),
+        JSON.stringify({
+          name: `@test/${name}`,
+          version: '1.0.0',
+        }),
+      );
+    }),
+  );
+  const title = `${fixture.title} Fix React 17 crashes`;
+  const octokit = new Octokit({
+    request: {
+      fetch: async (input: Parameters<typeof fetch>[0]) => {
+        const url = new URL(input instanceof Request ? input.url : String(input));
+        const data = url.pathname.includes('/compare/')
+          ? {
+              url: url.href,
+              total_commits: 1,
+              commits: [{ sha: 'abc123', commit: { message: `${title} (#${TIER_PR})` } }],
+            }
+          : {
+              number: TIER_PR,
+              title,
+              labels: [...fixture.scopes.map((scope) => `scope: ${scope}`), ...fixture.labels].map(
+                (name) => ({ name }),
+              ),
+              user: { login: 'LukasTy' },
+              author_association: 'MEMBER',
+              body: '',
+              html_url: `https://github.com/mui/mui-x/pull/${TIER_PR}`,
+            };
+        return Object.defineProperty(Response.json(data, { status: OK }), 'url', {
+          value: url.href,
+        });
+      },
+    },
+  });
+  const result = await generateChangelog({
+    cwd,
+    repo: 'mui-x',
+    octokit,
+    release: 'v2',
+    lastRelease: 'v1',
+    config: {
+      format: { preservePrefixes: true },
+      categorization: {
+        strategy: 'package',
+        labels: {
+          plan: { values: ['pro', 'premium'] },
+          titleMappings: {
+            DataGridPro: ['scope: data grid', 'plan: pro'],
+            DataGridPremium: ['scope: data grid', 'plan: premium'],
+            charts: ['scope: charts'],
+            'charts-pro': ['scope: charts', 'plan: pro'],
+            'charts-premium': ['scope: charts', 'plan: premium'],
+            scheduler: ['scope: scheduler'],
+            chat: ['scope: chat'],
+          },
+        },
+        packageNaming: {
+          layout: 'package',
+          mappings: {
+            'data grid': '@test/grid',
+            charts: '@test/charts',
+            scheduler: '@test/scheduler',
+            chat: '@test/chat',
+          },
+          plans: {
+            pro: { '@test/grid': '@test/grid-pro', '@test/charts': '@test/charts-pro' },
+            premium: { '@test/grid': '@test/grid-premium', '@test/charts': '@test/charts-premium' },
+          },
+        },
+        sections: { fallbackSection: 'Other' },
+      },
+    },
+  });
+  expect(result.sections.map((section) => section.key).sort()).toEqual(
+    fixture.packages.map((name) => `@test/${name}`).sort(),
+  );
+  for (const section of result.sections) {
+    expect([...(section.commits[0].parsed.titlePrefixes ?? [])].sort()).toEqual(
+      fixture.prefixes.slice().sort(),
+    );
+  }
 });

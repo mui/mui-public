@@ -37,6 +37,8 @@ export interface ParsedLabels {
    */
   components: string[];
   plan?: string;
+  /** Title-derived tiers keyed by lowercase scope; explicit plan labels take precedence. */
+  scopePlans?: Record<string, string>;
   flags: string[];
   /** Resolved bracket prefixes, including unrelated original prefixes. */
   titlePrefixes?: string[];
@@ -65,6 +67,7 @@ export interface LabelConfig {
    * Bracket prefix -> canonical labels, e.g. { Grid: ['scope: grid'], grid: ['scope: grid'] }
    * renders either equivalent spelling as [Grid], since Grid is listed first.
    * Rendering keeps unmapped prefixes first, then prefers mappings with more labels.
+   * A plan in a scoped mapping applies only to that mapping's scopes.
    */
   titleMappings?: Record<string, string[]>;
   scope?: {
