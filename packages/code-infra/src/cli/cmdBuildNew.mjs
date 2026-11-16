@@ -37,6 +37,37 @@ function getLeaves(value) {
 }
 
 /**
+ * @param {string} leaf
+ * @returns {string | null}
+ */
+function toSource(leaf) {
+  const rel = leaf.replace(/^\.\//, '');
+  if (!rel.startsWith(`${SOURCE_DIR}/`) || !SOURCE_EXTENSIONS.includes(path.extname(rel))) {
+    return null;
+  }
+  return rel.slice(SOURCE_DIR.length + 1);
+}
+
+/**
+ * @param {string} name
+ * @param {string} source - A declared source path relative to `src/`, possibly with a `*`.
+ * @returns {boolean}
+ */
+function matchesSource(name, source) {
+  const stem = source.slice(0, -path.extname(source).length);
+  const star = stem.indexOf('*');
+  if (star === -1) {
+    return stem === name;
+  }
+
+  const prefix = stem.slice(0, star);
+  const suffix = stem.slice(star + 1);
+  return (
+    name.length > prefix.length + suffix.length && name.startsWith(prefix) && name.endsWith(suffix)
+  );
+}
+
+/**
  * Resolves the source modules behind the ESM paths `code-infra build` would publish.
  * @param {import('./packageJson').PackageJson} packageJson
  * @param {{ cwd: string; outDir: string; packageType: 'module' | 'commonjs' }} options
@@ -58,9 +89,15 @@ async function getEntry(packageJson, { cwd, outDir, packageType }) {
       .map((leaf) => leaf.slice('./'.length, -extension.length)),
   );
 
+  const sources = getLeaves([packageJson.exports, packageJson.imports, packageJson.bin])
+    .map(toSource)
+    .filter((source) => source !== null);
+
   const entries = await Promise.all(
     [...names].map(async (name) => {
-      const candidates = SOURCE_EXTENSIONS.map((ext) => path.join(SOURCE_DIR, `${name}${ext}`));
+      const candidates = sources
+        .filter((source) => matchesSource(name, source))
+        .map((source) => path.join(SOURCE_DIR, `${name}${path.extname(source)}`));
       const found = await Promise.all(
         candidates.map((file) =>
           fs.stat(path.join(cwd, file)).then(
