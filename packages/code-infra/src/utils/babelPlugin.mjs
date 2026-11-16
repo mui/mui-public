@@ -7,6 +7,7 @@ import pluginRemovePropTypes from 'babel-plugin-transform-react-remove-prop-type
 const BABEL_FILES = /\.[cm]?[jt]sx?$/;
 const TS_FILES = /\.[cm]?tsx?$/;
 const TS_WITHOUT_JSX = /\.[cm]?ts$/;
+const COMMONJS_FILES = /\.c[jt]s$/;
 
 /**
  * Runs the MUI Babel plugins that have no Oxc equivalent. Oxc then strips types, compiles JSX
@@ -45,6 +46,7 @@ export function babelPlugin(packageJson) {
           configFile: false,
           babelrc: false,
           sourceMaps: true,
+          sourceType: COMMONJS_FILES.test(id) ? 'commonjs' : 'module',
           parserOpts: { plugins: syntax },
           plugins,
         });
