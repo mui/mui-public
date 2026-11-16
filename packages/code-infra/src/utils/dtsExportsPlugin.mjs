@@ -5,6 +5,8 @@ import { parse } from 'rolldown/utils';
 
 const DTS_FILES = /\.d\.[cm]?ts$/;
 
+const REFERENCE_PATH = /^\/\s*<reference\s+path\s*=\s*(["'])(.+?)\1/;
+
 const EXPORT_LISTS = new Set(['ExportAllDeclaration', 'TSExportAssignment']);
 
 const MODULE_SYNTAX = new Set([
@@ -27,10 +29,11 @@ const DECLARATIONS = new Set([
 ]);
 
 /** @typedef {import('rolldown/utils').ParseResult['program']['body']} Body */
+/** @typedef {import('rolldown/utils').ParseResult['comments']} Comments */
 
 /**
  * @param {string} id
- * @returns {Promise<{ code: string; body: Body } | null>}
+ * @returns {Promise<{ code: string; body: Body; comments: Comments } | null>}
  */
 async function parseDts(id) {
   // rolldown-plugin-dts also loads ids for declarations it generates; those aren't on disk.
@@ -38,8 +41,39 @@ async function parseDts(id) {
   if (code === null) {
     return null;
   }
-  const { program } = await parse(id, code, { lang: 'dts' });
-  return { code, body: program.body };
+  const { program, comments } = await parse(id, code, { lang: 'dts' });
+  return { code, body: program.body, comments };
+}
+
+/**
+ * Copies a declaration and, recursively, the local declarations it references.
+ * @param {import('tsdown').Rolldown.PluginContext} ctx
+ * @param {string} root
+ * @param {string} id
+ * @param {{ code: string; comments: Comments }} parsed
+ * @param {Set<string>} seen
+ */
+async function copyDts(ctx, root, id, parsed, seen) {
+  seen.add(id);
+  ctx.emitFile({ type: 'asset', fileName: path.relative(root, id), source: parsed.code });
+
+  for (const comment of parsed.comments) {
+    const match = comment.type === 'Line' ? REFERENCE_PATH.exec(comment.value) : null;
+    if (!match) {
+      continue;
+    }
+    const target = path.resolve(path.dirname(id), match[2]);
+    if (seen.has(target) || target.includes('node_modules')) {
+      continue;
+    }
+    // eslint-disable-next-line no-await-in-loop
+    const nested = await parseDts(target);
+    if (!nested) {
+      continue;
+    }
+    // eslint-disable-next-line no-await-in-loop
+    await copyDts(ctx, root, target, nested, seen);
+  }
 }
 
 /** @param {Body} body */
@@ -58,7 +92,8 @@ function isScript(body) {
  * so hand-written declarations are made explicit before it reads them.
  *
  * A `.d.ts` without imports or exports declares globals, which bundling would make local. Imports
- * of one stay external and the file is copied unchanged, as `code-infra build` does.
+ * of one stay external and the file is copied unchanged with the declarations it references, as
+ * `code-infra build` does.
  * @param {string} root The source directory output paths are relative to.
  * @returns {import('tsdown').Rolldown.Plugin}
  */
@@ -79,11 +114,7 @@ export function dtsExportsPlugin(root) {
         if (!parsed || !isScript(parsed.body)) {
           return null;
         }
-        this.emitFile({
-          type: 'asset',
-          fileName: path.relative(root, resolved.id),
-          source: parsed.code,
-        });
+        await copyDts(this, root, resolved.id, parsed, new Set());
         return { id: source, external: true };
       },
     },
