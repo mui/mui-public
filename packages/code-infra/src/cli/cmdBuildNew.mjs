@@ -42,9 +42,8 @@ const OXC_ENGINES = new Set([
 ]);
 
 /**
- * Resolves the bundle's browserslist environment the way `@babel/preset-env` does for
- * `code-infra build`. Oxc can't lower for every engine Babel knows, so those fail instead of
- * silently shipping less-compiled code.
+ * Resolves the bundle's browserslist environment the way `@babel/preset-env` does. Oxc can't lower
+ * for every engine Babel knows, so those fail instead of silently shipping less-compiled code.
  * @param {string} cwd
  * @param {import('../utils/build.mjs').BundleType} bundle
  * @returns {string[]} Oxc targets.
