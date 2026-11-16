@@ -15,6 +15,8 @@ import {
  */
 
 const SOURCE_DIR = 'src';
+// Importers keep `#` specifiers, so consumers resolve the `imports` conditions.
+const PACKAGE_IMPORTS = /^#/;
 const SOURCE_EXTENSIONS = ['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs'];
 
 /** @type {Record<import('../utils/build.mjs').BundleType, 'es' | 'cjs'>} */
@@ -109,6 +111,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         js: getOutExtension(format === 'es' ? 'esm' : 'cjs', { packageType }),
       }),
       deps: { neverBundle: true },
+      inputOptions: { external: [PACKAGE_IMPORTS] },
       outputOptions: { exports: 'named' },
       dts: false,
       exports: false,
