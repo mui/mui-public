@@ -9,6 +9,7 @@ import { getVersionEnvVariables } from '../utils/babel.mjs';
 import { babelPlugin } from '../utils/babelPlugin.mjs';
 import { fileUrlEntriesPlugin } from '../utils/fileUrlEntriesPlugin.mjs';
 import { getPublishedPkgJson } from '../utils/getPublishedPkgJson.mjs';
+import { readPnpmConfig } from '../utils/pnpm.mjs';
 
 /**
  * @typedef {Object} Args
@@ -25,6 +26,8 @@ const MODULE_LEVEL_DIRECTIVE = 'MODULE_LEVEL_DIRECTIVE';
 const FORMATS = { esm: 'es', cjs: 'cjs' };
 
 const BABEL_CONFIG_FILES = ['babel.config.js', 'babel.config.mjs'];
+
+const BABEL_RUNTIME = '@babel/runtime';
 
 /** @type {Record<import('../utils/build.mjs').BundleType, string>} */
 const BROWSERSLIST_ENVS = { esm: 'stable', cjs: 'node' };
@@ -87,12 +90,25 @@ async function getBabelConfigFile(cwd) {
 }
 
 /**
+ * @param {import('./packageJson').PackageJson} packageJson
+ * @returns {Promise<string | undefined>} The `@babel/runtime` range the package depends on.
+ */
+async function getBabelRuntime(packageJson) {
+  const version = packageJson.dependencies?.[BABEL_RUNTIME];
+  if (version !== 'catalog:') {
+    return version;
+  }
+  const config = await readPnpmConfig();
+  return config.catalog[BABEL_RUNTIME];
+}
+
+/**
  * The environment `code-infra build` gives Babel; workspace configs branch on it.
  * @param {import('./packageJson').PackageJson} packageJson
- * @param {import('../utils/build.mjs').BundleType[]} bundles
+ * @param {{ bundles: import('../utils/build.mjs').BundleType[]; babelRuntime: string | undefined }} options
  * @returns {Record<string, string>}
  */
-function getBabelEnv(packageJson, bundles) {
+function getBabelEnv(packageJson, { bundles, babelRuntime }) {
   const dependencies = packageJson.dependencies ?? {};
   /** @type {Record<string, string>} */
   const env = {
@@ -106,7 +122,37 @@ function getBabelEnv(packageJson, bundles) {
   if (dependencies.clsx !== undefined || dependencies.classnames !== undefined) {
     env.MUI_OPTIMIZE_CLSX = 'true';
   }
+  if (babelRuntime) {
+    env.MUI_BABEL_RUNTIME_VERSION = babelRuntime;
+  }
   return env;
+}
+
+/**
+ * Fails the build when the output imports Babel helpers the package doesn't depend on.
+ * @param {string | undefined} babelRuntime
+ * @returns {import('tsdown').Rolldown.Plugin}
+ */
+function babelRuntimePlugin(babelRuntime) {
+  return {
+    name: 'code-infra:babel-runtime',
+    generateBundle(_options, bundle) {
+      if (babelRuntime) {
+        return;
+      }
+      const chunk = Object.values(bundle).find(
+        (output) =>
+          output.type === 'chunk' &&
+          output.imports.some((id) => id.startsWith(`${BABEL_RUNTIME}/`)),
+      );
+      if (!chunk) {
+        return;
+      }
+      this.error(
+        `${chunk.fileName} imports Babel helpers, so package.json needs a dependency on \`${BABEL_RUNTIME}\`.`,
+      );
+    },
+  };
 }
 
 /**
@@ -212,7 +258,8 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     const { MUI_PRERELEASE: prerelease, ...versionEnv } = getVersionEnvVariables(
       packageJson.version,
     );
-    Object.assign(process.env, getBabelEnv(packageJson, bundles));
+    const babelRuntime = await getBabelRuntime(packageJson);
+    Object.assign(process.env, getBabelEnv(packageJson, { bundles, babelRuntime }));
     await build({
       cwd,
       config: false,
@@ -234,7 +281,11 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       envPrefix: [],
       // `code-infra build` compiles JSX in `.js` files too.
       loader: { '.js': 'jsx' },
-      plugins: [fileUrlEntriesPlugin(), babelPlugin(await getBabelConfigFile(cwd))],
+      plugins: [
+        fileUrlEntriesPlugin(),
+        babelPlugin(await getBabelConfigFile(cwd)),
+        babelRuntimePlugin(babelRuntime),
+      ],
       outExtensions: ({ format }) => ({
         js: getOutExtension(format === 'es' ? 'esm' : 'cjs', { packageType }),
       }),
