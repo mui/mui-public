@@ -142,7 +142,6 @@ it('resolves an original PR in its own repository instead of guessing from menti
     },
   });
   const [result] = await fetchCommitsBetweenRefs({
-    includeDirectCommits: true,
     octokit,
     repo: 'test',
     lastRelease: 'v1',
@@ -338,7 +337,6 @@ it('cleans human cherry-pick suffixes without changing attribution', async () =>
     },
   });
   const [result] = await fetchCommitsBetweenRefs({
-    includeDirectCommits: true,
     octokit,
     repo: 'test',
     lastRelease: 'v0',
@@ -453,7 +451,6 @@ it('detects cherry-picks using configured labels', async () => {
   expect(defaults.author?.login).toBe('github-actions[bot]');
 
   const [configured] = await fetchCommitsBetweenRefs({
-    includeDirectCommits: true,
     ...options,
     cherryPickLabels: ['type: port'],
   });
