@@ -147,6 +147,7 @@
     "remark-parse": "^11.0.0",
     "remark-rehype": "^11.1.2",
     "resolve-pkg-maps": "^1.0.0",
+    "rolldown": "1.2.16",
     "semver": "^7.8.6",
     "stylelint-config-standard": "^41.0.0",
     "tsdown": "0.23.4",

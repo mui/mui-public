@@ -8,6 +8,7 @@ import {
   getOutExtension,
   validatePkgJson,
 } from '../utils/build.mjs';
+import { fileUrlEntriesPlugin } from '../utils/fileUrlEntriesPlugin.mjs';
 
 /**
  * @typedef {Object} Args
@@ -148,6 +149,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         js: getOutExtension(format === 'es' ? 'esm' : 'cjs', { packageType }),
       }),
       deps: { neverBundle: true },
+      plugins: [fileUrlEntriesPlugin()],
       inputOptions: { external: [PACKAGE_IMPORTS] },
       outputOptions: { exports: 'named' },
       dts: false,
