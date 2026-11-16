@@ -1,6 +1,7 @@
-import { parseSync } from '@babel/core';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { RolldownMagicString } from 'rolldown';
+import { parse } from 'rolldown/utils';
 
 const DTS_FILES = /\.d\.[cm]?ts$/;
 
@@ -25,9 +26,11 @@ const DECLARATIONS = new Set([
   'VariableDeclaration',
 ]);
 
+/** @typedef {import('rolldown/utils').ParseResult['program']['body']} Body */
+
 /**
  * @param {string} id
- * @returns {Promise<{ code: string; body: import('@babel/core').types.Statement[] } | null>}
+ * @returns {Promise<{ code: string; body: Body } | null>}
  */
 async function parseDts(id) {
   // rolldown-plugin-dts also loads ids for declarations it generates; those aren't on disk.
@@ -35,16 +38,11 @@ async function parseDts(id) {
   if (code === null) {
     return null;
   }
-  const ast = parseSync(code, {
-    filename: id,
-    configFile: false,
-    babelrc: false,
-    parserOpts: { plugins: [['typescript', { dts: true }]] },
-  });
-  return { code, body: ast?.program.body ?? [] };
+  const { program } = await parse(id, code, { lang: 'dts' });
+  return { code, body: program.body };
 }
 
-/** @param {import('@babel/core').types.Statement[]} body */
+/** @param {Body} body */
 function isScript(body) {
   return !body.some(
     (node) =>
@@ -110,25 +108,23 @@ export function dtsExportsPlugin(root) {
           return null;
         }
 
-        const starts = body
-          .filter(
-            (node) =>
-              DECLARATIONS.has(node.type) &&
-              !(
-                node.type === 'TSModuleDeclaration' &&
-                (node.kind === 'global' || node.id.type === 'StringLiteral')
-              ),
-          )
-          .map((node) => /** @type {number} */ (node.start));
-        if (starts.length === 0) {
+        const declarations = body.filter(
+          (node) =>
+            DECLARATIONS.has(node.type) &&
+            !(
+              node.type === 'TSModuleDeclaration' &&
+              (node.kind === 'global' || node.id.type === 'Literal')
+            ),
+        );
+        if (declarations.length === 0) {
           return null;
         }
 
-        let result = code;
-        for (const start of starts.reverse()) {
-          result = `${result.slice(0, start)}export ${result.slice(start)}`;
+        const result = new RolldownMagicString(code);
+        for (const node of declarations) {
+          result.prependRight(node.start, 'export ');
         }
-        return result;
+        return result.toString();
       },
     },
   };
