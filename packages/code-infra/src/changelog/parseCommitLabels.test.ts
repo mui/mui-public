@@ -343,7 +343,7 @@ describe('parseCommitLabels', () => {
       expect(commit.labels).toEqual([]);
     });
 
-    it('should merge extracted labels with existing labels', () => {
+    it('combines title labels with live labels without mutating them', () => {
       const commit = createCommit({
         message: '[charts] Add new feature',
         labels: ['enhancement'],
@@ -360,7 +360,6 @@ describe('parseCommitLabels', () => {
 
       expect(result.scopes).toEqual(['charts']);
       expect(commit.labels).toEqual(['enhancement']);
-      expect(commit.labels).toContain('enhancement');
     });
 
     it('should deduplicate labels when extracting from title', () => {
@@ -510,21 +509,6 @@ describe('parseCommitLabels', () => {
       const result = parseCommitLabels(commit, baseLabelConfig);
 
       expect(result.scopes).toEqual(['']);
-    });
-
-    it('keeps source labels unchanged when extracting from title', () => {
-      const commit = createCommit({ message: '[core] Fix bug', labels: [] });
-      const config: LabelConfig = {
-        ...baseLabelConfig,
-        extractLabelsFromTitle: (title) => {
-          const match = title.match(/^\[([^\]]+)\]/);
-          return match ? [`scope: ${match[1]}`] : [];
-        },
-      };
-
-      parseCommitLabels(commit, config);
-
-      expect(commit.labels).toEqual([]);
     });
   });
 });

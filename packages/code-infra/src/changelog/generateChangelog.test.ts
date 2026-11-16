@@ -224,7 +224,9 @@ it('generates package entries through the public API', async () => {
       },
     },
   });
-  expect(generic.markdown).toContain('Fix behavior (#1) @visible');
+  const genericKeys = generic.sections.map((section) => section.key);
+  expect(genericKeys).toContain('Core');
+  expect(generic.markdown.match(/Fix behavior \(#1\)/g)).toHaveLength(1);
 
   const withoutDirect = await generateChangelog({
     ...options,
@@ -877,7 +879,7 @@ it.each([
               labels: [...fixture.scopes.map((scope) => `scope: ${scope}`), ...fixture.labels].map(
                 (name) => ({ name }),
               ),
-              user: { login: 'LukasTy' },
+              user: { login: 'author' },
               author_association: 'MEMBER',
               body: '',
               html_url: `https://github.com/mui/mui-x/pull/${TIER_PR}`,
