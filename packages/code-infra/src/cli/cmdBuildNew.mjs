@@ -100,6 +100,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       config: false,
       entry,
       unbundle: true,
+      platform: 'neutral',
       root: SOURCE_DIR,
       outDir,
       clean: true,
