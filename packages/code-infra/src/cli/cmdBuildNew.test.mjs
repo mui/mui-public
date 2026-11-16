@@ -455,3 +455,64 @@ it('keeps the global declarations a module imports', async () => {
   );
   await expect(typecheck).resolves.toMatchObject({ exitCode: 0 });
 });
+
+it('keeps the types a module re-exports from packages', async () => {
+  const tsc = fileURLToPath(new URL('../../../../node_modules/.bin/tsc', import.meta.url));
+  const root = await makeTempFiles({
+    'package.json': JSON.stringify({ private: true }),
+    'pnpm-workspace.yaml': 'packages:\n  - packages/*\n',
+    '.browserslistrc': BROWSERSLIST,
+    'babel.config.mjs': 'export default {};',
+    'node_modules/external/package.json': JSON.stringify({ name: 'external', types: 'index.d.ts' }),
+    'node_modules/external/index.d.ts': 'export type SeriesId = string;',
+    'packages/example/package.json': JSON.stringify({
+      name: '@test/example',
+      version: '1.0.0',
+      type: 'module',
+      dependencies: {},
+      exports: { '.': './src/index.ts' },
+      publishConfig: { directory: 'build' },
+    }),
+    'packages/example/tsconfig.build.json': JSON.stringify({
+      compilerOptions: {
+        declaration: true,
+        emitDeclarationOnly: true,
+        strict: true,
+        module: 'nodenext',
+        moduleResolution: 'nodenext',
+        rootDir: './src',
+        outDir: 'build',
+      },
+      include: ['src/**/*'],
+    }),
+    'packages/example/src/index.ts': [
+      "export * from './Cell.js';",
+      "export * from './models/index.js';",
+    ].join('\n'),
+    'packages/example/src/Cell.ts': [
+      "import type { SeriesId } from './models/index.js';",
+      'export interface Cell {',
+      '  id: SeriesId;',
+      '}',
+    ].join('\n'),
+    'packages/example/src/models/index.ts': [
+      "export * from 'external';",
+      'export const local = 1;',
+    ].join('\n'),
+  });
+  await fs.mkdir(path.join(root, 'node_modules/.bin'), { recursive: true });
+  await fs.symlink(tsc, path.join(root, 'node_modules/.bin/tsc'));
+  const cwd = path.join(root, 'packages/example');
+
+  await execa(process.execPath, [cli, 'build-new'], { cwd });
+
+  const typecheck = execa(
+    tsc,
+    ['--noEmit', '--strict', '--module', 'nodenext', 'index.d.ts', 'index.d.cts'],
+    { cwd: path.join(cwd, 'build') },
+  );
+  await expect(typecheck).resolves.toMatchObject({ exitCode: 0 });
+  expect(await fs.readFile(path.join(cwd, 'build/models/index.d.ts'), 'utf8')).not.toContain(
+    '_exports',
+  );
+});
