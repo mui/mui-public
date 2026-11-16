@@ -3,6 +3,7 @@ import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { globby } from 'globby';
+import * as semver from 'semver';
 
 import { getOutExtension, getPackageSources, validatePkgJson } from '../utils/build.mjs';
 import { getVersionEnvVariables } from '../utils/babel.mjs';
@@ -15,6 +16,7 @@ import { readPnpmConfig } from '../utils/pnpm.mjs';
  * @typedef {Object} Args
  * @property {import('../utils/build.mjs').BundleType[]} bundle
  * @property {string[]} copy
+ * @property {boolean} enableReactCompiler
  */
 
 const SOURCE_DIR = 'src';
@@ -105,10 +107,10 @@ async function getBabelRuntime(packageJson) {
 /**
  * The environment `code-infra build` gives Babel; workspace configs branch on it.
  * @param {import('./packageJson').PackageJson} packageJson
- * @param {{ bundles: import('../utils/build.mjs').BundleType[]; babelRuntime: string | undefined }} options
+ * @param {{ bundles: import('../utils/build.mjs').BundleType[]; babelRuntime: string | undefined; reactCompiler: 'on' | 'off' }} options
  * @returns {Record<string, string>}
  */
-function getBabelEnv(packageJson, { bundles, babelRuntime }) {
+function getBabelEnv(packageJson, { bundles, babelRuntime, reactCompiler }) {
   const dependencies = packageJson.dependencies ?? {};
   /** @type {Record<string, string>} */
   const env = {
@@ -124,6 +126,11 @@ function getBabelEnv(packageJson, { bundles, babelRuntime }) {
   }
   if (babelRuntime) {
     env.MUI_BABEL_RUNTIME_VERSION = babelRuntime;
+  }
+  if (reactCompiler === 'on') {
+    env.MUI_REACT_COMPILER = '1';
+    env.MUI_REACT_COMPILER_REACT_VERSION =
+      semver.minVersion(packageJson.peerDependencies?.react ?? '')?.version ?? 'latest';
   }
   return env;
 }
@@ -239,11 +246,16 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         type: 'string',
         default: /** @type {string[]} */ ([]),
         description: 'Files to copy to the output directory, as `glob` or `glob:target`.',
+      })
+      .option('enableReactCompiler', {
+        type: 'boolean',
+        default: false,
+        description: 'Compile components with the React compiler.',
       }),
   async handler(args) {
     const cwd = process.cwd();
     const packageJson = JSON.parse(await fs.readFile(path.join(cwd, 'package.json'), 'utf8'));
-    validatePkgJson(packageJson);
+    validatePkgJson(packageJson, { enableReactCompiler: args.enableReactCompiler });
 
     const outDir = path.join(cwd, packageJson.publishConfig.directory);
     const packageType = packageJson.type === 'module' ? 'module' : 'commonjs';
@@ -259,7 +271,8 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       packageJson.version,
     );
     const babelRuntime = await getBabelRuntime(packageJson);
-    Object.assign(process.env, getBabelEnv(packageJson, { bundles, babelRuntime }));
+    const reactCompiler = args.enableReactCompiler ? 'on' : 'off';
+    Object.assign(process.env, getBabelEnv(packageJson, { bundles, babelRuntime, reactCompiler }));
     await build({
       cwd,
       config: false,
