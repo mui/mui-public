@@ -16,7 +16,6 @@ const TS_WITHOUT_JSX = /\.[cm]?ts$/;
 
 // Work `code-infra build-new` leaves to Oxc and Rolldown.
 const OXC_HANDLED_PLUGINS = new Set([
-  '@babel/plugin-transform-runtime',
   'babel-plugin-transform-inline-environment-variables',
   'babel-plugin-transform-import-meta',
   '@mui/internal-babel-plugin-resolve-imports',

@@ -261,6 +261,15 @@ it('applies the workspace Babel config on top of the base config', async () => {
       '      },',
       '    }));',
       '  }',
+      '  plugins.push(() => ({',
+      '    visitor: {',
+      '      Identifier(path, state) {',
+      "        if (path.node.name === '__EXTENDS__' && path.isReferencedIdentifier()) {",
+      "          path.replaceWith(state.file.addHelper('extends'));",
+      '        }',
+      '      },',
+      '    },',
+      '  }));',
       '  return { ...config, plugins };',
       '}',
     ].join('\n'),
@@ -274,7 +283,9 @@ it('applies the workspace Babel config on top of the base config', async () => {
     'packages/example/src/index.tsx': [
       "import * as React from 'react';",
       'declare const __RELEASE__: string;',
+      'declare const __EXTENDS__: typeof Object.assign;',
       'export const release = __RELEASE__;',
+      'export const merge = __EXTENDS__;',
       'export const Button = React.forwardRef<HTMLButtonElement>((props, ref) => <button ref={ref} />);',
     ].join('\n'),
   });
@@ -284,6 +295,7 @@ it('applies the workspace Babel config on top of the base config', async () => {
 
   const esm = await fs.readFile(path.join(cwd, 'build/index.js'), 'utf8');
   expect(esm).toContain('const release = "released"');
+  expect(esm).toContain('from "@babel/runtime/helpers/extends"');
   expect(esm).not.toContain('displayName');
   expect(esm).toMatch(/\/\*\s*[#@]__PURE__\s*\*\/ React\.forwardRef/);
   expect(esm).toContain('/* @__PURE__ */ jsx("button"');
