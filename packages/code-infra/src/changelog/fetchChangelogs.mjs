@@ -40,6 +40,7 @@ function shouldRetryRateLimit(retryAfter, options, octokit, retryCount) {
  * @property {string} release
  * @property {string} [org='mui'] - GitHub organization name, defaults to 'mui'
  * @property {string[]} [cherryPickLabels] - Labels marking cherry-pick PRs whose original author should be credited
+ * @property {boolean} [includeDirectCommits=false] - Also return commits without a pull request, with `prNumber: null`; classifying their authors needs a token that can read organization memberships
  * @property {(progress: { phase: string; count: number; total: number }) => void} [onProgress] - Called as commits are listed and their pull request details are fetched
  */
 
@@ -69,6 +70,7 @@ export async function fetchCommitsBetweenRefs(opts) {
     release: opts.release,
     org: opts.org ?? 'mui',
     cherryPickLabels: opts.cherryPickLabels,
+    includeDirectCommits: opts.includeDirectCommits ?? false,
     onProgress: opts.onProgress,
   });
 }
@@ -89,6 +91,7 @@ async function fetchCommitsRest({
   release,
   org = 'mui',
   cherryPickLabels = DEFAULT_CHERRY_PICK_LABELS,
+  includeDirectCommits = false,
   onProgress,
 }) {
   /**
@@ -168,7 +171,7 @@ async function fetchCommitsRest({
     // Squash-merge subjects end with the PR number; issue references in prose do not.
     const prMatch = commit.commit.message.split('\n')[0].match(/\(#(\d+)\)\s*$/);
     if (!prMatch) {
-      return directCommit(commit, signal);
+      return includeDirectCommits ? directCommit(commit, signal) : null;
     }
 
     const prNumber = Number(prMatch[1]);
@@ -184,7 +187,7 @@ async function fetchCommitsRest({
       });
     } catch (error) {
       if (error instanceof Error && 'status' in error && error.status === HTTP_NOT_FOUND) {
-        return directCommit(commit, signal);
+        return includeDirectCommits ? directCommit(commit, signal) : null;
       }
       throw error;
     }

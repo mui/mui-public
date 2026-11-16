@@ -52,6 +52,7 @@ export async function generateChangelog(options = {}) {
       lastRelease: release.lastRelease,
       release: release.release,
       cherryPickLabels: config.contributors?.cherryPickLabels,
+      includeDirectCommits: true,
       octokit: options.octokit,
     });
   } catch (error) {

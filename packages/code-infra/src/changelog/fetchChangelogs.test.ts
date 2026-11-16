@@ -81,6 +81,7 @@ it('keeps direct commits and resolves structured cherry-pick attribution', async
   const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
   try {
     const result = await fetchCommitsBetweenRefs({
+      includeDirectCommits: true,
       octokit,
       repo: 'test',
       lastRelease: 'v1',
@@ -141,6 +142,7 @@ it('resolves an original PR in its own repository instead of guessing from menti
     },
   });
   const [result] = await fetchCommitsBetweenRefs({
+    includeDirectCommits: true,
     octokit,
     repo: 'test',
     lastRelease: 'v1',
@@ -187,7 +189,13 @@ it.each(RATE_LIMIT_HEADERS)(
       },
     });
     await expect(
-      fetchCommitsBetweenRefs({ octokit, repo: 'test', lastRelease: 'v0', release: 'v1' }),
+      fetchCommitsBetweenRefs({
+        includeDirectCommits: true,
+        octokit,
+        repo: 'test',
+        lastRelease: 'v0',
+        release: 'v1',
+      }),
     ).rejects.toMatchObject({ status: FORBIDDEN });
   },
 );
@@ -242,7 +250,13 @@ it('aborts pending membership requests when another lookup fails', async () => {
     },
   });
   await expect(
-    fetchCommitsBetweenRefs({ octokit, repo: 'test', lastRelease: 'v0', release: 'v1' }),
+    fetchCommitsBetweenRefs({
+      includeDirectCommits: true,
+      octokit,
+      repo: 'test',
+      lastRelease: 'v0',
+      release: 'v1',
+    }),
   ).rejects.toMatchObject({ status: INTERNAL_SERVER_ERROR });
   expect(aborted).toBe(true);
 });
@@ -278,6 +292,7 @@ it('classifies direct authors using organization membership', async () => {
     },
   });
   const result = await fetchCommitsBetweenRefs({
+    includeDirectCommits: true,
     octokit,
     repo: 'test',
     lastRelease: 'v0',
@@ -323,6 +338,7 @@ it('cleans human cherry-pick suffixes without changing attribution', async () =>
     },
   });
   const [result] = await fetchCommitsBetweenRefs({
+    includeDirectCommits: true,
     octokit,
     repo: 'test',
     lastRelease: 'v0',
@@ -381,6 +397,7 @@ it.each([
       },
     });
     const result = await fetchCommitsBetweenRefs({
+      includeDirectCommits: true,
       octokit,
       repo: 'test',
       lastRelease: 'v0',
@@ -436,6 +453,7 @@ it('detects cherry-picks using configured labels', async () => {
   expect(defaults.author?.login).toBe('github-actions[bot]');
 
   const [configured] = await fetchCommitsBetweenRefs({
+    includeDirectCommits: true,
     ...options,
     cherryPickLabels: ['type: port'],
   });
@@ -468,6 +486,7 @@ it('warns once when no direct author is a visible organization member', async ()
   const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
   onTestFinished(() => warning.mockRestore());
   const result = await fetchCommitsBetweenRefs({
+    includeDirectCommits: true,
     octokit,
     repo: 'test',
     lastRelease: 'v1',
@@ -479,4 +498,57 @@ it('warns once when no direct author is a visible organization member', async ()
   ]);
   expect(warning).toHaveBeenCalledTimes(1);
   expect(warning).toHaveBeenCalledWith(expect.stringContaining('None of 2 direct authors'));
+});
+
+it('returns only pull request commits by default, without membership lookups', async () => {
+  const requests: string[] = [];
+  const commits = [
+    { sha: 'direct', commit: { message: 'Direct change' }, author: { login: 'direct-author' } },
+    { sha: 'pr', commit: { message: '[Grid] Fix selection (#1)' }, author: { login: 'author' } },
+    { sha: 'missing', commit: { message: 'Fix issue (#999)' }, author: { login: 'author' } },
+  ];
+  const octokit = new Octokit({
+    request: {
+      fetch: async (input: Parameters<typeof fetch>[0]) => {
+        const url = new URL(input instanceof Request ? input.url : String(input));
+        requests.push(url.pathname);
+        let data;
+        if (url.pathname.includes('/compare/')) {
+          data = { url: url.href, total_commits: commits.length, commits };
+        } else if (url.pathname === '/repos/mui/test/pulls/1') {
+          data = {
+            title: '[Grid] Fix selection',
+            labels: [],
+            body: null,
+            user: { login: 'author' },
+            author_association: 'MEMBER',
+            html_url: url.href,
+            merged_at: DATE,
+            created_at: DATE,
+          };
+        } else if (url.pathname === '/repos/mui/test/pulls/999') {
+          return Response.json({ message: 'Not Found' }, { status: NOT_FOUND });
+        } else {
+          throw new Error(`Unexpected request: ${url}`);
+        }
+        return Object.defineProperty(Response.json(data, { status: OK }), 'url', {
+          value: url.href,
+        });
+      },
+    },
+  });
+  const result = await fetchCommitsBetweenRefs({
+    octokit,
+    repo: 'test',
+    lastRelease: 'v1',
+    release: 'v2',
+  });
+  expect(result).toEqual([
+    expect.objectContaining({
+      sha: 'pr',
+      prNumber: 1,
+      author: { login: 'author', association: 'team' },
+    }),
+  ]);
+  expect(requests.some((pathname) => pathname.includes('/members/'))).toBe(false);
 });
