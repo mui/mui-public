@@ -32,6 +32,15 @@ export function buildSections(categorizedCommits, categorizationConfig, packageV
 }
 
 /**
+ * Commits of a section and all its descendants; flag grouping moves entries into subsections.
+ * @param {ChangelogSection} section
+ * @returns {CategorizedCommit[]}
+ */
+export function collectCommits(section) {
+  return [...section.commits, ...(section.subsections ?? []).flatMap(collectCommits)];
+}
+
+/**
  * @param {ChangelogSection} section
  * @param {CategorizationConfig} config
  * @returns {ChangelogSection}

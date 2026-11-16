@@ -936,3 +936,149 @@ it.each([
     );
   }
 });
+
+it('treats flag-grouped packages as populated in the product layout', async () => {
+  const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'changelog-grouped-'));
+  onTestFinished(() => fs.rm(cwd, { recursive: true, force: true }));
+  await fs.writeFile(path.join(cwd, 'package.json'), '{"version":"1.0.0"}');
+  await fs.writeFile(path.join(cwd, 'pnpm-workspace.yaml'), "packages: ['packages/*']");
+  await Promise.all(
+    ['widget', 'widget-premium', 'private'].map(async (name) => {
+      const directory = path.join(cwd, 'packages', name);
+      await fs.mkdir(directory, { recursive: true });
+      await fs.writeFile(
+        path.join(directory, 'package.json'),
+        JSON.stringify({ name: `@test/${name}`, version: '1.0.0', private: name === 'private' }),
+      );
+    }),
+  );
+  const git = (...args: string[]) => execa('git', args, { cwd, env: gitEnv });
+  await git('init');
+  await git('add', '.');
+  await git('-c', 'core.hooksPath=/dev/null', 'commit', '-m', 'Initial packages');
+  await git('tag', 'v0');
+
+  const pulls = [
+    {
+      number: 1,
+      title: 'Remove paid API',
+      labels: ['scope: widget', 'plan: premium', 'breaking change'],
+      login: 'paid-author',
+    },
+    {
+      number: 2,
+      title: 'Remove base API',
+      labels: ['scope: widget', 'breaking change'],
+      login: 'base-author',
+    },
+    { number: 3, title: 'Private change', labels: ['scope: private'], login: 'hidden-author' },
+  ];
+  const octokit = new Octokit({
+    request: {
+      fetch: async (input: Parameters<typeof fetch>[0]) => {
+        const url = new URL(input instanceof Request ? input.url : String(input));
+        const pull = pulls.find((item) => item.number === Number(url.pathname.split('/').at(-1)));
+        const data = url.pathname.includes('/compare/')
+          ? {
+              url: url.href,
+              total_commits: pulls.length,
+              commits: pulls.map((item) => ({
+                sha: `sha-${item.number}`,
+                commit: { message: `${item.title} (#${item.number})` },
+              })),
+            }
+          : {
+              title: pull?.title,
+              labels: pull?.labels.map((name) => ({ name })),
+              user: { login: pull?.login },
+              author_association: 'MEMBER',
+              merged_at: RELEASE_DATE,
+              created_at: RELEASE_DATE,
+              body: '',
+              html_url: url.href,
+            };
+        return Object.defineProperty(Response.json(data, { status: OK }), 'url', {
+          value: url.href,
+        });
+      },
+    },
+  });
+  const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  onTestFinished(() => warning.mockRestore());
+  const result = await generateChangelog({
+    cwd,
+    repo: 'test',
+    octokit,
+    lastRelease: 'v0',
+    release: 'v1',
+    config: {
+      format: {
+        showInternalChangesMessage: true,
+        planMessage: { same: 'Same as {{previousPlan}}.', plus: 'Same as {{previousPlan}}, plus:' },
+      },
+      categorization: {
+        strategy: 'package',
+        labels: {
+          plan: { values: ['pro', 'premium'] },
+          flags: { 'breaking change': { name: 'Breaking Changes' } },
+        },
+        packageNaming: {
+          omitUnchanged: true,
+          omitUnavailable: true,
+          mappings: { widget: '@test/widget', private: '@test/private' },
+          plans: { premium: { '@test/widget': '@test/widget-premium' } },
+        },
+        sections: { fallbackSection: 'Other', groupByFlags: ['breaking change'] },
+      },
+    },
+  });
+  expect(result.markdown).toContain('- Remove base API (#2)');
+  expect(result.markdown).toContain('Same as @test/widget, plus:');
+  expect(result.markdown).not.toContain('Same as @test/widget.');
+  expect(result.markdown).not.toContain('Internal changes.');
+  expect(result.contributors.all).toEqual(['base-author', 'paid-author']);
+});
+
+it('keeps issue references in direct commit entries', async () => {
+  const { cwd } = await repository();
+  const octokit = new Octokit({
+    request: {
+      fetch: async (input: Parameters<typeof fetch>[0]) => {
+        const url = new URL(input instanceof Request ? input.url : String(input));
+        if (url.pathname.endsWith('/pulls/999')) {
+          return Response.json({ message: 'Not Found' }, { status: NOT_FOUND });
+        }
+        const commits = [
+          {
+            sha: 'abcdef1234',
+            html_url: 'https://github.com/mui/test/commit/abcdef1234',
+            author: null,
+            commit: { message: 'Fix issue (#999)', author: { date: RELEASE_DATE } },
+          },
+        ];
+        return Object.defineProperty(
+          Response.json({ url: url.href, commits, total_commits: 1 }, { status: OK }),
+          'url',
+          { value: url.href },
+        );
+      },
+    },
+  });
+  const result = await generateChangelog({
+    cwd,
+    repo: 'test',
+    octokit,
+    lastRelease: 'v0',
+    release: 'v1',
+    config: {
+      categorization: {
+        strategy: 'component',
+        labels: {},
+        sections: { fallbackSection: 'Changes' },
+      },
+    },
+  });
+  expect(result.markdown).toContain(
+    '- Fix issue (#999) [abcdef1](https://github.com/mui/test/commit/abcdef1234)',
+  );
+});

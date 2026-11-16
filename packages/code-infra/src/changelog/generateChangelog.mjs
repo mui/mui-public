@@ -5,7 +5,7 @@ import { getWorkspacePackages } from '../utils/pnpm.mjs';
 import { findLatestTaggedVersion, getRepositoryInfo, getCurrentGitSha } from '../utils/git.mjs';
 import { loadChangelogConfig } from './loadChangelogConfig.mjs';
 import { validateChangelogConfig } from './validateChangelogConfig.mjs';
-import { buildSections } from './buildSections.mjs';
+import { buildSections, collectCommits } from './buildSections.mjs';
 import { categorizeCommits } from './categorizeCommits.mjs';
 import { fetchCommitsBetweenRefs } from './fetchChangelogs.mjs';
 import { filterCommits } from './filterCommits.mjs';
@@ -70,10 +70,6 @@ export async function generateChangelog(options = {}) {
     throw error;
   }
   const commits = filterCommits(allCommits, config.filter);
-  const contributors = extractContributorsFromAllCommits(
-    config.contributors?.source === 'all' ? allCommits : commits,
-    config.filter?.excludeAuthorsFromContributors,
-  );
 
   const categories = categorizeCommits(commits, config.categorization);
   const { versions, unchanged } = await getPackageVersions(cwd, release.lastRelease, config);
@@ -90,7 +86,7 @@ export async function generateChangelog(options = {}) {
       if (!section.pkgInfo || genericSections.has(section.key) || versions?.has(section.key)) {
         return true;
       }
-      const entries = section.subsections?.flatMap((child) => child.commits) ?? section.commits;
+      const entries = collectCommits(section);
       if (entries.length > 0) {
         console.warn(
           `Omitting ${entries.length} entries for unavailable package ${section.key}: ${entries.map((commit) => commit.prNumber ?? commit.sha.slice(0, 7)).join(', ')}.`,
@@ -110,15 +106,16 @@ export async function generateChangelog(options = {}) {
     });
   }
   const visibleSections = builtSections.filter((section) => {
-    if (
-      !section.subsections ||
-      section.subsections.some((subsection) => subsection.commits.length > 0)
-    ) {
+    if (!section.subsections || collectCommits(section).length > 0) {
       return true;
     }
     return section.subsections.some((subsection) => !unchanged.has(subsection.key));
   });
   const sections = sortSections(visibleSections, config.categorization);
+  const contributors = extractContributorsFromAllCommits(
+    config.contributors?.source === 'all' ? allCommits : sections.flatMap(collectCommits),
+    config.filter?.excludeAuthorsFromContributors,
+  );
   return {
     markdown: renderChangelog(sections, config, release, contributors),
     sections,
