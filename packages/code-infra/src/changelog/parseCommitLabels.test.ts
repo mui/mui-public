@@ -240,6 +240,25 @@ describe('parseCommitLabels', () => {
       expect(result.categoryOverride).toBe('Documentation');
     });
 
+    it('keeps a live prefixed override over a title-derived override', () => {
+      const commit = createCommit({
+        message: '[Docs] Update guides (#1)',
+        labels: ['scope: all components'],
+      });
+      const config: LabelConfig = {
+        ...baseLabelConfig,
+        titleMappings: { Docs: ['docs'] },
+        categoryOverrides: {
+          'scope: all components': 'General changes',
+          docs: 'Documentation',
+        },
+      };
+
+      const result = parseCommitLabels(commit, config);
+
+      expect(result.categoryOverride).toBe('General changes');
+    });
+
     it('should not set categoryOverride when no matching labels', () => {
       const commit = createCommit({ labels: ['scope: core'] });
       const config: LabelConfig = {

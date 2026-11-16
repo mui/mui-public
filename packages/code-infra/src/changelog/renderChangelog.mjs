@@ -1,6 +1,7 @@
 import { startCase } from 'es-toolkit/string';
 import { templateString } from '../utils/template.mjs';
 import { parseTitle } from './parseTitle.mjs';
+import { collectCommits } from './buildSections.mjs';
 
 /**
  * @typedef {import('./types.js').ChangelogSection} ChangelogSection
@@ -223,17 +224,17 @@ function renderSection(section, config, lines, parentSection) {
   });
 
   if (parentSection) {
+    const hasEntries = collectCommits(section).length > 0;
     const isBasePlan = !section.pkgInfo?.plan || section.pkgInfo.plan === 'base';
     if (isBasePlan) {
-      if (sortedCommits.length === 0 && config.format?.showInternalChangesMessage) {
+      if (!hasEntries && config.format?.showInternalChangesMessage) {
         lines.push('Internal changes.');
         lines.push('');
       }
     } else {
-      const planMessage =
-        sortedCommits.length === 0
-          ? config.format?.planMessage?.same
-          : config.format?.planMessage?.plus;
+      const planMessage = !hasEntries
+        ? config.format?.planMessage?.same
+        : config.format?.planMessage?.plus;
 
       if (planMessage) {
         const index = parentSection.subsections?.indexOf(section) ?? -1;
@@ -288,7 +289,10 @@ function renderCommitMessage(commit, config) {
   // Extract only the first line of the commit message
   const rawMessage = commit.message.split('\n')[0].trim();
   // Remove component prefixes in square brackets at the start (e.g., [dialog][alert dialog])
-  let cleanMessage = parseTitle(rawMessage).remaining.replace(/\s?\(#(\d+)\)/g, '');
+  let cleanMessage = parseTitle(rawMessage).remaining;
+  if (commit.prNumber !== null) {
+    cleanMessage = cleanMessage.replace(/\s?\(#(\d+)\)/g, '');
+  }
 
   if (config.format?.preservePrefixes) {
     const prefixes = commit.parsed.titlePrefixes ?? parseTitle(rawMessage).tags;

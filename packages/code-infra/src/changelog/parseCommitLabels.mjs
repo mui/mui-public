@@ -64,6 +64,9 @@ export function parseCommitLabels(commit, labelConfig) {
   ];
   /** @param {string} label */
   function category(label) {
+    if (labelConfig.categoryOverrides?.[label]) {
+      return 'override';
+    }
     if (scopePrefixes.some((prefix) => label.startsWith(prefix))) {
       return 'scope';
     }
@@ -72,9 +75,6 @@ export function parseCommitLabels(commit, labelConfig) {
     }
     if (label.startsWith(LABEL_PREFIX.plan)) {
       return 'plan';
-    }
-    if (labelConfig.categoryOverrides?.[label]) {
-      return 'override';
     }
     return label;
   }
