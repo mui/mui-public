@@ -1,7 +1,7 @@
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { isDynamicPattern } from 'globby';
+import { globby } from 'globby';
 
 import { getOutExtension, getPackageSources, validatePkgJson } from '../utils/build.mjs';
 import { fileUrlEntriesPlugin } from '../utils/fileUrlEntriesPlugin.mjs';
@@ -49,8 +49,8 @@ function exists(file) {
 }
 
 /**
- * Matches `code-infra build`: package documents fall back to the workspace root, `source:target`
- * globs drop the first source directory, and missing literal paths are skipped.
+ * Package documents fall back to the workspace root, `source:target` globs expand directories and
+ * drop the first source directory, and missing paths are skipped.
  * @param {string} cwd
  * @param {string} outDir
  * @param {string[]} globs
@@ -75,8 +75,9 @@ async function getCopy(cwd, outDir, globs) {
 
   const extras = await Promise.all(
     globs.map(async (glob) => {
-      const [from, target = ''] = glob.split(':');
-      if (!isDynamicPattern(from) && !(await exists(path.resolve(cwd, from)))) {
+      const [pattern, target = ''] = glob.split(':');
+      const from = await globby(pattern, { cwd });
+      if (!from.length) {
         return [];
       }
       return [{ from, to: path.join(outDir, target), flatten: false }];
