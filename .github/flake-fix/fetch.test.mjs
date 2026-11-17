@@ -87,7 +87,7 @@ function scenarioModel(scenario) {
       logs: {},
     };
   }
-  if (scenario === 'partial-workflows' || scenario === 'partial-jobs') {
+  if (scenario.startsWith('partial-')) {
     return {
       pipelines: [
         makePipeline(
@@ -97,13 +97,23 @@ function scenarioModel(scenario) {
           'newest run unavailable',
           scenario === 'partial-workflows'
             ? null
-            : [makeWorkflow('wf-2', 'test', 'success', iso(0), null)],
+            : [
+                makeWorkflow(
+                  'wf-2',
+                  'test',
+                  scenario === 'partial-jobs' ? 'success' : 'failed',
+                  iso(0),
+                  scenario === 'partial-jobs' ? null : [makeJob(8, 'unit', 'failed')],
+                ),
+              ],
         ),
         makePipeline('pipe-1', 100, iso(HOUR), 'older failure', [
           makeWorkflow('wf-1', 'test', 'failed', iso(HOUR), [makeJob(7, 'unit', 'failed')]),
         ]),
       ],
-      logs: { 7: 'FAIL: expected 1 to equal 2' },
+      logs: { 7: 'FAIL: expected 1 to equal 2', 8: 'FAIL: expected 1 to equal 2' },
+      unavailableDetails: scenario === 'partial-details' ? [8] : [],
+      unavailableLogs: scenario === 'partial-logs' ? [8] : [],
     };
   }
   if (scenario === 'timeline') {
@@ -130,7 +140,17 @@ function scenarioModel(scenario) {
         makeWorkflow('wf-1', 'test', 'failed', iso(0), [makeJob(7, 'unit', 'failed')]),
       ]),
     ],
-    logs: { 7: 'FAIL: expected 1 to equal 2\n\x1b[31mred text\x1b[0m' },
+    logs:
+      scenario === 'no-step-logs'
+        ? {}
+        : {
+            7:
+              scenario === 'empty-logs'
+                ? '\x1b[31m \n\x1b[0m'
+                : 'FAIL: expected 1 to equal 2\n\x1b[31mred text\x1b[0m',
+          },
+    unavailableDetails: scenario === 'details-unreachable' ? [7] : [],
+    unavailableLogs: scenario === 'logs-unreachable' ? [7] : [],
   };
 }
 
@@ -192,6 +212,10 @@ function fakeCircleCI(scenario) {
     const detailMatch = url.match(/^\/project\/[^/]+\/[^/]+\/[^/]+\/(\d+)$/);
     if (detailMatch) {
       const jobNumber = Number(detailMatch[1]);
+      if (model.unavailableDetails?.includes(jobNumber)) {
+        response.writeHead(503).end();
+        return;
+      }
       const hasLog = Object.hasOwn(model.logs, jobNumber);
       const outputUrl = `http://127.0.0.1:${response.socket.localPort}/logs/${jobNumber}`;
       json({
@@ -208,6 +232,10 @@ function fakeCircleCI(scenario) {
     }
     const logMatch = url.match(/^\/logs\/(\d+)$/);
     if (logMatch) {
+      if (model.unavailableLogs?.includes(Number(logMatch[1]))) {
+        response.writeHead(503).end();
+        return;
+      }
       // \x1b is a real ESC byte at runtime, so the fetcher has actual ANSI to strip.
       const message = model.logs[Number(logMatch[1])] ?? '';
       response.writeHead(200, { 'content-type': 'application/json' });
@@ -364,9 +392,10 @@ describe('fetch', () => {
   });
 
   it('signals classify=false when failed workflows have no failed jobs', async () => {
-    const { code, classify } = await runFetch('no-failed-jobs');
+    const { code, classify, dataMissing } = await runFetch('no-failed-jobs');
     expect(code).toBe(0);
     expect(classify).toBe('classify=false');
+    expect(dataMissing).toBe(false);
   });
 
   it('reports no data, not clean, when no workflow list loads', async () => {
@@ -390,20 +419,49 @@ describe('fetch', () => {
     expect(summary).toMatch(/HTTP 404 on \S+\/pipeline\/pipe-2\/workflow/);
   });
 
-  it('names the failed call when the job lists fail to load', async () => {
-    const { code, dataDir, classify } = await runFetch('jobs-unreachable');
-    expect(code).toBe(0);
-    expect(classify).toBe('classify=false');
-    const summary = fs.readFileSync(path.join(dataDir, 'summary.txt'), 'utf8');
-    expect(summary).toMatch(/HTTP 404 on \S+\/workflow\/wf-1\/job/);
-  });
+  it.each([
+    ['jobs-unreachable', /HTTP 404 on \S+\/workflow\/wf-1\/job/],
+    ['details-unreachable', /HTTP 503 on \S+\/project\/github\/acme\/widget\/7/],
+    ['logs-unreachable', /job 7, step 1: HTTP 503/],
+  ])(
+    'signals data-missing and publishes the diagnostic when no usable data loads (%s)',
+    async (scenario, error) => {
+      const { code, dataDir, classify, dataMissing } = await runFetch(scenario);
+      // Fetch succeeds so publication can finish before the workflow fails the run.
+      expect(code).toBe(0);
+      expect(classify).toBe('classify=false');
+      expect(dataMissing).toBe(true);
+      expect(fs.existsSync(path.join(dataDir, 'jobs'))).toBe(false);
+      const summary = fs.readFileSync(path.join(dataDir, 'summary.txt'), 'utf8');
+      expect(summary).toMatch(error);
+      const published = await runPublish(dataDir);
+      expect(published).toContain(summary.trim());
+    },
+  );
+
+  it.each(['no-step-logs', 'empty-logs'])(
+    'skips classification without an API failure when logs contain no evidence (%s)',
+    async (scenario) => {
+      const { code, dataDir, classify, dataMissing } = await runFetch(scenario);
+      expect(code).toBe(0);
+      expect(classify).toBe('classify=false');
+      expect(dataMissing).toBe(false);
+      expect(fs.existsSync(path.join(dataDir, 'jobs'))).toBe(false);
+    },
+  );
 
   it.each([
-    ['partial-workflows', /HTTP 404 on \S+\/pipeline\/pipe-2\/workflow/],
-    ['partial-jobs', /HTTP 404 on \S+\/workflow\/wf-2\/job/],
+    ['partial-workflows', /HTTP 404 on \S+\/pipeline\/pipe-2\/workflow/, ['jobs/0000.txt']],
+    ['partial-jobs', /HTTP 404 on \S+\/workflow\/wf-2\/job/, ['jobs/0000.txt']],
+    [
+      'partial-details',
+      /HTTP 503 on \S+\/project\/github\/acme\/widget\/8/,
+      [null, 'jobs/0000.txt'],
+    ],
+    ['partial-logs', /job 8, step 1: HTTP 503/, [null, 'jobs/0000.txt']],
   ])(
     'publishes missing-data diagnostics alongside an agent report (%s)',
-    async (scenario, error) => {
+    async (scenario, error, logs) => {
       const { code, dataDir, classify, dataMissing } = await runFetch(scenario);
       expect(code).toBe(0);
       expect(classify).toBe('classify=true');
@@ -411,6 +469,10 @@ describe('fetch', () => {
       expect(fs.readFileSync(path.join(dataDir, 'jobs', '0000.txt'), 'utf8')).toContain(
         'FAIL: expected 1 to equal 2',
       );
+      // Unavailable logs must not turn into header-only files sent to the agent.
+      expect(fs.readdirSync(path.join(dataDir, 'jobs'))).toEqual(['0000.txt']);
+      const timeline = JSON.parse(fs.readFileSync(path.join(dataDir, 'timeline.json'), 'utf8'));
+      expect(timeline.jobs[0].runs.map((run) => run.log)).toEqual(logs);
       const agentReport = 'The unit test is still failing.';
       const fallbackSummary = 'Fallback summary that the agent report supersedes.';
       fs.writeFileSync(path.join(dataDir, 'report.md'), agentReport);

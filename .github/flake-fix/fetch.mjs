@@ -210,7 +210,7 @@ function writeTimeline(outDir, { slug, branch, window, jobRuns, failingJobs, fil
         pipeline: run.pipelineNumber,
         commit: oneLineSubject(run.subject),
         url: run.url,
-        // The log for this FAIL run, or null when it is a PASS/SKIP or a failure past the log cap.
+        // The log for this FAIL run, or null for PASS/SKIP, unavailable logs, or past the log cap.
         log: run.result === 'FAIL' ? (fileByJobNumber.get(run.jobNumber) ?? null) : null,
       })),
     }));
@@ -362,6 +362,9 @@ async function main() {
   // the newest. Capped failures still show on the timeline as FAIL, just without a log to read.
   const allFailures = jobRuns.filter((run) => run.result === 'FAIL').sort(byNewestFirst);
   if (allFailures.length === 0) {
+    if (jobRuns.length === 0 && dropped > 0) {
+      setOutput('data-missing', true);
+    }
     finishQuiet(
       outDir,
       `CircleCI triage: ${failedWorkflows.length} failed workflow runs but no failed jobs found on ${branch}.${dropNote()}`,
@@ -399,7 +402,8 @@ async function main() {
           }
         }
         return [job.jobNumber, { steps, timedOut }];
-      } catch {
+      } catch (error) {
+        recordDrop(error);
         return [job.jobNumber, { steps: [], timedOut: false }];
       }
     }),
@@ -411,16 +415,6 @@ async function main() {
       logTasks.push({ jobNumber: job.jobNumber, stepIndex, ...step });
     });
   }
-  if (logTasks.length === 0) {
-    // Failed jobs exist but none exposed a step log — CircleCI's job API is not answering. With no
-    // logs the agent can't tell real failures from flakes, so stop here instead.
-    finishQuiet(
-      outDir,
-      `CircleCI triage: ${allFailures.length} failed jobs but no step logs available — CircleCI's job API is not answering.`,
-    );
-    return;
-  }
-
   const logTexts = new Map();
   await mapPool(
     logTasks,
@@ -434,18 +428,41 @@ async function main() {
         // Tail-truncate at fetch, not at read: whole logs would hold hundreds of MB alive across
         // a bad week, and only the tail is ever classified.
         text = tailBytes(stripVTControlCharacters(joined), LOG_TAIL_BYTES);
-      } catch {
-        text = '';
+      } catch (error) {
+        // Identify the job and step instead of publishing a potentially signed log URL.
+        recordDrop(
+          new Error(
+            `Log for job ${task.jobNumber}, step ${task.stepIndex + 1}: ${error.status ? `HTTP ${error.status}` : error.message}`,
+          ),
+        );
       }
       logTexts.set(`${task.jobNumber}:${task.stepIndex}`, text);
     },
     24,
   );
 
-  // One file per failed run, newest first, self-describing under grep. The timeline points here.
+  const jobsWithLogs = logged.filter((job) =>
+    stepsByJob
+      .get(job.jobNumber)
+      .steps.some((step, stepIndex) => logTexts.get(`${job.jobNumber}:${stepIndex}`)?.trim()),
+  );
+  if (jobsWithLogs.length === 0) {
+    // With no usable logs the agent cannot classify failures. Publish the diagnostic before
+    // failing the run when fetch errors caused data loss; an empty log alone is not an API error.
+    if (dropped > 0) {
+      setOutput('data-missing', true);
+    }
+    finishQuiet(
+      outDir,
+      `CircleCI triage: ${allFailures.length} failed jobs but no usable step logs available.${dropNote()}`,
+    );
+    return;
+  }
+
+  // One file per failed run with usable logs, newest first. The timeline points here.
   fs.mkdirSync(path.join(outDir, 'jobs'), { recursive: true });
   const fileByJobNumber = new Map();
-  logged.forEach((job, jobIndex) => {
+  jobsWithLogs.forEach((job, jobIndex) => {
     const relativePath = path.join('jobs', `${String(jobIndex).padStart(PAD_WIDTH, '0')}.txt`);
     fileByJobNumber.set(job.jobNumber, relativePath);
     const detail = stepsByJob.get(job.jobNumber);
@@ -497,7 +514,7 @@ async function main() {
     `CircleCI triage: issues (${failedWorkflows.length}/${allWorkflows.length} workflow runs failed, ${allFailures.length} failed jobs)`,
   );
   logLine(
-    `wrote ${logged.length} job files + a timeline for ${failingJobs.size} job(s) (${failureRate}% of runs failed)`,
+    `wrote ${jobsWithLogs.length} job files + a timeline for ${failingJobs.size} job(s) (${failureRate}% of runs failed)`,
   );
   if (dropped > 0) {
     // The agent's report takes precedence over summary.txt, so publish needs a separate warning
