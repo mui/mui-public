@@ -372,6 +372,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
           ),
         fileUrlEntriesPlugin(),
         babelPlugin(babelConfigFile),
+        // https://github.com/rolldown/rolldown/issues/6669
         jsNamespacesPlugin(),
         babelRuntimePlugin(babelRuntime),
       ],
