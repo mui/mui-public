@@ -254,10 +254,12 @@ async function runFetch(scenario) {
   );
   const [code] = await once(child, 'exit');
   server.close();
+  const outputs = fs.readFileSync(githubOutput, 'utf8').trim().split('\n');
   return {
     code,
     dataDir: path.join(outDir, 'data'),
-    classify: fs.readFileSync(githubOutput, 'utf8').trim(),
+    classify: outputs.find((line) => line.startsWith('classify=')),
+    dataMissing: outputs.includes('data-missing=true'),
   };
 }
 
@@ -275,7 +277,10 @@ async function runPublish(dataDir) {
       'utf8',
     );
     const reportStep = workflow.split('      - name: Post the report to the tracking issue\n')[1];
-    const script = reportStep.split('          script: |\n')[1].replace(/^ {12}/gm, '');
+    const script = reportStep
+      .split('          script: |\n')[1]
+      .split('\n      - name: ')[0]
+      .replace(/^ {12}/gm, '');
     await execFileAsync(
       process.execPath,
       [
@@ -365,9 +370,10 @@ describe('fetch', () => {
   });
 
   it('reports no data, not clean, when no workflow list loads', async () => {
-    const { code, dataDir, classify } = await runFetch('workflows-unreachable');
+    const { code, dataDir, classify, dataMissing } = await runFetch('workflows-unreachable');
     expect(code).toBe(0);
     expect(classify).toBe('classify=false');
+    expect(dataMissing).toBe(true);
     const summary = fs.readFileSync(path.join(dataDir, 'summary.txt'), 'utf8');
     expect(summary).toMatch(/no data/);
     expect(summary).not.toMatch(/clean/);
@@ -375,9 +381,10 @@ describe('fetch', () => {
   });
 
   it('does not report clean when some workflow lists fail to load', async () => {
-    const { code, dataDir, classify } = await runFetch('some-workflows-unreachable');
+    const { code, dataDir, classify, dataMissing } = await runFetch('some-workflows-unreachable');
     expect(code).toBe(0);
     expect(classify).toBe('classify=false');
+    expect(dataMissing).toBe(false);
     const summary = fs.readFileSync(path.join(dataDir, 'summary.txt'), 'utf8');
     expect(summary).not.toMatch(/clean/);
     expect(summary).toMatch(/HTTP 404 on \S+\/pipeline\/pipe-2\/workflow/);
@@ -397,9 +404,10 @@ describe('fetch', () => {
   ])(
     'publishes missing-data diagnostics alongside an agent report (%s)',
     async (scenario, error) => {
-      const { code, dataDir, classify } = await runFetch(scenario);
+      const { code, dataDir, classify, dataMissing } = await runFetch(scenario);
       expect(code).toBe(0);
       expect(classify).toBe('classify=true');
+      expect(dataMissing).toBe(false);
       expect(fs.readFileSync(path.join(dataDir, 'jobs', '0000.txt'), 'utf8')).toContain(
         'FAIL: expected 1 to equal 2',
       );

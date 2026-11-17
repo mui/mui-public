@@ -167,11 +167,11 @@ function oneLineSubject(subject) {
   return subject.replace(/\s+/g, ' ').slice(0, 200);
 }
 
-// The one bit the workflow needs from us: whether anything is left to classify. Written to the
-// step output so the agent step can gate on it with no shell glue.
-function signalClassify(hasFailures) {
+// Step outputs the workflow gates on with no shell glue: `classify` (anything left to classify)
+// and `data-missing` (fail the run after publish).
+function setOutput(name, value) {
   if (process.env.GITHUB_OUTPUT) {
-    fs.appendFileSync(process.env.GITHUB_OUTPUT, `classify=${hasFailures}\n`);
+    fs.appendFileSync(process.env.GITHUB_OUTPUT, `${name}=${value}\n`);
   }
 }
 
@@ -185,7 +185,7 @@ function writeSummary(outDir, line) {
 function finishQuiet(outDir, summary) {
   logWarning(summary);
   writeSummary(outDir, summary);
-  signalClassify(false);
+  setOutput('classify', false);
 }
 
 // The timeline (timeline.json): one entry per job that failed at least once, its recent runs
@@ -306,6 +306,7 @@ async function main() {
   // A week with skipped calls is not a clean week: CircleCI answers 404 on these calls without a
   // token, so a missing token would otherwise read as "clean" forever.
   if (allWorkflows.length === 0 && dropped > 0) {
+    setOutput('data-missing', true);
     finishQuiet(
       outDir,
       `CircleCI triage: no data (0 workflows loaded from ${pipelines.length} pipelines on ${branch}).${dropNote()}${token ? '' : ' No CircleCI token is set.'}`,
@@ -505,7 +506,7 @@ async function main() {
     fs.writeFileSync(path.join(outDir, 'diagnostics.txt'), `${diagnostics}\n`);
     logWarning(diagnostics);
   }
-  signalClassify(true);
+  setOutput('classify', true);
 }
 
 main().catch((error) => {

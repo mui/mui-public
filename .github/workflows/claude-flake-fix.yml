@@ -166,6 +166,7 @@ jobs:
     permissions: {} # holds only the CircleCI token (a secret), no GITHUB_TOKEN scopes
     outputs:
       classify: ${{ steps.fetch.outputs.classify }}
+      data-missing: ${{ steps.fetch.outputs.data-missing }}
     steps:
       - name: Get the flake-fix scripts
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -701,3 +702,10 @@ jobs:
             } catch (error) {
               core.warning(`Couldn't remove the previous report comments: ${error.message}`);
             }
+
+      - name: Fail the run when CircleCI returned no data
+        # Runs after the report, so the issue says "no data" and the run still shows as failed.
+        if: ${{ needs.fetch.outputs.data-missing == 'true' }}
+        run: |
+          echo "::error::$(cat publish-input/summary.txt)"
+          exit 1
