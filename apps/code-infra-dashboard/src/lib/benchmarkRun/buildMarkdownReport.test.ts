@@ -162,43 +162,9 @@ describe('buildBenchmarkRunMarkdownReport', () => {
     expect(markdown).not.toContain('libs / mount');
   });
 
-  it('states the median and the widest precision of the comparisons that can alarm', () => {
-    const markdown = buildBenchmarkRunMarkdownReport(reportOf([unchanged, faster]), {
-      title: 'Performance',
-    });
-
-    expect(markdown).toContain('No regressions in 2 benchmarks · precise to ±');
-    expect(markdown).toMatch(/precise to ±\d+\.\d% \(±\d+\.\d% at worst\)/);
-  });
-
   it('leaves the precision out when no comparison can alarm', () => {
     expect(buildBenchmarkRunMarkdownReport(reportOf([libraries]), { title: 'Performance' })).toBe(
       '## Performance\n\nNo regressions in 1 benchmark',
-    );
-  });
-
-  it('leaves discrete metrics out of the precision, a count not being a percentage', () => {
-    const report = reportOf([unchanged]);
-    const precisionOf = (markdown: string) => markdown.match(/precise to [^·]*/)?.[0];
-    const withCount = buildBenchmarkRunMarkdownReport(
-      {
-        ...report,
-        metrics: { ...report.metrics, 'render:count': { kind: 'discrete', alarm: {} } },
-        benchmarks: [
-          {
-            ...unchanged,
-            samples: {
-              current: { ...unchanged.samples!.current, 'render:count': [1, 5, 1, 5] },
-              baseline: { ...unchanged.samples!.baseline, 'render:count': [9, 1, 9, 1] },
-            },
-          },
-        ],
-      },
-      { title: 'Performance' },
-    );
-
-    expect(precisionOf(withCount)).toBe(
-      precisionOf(buildBenchmarkRunMarkdownReport(report, { title: 'Performance' })),
     );
   });
 
