@@ -11,6 +11,7 @@ import { access, mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from
 import { pipeline } from 'node:stream/promises';
 import chalk from 'chalk';
 import { mapAsync } from 'es-toolkit/array';
+import { limitAsync } from 'es-toolkit/promise';
 import { execa, parseCommandString } from 'execa';
 import { resolveCommit } from './git';
 import { listPublishablePackages } from './pnpm';
@@ -119,25 +120,21 @@ async function removeAbandonedCheckouts(repoRoot: string, outRoot: string): Prom
 // asks for, such as a JSON report.
 const PROGRESS_STDIO = { stdin: 'inherit', stdout: process.stderr, stderr: 'inherit' } as const;
 
-// Builds run one at a time: a build command typically uses every CPU, so two at once can outgrow a CI
-// machine's memory without finishing sooner. The rest of packing a side still overlaps.
-let buildQueue: Promise<unknown> = Promise.resolve();
-
-/** Runs `buildCmd` in `cwd`, with the nx daemon off so nothing keeps writing after it returns. */
-function build(cwd: string, buildCmd: string): Promise<void> {
+/**
+ * Runs `buildCmd` in `cwd`, with the nx daemon off so nothing keeps writing after it returns.
+ *
+ * One build at a time: a build command typically uses every CPU, so two at once can outgrow a CI
+ * machine's memory without finishing sooner. The rest of packing a side still overlaps.
+ */
+const build = limitAsync(async (cwd: string, buildCmd: string): Promise<void> => {
   const [file, ...args] = parseCommandString(buildCmd);
-  const run = buildQueue.then(async () => {
-    await execa(file, args, {
-      cwd,
-      env: { NX_DAEMON: 'false' },
-      ...PROGRESS_STDIO,
-      verbose: 'short',
-    });
+  await execa(file, args, {
+    cwd,
+    env: { NX_DAEMON: 'false' },
+    ...PROGRESS_STDIO,
+    verbose: 'short',
   });
-  // A failed build doesn't hold up the next one.
-  buildQueue = run.catch(() => {});
-  return run;
-}
+}, 1);
 
 /** Content hash of a file, short enough to live in a filename. */
 async function hashFile(file: string): Promise<string> {

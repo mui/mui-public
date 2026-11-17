@@ -162,8 +162,8 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
   }
 
   try {
-    // Pack both sides at once, each in its own checkout, while nothing is measured yet; their builds
-    // take turns, `build()` in packWorkspace sees to that.
+    // Pack both sides at once, each in its own checkout, while nothing is measured yet. Only their
+    // builds take turns.
     const packing = await Promise.allSettled(
       refs.map(async (ref) => {
         if (ref.variant === 'current') {
