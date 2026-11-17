@@ -92,8 +92,7 @@ function isScript(body) {
  * so hand-written declarations are made explicit before it reads them.
  *
  * A `.d.ts` without imports or exports declares globals, which bundling would make local. Imports
- * of one stay external and the file is copied unchanged with the declarations it references, as
- * `code-infra build` does.
+ * of one stay external and the file is copied unchanged with the declarations it references.
  * @param {string} root The source directory output paths are relative to.
  * @returns {import('tsdown').Rolldown.Plugin}
  */

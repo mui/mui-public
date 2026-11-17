@@ -1,7 +1,9 @@
 import getTargets from '@babel/helper-compilation-targets';
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import * as fs from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import * as path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { globby } from 'globby';
 import * as semver from 'semver';
 
@@ -30,6 +32,8 @@ const MODULE_LEVEL_DIRECTIVE = 'MODULE_LEVEL_DIRECTIVE';
 const FORMATS = { esm: 'es', cjs: 'cjs' };
 
 const BABEL_CONFIG_FILES = ['babel.config.js', 'babel.config.mjs'];
+
+const TYPESCRIPT = 'typescript';
 
 const BABEL_RUNTIME = '@babel/runtime';
 
@@ -99,7 +103,7 @@ async function getBabelConfigFile(cwd) {
 
 /**
  * @param {string} cwd
- * @returns {Promise<string>} The `tsconfig.build.json` `code-infra build` emits declarations with.
+ * @returns {Promise<string>} The `tsconfig.build.json` to emit declarations with.
  */
 async function getTsconfig(cwd) {
   const tsconfig = path.join(cwd, 'tsconfig.build.json');
@@ -113,14 +117,37 @@ async function getTsconfig(cwd) {
 
 /**
  * @param {string} cwd
- * @returns {Promise<string>} The workspace TypeScript 7 `tsc`, which rolldown-plugin-dts runs as `tsgo`.
+ * @returns {Promise<string>} The native binary of the workspace's TypeScript 7, which
+ * rolldown-plugin-dts runs as `tsgo`.
  */
 async function getTsc(cwd) {
   const workspaceDir = await findWorkspaceDir(cwd);
   if (!workspaceDir) {
     throw new Error('Workspace directory not found');
   }
-  return path.join(workspaceDir, 'node_modules', '.bin', 'tsc');
+  const manifest = path.join(workspaceDir, 'package.json');
+  const { dependencies, devDependencies } = JSON.parse(await fs.readFile(manifest, 'utf8'));
+  const require = createRequire(manifest);
+  const candidates = await Promise.all(
+    Object.entries({ ...dependencies, ...devDependencies })
+      .filter(([name, spec]) => name === TYPESCRIPT || spec.startsWith(`npm:${TYPESCRIPT}@`))
+      .map(async ([name]) => {
+        const file = require.resolve(`${name}/package.json`);
+        const { version } = JSON.parse(await fs.readFile(file, 'utf8'));
+        return { dir: path.dirname(file), version };
+      }),
+  );
+  const native = candidates.find(({ version }) => semver.major(version) >= 7);
+  if (!native) {
+    throw new Error(
+      'Install TypeScript 7 at the workspace root, as "typescript@^7" or under an alias such as "@typescript/native", to build types.',
+    );
+  }
+  // `node_modules/.bin/tsc` is a shell script on Windows, which rolldown-plugin-dts can't spawn.
+  const { default: getExePath } = await import(
+    pathToFileURL(path.join(native.dir, 'lib/getExePath.js')).href
+  );
+  return getExePath();
 }
 
 /**
