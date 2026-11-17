@@ -312,7 +312,8 @@ async function rewriteImports(chunk, rewritable) {
  * export, which bundlers can't tree-shake. Rolldown also reads names an external `export *` provides
  * through that object. ESM chunks import such namespaces with `import * as` instead, and objects
  * nothing references any more are removed with their `<name>_exports` export.
- * Remove this plugin once Rolldown keeps namespace re-exports in unbundled builds.
+ * Remove this plugin once Rolldown keeps namespace re-exports in unbundled builds:
+ * https://github.com/rolldown/rolldown/issues/6669
  * @returns {import('tsdown').Rolldown.Plugin}
  */
 export function jsNamespacesPlugin() {

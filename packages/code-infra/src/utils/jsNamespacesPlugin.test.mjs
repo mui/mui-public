@@ -13,14 +13,15 @@ const NAMED_NAMESPACE = /\{[^}]*_exports[^}]*\} from/;
  * Builds the `src` entries unbundled to `build` and returns the output directory.
  * @param {Record<string, string>} files
  * @param {string[]} entries
+ * @param {import('rolldown').Plugin[]} plugins
  */
-async function build(files, entries = ['index.js']) {
+async function build(files, entries = ['index.js'], plugins = [jsNamespacesPlugin()]) {
   const cwd = await makeTempFiles(files);
   const bundle = await rolldown({
     cwd,
     input: entries.map((entry) => path.join(cwd, 'src', entry)),
     external: [/^[^./]/],
-    plugins: [jsNamespacesPlugin()],
+    plugins,
   });
   const outDir = path.join(cwd, 'build');
   await bundle.write({
@@ -33,6 +34,21 @@ async function build(files, entries = ['index.js']) {
 }
 
 describe('jsNamespacesPlugin', () => {
+  // Fails once Rolldown keeps namespace re-exports, so the plugin can go:
+  // https://github.com/rolldown/rolldown/issues/6669
+  it('is still needed', async () => {
+    const outDir = await build(
+      {
+        'src/index.js': "export * as Grid from './parts.js';",
+        'src/parts.js': "export const Root = 'root';",
+      },
+      ['index.js'],
+      [],
+    );
+
+    expect(await fs.readFile(path.join(outDir, 'parts.js'), 'utf8')).toContain('__exportAll');
+  });
+
   it('imports namespace re-exports with import * as', async () => {
     const outDir = await build({
       'src/index.js': "export * as Grid from './parts.js';",
