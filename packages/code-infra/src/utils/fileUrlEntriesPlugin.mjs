@@ -42,7 +42,7 @@ export function fileUrlEntriesPlugin() {
     transform: {
       filter: { id: { exclude: /node_modules/ }, code: 'import.meta.url' },
       async handler(code, id) {
-        // `.js` sources may contain JSX, which `code-infra build` compiles too.
+        // `.js` sources may contain JSX.
         const lang = TS_FILES.test(id) ? 'ts' : 'tsx';
         const { program } = await parse(id, code, { lang });
 

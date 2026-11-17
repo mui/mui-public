@@ -50,6 +50,42 @@ function toSource(leaf) {
 }
 
 /**
+ * The source paths relative to `src/` that `map` declares, with the key declaring each.
+ * @param {unknown} map - `exports`, `imports` or `bin`.
+ * @returns {{ key: string; source: string }[]}
+ */
+function getDeclarations(map) {
+  const entries = typeof map === 'string' ? [['.', map]] : Object.entries(map ?? {});
+  return entries.flatMap(([key, value]) =>
+    getLeaves(value).flatMap((leaf) => {
+      const source = toSource(leaf);
+      return source ? [{ key, source }] : [];
+    }),
+  );
+}
+
+/**
+ * Orders keys as Node picks them: exact keys first, then the longest prefix before `*`, then the
+ * longest suffix.
+ * @param {{ key: string }} a
+ * @param {{ key: string }} b
+ */
+function compareSpecificity(a, b) {
+  const [prefixA, suffixA] = getSpecificity(a.key);
+  const [prefixB, suffixB] = getSpecificity(b.key);
+  if (prefixA !== prefixB) {
+    return prefixB - prefixA;
+  }
+  return suffixB - suffixA;
+}
+
+/** @param {string} key */
+function getSpecificity(key) {
+  const star = key.indexOf('*');
+  return star === -1 ? [Infinity, 0] : [star, key.length - star - 1];
+}
+
+/**
  * @param {string} name
  * @param {string} source - A declared source path relative to `src/`, possibly with a `*`.
  * @returns {boolean}
@@ -69,7 +105,7 @@ function matchesSource(name, source) {
 }
 
 /**
- * Resolves the source modules behind the ESM paths `code-infra build` would publish.
+ * Resolves the source modules behind the package's published ESM paths.
  * @param {import('./packageJson').PackageJson} packageJson
  * @param {{ cwd: string; outDir: string; packageType: 'module' | 'commonjs' }} options
  * @returns {Promise<Record<string, string>>}
@@ -90,15 +126,15 @@ async function getEntry(packageJson, { cwd, outDir, packageType }) {
       .map((leaf) => leaf.slice('./'.length, -extension.length)),
   );
 
-  const sources = getLeaves([packageJson.exports, packageJson.imports, packageJson.bin])
-    .map(toSource)
-    .filter((source) => source !== null);
+  const declarations = [packageJson.exports, packageJson.imports, packageJson.bin]
+    .flatMap(getDeclarations)
+    .sort(compareSpecificity);
 
   const entries = await Promise.all(
     [...names].map(async (name) => {
-      const candidates = sources
-        .filter((source) => matchesSource(name, source))
-        .map((source) => path.join(SOURCE_DIR, `${name}${path.extname(source)}`));
+      const candidates = declarations
+        .filter(({ source }) => matchesSource(name, source))
+        .map(({ source }) => path.join(SOURCE_DIR, `${name}${path.extname(source)}`));
       const found = await Promise.all(
         candidates.map((file) =>
           fs.stat(path.join(cwd, file)).then(
