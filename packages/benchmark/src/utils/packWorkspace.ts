@@ -119,15 +119,24 @@ async function removeAbandonedCheckouts(repoRoot: string, outRoot: string): Prom
 // asks for, such as a JSON report.
 const PROGRESS_STDIO = { stdin: 'inherit', stdout: process.stderr, stderr: 'inherit' } as const;
 
+// Builds run one at a time: a build command typically uses every CPU, so two at once can outgrow a CI
+// machine's memory without finishing sooner. The rest of packing a side still overlaps.
+let buildQueue: Promise<unknown> = Promise.resolve();
+
 /** Runs `buildCmd` in `cwd`, with the nx daemon off so nothing keeps writing after it returns. */
-async function build(cwd: string, buildCmd: string): Promise<void> {
+function build(cwd: string, buildCmd: string): Promise<void> {
   const [file, ...args] = parseCommandString(buildCmd);
-  await execa(file, args, {
-    cwd,
-    env: { NX_DAEMON: 'false' },
-    ...PROGRESS_STDIO,
-    verbose: 'short',
+  const run = buildQueue.then(async () => {
+    await execa(file, args, {
+      cwd,
+      env: { NX_DAEMON: 'false' },
+      ...PROGRESS_STDIO,
+      verbose: 'short',
+    });
   });
+  // A failed build doesn't hold up the next one.
+  buildQueue = run.catch(() => {});
+  return run;
 }
 
 /** Content hash of a file, short enough to live in a filename. */
