@@ -132,8 +132,18 @@ async function inlineNamespaces(chunks) {
       const rest = [];
       /** @type {string[]} */
       const statements = [];
+      /** @type {string | undefined} */
+      let defaultImport;
       let rewritten = false;
       for (const specifier of node.specifiers) {
+        if (specifier.type === 'ImportDefaultSpecifier') {
+          defaultImport = specifier.local.name;
+          continue;
+        }
+        if (specifier.type === 'ImportNamespaceSpecifier') {
+          statements.push(`import ${typeOnly}* as ${specifier.local.name} from ${source};`);
+          continue;
+        }
         const [imported, alias] = getBinding(specifier);
         if (!imported || !alias || !namespaces.has(getName(imported))) {
           rest.push(slice(chunk.code, specifier));
@@ -149,8 +159,11 @@ async function inlineNamespaces(chunks) {
       if (!rewritten) {
         continue;
       }
-      if (rest.length > 0) {
-        statements.unshift(`${keyword} ${typeOnly}{ ${rest.join(', ')} } from ${source};`);
+      const clauses = [defaultImport, rest.length > 0 ? `{ ${rest.join(', ')} }` : undefined];
+      if (defaultImport || rest.length > 0) {
+        statements.unshift(
+          `${keyword} ${typeOnly}${clauses.filter(Boolean).join(', ')} from ${source};`,
+        );
       }
       edits.push({
         start: node.start,
