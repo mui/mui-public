@@ -96,4 +96,7 @@ Declarations come from tsdown's `dts` with the workspace TypeScript 7 `tsc` and 
 `tsconfig.build.json` (`--no-buildTypes` skips them); hand-written `.d.ts` files need explicit
 exports. A module another file imports with `import * as` also exports the namespace object as
 `<name>_exports`, which Rolldown adds in unbundled builds. The output is validated with publint, as
-in `code-infra build`. Continue using `code-infra build` for package builds.
+in `code-infra build`. With `--cjsCopy`, imported `.cjs` sources are emitted unchanged and imported
+as-is, as in `code-infra build`, and the local modules they `require` are built at the paths they
+name; the build fails when no bundle outputs a module at that path. Continue using
+`code-infra build` for package builds.
