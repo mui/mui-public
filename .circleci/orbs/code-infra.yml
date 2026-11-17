@@ -132,10 +132,7 @@ commands:
   eslint:
     description: 'Runs ESLint on the codebase'
     steps:
-      # Saved per revision so the newest restores; a fixed key froze the first save. A branch only reads
-      # its own and master's: a cached result skips linting a file, so a cache forged by a pull request
-      # could let master pass code that breaks the rules. The lockfile stays in the key because ESLint's
-      # cache hash misses plugin bumps (`@mui/eslint-plugin` reports a fixed version).
+      # Branch-scoped so a PR can't seed master's cache; lockfile kept since ESLint's hash misses plugin bumps.
       - restore_cache:
           keys:
             - eslint-cache-{{ .Branch }}-{{ checksum "pnpm-lock.yaml" }}-
