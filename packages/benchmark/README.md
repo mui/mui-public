@@ -540,8 +540,8 @@ benchmark upload --timeline release
   benchmark sets its own `alarm`; `render:count` and the per-phase split are informational; every
   other metric brings its own alarm.
 - Tables list the baseline before the current build, so a row reads old to new. The pull request
-  comment is one line unless something alarmed — the count, improvements past an alarm's band and a
-  link — and then tables only the rows that alarmed; the terminal and the dashboard show every
+  comment is one line unless something alarmed — the count, improvements (confirmed, and past an
+  alarm's band at their central estimate) and a link — and then tables only the rows that alarmed; the terminal and the dashboard show every
   metric.
 
 ### Choosing the baseline

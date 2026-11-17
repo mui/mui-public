@@ -145,6 +145,39 @@ describe('compareSamples', () => {
     it('is never true for a metric without an alarm', () => {
       expect(compareWith(undefined)).toBe(false);
     });
+
+    // Per-round differences on a steady baseline of 100, alternating around `centre`.
+    const alternating = (centre: number, spread: number) => {
+      const baseline = Array.from({ length: 10 }, () => 100);
+      const current = baseline.map(
+        (value, index) => value + centre + (index % 2 ? spread : -spread),
+      );
+      return compareSamples(
+        { name: 'current', values: current },
+        { name: 'baseline', values: baseline },
+        { kind: 'scalar', alarm: { error: 0.1 } },
+      );
+    };
+
+    it('counts a confirmed change for the better once its central estimate is past the band', () => {
+      // About -27% to -9%: the bound nearest zero falls short of the 10% band, the middle doesn't.
+      const comparison = alternating(-18, 8);
+      expect(comparison.change).toBe('better');
+      expect(comparison.relative.high).toBeGreaterThan(-10);
+      expect(comparison.improved).toBe(true);
+    });
+
+    it('leaves out a confirmed change for the better too small to matter', () => {
+      const comparison = alternating(-2, 1);
+      expect(comparison.change).toBe('better');
+      expect(comparison.improved).toBe(false);
+    });
+
+    it('leaves out a change whose interval reaches zero', () => {
+      const comparison = alternating(-18, 40);
+      expect(comparison.change).toBe('undetected');
+      expect(comparison.improved).toBe(false);
+    });
   });
 });
 
