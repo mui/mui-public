@@ -162,24 +162,21 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
   }
 
   try {
-    // Pack both sides at once: each builds in its own checkout, and nothing is measured yet.
-    const packing = await Promise.allSettled(
-      refs.map(async (ref) => {
-        if (ref.variant === 'current') {
-          return packWorkingTree({ repoRoot, outRoot: path.join(packedDir, 'current'), buildCmd });
-        }
-        // packRef caches a ref's tarballs by SHA; a hit skips the checkout, install, and build.
-        return packRef({ repoRoot, ref: ref.sha, outRoot: packedDir, buildCmd });
-      }),
-    );
-    // Settled both before failing: one side's failure must not cut the other's cleanup short, or a
-    // checkout outlives the run.
-    const packedByRef = packing.map((result) => {
-      if (result.status === 'rejected') {
-        throw result.reason;
-      }
-      return result.value;
-    });
+    // Pack one side at a time. A build command typically runs as many package builds at once as
+    // there are CPUs, so two side by side run twice that, and a monorepo's then outgrow a CI
+    // machine's memory; one after the other take about as long, as both are bound by the CPUs.
+    const packedByRef: Awaited<ReturnType<typeof packWorkingTree>>[] = [];
+    for (const ref of refs) {
+      signal?.throwIfAborted();
+      packedByRef.push(
+        ref.variant === 'current'
+          ? // eslint-disable-next-line no-await-in-loop
+            await packWorkingTree({ repoRoot, outRoot: path.join(packedDir, 'current'), buildCmd })
+          : // packRef caches a ref's tarballs by SHA; a hit skips the checkout, install, and build.
+            // eslint-disable-next-line no-await-in-loop
+            await packRef({ repoRoot, ref: ref.sha, outRoot: packedDir, buildCmd }),
+      );
+    }
 
     // Then build one set of pages per ref, each against its own packed build so both sides of a
     // comparison resolve the library identically. One at a time: a build pins the repository's own

@@ -557,8 +557,9 @@ change — which commit moved a number reads off the chart rather than out of a 
 
 ### Building and installing each side
 
-Both sides are built the same way: packed to tarballs, in parallel, and installed the way a consumer
-gets them, so neither resolves the library through a workspace link. The benchmark files themselves
+Both sides are built the same way: packed to tarballs, one after the other (a build command
+typically uses every CPU, and two at once can outgrow a CI machine's memory), and installed the way a
+consumer gets them, so neither resolves the library through a workspace link. The benchmark files themselves
 stay on the current branch and only the built library changes between refs — so a commit whose public
 API differs from today's benchmarks will fail that ref's build, with the error surfaced. Only the
 pages of the files the run selected are built, so that takes a change to an API those files import.
