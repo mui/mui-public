@@ -33,6 +33,35 @@ function hasRegression({ metrics }: BenchmarkAnalysis): boolean {
   return metrics.some(({ comparisons }) => comparisons.some(isRegression));
 }
 
+/**
+ * How precisely the run pinned its changes down: the median and the widest half-width of the
+ * intervals of the comparisons that can alarm, on scalar metrics, as fractions. A run that reports
+ * no regression could still have missed a change of that size; `null` without such a comparison.
+ */
+function runPrecision(analyses: BenchmarkAnalysis[]): { median: number; widest: number } | null {
+  const precisions = analyses
+    .flatMap(({ metrics }) => metrics)
+    .filter(({ definition }) => definition.kind === 'scalar')
+    .flatMap(({ comparisons }) => comparisons)
+    .filter(({ alarm }) => alarm !== null)
+    .map(({ precision }) => precision)
+    .filter(Number.isFinite)
+    .sort((a, b) => a - b);
+  if (precisions.length === 0) {
+    return null;
+  }
+  const middle = Math.floor(precisions.length / 2);
+  const median =
+    precisions.length % 2 === 1
+      ? precisions[middle]
+      : (precisions[middle - 1] + precisions[middle]) / 2;
+  return { median, widest: precisions[precisions.length - 1] };
+}
+
+function formatPrecisionPercent(precision: number): string {
+  return `±${(precision * 100).toFixed(1)}%`;
+}
+
 /** A benchmark's table, keeping only the rows that regressed or improved. */
 function changesTable(analysis: BenchmarkAnalysis): string | null {
   const { columns, rows } = benchmarkTable(analysis);
@@ -80,11 +109,16 @@ export function buildBenchmarkRunMarkdownReport(
   const failed = analyses.filter((analysis) => analysis.benchmark.error);
   const measured = analyses.length - failed.length;
   const benchmarks = `${measured} benchmark${measured === 1 ? '' : 's'}`;
+  const precision = runPrecision(analyses);
 
   const summary = [
     regressions.length > 0
       ? `${regressions.length} regression${regressions.length === 1 ? '' : 's'} in ${benchmarks}`
       : `No regressions in ${benchmarks}`,
+    // What a "no regressions" is worth: a change smaller than this could have gone unseen.
+    precision === null
+      ? null
+      : `precise to ${formatPrecisionPercent(precision.median)} (${formatPrecisionPercent(precision.widest)} at worst)`,
     report.durationMs === undefined ? null : `ran ${formatDuration(report.durationMs)}`,
     options.detailsUrl ? `[details](${options.detailsUrl})` : null,
   ].filter(Boolean);
