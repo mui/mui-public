@@ -79,6 +79,17 @@ describe('jsNamespacesPlugin', () => {
     expect({ a: Parts.a, b: Parts.b, c: Parts.c() }).toEqual({ a: 1, b: 'b', c: 1 });
   });
 
+  it('keeps namespaces the module imports itself', async () => {
+    const outDir = await build({
+      'src/index.js': "export * as Parts from './parts.js';",
+      'src/parts.js':
+        "import * as self from './parts.js';\nexport function getParts() {\n  return self;\n}",
+    });
+
+    const { Parts } = await import(path.join(outDir, 'index.js'));
+    expect(Parts.getParts()).toBe(Parts);
+  });
+
   it('keeps quoted export names', async () => {
     const outDir = await build({
       'src/index.js': "export * as 'module.exports' from './parts.js';",

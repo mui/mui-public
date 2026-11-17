@@ -45,15 +45,44 @@ function printName(node) {
 }
 
 /**
- * The `__exportAll()` namespaces of `chunk` whose members it all exports by name, so
- * `import * as` can stand in for them. Rolldown can inline constants into the object instead.
+ * The `__reExport()` calls filling namespace `name`, and whether the module reads it beyond
+ * those, its declaration and its exports.
+ * @param {import('tsdown').Rolldown.OutputChunk} chunk
+ * @param {Node[]} body
+ * @param {string} name
+ */
+function getOwnStatements(chunk, body, name) {
+  const reExports = body.filter(
+    (statement) =>
+      statement.type === 'ExpressionStatement' &&
+      statement.expression.type === 'CallExpression' &&
+      statement.expression.callee.type === 'Identifier' &&
+      statement.expression.callee.name === '__reExport' &&
+      statement.expression.arguments[0]?.type === 'Identifier' &&
+      statement.expression.arguments[0].name === name,
+  );
+  const exports = body.flatMap((statement) =>
+    statement.type === 'ExportNamedDeclaration' && !statement.source
+      ? statement.specifiers.filter(
+          (specifier) => specifier.type === 'ExportSpecifier' && getName(specifier.local) === name,
+        )
+      : [],
+  );
+  const usedLocally = countReferences(chunk.code, name) !== 1 + reExports.length + exports.length;
+  return { reExports, usedLocally };
+}
+
+/**
+ * The `__exportAll()` namespaces of `chunk` whose members it all exports by name and that it
+ * doesn't read itself, so `import * as` can stand in for them. Rolldown can inline constants into the object instead.
  * @param {import('tsdown').Rolldown.OutputChunk} chunk
  */
 async function getNamespaces(chunk) {
   const exported = new Set(chunk.exports);
   /** @type {Set<string>} */
   const namespaces = new Set();
-  for (const node of await parseChunk(chunk)) {
+  const body = await parseChunk(chunk);
+  for (const node of body) {
     const declarator = node.type === 'VariableDeclaration' ? node.declarations[0] : null;
     const init = declarator?.init;
     if (
@@ -75,7 +104,8 @@ async function getNamespaces(chunk) {
           property.key.type === 'Identifier' ? property.key.name : String(property.key.value),
         ),
     );
-    if (complete) {
+    // Rewriting would leave the module's own references on a second, different object.
+    if (complete && !getOwnStatements(chunk, body, declarator.id.name).usedLocally) {
       namespaces.add(declarator.id.name);
     }
   }
@@ -163,25 +193,8 @@ async function dropUnusedNamespaces(chunk, imported) {
       continue;
     }
     const name = declarator.id.name;
-    const reExports = body.filter(
-      (statement) =>
-        statement.type === 'ExpressionStatement' &&
-        statement.expression.type === 'CallExpression' &&
-        statement.expression.callee.type === 'Identifier' &&
-        statement.expression.callee.name === '__reExport' &&
-        statement.expression.arguments[0]?.type === 'Identifier' &&
-        statement.expression.arguments[0].name === name,
-    );
-    const exports = body.flatMap((statement) =>
-      statement.type === 'ExportNamedDeclaration' && !statement.source
-        ? statement.specifiers.filter(
-            (specifier) =>
-              specifier.type === 'ExportSpecifier' && getName(specifier.local) === name,
-          )
-        : [],
-    );
-    // A namespace the module uses itself is referenced beyond these statements.
-    if (countReferences(chunk.code, name) !== 1 + reExports.length + exports.length) {
+    const { reExports, usedLocally } = getOwnStatements(chunk, body, name);
+    if (usedLocally) {
       continue;
     }
     dropped.add(name);
