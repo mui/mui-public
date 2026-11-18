@@ -42,38 +42,6 @@
 name: Claude CI flake fix
 
 on:
-  schedule:
-    - cron: '0 7 * * 1' # Monday 07:00 UTC
-  workflow_dispatch:
-    inputs:
-      dry-run:
-        description: Write nothing to GitHub; show the PR and issue comment it would post in the run summary.
-        type: boolean
-        default: false
-      window:
-        description: How far back to look (a CircleCI Insights window).
-        type: choice
-        options:
-          - last-7-days
-          - last-24-hours
-          - last-30-days
-          - last-60-days
-          - last-90-days
-        default: last-7-days
-      branch:
-        description: Branch to triage. Defaults to the repository's default branch.
-        type: string
-      circleci-branch:
-        description: Branch to query on CircleCI, if different from the checked-out branch.
-        type: string
-      debug:
-        description: Print the agent's full output to the run log (verbose; for debugging).
-        type: boolean
-        default: false
-      model:
-        description: The Claude model the agent runs on.
-        type: string
-        default: claude-opus-5-5
   workflow_call:
     inputs:
       dry-run:
@@ -101,10 +69,12 @@ on:
         type: string
         required: false
       circleci-token-environment:
-        # Name of a GitHub Environment in the caller repo that holds the CircleCI token as a secret.
-        # Setting it runs the fetch job in that environment, so the environment's deployment-branch
-        # rule gates the token (e.g. master-only) and its CIRCLECI_TOKEN secret is what fetch reads.
-        # Blank runs fetch with no environment — for public projects read unauthenticated.
+        # Name of a GitHub Environment in the caller repo that holds CIRCLECI_TOKEN. The fetch job
+        # runs in it, so the environment's deployment-branch rule gates the token (e.g. master-only).
+        # The caller must also pass `circleci-token: ${{ secrets.CIRCLECI_TOKEN }}`, which resolves
+        # to the environment's secret. Blank runs fetch with no environment.
+        # Without a token, CircleCI answers 404 on workflow calls, even for a public project, and
+        # the run fails.
         type: string
         required: false
       debug:
@@ -126,7 +96,7 @@ on:
 permissions: {}
 
 env:
-  # Empty on a schedule run (no inputs); the fallback is the default.
+  # Callers pass a blank model on schedule runs; the fallback is the default.
   MODEL: ${{ inputs.model || 'claude-opus-5-5' }}
   DRY_RUN: ${{ inputs.dry-run }}
 
@@ -146,8 +116,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          # The exact mui-public commit this workflow was called at. For a direct run in mui-public
-          # there is no referenced workflow, so fall back to the commit the run is on.
+          # The exact mui-public commit this workflow was called at. A fork's own caller does not
+          # match the path, so fall back to the commit the run is on.
           sha=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
             --jq '[.referenced_workflows[]? | select(.path | startswith("mui/mui-public/.github/workflows/claude-flake-fix.yml")) | .sha][0] // empty')
           sha="${sha:-${{ github.sha }}}"
