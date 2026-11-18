@@ -14,8 +14,9 @@ const EXTENSIONS = { es: '.mjs', cjs: '.js' };
  * Builds `src/index.js` unbundled to `build` and returns the output directory.
  * @param {Record<string, string>} files
  * @param {'es' | 'cjs'} format
+ * @param {string | undefined} cjsExtension The CommonJS output extension the plugin checks against.
  */
-async function build(files, format) {
+async function build(files, format, cjsExtension = EXTENSIONS.cjs) {
   // Rolldown reports real paths; macOS temp directories sit behind a symlink.
   const cwd = await fs.realpath(await makeTempFiles(files));
   const sourceDir = path.join(cwd, 'src');
@@ -23,7 +24,7 @@ async function build(files, format) {
     cwd,
     input: path.join(sourceDir, 'index.js'),
     platform: 'neutral',
-    plugins: [cjsSourcesPlugin(sourceDir, [EXTENSIONS[format]])],
+    plugins: [cjsSourcesPlugin(sourceDir, cjsExtension)],
   });
   const outDir = path.join(cwd, 'build');
   await bundle.write({
@@ -66,7 +67,7 @@ describe('cjsSourcesPlugin', () => {
     expect(createRequire(import.meta.url)(path.join(outDir, 'index.js')).value).toBe(2);
   });
 
-  it('fails when no bundle outputs a required module at its path', async () => {
+  it('fails when no CommonJS bundle outputs a required module at its path', async () => {
     await expect(
       build(
         {
@@ -75,7 +76,11 @@ describe('cjsSourcesPlugin', () => {
           'src/helper.js': 'export const helper = 2;',
         },
         'es',
+        // A `type: module` package, where `helper.js` is the ESM output.
+        '.cjs',
       ),
-    ).rejects.toThrow("shim.cjs requires './helper.js', which no bundle outputs at that path.");
+    ).rejects.toThrow(
+      "shim.cjs requires './helper.js', which no CommonJS bundle outputs at that path.",
+    );
   });
 });

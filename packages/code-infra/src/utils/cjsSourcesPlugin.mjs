@@ -32,10 +32,10 @@ async function getRequires(file, code) {
  * emitted as is. The local modules one requires are built at the path the `require` names. Remove
  * this plugin with the last package that ships `.cjs` sources.
  * @param {string} sourceDir
- * @param {string[]} extensions The output extensions of the selected bundles.
+ * @param {string | undefined} cjsExtension The CommonJS bundle's output extension, if it is built.
  * @returns {import('tsdown').Rolldown.Plugin}
  */
-export function cjsSourcesPlugin(sourceDir, extensions) {
+export function cjsSourcesPlugin(sourceDir, cjsExtension) {
   /**
    * @param {import('tsdown').Rolldown.PluginContext} context
    * @param {string} file
@@ -61,9 +61,9 @@ export function cjsSourcesPlugin(sourceDir, extensions) {
         await emitSource(context, target.id, seen);
         continue;
       }
-      if (!extensions.includes(path.extname(target.id))) {
+      if (path.extname(target.id) !== cjsExtension) {
         context.error(
-          `${path.relative(sourceDir, file)} requires '${specifier}', which no bundle outputs at that path.`,
+          `${path.relative(sourceDir, file)} requires '${specifier}', which no CommonJS bundle outputs at that path.`,
         );
       }
       context.emitFile({ type: 'chunk', id: target.id, preserveSignature: 'strict' });

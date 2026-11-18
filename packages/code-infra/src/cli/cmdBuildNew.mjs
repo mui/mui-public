@@ -364,7 +364,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         args.cjsCopy &&
           cjsSourcesPlugin(
             path.join(cwd, SOURCE_DIR),
-            bundles.map((bundle) => getOutExtension(bundle, { packageType })),
+            bundles.includes('cjs') ? getOutExtension('cjs', { packageType }) : undefined,
           ),
         fileUrlEntriesPlugin(),
         babelPlugin(babelConfigFile),
