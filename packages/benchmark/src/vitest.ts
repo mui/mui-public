@@ -2,6 +2,7 @@ import react from '@vitejs/plugin-react';
 import { playwright } from '@vitest/browser-playwright';
 import type { ViteUserConfig } from 'vitest/config';
 import { BENCHMARK_LAUNCH_ARGS, BENCHMARK_VIEWPORT, withLaunchArgs } from './launchArgs';
+import { reactProfilingConfig, resolveReactProfiling } from './reactProfiling';
 
 export interface CreateBenchmarkVitestConfigOptions {
   /**
@@ -33,6 +34,12 @@ export interface CreateBenchmarkVitestConfigOptions {
    * both measurement and profiling. Also settable via `BENCHMARK_VIEWPORT` (e.g. `2560x1440`).
    */
   viewport?: { width: number; height: number };
+  /**
+   * Whether to run React's profiling build. `true` (the default) reports render durations but slows
+   * down every component render; `false` runs the production build users ship, which reports no
+   * render durations. Also settable via `BENCHMARK_REACT_PROFILING`.
+   */
+  reactProfiling?: boolean;
 }
 
 // Default viewport for all benchmark runs (measurement and profiling alike) — a desktop size is
@@ -74,6 +81,7 @@ export function createBenchmarkVitestConfig(
   const { outputPath, baselinePath, launchArgs = [] } = options ?? {};
   const profile = options?.profile ?? process.env.BENCHMARK_PROFILE === 'true';
   const viewport = resolveViewport(options?.viewport) ?? BENCHMARK_VIEWPORT;
+  const reactConfig = reactProfilingConfig(resolveReactProfiling(options?.reactProfiling));
 
   // Profiling adds DevTools on top of the shared args, plus a window sized to match the viewport —
   // Vitest's `viewport` only sizes the iframe, so otherwise it's cropped/scrolled in the headed
@@ -89,10 +97,11 @@ export function createBenchmarkVitestConfig(
     define: {
       'process.env.NODE_ENV': '"production"',
       'process.env.BENCHMARK_PROFILE': JSON.stringify(profile ? 'true' : ''),
+      ...reactConfig.define,
     },
     resolve: {
       dedupe: ['react', 'react-dom'],
-      alias: [{ find: 'react-dom/client', replacement: 'react-dom/profiling' }],
+      alias: reactConfig.alias,
     },
     test: {
       browser: {
