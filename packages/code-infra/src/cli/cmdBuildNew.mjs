@@ -186,7 +186,11 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       }),
       deps: { neverBundle: true },
       plugins: [fileUrlEntriesPlugin()],
-      inputOptions: { external: [PACKAGE_IMPORTS] },
+      inputOptions: {
+        external: [PACKAGE_IMPORTS],
+        // tsdown otherwise takes `jsx` from the package's tsconfig, which may preserve JSX.
+        transform: { jsx: { runtime: 'automatic' } },
+      },
       outputOptions: { exports: 'named' },
       dts: false,
       exports: false,
