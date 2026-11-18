@@ -582,6 +582,8 @@ export function fireTouchChangedEvent(
   target.getBoundingClientRect = originalGetBoundingClientRect;
 }
 
+let pendingReact17ActFlush: Promise<void> | undefined;
+
 /**
  * Gives React 17 the `act()` behavior of React 18: React 17 drops the value of the callback,
  * warns when the callback returns a value, and warns when a sync call is awaited.
@@ -607,10 +609,15 @@ function actReact17<T>(callback: () => void | T | Promise<T>): PromiseLike<void 
       thenable.then(() => resolve(value), reject);
     });
   }
-  // The `then()` of the React 17 thenable for a sync call logs the warning, so do not call it.
+  // React 18 flushes again when a sync result is awaited, to pick up work queued by microtasks.
+  // React 17's sync thenable only warns. Start an async act scope on demand and share it when
+  // several completed sync calls are awaited together, so their flushes don't overlap.
   return {
-    then(onFulfilled) {
-      return Promise.resolve(value).then(onFulfilled);
+    then(onFulfilled, onRejected) {
+      pendingReact17ActFlush ??= Promise.resolve(rtlAct(async () => {})).finally(() => {
+        pendingReact17ActFlush = undefined;
+      });
+      return pendingReact17ActFlush.then(() => value).then(onFulfilled, onRejected);
     },
   };
 }
