@@ -164,7 +164,9 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       import('tsdown'),
     ]);
 
-    const versionEnv = getVersionEnvVariables(packageJson.version);
+    const { MUI_PRERELEASE: prerelease, ...versionEnv } = getVersionEnvVariables(
+      packageJson.version,
+    );
     await build({
       cwd,
       config: false,
@@ -177,7 +179,12 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       format: Object.fromEntries(
         bundles.map((bundle) => [FORMATS[bundle], { target: getTarget(cwd, bundle) }]),
       ),
-      env: { ...versionEnv, MUI_PRERELEASE: versionEnv.MUI_PRERELEASE ?? null },
+      env: versionEnv,
+      // `env` values go through JSON, which can't hold the `undefined` of a stable version.
+      define: {
+        'process.env.MUI_PRERELEASE':
+          prerelease === undefined ? 'undefined' : JSON.stringify(prerelease),
+      },
       envPrefix: [],
       plugins: [fileUrlEntriesPlugin(), babelPlugin(packageJson)],
       outExtensions: ({ format }) => ({
