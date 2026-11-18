@@ -582,10 +582,43 @@ export function fireTouchChangedEvent(
   target.getBoundingClientRect = originalGetBoundingClientRect;
 }
 
+/**
+ * Gives React 17 the `act()` behavior of React 18: React 17 drops the value of the callback,
+ * warns when the callback returns a value, and warns when a sync call is awaited.
+ */
+function actReact17<T>(callback: () => void | T | Promise<T>): PromiseLike<void | T> {
+  let value: void | T;
+  let isAsync = false;
+  const thenable = rtlAct(() => {
+    const result = callback();
+    if (result != null && typeof (result as PromiseLike<T>).then === 'function') {
+      isAsync = true;
+      return Promise.resolve(result).then((resolved) => {
+        value = resolved;
+      });
+    }
+    value = result as void | T;
+    return undefined;
+  });
+
+  if (isAsync) {
+    // The `then()` of the React 17 thenable returns nothing, so wrap it in a promise.
+    return new Promise((resolve, reject) => {
+      thenable.then(() => resolve(value), reject);
+    });
+  }
+  // The `then()` of the React 17 thenable for a sync call logs the warning, so do not call it.
+  return {
+    then(onFulfilled) {
+      return Promise.resolve(value).then(onFulfilled);
+    },
+  };
+}
+
 function act<T>(callback: () => T | Promise<T>): Promise<T>;
 function act(callback: () => void): void;
 function act<T>(callback: () => void | T | Promise<T>) {
-  return rtlAct(callback);
+  return reactMajor < 18 ? actReact17(callback) : rtlAct(callback);
 }
 
 function createBodyBoundQueries() {
