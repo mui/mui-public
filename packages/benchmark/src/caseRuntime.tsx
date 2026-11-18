@@ -1,5 +1,5 @@
 import * as React from 'react';
-// The profiling build unless `reactBuild` is 'production': the config aliases it (see `reactBuild.ts`).
+// The profiling build unless `reactProfiling` is false: the config aliases it (see `reactProfiling.ts`).
 import * as ReactDOMClient from 'react-dom/client';
 import * as ReactDOM from 'react-dom';
 import type { RenderEvent, InteractionContext, BenchmarkCaseRuntime } from './types';
@@ -37,7 +37,7 @@ export const MILLISECONDS: Intl.NumberFormatOptions = {
 };
 
 // React's production build reports no renders, so an empty recording is expected there.
-const REPORTS_RENDERS = process.env.BENCHMARK_REACT_BUILD !== 'production';
+const REPORTS_RENDERS = process.env.BENCHMARK_REACT_PROFILING !== 'false';
 
 /** Why a case failed when React recording was active yet captured no renders. */
 const EMPTY_RECORDING_MESSAGE =

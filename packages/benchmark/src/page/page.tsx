@@ -209,9 +209,9 @@ async function sample(name: string): Promise<Record<string, number>> {
 
   if (values.size === 0) {
     const hint =
-      process.env.BENCHMARK_REACT_BUILD === 'production'
+      process.env.BENCHMARK_REACT_PROFILING === 'false'
         ? "React's production build reports no render durations, so a case that only measures " +
-          "React renders records nothing. Run it with `reactBuild: 'profiling'`, or record a " +
+          'React renders records nothing. Run it with `reactProfiling: true`, or record a ' +
           'metric of its own through a ScalarMetric or DiscreteMetric.'
         : 'Record its results through a ScalarMetric or DiscreteMetric.';
     throw new Error(`Benchmark "${name}" recorded no value. ${hint}`);
