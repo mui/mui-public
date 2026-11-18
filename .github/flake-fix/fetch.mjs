@@ -190,7 +190,8 @@ function finishQuiet(outDir, summary) {
 
 // The timeline (timeline.json): one entry per job that failed at least once, its recent runs
 // newest first, each PASS / FAIL / SKIP. classify.mjs reads this pass/fail *shape* to bucket a
-// failure as still-broken, flaky, or already fixed. Each FAIL names its log file.
+// failure as still-broken, flaky, or recovered. Each FAIL names its log file, and each run its
+// commit SHA, so a recovery can be traced to the commits that landed in between.
 function writeTimeline(outDir, { slug, branch, window, jobRuns, failingJobs, fileByJobNumber }) {
   const grouped = Map.groupBy(
     jobRuns.filter((run) => failingJobs.has(jobKey(run))),
@@ -209,6 +210,7 @@ function writeTimeline(outDir, { slug, branch, window, jobRuns, failingJobs, fil
         time: run.createdAt,
         pipeline: run.pipelineNumber,
         commit: oneLineSubject(run.subject),
+        sha: run.revision,
         url: run.url,
         // The log for this FAIL run, or null when it is a PASS/SKIP or a failure past the log cap.
         log: run.result === 'FAIL' ? (fileByJobNumber.get(run.jobNumber) ?? null) : null,
@@ -285,6 +287,7 @@ async function main() {
         pipelineNumber: pipeline.number,
         createdAt: workflow.created_at,
         subject,
+        revision: pipeline.vcs?.revision ?? null,
         url: `${APP}/pipelines/${vcs}/${org}/${repo}/${pipeline.number}/workflows/${workflow.id}`,
       });
     }
