@@ -69,3 +69,11 @@ export function publicPkg(name, pkgPath) {
 export function privatePkg(name, pkgPath) {
   return { name, version: '1.0.0', path: pkgPath, isPrivate: true };
 }
+
+export async function getTsgo() {
+  const { default: getExePath } = await import(
+    new URL('../../../../node_modules/@typescript/native/lib/getExePath.js', import.meta.url).href
+  );
+
+  return getExePath();
+}
