@@ -227,11 +227,11 @@ importers:
         specifier: ^31.0.1
         version: 31.0.1
       prettier:
-        specifier: 3.9.10
-        version: 3.9.10
+        specifier: 3.10.1
+        version: 3.10.1
       pretty-quick:
         specifier: ^4.2.2
-        version: 4.2.2(prettier@3.9.10)
+        version: 4.2.2(prettier@3.10.1)
       semver:
         specifier: ^7.8.6
         version: 7.8.6
@@ -965,8 +965,8 @@ importers:
         specifier: 7.2.0
         version: 7.2.0
       prettier:
-        specifier: 3.9.10
-        version: 3.9.10
+        specifier: 3.10.1
+        version: 3.10.1
       remark:
         specifier: 15.0.1
         version: 15.0.1(supports-color@9.4.0)
@@ -1068,7 +1068,7 @@ importers:
         version: 4.0.0(postcss@8.5.33)
       prettier:
         specifier: ^3.0.0
-        version: 3.9.10
+        version: 3.10.1
       proper-lockfile:
         specifier: ^4.1.2
         version: 4.1.2
@@ -7335,8 +7335,8 @@ packages:
     resolution: {integrity: sha512-SxToR7P8Y2lWmv/kTzVLC1t/GDI2WGjMwNhLLE9qtH8Q13C+aEmuRlzDst4Up4s0Wc8sF2M+J57iB3cMLqftfg==}
     engines: {node: '>=6.0.0'}
 
-  prettier@3.9.10:
-    resolution: {integrity: sha512-skGHTH1Yb9QvaTC4hWnRTzEYtCpApF0UMBPz+t/0ZPzP8ihefo/btKd+QA7pUE0fEwA1SbS/NmhyEcstdXOIdA==}
+  prettier@3.10.1:
+    resolution: {integrity: sha512-70vp3ZUYoPlFbF9uiTdXHUUCGEIp7d4+6p+8DYbkm2jP7x/3i/paXVF6dopSI3zd/CEitrZN1rc4i85xWmmXlg==}
     engines: {node: '>=14'}
     hasBin: true
 
@@ -12285,7 +12285,7 @@ snapshots:
       '@babel/core': 8.1.2
       core-js: 3.51.0
       lodash.mergewith: 4.6.2
-      prettier: 3.9.10
+      prettier: 3.10.1
       pretty-format: 30.5.1
       rejoinder: 2.1.0
       strip-indent~3: strip-indent@3.0.0
@@ -15378,7 +15378,7 @@ snapshots:
     dependencies:
       fast-diff: 1.3.0
 
-  prettier@3.9.10: {}
+  prettier@3.10.1: {}
 
   pretty-format@27.5.1:
     dependencies:
@@ -15397,14 +15397,14 @@ snapshots:
     dependencies:
       parse-ms: 4.0.0
 
-  pretty-quick@4.2.2(prettier@3.9.10):
+  pretty-quick@4.2.2(prettier@3.10.1):
     dependencies:
       '@pkgr/core': 0.2.10
       ignore: 7.0.14
       mri: 1.2.0
       picocolors: 1.1.1
       picomatch: 4.0.7
-      prettier: 3.9.10
+      prettier: 3.10.1
       tinyexec: 0.3.2
       tslib: 2.9.1
 
