@@ -16,7 +16,7 @@ uploads one version or the other; the dashboard reads each by its version.
 - Measures React component render durations using `React.Profiler`
 - Captures paint metrics via the [Element Timing API](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceElementTiming)
 - Runs in a real Chromium browser via Playwright
-- Uses React's profiling build for accurate production-like measurements
+- Uses React's profiling build to report render durations, or its production build (`reactBuild: 'production'`) to measure what users ship
 - IQR-based outlier removal for stable results
 - Configurable warmup and measurement runs
 - JSON results output
@@ -319,6 +319,13 @@ export default createBenchmarkVitestConfig({
 - `launchArgs` — additional browser launch arguments
 - `profile` — run an interactive profiling session in a headed browser with DevTools instead of measuring (see [Profiling in DevTools](#profiling-in-devtools)). Also settable via `BENCHMARK_PROFILE=true`.
 - `viewport` — `{ width, height }` browser viewport (and window size in profile mode), applied to both modes. Defaults to `1920x1080`. Also settable via `BENCHMARK_VIEWPORT` (for example, `2560x1440`).
+- `reactBuild` — which build of React to run (see [Choosing the React build](#choosing-the-react-build)). Also settable via `BENCHMARK_REACT_BUILD`.
+
+#### Choosing the React build
+
+React only reports render durations from its profiling build, so that is the default: `react-dom/client` is aliased to `react-dom/profiling`. That build also adds a few microseconds to every component render. It slows down code that renders through React and not code that draws outside it (canvas or imperative DOM), so it skews a comparison between the two.
+
+Set `reactBuild: 'production'` (or `BENCHMARK_REACT_BUILD=production`) to run the build users ship. React render durations are then not reported, `bench:paint` and custom metrics are, and a case whose recording captures no renders no longer fails. Compare results only with results from the same build. `benchmarkPlugin()` takes the same option for the `benchmark` CLI.
 
 To override standard Vitest options (for example, `include`, `testTimeout`, `headless`), use `mergeConfig`:
 

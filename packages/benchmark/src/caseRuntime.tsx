@@ -1,6 +1,6 @@
 import * as React from 'react';
-// React only reports render durations from its profiling build.
-import * as ReactDOMClient from 'react-dom/profiling';
+// The profiling build unless `reactBuild` is 'production': the config aliases it (see `reactBuild.ts`).
+import * as ReactDOMClient from 'react-dom/client';
 import * as ReactDOM from 'react-dom';
 import type { RenderEvent, InteractionContext, BenchmarkCaseRuntime } from './types';
 import { ElementTiming } from './ElementTiming';
@@ -35,6 +35,9 @@ export const MILLISECONDS: Intl.NumberFormatOptions = {
   unit: 'millisecond',
   maximumFractionDigits: 2,
 };
+
+// React's production build reports no renders, so an empty recording is expected there.
+const REPORTS_RENDERS = process.env.BENCHMARK_REACT_BUILD !== 'production';
 
 /** Why a case failed when React recording was active yet captured no renders. */
 const EMPTY_RECORDING_MESSAGE =
@@ -333,7 +336,7 @@ export async function measureIteration(
   }
 
   // Windows where recording never ran (e.g. a fully paused, metric-only case) are not checked.
-  if (recording.hadEmptyActiveWindow) {
+  if (REPORTS_RENDERS && recording.hadEmptyActiveWindow) {
     throw new Error(EMPTY_RECORDING_MESSAGE);
   }
 
