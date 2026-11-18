@@ -32,8 +32,10 @@ function getFileUrlPath(node) {
 }
 
 /**
- * Builds the modules sources load with `new URL('./file', import.meta.url)`, such as workers,
- * which no import reaches, and points the URL at their output.
+ * Builds the modules sources load with `new URL('./file', import.meta.url)`, such as workers. No
+ * import or `exports` entry reaches them, so they would be missing from the output. Each becomes
+ * an entry, compiled like any other source, and the URL is rewritten to its output path and
+ * extension (`new URL('./worker.ts', …)` → `new URL('./worker.mjs', …)`).
  * @returns {import('tsdown').Rolldown.Plugin}
  */
 export function fileUrlEntriesPlugin() {
