@@ -66,7 +66,7 @@ describe('jsNamespacesPlugin', () => {
     expect({ ...Grid }).toEqual({ Item: 'item', Root: 'root' });
   });
 
-  it('imports names from external star re-exports by name', async () => {
+  it('lets bundlers drop exports next to external star re-exports', async () => {
     const outDir = await build(
       {
         'node_modules/external/package.json': JSON.stringify({ name: 'external', type: 'module' }),
@@ -74,15 +74,15 @@ describe('jsNamespacesPlugin', () => {
         'src/index.js': "export { Shape } from './Shape.js';",
         'src/Shape.js':
           "import { useExternal } from './hooks/index.js';\nexport const Shape = () => useExternal();",
-        'src/hooks/index.js': "export * from 'external';\nexport const useLocal = () => 2;",
+        'src/hooks/index.js':
+          "export * from 'external';\nexport const useLocal = () => 'UNUSED_LOCAL';",
       },
       ['index.js', 'hooks/index.js'],
     );
 
-    const shape = await fs.readFile(path.join(outDir, 'Shape.js'), 'utf8');
-    const hooks = await fs.readFile(path.join(outDir, 'hooks/index.js'), 'utf8');
-    expect(shape).not.toMatch(NAMED_NAMESPACE);
-    expect(hooks).not.toContain('__exportAll');
+    const consumer = await rolldown({ input: path.join(outDir, 'index.js') });
+    const { output } = await consumer.generate({ format: 'es', minify: true });
+    expect(output[0].code).not.toContain('UNUSED_LOCAL');
     expect((await import(path.join(outDir, 'index.js'))).Shape()).toBe(1);
   });
 

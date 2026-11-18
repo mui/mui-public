@@ -1,5 +1,7 @@
+import { execFile } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { promisify } from 'node:util';
 import { build } from 'tsdown';
 import { describe, expect, it } from 'vitest';
 
@@ -12,7 +14,7 @@ const EXTERNAL = {
 };
 
 /**
- * Writes the declarations of `entry` and returns a reader for the output.
+ * Writes the declarations of `entry` to `build` and returns the directory they are built in.
  * @param {Record<string, string>} files
  * @param {{ entry?: string; dts?: import('tsdown').UserConfig['dts'] }} [options]
  */
@@ -34,13 +36,29 @@ async function buildDts(files, { entry = 'src/index.ts', dts = { oxc: {} } } = {
     report: false,
     logLevel: 'silent',
   });
-  /** @param {string} file */
-  return (file) => fs.readFile(path.join(cwd, 'build', file), 'utf8');
+
+  return cwd;
+}
+
+/**
+ * Type-checks `file` and returns the errors tsgo prints.
+ * @param {string} tsc
+ * @param {string} cwd
+ * @param {string} file
+ */
+async function typecheck(tsc, cwd, file) {
+  const { stdout } = await promisify(execFile)(
+    tsc,
+    ['--ignoreConfig', '--noEmit', '--module', 'nodenext', file],
+    { cwd },
+  ).catch((/** @type {{ stdout: string }} */ error) => error);
+
+  return stdout;
 }
 
 describe('dtsNamespacesPlugin', () => {
   it('imports declaration namespaces with import * as', async () => {
-    const read = await buildDts({
+    const cwd = await buildDts({
       'src/index.ts': "export * from './Cell';\nexport * from './models/index';",
       'src/Cell.ts': [
         "import type * as models from './models/index';",
@@ -52,7 +70,9 @@ describe('dtsNamespacesPlugin', () => {
     });
 
     const [index, cell, models] = await Promise.all(
-      ['index.d.mts', 'Cell.d.mts', 'models/index.d.mts'].map(read),
+      ['index.d.mts', 'Cell.d.mts', 'models/index.d.mts'].map((file) =>
+        fs.readFile(path.join(cwd, 'build', file), 'utf8'),
+      ),
     );
     // The namespace rolldown-plugin-dts declares leaves out `SeriesId`.
     expect(cell).toContain('import * as index_d_exports from "./models/index.mjs";');
@@ -67,7 +87,8 @@ describe('dtsNamespacesPlugin', () => {
       "export * from './useQuery/index.js';",
       "export * from './props.js';",
     ].join('\n');
-    const read = await buildDts(
+    const tsc = await getTsgo();
+    const cwd = await buildDts(
       {
         'tsconfig.json': JSON.stringify({
           compilerOptions: {
@@ -95,12 +116,25 @@ describe('dtsNamespacesPlugin', () => {
           '  id: SeriesId;',
           '}',
         ].join('\n'),
+        'consumer.ts': [
+          "import { useQuery, type Props } from './build/index.mjs';",
+          "const props: Props = { id: 'id' };",
+          'const valid: boolean = useQuery(props.id);',
+        ].join('\n'),
+        'invalid.ts': [
+          "import { useQuery, type Props } from './build/index.mjs';",
+          'const props: Props = { id: 1 };',
+          'useQuery(1);',
+        ].join('\n'),
       },
-      { entry: 'src/index.js', dts: { generator: 'tsgo', tsgo: { path: await getTsgo() } } },
+      { entry: 'src/index.js', dts: { generator: 'tsgo', tsgo: { path: tsc } } },
     );
 
-    const index = await read('index.d.mts');
-    expect(index).toMatch(/import useQuery(, \{[^}]*\})? from "\.\/useQuery\/index\.mjs";/);
-    expect(index).not.toMatch(/import \{[^}]*\buseQuery\b/);
+    expect(await typecheck(tsc, cwd, 'consumer.ts')).toBe('');
+    const errors = await typecheck(tsc, cwd, 'invalid.ts');
+    expect(errors.match(/^\S+ error TS\d+/gm)).toEqual([
+      'invalid.ts(2,24): error TS2322',
+      'invalid.ts(3,10): error TS2345',
+    ]);
   });
 });
