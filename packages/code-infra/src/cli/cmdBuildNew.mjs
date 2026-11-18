@@ -7,7 +7,12 @@ import { pathToFileURL } from 'node:url';
 import { globby } from 'globby';
 import * as semver from 'semver';
 
-import { getOutExtension, getPackageSources, validatePkgJson } from '../utils/build.mjs';
+import {
+  getOutExtension,
+  getPackageSources,
+  validateEnginesNode,
+  validatePkgJson,
+} from '../utils/build.mjs';
 import { getVersionEnvVariables } from '../utils/babel.mjs';
 import { babelPlugin } from '../utils/babelPlugin.mjs';
 import { cjsSourcesPlugin } from '../utils/cjsSourcesPlugin.mjs';
@@ -348,6 +353,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     const cwd = process.cwd();
     const packageJson = JSON.parse(await fs.readFile(path.join(cwd, 'package.json'), 'utf8'));
     validatePkgJson(packageJson, { enableReactCompiler: args.enableReactCompiler });
+    validateEnginesNode(packageJson, cwd);
 
     const outDir = path.join(cwd, packageJson.publishConfig.directory);
     const packageType = packageJson.type === 'module' ? 'module' : 'commonjs';
