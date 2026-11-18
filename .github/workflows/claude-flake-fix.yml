@@ -107,7 +107,7 @@ on:
         # Blank defaults to flake-fix in mui/mui-public and no environment elsewhere.
         # A passed circleci-token secret takes precedence and works without an environment.
         # Without circleci-token or CIRCLECI_TOKEN, fetch runs unauthenticated and CircleCI answers
-        # 404 on workflow calls, even for a public project.
+        # 404 on workflow calls, even for a public project, and the run fails.
         type: string
         required: false
       debug:
@@ -166,7 +166,6 @@ jobs:
     permissions: {} # holds only the CircleCI token (a secret), no GITHUB_TOKEN scopes
     outputs:
       classify: ${{ steps.fetch.outputs.classify }}
-      data-missing: ${{ steps.fetch.outputs.data-missing }}
     steps:
       - name: Get the flake-fix scripts
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -621,12 +620,6 @@ jobs:
             }
             report = report.replaceAll('{{fix}}', fixText).trimEnd();
 
-            // Fetch diagnostics must survive even when the agent produced its own report.
-            const diagnostics = read('diagnostics.txt').trim();
-            if (diagnostics) {
-              report += `\n\n⚠️ ${diagnostics}`;
-            }
-
             // One footer line after a rule: the run, this run's agent cost, and the insights link.
             const marker = '<!-- flake-fix-report -->';
             const footer = [`[run](${process.env.RUN_URL})`];
@@ -702,10 +695,3 @@ jobs:
             } catch (error) {
               core.warning(`Couldn't remove the previous report comments: ${error.message}`);
             }
-
-      - name: Fail the run when CircleCI returned no data
-        # Runs after the report, so the issue says "no data" and the run still shows as failed.
-        if: ${{ needs.fetch.outputs.data-missing == 'true' }}
-        run: |
-          echo "::error::$(cat publish-input/summary.txt)"
-          exit 1
