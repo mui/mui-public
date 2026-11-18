@@ -26,10 +26,10 @@
     "typescript": "tsc -noEmit"
   },
   "dependencies": {
-    "@babel/runtime": "^8.1.0",
+    "@babel/runtime": "^8.1.2",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",
-    "@testing-library/user-event": "^14.6.8",
+    "@testing-library/user-event": "^14.6.10",
     "@types/chai-dom": "^1.11.3",
     "assertion-error": "^2.0.1",
     "chai-dom": "^1.12.1",
@@ -40,7 +40,7 @@
     "vitest-fail-on-console": "^0.10.1"
   },
   "devDependencies": {
-    "@playwright/test": "1.65.0",
+    "@playwright/test": "1.65.1",
     "@types/chai": "5.2.3",
     "@types/format-util": "1.0.4",
     "@types/jsdom": "30.0.0",
