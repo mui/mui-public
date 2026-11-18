@@ -5,6 +5,7 @@ import { parse } from 'rolldown/utils';
 const DTS_FILES = /\.d\.[cm]?ts$/;
 
 const GENERATED_NAMESPACE = /_exports$/;
+const RUNTIME_MODULE = '\0rolldown/runtime.js';
 
 /**
  * @typedef {{ start: number; end: number; text: string }} Edit
@@ -338,6 +339,22 @@ async function rewriteImports(chunk, rewritable) {
 }
 
 /**
+ * Deletes Rolldown's runtime helpers once the dropped namespaces were their last users.
+ * @param {import('tsdown').Rolldown.OutputBundle} bundle
+ * @param {import('tsdown').Rolldown.OutputChunk[]} chunks
+ */
+async function dropUnusedRuntime(bundle, chunks) {
+  const runtime = chunks.find((chunk) => chunk.moduleIds.includes(RUNTIME_MODULE));
+  if (!runtime) {
+    return;
+  }
+  const imported = await getImportedNames(chunks);
+  if (!imported.has(runtime.fileName)) {
+    delete bundle[runtime.fileName];
+  }
+}
+
+/**
  * Rolldown turns `export * as X from './parts'` into an `__exportAll()` object holding every
  * export, which bundlers can't tree-shake. Rolldown also reads names an external `export *` provides
  * through that object. ESM chunks import such namespaces with `import * as` instead, and objects
@@ -371,6 +388,7 @@ export function jsNamespacesPlugin() {
           dropUnusedNamespaces(chunk, imported.get(chunk.fileName) ?? new Set()),
         ),
       );
+      await dropUnusedRuntime(bundle, chunks);
     },
   };
 }

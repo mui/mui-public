@@ -60,6 +60,8 @@ describe('jsNamespacesPlugin', () => {
     expect(index).toContain('* as');
     expect(index).not.toMatch(NAMED_NAMESPACE);
     expect(parts).not.toContain('__exportAll');
+    // Nothing imports Rolldown's runtime helpers any more.
+    expect(await fs.readdir(outDir)).toEqual(['index.js', 'parts.js']);
     const { Grid } = await import(path.join(outDir, 'index.js'));
     expect({ ...Grid }).toEqual({ Item: 'item', Root: 'root' });
   });
