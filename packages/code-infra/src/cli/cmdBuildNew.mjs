@@ -308,8 +308,10 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         default: false,
         description: 'Compile components with the React compiler.',
       })
+      // Remove once `next` has an `exports` map: https://github.com/vercel/next.js/issues/77200
       .option('cjsCopy', {
         type: 'boolean',
+        deprecated: 'Only for `@mui/material-nextjs`.',
         default: false,
         description:
           'Emit imported `.cjs` sources unchanged instead of compiling them, and build the local modules they require.',

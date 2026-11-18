@@ -29,8 +29,9 @@ async function getRequires(file, code) {
 /**
  * Ships `.cjs` sources unchanged. Rolldown would turn them into ESM whose `require` calls go
  * through a runtime helper bundlers can't resolve, so imports of them stay as written and each is
- * emitted as is. The local modules one requires are built at the path the `require` names. Remove
- * this plugin with the last package that ships `.cjs` sources.
+ * emitted as is. The local modules one requires are built at the path the `require` names. Only
+ * `@mui/material-nextjs` needs it: its `.cjs` shims exist because `next` has no `exports` map
+ * (https://github.com/vercel/next.js/issues/77200). Remove this plugin once that is fixed.
  * @param {string} sourceDir
  * @param {string | undefined} cjsExtension The CommonJS bundle's output extension, if it is built.
  * @returns {import('tsdown').Rolldown.Plugin}
