@@ -350,14 +350,18 @@ export function useSourceEditing({
     ],
   );
 
-  // Warm the edit-time runtime as soon as the block is editable, so the first
-  // edit applies synchronously (no flash). Read-only blocks never load it.
+  // Interaction editors load through activate/setSource instead of warming on mount.
   React.useEffect(() => {
-    if (peekSourceEditingEngine() || !contextSetCode || disabled) {
+    if (
+      peekSourceEditingEngine() ||
+      !contextSetCode ||
+      disabled ||
+      context?.editActivation === 'interaction'
+    ) {
       return;
     }
     preloadSourceEditingEngineCached().catch(() => {});
-  }, [contextSetCode, disabled]);
+  }, [contextSetCode, disabled, context?.editActivation]);
 
   const reset = React.useCallback(() => {
     if (!contextSetCode) {

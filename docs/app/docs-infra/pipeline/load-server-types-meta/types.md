@@ -298,6 +298,11 @@ type LoadServerTypesMetaResult = {
    * Map from type name to its definition string.
    */
   externalTypes: Record<string, string>;
+  /**
+   * Links for the built-in types in the formatted output, keyed by the name they are printed
+   * as, such as `HTMLElement` to its MDN page.
+   */
+  externalTypeLinks: Record<string, string>;
   /** Resource name derived from the types path */
   resourceName: string;
   /** Export data where each export has a main type and related additional types */
@@ -390,3 +395,9 @@ type TypesMeta = (
   aliases?: string[];
 };
 ```
+
+## External Type Links
+
+Maps `Type`: `URL` — the docs of a built-in type the page references.
+
+- `Promise`: <https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Promise>

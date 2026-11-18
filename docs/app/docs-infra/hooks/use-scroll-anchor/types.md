@@ -61,3 +61,9 @@ type UseScrollAnchorResult<
   anchorScroll: (anchor: HTMLElement | null, duration: number) => void;
 };
 ```
+
+## External Type Links
+
+Maps `Type`: `URL` — the docs of a built-in type the page references.
+
+- `HTMLElement`: <https://developer.mozilla.org/docs/Web/API/HTMLElement>

@@ -9,6 +9,9 @@ import {
   within,
   // eslint-disable-next-line import/extensions
 } from '@testing-library/react/pure.js';
+// A namespace import reads `renderHook` safely when the installed version does not export it.
+// eslint-disable-next-line import/extensions
+import * as rtl from '@testing-library/react/pure.js';
 import type {
   RenderResult,
   Screen,
@@ -119,6 +122,18 @@ interface DataAttributes {
   [key: `data-${string}`]: string;
 }
 
+// @testing-library/react 12 (React 17) ignores `reactStrictMode`.
+// Like v16, put StrictMode outside the wrapper.
+function withStrictMode(Wrapper: React.JSXElementConstructor<{ children: React.ReactNode }>) {
+  return function StrictModeWrapper({ children }: { children?: React.ReactNode }) {
+    return (
+      <React.StrictMode>
+        <Wrapper>{children}</Wrapper>
+      </React.StrictMode>
+    );
+  };
+}
+
 function render(
   element: React.ReactElement<DataAttributes>,
   configuration: ClientRenderConfiguration,
@@ -129,7 +144,7 @@ function render(
     container,
     hydrate,
     queries: { ...queries, ...customQueries },
-    wrapper,
+    wrapper: reactStrictMode && reactMajor < 18 ? withStrictMode(wrapper) : wrapper,
     reactStrictMode,
   });
   const result: MuiRenderResult = {
@@ -586,10 +601,44 @@ const bodyBoundQueries =
       })
     : createBodyBoundQueries();
 
+// @testing-library/react 12 (React 17) has no `renderHook`. This follows the v13 implementation.
+const renderHookFallback: typeof rtl.renderHook = (renderCallback, options = {}) => {
+  const {
+    initialProps,
+    wrapper = React.Fragment,
+    reactStrictMode = rtl.getConfig().reactStrictMode,
+    ...renderOptions
+  } = options;
+  const result = React.createRef() as { current: ReturnType<typeof renderCallback> };
+
+  function TestComponent({ renderCallbackProps }: { renderCallbackProps: typeof initialProps }) {
+    const pendingResult = renderCallback(renderCallbackProps!);
+
+    React.useEffect(() => {
+      result.current = pendingResult;
+    });
+
+    return null;
+  }
+
+  const { rerender: baseRerender, unmount } = testingLibraryRender(
+    <TestComponent renderCallbackProps={initialProps} />,
+    { ...renderOptions, wrapper: reactStrictMode ? withStrictMode(wrapper) : wrapper },
+  );
+
+  function rerender(rerenderCallbackProps?: typeof initialProps) {
+    baseRerender(<TestComponent renderCallbackProps={rerenderCallbackProps} />);
+  }
+
+  return { result, rerender, unmount };
+};
+
+export const renderHook: typeof rtl.renderHook =
+  reactMajor < 18 ? renderHookFallback : rtl.renderHook;
+
 export {
   configure,
   render,
-  renderHook,
   waitFor,
   within,
   cleanup,

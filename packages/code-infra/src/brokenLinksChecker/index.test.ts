@@ -320,4 +320,18 @@ describe('Broken Links Checker', () => {
     );
     expect(htmlValidateIssues).toEqual([]);
   }, 30000);
+
+  it('stops the server when the start command does not forward signals to it', async () => {
+    const port = await getPort();
+    const host = `http://localhost:${port}`;
+    const wrapperPath = path.join(import.meta.dirname, '__fixtures__', 'no-signal-forwarding.mjs');
+
+    await crawl({
+      startCommand: `node ${wrapperPath} ${servePath} ${fixtureDir} -p ${port}`,
+      host,
+      seedUrls: ['/no-links.html'],
+    });
+
+    await expect(fetch(host)).rejects.toThrow('fetch failed');
+  }, 30000);
 });

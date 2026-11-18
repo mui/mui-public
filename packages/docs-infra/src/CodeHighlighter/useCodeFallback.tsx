@@ -241,40 +241,61 @@ export function useCodeFallback(props?: UseCodeFallbackProps): UseCodeFallbackRe
     ctxExtraVariants,
   ]);
 
+  const collapseToEmpty = props?.collapseToEmpty === true;
+  const fileNames = props?.fileNames;
+  const totalLines = props?.totalLines;
+  const focusedLines = props?.focusedLines;
+  const collapsible = props?.collapsible;
+  const language = props?.language;
+  const allExtraVariants = props ? propsExtraVariants || ctxExtraVariants : undefined;
+
+  const resolvedExtraVariants = React.useMemo(() => {
+    if (!allExtraVariants) {
+      return undefined;
+    }
+    const result: Record<string, UseCodeFallbackVariantResult> = {};
+    for (const [name, variant] of Object.entries(allExtraVariants)) {
+      result[name] = convertVariantSource(variant, collapseToEmpty);
+    }
+    return result;
+  }, [allExtraVariants, collapseToEmpty]);
+
+  // Readiness updates must not rebuild unchanged fallback trees.
+  const converted = React.useMemo(
+    () =>
+      convertVariantSource(
+        {
+          source,
+          extraSource,
+          fileNames,
+          totalLines,
+          focusedLines,
+          collapsible,
+        },
+        collapseToEmpty,
+      ),
+    [source, extraSource, fileNames, totalLines, focusedLines, collapsible, collapseToEmpty],
+  );
+
+  const code = React.useMemo(
+    () =>
+      converted.source ? (
+        <code
+          className={language ? `language-${language}` : undefined}
+          data-filename={fileNames?.[0]}
+          data-collapsible={converted.collapsible ? '' : undefined}
+          data-total-lines={converted.totalLines}
+          data-focused-lines={converted.focusedLines}
+        >
+          {hastToJsx(converted.source)}
+        </code>
+      ) : null,
+    [converted, language, fileNames],
+  );
+
   if (!props) {
     return {};
   }
-
-  const collapseToEmpty = props.collapseToEmpty === true;
-
-  // Resolve extraVariants: prefer props, fall back to context
-  const allExtraVariants = propsExtraVariants || ctxExtraVariants;
-  let resolvedExtraVariants: Record<string, UseCodeFallbackVariantResult> | undefined;
-
-  if (allExtraVariants) {
-    resolvedExtraVariants = {};
-    for (const [name, variant] of Object.entries(allExtraVariants)) {
-      resolvedExtraVariants[name] = convertVariantSource(variant, collapseToEmpty);
-    }
-  }
-
-  const converted = convertVariantSource(props, collapseToEmpty);
-  const { totalLines, focusedLines, collapsible } = converted;
-  // Build the displayed file's `<code>` once, here, so every ContentLoading paints
-  // identical attributes to `<Pre>`. `null` when there's nothing to paint. Extra files/variants
-  // carry their own `source` + counts on `extraSource` / `extraVariants` for the
-  // consumer to render the same way.
-  const code = converted.source ? (
-    <code
-      className={props.language ? `language-${props.language}` : undefined}
-      data-filename={props.fileNames?.[0]}
-      data-collapsible={collapsible ? '' : undefined}
-      data-total-lines={totalLines}
-      data-focused-lines={focusedLines}
-    >
-      {hastToJsx(converted.source)}
-    </code>
-  ) : null;
 
   return {
     ...converted,

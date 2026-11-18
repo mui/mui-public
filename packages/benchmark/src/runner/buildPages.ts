@@ -12,6 +12,7 @@ import { parse, stringify } from 'yaml';
 // the note in ../cli/index.ts.
 import pkgJson from '@mui/internal-benchmark/package.json' with { type: 'json' };
 import type { PackedPackage } from '../utils/packWorkspace';
+import type { BenchFile } from './benchFiles';
 import { refLabel } from './refs';
 import type { ResolvedRef } from './refs';
 
@@ -134,8 +135,10 @@ export async function buildRefPages(options: {
   outputDir: string;
   /** Absolute output directory for the built pages. */
   outDir: string;
+  /** The benchmark files the run measures: only their pages are built. */
+  benchFiles: BenchFile[];
 }): Promise<void> {
-  const { harnessDir, repoRoot, ref, packages, outputDir, outDir } = options;
+  const { harnessDir, repoRoot, ref, packages, outputDir, outDir, benchFiles } = options;
   console.log(chalk.cyan(`\nBuilding benchmark pages for "${refLabel(ref)}"…`));
 
   await pinPackedPackages(repoRoot, outputDir, packages);
@@ -153,5 +156,6 @@ export async function buildRefPages(options: {
     // to stdout, which stays free for what a caller asks for, such as a JSON report.
     logLevel: 'warn',
     build: { outDir },
+    benchmark: { files: benchFiles.map((benchFile) => benchFile.file) },
   });
 }

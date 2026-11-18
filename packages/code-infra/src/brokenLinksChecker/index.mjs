@@ -621,6 +621,8 @@ export async function crawl(rawOptions) {
 
   /** @type {AbortController | null} */
   let controller = null;
+  /** @type {Promise<unknown> | null} */
+  let serverExited = null;
 
   try {
     if (options.startCommand) {
@@ -630,6 +632,7 @@ export async function crawl(rawOptions) {
         stdout: 'pipe',
         stderr: 'pipe',
         cancelSignal: controller.signal,
+        killDescendants: true,
         env: {
           FORCE_COLOR: '1',
           ...process.env,
@@ -640,7 +643,10 @@ export async function crawl(rawOptions) {
       const serverPrefix = chalk.gray('server: ');
       appProcess.stdout.pipe(prefixLines(serverPrefix)).pipe(process.stdout);
       appProcess.stderr.pipe(prefixLines(serverPrefix)).pipe(process.stderr);
-      appProcess.catch(() => {});
+      // Settles once the whole process tree has exited: descendants inherit the
+      // stdout/stderr pipes, so execa waits for them too, and escalates to SIGKILL
+      // after `forceKillAfterDelay` when a server is slow to shut down.
+      serverExited = appProcess.catch(() => {});
 
       // Poll the first page we are about to crawl (resolved against host) so we
       // wait for the actual entry point to be serveable rather than the
@@ -660,6 +666,7 @@ export async function crawl(rawOptions) {
     if (controller) {
       console.log(chalk.blue('Stopping server...'));
       controller.abort();
+      await serverExited;
     }
   }
 }

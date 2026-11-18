@@ -11,6 +11,7 @@ import type {
   CodeHighlighterProps,
   Components,
   ContentLoadingProps,
+  ContentFrameProps,
   ContentProps,
   LoadCodeMeta,
   LoadSource,
@@ -92,6 +93,7 @@ type CreateDemoMeta = {
 type AbstractCreateDemoOptions<T extends {}> = {
   DemoContent: React.ComponentType<ContentProps<T>>;
   DemoContentLoading?: React.ComponentType<ContentLoadingProps<T>>;
+  DemoContentFrame?: React.ComponentType<ContentFrameProps<T>>;
   DemoTitle?: React.ComponentType<{ slug?: string; children?: string }>;
   controlled?: boolean;
   demoGlobalData?: DemoGlobalData[];
@@ -258,6 +260,7 @@ export function abstractCreateDemo<T extends {}>(
         initialExpanded={initialExpanded}
         initialDisabled={initialDisabled}
         Content={options.DemoContent}
+        ContentFrame={options.DemoContentFrame}
         ContentLoading={options.DemoContentLoading}
         loadCodeMeta={options.loadCodeMeta}
         loadVariantMeta={options.loadVariantMeta}

@@ -51,6 +51,9 @@ interface LinkableChain {
  */
 export interface EnhanceOptions {
   linkMap: Record<string, string>;
+  externalLinks?: Record<string, string>;
+  /** Names the code block declares, which `externalLinks` never applies to. */
+  declaredNames?: Set<string>;
   typeRefComponent?: string;
   typePropRefComponent?: string;
   typeParamRefComponent?: string;
@@ -681,6 +684,78 @@ function resolveTypeHref(
   return undefined;
 }
 
+const DECLARATION_KEYWORDS = new Set([
+  'class',
+  'const',
+  'enum',
+  'function',
+  'interface',
+  'let',
+  'type',
+  'var',
+]);
+
+/**
+ * Whether the span at `index` is the name a declaration introduces, such as `Theme` in
+ * `interface Theme {}`: the highlighter puts only whitespace between the keyword and the name.
+ * Anonymous forms such as `class extends Base` put another token there, so `Base` is not one.
+ */
+function isDeclarationName(children: ElementContent[], index: number): boolean {
+  const between = children[index - 1];
+  const keyword = children[index - 2];
+  return (
+    between?.type === 'text' &&
+    between.value.trim() === '' &&
+    keyword?.type === 'element' &&
+    isKeywordSpan(keyword) &&
+    DECLARATION_KEYWORDS.has(getTextContent(keyword))
+  );
+}
+
+/**
+ * The names a code block declares, such as `Theme` in `interface Theme {}`. They refer to the
+ * block's own code wherever they appear in it, before the declaration as well as after.
+ */
+export function collectDeclaredNames(children: ElementContent[]): Set<string> {
+  const names = new Set<string>();
+  const visitChildren = (nodes: ElementContent[]) => {
+    nodes.forEach((node, index) => {
+      if (node.type !== 'element') {
+        return;
+      }
+      if (isLinkableSpan(node) && isDeclarationName(nodes, index)) {
+        names.add(getTextContent(node));
+      } else {
+        visitChildren(node.children);
+      }
+    });
+  };
+  visitChildren(children);
+  return names;
+}
+
+/**
+ * Looks up a name the link map does not know in `externalLinks`. A name the block declares or
+ * a name bound in scope refers to local code, so it is left unlinked. External links only link
+ * the name; owner tracking keeps using `linkMap`.
+ */
+function resolveExternalHref(
+  identifier: string,
+  options: EnhanceOptions,
+  state: ScanState,
+): string | undefined {
+  const { externalLinks, declaredNames } = options;
+  if (
+    !externalLinks ||
+    !Object.hasOwn(externalLinks, identifier) ||
+    declaredNames?.has(identifier) ||
+    state.scopeStack.some((scope) => scope.bindings.has(identifier))
+  ) {
+    return undefined;
+  }
+  return externalLinks[identifier];
+}
+
 /**
  * Handles a linkable span (pl-c1 or pl-en).
  * Detects chains (Accordion.Trigger.State), links them, and updates state.
@@ -763,7 +838,10 @@ function handleLinkableSpan(
     }
   }
 
-  const href = cssClassHref ?? resolveTypeHref(identifier, linkMap, state);
+  const href =
+    cssClassHref ??
+    resolveTypeHref(identifier, linkMap, state) ??
+    resolveExternalHref(identifier, options, state);
   const nodes: ElementContent[] = [];
 
   if (isBareCssClass) {

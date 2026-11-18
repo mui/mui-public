@@ -126,9 +126,11 @@ export class SocketServer {
     this.connections.add(socket);
 
     let buffer = '';
+    // Decoding each chunk separately corrupts characters split across chunks.
+    socket.setEncoding('utf8');
 
-    socket.on('data', (data) => {
-      buffer += data.toString();
+    socket.on('data', (data: string) => {
+      buffer += data;
 
       // Process complete messages (delimited by newlines)
       const messages = buffer.split('\n');
