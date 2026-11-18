@@ -276,7 +276,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_HOST: github.com
           GH_PROMPT_DISABLED: '1'
-        uses: anthropics/claude-code-action@61a9c274fa7110a66dfafc1bbbced03833eb25fe # v1.0.269
+        uses: anthropics/claude-code-action@e5812cd75691ca7bbfc57c0ecf4441db3a1ab7dd # v1.0.281
         with:
           github_token: ${{ github.token }} # Use this job's read-only token instead of minting an App token.
           allowed_bots: ${{ needs.authorize.outputs.allowed-bot }} # Forward only the bot approved by authorization.
@@ -745,7 +745,7 @@ jobs:
       - name: Develop and test the fix on the runner
         id: claude
         if: steps.eligible.outputs.actionable == 'true'
-        uses: anthropics/claude-code-action@61a9c274fa7110a66dfafc1bbbced03833eb25fe # v1.0.269
+        uses: anthropics/claude-code-action@e5812cd75691ca7bbfc57c0ecf4441db3a1ab7dd # v1.0.281
         with:
           github_token: ${{ github.token }} # Use this job's read-only token instead of minting an App token.
           show_full_output: ${{ inputs.debug }}
