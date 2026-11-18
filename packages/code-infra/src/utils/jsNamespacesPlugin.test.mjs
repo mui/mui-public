@@ -84,6 +84,29 @@ describe('jsNamespacesPlugin', () => {
     expect((await import(path.join(outDir, 'index.js'))).Shape()).toBe(1);
   });
 
+  it('keeps default imports next to rewritten names', async () => {
+    const outDir = await build(
+      {
+        'node_modules/external/package.json': JSON.stringify({ name: 'external', type: 'module' }),
+        'node_modules/external/index.js': 'export const useExternal = () => 1;',
+        'src/index.js': "export { Shape } from './Shape.js';",
+        'src/Shape.js': [
+          "import useLocal, { useExternal } from './hooks/index.js';",
+          'export const Shape = () => useExternal() + useLocal();',
+        ].join('\n'),
+        'src/hooks/index.js': [
+          "export * from 'external';",
+          'export default function useLocal() {',
+          '  return 2;',
+          '}',
+        ].join('\n'),
+      },
+      ['index.js', 'hooks/index.js'],
+    );
+
+    expect((await import(path.join(outDir, 'index.js'))).Shape()).toBe(3);
+  });
+
   it('keeps namespaces whose members Rolldown inlines', async () => {
     const outDir = await build({
       'src/index.js': "export * as Parts from './parts.js';",
