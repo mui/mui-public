@@ -18,6 +18,7 @@ import { fileUrlEntriesPlugin } from '../utils/fileUrlEntriesPlugin.mjs';
 const SOURCE_DIR = 'src';
 // Importers keep `#` specifiers, so consumers resolve the `imports` conditions.
 const PACKAGE_IMPORTS = /^#/;
+const MODULE_LEVEL_DIRECTIVE = 'MODULE_LEVEL_DIRECTIVE';
 const SOURCE_EXTENSIONS = ['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs'];
 
 /** @type {Record<import('../utils/build.mjs').BundleType, 'es' | 'cjs'>} */
@@ -196,6 +197,8 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       exports: false,
       report: false,
       logLevel: 'warn',
+      // Unbundled output keeps each module's directives; the warning is about bundling.
+      suppressWarnings: [MODULE_LEVEL_DIRECTIVE],
     });
   },
 });
