@@ -162,14 +162,20 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
   }
 
   try {
-    // Pack both sides at once: each builds in its own checkout, and nothing is measured yet.
+    // Pack both sides at once, each in its own checkout, while nothing is measured yet. Only their
+    // builds take turns.
     const packing = await Promise.allSettled(
       refs.map(async (ref) => {
         if (ref.variant === 'current') {
-          return packWorkingTree({ repoRoot, outRoot: path.join(packedDir, 'current'), buildCmd });
+          return packWorkingTree({
+            repoRoot,
+            outRoot: path.join(packedDir, 'current'),
+            buildCmd,
+            signal,
+          });
         }
         // packRef caches a ref's tarballs by SHA; a hit skips the checkout, install, and build.
-        return packRef({ repoRoot, ref: ref.sha, outRoot: packedDir, buildCmd });
+        return packRef({ repoRoot, ref: ref.sha, outRoot: packedDir, buildCmd, signal });
       }),
     );
     // Settled both before failing: one side's failure must not cut the other's cleanup short, or a
