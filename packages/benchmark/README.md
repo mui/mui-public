@@ -327,6 +327,8 @@ React only reports render durations from its profiling build, so that is the def
 
 Set `reactBuild: 'production'` (or `BENCHMARK_REACT_BUILD=production`) to run the build users ship. React render durations are then not reported, `bench:paint` and custom metrics are, and a case whose recording captures no renders no longer fails. Compare results only with results from the same build. `benchmarkPlugin()` takes the same option for the `benchmark` CLI.
 
+A case whose only metric is React render duration records nothing under the production build, and fails. That is a case that starts with `reactRecordingPaused` and resumes recording after its paint, for example to time the renders of a scroll. Keep such cases on the profiling build, or have them record a metric of their own.
+
 To override standard Vitest options (for example, `include`, `testTimeout`, `headless`), use `mergeConfig`:
 
 ```ts
