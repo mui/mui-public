@@ -88,6 +88,15 @@ jobs:
       - run:
           name: 'Run tests'
           command: pnpm test
+  test_utils_react_17:
+    <<: *default-job
+    steps:
+      - checkout
+      - code-infra/install-deps:
+          react-version: '17.0.2'
+      - run:
+          name: Run test-utils with React 17
+          command: pnpm -F @mui/internal-test-utils exec vitest --run
   test_package:
     <<: *default-job
     steps:
@@ -207,6 +216,8 @@ workflows:
       - test_static:
           <<: *default-context
       - test_unit:
+          <<: *default-context
+      - test_utils_react_17:
           <<: *default-context
       - test_package:
           <<: *default-context

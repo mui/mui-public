@@ -5,6 +5,7 @@ import { escapeHtml } from '../utils/html';
 import { discoverBenchFiles, writeBenchPages } from './benchFiles';
 import type { BenchFile } from './benchFiles';
 import { buildsDirOf, prepareOutputDir } from './outputDir';
+import { reactProfilingConfig, resolveReactProfiling } from '../reactProfiling';
 
 /**
  * Vite plugin for a benchmark harness.
@@ -29,6 +30,12 @@ export interface BenchmarkPluginOptions {
    * is run from.
    */
   harnessDir?: string;
+  /**
+   * Whether the pages run React's profiling build. `true` (the default) reports render durations
+   * but slows down every component render; `false` runs the production build users ship, which
+   * reports no render durations. Also settable via `BENCHMARK_REACT_PROFILING`.
+   */
+  reactProfiling?: boolean;
 }
 
 declare module 'vite' {
@@ -108,6 +115,7 @@ ${items}
 export function benchmarkPlugin(options: BenchmarkPluginOptions = {}): Plugin {
   const harnessDir = options.harnessDir ?? process.cwd();
   const srcDir = path.join(harnessDir, 'src');
+  const reactConfig = reactProfilingConfig(resolveReactProfiling(options.reactProfiling));
   let benchFiles: BenchFile[] = [];
 
   return {
@@ -155,7 +163,8 @@ export function benchmarkPlugin(options: BenchmarkPluginOptions = {}): Plugin {
       const base = {
         root: srcDir,
         appType: 'mpa' as const,
-        resolve: { dedupe: ['react', 'react-dom'] },
+        resolve: { dedupe: ['react', 'react-dom'], alias: reactConfig.alias },
+        define: reactConfig.define,
       };
 
       if (env.command !== 'build') {
