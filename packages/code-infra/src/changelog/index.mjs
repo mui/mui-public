@@ -11,5 +11,6 @@ export { findLatestTaggedVersion } from '../utils/git.mjs';
 
 /** @typedef {import('./types.ts').ChangelogConfig} ChangelogConfig */
 /** @typedef {import('./types.ts').FetchedCommitDetails} FetchedCommitDetails */
+/** @typedef {import('./types.ts').DirectCommitDetails} DirectCommitDetails */
 /** @typedef {import('./types.ts').GenerateChangelogOptions} GenerateChangelogOptions */
 /** @typedef {import('./types.ts').GenerateChangelogResult} GenerateChangelogResult */

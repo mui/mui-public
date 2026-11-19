@@ -31,6 +31,7 @@ function shouldRetryRateLimit(retryAfter, options, octokit, retryCount) {
 
 /**
  * @typedef {import('./types').FetchedCommitDetails} FetchedCommitDetails
+ * @typedef {import('./types').DirectCommitDetails} DirectCommitDetails
  */
 
 /**
@@ -48,8 +49,18 @@ function shouldRetryRateLimit(retryAfter, options, octokit, retryCount) {
  * Fetches commits between two refs (lastRelease..release) including PR details.
  * Automatically handles GitHub OAuth authentication if none provided.
  *
- * @param {FetchCommitsOptions & {octokit?: OctokitType}} opts
+ * @overload
+ * @param {FetchCommitsOptions & {octokit?: OctokitType, includeDirectCommits: true}} opts
+ * @returns {Promise<(FetchedCommitDetails | DirectCommitDetails)[]>}
+ */
+/**
+ * @overload
+ * @param {FetchCommitsOptions & {octokit?: OctokitType, includeDirectCommits?: false}} opts
  * @returns {Promise<FetchedCommitDetails[]>}
+ */
+/**
+ * @param {FetchCommitsOptions & {octokit?: OctokitType}} opts
+ * @returns {Promise<(FetchedCommitDetails | DirectCommitDetails)[]>}
  */
 export async function fetchCommitsBetweenRefs(opts) {
   const octokit =
@@ -82,7 +93,7 @@ export async function fetchCommitsBetweenRefs(opts) {
  *
  * @param {FetchCommitsOptions & { octokit: OctokitType}} param0
  *
- * @returns {Promise<FetchedCommitDetails[]>}
+ * @returns {Promise<(FetchedCommitDetails | DirectCommitDetails)[]>}
  */
 async function fetchCommitsRest({
   octokit,
@@ -165,7 +176,7 @@ async function fetchCommitsRest({
   /**
    * @param {Commits[number]} commit
    * @param {AbortSignal} signal
-   * @returns {Promise<FetchedCommitDetails | null>}
+   * @returns {Promise<FetchedCommitDetails | DirectCommitDetails | null>}
    */
   const fetchCommitDetails = async (commit, signal) => {
     // Squash-merge subjects end with the PR number; issue references in prose do not.
@@ -269,7 +280,7 @@ async function fetchCommitsRest({
     return details;
   };
 
-  /** @param {Commits[number]} commit @param {AbortSignal} signal @returns {Promise<FetchedCommitDetails>} */
+  /** @param {Commits[number]} commit @param {AbortSignal} signal @returns {Promise<DirectCommitDetails>} */
   async function directCommit(commit, signal) {
     const login = commit.author?.login;
     const association = login ? await getMembershipAssociation(login, signal) : 'contributor';
