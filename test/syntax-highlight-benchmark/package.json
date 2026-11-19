@@ -6,7 +6,8 @@
     "benchmark": "tsx ./src/run.ts",
     "typescript": "tsc -noEmit",
     "benchmark:disagreements": "tsx ./src/disagreements.ts",
-    "benchmark:imports": "tsx ./src/imports.ts"
+    "benchmark:imports": "tsx ./src/imports.ts",
+    "benchmark:payload": "tsx ./src/payload.ts"
   },
   "dependencies": {
     "@codemirror/language": "^6.13.1",

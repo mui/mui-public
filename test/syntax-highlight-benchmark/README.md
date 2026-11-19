@@ -8,6 +8,7 @@ pnpm -F ./test/syntax-highlight-benchmark benchmark
 pnpm -F ./test/syntax-highlight-benchmark benchmark --engines starry-night,highlights --runs 3 --skip-bundles
 pnpm -F ./test/syntax-highlight-benchmark benchmark:disagreements highlights css
 pnpm -F ./test/syntax-highlight-benchmark benchmark:imports
+pnpm -F ./test/syntax-highlight-benchmark benchmark:payload
 ```
 
 `benchmark` writes `results/report.md`, `results/results.json` and `results/compare.html`, a side-by-side rendering of every sample with one shared palette. `benchmark:disagreements` lists the text runs where an engine's categories differ most from Starry Night's for one language.
@@ -99,6 +100,21 @@ Coverage gaps for the 11 docs-infra languages:
 - **Markdown fences** need a `codeParser` that maps the info string to a parser, which the adapter does for the 11 languages.
 
 What adopting it would take: the same `pl-*` class migration as highlights, against Lezer's tag vocabulary (`tags.function(tags.variableName)`, `tags.tagName`, `tags.attributeName`, `tags.definition(…)`, …). Lezer's tokens are tight, so whitespace stays outside spans, and nested tags stack their classes, least specific first. Lezer grammars are written in its own grammar format, so as with highlights, docs-infra users could not reuse TextMate grammars.
+
+## Browser download with lazy languages
+
+`benchmark:payload` (`src/payload.ts`) builds each engine with one dynamic import per language, as `CodeProviderLazy` loads grammars, and sums the minified chunks a page downloads: the engine core once, then each language's chunks. Shared chunks count once per page. Engine code only; docs-infra's own HAST passes are the same for every engine.
+
+| download (KiB)   | Starry Night gzip / br | Lezer gzip / br | highlights gzip / br |
+| :--------------- | ---------------------: | --------------: | -------------------: |
+| core             |              186 / 129 |         13 / 12 |            151 / 129 |
+| tsx only         |              213 / 149 |         53 / 45 |            151 / 129 |
+| tsx + css + sh   |              231 / 165 |       138 / 118 |            151 / 129 |
+| all 11 languages |              324 / 243 |       165 / 141 |            151 / 129 |
+
+- **Starry Night**: 157 KiB gzip of its core is `onig.wasm`, which it fetches from esm.sh unless `getOnigurumaUrlFetch` points elsewhere; docs-infra does not set it. Grammars are cheap except the JS family (12–28 KiB each), Markdown (25) and MDX (51, including TSX).
+- **Lezer**: the smallest core by far. The first JS-family grammar costs 40 KiB gzip, including the shared `@lezer/lr` runtime; the others add 10–18 KiB each. `sh` and `diff` cost 75–77 KiB each because the legacy modes need `@codemirror/language`, which brings in `@codemirror/state` and `@codemirror/view`. They share that cost. A small Lezer grammar or hand-written tokenizer for each would remove it.
+- **highlights**: one module with all 152 languages, so the cost is fixed. The published browser entry inlines the Wasm as base64 (184 KiB gzip). Loading `highlights.wasm` (141 KiB gzip) as a separate file, as its `workerd` entry does, brings it to 151 KiB, and lets the browser compile it while it streams. The package exposes `init(module)` for that, but no browser entry that skips the inlined copy.
 
 ## Token data and syntax trees
 

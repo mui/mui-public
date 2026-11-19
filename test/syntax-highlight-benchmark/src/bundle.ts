@@ -22,7 +22,7 @@ export interface BundleEntry {
 
 const kib = (bytes: number) => bytes / 1024;
 
-function sizes(label: string, contents: Buffer[], note?: string): BundleSize {
+export function sizes(label: string, contents: Buffer[], note?: string): BundleSize {
   const total = (map: (content: Buffer) => number) =>
     contents.reduce((sum, content) => sum + map(content), 0);
   return {
@@ -34,10 +34,17 @@ function sizes(label: string, contents: Buffer[], note?: string): BundleSize {
   };
 }
 
-async function bundle(entry: string): Promise<Buffer[]> {
+type BuildOutput = Extract<Awaited<ReturnType<typeof build>>, { output: unknown }>['output'];
+
+/** Builds `entry` for the browser and returns its chunks and assets without writing them. */
+export async function buildOutput(
+  entry: string,
+  alias?: Array<{ find: RegExp; replacement: string }>,
+): Promise<BuildOutput> {
   const output = await build({
     configFile: false,
     logLevel: 'silent',
+    resolve: { alias },
     build: {
       write: false,
       minify: true,
@@ -50,10 +57,14 @@ async function bundle(entry: string): Promise<Buffer[]> {
     if (!('output' in result)) {
       throw new Error('Unexpected watcher from vite build');
     }
-    return result.output.map((chunk) =>
-      Buffer.from(chunk.type === 'chunk' ? chunk.code : chunk.source),
-    );
-  });
+    return result.output;
+  }) as BuildOutput;
+}
+
+async function bundle(entry: string): Promise<Buffer[]> {
+  return (await buildOutput(entry)).map((chunk) =>
+    Buffer.from(chunk.type === 'chunk' ? chunk.code : chunk.source),
+  );
 }
 
 export async function measureBundles(entries: BundleEntry[]): Promise<BundleSize[]> {
