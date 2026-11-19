@@ -3,8 +3,10 @@ import { $ } from 'execa';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { mapAsync } from 'es-toolkit/array';
+import { mapAsync, uniqBy } from 'es-toolkit/array';
+import { isEqual } from 'es-toolkit/predicate';
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
+import { resolveExports } from 'resolve-pkg-maps';
 import * as semver from 'semver';
 import { stringify } from 'yaml';
 import { getWorkspacePackages, readPackageJson, writePackageJson } from '../utils/pnpm.mjs';
@@ -28,108 +30,81 @@ import { findTscPair } from '../utils/typescript.mjs';
  */
 
 /**
- * The `exports` conditions TypeScript matches for each kind of consumer. `types` comes first in
- * every published manifest, so matching it in all modes is what TypeScript does too.
+ * The kinds of consumers, with the runtime `exports` conditions each matches besides `default`.
+ * `types` comes first in every published manifest, so matching it in all modes is what TypeScript
+ * does too.
  */
-const CONDITIONS = {
-  esm: new Set(['types', 'import', 'node', 'default']),
-  cjs: new Set(['types', 'require', 'node', 'default']),
-  bundler: new Set(['types', 'import', 'default']),
-};
+const CONSUMERS = [
+  { kind: 'esm', extension: 'mts', conditions: ['import', 'node'], module: 'nodenext' },
+  { kind: 'cjs', extension: 'cts', conditions: ['require', 'node'], module: 'nodenext' },
+  {
+    kind: 'bundler',
+    extension: 'mts',
+    conditions: ['import'],
+    module: 'esnext',
+    moduleResolution: 'bundler',
+  },
+];
 
 /**
- * Follows an `exports` target the way Node.js does: the first key that matches wins, even when
- * it maps to `null`.
- *
- * @param {unknown} target
- * @param {Set<string>} conditions
- * @returns {string | null}
+ * @param {unknown} packageExports
+ * @param {string} subpath `''` for the package itself.
+ * @param {string[]} conditions
+ * @returns {string | undefined} The first target, or `undefined` when the subpath doesn't resolve.
  */
-function resolveExportTarget(target, conditions) {
-  if (typeof target === 'string') {
-    return target;
-  }
-  if (Array.isArray(target)) {
-    return resolveExportTarget(target[0], conditions);
-  }
-  if (target && typeof target === 'object') {
-    for (const [condition, value] of Object.entries(target)) {
-      if (conditions.has(condition)) {
-        return resolveExportTarget(value, conditions);
-      }
+function resolveTarget(packageExports, subpath, conditions) {
+  try {
+    return resolveExports(
+      /** @type {Parameters<typeof resolveExports>[0]} */ (packageExports),
+      subpath,
+      conditions,
+    )[0];
+  } catch (error) {
+    if (/** @type {{ code?: string }} */ (error).code === 'ERR_PACKAGE_PATH_NOT_EXPORTED') {
+      return undefined;
     }
+    throw error;
   }
-  return null;
 }
 
 /**
- * Lists a package's import specifiers with their `exports` targets. Glob subpaths are skipped:
- * `code-infra build` expands them into concrete entries.
+ * Lists the modules consumers can import types from under `conditions`. Glob subpaths are skipped:
+ * `code-infra build` expands them into concrete entries. Entry points without a runtime target,
+ * such as code-infra's `build-env`, are left out: nothing imports them.
  *
  * @param {PackageJson} packageJson A published manifest.
- * @returns {[specifier: string, target: unknown][]}
- */
-function getExportEntries(packageJson) {
-  const name = /** @type {string} */ (packageJson.name);
-  const packageExports = packageJson.exports;
-  if (packageExports === undefined || packageExports === null) {
-    const types = packageJson.types ?? packageJson.typings;
-    return types ? [[name, { types, default: packageJson.main ?? './index.js' }]] : [];
-  }
-  /** @type {Record<string, unknown>} */
-  const exportsMap =
-    typeof packageExports === 'string' ||
-    Array.isArray(packageExports) ||
-    !Object.keys(packageExports).some((key) => key.startsWith('.'))
-      ? { '.': packageExports }
-      : packageExports;
-  return Object.entries(exportsMap)
-    .filter(([subpath]) => !subpath.includes('*') && subpath !== './package.json')
-    .map(([subpath, target]) => [subpath === '.' ? name : `${name}/${subpath.slice(2)}`, target]);
-}
-
-/**
- * @param {unknown} target
- * @param {Set<string>} conditions
- * @returns {{ types: string | null, runtime: string | null }}
- */
-function resolveEntryPoint(target, conditions) {
-  const types = resolveExportTarget(target, conditions);
-  return {
-    types: types && /\.d\.[cm]?ts$/.test(types) ? types : null,
-    runtime: resolveExportTarget(
-      target,
-      new Set(Array.from(conditions).filter((condition) => condition !== 'types')),
-    ),
-  };
-}
-
-/**
- * Lists the modules consumers can import types from under `conditions`. Entry points without a
- * runtime target, such as code-infra's `build-env`, are left out: nothing imports them.
- *
- * @param {PackageJson} packageJson
- * @param {Set<string>} conditions
+ * @param {string[]} conditions
  * @returns {EntryPoints}
  */
 function getTypedEntryPoints(packageJson, conditions) {
+  const name = /** @type {string} */ (packageJson.name);
+  const types = packageJson.types ?? packageJson.typings;
+  const packageExports =
+    packageJson.exports ?? (types ? { types, default: packageJson.main ?? './index.js' } : null);
+  if (!packageExports) {
+    return new Map();
+  }
+  const subpaths =
+    typeof packageExports === 'object' &&
+    !Array.isArray(packageExports) &&
+    Object.keys(packageExports).some((key) => key.startsWith('.'))
+      ? Object.keys(packageExports)
+          .filter((key) => !key.includes('*'))
+          .map((key) => key.slice(2))
+      : [''];
   /** @type {EntryPoints} */
   const entryPoints = new Map();
-  for (const [specifier, target] of getExportEntries(packageJson)) {
-    const { types, runtime } = resolveEntryPoint(target, conditions);
-    if (types && runtime) {
-      entryPoints.set(specifier, types);
+  for (const subpath of subpaths) {
+    const declarations = resolveTarget(packageExports, subpath, ['types', ...conditions]);
+    if (
+      declarations &&
+      /\.d\.[cm]?ts$/.test(declarations) &&
+      resolveTarget(packageExports, subpath, conditions)
+    ) {
+      entryPoints.set(subpath ? `${name}/${subpath}` : name, declarations);
     }
   }
   return entryPoints;
-}
-
-/**
- * @param {EntryPoints} a
- * @param {EntryPoints} b
- */
-function isSameEntryPoints(a, b) {
-  return a.size === b.size && Array.from(a).every(([specifier, file]) => b.get(specifier) === file);
 }
 
 /**
@@ -164,15 +139,15 @@ function intersectRanges(name, a, b) {
   if (!semver.validRange(a) || !semver.validRange(b)) {
     return a;
   }
-  if (!semver.intersects(a, b)) {
-    throw new Error(`No version of "${name}" satisfies every peer range: "${a}" and "${b}".`);
-  }
   const setsOf = (/** @type {string} */ range) =>
     new semver.Range(range).set.map((comparators) => comparators.map(String).join(' '));
-  return setsOf(a)
+  const intersection = setsOf(a)
     .flatMap((setA) => setsOf(b).map((setB) => `${setA} ${setB}`.trim()))
-    .filter((range) => semver.intersects(range, range))
-    .join(' || ');
+    .filter((range) => semver.intersects(range, range));
+  if (intersection.length === 0) {
+    throw new Error(`No version of "${name}" satisfies every peer range: "${a}" and "${b}".`);
+  }
+  return intersection.join(' || ');
 }
 
 /**
@@ -268,19 +243,25 @@ async function validateBuiltTypes({ workspaceRoot, tempDir }) {
   // Consumers provide every peer, optional ones included, at a version in range of every package.
   // The versions the workspace installed for its packages come first: they are fixed by the
   // lockfile, so a new upstream release can't change the outcome until the workspace updates.
-  const declaredPeers = packed.flatMap(({ manifest, dir }) =>
-    Object.entries(manifest.peerDependencies ?? {})
-      .filter(([name, range]) => range && !tarballs[name])
-      .map(([name, range]) => ({ name, range: /** @type {string} */ (range), dir })),
-  );
-  const installedPeers = await Promise.all(
-    declaredPeers.map(({ name, dir }) =>
-      readPackageJson(path.join(dir, 'node_modules', name)).then(
-        ({ name: installedName, version }) =>
-          // An aliased install, such as `typescript: npm:@typescript/typescript6@6.0.2`.
-          installedName === name ? version : `npm:${installedName}@${version}`,
-        () => undefined,
-      ),
+  const declaredPeers = await Promise.all(
+    packed.flatMap(({ manifest, dir }) =>
+      Object.entries(manifest.peerDependencies ?? {})
+        .filter(([name, range]) => range && !tarballs[name])
+        .map(async ([name, range]) => {
+          const installed = await readPackageJson(path.join(dir, 'node_modules', name)).catch(
+            () => undefined,
+          );
+          return {
+            name,
+            range: /** @type {string} */ (range),
+            version: installed?.version,
+            // An aliased install, such as `typescript: npm:@typescript/typescript6@6.0.2`.
+            spec:
+              installed?.name === name
+                ? installed.version
+                : `npm:${installed?.name}@${installed?.version}`,
+          };
+        }),
     ),
   );
   /** @type {Record<string, string>} */
@@ -291,13 +272,10 @@ async function validateBuiltTypes({ workspaceRoot, tempDir }) {
   /** @type {Record<string, string>} */
   const peers = {};
   for (const [name, range] of Object.entries(peerRanges)) {
-    const installed = installedPeers.find(
-      (spec, index) =>
-        spec &&
-        declaredPeers[index].name === name &&
-        semver.satisfies(spec.slice(spec.lastIndexOf('@') + 1), range),
-    );
-    peers[name] = installed ?? range;
+    peers[name] =
+      declaredPeers.find(
+        (peer) => peer.name === name && peer.version && semver.satisfies(peer.version, range),
+      )?.spec ?? range;
   }
   // Installed as in any project that uses Node packages, but not made ambient: a program only loads
   // Node types when declarations reference them, so they don't reach sources that shouldn't see them.
@@ -307,6 +285,32 @@ async function validateBuiltTypes({ workspaceRoot, tempDir }) {
     (packageJson) => packageJson.version ?? '*',
     () => '*',
   );
+
+  // One program per package and consumer kind. A consumer is either ESM or CommonJS, and installs
+  // one package rather than all of them: a shared program would check the global augmentations of
+  // unrelated packages, and of a package's CommonJS and ESM declarations, against each other.
+  // CommonJS and bundler consumers only get a program of their own when they resolve other
+  // declarations than ESM consumers; on the same files, they find nothing an ESM program misses.
+  const checks = packed.flatMap(({ manifest }) => {
+    const stem = path.join('checks', toFileStem(/** @type {string} */ (manifest.name)));
+    const [esm, ...others] = CONSUMERS.map(({ kind, extension, conditions, ...options }) => ({
+      file: `${stem}.${kind}.${extension}`,
+      entryPoints: getTypedEntryPoints(manifest, conditions),
+      ...options,
+    }));
+    return [
+      esm,
+      ...others.filter(({ entryPoints }) => !isEqual(entryPoints, esm.entryPoints)),
+    ].filter(({ entryPoints }) => entryPoints.size > 0);
+  });
+  const entryPointCount = new Set(
+    checks.flatMap(({ entryPoints }) => Array.from(entryPoints.keys())),
+  ).size;
+  if (entryPointCount === 0) {
+    throw new Error(
+      `No entry points with types found in ${packed.length} packages. Build the packages first.`,
+    );
+  }
 
   await writePackageJson(projectDir, { private: true, dependencies: { ...peers, ...tarballs } });
   // Every package and peer is a dependency of the project, so a package that looked them up from
@@ -336,43 +340,11 @@ async function validateBuiltTypes({ workspaceRoot, tempDir }) {
     lib: ['esnext', 'dom', 'dom.iterable'],
     jsx: 'react-jsx',
   };
-  // One program per package and consumer kind. A consumer is either ESM or CommonJS, and installs
-  // one package rather than all of them: a shared program would check the global augmentations of
-  // unrelated packages, and of a package's CommonJS and ESM declarations, against each other.
-  // CommonJS and bundler consumers only get a program of their own when they resolve other
-  // declarations than ESM consumers; on the same files, they find nothing an ESM program misses.
-  /** @type {{ file: string, entryPoints: EntryPoints, module: string, moduleResolution?: string }[]} */
-  const checks = [];
-  const specifiers = new Set();
-  for (const { manifest } of packed) {
-    const esm = getTypedEntryPoints(manifest, CONDITIONS.esm);
-    const cjs = getTypedEntryPoints(manifest, CONDITIONS.cjs);
-    const bundler = getTypedEntryPoints(manifest, CONDITIONS.bundler);
-    const stem = path.join('checks', toFileStem(/** @type {string} */ (manifest.name)));
-    checks.push({ file: `${stem}.esm.mts`, entryPoints: esm, module: 'nodenext' });
-    if (!isSameEntryPoints(cjs, esm)) {
-      checks.push({ file: `${stem}.cjs.cts`, entryPoints: cjs, module: 'nodenext' });
-    }
-    if (!isSameEntryPoints(bundler, esm)) {
-      checks.push({
-        file: `${stem}.bundler.mts`,
-        entryPoints: bundler,
-        module: 'esnext',
-        moduleResolution: 'bundler',
-      });
-    }
-    for (const entryPoints of [esm, cjs, bundler]) {
-      for (const specifier of entryPoints.keys()) {
-        specifiers.add(specifier);
-      }
-    }
-  }
-
   const { native, js } = await findTscPair(workspaceRoot);
   const tsc = native ?? js;
   const realTempDir = await fs.realpath(tempDir);
   const ownErrors = await mapAsync(
-    checks.filter(({ entryPoints }) => entryPoints.size > 0),
+    checks,
     async ({ file, entryPoints, module, moduleResolution }) => {
       const tsconfigFile = `${file}.json`;
       await Promise.all([
@@ -396,17 +368,17 @@ async function validateBuiltTypes({ workspaceRoot, tempDir }) {
       }
       return getOwnErrors(fileErrors, packageNames, realTempDir);
     },
-    { concurrency: os.availableParallelism() },
+    // Native tsc checks on several threads of its own and takes hundreds of MB per program.
+    {
+      concurrency: native
+        ? Math.max(1, Math.floor(os.availableParallelism() / 4))
+        : os.availableParallelism(),
+    },
   );
-  /** @type {Map<string, TypeScriptError>} */
-  const errors = new Map();
-  for (const error of ownErrors.flat()) {
-    errors.set(`${error.file}\0${error.code}\0${error.message}`, error);
-  }
 
   return {
-    errors: Array.from(errors.values()),
-    entryPointCount: specifiers.size,
+    errors: uniqBy(ownErrors.flat(), (error) => `${error.file}\0${error.code}\0${error.message}`),
+    entryPointCount,
     packageCount: packed.length,
   };
 }
@@ -447,24 +419,15 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         workspaceRoot,
         tempDir,
       });
-      if (entryPointCount === 0) {
-        throw new Error(
-          `No entry points with types found in ${packageCount} packages. Build the packages first.`,
-        );
-      }
       // Errors are matched by the file they are in rather than by entry point: declarations can
       // fail only next to another entry point's, such as conflicting module augmentations.
-      const expectedCounts = new Map(expectError.map((expected) => [expected, 0]));
-      const unexpectedErrors = errors.filter((error) => {
-        const expected = expectError.find(
-          (prefix) => error.file === prefix || error.file.startsWith(`${prefix}/`),
-        );
-        if (expected) {
-          expectedCounts.set(expected, (expectedCounts.get(expected) ?? 0) + 1);
-        }
-        return !expected;
-      });
-      for (const [expected, count] of expectedCounts) {
+      const isUnder = (/** @type {string} */ file, /** @type {string} */ prefix) =>
+        file === prefix || file.startsWith(`${prefix}/`);
+      const unexpectedErrors = errors.filter(
+        (error) => !expectError.some((prefix) => isUnder(error.file, prefix)),
+      );
+      for (const expected of expectError) {
+        const count = errors.filter((error) => isUnder(error.file, expected)).length;
         if (count > 0) {
           console.log(`Ignoring ${count} expected type errors in ${expected}.`);
         } else {
