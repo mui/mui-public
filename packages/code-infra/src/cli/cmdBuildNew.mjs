@@ -62,7 +62,7 @@ async function getCopy(cwd, outDir, globs) {
     throw new Error('Workspace directory not found');
   }
 
-  const documents = await Promise.all(
+  const documents = Promise.all(
     DOCUMENTS.map(async (name) => {
       const local = path.join(cwd, name);
       if (await exists(local)) {
@@ -73,7 +73,7 @@ async function getCopy(cwd, outDir, globs) {
     }),
   );
 
-  const extras = await Promise.all(
+  const extras = Promise.all(
     globs.map(async (glob) => {
       const [pattern, target = ''] = glob.split(':');
       const from = await globby(pattern, { cwd });
@@ -84,7 +84,7 @@ async function getCopy(cwd, outDir, globs) {
     }),
   );
 
-  return [...documents, ...extras].flat();
+  return (await Promise.all([documents, extras])).flat(2);
 }
 
 export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
@@ -112,9 +112,13 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
 
     const outDir = path.join(cwd, packageJson.publishConfig.directory);
     const packageType = packageJson.type === 'module' ? 'module' : 'commonjs';
-    const entry = await getEntry(packageJson, cwd);
 
-    const { build } = await import('tsdown');
+    const [entry, copy, { build }] = await Promise.all([
+      getEntry(packageJson, cwd),
+      getCopy(cwd, outDir, args.copy),
+      import('tsdown'),
+    ]);
+
     await build({
       cwd,
       config: false,
@@ -139,7 +143,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       dts: false,
       exports: false,
       report: false,
-      copy: await getCopy(cwd, outDir, args.copy),
+      copy,
       logLevel: 'warn',
       // Unbundled output keeps each module's directives; the warning is about bundling.
       suppressWarnings: [MODULE_LEVEL_DIRECTIVE],
