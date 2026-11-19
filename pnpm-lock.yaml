@@ -1319,6 +1319,34 @@ importers:
         specifier: workspace:*
         version: link:../../packages/bundle-size-checker
 
+  test/syntax-highlight-benchmark:
+    dependencies:
+      '@pierre/highlights':
+        specifier: ^0.5.1
+        version: 0.5.1
+      '@types/hast':
+        specifier: ^3.0.5
+        version: 3.0.5
+      '@wooorm/starry-night':
+        specifier: ^3.11.0
+        version: 3.11.0
+      hast-util-to-html:
+        specifier: 9.0.6
+        version: 9.0.6
+    devDependencies:
+      '@mui/internal-docs-infra':
+        specifier: workspace:*
+        version: link:../../packages/docs-infra/build
+      '@types/node':
+        specifier: ^22.20.5
+        version: 22.20.5
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+      vite:
+        specifier: ^8.3.8
+        version: 8.3.8(@types/node@22.20.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)
+
 packages:
 
   '@-xun/debug@2.0.2':
@@ -3618,6 +3646,9 @@ packages:
 
   '@oxc-project/types@0.156.0':
     resolution: {integrity: sha512-1Duyg48TdJNdyhEB8Xn1L36bT9Pv6GUtlKjHxOys8xkaF/rQq3XJE+bAurSK/AgIz5mGFsb77cn9Pb20+WCScw==}
+
+  '@pierre/highlights@0.5.1':
+    resolution: {integrity: sha512-c2WF6sgwgKdxXU6FpWDLWUYHRca/cJy+3QJkWAqYqEAFxqlPf8eSH0ehHcFFjKBmT+9KBl9H7q6z7HMRU7+m6g==}
 
   '@pkgjs/parseargs@0.11.0':
     resolution: {integrity: sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg==}
@@ -11214,6 +11245,8 @@ snapshots:
   '@orama/stemmers@3.1.18': {}
 
   '@oxc-project/types@0.156.0': {}
+
+  '@pierre/highlights@0.5.1': {}
 
   '@pkgjs/parseargs@0.11.0':
     optional: true
