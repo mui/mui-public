@@ -161,7 +161,9 @@ function reexportImports(code, body) {
 /**
  * TypeScript exports every top-level declaration of a `.d.ts` module that has no export list,
  * export-all or export assignment. rolldown-plugin-dts appends `export {};`, which turns that off,
- * so hand-written declarations are made explicit before it reads them.
+ * so hand-written declarations are made explicit before it reads them. Writing `export` on them in
+ * the source avoids the rewrite; `@mui/material`'s `Popover/Popover.d.ts` is the only file that
+ * relies on it.
  *
  * A `.d.ts` without imports or exports declares globals, which bundling would make local. Imports
  * of one stay external and the file is copied unchanged with the declarations it references.
