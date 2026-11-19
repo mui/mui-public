@@ -7,6 +7,7 @@ pnpm release:build   # docs-infra is linked through its build output
 pnpm -F ./test/syntax-highlight-benchmark benchmark
 pnpm -F ./test/syntax-highlight-benchmark benchmark --engines starry-night,highlights --runs 3 --skip-bundles
 pnpm -F ./test/syntax-highlight-benchmark benchmark:disagreements highlights css
+pnpm -F ./test/syntax-highlight-benchmark benchmark:imports
 ```
 
 `benchmark` writes `results/report.md`, `results/results.json` and `results/compare.html`, a side-by-side rendering of every sample with one shared palette. `benchmark:disagreements` lists the text runs where an engine's categories differ most from Starry Night's for one language.
@@ -98,3 +99,26 @@ Coverage gaps for the 11 docs-infra languages:
 - **Markdown fences** need a `codeParser` that maps the info string to a parser, which the adapter does for the 11 languages.
 
 What adopting it would take: the same `pl-*` class migration as highlights, against Lezer's tag vocabulary (`tags.function(tags.variableName)`, `tags.tagName`, `tags.attributeName`, `tags.definition(…)`, …). Lezer's tokens are tight, so whitespace stays outside spans, and nested tags stack their classes, least specific first. Lezer grammars are written in its own grammar format, so as with highlights, docs-infra users could not reuse TextMate grammars.
+
+## Token data and syntax trees
+
+Both alternatives return token data, not just HTML. Only Lezer returns a syntax tree.
+
+- **highlights** has no tree; its lexers classify tokens from nearby tokens and saved state. `codeToTokens` returns per-line `ThemedToken`s (`content`, UTF-16 `offset`, `color`, and `type`: 0 other, 1 comment, 2 string, 3 regex). With a CSS-variable theme, `color` is `var(--hls-<token-type>)`, which is how the adapter recovers the token type. `LiveTokenizer#getLineRecords` exposes the raw records directly: one `(tokenId << 24) | end` word per token, with `tokenId` indexing the exported `tokenNames`. Finding imports from tokens means writing a small parser over `keyword.import` and `string` runs.
+- **Lezer** returns a concrete syntax tree with named nodes (`ImportDeclaration`, `ImportGroup`, `ExportDeclaration`, `DynamicImport`, `LineComment`, …) and offsets, and one tree serves both highlighting and analysis. It is not a Babel-style AST: there are no semantic fields, so values come from slicing the source at node offsets. Parsing is error-tolerant and supports incremental reparsing.
+
+`benchmark:imports` (`src/imports.ts`, `src/lezerImports.ts`) extracts imports with a 140-line tree walk and compares the result with docs-infra's 1,940-line `parseImportsAndComments` on all 1,064 JS/TS files in docs-infra and its docs (3,720 specifiers):
+
+| step                                 | total ms |
+| :----------------------------------- | -------: |
+| docs-infra `parseImportsAndComments` |       85 |
+| Lezer parse + extract                |    1,489 |
+| Lezer extract from an existing tree  |       37 |
+| Lezer highlight from the same tree   |      134 |
+
+They disagree on 70 specifiers, with names, aliases, type-only flags and positions identical everywhere else:
+
+- 58 are docs-infra false positives: import statements inside template strings and comments, mostly in its own tests, but also in `CredentialsCode.tsx`, `ensureDemoPages.ts`, `enhanceChildren.ts` and `formatRaw.ts`. Lezer correctly ignores them.
+- 12 are Lezer gaps: `@lezer/javascript` 1.5.6 does not parse `export type * from '…'` (TS 5.0) or inline `type` modifiers in export lists (`export { a, type B } from '…'`, TS 4.5). With several modifiers, error recovery loses the whole statement. These gaps affect highlighting too.
+
+A Lezer parse costs 17× more than the targeted scanner, so replacing it only pays off when the tree is already built for highlighting. docs-infra rewrites imports and strips comments before it highlights, so sharing one tree would mean restructuring that pipeline or reparsing incrementally.

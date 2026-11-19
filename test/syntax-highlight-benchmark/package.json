@@ -5,7 +5,8 @@
   "scripts": {
     "benchmark": "tsx ./src/run.ts",
     "typescript": "tsc -noEmit",
-    "benchmark:disagreements": "tsx ./src/disagreements.ts"
+    "benchmark:disagreements": "tsx ./src/disagreements.ts",
+    "benchmark:imports": "tsx ./src/imports.ts"
   },
   "dependencies": {
     "@codemirror/language": "^6.13.1",
