@@ -6,7 +6,7 @@
 
 ### default
 
-Webpack loader that processes types and precomputes meta.
+A webpack loader that processes types and precomputes meta.
 
 Finds createTypesMeta calls, loads and processes all component types,
 then injects the precomputed type meta back into the source.
