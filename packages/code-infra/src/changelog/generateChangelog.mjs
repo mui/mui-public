@@ -16,14 +16,14 @@ const DEFAULT_CONFIG = 'scripts/changelog.config.mjs';
 /**
  * Generates a changelog for a release.
  *
- * With `groom` and `view`, renders the release facts with the repository's own code. Otherwise
+ * With `prepare` and `view`, renders the release facts with the repository's own code. Otherwise
  * renders `config`, or the module at the config path: a config object, or a preset exporting
- * `groom` and `view`.
+ * `prepare` and `view`.
  *
- * @template Groomed
+ * @template Prepared
  * @overload
- * @param {Omit<GenerateChangelogOptions, 'config'> & import('./types.ts').ChangelogPreset<Groomed>} options
- * @returns {Promise<import('./types.ts').PresetChangelogResult<Groomed>>}
+ * @param {Omit<GenerateChangelogOptions, 'config'> & import('./types.ts').ChangelogPreset<Prepared>} options
+ * @returns {Promise<import('./types.ts').PresetChangelogResult<Prepared>>}
  */
 /**
  * @overload
@@ -38,10 +38,10 @@ export async function generateChangelog(options = {}) {
   const cwd = await fs.realpath(options.cwd ?? process.cwd());
 
   const { preset, config } =
-    options.groom && options.view
+    options.prepare && options.view
       ? {
           preset: {
-            groom: options.groom,
+            prepare: options.prepare,
             view: options.view,
             cherryPickLabels: options.cherryPickLabels,
             includeDirectCommits: options.includeDirectCommits,
@@ -63,14 +63,14 @@ export async function generateChangelog(options = {}) {
     includeDirectCommits: preset.includeDirectCommits,
   });
 
-  const groomed = preset.groom(facts);
-  const markdown = preset.view(groomed);
+  const prepared = preset.prepare(facts);
+  const markdown = preset.view(prepared);
 
   if (!config) {
-    return { markdown, facts, groomed };
+    return { markdown, facts, prepared };
   }
 
-  return { markdown, sections: groomed.sections, contributors: groomed.contributors };
+  return { markdown, sections: prepared.sections, contributors: prepared.contributors };
 }
 
 /**

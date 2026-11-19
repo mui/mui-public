@@ -18,7 +18,7 @@ import {
 /**
  * @typedef {import('../types.ts').ReleaseEntry} ReleaseEntry
  * @typedef {import('../types.ts').ReleaseFacts} ReleaseFacts
- * @typedef {import('../groom.mjs').ParsedEntryLabels} ParsedEntryLabels
+ * @typedef {import('../prepare.mjs').ParsedEntryLabels} ParsedEntryLabels
  * @typedef {ReleaseEntry & { parsed: ParsedEntryLabels }} XEntry
  * @typedef {{ name: string; version: string | null; plan: Plan; entries: XEntry[] }} Tier
  * @typedef {{ key: string; title: string; tiers?: Tier[]; entries: XEntry[] }} XSection
@@ -191,7 +191,7 @@ function destinations(entry) {
 /** @type {import('../types.ts').ChangelogPreset<XRelease>} */
 export default {
   includeDirectCommits: true,
-  groom(facts) {
+  prepare(facts) {
     const packages = new Map(facts.packages.map((pkg) => [pkg.name, pkg]));
 
     const entries = facts.entries.filter(not(hasLabel('dependencies'))).map((entry) => ({

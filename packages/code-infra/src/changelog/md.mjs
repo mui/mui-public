@@ -1,5 +1,5 @@
 /**
- * Markdown primitives for changelog views. A view is `(groomed) => string`.
+ * Markdown primitives for changelog views. A view is `(prepared) => string`.
  */
 
 /**

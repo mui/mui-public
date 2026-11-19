@@ -14,7 +14,7 @@ import { formatDate, md } from './md.mjs';
  * @typedef {import('./types.ts').ReleaseEntry} ReleaseEntry
  * @typedef {import('./types.ts').ChangelogRelease} ChangelogRelease
  * @typedef {{ team: string[]; community: string[]; all: string[] }} Credits
- * @typedef {{ release: ChangelogRelease; sections: ChangelogSection[]; contributors: Credits }} ConfigGroomed
+ * @typedef {{ release: ChangelogRelease; sections: ChangelogSection[]; contributors: Credits }} ConfigPrepared
  */
 
 /** @type {Record<string, 'team' | 'contributor' | 'first_timer'>} */
@@ -24,11 +24,11 @@ const ASSOCIATIONS = { team: 'team', community: 'contributor', 'first-timer': 'f
  * The changelog config format as a preset: categorization and layout come from `config`.
  *
  * @param {ChangelogConfig} config
- * @returns {import('./types.ts').ChangelogPreset<ConfigGroomed>}
+ * @returns {import('./types.ts').ChangelogPreset<ConfigPrepared>}
  */
 export function configView(config) {
   return {
-    groom(facts) {
+    prepare(facts) {
       const commits = filterCommits(facts.entries.flatMap(toCommit), config.filter);
       // Credit authors of every kept commit, including those no section shows.
       const contributors = extractContributors(commits, config.filter?.excludeCommitByAuthors);
@@ -53,7 +53,7 @@ export function configView(config) {
 
       return { release, sections, contributors };
     },
-    view: (groomed) => renderConfig(config, groomed),
+    view: (prepared) => renderConfig(config, prepared),
   };
 }
 
@@ -125,7 +125,7 @@ function extractContributors(commits, exclude) {
 
 /**
  * @param {ChangelogConfig} config
- * @param {ConfigGroomed} groomed
+ * @param {ConfigPrepared} prepared
  * @returns {string}
  */
 function renderConfig(config, { release, sections, contributors }) {

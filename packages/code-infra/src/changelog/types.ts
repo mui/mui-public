@@ -542,19 +542,19 @@ export interface FetchReleaseFactsOptions {
 }
 
 /**
- * A repository's changelog code: `groom` shapes facts into the view's input; `view` renders markdown.
+ * A repository's changelog code: `prepare` shapes facts into the view's input; `view` renders markdown.
  * Both are pure, so a view can be snapshot-tested from a fixture without GitHub.
  */
-export interface ChangelogPreset<Groomed> {
-  groom: (facts: ReleaseFacts) => Groomed;
-  view: (groomed: Groomed) => string;
+export interface ChangelogPreset<Prepared> {
+  prepare: (facts: ReleaseFacts) => Prepared;
+  view: (prepared: Prepared) => string;
   /** Fetch option the preset needs; see `FetchReleaseFactsOptions`. */
   includeDirectCommits?: boolean;
   cherryPickLabels?: string[];
 }
 
-export interface PresetChangelogResult<Groomed> {
+export interface PresetChangelogResult<Prepared> {
   markdown: string;
   facts: ReleaseFacts;
-  groomed: Groomed;
+  prepared: Prepared;
 }
