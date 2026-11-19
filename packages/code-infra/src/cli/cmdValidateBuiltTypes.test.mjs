@@ -66,7 +66,7 @@ function validate(root, ...args) {
   );
 }
 
-describe.concurrent('validate-built-types', { timeout: 120_000 }, () => {
+describe('validate-built-types', { timeout: 120_000 }, () => {
   it('passes when every package declares what its types import', async () => {
     const root = await createWorkspace({ declareA: true });
 
