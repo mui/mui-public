@@ -37,6 +37,9 @@ type ReturnValue = Promise<LoadServerTypesResult>;
 
 ### HighlightedClassProperty
 
+Highlighted class property with syntax-highlighted HAST fields.
+Extends HighlightedProperty with class-specific modifiers.
+
 ```typescript
 type HighlightedClassProperty = {
   /** Whether this is a static property */
@@ -57,12 +60,12 @@ type HighlightedClassProperty = {
   default?: HastField;
   /** Detailed expanded type view (only when different from basic type) */
   detailedType?: HastField;
-  /** Plain text version of description for markdown generation */
-  descriptionText?: string;
   /** Plain text default value */
   defaultText?: string;
   /** Whether the property is required */
   required?: true;
+  /** Plain text version of description for markdown generation */
+  descriptionText?: string;
   /** Plain text version of example for markdown generation */
   exampleText?: string;
   /**
@@ -75,6 +78,8 @@ type HighlightedClassProperty = {
 
 ### HighlightedClassTypeMeta
 
+Highlighted class type metadata with highlighted types.
+
 ```typescript
 type HighlightedClassTypeMeta = {
   /** Description with syntax highlighting as HAST */
@@ -82,9 +87,9 @@ type HighlightedClassTypeMeta = {
   constructorParameters: HighlightedParameter[];
   properties: Record<string, HighlightedClassProperty>;
   methods: Record<string, HighlightedMethod>;
-  name: string;
   /** Plain text version of description for markdown generation */
   descriptionText?: string;
+  name: string;
   /** Type parameters (generics) if any */
   typeParameters?: string[];
 };
@@ -92,13 +97,15 @@ type HighlightedClassTypeMeta = {
 
 ### HighlightedComponentTypeMeta
 
+Highlighted component type metadata with highlighted types.
+
 ```typescript
 type HighlightedComponentTypeMeta = {
   props: Record<string, HighlightedProperty>;
-  name: string;
   description?: HastRoot;
   /** Plain text version of description for markdown generation */
   descriptionText?: string;
+  name: string;
   dataAttributes: Record<string, FormattedEnumMember>;
   cssVariables: Record<string, FormattedEnumMember>;
 };
@@ -106,17 +113,21 @@ type HighlightedComponentTypeMeta = {
 
 ### HighlightedEnumMemberMeta
 
+Highlighted enum member with syntax-highlighted HAST fields.
+
 ```typescript
 type HighlightedEnumMemberMeta = {
   /** Description with syntax highlighting as HAST */
   description?: HastField;
-  name: string;
   descriptionText?: string;
+  name: string;
   value?: string | number;
 };
 ```
 
 ### HighlightedFunctionTypeMeta
+
+Highlighted function type metadata with highlighted types.
 
 ```typescript
 type HighlightedFunctionTypeMeta = {
@@ -132,18 +143,20 @@ type HighlightedFunctionTypeMeta = {
   expandedProperties?: Record<string, HighlightedProperty>;
   /** Type name of the expanded properties, when they came from a named type reference */
   expandedTypeName?: string;
-  name: string;
   description?: HastRoot;
   /** Plain text version of description for markdown generation */
   descriptionText?: string;
-  /** Plain text version of returnValue for markdown generation (when returnValue is string) */
-  returnValueText?: string;
+  name: string;
   /** Plain text version of returnValueDescription for markdown generation */
   returnValueDescriptionText?: string;
+  /** Plain text version of returnValue for markdown generation (when returnValue is string) */
+  returnValueText?: string;
 };
 ```
 
 ### HighlightedHookTypeMeta
+
+Highlighted hook type metadata with highlighted types.
 
 ```typescript
 type HighlightedHookTypeMeta = {
@@ -159,18 +172,20 @@ type HighlightedHookTypeMeta = {
   expandedProperties?: Record<string, HighlightedProperty>;
   /** Type name of the expanded properties, when they came from a named type reference */
   expandedTypeName?: string;
-  name: string;
   description?: HastRoot;
   /** Plain text version of description for markdown generation */
   descriptionText?: string;
-  /** Plain text version of returnValue for markdown generation (when returnValue is string) */
-  returnValueText?: string;
+  name: string;
   /** Plain text version of returnValueDescription for markdown generation */
   returnValueDescriptionText?: string;
+  /** Plain text version of returnValue for markdown generation (when returnValue is string) */
+  returnValueText?: string;
 };
 ```
 
 ### HighlightedMethod
+
+Highlighted method with syntax-highlighted HAST fields.
 
 ```typescript
 type HighlightedMethod = {
@@ -179,14 +194,16 @@ type HighlightedMethod = {
   parameters: HighlightedParameter[];
   returnValue: HastField;
   returnValueDescription?: HastField;
-  name: string;
   descriptionText?: string;
+  name: string;
   returnValueDescriptionText?: string;
   isStatic: boolean;
 };
 ```
 
 ### HighlightedParameter
+
+Highlighted parameter with syntax-highlighted HAST fields.
 
 ```typescript
 type HighlightedParameter = {
@@ -204,12 +221,10 @@ type HighlightedParameter = {
   default?: HastField;
   /** Detailed type with expanded type references as HAST */
   detailedType?: HastField;
-  /** Parameter name */
-  name: string;
-  /** Plain text version of description for markdown generation */
-  descriptionText?: string;
   /** Plain text default value */
   defaultText?: string;
+  /** Plain text version of description for markdown generation */
+  descriptionText?: string;
   /** Plain text version of example for markdown generation */
   exampleText?: string;
   /**
@@ -217,12 +232,16 @@ type HighlightedParameter = {
    * @see for markdown generation
    */
   seeText?: string;
+  /** Parameter name */
+  name: string;
   /** Whether the parameter is optional */
   optional?: true;
 };
 ```
 
 ### HighlightedProperty
+
+Highlighted property with syntax-highlighted HAST fields.
 
 ```typescript
 type HighlightedProperty = {
@@ -240,12 +259,12 @@ type HighlightedProperty = {
   default?: HastField;
   /** Detailed expanded type view (only when different from basic type) */
   detailedType?: HastField;
-  /** Plain text version of description for markdown generation */
-  descriptionText?: string;
   /** Plain text default value */
   defaultText?: string;
   /** Whether the property is required */
   required?: true;
+  /** Plain text version of description for markdown generation */
+  descriptionText?: string;
   /** Plain text version of example for markdown generation */
   exampleText?: string;
   /**
@@ -257,6 +276,8 @@ type HighlightedProperty = {
 ```
 
 ### HighlightedRawTypeMeta
+
+Highlighted raw type metadata with syntax-highlighted HAST fields.
 
 ```typescript
 type HighlightedRawTypeMeta = {
@@ -273,10 +294,10 @@ type HighlightedRawTypeMeta = {
    * Property paths use dot-notation for nested objects (e.g., `appearance.theme`).
    */
   properties?: Record<string, HighlightedProperty>;
-  /** Display name for this type (may include dots like "Component.Root.State") */
-  name: string;
   /** Plain text version of description for markdown generation */
   descriptionText?: string;
+  /** Display name for this type (may include dots like "Component.Root.State") */
+  name: string;
   /**
    * For re-exports, information about the component this type re-exports from.
    * When set, indicates this should be rendered as a link to the component.
@@ -290,6 +311,8 @@ type HighlightedRawTypeMeta = {
 ```
 
 ### HighlightedTypesMeta
+
+Highlighted TypesMeta with highlighted type fields.
 
 ```typescript
 type HighlightedTypesMeta = (
