@@ -3,6 +3,8 @@ import { unified } from 'unified';
 import rehypeParse from 'rehype-parse';
 import rehypeStringify from 'rehype-stringify';
 import enhanceCodeTypes from './enhanceCodeTypes';
+import transformHtmlCodeInline from '../transformHtmlCodeInline';
+import { createParseSource } from '../parseSource';
 import type { ModuleLinkMapEntry } from './scanState';
 
 describe('enhanceCodeTypes', () => {
@@ -4750,6 +4752,23 @@ describe('enhanceCodeTypes', () => {
     });
 
     describe('template literals', () => {
+      it.each(['js', 'ts', 'tsx'])(
+        'resolves an interpolated variable in highlighted %s output',
+        async (language) => {
+          await createParseSource();
+          const result = await unified()
+            .use(rehypeParse, { fragment: true })
+            .use(transformHtmlCodeInline)
+            .use(enhanceCodeTypes, { linkMap: { js: {} }, linkScope: true, linkValues: true })
+            .use(rehypeStringify)
+            .process(
+              `<code class="language-${language}">const a = 'world'; const x = \`hello \${a}\`; x</code>`,
+            );
+
+          expect(String(result)).toContain('data-value="&#x27;hello world&#x27;"');
+        },
+      );
+
       it('tracks a simple template literal (no interpolation) as a string value', async () => {
         // const x = `hello`; x
         const input =
@@ -4774,9 +4793,9 @@ describe('enhanceCodeTypes', () => {
           '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> ' +
           '<span class="pl-s">' +
           '<span class="pl-pds">`</span>hello ' +
-          '<span class="pl-pse"><span class="pl-s1">${</span></span>' +
-          '<span class="pl-s1">a</span>' +
-          '<span class="pl-pse"><span class="pl-s1">}</span></span>' +
+          '<span class="di-te"><span class="di-td">${</span>' +
+          '<span class="pl-smi">a</span>' +
+          '<span class="di-td">}</span></span>' +
           '<span class="pl-pds">`</span>' +
           '</span>; ' +
           '<span class="pl-smi">x</span>' +
@@ -4796,9 +4815,9 @@ describe('enhanceCodeTypes', () => {
           '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> ' +
           '<span class="pl-s">' +
           '<span class="pl-pds">`</span>prefix-' +
-          '<span class="pl-pse"><span class="pl-s1">${</span></span>' +
-          '<span class="pl-s1">name</span>' +
-          '<span class="pl-pse"><span class="pl-s1">}</span></span>' +
+          '<span class="di-te"><span class="di-td">${</span>' +
+          '<span class="pl-smi">name</span>' +
+          '<span class="di-td">}</span></span>' +
           '-suffix<span class="pl-pds">`</span>' +
           '</span>; ' +
           '<span class="pl-smi">x</span>' +
@@ -4820,11 +4839,11 @@ describe('enhanceCodeTypes', () => {
           '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> ' +
           '<span class="pl-s">' +
           '<span class="pl-pds">`</span>hello ' +
-          '<span class="pl-pse"><span class="pl-s1">${</span></span>' +
+          '<span class="di-te"><span class="di-td">${</span>' +
           ' ' +
-          '<span class="pl-s1">name</span>' +
+          '<span class="pl-smi">name</span>' +
           ' ' +
-          '<span class="pl-pse"><span class="pl-s1">}</span></span>' +
+          '<span class="di-td">}</span></span>' +
           '<span class="pl-pds">`</span>' +
           '</span>; ' +
           '<span class="pl-smi">x</span>' +
@@ -4845,9 +4864,9 @@ describe('enhanceCodeTypes', () => {
           '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> ' +
           '<span class="pl-s">' +
           '<span class="pl-pds">`</span>hello ' +
-          '<span class="pl-pse"><span class="pl-s1">${</span></span>' +
-          '<span class="pl-s1"> name </span>' +
-          '<span class="pl-pse"><span class="pl-s1">}</span></span>' +
+          '<span class="di-te"><span class="di-td">${</span>' +
+          '<span class="pl-smi"> name </span>' +
+          '<span class="di-td">}</span></span>' +
           '<span class="pl-pds">`</span>' +
           '</span>; ' +
           '<span class="pl-smi">x</span>' +
@@ -4868,9 +4887,9 @@ describe('enhanceCodeTypes', () => {
           '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> ' +
           '<span class="pl-s">' +
           '<span class="pl-pds">`</span>hello ' +
-          '<span class="pl-pse"><span class="pl-s1">${</span></span>' +
-          '<span class="pl-s1">a</span>' +
-          '<span class="pl-pse"><span class="pl-s1">}</span></span>' +
+          '<span class="di-te"><span class="di-td">${</span>' +
+          '<span class="pl-smi">a</span>' +
+          '<span class="di-td">}</span></span>' +
           '<span class="pl-pds">`</span>' +
           '</span> ' +
           '<span class="pl-c">// comment</span>\n' +
@@ -4892,11 +4911,9 @@ describe('enhanceCodeTypes', () => {
           '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> ' +
           '<span class="pl-s">' +
           '<span class="pl-pds">`</span>' +
-          '<span class="pl-pse"><span class="pl-s1">${</span></span>' +
-          '<span class="pl-s1">a </span>' +
-          '<span class="pl-k">+</span>' +
-          '<span class="pl-s1"> b</span>' +
-          '<span class="pl-pse"><span class="pl-s1">}</span></span>' +
+          '<span class="di-te"><span class="di-td">${</span>' +
+          '<span class="pl-smi">a</span> <span class="pl-k di-pu">+</span> <span class="pl-smi">b</span>' +
+          '<span class="di-td">}</span></span>' +
           '<span class="pl-pds">`</span>' +
           '</span>; ' +
           '<span class="pl-smi">x</span>' +
@@ -4915,11 +4932,9 @@ describe('enhanceCodeTypes', () => {
           '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> ' +
           '<span class="pl-s">' +
           '<span class="pl-pds">`</span>' +
-          '<span class="pl-pse"><span class="pl-s1">${</span></span>' +
-          '<span class="pl-smi">obj</span>' +
-          '<span class="pl-s1">.</span>' +
-          '<span class="pl-smi">prop</span>' +
-          '<span class="pl-pse"><span class="pl-s1">}</span></span>' +
+          '<span class="di-te"><span class="di-td">${</span>' +
+          '<span class="pl-smi">obj</span>.<span class="pl-smi">prop</span>' +
+          '<span class="di-td">}</span></span>' +
           '<span class="pl-pds">`</span>' +
           '</span>; ' +
           '<span class="pl-smi">x</span>' +
