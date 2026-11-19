@@ -16,7 +16,7 @@ The loader processes demo files that use the `createDemo` factory pattern, autom
 
 ### Key Features
 
-- **Build-time syntax highlighting**: Uses [Starry Night](https://github.com/wooorm/starry-night) for syntax highlighting during compilation
+- **Build-time syntax highlighting**: Uses [`@pierre/highlights`](https://diffs.com/highlights) for syntax highlighting during compilation
 - **TypeScript transformation**: Automatically converts TypeScript examples to JavaScript variants
 - **Dependency tracking**: Resolves and tracks all file dependencies for hot reloading
 - **Recursive loading**: Handles complex dependency trees automatically
@@ -223,7 +223,7 @@ Converts relative imports to absolute file paths for each variant.
 ### 3. Process Variants
 
 - Loads each variant file and its dependencies
-- Applies syntax highlighting using [Starry Night](https://github.com/wooorm/starry-night)
+- Applies syntax highlighting using [`@pierre/highlights`](https://diffs.com/highlights)
 - Converts TypeScript to JavaScript when needed
 - Tracks all files for hot reloading
 

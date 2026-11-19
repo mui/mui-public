@@ -6,7 +6,7 @@ A rehype plugin that applies lightweight syntax highlighting to inline `<code>` 
 
 ## Overview
 
-The `transformHtmlCodeInline` plugin transforms plain inline code into beautifully syntax-highlighted code using [Starry Night](https://github.com/wooorm/starry-night). Unlike [`transformHtmlCodeBlock`](../transform-html-code-block/page.mdx), this plugin is optimized for inline code snippets and type expressions.
+The `transformHtmlCodeInline` plugin transforms plain inline code into beautifully syntax-highlighted code using [`@pierre/highlights`](https://diffs.com/highlights). Unlike [`transformHtmlCodeBlock`](../transform-html-code-block/page.mdx), this plugin is optimized for inline code snippets and type expressions.
 
 ### Key Features
 
@@ -14,7 +14,7 @@ The `transformHtmlCodeInline` plugin transforms plain inline code into beautiful
 - **Prefix support**: Handles `data-highlighting-prefix` attribute for proper type context
 - **Automatic cleanup**: Removes highlighting prefixes after processing
 - **Language detection**: Reads language from `className` attribute (for example, `language-ts`)
-- **Lazy initialization**: Automatically initializes Starry Night on first use
+- **Lazy initialization**: Automatically loads the highlighter on first use
 - **Inline marker**: Adds a `data-inline` attribute to processed inline code so CSS can target it
 - **Block code skipped**: Code inside `<pre>` is left for [`transformHtmlCodeBlock`](../transform-html-code-block/page.mdx) (opt in with `includePreElements`)
 
@@ -78,10 +78,10 @@ const result = await processor.process(html);
 
 ### Automatic Initialization
 
-The plugin automatically initializes Starry Night on first use. This means:
+The plugin automatically loads the highlighter on first use. This means:
 
 - No manual initialization required
-- First processing takes ~500-1200ms (Starry Night creation)
+- First processing loads the engine module (tens of milliseconds)
 - Subsequent processing is fast (reuses singleton instance)
 - Instance stored in `globalThis` for sharing across all processing
 
@@ -104,12 +104,12 @@ The language comes from the `language-*` class name; aliases are normalized befo
 
 ### Processing Pipeline
 
-1. **Initialize**: Lazily creates Starry Night instance on first use
+1. **Initialize**: Lazily loads the highlighter on first use
 2. **Find code elements**: Visits all `<code>` elements in the HAST tree, skipping those inside `<pre>` (unless `includePreElements` is set)
 3. **Extract text content**: Gets the raw text from the code element
 4. **Check for prefix**: Reads `data-highlighting-prefix` attribute if present
 5. **Apply prefix**: Temporarily prepends prefix for proper context. Without a prefix, a JavaScript-family snippet that looks like a bare object literal (`{ height: 400 }`) is wrapped in `(...)` so it parses as an expression instead of a block statement
-6. **Highlight**: Uses Starry Night to apply syntax highlighting, then extends the tree with the additive `di-*` classes from [`extendSyntaxTokens`](../parse-source/page.mdx#syntax-token-classes)
+6. **Highlight**: Applies syntax highlighting, then extends the tree with the additive `di-*` classes from [`extendSyntaxTokens`](../parse-source/page.mdx#syntax-token-classes)
 7. **Remove prefix**: Strips prefix (and any object-literal wrapping) characters from the highlighted output
 8. **Replace children**: Updates code element with highlighted nodes
 9. **Clean up**: Adds the `data-inline` marker (inline code only) and removes the `data-highlighting-prefix` attribute
@@ -244,23 +244,12 @@ const typeCell = `<code class="language-ts" data-highlighting-prefix="type _ = "
 
 ### Lazy Singleton Pattern
 
-The plugin uses a lazy singleton Starry Night instance stored in `globalThis`:
-
-```typescript
-const STARRY_NIGHT_KEY = '__docs_infra_starry_night_instance__';
-
-async function getStarryNight(): Promise<StarryNight> {
-  if (!(globalThis as any)[STARRY_NIGHT_KEY]) {
-    (globalThis as any)[STARRY_NIGHT_KEY] = await createStarryNight(grammars);
-  }
-  return (globalThis as any)[STARRY_NIGHT_KEY];
-}
-```
+The plugin uses the same lazily loaded highlighter as [`parseSource`](../parse-source/page.mdx), stored in `globalThis` under `__docs_infra_highlighter_instance__`. The first use loads the engine module; every later call reuses it.
 
 **Benefits:**
 
 1. **No manual initialization**: Just use the plugin directly
-2. **Performance**: Starry Night creation is expensive (~500-1200ms), but only happens once
+2. **Performance**: The engine loads once (tens of milliseconds) and is shared with `parseSource`
 3. **Memory**: Single instance shared across all processing
 4. **Consistency**: Same highlighting rules everywhere
 
@@ -295,13 +284,13 @@ The `data-highlighting-prefix` attribute solves a key challenge: TypeScript type
 
 ### Initialization Cost
 
-- **First call**: ~500-1200ms to create Starry Night instance (lazy, automatic)
+- **First call**: loads the engine module, tens of milliseconds (lazy, automatic)
 - **Subsequent calls**: ~0ms (singleton pattern)
 
 ### Processing Cost
 
-- **Per code element**: ~1-5ms for typical inline code
-- **With prefix**: ~2-8ms (includes removal step)
+- **Per code element**: well under 0.1ms for typical inline code
+- **With prefix**: slightly more (includes removal step)
 
 **Optimization**: The plugin only processes `<code>` elements with language classes, skipping:
 
@@ -477,7 +466,7 @@ import { TypesTransformHtmlCodeInline } from './types';
 
 ## See Also
 
-- [Starry Night Documentation](https://github.com/wooorm/starry-night)
+- [`@pierre/highlights` Documentation](https://diffs.com/highlights)
 - [Unified Documentation](https://unifiedjs.com/)
 - [Rehype Plugins](https://github.com/rehypejs/rehype/blob/main/doc/plugins.md)
 

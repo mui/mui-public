@@ -6,15 +6,12 @@
 
 ### createParseSource
 
-Initializes Starry Night and returns a configured `parseSource` function.
-Only needs to be called once per application; the instance is stored globally
-for reuse across calls.
+Loads the highlighting engine and returns a configured `parseSource`
+function. Only needs to be called once per application; the engine is stored
+globally for reuse across calls.
 
-With no `initialScopes`, loads ALL grammars via the (lazy) `./grammars` barrel
-— the eager `CodeProvider` / Node / build-time behavior, so the heavy TextMate
-JSON is split into its own chunk but fully available. Pass `initialScopes`
-(possibly `[]`) to create a lean instance that registers grammars on demand
-via [`registerGrammars`](#registergrammars) — the `CodeProviderLazy` per-language path.
+`initialScopes` is accepted for compatibility with language-aware callers;
+the engine always includes every supported language.
 
 **Parameters:**
 
@@ -52,7 +49,7 @@ type ReturnValue = string | undefined;
 
 Parses source into a line-guttered HAST **without** syntax highlighting — the
 raw text wrapped in the same `.line`/`.frame` structure `parseSource` produces,
-just no starry-night tokenization. It is a `ParseSource` so it can be dropped
+just no syntax tokenization. It is a `ParseSource` so it can be dropped
 into the loader in place of the highlighting parser.
 
 Used for the deferred (un-highlighted) fallback: the enhancer pipeline needs the
@@ -98,6 +95,8 @@ type ReturnValue = HastRoot;
 
 ### registerAllGrammars
 
+Loads the engine with every supported language.
+
 **Return Value:**
 
 ```tsx
@@ -106,14 +105,13 @@ type ReturnValue = Promise<void>;
 
 ### registerGrammars
 
-Registers the grammars for the given scopes (and their dependencies) on the
-global Starry Night instance, loading the per-scope chunks on demand.
-Idempotent and deduped. Fails open: a chunk that fails to load leaves its
-scope as plain text rather than rejecting the batch.
+Makes the given scopes available to `parseSource`. Every supported language
+ships in one engine module, so this loads the engine once and is a no-op
+afterwards; scopes are accepted so callers can stay language-aware.
 
-This is the heavy implementation (it can create the engine instance). Client
-code should call the light facade `ensureGrammars` from `./grammarCache`
-instead, so the engine stays out of the client bundle until a block needs it.
+This is the heavy implementation (it loads the engine). Client code should
+call the light facade `ensureGrammars` from `./grammarCache` instead, so
+the engine stays out of the client bundle until a block needs it.
 
 **Parameters:**
 
@@ -127,10 +125,10 @@ instead, so the engine stays out of the client bundle until a block needs it.
 type ReturnValue = Promise<void>;
 ```
 
-### resetStarryNight
+### resetHighlighter
 
-Clears the global Starry Night singleton and registration state. Intended for
-tests exercising lazy registration from a known-empty registry.
+Clears the global highlighter singleton. Intended for tests exercising
+loading from a known-empty state.
 
 **Return Value:**
 
@@ -143,9 +141,8 @@ type ReturnValue = void;
 ### extensionMap
 
 Light-weight grammar metadata maps. These can be statically imported without
-pulling in the heavy TextMate grammar JSON payloads (which live in
-`./grammars.ts` and should be loaded via dynamic `import('./grammars')` so
-the bundler can code-split them into their own chunk).
+pulling in the highlighting engine (`./highlightToHast`, loaded via dynamic
+`import()` so the bundler can code-split it into its own chunk).
 
 ```typescript
 type extensionMap = Record<string, string>;

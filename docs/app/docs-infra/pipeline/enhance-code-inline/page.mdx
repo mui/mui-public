@@ -257,7 +257,7 @@ This ensures `function` receives keyword styling rather than entity name styling
 
 ### Built-in Type Enhancement (TypeScript only)
 
-Starry Night tokenizes standalone type keywords inconsistently in inline code. When there is no surrounding type context (like a type annotation), keywords like `string` become `pl-smi` (identifier) and `void` becomes `pl-k` (keyword) — rather than the `pl-c1` (constant) they receive in expressions like `type x = string`.
+The highlighter tokenizes standalone type keywords inconsistently in inline code. When there is no surrounding type context (like a type annotation), keywords like `string` become `pl-smi` (identifier) and `void` becomes `pl-k` (keyword) — rather than the `pl-c1` (constant) they receive in expressions like `type x = string`.
 
 This plugin reclassifies those tokens to `pl-c1 di-bt` for TypeScript-family languages (`language-ts`, `language-tsx`, `language-typescript`), matching the behavior of `extendSyntaxTokens` in block code:
 

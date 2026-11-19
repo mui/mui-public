@@ -1109,13 +1109,13 @@ The `parseCreateFactoryCall` utility is a generic source-code parser for `create
 
 ## Parse Source
 
-The `parseSource` utility parses source code into HAST (Hypertext Abstract Syntax Tree) nodes with syntax highlighting using [Starry Night](https://github.com/wooorm/starry-night). It converts code into highlighted HTML structures for display in documentation and demos.
+The `parseSource` utility parses source code into HAST (Hypertext Abstract Syntax Tree) nodes with syntax highlighting using [`@pierre/highlights`](https://diffs.com/highlights), a WebAssembly highlighter. It converts code into highlighted HTML structures for display in documentation and demos.
 
 <details>
 
 <summary>Outline</summary>
 
-- Keywords: starry night, syntax highlighting, grammars, HAST, TextMate
+- Keywords: syntax highlighting, highlights, grammars, HAST, WebAssembly
 - Sections:
   - Basic Usage
   - Common Patterns
@@ -1151,7 +1151,7 @@ The `parseSource` utility parses source code into HAST (Hypertext Abstract Synta
   - registerAllGrammars
   - registerGrammars
     - Parameters: scopes
-  - resetStarryNight
+  - resetHighlighter
 - Types: extensionMap, languageToGrammarMap
 
 </details>

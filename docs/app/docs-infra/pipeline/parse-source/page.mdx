@@ -1,6 +1,6 @@
 # Parse Source
 
-The `parseSource` utility parses source code into HAST (Hypertext Abstract Syntax Tree) nodes with syntax highlighting using [Starry Night](https://github.com/wooorm/starry-night). It converts code into highlighted HTML structures for display in documentation and demos.
+The `parseSource` utility parses source code into HAST (Hypertext Abstract Syntax Tree) nodes with syntax highlighting using [`@pierre/highlights`](https://diffs.com/highlights), a WebAssembly highlighter. It converts code into highlighted HTML structures for display in documentation and demos.
 
 ## Basic Usage
 
@@ -128,18 +128,18 @@ function HighlightedCode({ code, fileName }: { code: string; fileName: string })
 
 ## How It Works
 
-1. **Initialization**: `createParseSource()` creates a Starry Night instance with all grammar definitions (loaded as a code-split chunk). Pass `initialScopes` (possibly `[]`) to create a lean instance that registers grammars on demand via `registerGrammars` — the per-language path used by [`CodeProviderLazy`](../../components/code-provider/page.mdx#per-language-grammar-loading)
-2. **Language Detection**: File extension is extracted and mapped to a grammar
-3. **Syntax Highlighting**: Starry Night processes the source code and generates HAST nodes with `pl-*` classes
+1. **Initialization**: `createParseSource()` loads the highlighting engine, a single WebAssembly module with every supported language (loaded as a code-split chunk). `registerGrammars` and `ensureGrammars` load the same module on demand, which is how [`CodeProviderLazy`](../../components/code-provider/page.mdx#lazy-highlighting-engine) defers it
+2. **Language Detection**: File extension is extracted and mapped to a grammar scope
+3. **Syntax Highlighting**: The engine tokenizes the source, and the tokens are converted into HAST nodes with `pl-*` classes
 4. **Syntax Extensions**: Adds fine-grained `di-*` classes (numbers, booleans, nullish, attributes) without removing existing classes
-5. **Line Gutters**: `starryNightGutter()` adds line number elements to the tree
+5. **Line Gutters**: `addLineGutters()` adds line number elements to the tree
 6. **Fallback**: Unsupported file types return a simple text node
 
-The Starry Night instance is cached globally using `__docs_infra_starry_night_instance__` to avoid re-initialization.
+The engine is cached globally using `__docs_infra_highlighter_instance__` to avoid re-initialization.
 
 ### Syntax Token Classes
 
-Starry Night maps TextMate scopes to a small set of `pl-*` CSS classes (the GitHub Prettylights theme). Many token types share the same class — `pl-c1` covers numbers, booleans, `null`, component names, and more.
+Tokens are mapped to a small set of `pl-*` CSS classes (the GitHub Prettylights vocabulary), so themes written for GitHub-style highlighting apply unchanged. Many token types share the same class — `pl-c1` covers numbers, booleans, `null`, component names, and more.
 
 During parsing, `parseSource` extends the highlighted tree with **additive** `di-*` classes that distinguish these cases, giving CSS full control over each token type:
 
@@ -168,7 +168,7 @@ During parsing, `parseSource` extends the highlighted tree with **additive** `di
 
 `di-this` applies to JavaScript/TypeScript family grammars (`.js`, `.ts`, `.tsx`, `.jsx`, `.mdx`). `di-bt` applies to TypeScript family grammars only (`.ts`, `.tsx`, `.jsx`, `.mdx`) — plain JavaScript is excluded because `string`, `number`, etc. are valid variable names. `di-jsx` and `di-jv` only apply to JavaScriptX grammars (`.tsx`, `.jsx`, `.mdx`); `di-jv` is added to identifier spans (`pl-smi`, `pl-v`) appearing inside JavaScriptX expression braces (`{...}`), including spread arguments, arrow-function parameters, and `pl-c1` member-access property names (for example, `name` in `{row.name}`). Object property keys inside JavaScriptX expressions also receive `di-jv` in addition to `di-op`. `di-ak`, `di-ae`, `di-av` only apply to HTML/JSX/MDX grammars. `di-pu` applies to all grammars and tags `pl-k` operator tokens whose text is purely symbolic (it is not added to word keywords like `const` or `if`). `di-op` applies to JavaScript-family grammars and tags both bare-identifier object keys (for example, `height` in `{ height: 400 }`) and string keys (for example, `'aria-label'`); string keys additionally receive `di-ps`. `di-da`, `di-cp`, and `di-cv` only apply to CSS. `di-ht` and `di-jt` are added by `enhanceCodeInline` (not `parseSource`) as wrapper spans around tag brackets and the inner `pl-ent` or `pl-c1` span.
 
-`di-te` and `di-td` apply to JavaScript-family grammars and handle template-literal interpolations (`` `...${expr}...` ``). Starry Night tokenizes the whole backtick string as a single `pl-s` span, so without these classes the `${`/`}` delimiters and any bare punctuation inside the expression (for example, `.` in `${a.b}`) inherit the string color. `parseSource` wraps each `${ ... }` slice in a `di-te` span so the interpolated expression resets from the string color, and wraps the `${` and `}` glyphs themselves in `di-td` spans. Inner `pl-*` tokens (and additive `di-*` classes such as `di-num` on `${42}`) still apply on top of the reset. Only backtick template literals are processed — a `${...}` sequence inside a regular `"`/`'` string is inert text and is left untouched. Because a multi-line template literal is tokenized as one `pl-s` span per line, an interpolation that spans several lines is wrapped with a separate `di-te` slice on each line (mirroring how the string itself continues across lines).
+`di-te` and `di-td` apply to JavaScript-family grammars and handle template-literal interpolations (`` `...${expr}...` ``). The whole backtick string is a single `pl-s` span, so without these classes the `${`/`}` delimiters and any bare punctuation inside the expression (for example, `.` in `${a.b}`) inherit the string color. `parseSource` wraps each `${ ... }` slice in a `di-te` span so the interpolated expression resets from the string color, and wraps the `${` and `}` glyphs themselves in `di-td` spans. Inner `pl-*` tokens (and additive `di-*` classes such as `di-num` on `${42}`) still apply on top of the reset. Only backtick template literals are processed — a `${...}` sequence inside a regular `"`/`'` string is inert text and is left untouched. Because a multi-line template literal is tokenized as one `pl-s` span per line, an interpolation that spans several lines is wrapped with a separate `di-te` slice on each line (mirroring how the string itself continues across lines).
 
 Existing `pl-*` classes are never removed — `<span class="pl-c1">42</span>` becomes `<span class="pl-c1 di-num">42</span>`.
 
@@ -202,7 +202,7 @@ import { parseSource } from '@mui/internal-docs-infra/pipeline/parseSource';
 
 // ❌ This will throw an error
 parseSource('code', 'file.js');
-// Error: Starry Night not initialized. Use createParseSource to create an initialized parseSource function.
+// Error: Highlighter not initialized. Use createParseSource to create an initialized parseSource function.
 
 // ✓ Initialize first
 import { createParseSource } from '@mui/internal-docs-infra/pipeline/parseSource';
@@ -277,5 +277,5 @@ import { TypesParseSource, TypesParseSourceAdditional } from './types';
 
 export const metadata =
   /** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */ ({
-    keywords: ['starry night', 'syntax highlighting', 'grammars', 'HAST', 'TextMate'],
+    keywords: ['syntax highlighting', 'highlights', 'grammars', 'HAST', 'WebAssembly'],
   });
