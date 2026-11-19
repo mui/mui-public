@@ -10,6 +10,17 @@
     "groupName": null
   },
   "packageRules": [
+    // Keep ESLint plugin majors and pins in the eslint group: the default preset's later react rule
+    // takes eslint-plugin-react-hooks and eslint-plugin-react-compiler otherwise.
+    {
+      "groupName": "eslint",
+      "matchPackageNames": [
+        "eslint-plugin-*",
+        "*/eslint-plugin-*",
+        "@vitest/eslint-plugin",
+        "!@next/eslint-plugin-next"
+      ]
+    },
     // Collapsing every non-major update into one group per package manager also turns each family
     // group in the default preset (eslint, babel monorepo, Vite & Vitest, ...) into a majors-only
     // group, because those rules are unscoped by update type and these ones are applied after.
@@ -51,8 +62,8 @@
       "description": "Refresh the lockfile inside the group PR rather than on a branch of its own. This has to be a package rule: the lockFileMaintenance config block resets groupName to null, and package rules are the only thing applied after it. It deliberately leaves the schedule alone, which the consuming repository lines up with its own window.",
       "matchUpdateTypes": ["lockFileMaintenance"]
     },
-    // Linters and formatters join the group too. When a release needs code changes, the group fails,
-    // and the mui-renovate-fix skill moves that bump to a focused PR. Majors keep their own PRs.
+    // Linters and formatters join the group too. A release that needs code changes fails the group
+    // until a mui-renovate-fix PR merges; the bump moves out only if the fix needs the new version.
     {
       "description": "Skip the full Prettier pass that the default preset's Prettier group runs, so a reformat never lands inside the group. This repeats the top-level postUpgradeTasks, because a package rule replaces that object as a whole.",
       "matchPackageNames": ["prettier", "pretty-quick", "eslint-config-prettier"],
