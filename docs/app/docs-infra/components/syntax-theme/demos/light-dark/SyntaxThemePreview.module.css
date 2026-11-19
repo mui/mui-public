@@ -1,0 +1,32 @@
+.grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.light,
+.dark {
+  border-radius: 8px;
+  padding: 12px 16px;
+  overflow-x: auto;
+}
+
+.light {
+  color-scheme: light;
+  background: #ffffff;
+  color: #1f2328;
+  border: 1px solid #d1d9e0;
+}
+
+.dark {
+  color-scheme: dark;
+  background: #0d1117;
+  color: #f0f6fc;
+  border: 1px solid #3d444d;
+}
+
+.pre {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}

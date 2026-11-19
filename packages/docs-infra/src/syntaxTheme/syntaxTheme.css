@@ -1,0 +1,239 @@
+/*
+ * Syntax highlighting theme for the `pl-*` and `di-*` classes emitted by
+ * `parseSource`. Colors follow GitHub's Prettylights light and dark palettes
+ * (Primer, MIT). Light by default; an ancestor with `data-color-scheme="dark"`
+ * switches to dark, and `data-color-scheme="system"` follows the OS.
+ *
+ * Hazard: do not express the palettes with `light-dark()`. Bundlers targeting
+ * older browsers (Lightning CSS in Next.js) rewrite it into variables that only
+ * resolve under a `color-scheme` declaration, which leaves tokens uncolored.
+ */
+@layer docs-infra.syntax {
+  :where(:root, [data-color-scheme='light'], [data-color-scheme='system']) {
+    --color-docs-infra-syntax-comment: #59636e;
+    --color-docs-infra-syntax-constant: #0550ae;
+    --color-docs-infra-syntax-constant-other-reference-link: #0a3069;
+    --color-docs-infra-syntax-entity: #6639ba;
+    --color-docs-infra-syntax-entity-tag: #0550ae;
+    --color-docs-infra-syntax-keyword: #cf222e;
+    --color-docs-infra-syntax-string: #0a3069;
+    --color-docs-infra-syntax-string-regexp: #116329;
+    --color-docs-infra-syntax-variable: #953800;
+    --color-docs-infra-syntax-storage-modifier-import: #1f2328;
+    --color-docs-infra-syntax-markup-heading: #0550ae;
+    --color-docs-infra-syntax-markup-list: #3b2300;
+    --color-docs-infra-syntax-markup-deleted-text: #82071e;
+    --color-docs-infra-syntax-markup-deleted-bg: #ffebe9;
+    --color-docs-infra-syntax-markup-inserted-text: #116329;
+    --color-docs-infra-syntax-markup-inserted-bg: #dafbe1;
+    --color-docs-infra-syntax-meta-diff-range: #8250df;
+  }
+
+  :where([data-color-scheme='dark']) {
+    --color-docs-infra-syntax-comment: #9198a1;
+    --color-docs-infra-syntax-constant: #79c0ff;
+    --color-docs-infra-syntax-constant-other-reference-link: #a5d6ff;
+    --color-docs-infra-syntax-entity: #d2a8ff;
+    --color-docs-infra-syntax-entity-tag: #7ee787;
+    --color-docs-infra-syntax-keyword: #ff7b72;
+    --color-docs-infra-syntax-string: #a5d6ff;
+    --color-docs-infra-syntax-string-regexp: #7ee787;
+    --color-docs-infra-syntax-variable: #ffa657;
+    --color-docs-infra-syntax-storage-modifier-import: #f0f6fc;
+    --color-docs-infra-syntax-markup-heading: #1f6feb;
+    --color-docs-infra-syntax-markup-list: #f2cc60;
+    --color-docs-infra-syntax-markup-deleted-text: #ffdcd7;
+    --color-docs-infra-syntax-markup-deleted-bg: #67060c;
+    --color-docs-infra-syntax-markup-inserted-text: #aff5b4;
+    --color-docs-infra-syntax-markup-inserted-bg: #033a16;
+    --color-docs-infra-syntax-meta-diff-range: #d2a8ff;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :where([data-color-scheme='system']) {
+      --color-docs-infra-syntax-comment: #9198a1;
+      --color-docs-infra-syntax-constant: #79c0ff;
+      --color-docs-infra-syntax-constant-other-reference-link: #a5d6ff;
+      --color-docs-infra-syntax-entity: #d2a8ff;
+      --color-docs-infra-syntax-entity-tag: #7ee787;
+      --color-docs-infra-syntax-keyword: #ff7b72;
+      --color-docs-infra-syntax-string: #a5d6ff;
+      --color-docs-infra-syntax-string-regexp: #7ee787;
+      --color-docs-infra-syntax-variable: #ffa657;
+      --color-docs-infra-syntax-storage-modifier-import: #f0f6fc;
+      --color-docs-infra-syntax-markup-heading: #1f6feb;
+      --color-docs-infra-syntax-markup-list: #f2cc60;
+      --color-docs-infra-syntax-markup-deleted-text: #ffdcd7;
+      --color-docs-infra-syntax-markup-deleted-bg: #67060c;
+      --color-docs-infra-syntax-markup-inserted-text: #aff5b4;
+      --color-docs-infra-syntax-markup-inserted-bg: #033a16;
+      --color-docs-infra-syntax-meta-diff-range: #d2a8ff;
+    }
+  }
+
+  .pl-c {
+    color: var(--color-docs-infra-syntax-comment);
+  }
+
+  .pl-c1 {
+    color: var(--color-docs-infra-syntax-constant);
+  }
+
+  .pl-e,
+  .pl-en {
+    color: var(--color-docs-infra-syntax-entity);
+  }
+
+  .pl-smi {
+    color: var(--color-docs-infra-syntax-storage-modifier-import);
+  }
+
+  .pl-ent {
+    color: var(--color-docs-infra-syntax-entity-tag);
+  }
+
+  .pl-k {
+    color: var(--color-docs-infra-syntax-keyword);
+  }
+
+  .pl-s,
+  .pl-pds,
+  .pl-sr {
+    color: var(--color-docs-infra-syntax-string);
+  }
+
+  .pl-sr .pl-cce {
+    font-weight: bold;
+    color: var(--color-docs-infra-syntax-string-regexp);
+  }
+
+  .pl-v {
+    color: var(--color-docs-infra-syntax-variable);
+  }
+
+  .pl-ml {
+    color: var(--color-docs-infra-syntax-markup-list);
+  }
+
+  .pl-mh {
+    font-weight: bold;
+    color: var(--color-docs-infra-syntax-markup-heading);
+  }
+
+  .pl-md {
+    color: var(--color-docs-infra-syntax-markup-deleted-text);
+    background-color: var(--color-docs-infra-syntax-markup-deleted-bg);
+  }
+
+  .pl-mi1 {
+    color: var(--color-docs-infra-syntax-markup-inserted-text);
+    background-color: var(--color-docs-infra-syntax-markup-inserted-bg);
+  }
+
+  .pl-mdr {
+    font-weight: bold;
+    color: var(--color-docs-infra-syntax-meta-diff-range);
+  }
+
+  .pl-corl {
+    text-decoration: underline;
+    color: var(--color-docs-infra-syntax-constant-other-reference-link);
+  }
+
+  /* `di-*` classes refine a `pl-*` token, so they must stay after the `pl-*` rules. */
+  .di-num {
+    color: var(--color-docs-infra-syntax-number, var(--color-docs-infra-syntax-constant));
+  }
+
+  .di-bool {
+    color: var(--color-docs-infra-syntax-boolean, var(--color-docs-infra-syntax-constant));
+  }
+
+  .di-n {
+    color: var(--color-docs-infra-syntax-nullish, var(--color-docs-infra-syntax-comment));
+  }
+
+  .di-ps {
+    color: var(--color-docs-infra-syntax-property-string, var(--color-docs-infra-syntax-constant));
+  }
+
+  .di-op {
+    color: var(--color-docs-infra-syntax-object-property, var(--color-docs-infra-syntax-constant));
+  }
+
+  .di-ak {
+    color: var(--color-docs-infra-syntax-attr-key, var(--color-docs-infra-syntax-constant));
+  }
+
+  .di-av {
+    color: var(--color-docs-infra-syntax-attr-value, var(--color-docs-infra-syntax-string));
+  }
+
+  .di-ae {
+    color: var(
+      --color-docs-infra-syntax-attr-equals,
+      var(--color-docs-infra-syntax-storage-modifier-import)
+    );
+  }
+
+  .di-da {
+    color: var(--color-docs-infra-syntax-data-attr, var(--color-docs-infra-syntax-constant));
+  }
+
+  .di-cp {
+    color: var(--color-docs-infra-syntax-css-property, var(--color-docs-infra-syntax-constant));
+  }
+
+  .di-cv {
+    color: var(--color-docs-infra-syntax-css-value, var(--color-docs-infra-syntax-constant));
+  }
+
+  .di-this {
+    color: var(--color-docs-infra-syntax-this, var(--color-docs-infra-syntax-keyword));
+  }
+
+  .di-bt {
+    color: var(--color-docs-infra-syntax-builtin-type, var(--color-docs-infra-syntax-constant));
+  }
+
+  .di-pu {
+    color: var(
+      --color-docs-infra-syntax-punctuation,
+      var(--color-docs-infra-syntax-storage-modifier-import)
+    );
+  }
+
+  .di-te {
+    color: var(
+      --color-docs-infra-syntax-template-expression,
+      var(--color-docs-infra-syntax-storage-modifier-import)
+    );
+  }
+
+  .di-td {
+    color: var(
+      --color-docs-infra-syntax-template-delimiter,
+      var(--color-docs-infra-syntax-storage-modifier-import)
+    );
+  }
+
+  .di-jsx {
+    color: var(--color-docs-infra-syntax-jsx, var(--color-docs-infra-syntax-string-regexp));
+  }
+
+  .di-jv {
+    color: var(--color-docs-infra-syntax-jsx-variable, var(--color-docs-infra-syntax-variable));
+  }
+
+  .di-ht {
+    color: var(--color-docs-infra-syntax-html-tag, var(--color-docs-infra-syntax-entity-tag));
+  }
+
+  .di-jt {
+    color: var(--color-docs-infra-syntax-jsx-tag, var(--color-docs-infra-syntax-string-regexp));
+  }
+
+  code[data-inline] .pl-smi {
+    color: inherit;
+  }
+}
