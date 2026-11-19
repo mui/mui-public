@@ -198,3 +198,15 @@ describe('resolveBaseline: the canonical remote', () => {
     await expect(resolveBaseline({ cwd: work.dir, remote: 'mui' })).rejects.toThrow(/'mui'/);
   });
 });
+
+it.each([
+  { ref: 'v8.x', match: 'v*' },
+  { ref: 'main', match: 'v8.*' },
+])('finds release tags with ref $ref and match $match', async ({ ref, match }) => {
+  const { dir, git, shas } = await makeRemote();
+  await git('tag', 'v8.1.0', shas[0]);
+  await git('tag', 'v9.0.0', shas[2]);
+  await git('branch', 'v8.x', shas[1]);
+  const { findLatestTaggedVersion } = await import('../changelog/index.mjs');
+  expect(await findLatestTaggedVersion({ cwd: dir, fetchAll: false, ref, match })).toBe('v8.1.0');
+});

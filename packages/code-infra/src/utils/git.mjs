@@ -128,10 +128,12 @@ export async function resolveBaseline(options = {}) {
 }
 
 /**
- * The most recent version tag reachable from HEAD — where a changelog's range starts.
+ * The most recent matching version tag reachable from a ref — where a changelog's range starts.
  * @param {Object} opts
  * @param {string} opts.cwd
- * @param {boolean} [opts.fetchAll=true] Whether to fetch all tags from all remotes before finding the latest tag.
+ * @param {string} [opts.ref='HEAD'] Release branch or commit to describe.
+ * @param {string} [opts.match='v*'] Tag pattern, e.g. v8.* for a maintenance release.
+ * @param {boolean} [opts.fetchAll=true] Fetch tags from the canonical remote before finding the latest tag.
  * @returns {Promise<string>}
  */
 export async function findLatestTaggedVersion(opts) {
@@ -142,6 +144,7 @@ export async function findLatestTaggedVersion(opts) {
     const { remoteName } = await getRepositoryInfo(opts.cwd);
     await $$`git fetch --tags --force ${remoteName}`;
   }
-  const { stdout } = await $$`git describe --tags --abbrev=0 --match ${'v*'}`; // only include "version-tags"
+  const { stdout } =
+    await $$`git describe --tags --abbrev=0 --match ${opts.match ?? 'v*'} ${opts.ref ?? 'HEAD'}`;
   return stdout.trim();
 }

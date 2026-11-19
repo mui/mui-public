@@ -1,3 +1,5 @@
+import type { Octokit } from '@octokit/rest';
+
 /**
  * Commit details fetched from GitHub including PR information and labels.
  */
@@ -15,6 +17,15 @@ export interface FetchedCommitDetails {
   createdAt: string | null;
   prTitle: string;
   prBody: string;
+}
+
+/**
+ * A commit pushed without a pull request, returned only with `includeDirectCommits`.
+ */
+export interface DirectCommitDetails extends Omit<FetchedCommitDetails, 'prNumber'> {
+  prNumber: null;
+  /** Git author name, for commits without a linked GitHub account. */
+  authorName?: string;
 }
 
 /**
@@ -378,7 +389,7 @@ export interface GenerateChangelogOptions {
   /**
    * Repository name (e.g., 'mui-x').
    */
-  repo: string;
+  repo?: string;
 
   /**
    * GitHub organization name (default: 'mui').
@@ -388,31 +399,41 @@ export interface GenerateChangelogOptions {
   /**
    * Last release tag or commit ref.
    */
-  lastRelease: string;
+  lastRelease?: string;
 
   /**
    * Current release tag or commit ref.
    */
-  release: string;
+  release?: string;
 
   /**
    * Version string for the changelog (e.g., '8.19.0').
    */
-  version: string;
+  version?: string;
 
   /**
    * Release date (will be formatted according to config).
    */
-  date: Date;
+  date?: Date;
 
   /**
-   * Changelog configuration (if not loading from file).
+   * Configuration object or file path; defaults to scripts/changelog.config.mjs.
    */
-  config: ChangelogConfig;
+  config?: ChangelogConfig | string;
   /**
    * Current working directory to run commands in.
    */
   cwd?: string;
+  /** Authenticated GitHub client, shared with release automation. */
+  octokit?: Octokit;
+}
+
+/** Resolved release metadata used by the renderer. */
+export interface ChangelogRelease {
+  lastRelease: string;
+  release: string;
+  version: string;
+  date: Date;
 }
 
 /**
