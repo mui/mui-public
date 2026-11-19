@@ -121,7 +121,7 @@
     "@orama/orama": "^3.1.18",
     "@orama/plugin-qps": "^3.1.18",
     "@orama/stemmers": "^3.1.18",
-    "@pierre/highlights": "^0.5.1",
+    "@pierre/highlights": "0.5.1",
     "autoprefixer": "^10.6.2",
     "chalk": "^6.0.1",
     "es-toolkit": "^1.53.2",

@@ -42,6 +42,13 @@ describe('parseSource token shapes', () => {
     );
   });
 
+  it('keeps a bare capitalized identifier as pl-smi so it is not linked as a type', () => {
+    expect(html('CodeProviderLazy', 'a.tsx')).toContain(
+      '<span class="pl-smi">CodeProviderLazy</span>',
+    );
+    expect(html('const a: Foo = 1;', 'a.ts')).toContain('<span class="pl-en">Foo</span>');
+  });
+
   it('leaves object-literal keys as text for extendSyntaxTokens', () => {
     expect(html('const o = { height: 1 };', 'a.ts')).toContain('<span class="di-op">height</span>');
   });

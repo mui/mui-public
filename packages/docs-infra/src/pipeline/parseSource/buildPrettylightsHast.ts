@@ -1043,6 +1043,10 @@ export class HastBuilder {
           return;
         }
         const next = this.nextSignificant(pieces, index);
+        if (type === 'type' && this.previous === undefined && next === undefined) {
+          this.push('pl-smi', text);
+          return;
+        }
         this.push(next?.text === '.' && !this.inTypePosition() ? 'pl-smi' : 'pl-en', text);
         return;
       }
