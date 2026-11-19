@@ -23,7 +23,7 @@
     // group, because those rules are unscoped by update type and these ones are applied after.
     {
       "groupName": "npm non-major",
-      "description": "All npm patch/minor updates in a single PR. @mui/* is excluded because it is unscheduled and exempt from the minimum release age, which a weekly group would take away from it; node (the engines field) and @types/node because they have to move with the Node version pinned across CI and Netlify, in the node group.",
+      "description": "All npm patch/minor updates in a single PR. @mui/* is excluded because it keeps its own schedule (none for public packages, daily for @mui/internal-*) and is exempt from the minimum release age, which a weekly group would take away from it; node (the engines field) and @types/node because they have to move with the Node version pinned across CI and Netlify, in the node group.",
       "matchManagers": ["npm"],
       "matchUpdateTypes": ["minor", "patch", "bump"],
       "matchPackageNames": ["!@mui/*", "!node", "!@types/node"]
