@@ -327,13 +327,16 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     const packageType = packageJson.type === 'module' ? 'module' : 'commonjs';
     const bundles = [...new Set(args.bundle)];
 
-    const [entry, copy, babelRuntime, babelConfigFile, { build }] = await Promise.all([
-      getEntry(packageJson, cwd),
-      getCopy(cwd, outDir, args.copy),
-      getBabelRuntime(packageJson),
-      getBabelConfigFile(cwd),
-      import('tsdown'),
-    ]);
+    const [entry, copy, babelRuntime, babelConfigFile, tsconfig, tsc, { build }] =
+      await Promise.all([
+        getEntry(packageJson, cwd),
+        getCopy(cwd, outDir, args.copy),
+        getBabelRuntime(packageJson),
+        getBabelConfigFile(cwd),
+        args.buildTypes ? getTsconfig(cwd) : undefined,
+        args.buildTypes ? getTsc(cwd) : undefined,
+        import('tsdown'),
+      ]);
 
     const { MUI_PRERELEASE: prerelease, ...versionEnv } = getVersionEnvVariables(
       packageJson.version,
@@ -389,14 +392,12 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
               : undefined
         ),
       },
-      tsconfig: args.buildTypes ? await getTsconfig(cwd) : undefined,
+      tsconfig,
       // Keeps CJS declarations on `export default`, matching the named-exports JS interop.
       cjsDefault: false,
       // TODO: tsdown >=0.23.5 (rolldown-plugin-dts >=0.29) runs TS7 through its API, which needs
       // TypeScript 7.1. Once it's stable, bump and replace `tsgo.path` with `tsgo.moduleUrl`.
-      dts: args.buildTypes
-        ? { generator: 'tsgo', tsgo: { path: await getTsc(cwd) }, sourcemap: false }
-        : false,
+      dts: args.buildTypes ? { generator: 'tsgo', tsgo: { path: tsc }, sourcemap: false } : false,
       exports: false,
       report: false,
       copy,
