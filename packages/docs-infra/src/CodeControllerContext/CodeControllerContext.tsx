@@ -69,7 +69,7 @@ export interface CodeControllerContext {
    * runtime). `deps` reports which file kinds the block spans — `js` when it has any
    * JS/TS/JSX/TSX/MJS file, `css` when it has any CSS file — so the host can warm only
    * the engine chunks it will need. `CodeHighlighter` separately warms its own
-   * live-editing dependencies (engine, grammars, worker) at the same moment, so a host
+   * live-editing dependencies (engine and worker) at the same moment, so a host
    * that only wants the default behavior can leave this unset.
    */
   onActivate?: (deps: { js: boolean; css: boolean }) => void;

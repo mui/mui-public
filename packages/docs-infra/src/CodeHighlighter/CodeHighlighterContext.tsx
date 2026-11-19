@@ -77,7 +77,7 @@ export interface CodeHighlighterContextType {
    * Callback `useCode` threads down to the editor's `onActivate`, fired once
    * when the block first engages for editing. `CodeHighlighterClient` supplies it
    * to flip its per-block `activated` state (warming the live-editing runtime,
-   * grammars, and worker) and to notify the `CodeControllerContext`.
+   * highlighting engine, and worker) and to notify the `CodeControllerContext`.
    */
   onEditingActivated?: () => void;
   /**

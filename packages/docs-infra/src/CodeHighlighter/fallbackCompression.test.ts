@@ -392,7 +392,7 @@ describe('compression dictionary matches the raw source for trailing-newline sou
   // the structured fallback then made `decodeHastSource` decode with the wrong
   // dictionary and throw — worked around by the `preserveExisting` guard.
   //
-  // Root fix (`starryNightGutter`): the final frame's fallback now keeps the
+  // Root fix (`addLineGutters`): the final frame's fallback now keeps the
   // trailing newline when the source ends with one, so `buildRootFallback`
   // matches the raw source EXACTLY. A hoisted raw fallback can no longer differ
   // from the dictionary the `hastCompressed` source was compressed with, so
@@ -400,7 +400,7 @@ describe('compression dictionary matches the raw source for trailing-newline sou
   // `preserveExisting` guard is retained as defense and still keeps the
   // structured fallback in place.
   it('decodes a trailing-newline source whether the dictionary is clobbered or preserved', async () => {
-    const parse = await createParseSource(['App.js']);
+    const parse = await createParseSource();
     const rawSource = 'const value = compute();\nexport default value;\n'; // ends in a newline
     const root = parse(rawSource, 'App.js');
 

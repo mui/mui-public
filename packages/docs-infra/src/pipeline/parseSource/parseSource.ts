@@ -1,40 +1,29 @@
-import { createStarryNight } from '@wooorm/starry-night';
-import type { Grammar } from '@wooorm/starry-night';
+import type { Root } from 'hast';
 import type { ParseSource } from '../../CodeHighlighter/types';
-import { resolveGrammarScope } from './grammarMaps';
-import { grammarLoaders } from './grammarLoaders';
-import { starryNightGutter } from './addLineGutters';
+import { resolveLanguage } from './languages';
+import type { HighlightLanguage } from './languages';
+import { addLineGutters } from './addLineGutters';
 import { createPlainTextRoot } from './createPlainTextRoot';
 import { extendSyntaxTokens } from './extendSyntaxTokens';
 
-type StarryNight = Awaited<ReturnType<typeof createStarryNight>>;
-
-const STARRY_NIGHT_KEY = '__docs_infra_starry_night_instance__';
-const STARRY_NIGHT_STATE_KEY = '__docs_infra_starry_night_state__';
-
-interface StarryNightState {
-  grammars: Map<string, Grammar>;
-  instancePromise?: Promise<StarryNight>;
-  registrationChain: Promise<void>;
+/** The loaded highlighting engine, shared through `globalThis`. */
+export interface Highlighter {
+  /** Highlights `source` as `language`; `undefined` when it cannot. */
+  highlight: (source: string, language: HighlightLanguage) => Root | undefined;
 }
 
-// Set DEBUG=true to log grammar load/register failures (e.g. a chunk-load error
-// after a rotated deploy, or offline). Off by default — a failed load fails open
-// (the affected scope renders as plain text) per convention 9.3.
+// Must match HIGHLIGHTER_KEY in ./highlighterCache, which reads the instance without
+// importing this module.
+const HIGHLIGHTER_KEY = '__docs_infra_highlighter_instance__';
+const HIGHLIGHTER_LOAD_KEY = '__docs_infra_highlighter_load__';
+
+// Set DEBUG=true to log engine load failures (e.g. a chunk-load error after a
+// rotated deploy, or offline). Off by default — a failed load fails open (code
+// renders as plain text) per convention 9.3.
 const DEBUG = false;
 
-function getInstance(): StarryNight | undefined {
-  return (globalThis as Record<string, unknown>)[STARRY_NIGHT_KEY] as StarryNight | undefined;
-}
-
-function getState(): StarryNightState {
-  const globals = globalThis as Record<string, unknown>;
-  let state = globals[STARRY_NIGHT_STATE_KEY] as StarryNightState | undefined;
-  if (!state) {
-    state = { grammars: new Map(), registrationChain: Promise.resolve() };
-    globals[STARRY_NIGHT_STATE_KEY] = state;
-  }
-  return state;
+function getInstance(): Highlighter | undefined {
+  return (globalThis as Record<string, unknown>)[HIGHLIGHTER_KEY] as Highlighter | undefined;
 }
 
 export { parsePlainText } from './createPlainTextRoot';
@@ -49,205 +38,85 @@ export { parsePlainText } from './createPlainTextRoot';
  * @throws Error if `createParseSource()` has not been called first
  */
 export const parseSource: ParseSource = (source, fileName, language) => {
-  const starryNight = getInstance();
-  if (!starryNight) {
+  const highlighter = getInstance();
+  if (!highlighter) {
     throw new Error(
-      'Starry Night not initialized. Use createParseSource to create an initialized parseSource function.',
+      'Highlighter not initialized. Use createParseSource to create an initialized parseSource function.',
     );
   }
 
-  // Determine the grammar scope: prefer explicit language, then fall back to file extension
-  const grammarScope = resolveGrammarScope(fileName, language);
-
-  if (!grammarScope) {
+  const highlightLanguage = resolveLanguage(fileName, language);
+  const highlighted = highlightLanguage
+    ? highlighter.highlight(source, highlightLanguage)
+    : undefined;
+  if (!highlightLanguage || !highlighted) {
     // Unsupported file type: render the source as plain text.
     return createPlainTextRoot(source);
   }
 
-  let highlighted;
-  try {
-    highlighted = starryNight.highlight(source, grammarScope);
-  } catch (error) {
-    // The scope maps to a grammar, but that grammar isn't registered yet — a
-    // cold race before `ensureGrammars` resolves under lazy grammar loading.
-    // Fall back to plain text; the block re-highlights on the next render once
-    // the grammar is registered (a one-tick unstyled paint at worst).
-    if (DEBUG) {
-      console.error(`[docs-infra] grammar for scope "${grammarScope}" not registered`, error);
-    }
-    return createPlainTextRoot(source);
-  }
-
-  extendSyntaxTokens(highlighted, grammarScope); // mutates the tree to add di-* classes
+  extendSyntaxTokens(highlighted, highlightLanguage); // mutates the tree to add di-* classes
   const sourceLines = source.split(/\r?\n|\r/);
-  starryNightGutter(highlighted, sourceLines); // mutates the tree to add line gutters
+  addLineGutters(highlighted, sourceLines); // mutates the tree to add line gutters
 
   return highlighted;
 };
 
-// Resolves the per-scope grammar chunks, ignoring scopes with no loader (an
-// unknown extension degrades to plain text rather than failing the batch).
-async function loadGrammars(scopes: string[]): Promise<Grammar[]> {
-  const loaded = await Promise.all(
-    scopes.map((scope) => {
-      const loader = grammarLoaders[scope];
-      return loader ? loader() : undefined;
-    }),
-  );
-  return loaded.filter((grammar): grammar is Grammar => grammar !== undefined);
-}
-
-async function createIfNeeded(initial: Grammar[]): Promise<StarryNight> {
+/**
+ * Loads the highlighting engine once and publishes it on `globalThis`. Client
+ * bundlers can instantiate this module more than once, so the in-flight load is
+ * shared through `globalThis` too.
+ */
+async function loadHighlighter(): Promise<Highlighter> {
   const existing = getInstance();
   if (existing) {
     return existing;
   }
-  const state = getState();
-  initial.forEach((grammar) => state.grammars.set(grammar.scopeName, grammar));
-  if (!state.instancePromise) {
-    state.instancePromise = createStarryNight([...state.grammars.values()]).then((instance) => {
-      (globalThis as Record<string, unknown>)[STARRY_NIGHT_KEY] = instance;
+  const globals = globalThis as Record<string, unknown>;
+  let load = globals[HIGHLIGHTER_LOAD_KEY] as Promise<Highlighter> | undefined;
+  if (!load) {
+    load = (async () => {
+      const { highlightToHast } = await import('./highlightToHast');
+      const instance: Highlighter = { highlight: highlightToHast };
+      globals[HIGHLIGHTER_KEY] = instance;
       return instance;
+    })();
+    globals[HIGHLIGHTER_LOAD_KEY] = load;
+    load.catch((error) => {
+      globals[HIGHLIGHTER_LOAD_KEY] = undefined;
+      if (DEBUG) {
+        console.error('[docs-infra] failed to load the highlighter', error);
+      }
     });
   }
-  return state.instancePromise;
-}
-
-async function rebuildInstance(): Promise<StarryNight> {
-  const state = getState();
-  state.instancePromise = createStarryNight([...state.grammars.values()]).then((instance) => {
-    (globalThis as Record<string, unknown>)[STARRY_NIGHT_KEY] = instance;
-    return instance;
-  });
-  return state.instancePromise;
-}
-
-// Registry rebuilds replace the shared singleton, so serialize them globally.
-// Client bundlers can instantiate this module more than once, but every copy
-// still coordinates through the state stored on `globalThis`.
-
-function enqueue(task: () => Promise<void>): Promise<void> {
-  const state = getState();
-  const next = state.registrationChain.then(task, task);
-  state.registrationChain = next.catch(() => {});
-  return next;
-}
-
-// Registers `requested` (and any grammar dependencies they pull in) into the
-// singleton, creating an empty instance first if none exists. Idempotent: a
-// scope already registered, in-flight from an earlier enqueued task, or without
-// a loader is skipped. Runs under the registration mutex.
-async function registerScopes(requested: string[]): Promise<void> {
-  let instance = await createIfNeeded([]);
-  const state = getState();
-
-  let pending = [...new Set(requested)].filter(
-    (scope) => grammarLoaders[scope] && !state.grammars.has(scope),
-  );
-
-  // Each round depends on the previous — register, then read the freshly-updated
-  // `missingScopes()` for the next batch — so the awaits are necessarily
-  // sequential (a dependency fixpoint), not a parallelizable loop.
-  /* eslint-disable no-await-in-loop */
-  while (pending.length > 0) {
-    const grammars = await loadGrammars(pending);
-    if (grammars.length > 0) {
-      grammars.forEach((grammar) => state.grammars.set(grammar.scopeName, grammar));
-      // Starry Night tracks registered scopes separately from its TextMate
-      // registry. Rebuild and swap atomically so readiness and highlighting agree.
-      instance = await rebuildInstance();
-    }
-    // `missingScopes()` surfaces hard grammar dependencies (e.g. source.mdx ->
-    // source.tsx). Resolve the ones we have a loader for, to a fixpoint. The
-    // loader-map intersection bounds this — a markdown fenced ```python block
-    // references source.python, but with no loader it is left as plain text.
-    pending = instance
-      .missingScopes()
-      .filter((scope) => grammarLoaders[scope] && !state.grammars.has(scope));
-  }
-  /* eslint-enable no-await-in-loop */
+  return load;
 }
 
 /**
- * Registers the grammars for the given scopes (and their dependencies) on the
- * global Starry Night instance, loading the per-scope chunks on demand.
- * Idempotent and deduped. Fails open: a chunk that fails to load leaves its
- * scope as plain text rather than rejecting the batch.
- *
- * This is the heavy implementation (it can create the engine instance). Client
- * code should call the light facade {@link ensureGrammars} from `./grammarCache`
- * instead, so the engine stays out of the client bundle until a block needs it.
- */
-export async function registerGrammars(scopes: string[]): Promise<void> {
-  if (scopes.length === 0) {
-    return;
-  }
-  await enqueue(() => registerScopes(scopes));
-}
-
-async function registerAllGrammarsImpl(): Promise<void> {
-  const { grammars } = await import('./grammars');
-  await createIfNeeded([]);
-  const state = getState();
-  const missing = grammars.filter((grammar) => !state.grammars.has(grammar.scopeName));
-  if (missing.length > 0) {
-    missing.forEach((grammar) => state.grammars.set(grammar.scopeName, grammar));
-    await rebuildInstance();
-  }
-}
-
-// Registers every grammar from the all-in-one barrel. This public entry point
-// must use the same mutex as per-scope registration.
-export async function registerAllGrammars(): Promise<void> {
-  await enqueue(registerAllGrammarsImpl);
-}
-
-/**
- * Initializes Starry Night and returns a configured `parseSource` function.
- * Only needs to be called once per application; the instance is stored globally
- * for reuse across calls.
- *
- * With no `initialScopes`, loads ALL grammars via the (lazy) `./grammars` barrel
- * — the eager `CodeProvider` / Node / build-time behavior, so the heavy TextMate
- * JSON is split into its own chunk but fully available. Pass `initialScopes`
- * (possibly `[]`) to create a lean instance that registers grammars on demand
- * via {@link registerGrammars} — the `CodeProviderLazy` per-language path.
+ * Loads the highlighting engine, which includes every supported language, and
+ * returns a configured `parseSource` function. Only needs to be called once per
+ * application; the engine is stored globally for reuse across calls. Client
+ * code that only needs to warm the engine should call the light facade
+ * {@link loadHighlighter} from `./highlighterCache`, so the engine stays out of
+ * the client bundle until a block needs it.
  *
  * @returns A Promise that resolves to the initialized `parseSource` function
  */
-export const createParseSource = async (initialScopes?: string[]): Promise<ParseSource> => {
-  if (initialScopes === undefined) {
-    await registerAllGrammars();
-  } else if (initialScopes.length === 0) {
-    await createIfNeeded([]);
-  } else {
-    await registerGrammars(initialScopes);
-  }
-
+export const createParseSource = async (): Promise<ParseSource> => {
+  await loadHighlighter();
   return parseSource;
 };
 
-/**
- * Returns the shared Starry Night instance after registering every grammar.
- *
- * Inline highlighting can follow code that initialized a lazy subset, so it must
- * initialize the complete registry before using the shared instance.
- */
-export async function getStarryNightInstance(): Promise<StarryNight> {
-  await createParseSource();
-  const instance = getInstance();
-  if (!instance) {
-    throw new Error('Starry Night failed to initialize.');
-  }
-  return instance;
+/** Returns the shared highlighting engine, loading it first if needed. */
+export async function getHighlighter(): Promise<Highlighter> {
+  return loadHighlighter();
 }
 
 /**
- * Clears the global Starry Night singleton and registration state. Intended for
- * tests exercising lazy registration from a known-empty registry.
+ * Clears the global highlighter singleton. Intended for tests exercising
+ * loading from a known-empty state.
  */
-export function resetStarryNight(): void {
+export function resetHighlighter(): void {
   const globals = globalThis as Record<string, unknown>;
-  globals[STARRY_NIGHT_KEY] = undefined;
-  globals[STARRY_NIGHT_STATE_KEY] = undefined;
+  globals[HIGHLIGHTER_KEY] = undefined;
+  globals[HIGHLIGHTER_LOAD_KEY] = undefined;
 }

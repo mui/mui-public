@@ -3,6 +3,8 @@ import { unified } from 'unified';
 import rehypeParse from 'rehype-parse';
 import rehypeStringify from 'rehype-stringify';
 import enhanceCodeTypes from './enhanceCodeTypes';
+import transformHtmlCodeInline from '../transformHtmlCodeInline';
+import { createParseSource } from '../parseSource';
 import type { ModuleLinkMapEntry } from './scanState';
 
 describe('enhanceCodeTypes', () => {
@@ -607,7 +609,7 @@ describe('enhanceCodeTypes', () => {
 
     describe('type definition properties (pl-v spans)', () => {
       it('wraps pl-v property names with id spans (definitions)', async () => {
-        // Matches starry-night output for: type Item = { label: string; };
+        // Matches highlighted output for: type Item = { label: string; };
         const input =
           '<code class="language-tsx"><span class="pl-k">type</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">string</span>; };</code>';
         const linkMap = { Item: '#item' };
@@ -694,7 +696,7 @@ describe('enhanceCodeTypes', () => {
 
     describe('object literal properties (plain text)', () => {
       it('wraps plain text property names before colons', async () => {
-        // Matches starry-night output for: const item: Item = { label: "hello" };
+        // Matches highlighted output for: const item: Item = { label: "hello" };
         // Note: in object literals, property names are plain text (not in spans)
         const input =
           '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">item</span><span class="pl-k">:</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> };</code>';
@@ -749,7 +751,7 @@ describe('enhanceCodeTypes', () => {
 
     describe('function call properties (plain text)', () => {
       it('wraps properties in function call object arguments', async () => {
-        // Matches starry-night output for: makeItem({ label: "hello" });
+        // Matches highlighted output for: makeItem({ label: "hello" });
         const input =
           '<code class="language-js"><span class="pl-en">makeItem</span>({ label: <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> });</code>';
         const linkMap = { makeItem: '#make-item' };
@@ -905,7 +907,7 @@ describe('enhanceCodeTypes', () => {
 
     describe('JSX component properties (pl-e spans)', () => {
       it('wraps pl-e attribute names with anchors', async () => {
-        // Matches starry-night output for: <Card label="hello" />
+        // Matches highlighted output for: <Card label="hello" />
         const input =
           '<code class="language-tsx">&#x3C;<span class="pl-c1">Card</span> <span class="pl-e">label</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> /></code>';
         const linkMap = { Card: '#card' };
@@ -1194,7 +1196,7 @@ describe('enhanceCodeTypes', () => {
 
     describe('property detection priority', () => {
       it('prefers highlighted span over plain text when both could match', async () => {
-        // If a future starry-night version highlights object literal props as pl-v,
+        // If the highlighter marks object literal props as pl-v,
         // the span detection should take priority over text parsing
         const input =
           '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">item</span><span class="pl-k">:</span> <span class="pl-en">Item</span> <span class="pl-k">=</span> { <span class="pl-v">label</span><span class="pl-k">:</span> <span class="pl-c1">5</span> };</code>';
@@ -2258,7 +2260,7 @@ describe('enhanceCodeTypes', () => {
     describe('type annotation with arrow function (reference site)', () => {
       it('links params positionally via linkMap[Owner[N]]', async () => {
         // const cb: Callback = (d) => {}
-        // starry-night: const is pl-k, cb is pl-c1, : is pl-k, Callback is pl-en, = is pl-k, ( d ) => {}
+        // Highlighted: const is pl-k, cb is pl-c1, : is pl-k, Callback is pl-en, = is pl-k, ( d ) => {}
         const input =
           '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">cb</span><span class="pl-k">:</span> <span class="pl-en">Callback</span> <span class="pl-k">=</span> (<span class="pl-v">d</span>) <span class="pl-k">=&gt;</span> {}</code>';
         const linkMap = { Callback: '#callback', 'Callback[0]': '#callback:details' };
@@ -4750,6 +4752,23 @@ describe('enhanceCodeTypes', () => {
     });
 
     describe('template literals', () => {
+      it.each(['js', 'ts', 'tsx'])(
+        'resolves an interpolated variable in highlighted %s output',
+        async (language) => {
+          await createParseSource();
+          const result = await unified()
+            .use(rehypeParse, { fragment: true })
+            .use(transformHtmlCodeInline)
+            .use(enhanceCodeTypes, { linkMap: { js: {} }, linkScope: true, linkValues: true })
+            .use(rehypeStringify)
+            .process(
+              `<code class="language-${language}">const a = 'world'; const x = \`hello \${a}\`; x</code>`,
+            );
+
+          expect(String(result)).toContain('data-value="&#x27;hello world&#x27;"');
+        },
+      );
+
       it('tracks a simple template literal (no interpolation) as a string value', async () => {
         // const x = `hello`; x
         const input =
@@ -4774,9 +4793,9 @@ describe('enhanceCodeTypes', () => {
           '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> ' +
           '<span class="pl-s">' +
           '<span class="pl-pds">`</span>hello ' +
-          '<span class="pl-pse"><span class="pl-s1">${</span></span>' +
-          '<span class="pl-s1">a</span>' +
-          '<span class="pl-pse"><span class="pl-s1">}</span></span>' +
+          '<span class="di-te"><span class="di-td">${</span>' +
+          '<span class="pl-smi">a</span>' +
+          '<span class="di-td">}</span></span>' +
           '<span class="pl-pds">`</span>' +
           '</span>; ' +
           '<span class="pl-smi">x</span>' +
@@ -4796,9 +4815,9 @@ describe('enhanceCodeTypes', () => {
           '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> ' +
           '<span class="pl-s">' +
           '<span class="pl-pds">`</span>prefix-' +
-          '<span class="pl-pse"><span class="pl-s1">${</span></span>' +
-          '<span class="pl-s1">name</span>' +
-          '<span class="pl-pse"><span class="pl-s1">}</span></span>' +
+          '<span class="di-te"><span class="di-td">${</span>' +
+          '<span class="pl-smi">name</span>' +
+          '<span class="di-td">}</span></span>' +
           '-suffix<span class="pl-pds">`</span>' +
           '</span>; ' +
           '<span class="pl-smi">x</span>' +
@@ -4820,11 +4839,11 @@ describe('enhanceCodeTypes', () => {
           '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> ' +
           '<span class="pl-s">' +
           '<span class="pl-pds">`</span>hello ' +
-          '<span class="pl-pse"><span class="pl-s1">${</span></span>' +
+          '<span class="di-te"><span class="di-td">${</span>' +
           ' ' +
-          '<span class="pl-s1">name</span>' +
+          '<span class="pl-smi">name</span>' +
           ' ' +
-          '<span class="pl-pse"><span class="pl-s1">}</span></span>' +
+          '<span class="di-td">}</span></span>' +
           '<span class="pl-pds">`</span>' +
           '</span>; ' +
           '<span class="pl-smi">x</span>' +
@@ -4845,9 +4864,9 @@ describe('enhanceCodeTypes', () => {
           '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> ' +
           '<span class="pl-s">' +
           '<span class="pl-pds">`</span>hello ' +
-          '<span class="pl-pse"><span class="pl-s1">${</span></span>' +
-          '<span class="pl-s1"> name </span>' +
-          '<span class="pl-pse"><span class="pl-s1">}</span></span>' +
+          '<span class="di-te"><span class="di-td">${</span>' +
+          '<span class="pl-smi"> name </span>' +
+          '<span class="di-td">}</span></span>' +
           '<span class="pl-pds">`</span>' +
           '</span>; ' +
           '<span class="pl-smi">x</span>' +
@@ -4868,9 +4887,9 @@ describe('enhanceCodeTypes', () => {
           '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> ' +
           '<span class="pl-s">' +
           '<span class="pl-pds">`</span>hello ' +
-          '<span class="pl-pse"><span class="pl-s1">${</span></span>' +
-          '<span class="pl-s1">a</span>' +
-          '<span class="pl-pse"><span class="pl-s1">}</span></span>' +
+          '<span class="di-te"><span class="di-td">${</span>' +
+          '<span class="pl-smi">a</span>' +
+          '<span class="di-td">}</span></span>' +
           '<span class="pl-pds">`</span>' +
           '</span> ' +
           '<span class="pl-c">// comment</span>\n' +
@@ -4892,11 +4911,9 @@ describe('enhanceCodeTypes', () => {
           '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> ' +
           '<span class="pl-s">' +
           '<span class="pl-pds">`</span>' +
-          '<span class="pl-pse"><span class="pl-s1">${</span></span>' +
-          '<span class="pl-s1">a </span>' +
-          '<span class="pl-k">+</span>' +
-          '<span class="pl-s1"> b</span>' +
-          '<span class="pl-pse"><span class="pl-s1">}</span></span>' +
+          '<span class="di-te"><span class="di-td">${</span>' +
+          '<span class="pl-smi">a</span> <span class="pl-k di-pu">+</span> <span class="pl-smi">b</span>' +
+          '<span class="di-td">}</span></span>' +
           '<span class="pl-pds">`</span>' +
           '</span>; ' +
           '<span class="pl-smi">x</span>' +
@@ -4915,11 +4932,9 @@ describe('enhanceCodeTypes', () => {
           '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> ' +
           '<span class="pl-s">' +
           '<span class="pl-pds">`</span>' +
-          '<span class="pl-pse"><span class="pl-s1">${</span></span>' +
-          '<span class="pl-smi">obj</span>' +
-          '<span class="pl-s1">.</span>' +
-          '<span class="pl-smi">prop</span>' +
-          '<span class="pl-pse"><span class="pl-s1">}</span></span>' +
+          '<span class="di-te"><span class="di-td">${</span>' +
+          '<span class="pl-smi">obj</span>.<span class="pl-smi">prop</span>' +
+          '<span class="di-td">}</span></span>' +
           '<span class="pl-pds">`</span>' +
           '</span>; ' +
           '<span class="pl-smi">x</span>' +
@@ -5236,7 +5251,7 @@ describe('enhanceCodeTypes', () => {
       return JSON.parse(match.replace(/&#x22;/g, '"'));
     }
 
-    // HTML building blocks for import statements (matching Starry Night output):
+    // HTML building blocks for import statements (matching highlighted output):
     // pl-k: keywords (import, from, as, type, default)
     // pl-smi: identifiers (named/default/namespace imports AND variable references)
     // pl-s: string literal (module specifier), pl-pds: quote delimiters

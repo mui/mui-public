@@ -1,5 +1,4 @@
 import type { Element, ElementContent, Text } from 'hast';
-import { getHastTextContent } from '../loadServerTypes/hastTypeUtils';
 import type { LanguageCapabilities } from './getLanguageCapabilities';
 import type { ScanState, ScopeBinding, ModuleLinkMapEntry } from './scanState';
 import {
@@ -544,7 +543,7 @@ export function enhanceChildren(
       }
 
       // Import identifier collection: pl-smi spans inside an import statement
-      // are imported names (Starry Night tokenizes them as pl-smi, not pl-c1).
+      // are imported names (the highlighter tokenizes them as pl-smi, not pl-c1).
       if (moduleLinkMap && isSmiSpan(node) && state.sawJsImportKeyword) {
         collectImportIdentifier(getTextContent(node), state);
         newChildren.push(node);
@@ -1035,7 +1034,7 @@ function updateStateForEntity(
 
   // Import identifier collection: when inside an import statement,
   // identifier spans are imported names — collect them and skip other processing.
-  // Starry Night tokenizes import identifiers as pl-smi; pl-c1 is kept as a
+  // The highlighter tokenizes import identifiers as pl-smi; pl-c1 is kept as a
   // fallback for robustness.
   if ((isC1 || className?.includes('pl-smi')) && state.sawJsImportKeyword) {
     collectImportIdentifier(text, state);
@@ -1877,41 +1876,35 @@ function extractStringLiteralValue(node: Element): string | null {
 }
 
 /**
- * Checks whether a pl-s span is a template literal with interpolations.
- * Looks for a backtick pl-pds delimiter and pl-pse interpolation boundaries.
- *
- * Starry-night renders template literal interpolations as:
- *   `<span class="pl-pse"><span class="pl-s1">${</span></span>`
- *   `<span class="pl-s1">name</span>`
- *   `<span class="pl-pse"><span class="pl-s1">}</span></span>`
+ * Checks whether a pl-s span is a template literal with interpolations: a
+ * backtick pl-pds delimiter plus at least one `di-te` interpolation region
+ * (added by `extendSyntaxTokens`).
  */
 function isTemplateLiteralWithInterpolations(node: Element): boolean {
   let hasBacktick = false;
-  let hasPse = false;
+  let hasInterpolation = false;
   for (const child of node.children) {
     if (child.type === 'element') {
       const cls = getClassName(child);
       if (cls?.includes('pl-pds') && getTextContent(child) === '`') {
         hasBacktick = true;
       }
-      if (cls?.includes('pl-pse')) {
-        hasPse = true;
+      if (cls?.includes('di-te')) {
+        hasInterpolation = true;
       }
     }
   }
-  return hasBacktick && hasPse;
+  return hasBacktick && hasInterpolation;
 }
 
 /**
  * Extracts expression tokens from a template literal with interpolations.
  *
- * Parses the pl-s span children based on starry-night's HAST structure:
- * - Text nodes between pl-pds/pl-pse become string tokens
- * - `pl-pse` elements with `${` / `}` delimit interpolation regions
- * - Inside interpolation regions, simple `pl-s1` identifiers become
- *   variable tokens resolved against the scope stack
- * - Whitespace-only text inside interpolation is ignored so `${ name }`
- *   remains trackable across tokenization variants
+ * Parses the pl-s span children:
+ * - Text nodes outside interpolations become string tokens
+ * - Each `di-te` span is one `${ ... }` region, delimited by `di-td` spans
+ * - Inside a region, a single `pl-smi` identifier becomes a variable token
+ *   resolved against the scope stack; surrounding whitespace is ignored
  *
  * Returns null for complex interpolations (expressions, member access, etc.)
  * since those cannot be tracked.
@@ -1930,87 +1923,56 @@ function extractTemplateLiteralTokens(
     ref?: string;
   }> = [];
 
-  let inInterpolation = false;
-  // Count non-delimiter elements seen inside current interpolation
-  let interpolationContentCount = 0;
+  const push = (token: (typeof tokens)[number]) => {
+    if (tokens.length > 0) {
+      tokens.push({ kind: 'operator', value: '+' });
+    }
+    tokens.push(token);
+  };
 
   for (const child of node.children) {
     if (child.type === 'text') {
-      // Plain text outside interpolation → string token
-      if (!inInterpolation && child.value.length > 0) {
-        if (tokens.length > 0) {
-          tokens.push({ kind: 'operator', value: '+' });
-        }
-        tokens.push({ kind: 'string', value: `'${child.value.replace(/'/g, "\\'")}'` });
-      }
-      // Ignore whitespace-only text inside interpolation so `${ name }`
-      // works regardless of whether the highlighter emits spaces as text nodes
-      if (inInterpolation && child.value.trim().length > 0) {
-        return null;
+      if (child.value.length > 0) {
+        push({ kind: 'string', value: `'${child.value.replace(/'/g, "\\'")}'` });
       }
       continue;
     }
-
     if (child.type !== 'element') {
       continue;
     }
-
     const cls = getClassName(child);
-    if (!cls) {
+    if (!cls?.includes('di-te')) {
       continue;
     }
 
-    // Backtick delimiters — skip
-    if (cls.includes('pl-pds')) {
-      continue;
+    const content = child.children.filter(
+      (part) =>
+        !(part.type === 'element' && getClassName(part)?.includes('di-td')) &&
+        !(part.type === 'text' && part.value.trim().length === 0),
+    );
+    const identifier = content[0];
+    if (
+      content.length !== 1 ||
+      identifier.type !== 'element' ||
+      !getClassName(identifier)?.includes('pl-smi')
+    ) {
+      return null;
+    }
+    const varName = getTextContent(identifier).trim();
+    if (varName.length === 0) {
+      return null;
     }
 
-    // Interpolation boundary: pl-pse wrapping `${` or `}`
-    if (cls.includes('pl-pse')) {
-      const delimText = getHastTextContent(child);
-      if (delimText === '${') {
-        inInterpolation = true;
-        interpolationContentCount = 0;
-      } else if (delimText === '}') {
-        inInterpolation = false;
-      }
-      continue;
+    const resolved = resolveFromScope(state, varName, true);
+    if (resolved) {
+      push(tokenFromLiteral(resolved));
+    } else {
+      push({
+        kind: 'variable',
+        value: varName,
+        ref: resolveRefFromScope(state, varName) ?? undefined,
+      });
     }
-
-    if (inInterpolation) {
-      interpolationContentCount += 1;
-      if (interpolationContentCount > 1) {
-        // Complex interpolation (e.g., member access `obj.prop`) — bail
-        return null;
-      }
-      // Simple identifier inside interpolation: pl-s1 or pl-smi
-      if (!cls.includes('pl-s1') && !cls.includes('pl-smi')) {
-        // Unexpected element type in interpolation — bail
-        return null;
-      }
-      const varName = getTextContent(child).trim();
-      if (varName.length === 0) {
-        return null;
-      }
-
-      // Try to resolve as a tracked value
-      const resolved = resolveFromScope(state, varName, true);
-      if (resolved) {
-        const tok = tokenFromLiteral(resolved);
-        if (tokens.length > 0) {
-          tokens.push({ kind: 'operator', value: '+' });
-        }
-        tokens.push(tok);
-      } else {
-        // Check for a type/prop/param ref
-        const ref = resolveRefFromScope(state, varName) ?? undefined;
-        if (tokens.length > 0) {
-          tokens.push({ kind: 'operator', value: '+' });
-        }
-        tokens.push({ kind: 'variable', value: varName, ref });
-      }
-    }
-    // Elements outside interpolation that aren't pl-pds — ignore
   }
 
   return tokens.length > 0 ? tokens : null;

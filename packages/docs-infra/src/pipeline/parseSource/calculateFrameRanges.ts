@@ -470,7 +470,7 @@ function calculateAutoFocusFrames({
  * @param totalLines - Total number of lines in the code block
  * @param options - Optional padding configuration
  * @param normalFrameMaxSize - Maximum lines per normal frame. Read from `hast.data.frameSize`
- *   (set by `starryNightGutter` when it splits a tree into multiple frames) so that emphasis
+ *   (set by `addLineGutters` when it splits a tree into multiple frames) so that emphasis
  *   reframing matches the original gutter split size.
  * @returns Ordered array of frame ranges covering all lines
  */

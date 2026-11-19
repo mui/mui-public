@@ -1,7 +1,5 @@
 import type { Code, ControlledCode, HastRoot, ParseSource, VariantSource } from './types';
 import type { PreParsedCacheEntry } from './CodeHighlighterContext';
-import { isGrammarRegistered } from '../pipeline/parseSource/grammarCache';
-import { resolveGrammarScope } from '../pipeline/parseSource/grammarMaps';
 
 /**
  * Cache key for a parsed file. Qualified by variant so two variants that share a
@@ -37,12 +35,8 @@ export function parseControlledCode(
    */
   const resolveSource = (variant: string, fileName: string, source: string): HastRoot | string => {
     const key = preParsedCacheKey(variant, fileName);
-    const grammarScope = resolveGrammarScope(fileName);
-    // An existing parser missing this file's grammar returns valid-looking plain HAST.
-    // Do not retain that temporary fallback across the grammar-readiness rerender.
-    const cacheable = !grammarScope || isGrammarRegistered(grammarScope) !== false;
     const entry = preParsedCache?.get(key);
-    if (entry && cacheable) {
+    if (entry) {
       if (entry.source === source) {
         return entry.hast;
       }
@@ -50,9 +44,7 @@ export function parseControlledCode(
     }
     try {
       const hast = parseSource(source, fileName);
-      if (cacheable) {
-        preParsedCache?.set(key, { source, hast });
-      }
+      preParsedCache?.set(key, { source, hast });
       return hast;
     } catch {
       return source;

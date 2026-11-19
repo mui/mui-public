@@ -6,7 +6,11 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { HastRoot } from '../CodeHighlighter/types';
 import { CodeContext } from '../CodeProvider/CodeContext';
-import { createParseSource, resetStarryNight } from '../pipeline/parseSource/parseSource';
+import {
+  createParseSource,
+  parseSource,
+  resetHighlighter,
+} from '../pipeline/parseSource/parseSource';
 import { CodeEditor } from './CodeEditor';
 
 function deferred<T>() {
@@ -179,9 +183,8 @@ describe('CodeEditor', () => {
     );
   });
 
-  it('registers a cold grammar before highlighting an editable file', async () => {
-    resetStarryNight();
-    const parseSource = await createParseSource([]);
+  it('loads the highlighter before highlighting an editable file', async () => {
+    resetHighlighter();
     const fallback = (
       <pre data-testid="highlighted-fallback">
         <code>
@@ -191,9 +194,7 @@ describe('CodeEditor', () => {
     );
 
     const { container } = render(
-      <CodeContext.Provider
-        value={{ parseSource, loadSourceParser: () => Promise.resolve(parseSource) }}
-      >
+      <CodeContext.Provider value={{ parseSource, loadSourceParser: () => createParseSource() }}>
         <CodeEditor
           source=".root { color: red; }"
           fileName="styles.css"
@@ -209,7 +210,7 @@ describe('CodeEditor', () => {
       // eslint-disable-next-line testing-library/no-container -- the highlight layer is intentionally aria-hidden
       expect(container.querySelector('pre[aria-hidden="true"] [class*="pl-"]')).not.toBeNull(),
     );
-    resetStarryNight();
+    resetHighlighter();
   });
 
   it('ignores stale asynchronous highlight results after a later edit', async () => {

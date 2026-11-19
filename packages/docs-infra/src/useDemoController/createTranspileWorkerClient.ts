@@ -34,8 +34,8 @@ export interface TranspileWorkerClient {
  * posting to a worker that will never reply. The owner (`transpileClientSingleton`)
  * uses `onFatal` to swap in the main-thread transpile so editing keeps working.
  *
- * Mirrors `CodeProvider/createParseSourceWorkerClient` — minus the grammar
- * init/register handshake, since transpilation is stateless.
+ * Mirrors `CodeProvider/createParseSourceWorkerClient` — minus the
+ * `init` handshake, since transpilation is stateless.
  */
 export function createTranspileWorkerClient(
   onFatal?: (error: Error) => void,

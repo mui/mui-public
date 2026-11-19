@@ -8,7 +8,7 @@ const INDENT_SIZE = 2;
  * Returns the number of leading space characters before the first
  * non-space character, or -1 if the line is empty/whitespace-only.
  * Only counts space characters. Tab indentation is not supported
- * since the input is HAST output from starry-night which uses spaces.
+ * since the input is highlighted HAST, whose indentation is spaces.
  */
 function countLeadingSpaces(element: Element): number {
   let spaces = 0;

@@ -30,7 +30,7 @@ import { createTransformedFiles } from '../useCode/TransformEngine';
 // re-enhancement path has it with no fetch (zero-latency invariant).
 import { enhanceCodeEmphasis } from '../pipeline/enhanceCodeEmphasis';
 
-// Eager: the Starry Night engine is bundled, so the parser is created synchronously.
+// Eager: the highlighting engine is bundled, so the parser is created synchronously.
 const createSourceParserEager = () => createParseSource();
 
 // Eager accessors: the function is already bundled, so the accessor resolves

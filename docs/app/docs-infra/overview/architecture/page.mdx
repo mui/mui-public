@@ -16,7 +16,7 @@ The package is built around one core principle: **move locally-derived computati
 │         │                   │                   │               │
 │         ▼                   ▼                   ▼               │
 │  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐       │
-│  │ typescript-  │    │ Starry Night │    │    Remark    │       │
+│  │ typescript-  │    │  highlights  │    │    Remark    │       │
 │  │api-extractor │    │ Highlighter  │    │   Plugins    │       │
 │  └──────┬───────┘    └──────┬───────┘    └──────┬───────┘       │
 │         │                   │                   │               │
@@ -76,8 +76,8 @@ demos/basic/index.ts (createDemo call)
          │
          ▼
     ┌─────────┐
-    │ Starry  │  Syntax highlight with grammar scopes
-    │  Night  │  Add line gutters
+    │Highlight│  Syntax highlight by language
+    │ Source  │  Add line gutters
     └────┬────┘
          │
          ▼
@@ -99,7 +99,7 @@ demos/basic/index.ts (createDemo call)
 **Key files:**
 
 - [loadPrecomputedCodeHighlighter](../../pipeline/load-precomputed-code-highlighter/page.mdx) - webpack loader
-- [parseSource](../../pipeline/parse-source/page.mdx) - Starry Night wrapper
+- [parseSource](../../pipeline/parse-source/page.mdx) - `@pierre/highlights` wrapper
 - [transformTypescriptToJavascript](../../pipeline/transform-typescript-to-javascript/page.mdx) - TS→JS transform
 
 ### Type Documentation Pipeline

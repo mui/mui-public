@@ -50,7 +50,7 @@ export const HAST_DICTIONARY = strToU8(
     '"type":"root"',
     '"type":"element"',
     '"type":"text"',
-    // Starry Night / Pretty Lights class names (full set)
+    // Pretty Lights (`pl-*`) class names (full set)
     'pl-c1',
     'pl-c2',
     'pl-c',

@@ -6,7 +6,7 @@ The `CodeProvider` component provides client-side functions for fetching source 
 
 ## Features
 
-- **Client-side syntax highlighting** with support for multiple languages using [Starry Night](https://github.com/wooorm/starry-night)
+- **Client-side syntax highlighting** with support for multiple languages using [`@pierre/highlights`](https://diffs.com/highlights)
 - **Dynamic code fetching** from external sources or APIs
 - **Context-based API** for sharing highlighting functions across components
 - **Custom loading functions** for different code sources
@@ -137,10 +137,10 @@ When the runtime is a browser that supports Web Workers, `CodeProvider` automati
 
 ### Lifecycle
 
-1. The provider creates the worker **lazily**, on the first editable block (when `CodeHighlighter` calls the context's `ensureParseSourceWorker` with that block's grammar scopes) — not on mount. A read-only page never spins one up.
-2. The worker module and the per-language grammar chunks are fetched via dynamic `import(...)`, so neither ships in SSR bundles and neither blocks first paint.
-3. Only the editable block's grammar scopes are sent across the boundary via `postMessage` (not all of them). The worker calls `createStarryNight(grammars)` and acknowledges with `init-ack`. If grammar creation throws, the worker posts `init-error` and every queued parse request rejects.
-4. While initialization is in flight, parse requests are queued and drained in arrival order on `init-ack`. If a later editable block needs a language the worker wasn't initialized with, the provider sends a `register` message (acknowledged with `register-ack`) to add it without recreating the worker.
+1. The provider creates the worker **lazily**, on the first editable block (when `CodeHighlighter` calls the context's `ensureParseSourceWorker`) — not on mount. A read-only page never spins one up.
+2. The worker module and the highlighting engine are fetched via dynamic `import(...)`, so neither ships in SSR bundles and neither blocks first paint.
+3. The provider posts an `init` message. The worker loads the highlighting engine, which includes every supported language, and acknowledges with `init-ack`. If loading throws, the worker posts `init-error` and every queued parse request rejects.
+4. While initialization is in flight, parse requests are queued and drained in arrival order on `init-ack`. Later editable blocks reuse the same worker.
 5. On unmount the worker is terminated; any still-pending requests reject with `Worker terminated`.
 
 ### Cancellation
@@ -152,51 +152,28 @@ Each parse request accepts an optional `AbortSignal`. When a newer keystroke sup
 The worker integration is fully automatic — no opt-in is required. A consumer that wraps an editable code block in `CodeProvider` will see worker-backed highlighting as long as `Worker` is defined and the editable's host (typically [`useCode`](../../hooks/use-code/page.mdx)) provides a `setSource` callback. Until the worker is ready, or when it is unavailable, the editor displays escaped plain text.
 
 > [!NOTE]
-> The worker is initialized with only the editable block's grammar scopes, the same per-language chunks the main-thread `parseSource` loads (see [Per-language grammar loading](#per-language-grammar-loading)). The browser dedupes the chunk fetch across the worker and main thread, so enabling the worker does not double the grammar download cost.
+> The worker loads the same engine chunk as the main-thread `parseSource` (see [Lazy highlighting engine](#lazy-highlighting-engine)). The browser dedupes the chunk fetch across the worker and main thread, so enabling the worker does not double the download cost.
 
-## Per-language grammar loading
+## Lazy highlighting engine
 
-Syntax-highlighting grammars (TextMate JSON for each language) are the heaviest
-part of client-side highlighting — all ten together are roughly **146 KB
-gzipped**. Under `CodeProviderLazy` they are loaded **per language and on
-demand**, so a block only fetches the grammars it actually needs:
+Client-side highlighting runs on [`@pierre/highlights`](https://diffs.com/highlights),
+one WebAssembly module (~150&nbsp;KB gzip) that includes every supported
+language. Under `CodeProviderLazy` it loads **on demand**, the first time a
+block highlights client-side:
 
 - A read-only block that ships precomputed (already-highlighted) HAST never
-  highlights client-side, so it loads **no grammar at all**.
-- A block that highlights client-side loads only its languages' chunks — a
-  `tsx`+`css` block fetches ~45 KB instead of ~146 KB.
+  highlights client-side, so it loads **no engine at all**.
+- The first block that highlights client-side loads the engine once; every
+  language is then available to every block on the page.
 
-`CodeHighlighter` detects the grammar scopes a block needs from its variants'
-file extensions and `language` props, and speculatively preloads them on first
-render — in parallel with the content — so they are usually ready before the
-block parses. A block keeps showing its fallback until its grammars land (rather
-than flashing un-highlighted text), then highlights. Languages discovered later
-(for example, a variant fetched from a URL) are loaded on demand the same way.
+`CodeHighlighter` speculatively preloads the engine on first render when a block
+will highlight client-side — in parallel with the content — so it is usually ready before the
+block parses. A block keeps showing its fallback until the engine lands (rather
+than flashing un-highlighted text), then highlights.
 
 > [!NOTE]
-> The eager `CodeProvider` bundles all grammars (no per-request fetch), so this
-> per-language behavior applies to `CodeProviderLazy`.
-
-### Preloading grammars at the provider level
-
-By default each block loads its own grammars on demand. If a layout knows the
-languages it will render, `CodeProviderLazy` accepts a `preloadGrammars` prop to
-warm them at the provider level instead — a list of language names (`'tsx'`,
-`'css'`) or scope names (`'source.tsx'`), or `'all'` to fetch the single grammar
-barrel up front:
-
-```tsx
-import { CodeProviderLazy } from '@mui/internal-docs-infra/CodeProvider';
-
-export default function Layout({ children }) {
-  // Warm just the languages this docs section uses.
-  return <CodeProviderLazy preloadGrammars={['tsx', 'css']}>{children}</CodeProviderLazy>;
-}
-```
-
-Use a list when a section renders a fixed, small set of languages; use `'all'`
-when it renders many languages and a single upfront fetch beats many
-per-language chunks. Omit it (the default) to keep grammars fully lazy.
+> The eager `CodeProvider` bundles the engine (no per-request fetch), so this
+> on-demand behavior applies to `CodeProviderLazy`.
 
 ## Best Practices
 
@@ -242,10 +219,9 @@ synchronously and these functions only run in effects after the first paint —
 post-swap transforms for the loaders/delta computer, and effects once a block
 becomes editable for the editor and source-state helpers. The synchronous
 parser function and the HAST **decompression** path stay eager in both providers
-— but the syntax-highlighting **grammars** the parser needs (~146&nbsp;KB gzip
-for all ten) are loaded per-language and on demand under `CodeProviderLazy`, so a
-block only fetches the grammars for its languages and a precomputed read-only
-block fetches none (see [Per-language grammar loading](#per-language-grammar-loading)).
+— but the highlighting **engine** the parser needs (~150&nbsp;KB gzip, every
+language included) is loaded on demand under `CodeProviderLazy`, so a
+precomputed read-only block fetches none of it (see [Lazy highlighting engine](#lazy-highlighting-engine)).
 The emphasis enhancer stays eager **only** under the eager `CodeProvider` (so its
 synchronous client-side editing re-enhancement never waits); under
 `CodeProviderLazy` it is a lazy wrapper that a precomputed block skips without
@@ -307,7 +283,7 @@ export const metadata =
       'client-side highlighting',
       'lazy loading',
       'web worker',
-      'grammars',
+      'syntax highlighting',
       'bundle size',
       'preload',
     ],

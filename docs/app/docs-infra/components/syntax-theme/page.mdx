@@ -1,0 +1,120 @@
+# Syntax Theme
+
+A ready-made stylesheet for the `pl-*` and `di-*` token classes produced by [`parseSource`](../../pipeline/parse-source/page.mdx). Import it once to get GitHub-style syntax highlighting in light and dark mode, then override any color through CSS variables.
+
+## Usage
+
+Import the stylesheet once, for example in your root layout:
+
+```tsx
+import '@mui/internal-docs-infra/syntaxTheme.css';
+```
+
+Every code block rendered by [`CodeHighlighter`](../code-highlighter/page.mdx), and inline code highlighted by [`transformHtmlCodeInline`](../../pipeline/transform-html-code-inline/page.mdx), picks up the colors.
+
+import { DemoSyntaxThemeLightDark } from './demos/light-dark';
+
+<DemoSyntaxThemeLightDark />
+
+## Light and Dark Mode
+
+The colors follow GitHub's Prettylights light and dark palettes. The light palette applies by default, so pages without a dark mode need no setup. Switch palettes with a `data-color-scheme` attribute on any ancestor of the code:
+
+| `data-color-scheme` | Palette                                               |
+| :------------------ | :---------------------------------------------------- |
+| _(not set)_         | Light                                                 |
+| `light`             | Light                                                 |
+| `dark`              | Dark                                                  |
+| `system`            | Follows the operating system (`prefers-color-scheme`) |
+
+Set it on the root element to theme the whole page, typically from the same state that drives your dark-mode toggle:
+
+```html
+<html data-color-scheme="dark"></html>
+```
+
+The nearest ancestor wins, so a single block can use the other palette by setting the attribute on a wrapper element. The attribute only switches syntax colors; set the page background and the CSS `color-scheme` property in your own styles.
+
+## Customizing Colors
+
+Colors are CSS custom properties. The rules live in the `docs-infra.syntax` cascade layer and the variables are declared with zero specificity, so any declaration of your own takes precedence. Override a color for each palette you use:
+
+```css
+:root {
+  --color-docs-infra-syntax-keyword: #8250df;
+}
+
+[data-color-scheme='dark'] {
+  --color-docs-infra-syntax-keyword: #d2a8ff;
+}
+```
+
+Set a variable on any element to change the colors of the code inside it only.
+
+### Base Variables
+
+Each base variable colors one or more `pl-*` classes:
+
+| Variable                                                  | Classes                   | Light     | Dark      |
+| :-------------------------------------------------------- | :------------------------ | :-------- | :-------- |
+| `--color-docs-infra-syntax-comment`                       | `pl-c`                    | `#59636e` | `#9198a1` |
+| `--color-docs-infra-syntax-constant`                      | `pl-c1`                   | `#0550ae` | `#79c0ff` |
+| `--color-docs-infra-syntax-constant-other-reference-link` | `pl-corl`                 | `#0a3069` | `#a5d6ff` |
+| `--color-docs-infra-syntax-entity`                        | `pl-e`, `pl-en`           | `#6639ba` | `#d2a8ff` |
+| `--color-docs-infra-syntax-entity-tag`                    | `pl-ent`                  | `#0550ae` | `#7ee787` |
+| `--color-docs-infra-syntax-keyword`                       | `pl-k`                    | `#cf222e` | `#ff7b72` |
+| `--color-docs-infra-syntax-string`                        | `pl-s`, `pl-pds`, `pl-sr` | `#0a3069` | `#a5d6ff` |
+| `--color-docs-infra-syntax-string-regexp`                 | `pl-sr .pl-cce`           | `#116329` | `#7ee787` |
+| `--color-docs-infra-syntax-variable`                      | `pl-v`                    | `#953800` | `#ffa657` |
+| `--color-docs-infra-syntax-storage-modifier-import`       | `pl-smi`                  | `#1f2328` | `#f0f6fc` |
+| `--color-docs-infra-syntax-markup-heading`                | `pl-mh`                   | `#0550ae` | `#1f6feb` |
+| `--color-docs-infra-syntax-markup-list`                   | `pl-ml`                   | `#3b2300` | `#f2cc60` |
+| `--color-docs-infra-syntax-markup-deleted-text`           | `pl-md`                   | `#82071e` | `#ffdcd7` |
+| `--color-docs-infra-syntax-markup-deleted-bg`             | `pl-md`                   | `#ffebe9` | `#67060c` |
+| `--color-docs-infra-syntax-markup-inserted-text`          | `pl-mi1`                  | `#116329` | `#aff5b4` |
+| `--color-docs-infra-syntax-markup-inserted-bg`            | `pl-mi1`                  | `#dafbe1` | `#033a16` |
+| `--color-docs-infra-syntax-meta-diff-range`               | `pl-mdr`                  | `#8250df` | `#d2a8ff` |
+
+### Token Variables
+
+The [`di-*` classes](../../pipeline/parse-source/page.mdx#syntax-token-classes) refine a token's color. Their variables are not declared by default: each falls back to the base variable listed here, so changing a base color also changes the tokens that inherit it. Declare one to style that token on its own.
+
+| Variable                                        | Class     | Falls back to             |
+| :---------------------------------------------- | :-------- | :------------------------ |
+| `--color-docs-infra-syntax-number`              | `di-num`  | `constant`                |
+| `--color-docs-infra-syntax-boolean`             | `di-bool` | `constant`                |
+| `--color-docs-infra-syntax-nullish`             | `di-n`    | `comment`                 |
+| `--color-docs-infra-syntax-this`                | `di-this` | `keyword`                 |
+| `--color-docs-infra-syntax-builtin-type`        | `di-bt`   | `constant`                |
+| `--color-docs-infra-syntax-punctuation`         | `di-pu`   | `storage-modifier-import` |
+| `--color-docs-infra-syntax-object-property`     | `di-op`   | `constant`                |
+| `--color-docs-infra-syntax-property-string`     | `di-ps`   | `constant`                |
+| `--color-docs-infra-syntax-template-expression` | `di-te`   | `storage-modifier-import` |
+| `--color-docs-infra-syntax-template-delimiter`  | `di-td`   | `storage-modifier-import` |
+| `--color-docs-infra-syntax-jsx`                 | `di-jsx`  | `string-regexp`           |
+| `--color-docs-infra-syntax-jsx-variable`        | `di-jv`   | `variable`                |
+| `--color-docs-infra-syntax-jsx-tag`             | `di-jt`   | `string-regexp`           |
+| `--color-docs-infra-syntax-html-tag`            | `di-ht`   | `entity-tag`              |
+| `--color-docs-infra-syntax-attr-key`            | `di-ak`   | `constant`                |
+| `--color-docs-infra-syntax-attr-equals`         | `di-ae`   | `storage-modifier-import` |
+| `--color-docs-infra-syntax-attr-value`          | `di-av`   | `string`                  |
+| `--color-docs-infra-syntax-data-attr`           | `di-da`   | `constant`                |
+| `--color-docs-infra-syntax-css-property`        | `di-cp`   | `constant`                |
+| `--color-docs-infra-syntax-css-value`           | `di-cv`   | `constant`                |
+
+Identifiers in inline code (`code[data-inline] .pl-smi`) inherit the surrounding text color so they read as prose.
+
+## Writing Your Own Theme
+
+Skip the import and target the same classes directly. The [Syntax Token Classes](../../pipeline/parse-source/page.mdx#syntax-token-classes) reference lists every class `parseSource` emits.
+
+## Related
+
+- [`parseSource`](../../pipeline/parse-source/page.mdx): Produces the `pl-*` and `di-*` classes this theme styles
+- [`CodeHighlighter`](../code-highlighter/page.mdx): Renders highlighted code blocks
+- [`enhanceCodeInline`](../../pipeline/enhance-code-inline/page.mdx): Adds the inline-only `di-ht` and `di-jt` wrappers
+
+export const metadata =
+  /** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */ ({
+    keywords: ['syntax highlighting', 'theme', 'css variables', 'dark mode', 'color-scheme'],
+  });

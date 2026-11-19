@@ -4,7 +4,9 @@
   "author": "MUI Team",
   "description": "MUI Infra - internal documentation creation tools.",
   "license": "MIT",
-  "sideEffects": false,
+  "sideEffects": [
+    "*.css"
+  ],
   "bin": {
     "docs-infra": "./src/cli/index.ts"
   },
@@ -29,6 +31,7 @@
     "./createSitemap/types": "./src/createSitemap/types.ts",
     "./resolvePageUrl": "./src/resolvePageUrl/index.ts",
     "./routeGroups": "./src/pipeline/loaderUtils/stripRouteGroups.ts",
+    "./syntaxTheme.css": "./src/syntaxTheme/syntaxTheme.css",
     "./useStream": "./src/useStream/index.ts",
     "./useStream/types": "./src/useStream/types.ts",
     "./useCode": "./src/useCode/index.ts",
@@ -105,7 +108,7 @@
   },
   "homepage": "https://github.com/mui/mui-public/tree/master/packages/docs-infra",
   "scripts": {
-    "build": "code-infra build --tsgo --bundle esm",
+    "build": "code-infra build --tsgo --bundle esm --copy \"src/**/*.css\"",
     "release": "pnpm build && pnpm publish --no-git-checks",
     "test": "pnpm -w test --project @mui/internal-docs-infra",
     "test:watch": "pnpm -w test:watch --project @mui/internal-docs-infra",
@@ -121,7 +124,7 @@
     "@orama/orama": "^3.1.18",
     "@orama/plugin-qps": "^3.1.18",
     "@orama/stemmers": "^3.1.18",
-    "@wooorm/starry-night": "^3.11.0",
+    "@pierre/highlights": "0.5.1",
     "autoprefixer": "^10.6.2",
     "chalk": "^6.0.1",
     "es-toolkit": "^1.53.2",
@@ -153,7 +156,6 @@
     "uint8-to-base64": "^0.2.1",
     "unified": "^11.0.5",
     "unist-util-visit": "^5.2.0",
-    "vscode-oniguruma": "^2.0.1",
     "yargs": "^18.2.0",
     "zx": "^8.8.5"
   },

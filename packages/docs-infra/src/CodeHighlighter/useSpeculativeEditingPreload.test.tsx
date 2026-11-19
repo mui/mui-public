@@ -3,7 +3,7 @@
  *
  * Contract for the first-render speculative editing preload: when a block will
  * be editable (`enabled`), CodeHighlighterClient warms the textarea editor (and
- * grammars + worker) so they're in flight before the user edits. Timing follows
+ * highlighting engine + worker) so they're in flight before the user edits. Timing follows
  * `editActivation`: `'eager'` warms on mount; `'interaction'` warms only once the
  * block is `activated` (engaged). A read-only block (`enabled = false`) warms
  * nothing.
@@ -61,14 +61,11 @@ describe('useSpeculativeEditingPreload', () => {
     expect(codeEditorLoader).toHaveBeenCalled();
   });
 
-  it('warms the worker with the block grammar scopes once editable', () => {
+  it('warms the worker once editable', () => {
     const codeEditorLoader = vi.fn(async () => ({}) as never);
     const ensureParseSourceWorker = vi.fn();
-    setup({ enabled: true, scopes: ['source.tsx'] } as never, {
-      codeEditorLoader,
-      ensureParseSourceWorker,
-    });
-    expect(ensureParseSourceWorker).toHaveBeenCalledWith(['source.tsx']);
+    setup({ enabled: true }, { codeEditorLoader, ensureParseSourceWorker });
+    expect(ensureParseSourceWorker).toHaveBeenCalled();
   });
 
   it('does nothing (no throw) when no CodeProvider is present', () => {

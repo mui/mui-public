@@ -69,8 +69,8 @@ export function useCodeProviderValue(
   /**
    * Provider-supplied source-parser creator. Eager `CodeProvider` passes a
    * static `() => createParseSource()`; `CodeProviderLazy` passes a dynamic
-   * `() => import(...).then(m => m.createParseSource())` so the Starry Night
-   * regex engine (vscode-textmate + oniguruma) stays out of the initial bundle.
+   * `() => import(...).then(m => m.createParseSource())` so the highlighting
+   * engine (a WebAssembly module) stays out of the initial bundle.
    * Nothing loads until a consumer calls `loadSourceParser`, so there's no
    * first-render penalty.
    */
@@ -85,7 +85,7 @@ export function useCodeProviderValue(
   // Memoized per provider: the first call starts the load, every later call
   // returns that same promise. Nothing loads until a consumer asks.
   const loadSourceParser = React.useMemo(() => {
-    // Only initialize Starry Night in the browser, not during SSR.
+    // Only load the highlighter in the browser, not during SSR.
     if (typeof window === 'undefined') {
       return () =>
         Promise.resolve((() => {
@@ -125,65 +125,28 @@ export function useCodeProviderValue(
   }, [parserRequested, loadSourceParser]);
 
   // Worker for off-main-thread parsing during live editing. Created LAZILY on the
-  // first editable block (via `ensureParseSourceWorker`), not on mount, and
-  // initialized with only that block's grammar scopes — so a read-only page never
-  // spins up the worker or downloads grammar JSON for it. Browser-only; torn down
-  // on unmount. The worker client module is dynamically imported so the
-  // `new URL('./parseSourceWorker', import.meta.url)` call (which bundlers resolve
-  // to a separate worker chunk) never runs in SSR bundles.
+  // first editable block (via `ensureParseSourceWorker`), not on mount, so a
+  // read-only page never spins up the worker or loads the highlighting engine
+  // into it. Browser-only; torn down on unmount. The worker client module is
+  // dynamically imported so the `new URL('./parseSourceWorker', import.meta.url)`
+  // call (which bundlers resolve to a separate worker chunk) never runs in SSR
+  // bundles.
   const workerRef = React.useRef<ParseSourceWorkerClient | null>(null);
-  const workerSentScopesRef = React.useRef<Set<string>>(new Set());
-  const workerChainRef = React.useRef<Promise<void>>(Promise.resolve());
+  const workerPromiseRef = React.useRef<Promise<void> | null>(null);
   const workerCancelledRef = React.useRef(false);
 
-  const ensureParseSourceWorker = React.useCallback((scopes: string[]) => {
+  const ensureParseSourceWorker = React.useCallback(() => {
     if (typeof window === 'undefined' || typeof Worker === 'undefined') {
       return Promise.resolve();
     }
-    const needed = scopes.filter((scope) => !workerSentScopesRef.current.has(scope));
-    if (needed.length === 0) {
-      return workerChainRef.current;
+    // One worker per provider; concurrent calls share its creation.
+    if (workerPromiseRef.current) {
+      return workerPromiseRef.current;
     }
-    // Optimistically mark as sent; the serialized chain below does the actual
-    // send in order. Rolled back if the load/init/register fails.
-    needed.forEach((scope) => workerSentScopesRef.current.add(scope));
-    const rollback = () => needed.forEach((scope) => workerSentScopesRef.current.delete(scope));
-
-    // Serialize create/register so an early init completes before a later
-    // register, and concurrent calls never double-create the worker.
-    workerChainRef.current = workerChainRef.current.then(async () => {
-      if (workerCancelledRef.current) {
-        return;
-      }
-
-      // Share the per-scope grammar chunks the main thread uses; the bytes are
-      // postMessage'd into the worker so each grammar is fetched at most once.
-      let grammars;
-      try {
-        const { grammarLoaders } = await import('../pipeline/parseSource/grammarLoaders');
-        grammars = (await Promise.all(needed.map((scope) => grammarLoaders[scope]?.()))).filter(
-          (grammar): grammar is NonNullable<typeof grammar> => grammar != null,
-        );
-      } catch {
-        rollback();
-        return;
-      }
-      if (workerCancelledRef.current) {
-        return;
-      }
-
-      // Worker already exists — add the new grammars to it.
-      const existing = workerRef.current;
-      if (existing) {
-        try {
-          await existing.register(grammars);
-        } catch {
-          rollback();
-        }
-        return;
-      }
-
-      // First editable block — create the worker and initialize it.
+    const reset = () => {
+      workerPromiseRef.current = null;
+    };
+    workerPromiseRef.current = (async () => {
       let client: ParseSourceWorkerClient;
       try {
         const { createParseSourceWorkerClient } = await import('./createParseSourceWorkerClient');
@@ -194,16 +157,16 @@ export function useCodeProviderValue(
         // rejected — fall back to the synchronous highlighter.
         client = createParseSourceWorkerClient();
       } catch {
-        rollback();
+        reset();
         return;
       }
       workerRef.current = client;
       try {
-        await client.init(grammars);
+        await client.init();
       } catch {
         client.terminate();
         workerRef.current = null;
-        rollback();
+        reset();
         return;
       }
       if (workerCancelledRef.current) {
@@ -212,8 +175,8 @@ export function useCodeProviderValue(
         return;
       }
       setParseSourceAsync(() => client.parseSourceAsync);
-    });
-    return workerChainRef.current;
+    })();
+    return workerPromiseRef.current;
   }, []);
 
   React.useEffect(() => {
@@ -222,7 +185,7 @@ export function useCodeProviderValue(
       workerCancelledRef.current = true;
       workerRef.current?.terminate();
       workerRef.current = null;
-      workerSentScopesRef.current = new Set();
+      workerPromiseRef.current = null;
     };
   }, []);
 
@@ -246,7 +209,7 @@ export function useCodeProviderValue(
       // Eager synchronous parsers (small; on the sync render path).
       parseCode,
       parseControlledCode,
-      // Lazily spins up the live-editing worker with a block's grammar scopes.
+      // Lazily spins up the live-editing worker.
       ensureParseSourceWorker,
       // Provider-specific heavy-function provisioning (eager or lazy).
       ...heavyAccessors,

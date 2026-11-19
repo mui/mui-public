@@ -1,7 +1,4 @@
 import type { Root as HastRoot } from 'hast';
-import type { createStarryNight } from '@wooorm/starry-night';
-
-type Grammar = Parameters<typeof createStarryNight>[0][number];
 
 /**
  * Asynchronously parses source code into a HAST tree, typically off the main
@@ -25,9 +22,7 @@ type ParseResponse =
   | { type: 'parse'; id: number; ok: true; hast: HastRoot }
   | { type: 'parse'; id: number; ok: false; error: string }
   | { type: 'init-ack' }
-  | { type: 'init-error'; error: string }
-  | { type: 'register-ack' }
-  | { type: 'register-error'; error: string };
+  | { type: 'init-error'; error: string };
 
 type Pending = {
   resolve: (hast: HastRoot) => void;
@@ -38,18 +33,12 @@ type Pending = {
 
 export interface ParseSourceWorkerClient {
   /**
-   * Send the (heavy) grammar payload to the worker. Idempotent: subsequent
-   * calls return the same promise. Must be awaited (or composed via
+   * Load the highlighting engine in the worker. Idempotent: subsequent calls
+   * return the same promise. Must be awaited (or composed via
    * `parseSourceAsync`, which awaits it implicitly) before parse requests
    * will be processed.
    */
-  init(grammars: Grammar[]): Promise<void>;
-  /**
-   * Add more grammars to an already-initialized worker (the per-language path:
-   * a block becomes editable in a language the worker wasn't initialized with).
-   * Resolves on the worker's `register-ack`. Call after `init()`.
-   */
-  register(grammars: Grammar[]): Promise<void>;
+  init(): Promise<void>;
   /**
    * Async syntax-highlighter that runs inside the worker. Returns the same
    * HAST shape as the sync `parseSource`. If `signal` aborts before the
@@ -68,8 +57,8 @@ export interface ParseSourceWorkerClient {
  * requests are demuxed by a monotonically increasing `id`.
  *
  * If the worker dies unexpectedly (a load/parse failure, or a message that fails
- * to deserialize), every in-flight parse request and pending `init`/`register`
- * handshake is rejected and the client latches `dead`, so a crash surfaces as a
+ * to deserialize), every in-flight parse request and a pending `init` handshake
+ * is rejected and the client latches `dead`, so a crash surfaces as a
  * rejected promise (which the consumer already handles like an abort, falling back
  * to the synchronous highlighter) rather than a request that hangs forever.
  */
@@ -94,8 +83,8 @@ export function createParseSourceWorkerClient(): ParseSourceWorkerClient {
   // Latched once the worker dies or is terminated, so later calls reject immediately
   // rather than hanging on a worker that will never respond.
   let dead = false;
-  // Reject callbacks for in-flight `init()`/`register()` handshakes, so a worker
-  // crash can fail them too (they listen on their own one-shot listeners, not
+  // Reject callbacks for an in-flight `init()` handshake, so a worker crash can
+  // fail it too (they listen on their own one-shot listeners, not
   // `pending`). Each clears itself on settle.
   const handshakeRejecters = new Set<(reason: unknown) => void>();
 
@@ -114,7 +103,7 @@ export function createParseSourceWorkerClient(): ParseSourceWorkerClient {
   // The worker died unexpectedly — a load/parse failure, or a message that could not
   // be deserialized. (A parse that merely fails is reported as an `ok: false`
   // response, so it never reaches here.) Reject everything in flight — parse requests
-  // AND pending `init`/`register` handshakes — and latch `dead`; the consumer treats
+  // AND a pending `init` handshake — and latch `dead`; the consumer treats
   // the rejection like an abort and falls back to the synchronous highlighter.
   // Idempotent. (Unlike a crash, a deliberate `terminate()` leaves handshakes alone:
   // the component is unmounting, so a still-pending `init` is simply abandoned.)
@@ -133,14 +122,8 @@ export function createParseSourceWorkerClient(): ParseSourceWorkerClient {
 
   worker.addEventListener('message', (event: MessageEvent<ParseResponse>) => {
     const data = event.data;
-    if (
-      data.type === 'init-ack' ||
-      data.type === 'init-error' ||
-      data.type === 'register-ack' ||
-      data.type === 'register-error'
-    ) {
-      // `init()` / `register()` listen for these directly via their own
-      // one-shot listeners.
+    if (data.type === 'init-ack' || data.type === 'init-error') {
+      // `init()` listens for these directly via its own one-shot listener.
       return;
     }
     if (data.type === 'parse') {
@@ -167,7 +150,7 @@ export function createParseSourceWorkerClient(): ParseSourceWorkerClient {
     handleFatal(new Error('Parse worker received an undeserializable message'));
   });
 
-  function init(grammars: Grammar[]): Promise<void> {
+  function init(): Promise<void> {
     if (initPromise) {
       return initPromise;
     }
@@ -190,38 +173,14 @@ export function createParseSourceWorkerClient(): ParseSourceWorkerClient {
       }
       handshakeRejecters.add(reject);
       worker.addEventListener('message', onMessage);
-      worker.postMessage({ type: 'init', grammars });
+      worker.postMessage({ type: 'init' });
     });
     return initPromise;
   }
 
-  function register(grammars: Grammar[]): Promise<void> {
-    if (dead) {
-      return Promise.reject(new Error('Parse worker is no longer available'));
-    }
-    return new Promise<void>((resolve, reject) => {
-      const settle = () => {
-        handshakeRejecters.delete(reject);
-        worker.removeEventListener('message', onMessage);
-      };
-      function onMessage(event: MessageEvent<ParseResponse>) {
-        if (event.data.type === 'register-ack') {
-          settle();
-          resolve();
-        } else if (event.data.type === 'register-error') {
-          settle();
-          reject(new Error(event.data.error));
-        }
-      }
-      handshakeRejecters.add(reject);
-      worker.addEventListener('message', onMessage);
-      worker.postMessage({ type: 'register', grammars });
-    });
-  }
-
   const parseSourceAsync: ParseSourceAsync = async (source, fileName, language, signal) => {
     if (!initPromise) {
-      throw new Error('parseSourceAsync called before init(). Call client.init(grammars) first.');
+      throw new Error('parseSourceAsync called before init(). Call client.init() first.');
     }
     if (dead) {
       throw new Error('Parse worker is no longer available');
@@ -270,5 +229,5 @@ export function createParseSourceWorkerClient(): ParseSourceWorkerClient {
     rejectAllPending(new Error('Worker terminated'));
   }
 
-  return { init, register, parseSourceAsync, terminate };
+  return { init, parseSourceAsync, terminate };
 }
