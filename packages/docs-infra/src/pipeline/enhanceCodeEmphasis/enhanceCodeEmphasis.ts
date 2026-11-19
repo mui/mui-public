@@ -1424,7 +1424,7 @@ export function createEnhanceCodeEmphasis(
     const lineElements = buildLineElementMap(root);
     const totalLines = (root.data as { totalLines?: number })?.totalLines ?? lineElements.size;
 
-    // Read frameSize from HAST (set by addLineGutters when it splits frames)
+    // Read frameSize from HAST (set by starryNightGutter when it splits frames)
     // so emphasis reframing matches the original gutter split size
     const normalFrameMaxSize = root.data?.frameSize;
 

@@ -392,7 +392,7 @@ describe('compression dictionary matches the raw source for trailing-newline sou
   // the structured fallback then made `decodeHastSource` decode with the wrong
   // dictionary and throw — worked around by the `preserveExisting` guard.
   //
-  // Root fix (`addLineGutters`): the final frame's fallback now keeps the
+  // Root fix (`starryNightGutter`): the final frame's fallback now keeps the
   // trailing newline when the source ends with one, so `buildRootFallback`
   // matches the raw source EXACTLY. A hoisted raw fallback can no longer differ
   // from the dictionary the `hastCompressed` source was compressed with, so

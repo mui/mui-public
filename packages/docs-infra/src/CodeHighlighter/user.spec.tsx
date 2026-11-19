@@ -40,7 +40,7 @@ let parseSource: ParseSource;
 // `<Pre>` observes line/frame visibility; jsdom ships neither observer. Stub
 // them as no-ops so the rendered code commits (frames stay at their initial
 // visibility, which is all these tests assert against). Also warm the editing
-// engine and a real highlighting parser so the controlled-edit re-highlight
+// engine and a real Starry Night parser so the controlled-edit re-highlight
 // runs synchronously.
 beforeAll(async () => {
   class NoopObserver {

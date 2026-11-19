@@ -34,7 +34,7 @@ describe('transformHtmlCodeInline', () => {
   }
 
   describe('inline code highlighting in MDX documentation', () => {
-    it('highlights inline code when the highlighter was loaded lazily', async () => {
+    it('registers inline grammars when Starry Night was initialized lazily', async () => {
       resetHighlighter();
       await createParseSource([]);
 

@@ -91,7 +91,7 @@ describe('createParseSourceWorkerClient', () => {
     const initPromise = client.init([]);
     const worker = FakeWorker.instances[0];
 
-    expect(worker.posted).toEqual([{ type: 'init', scopes: [] }]);
+    expect(worker.posted).toEqual([{ type: 'init', grammars: [] }]);
 
     worker.respond({ type: 'init-ack' });
     await expect(initPromise).resolves.toBeUndefined();
@@ -129,7 +129,7 @@ describe('createParseSourceWorkerClient', () => {
 
     const registerPromise = client.register([]);
     // The register message follows the init message.
-    expect(worker.posted[1]).toEqual({ type: 'register', scopes: [] });
+    expect(worker.posted[1]).toEqual({ type: 'register', grammars: [] });
 
     worker.respond({ type: 'register-ack' });
     await expect(registerPromise).resolves.toBeUndefined();

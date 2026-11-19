@@ -139,8 +139,8 @@ When the runtime is a browser that supports Web Workers, `CodeProvider` automati
 
 1. The provider creates the worker **lazily**, on the first editable block (when `CodeHighlighter` calls the context's `ensureParseSourceWorker` with that block's grammar scopes) — not on mount. A read-only page never spins one up.
 2. The worker module and the highlighting engine are fetched via dynamic `import(...)`, so neither ships in SSR bundles and neither blocks first paint.
-3. The editable block's grammar scopes are sent across the boundary via `postMessage`. The worker loads the highlighting engine and acknowledges with `init-ack`. If loading throws, the worker posts `init-error` and every queued parse request rejects.
-4. While initialization is in flight, parse requests are queued and drained in arrival order on `init-ack`. When a later editable block uses another language, the provider sends a `register` message (acknowledged with `register-ack`) without recreating the worker.
+3. Only the editable block's grammar scopes are sent across the boundary via `postMessage` (not all of them). The worker registers them, loading the highlighting engine, and acknowledges with `init-ack`. If loading throws, the worker posts `init-error` and every queued parse request rejects.
+4. While initialization is in flight, parse requests are queued and drained in arrival order on `init-ack`. If a later editable block needs a language the worker wasn't initialized with, the provider sends a `register` message (acknowledged with `register-ack`) to add it without recreating the worker.
 5. On unmount the worker is terminated; any still-pending requests reject with `Worker terminated`.
 
 ### Cancellation
@@ -158,40 +158,45 @@ The worker integration is fully automatic — no opt-in is required. A consumer 
 
 Client-side highlighting runs on [`@pierre/highlights`](https://diffs.com/highlights),
 one WebAssembly module (~150&nbsp;KB gzip) that includes every supported
-language. Under `CodeProviderLazy` it loads **on demand**, the first time a
-block highlights client-side:
+language. Under `CodeProviderLazy` the module loads **on demand**, and grammars
+are still registered **per language**, so a block only waits for the languages
+it uses:
 
 - A read-only block that ships precomputed (already-highlighted) HAST never
   highlights client-side, so it loads **no engine at all**.
-- The first block that highlights client-side loads the engine once; every
-  language is then available to every block on the page.
+- The first block that highlights client-side loads the engine and registers its
+  languages. Later blocks register theirs without another download.
 
 `CodeHighlighter` detects the grammar scopes a block needs from its variants'
-file extensions and `language` props, and speculatively preloads the engine on
-first render — in parallel with the content — so it is usually ready before the
-block parses. A block keeps showing its fallback until the engine lands (rather
-than flashing un-highlighted text), then highlights.
+file extensions and `language` props, and speculatively registers them on first
+render — in parallel with the content — so they are usually ready before the
+block parses. A block keeps showing its fallback until its grammars are
+registered (rather than flashing un-highlighted text), then highlights.
+Languages discovered later (for example, a variant fetched from a URL) are
+registered on demand the same way.
 
 > [!NOTE]
-> The eager `CodeProvider` bundles the engine (no per-request fetch), so this
-> on-demand behavior applies to `CodeProviderLazy`.
+> The eager `CodeProvider` registers every grammar up front, so this on-demand
+> behavior applies to `CodeProviderLazy`.
 
 ### Preloading the engine at the provider level
 
-By default the engine loads when the first block needs it. If a layout knows it
-will render code, `CodeProviderLazy` accepts a `preloadGrammars` prop to load it
-on mount instead — a list of language names (`'tsx'`, `'css'`) or scope names
-(`'source.tsx'`), or `'all'`. Every value loads the same module:
+By default each block registers its own grammars on demand. If a layout knows
+the languages it will render, `CodeProviderLazy` accepts a `preloadGrammars`
+prop to register them on mount instead — a list of language names (`'tsx'`,
+`'css'`) or scope names (`'source.tsx'`), or `'all'`:
 
 ```tsx
 import { CodeProviderLazy } from '@mui/internal-docs-infra/CodeProvider';
 
 export default function Layout({ children }) {
+  // Register just the languages this docs section uses.
   return <CodeProviderLazy preloadGrammars={['tsx', 'css']}>{children}</CodeProviderLazy>;
 }
 ```
 
-Omit it (the default) to load the engine only when a block highlights.
+Every value downloads the same engine module. Omit it (the default) to load the
+engine only when a block highlights.
 
 ## Best Practices
 

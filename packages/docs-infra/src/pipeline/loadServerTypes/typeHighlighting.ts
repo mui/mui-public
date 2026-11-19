@@ -9,7 +9,7 @@
 import { unified } from 'unified';
 import type { Root as HastRoot } from 'hast';
 import transformHtmlCodeInline from '../transformHtmlCodeInline';
-import { addLineGutters } from '../parseSource/addLineGutters';
+import { starryNightGutter } from '../parseSource/addLineGutters';
 import { getHastTextContent } from './hastTypeUtils';
 
 /**
@@ -238,12 +238,12 @@ export function wrapInlineTypeInPre(hast: HastRoot): HastRoot {
     delete codeElement.properties.dataInline;
   }
 
-  // Wrap children in .line spans using addLineGutters (same as formatDetailedTypeAsHast)
+  // Wrap children in .line spans using starryNightGutter (same as formatDetailedTypeAsHast)
   const tempRoot: HastRoot = {
     type: 'root',
     children: codeElement.children,
   };
-  addLineGutters(tempRoot);
+  starryNightGutter(tempRoot);
   codeElement.children = tempRoot.children as typeof codeElement.children;
 
   return {
@@ -263,7 +263,7 @@ export function wrapInlineTypeInPre(hast: HastRoot): HastRoot {
  * Formats TypeScript type text as HAST with full syntax highlighting in a code block.
  * This is used for detailed/expanded type displays (equivalent to triple backticks in MDX).
  * Unlike formatInlineTypeAsHast which uses <code>, this creates a <pre><code> structure
- * and also includes line numbers via addLineGutters.
+ * and also includes line numbers via starryNightGutter.
  */
 export async function formatDetailedTypeAsHast(typeText: string): Promise<HastRoot> {
   // Construct HAST with a pre > code structure for block-level display
@@ -299,13 +299,13 @@ export async function formatDetailedTypeAsHast(typeText: string): Promise<HastRo
   if (preElement && preElement.type === 'element' && preElement.tagName === 'pre') {
     const codeElement = preElement.children[0];
     if (codeElement && codeElement.type === 'element' && codeElement.tagName === 'code') {
-      // Create a temporary root with the code element's children for addLineGutters
+      // Create a temporary root with the code element's children for starryNightGutter
       const tempRoot: HastRoot = {
         type: 'root',
         children: codeElement.children,
       };
       // Apply line gutters (mutates tempRoot in place)
-      addLineGutters(tempRoot);
+      starryNightGutter(tempRoot);
       // Put the guttered children back into the code element
       codeElement.children = tempRoot.children as typeof codeElement.children;
     }

@@ -2,24 +2,23 @@
  * Worker entry point for off-main-thread syntax highlighting.
  *
  * Lifecycle:
- *  1. Main thread posts `{ type: 'init', scopes }` once. The worker loads the
- *     highlighting engine (which includes every supported language) and posts
- *     `{ type: 'init-ack' }` when ready.
+ *  1. Main thread posts `{ type: 'init', grammars }` once. The worker registers
+ *     those grammar scopes (loading the highlighting engine) on the singleton
+ *     used by `parseSource`. Posts `{ type: 'init-ack' }` when ready.
  *  2. For each parse request, main thread posts
  *     `{ type: 'parse', id, source, fileName, language? }`. The worker runs
  *     the same sync `parseSource` body that the main thread uses (so the HAST
  *     output is byte-identical) and posts `{ type: 'parse', id, ok, hast? , error? }`.
- *  3. `{ type: 'register', scopes }` for languages added later resolves with
- *     `register-ack` once the engine is loaded.
  *
  * Parse requests that arrive before init completes are queued and drained on
- * `init-ack`.
+ * `init-ack`. Grammars travel as scope descriptors; the engine chunk itself is
+ * loaded by the worker (the browser dedupes it with the main thread's fetch).
  */
 
+import type { Grammar } from '../pipeline/parseSource/grammarLoaders';
 import {
   parseSource,
-  registerAllGrammars,
-  registerGrammars,
+  registerGrammars as registerScopes,
 } from '../pipeline/parseSource/parseSource';
 
 type ParseRequest = {
@@ -32,12 +31,12 @@ type ParseRequest = {
 
 type InitRequest = {
   type: 'init';
-  scopes: string[];
+  grammars: Grammar[];
 };
 
 type RegisterRequest = {
   type: 'register';
-  scopes: string[];
+  grammars: Grammar[];
 };
 
 type IncomingMessage = InitRequest | RegisterRequest | ParseRequest;
@@ -51,13 +50,13 @@ const queue: ParseRequest[] = [];
 let initialized = false;
 let initInFlight: Promise<void> | null = null;
 
-async function init(): Promise<void> {
+async function init(grammars: Grammar[]): Promise<void> {
   if (initInFlight) {
     return initInFlight;
   }
   initInFlight = (async () => {
     try {
-      await registerAllGrammars();
+      await registerScopes(grammars.map((grammar) => grammar.scopeName));
       initialized = true;
       // Drain queued parse requests in arrival order.
       for (const req of queue.splice(0)) {
@@ -75,13 +74,14 @@ async function init(): Promise<void> {
   return initInFlight;
 }
 
-async function register(scopes: string[]): Promise<void> {
-  // Wait for init to finish (the client always inits before registering).
+async function registerGrammars(grammars: Grammar[]): Promise<void> {
+  // Wait for init to finish (the client always inits before registering), then
+  // add the new grammars to the existing instance.
   if (initInFlight) {
     await initInFlight;
   }
   try {
-    await registerGrammars(scopes);
+    await registerScopes(grammars.map((grammar) => grammar.scopeName));
     workerScope.postMessage({ type: 'register-ack' });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -113,13 +113,13 @@ workerScope.addEventListener('message', (event: MessageEvent<IncomingMessage>) =
   if (data.type === 'init') {
     // The promise rejection is observed by the client via `init-error`; the
     // local `.catch` here just prevents an unhandled rejection in the worker.
-    init().catch(() => {});
+    init(data.grammars).catch(() => {});
     return;
   }
   if (data.type === 'register') {
     // Failures are reported to the client via `register-error`; the `.catch`
     // just prevents an unhandled rejection in the worker.
-    register(data.scopes).catch(() => {});
+    registerGrammars(data.grammars).catch(() => {});
     return;
   }
   if (data.type === 'parse') {

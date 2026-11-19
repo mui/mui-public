@@ -3,7 +3,7 @@
  *
  * Lazy, per-language worker creation: `CodeProviderLazy` must NOT spin up the
  * live-editing worker on mount, and `ensureParseSourceWorker(scopes)` must create
- * it on demand, initialized with those scopes — then `register`
+ * it on demand, initialized with only those scopes' grammars — then `register`
  * additional scopes onto the same worker.
  */
 import * as React from 'react';
@@ -13,7 +13,7 @@ import { renderHook, cleanup, waitFor, act } from '@testing-library/react';
 import { CodeProviderLazy } from './CodeProviderLazy';
 import { useCodeContext } from './CodeContext';
 
-type PostedMessage = { type: string; scopes?: string[] };
+type PostedMessage = { type: string; grammars?: Array<{ scopeName: string }> };
 
 /** In-process stand-in for a real module `Worker`. */
 class FakeWorker {
@@ -90,7 +90,7 @@ function renderProviderContext() {
 
 function initGrammarScopes(worker: FakeWorker): string[] {
   const init = worker.posted.find((message) => message.type === 'init');
-  return init?.scopes ?? [];
+  return (init?.grammars ?? []).map((grammar) => grammar.scopeName);
 }
 
 describe('CodeProviderLazy live-editing worker', () => {
@@ -126,7 +126,9 @@ describe('CodeProviderLazy live-editing worker', () => {
     const worker = FakeWorker.instances[0];
     await waitFor(() => {
       const register = worker.posted.find((message) => message.type === 'register');
-      expect(register?.scopes).toEqual(['source.tsx']);
+      expect((register?.grammars ?? []).map((grammar) => grammar.scopeName)).toEqual([
+        'source.tsx',
+      ]);
     });
     // Still a single worker — no recreation.
     expect(FakeWorker.instances).toHaveLength(1);

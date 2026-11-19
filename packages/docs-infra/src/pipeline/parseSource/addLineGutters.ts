@@ -6,7 +6,7 @@ import { hasClassName, isFrameSpan } from './isFrameSpan';
 
 /**
  * Counts the number of lines in a HAST tree without mutating it.
- * Uses the same logic as addLineGutters but only returns the count.
+ * Uses the same logic as starryNightGutter but only returns the count.
  * @param tree - The HAST tree to count lines in
  * @returns The number of lines in the tree
  */
@@ -47,7 +47,11 @@ export function countLines(tree: Root): number {
   return lineNumber;
 }
 
-export function addLineGutters(tree: Root, sourceLines?: string[], frameSize: number = 120): void {
+export function starryNightGutter(
+  tree: Root,
+  sourceLines?: string[],
+  frameSize: number = 120,
+): void {
   /** @type {Array<RootContent>} */
   const replacement: Array<RootContent> = [];
   const search = /\r?\n|\r/g;

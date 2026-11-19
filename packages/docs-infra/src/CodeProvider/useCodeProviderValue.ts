@@ -85,7 +85,7 @@ export function useCodeProviderValue(
   // Memoized per provider: the first call starts the load, every later call
   // returns that same promise. Nothing loads until a consumer asks.
   const loadSourceParser = React.useMemo(() => {
-    // Only load the highlighter in the browser, not during SSR.
+    // Only initialize the highlighter in the browser, not during SSR.
     if (typeof window === 'undefined') {
       return () =>
         Promise.resolve((() => {
@@ -126,8 +126,8 @@ export function useCodeProviderValue(
 
   // Worker for off-main-thread parsing during live editing. Created LAZILY on the
   // first editable block (via `ensureParseSourceWorker`), not on mount, and
-  // initialized for that block's grammar scopes — so a read-only page never
-  // spins up the worker or loads the highlighting engine into it. Browser-only; torn down
+  // initialized with only that block's grammar scopes — so a read-only page never
+  // spins up the worker or downloads grammar JSON for it. Browser-only; torn down
   // on unmount. The worker client module is dynamically imported so the
   // `new URL('./parseSourceWorker', import.meta.url)` call (which bundlers resolve
   // to a separate worker chunk) never runs in SSR bundles.
@@ -156,11 +156,27 @@ export function useCodeProviderValue(
         return;
       }
 
-      // Worker already exists — register the new scopes with it.
+      // Share the per-scope grammar chunks the main thread uses; the bytes are
+      // postMessage'd into the worker so each grammar is fetched at most once.
+      let grammars;
+      try {
+        const { grammarLoaders } = await import('../pipeline/parseSource/grammarLoaders');
+        grammars = (await Promise.all(needed.map((scope) => grammarLoaders[scope]?.()))).filter(
+          (grammar): grammar is NonNullable<typeof grammar> => grammar != null,
+        );
+      } catch {
+        rollback();
+        return;
+      }
+      if (workerCancelledRef.current) {
+        return;
+      }
+
+      // Worker already exists — add the new grammars to it.
       const existing = workerRef.current;
       if (existing) {
         try {
-          await existing.register(needed);
+          await existing.register(grammars);
         } catch {
           rollback();
         }
@@ -183,7 +199,7 @@ export function useCodeProviderValue(
       }
       workerRef.current = client;
       try {
-        await client.init(needed);
+        await client.init(grammars);
       } catch {
         client.terminate();
         workerRef.current = null;

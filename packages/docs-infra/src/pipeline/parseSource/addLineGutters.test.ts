@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { Root } from 'hast';
-import { addLineGutters, countLines } from './addLineGutters';
+import { starryNightGutter, countLines } from './addLineGutters';
 
-describe('addLineGutters', () => {
+describe('starryNightGutter', () => {
   it('should handle single line text without line breaks', () => {
     const tree: Root = {
       type: 'root',
@@ -14,7 +14,7 @@ describe('addLineGutters', () => {
       ],
     };
 
-    addLineGutters(tree);
+    starryNightGutter(tree);
 
     expect(tree.children).toEqual([
       {
@@ -50,7 +50,7 @@ describe('addLineGutters', () => {
       ],
     };
 
-    addLineGutters(tree);
+    starryNightGutter(tree);
 
     expect(tree.children).toEqual([
       {
@@ -90,7 +90,7 @@ describe('addLineGutters', () => {
       ],
     };
 
-    addLineGutters(tree);
+    starryNightGutter(tree);
 
     expect(tree.children).toEqual([
       {
@@ -147,7 +147,7 @@ describe('addLineGutters', () => {
       ],
     };
 
-    addLineGutters(tree);
+    starryNightGutter(tree);
 
     expect(tree.children).toEqual([
       {
@@ -195,7 +195,7 @@ describe('addLineGutters', () => {
       ],
     };
 
-    addLineGutters(tree);
+    starryNightGutter(tree);
 
     expect(tree.children).toEqual([
       {
@@ -242,7 +242,7 @@ describe('addLineGutters', () => {
       ],
     };
 
-    addLineGutters(tree);
+    starryNightGutter(tree);
 
     expect(tree.children).toEqual([
       {
@@ -294,7 +294,7 @@ describe('addLineGutters', () => {
       ],
     };
 
-    addLineGutters(tree);
+    starryNightGutter(tree);
 
     expect(tree.children).toEqual([
       {
@@ -334,7 +334,7 @@ describe('addLineGutters', () => {
       ],
     };
 
-    addLineGutters(tree);
+    starryNightGutter(tree);
 
     expect(tree.children).toEqual([
       {
@@ -370,7 +370,7 @@ describe('addLineGutters', () => {
       children: [],
     };
 
-    addLineGutters(tree);
+    starryNightGutter(tree);
 
     expect(tree.children).toEqual([]);
   });
@@ -394,7 +394,7 @@ describe('addLineGutters', () => {
       ],
     };
 
-    addLineGutters(tree);
+    starryNightGutter(tree);
 
     expect(tree.children).toEqual([
       {
@@ -460,7 +460,7 @@ describe('addLineGutters', () => {
       ],
     };
 
-    addLineGutters(tree);
+    starryNightGutter(tree);
 
     expect(tree.children).toEqual([
       {
@@ -552,7 +552,7 @@ describe('addLineGutters', () => {
       ],
     };
 
-    addLineGutters(tree);
+    starryNightGutter(tree);
 
     // Should have 1 frame containing 3 lines. No `sourceLines` were provided,
     // so there is no plain text to precompute a fallback from.
@@ -595,7 +595,7 @@ describe('addLineGutters', () => {
       children: [{ type: 'text', value: lines.join('\n') }],
     };
 
-    addLineGutters(tree, lines);
+    starryNightGutter(tree, lines);
 
     expect(tree.children).toHaveLength(1);
     const frame = tree.children[0];
@@ -616,7 +616,7 @@ describe('addLineGutters', () => {
       children: [{ type: 'text', value: lines.join('\n') }],
     };
 
-    addLineGutters(tree, lines, 3);
+    starryNightGutter(tree, lines, 3);
 
     expect(tree.children).toHaveLength(2);
     const [firstFrame, secondFrame] = tree.children;
@@ -638,7 +638,7 @@ describe('addLineGutters', () => {
       children: [{ type: 'text', value: lines.join('\n') }],
     };
 
-    addLineGutters(tree, lines, 3);
+    starryNightGutter(tree, lines, 3);
 
     expect(tree.children).toHaveLength(2);
     const [firstFrame, secondFrame] = tree.children;
@@ -662,7 +662,7 @@ describe('addLineGutters', () => {
       ],
     };
 
-    addLineGutters(tree);
+    starryNightGutter(tree);
 
     expect(tree.data?.totalLines).toBe(5);
   });
@@ -682,7 +682,7 @@ describe('addLineGutters', () => {
       ],
     };
 
-    addLineGutters(tree, lines, 120);
+    starryNightGutter(tree, lines, 120);
 
     // Should have 3 frames: 120 + 120 + 10 lines
     expect(tree.children).toHaveLength(3);
@@ -792,7 +792,7 @@ describe('addLineGutters', () => {
       children: [{ type: 'text', value: lines.join('\n') }],
     };
 
-    addLineGutters(tree, lines, 3);
+    starryNightGutter(tree, lines, 3);
 
     expect(tree.children).toHaveLength(2);
 
@@ -917,7 +917,7 @@ describe('countLines', () => {
     expect(countLines(tree)).toBe(2);
   });
 
-  it('should match addLineGutters line count', () => {
+  it('should match starryNightGutter line count', () => {
     const tree1: Root = {
       type: 'root',
       children: [
@@ -954,11 +954,11 @@ describe('countLines', () => {
       ],
     };
 
-    // Clone the tree for addLineGutters
+    // Clone the tree for starryNightGutter
     const tree2 = JSON.parse(JSON.stringify(tree1));
 
     const countLinesResult = countLines(tree1);
-    addLineGutters(tree2);
+    starryNightGutter(tree2);
 
     expect(countLinesResult).toBe((tree2.data as any)?.totalLines);
     expect(countLinesResult).toBe(3);

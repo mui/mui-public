@@ -30,7 +30,7 @@ import type {
 } from '../../CodeHighlighter/types';
 import type { FallbackNode } from '../../CodeHighlighter/fallbackFormat';
 import { performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
-import { addLineGutters } from '../parseSource/addLineGutters';
+import { starryNightGutter } from '../parseSource/addLineGutters';
 import { applyEnhancers } from './runSourceEnhancers';
 import { embedTransformsInRoot, splitTransformsForEmbed } from './embedTransforms';
 import { createEditableSourceProjection } from './createEditableSourceProjection';
@@ -627,7 +627,7 @@ async function loadSingleFile(
   // highlighting — a HAST source reads as "already loaded" (see `isSourceLoaded`) and
   // would never re-highlight. But the loading fallback MUST be framed — rendered code
   // needs frames — so build a line-guttered plain-text HAST (no syntax engine: the
-  // light `addLineGutters`), run the same enhancers (focus window / truncation),
+  // light `starryNightGutter`), run the same enhancers (focus window / truncation),
   // and derive the root fallback from it. The string source is returned unchanged;
   // only `fallback` is produced. Gated by `framePlainFallback` so lazy variant loads
   // (which never paint a fallback) keep skipping the work.
@@ -636,7 +636,7 @@ async function loadSingleFile(
       type: 'root',
       children: [{ type: 'text', value: finalSource }],
     };
-    addLineGutters(plainRoot, finalSource.split(/\r?\n|\r/));
+    starryNightGutter(plainRoot, finalSource.split(/\r?\n|\r/));
     let framedRoot: HastRoot = plainRoot;
     if (sourceEnhancers && sourceEnhancers.length > 0) {
       framedRoot = await applyEnhancers(framedRoot, commentsFromSource, fileName, sourceEnhancers);
@@ -1073,7 +1073,7 @@ export async function loadIsomorphicCodeVariant(
         ],
       };
       const sourceLines = (finalSource || '').split(/\r?\n|\r/);
-      addLineGutters(root, sourceLines);
+      starryNightGutter(root, sourceLines);
       finalSource = root;
     }
 
