@@ -9,6 +9,8 @@ import { makeTempDir, writePackage } from '../utils/testUtils.mjs';
 
 const run = promisify(execFile);
 const CLI_PATH = fileURLToPath(new URL('../../bin/code-infra.mjs', import.meta.url));
+// The fixtures have no node_modules, so the CLI finds `tsc` on `PATH`, as in a consumer repo.
+const BIN_PATH = fileURLToPath(new URL('../../node_modules/.bin', import.meta.url));
 
 /**
  * An empty workspace with its packages under `packages/`.
@@ -60,7 +62,10 @@ async function createWorkspace({ declareA }) {
  * @returns {Promise<{ code: number, stdout: string, stderr: string }>}
  */
 function validate(root, ...args) {
-  return run(process.execPath, [CLI_PATH, 'validate-built-types', ...args], { cwd: root }).then(
+  return run(process.execPath, [CLI_PATH, 'validate-built-types', ...args], {
+    cwd: root,
+    env: { ...process.env, PATH: `${BIN_PATH}${path.delimiter}${process.env.PATH}` },
+  }).then(
     ({ stdout, stderr }) => ({ code: 0, stdout, stderr }),
     (/** @type {{ code: number, stdout: string, stderr: string }} */ error) => error,
   );
@@ -90,7 +95,7 @@ describe('validate-built-types', { timeout: 120_000 }, () => {
   it('ignores the errors in a path expected to fail', async () => {
     const root = await createWorkspace({ declareA: false });
 
-    const result = await validate(root, '--expect-error', '@test/b');
+    const result = await validate(root, '--expect-error', '@test/b/');
 
     expect(result.code).toBe(0);
     expect(result.stdout).toContain('Ignoring 1 expected type errors in @test/b.');

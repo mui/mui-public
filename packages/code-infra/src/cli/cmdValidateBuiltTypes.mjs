@@ -421,12 +421,13 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       });
       // Errors are matched by the file they are in rather than by entry point: declarations can
       // fail only next to another entry point's, such as conflicting module augmentations.
+      const expectedPaths = expectError.map((expected) => expected.replace(/\/+$/, ''));
       const isUnder = (/** @type {string} */ file, /** @type {string} */ prefix) =>
         file === prefix || file.startsWith(`${prefix}/`);
       const unexpectedErrors = errors.filter(
-        (error) => !expectError.some((prefix) => isUnder(error.file, prefix)),
+        (error) => !expectedPaths.some((prefix) => isUnder(error.file, prefix)),
       );
-      for (const expected of expectError) {
+      for (const expected of expectedPaths) {
         const count = errors.filter((error) => isUnder(error.file, expected)).length;
         if (count > 0) {
           console.log(`Ignoring ${count} expected type errors in ${expected}.`);

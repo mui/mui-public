@@ -10,6 +10,7 @@
     "noEmit": false
   },
   "include": ["src/**/*"],
-  // removing "cli" since its going to run directly and not really imported anywhere
+  // The CLI runs directly and gets no declarations, so exported modules must not expose types from
+  // `src/cli`: their declarations would reference files that aren't published.
   "exclude": ["**/*.spec.*", "**/*.test.*", "**/setupVitest.ts", "src/cli/**"]
 }
