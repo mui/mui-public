@@ -81,7 +81,7 @@ describe('validate-built-types', () => {
   );
 
   it(
-    'ignores the errors of an entry point expected to fail',
+    'ignores the errors in a path expected to fail',
     async () => {
       const root = await createWorkspace({ declareA: false });
 
@@ -98,7 +98,7 @@ describe('validate-built-types', () => {
   );
 
   it(
-    'fails when an entry point expected to fail type-checks',
+    'fails when a path expected to fail has no type errors',
     async () => {
       const root = await createWorkspace({ declareA: true });
 
@@ -113,29 +113,7 @@ describe('validate-built-types', () => {
 
       expect(result?.code).toBe(1);
       expect(result?.stderr).toContain(
-        '❌ @test/b type-checks for consumers: remove it from --expect-error.',
-      );
-    },
-    CLI_TIMEOUT,
-  );
-
-  it(
-    'fails when an entry point expected to fail does not exist',
-    async () => {
-      const root = await createWorkspace({ declareA: true });
-
-      const result = await run(
-        process.execPath,
-        [CLI_PATH, 'validate-built-types', '--expect-error', '@test/missing'],
-        { cwd: root },
-      ).then(
-        () => null,
-        (/** @type {{ code: number, stderr: string }} */ error) => error,
-      );
-
-      expect(result?.code).toBe(1);
-      expect(result?.stderr).toContain(
-        "--expect-error names entry points that don't exist or have no types: @test/missing",
+        '❌ No type errors in @test/b: remove it from --expect-error.',
       );
     },
     CLI_TIMEOUT,

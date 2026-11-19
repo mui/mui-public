@@ -234,15 +234,9 @@ async function readPackedManifest(tarball) {
  * @param {Object} options
  * @param {string} options.workspaceRoot
  * @param {string} options.tempDir An empty directory outside the workspace.
- * @param {string[]} options.expectError Entry points whose types are known to fail.
- * @returns {Promise<{
- *   errors: TypeScriptError[],
- *   expectedErrorCounts: Map<string, number>,
- *   entryPointCount: number,
- *   packageCount: number,
- * }>}
+ * @returns {Promise<{ errors: TypeScriptError[], entryPointCount: number, packageCount: number }>}
  */
-async function validateBuiltTypes({ workspaceRoot, tempDir, expectError }) {
+async function validateBuiltTypes({ workspaceRoot, tempDir }) {
   const packages = await getWorkspacePackages({ cwd: workspaceRoot, publicOnly: true });
   if (packages.length === 0) {
     throw new Error('No public packages found.');
@@ -347,17 +341,7 @@ async function validateBuiltTypes({ workspaceRoot, tempDir, expectError }) {
   // unrelated packages, and of a package's CommonJS and ESM declarations, against each other.
   // CommonJS and bundler consumers only get a program of their own when they resolve other
   // declarations than ESM consumers; on the same files, they find nothing an ESM program misses.
-  // An entry point expected to fail gets programs of its own, so its errors are told apart from
-  // the others'.
-  /**
-   * @type {{
-   *   file: string,
-   *   entryPoints: EntryPoints,
-   *   module: string,
-   *   moduleResolution?: string,
-   *   expected?: string,
-   * }[]}
-   */
+  /** @type {{ file: string, entryPoints: EntryPoints, module: string, moduleResolution?: string }[]} */
   const checks = [];
   const specifiers = new Set();
   for (const { manifest } of packed) {
@@ -365,48 +349,23 @@ async function validateBuiltTypes({ workspaceRoot, tempDir, expectError }) {
     const cjs = getTypedEntryPoints(manifest, CONDITIONS.cjs);
     const bundler = getTypedEntryPoints(manifest, CONDITIONS.bundler);
     const stem = path.join('checks', toFileStem(/** @type {string} */ (manifest.name)));
-    /** @type {{ kind: string, extension: string, entryPoints: EntryPoints, module: string, moduleResolution?: string }[]} */
-    const consumers = [{ kind: 'esm', extension: 'mts', entryPoints: esm, module: 'nodenext' }];
+    checks.push({ file: `${stem}.esm.mts`, entryPoints: esm, module: 'nodenext' });
     if (!isSameEntryPoints(cjs, esm)) {
-      consumers.push({ kind: 'cjs', extension: 'cts', entryPoints: cjs, module: 'nodenext' });
+      checks.push({ file: `${stem}.cjs.cts`, entryPoints: cjs, module: 'nodenext' });
     }
     if (!isSameEntryPoints(bundler, esm)) {
-      consumers.push({
-        kind: 'bundler',
-        extension: 'mts',
+      checks.push({
+        file: `${stem}.bundler.mts`,
         entryPoints: bundler,
         module: 'esnext',
         moduleResolution: 'bundler',
       });
     }
-    for (const { kind, extension, entryPoints, ...options } of consumers) {
-      checks.push({
-        file: `${stem}.${kind}.${extension}`,
-        entryPoints: new Map(
-          Array.from(entryPoints).filter(([specifier]) => !expectError.includes(specifier)),
-        ),
-        ...options,
-      });
-      Array.from(entryPoints)
-        .filter(([specifier]) => expectError.includes(specifier))
-        .forEach(([specifier, file]) => {
-          checks.push({
-            file: `${stem}.${kind}.expect-error-${expectError.indexOf(specifier)}.${extension}`,
-            entryPoints: new Map([[specifier, file]]),
-            ...options,
-            expected: specifier,
-          });
-        });
+    for (const entryPoints of [esm, cjs, bundler]) {
       for (const specifier of entryPoints.keys()) {
         specifiers.add(specifier);
       }
     }
-  }
-  const unknown = expectError.filter((specifier) => !specifiers.has(specifier));
-  if (unknown.length > 0) {
-    throw new Error(
-      `--expect-error names entry points that don't exist or have no types: ${unknown.join(', ')}`,
-    );
   }
 
   const { native, js } = await findTscPair(workspaceRoot);
@@ -414,7 +373,7 @@ async function validateBuiltTypes({ workspaceRoot, tempDir, expectError }) {
   const realTempDir = await fs.realpath(tempDir);
   const ownErrors = await mapAsync(
     checks.filter(({ entryPoints }) => entryPoints.size > 0),
-    async ({ file, entryPoints, module, moduleResolution, expected }) => {
+    async ({ file, entryPoints, module, moduleResolution }) => {
       const tsconfigFile = `${file}.json`;
       await Promise.all([
         fs.writeFile(path.join(projectDir, file), createEntryFile(entryPoints)),
@@ -435,30 +394,18 @@ async function validateBuiltTypes({ workspaceRoot, tempDir, expectError }) {
           `TypeScript failed to check ${tsconfigFile}:\n${result.stdout || result.stderr || result.message}`,
         );
       }
-      return { expected, errors: getOwnErrors(fileErrors, packageNames, realTempDir) };
+      return getOwnErrors(fileErrors, packageNames, realTempDir);
     },
     { concurrency: os.availableParallelism() },
   );
   /** @type {Map<string, TypeScriptError>} */
   const errors = new Map();
-  /** @type {Map<string, Set<string>>} Expected specifier to the keys of its errors. */
-  const expectedErrors = new Map(expectError.map((specifier) => [specifier, new Set()]));
-  for (const { expected, errors: checkErrors } of ownErrors) {
-    for (const error of checkErrors) {
-      const key = `${error.file}\0${error.code}\0${error.message}`;
-      if (expected) {
-        expectedErrors.get(expected)?.add(key);
-      } else {
-        errors.set(key, error);
-      }
-    }
+  for (const error of ownErrors.flat()) {
+    errors.set(`${error.file}\0${error.code}\0${error.message}`, error);
   }
 
   return {
     errors: Array.from(errors.values()),
-    expectedErrorCounts: new Map(
-      Array.from(expectedErrors, ([specifier, keys]) => [specifier, keys.size]),
-    ),
     entryPointCount: specifiers.size,
     packageCount: packed.length,
   };
@@ -486,9 +433,9 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         array: true,
         default: [],
         description:
-          'An entry point, such as `@scope/pkg/subpath`, whose types are known to fail. Its errors are not reported, and the check fails once it type-checks. Repeatable.',
+          'A path in a package, such as `@scope/pkg/subdir`, whose declarations are known to fail. Errors in files under it are not reported, and the check fails once there are none. Repeatable.',
       }),
-  handler: async ({ keep, expectError }) => {
+  handler: async ({ keep, expectError = [] }) => {
     const workspaceRoot = await findWorkspaceDir(process.cwd());
     if (!workspaceRoot) {
       throw new Error('Workspace directory not found');
@@ -496,34 +443,45 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'code-infra-built-types-'));
     let failed = false;
     try {
-      const { errors, expectedErrorCounts, entryPointCount, packageCount } =
-        await validateBuiltTypes({ workspaceRoot, tempDir, expectError: expectError ?? [] });
+      const { errors, entryPointCount, packageCount } = await validateBuiltTypes({
+        workspaceRoot,
+        tempDir,
+      });
       if (entryPointCount === 0) {
         throw new Error(
           `No entry points with types found in ${packageCount} packages. Build the packages first.`,
         );
       }
-      for (const [specifier, count] of expectedErrorCounts) {
+      // Errors are matched by the file they are in rather than by entry point: declarations can
+      // fail only next to another entry point's, such as conflicting module augmentations.
+      const expectedCounts = new Map(expectError.map((expected) => [expected, 0]));
+      const unexpectedErrors = errors.filter((error) => {
+        const expected = expectError.find(
+          (prefix) => error.file === prefix || error.file.startsWith(`${prefix}/`),
+        );
+        if (expected) {
+          expectedCounts.set(expected, (expectedCounts.get(expected) ?? 0) + 1);
+        }
+        return !expected;
+      });
+      for (const [expected, count] of expectedCounts) {
         if (count > 0) {
-          console.log(`Ignoring ${count} expected type errors in ${specifier}.`);
+          console.log(`Ignoring ${count} expected type errors in ${expected}.`);
+        } else {
+          failed = true;
+          console.error(`❌ No type errors in ${expected}: remove it from --expect-error.`);
         }
       }
-      const unused = Array.from(expectedErrorCounts)
-        .filter(([, count]) => count === 0)
-        .map(([specifier]) => specifier);
-      for (const specifier of unused) {
-        console.error(`❌ ${specifier} type-checks for consumers: remove it from --expect-error.`);
-      }
-      if (errors.length > 0) {
+      if (unexpectedErrors.length > 0) {
+        failed = true;
         console.error(
-          `❌ Found ${errors.length} type errors in ${entryPointCount} entry points of ${packageCount} packages.\n`,
+          `❌ Found ${unexpectedErrors.length} type errors in ${entryPointCount} entry points of ${packageCount} packages.\n`,
         );
-        for (const error of errors) {
+        for (const error of unexpectedErrors) {
           console.error(`${error.file}: ${error.code} ${error.message}`);
         }
       }
-      if (errors.length > 0 || unused.length > 0) {
-        failed = true;
+      if (failed) {
         process.exitCode = 1;
       } else {
         console.log(
