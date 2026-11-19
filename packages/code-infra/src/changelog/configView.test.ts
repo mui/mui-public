@@ -1,8 +1,22 @@
 /* eslint-disable testing-library/render-result-naming-convention */
 import { describe, expect, it } from 'vitest';
 // eslint-disable-next-line import/extensions
-import { renderChangelog } from './renderChangelog.mjs';
-import type { ChangelogSection, CategorizedCommit, ChangelogConfig } from './types';
+import { configView } from './index.mjs';
+import type {
+  ChangelogSection,
+  CategorizedCommit,
+  ChangelogConfig,
+  ChangelogRelease,
+} from './types';
+
+function renderChangelog(
+  sections: ChangelogSection[],
+  config: ChangelogConfig,
+  release: ChangelogRelease,
+  contributors: { team: string[]; community: string[]; all: string[] },
+) {
+  return configView(config).view({ sections, release, contributors });
+}
 
 function createCommit(
   prNumber: number,
@@ -58,7 +72,7 @@ const baseConfig: ChangelogConfig = {
   },
 };
 
-describe('renderChangelog - commit sorting by tags', () => {
+describe('configView - commit sorting by tags', () => {
   describe('sorting commits with tags', () => {
     it('should group commits by their starting tags', () => {
       const commits = [
@@ -86,6 +100,7 @@ describe('renderChangelog - commit sorting by tags', () => {
       ];
 
       const section = createSection(commits);
+
       const result = renderChangelog(
         [section],
         baseConfig,
@@ -118,6 +133,7 @@ describe('renderChangelog - commit sorting by tags', () => {
       ];
 
       const section = createSection(commits);
+
       const result = renderChangelog(
         [section],
         baseConfig,
@@ -150,6 +166,7 @@ describe('renderChangelog - commit sorting by tags', () => {
       ];
 
       const section = createSection(commits);
+
       const result = renderChangelog(
         [section],
         baseConfig,
@@ -178,6 +195,7 @@ describe('renderChangelog - commit sorting by tags', () => {
       ];
 
       const section = createSection(commits);
+
       const result = renderChangelog(
         [section],
         baseConfig,
@@ -261,6 +279,7 @@ describe('renderChangelog - commit sorting by tags', () => {
       ];
 
       const section = createSection(commits);
+
       const result = renderChangelog(
         [section],
         baseConfig,
@@ -301,6 +320,7 @@ describe('renderChangelog - commit sorting by tags', () => {
       ];
 
       const section = createSection(commits);
+
       const result = renderChangelog(
         [section],
         baseConfig,
@@ -329,6 +349,7 @@ describe('renderChangelog - commit sorting by tags', () => {
       ];
 
       const section = createSection(commits);
+
       const result = renderChangelog(
         [section],
         baseConfig,
@@ -357,6 +378,7 @@ describe('renderChangelog - commit sorting by tags', () => {
       ];
 
       const section = createSection(commits);
+
       const result = renderChangelog(
         [section],
         baseConfig,
