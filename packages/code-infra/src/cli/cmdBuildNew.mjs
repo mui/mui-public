@@ -267,16 +267,17 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     const packageType = packageJson.type === 'module' ? 'module' : 'commonjs';
     const bundles = [...new Set(args.bundle)];
 
-    const [entry, copy, { build }] = await Promise.all([
+    const [entry, copy, babelRuntime, babelConfigFile, { build }] = await Promise.all([
       getEntry(packageJson, cwd),
       getCopy(cwd, outDir, args.copy),
+      getBabelRuntime(packageJson),
+      getBabelConfigFile(cwd),
       import('tsdown'),
     ]);
 
     const { MUI_PRERELEASE: prerelease, ...versionEnv } = getVersionEnvVariables(
       packageJson.version,
     );
-    const babelRuntime = await getBabelRuntime(packageJson);
     const reactCompiler = args.enableReactCompiler ? 'on' : 'off';
     Object.assign(process.env, getBabelEnv(packageJson, { bundles, babelRuntime, reactCompiler }));
     await build({
@@ -302,7 +303,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       loader: { '.js': 'jsx' },
       plugins: [
         fileUrlEntriesPlugin(),
-        babelPlugin(await getBabelConfigFile(cwd)),
+        babelPlugin(babelConfigFile),
         babelRuntimePlugin(babelRuntime),
       ],
       outExtensions: ({ format }) => ({
