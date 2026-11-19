@@ -1,6 +1,6 @@
 import type { Root } from 'hast';
 import type { ParseSource } from '../../CodeHighlighter/types';
-import { grammarScopes, resolveGrammarScope } from './grammarMaps';
+import { resolveGrammarScope } from './grammarMaps';
 import { addLineGutters } from './addLineGutters';
 import { createPlainTextRoot } from './createPlainTextRoot';
 import { extendSyntaxTokens } from './extendSyntaxTokens';
@@ -9,11 +9,9 @@ import { extendSyntaxTokens } from './extendSyntaxTokens';
 export interface Highlighter {
   /** Highlights `source` for a grammar scope; `undefined` when it cannot. */
   highlight: (source: string, scope: string) => Root | undefined;
-  /** The grammar scopes the engine highlights. */
-  scopes: () => readonly string[];
 }
 
-// Must match HIGHLIGHTER_KEY in ./grammarCache, which reads the instance without
+// Must match HIGHLIGHTER_KEY in ./highlighterCache, which reads the instance without
 // importing this module.
 const HIGHLIGHTER_KEY = '__docs_infra_highlighter_instance__';
 const HIGHLIGHTER_LOAD_KEY = '__docs_infra_highlighter_load__';
@@ -76,10 +74,7 @@ async function loadHighlighter(): Promise<Highlighter> {
   if (!load) {
     load = (async () => {
       const { highlightToHast } = await import('./highlightToHast');
-      const instance: Highlighter = {
-        highlight: highlightToHast,
-        scopes: () => grammarScopes,
-      };
+      const instance: Highlighter = { highlight: highlightToHast };
       globals[HIGHLIGHTER_KEY] = instance;
       return instance;
     })();
@@ -95,40 +90,16 @@ async function loadHighlighter(): Promise<Highlighter> {
 }
 
 /**
- * Makes the given scopes available to `parseSource`. Every supported language
- * ships in one engine module, so this loads the engine once and is a no-op
- * afterwards; scopes are accepted so callers can stay language-aware.
- *
- * This is the heavy implementation (it loads the engine). Client code should
- * call the light facade {@link ensureGrammars} from `./grammarCache` instead, so
- * the engine stays out of the client bundle until a block needs it.
- */
-export async function registerGrammars(scopes: string[]): Promise<void> {
-  if (scopes.length === 0) {
-    return;
-  }
-  await loadHighlighter();
-}
-
-/** Loads the engine with every supported language. */
-export async function registerAllGrammars(): Promise<void> {
-  await loadHighlighter();
-}
-
-/**
- * Loads the highlighting engine and returns a configured `parseSource`
- * function. Only needs to be called once per application; the engine is stored
- * globally for reuse across calls.
- *
- * `initialScopes` is accepted for compatibility with language-aware callers;
- * the engine always includes every supported language.
+ * Loads the highlighting engine, which includes every supported language, and
+ * returns a configured `parseSource` function. Only needs to be called once per
+ * application; the engine is stored globally for reuse across calls. Client
+ * code that only needs to warm the engine should call the light facade
+ * {@link loadHighlighter} from `./highlighterCache`, so the engine stays out of
+ * the client bundle until a block needs it.
  *
  * @returns A Promise that resolves to the initialized `parseSource` function
  */
-export const createParseSource = async (
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  initialScopes?: string[],
-): Promise<ParseSource> => {
+export const createParseSource = async (): Promise<ParseSource> => {
   await loadHighlighter();
   return parseSource;
 };

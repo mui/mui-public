@@ -34,9 +34,8 @@ import { getAvailableTransforms } from '../pipeline/loadIsomorphicCodeVariant/ge
 import { useSpeculativeCodePreload } from './useSpeculativeCodePreload';
 import { useSpeculativeEditingPreload } from './useSpeculativeEditingPreload';
 import { useSpeculativeUseCodePreload } from './useSpeculativeUseCodePreload';
-import { useSpeculativeGrammarPreload } from './useSpeculativeGrammarPreload';
-import { useGrammarsReady } from './useGrammarsReady';
-import { detectGrammarScopes } from '../pipeline/parseSource/detectGrammarScopes';
+import { useSpeculativeHighlighterPreload } from './useSpeculativeHighlighterPreload';
+import { useHighlighterReady } from './useHighlighterReady';
 import { detectFileTypes } from '../pipeline/parseSource/detectFileTypes';
 import { useChunk } from '../CoordinatedLazy/useChunk';
 import type { StreamSource } from '../CoordinatedLazy/types';
@@ -566,21 +565,18 @@ function useCodeParsing({
     [code],
   );
 
-  // Under `CodeProviderLazy` grammars load per-language and on demand, so the
-  // client parse must wait until the grammars for this block's scopes are
-  // registered — otherwise `parseSource` falls back to plain text. Gate the
-  // parse memo on readiness so the block keeps its fallback until they land (no
-  // plain-text flash), then highlights. Synchronously ready when warm (the
-  // speculative preload primed them, or under an eager `CodeProvider`), so this
-  // adds no delay on the common path.
-  const grammarScopes = React.useMemo(() => (code ? detectGrammarScopes(code) : []), [code]);
-  const grammarsReady = useGrammarsReady(
-    grammarScopes,
+  // Under `CodeProviderLazy` the highlighting engine loads on demand, so the
+  // client parse must wait until it is loaded. Gate the parse memo on readiness
+  // so the block keeps its fallback until it lands (no plain-text flash), then
+  // highlights. Synchronously ready when warm (the speculative preload primed
+  // it, or under an eager `CodeProvider`), so this adds no delay on the common
+  // path.
+  const highlighterReady = useHighlighterReady(
     !!code && shouldHighlight && !allVariantsAlreadyHighlighted,
   );
   useDemandSourceParser(
     loadSourceParser,
-    !!code && shouldHighlight && !allVariantsAlreadyHighlighted && grammarsReady && !parseSource,
+    !!code && shouldHighlight && !allVariantsAlreadyHighlighted && highlighterReady && !parseSource,
   );
 
   // Parse the internal code state when ready and timing conditions are met
@@ -589,9 +585,9 @@ function useCodeParsing({
       return undefined;
     }
 
-    if (!grammarsReady) {
-      // Grammars for this block's scopes are still loading; keep the fallback and
-      // re-run once `useGrammarsReady` flips (mirrors the `!parseSource` wait).
+    if (!highlighterReady) {
+      // The highlighting engine is still loading; keep the fallback and re-run
+      // once `useHighlighterReady` flips (mirrors the `!parseSource` wait).
       return undefined;
     }
 
@@ -623,7 +619,7 @@ function useCodeParsing({
     code,
     shouldHighlight,
     allVariantsAlreadyHighlighted,
-    grammarsReady,
+    highlighterReady,
     loadSourceParser,
     parseSource,
     parseCode,
@@ -792,24 +788,22 @@ function useCodeTransforms({
 
 function useControlledCodeParsing({
   code,
-  grammarScopes,
   forceClient,
   url,
   preParsedCache,
 }: {
   code?: ControlledCode | null;
-  grammarScopes: string[];
   forceClient?: boolean;
   url?: string;
   preParsedCache?: Map<string, PreParsedCacheEntry>;
 }) {
   const { loadSourceParser, parseSource, parseControlledCode } = useCodeContext();
-  const grammarsReady = useGrammarsReady(grammarScopes, Boolean(code));
-  useDemandSourceParser(loadSourceParser, Boolean(code) && grammarsReady && !parseSource);
+  const highlighterReady = useHighlighterReady(Boolean(code));
+  useDemandSourceParser(loadSourceParser, Boolean(code) && highlighterReady && !parseSource);
 
   // Parse the controlled code separately (no need to check readyForContent)
   const parsedControlledCode = React.useMemo(() => {
-    if (!code || !grammarsReady) {
+    if (!code || !highlighterReady) {
       return undefined;
     }
 
@@ -840,7 +834,7 @@ function useControlledCodeParsing({
     return parseControlledCode(code, parseSource, preParsedCache);
   }, [
     code,
-    grammarsReady,
+    highlighterReady,
     loadSourceParser,
     parseSource,
     parseControlledCode,
@@ -1247,10 +1241,6 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   // precomputed or code-free block preloads nothing.
   // Only the precomputed/loaded (non-controlled) code drives speculative loading.
   const speculativeCode = isControlled ? undefined : code;
-  const speculativeGrammarScopes = React.useMemo(
-    () => (speculativeCode ? detectGrammarScopes(speculativeCode) : []),
-    [speculativeCode],
-  );
   const speculativeAllPresent = React.useMemo(
     () => (speculativeCode ? hasAllVariants(variants, speculativeCode) : false),
     [variants, speculativeCode],
@@ -1287,18 +1277,18 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   );
   useSpeculativeUseCodePreload({ hasTransforms: speculativeHasAnyTransforms });
 
-  // Preload the per-language grammar chunks this block needs, before `useCode`
-  // mounts and parses — in parallel with the (lazy) content. Only when the block
-  // will actually highlight client-side: it is forced client-side, not yet
-  // fully precomputed (so the client must parse), or eagerly editable (live
-  // re-highlight). A fully-precomputed read-only block renders its highlighted
-  // HAST and never parses, so it loads no grammar at all.
+  // Preload the highlighting engine before `useCode` mounts and parses — in
+  // parallel with the (lazy) content. Only when the block will actually
+  // highlight client-side: it is forced client-side, not yet fully precomputed
+  // (so the client must parse), or eagerly editable (live re-highlight). A
+  // fully-precomputed read-only block renders its highlighted HAST and never
+  // parses, so it loads no engine at all.
   const willClientHighlight =
     !!speculativeCode &&
     (Boolean(props.forceClient) ||
       !hasAllVariants(variants, speculativeCode, true) ||
       ((editActivation ?? 'eager') !== 'interaction' && Boolean(controlled?.setCode)));
-  useSpeculativeGrammarPreload({ scopes: speculativeGrammarScopes, enabled: willClientHighlight });
+  useSpeculativeHighlighterPreload(willClientHighlight);
 
   // ── Fallback hoisting ──
   // State for fallbacks hoisted from ContentLoading via useCodeFallback.
@@ -1506,13 +1496,6 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     const live = controlled?.code ? detectFileTypes(controlled.code) : { js: false, css: false };
     return { js: initial.js || live.js, css: initial.css || live.css };
   }, [codeWithGlobals, controlled]);
-  const editableGrammarScopes = React.useMemo(() => {
-    const scopes = new Set(codeWithGlobals ? detectGrammarScopes(codeWithGlobals) : []);
-    if (controlled?.code) {
-      detectGrammarScopes(controlled.code).forEach((scope) => scopes.add(scope));
-    }
-    return [...scopes];
-  }, [codeWithGlobals, controlled]);
   const controllerOnActivate = controlled?.onActivate;
   const handleEditingActivated = React.useCallback(() => {
     setEditingActivated(true);
@@ -1523,7 +1506,6 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     enabled: Boolean(controlled?.setCode),
     editActivation,
     activated: editingActivated,
-    scopes: editableGrammarScopes,
   });
 
   const {
@@ -1624,7 +1606,6 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
 
   const { parsedControlledCode } = useControlledCodeParsing({
     code: controlled?.code,
-    grammarScopes: editableGrammarScopes,
     forceClient: props.forceClient,
     url: props.url,
     preParsedCache,

@@ -43,11 +43,6 @@ export const languageToGrammarMap: Record<string, string> = {
   yml: 'source.yaml',
 };
 
-/** Every grammar scope a file extension or language name resolves to. */
-export const grammarScopes: readonly string[] = [
-  ...new Set([...Object.values(extensionMap), ...Object.values(languageToGrammarMap)]),
-];
-
 /**
  * Gets the grammar scope from a language name.
  * @param language - The language name (for example, 'tsx', 'css', 'typescript')
@@ -60,9 +55,7 @@ export function getGrammarFromLanguage(language: string): string | undefined {
 /**
  * Resolves a grammar scope from a file's name and/or explicit language,
  * preferring `language` and falling back to the file extension. This is the
- * single source of truth for how `parseSource` picks a grammar and how
- * `detectGrammarScopes` enumerates the grammars a code block needs, so the two
- * never disagree.
+ * single source of truth for how `parseSource` and the editor pick a grammar.
  *
  * @param fileName - File name used to detect language via its extension
  * @param language - Optional explicit language override (e.g., 'tsx', 'css')
@@ -80,15 +73,4 @@ export function resolveGrammarScope(fileName?: string, language?: string): strin
     return extensionMap[fileType];
   }
   return undefined;
-}
-
-/**
- * Normalizes a user-supplied list (the `preloadGrammars` provider prop) to
- * grammar scope names, accepting either language names (`'tsx'`, `'typescript'`)
- * or scope names (`'source.tsx'`) and de-duplicating. Entries that match neither
- * are passed through as-is, so an unrecognized scope is simply ignored
- * downstream (it has no loader) rather than throwing.
- */
-export function normalizeToScopes(entries: string[]): string[] {
-  return [...new Set(entries.map((entry) => getGrammarFromLanguage(entry) ?? entry))];
 }

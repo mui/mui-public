@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveGrammarScope, normalizeToScopes } from './grammarMaps';
+import { resolveGrammarScope } from './grammarMaps';
 
 describe('resolveGrammarScope', () => {
   it('resolves a scope from a file extension', () => {
@@ -22,23 +22,5 @@ describe('resolveGrammarScope', () => {
   it('returns undefined for unsupported extensions and for no inputs', () => {
     expect(resolveGrammarScope('data.bin')).toBeUndefined();
     expect(resolveGrammarScope()).toBeUndefined();
-  });
-});
-
-describe('normalizeToScopes', () => {
-  it('maps language names to scopes', () => {
-    expect(normalizeToScopes(['tsx', 'css'])).toEqual(['source.tsx', 'source.css']);
-  });
-
-  it('passes scope names through unchanged', () => {
-    expect(normalizeToScopes(['source.tsx'])).toEqual(['source.tsx']);
-  });
-
-  it('dedupes the language and scope forms of the same grammar', () => {
-    expect(normalizeToScopes(['tsx', 'source.tsx'])).toEqual(['source.tsx']);
-  });
-
-  it('passes unrecognized entries through (ignored downstream — no loader)', () => {
-    expect(normalizeToScopes(['klingon'])).toEqual(['klingon']);
   });
 });

@@ -61,14 +61,11 @@ describe('useSpeculativeEditingPreload', () => {
     expect(codeEditorLoader).toHaveBeenCalled();
   });
 
-  it('warms the worker with the block grammar scopes once editable', () => {
+  it('warms the worker once editable', () => {
     const codeEditorLoader = vi.fn(async () => ({}) as never);
     const ensureParseSourceWorker = vi.fn();
-    setup({ enabled: true, scopes: ['source.tsx'] } as never, {
-      codeEditorLoader,
-      ensureParseSourceWorker,
-    });
-    expect(ensureParseSourceWorker).toHaveBeenCalledWith(['source.tsx']);
+    setup({ enabled: true }, { codeEditorLoader, ensureParseSourceWorker });
+    expect(ensureParseSourceWorker).toHaveBeenCalled();
   });
 
   it('does nothing (no throw) when no CodeProvider is present', () => {

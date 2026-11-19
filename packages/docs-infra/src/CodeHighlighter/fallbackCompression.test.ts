@@ -400,7 +400,7 @@ describe('compression dictionary matches the raw source for trailing-newline sou
   // `preserveExisting` guard is retained as defense and still keeps the
   // structured fallback in place.
   it('decodes a trailing-newline source whether the dictionary is clobbered or preserved', async () => {
-    const parse = await createParseSource(['App.js']);
+    const parse = await createParseSource();
     const rawSource = 'const value = compute();\nexport default value;\n'; // ends in a newline
     const root = parse(rawSource, 'App.js');
 

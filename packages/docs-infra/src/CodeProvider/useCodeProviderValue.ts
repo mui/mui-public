@@ -125,49 +125,28 @@ export function useCodeProviderValue(
   }, [parserRequested, loadSourceParser]);
 
   // Worker for off-main-thread parsing during live editing. Created LAZILY on the
-  // first editable block (via `ensureParseSourceWorker`), not on mount, and
-  // initialized for that block's grammar scopes — so a read-only page never
-  // spins up the worker or loads the highlighting engine into it. Browser-only; torn down
-  // on unmount. The worker client module is dynamically imported so the
-  // `new URL('./parseSourceWorker', import.meta.url)` call (which bundlers resolve
-  // to a separate worker chunk) never runs in SSR bundles.
+  // first editable block (via `ensureParseSourceWorker`), not on mount, so a
+  // read-only page never spins up the worker or loads the highlighting engine
+  // into it. Browser-only; torn down on unmount. The worker client module is
+  // dynamically imported so the `new URL('./parseSourceWorker', import.meta.url)`
+  // call (which bundlers resolve to a separate worker chunk) never runs in SSR
+  // bundles.
   const workerRef = React.useRef<ParseSourceWorkerClient | null>(null);
-  const workerSentScopesRef = React.useRef<Set<string>>(new Set());
-  const workerChainRef = React.useRef<Promise<void>>(Promise.resolve());
+  const workerPromiseRef = React.useRef<Promise<void> | null>(null);
   const workerCancelledRef = React.useRef(false);
 
-  const ensureParseSourceWorker = React.useCallback((scopes: string[]) => {
+  const ensureParseSourceWorker = React.useCallback(() => {
     if (typeof window === 'undefined' || typeof Worker === 'undefined') {
       return Promise.resolve();
     }
-    const needed = scopes.filter((scope) => !workerSentScopesRef.current.has(scope));
-    if (needed.length === 0) {
-      return workerChainRef.current;
+    // One worker per provider; concurrent calls share its creation.
+    if (workerPromiseRef.current) {
+      return workerPromiseRef.current;
     }
-    // Optimistically mark as sent; the serialized chain below does the actual
-    // send in order. Rolled back if the load/init/register fails.
-    needed.forEach((scope) => workerSentScopesRef.current.add(scope));
-    const rollback = () => needed.forEach((scope) => workerSentScopesRef.current.delete(scope));
-
-    // Serialize create/register so an early init completes before a later
-    // register, and concurrent calls never double-create the worker.
-    workerChainRef.current = workerChainRef.current.then(async () => {
-      if (workerCancelledRef.current) {
-        return;
-      }
-
-      // Worker already exists — register the new scopes with it.
-      const existing = workerRef.current;
-      if (existing) {
-        try {
-          await existing.register(needed);
-        } catch {
-          rollback();
-        }
-        return;
-      }
-
-      // First editable block — create the worker and initialize it.
+    const reset = () => {
+      workerPromiseRef.current = null;
+    };
+    workerPromiseRef.current = (async () => {
       let client: ParseSourceWorkerClient;
       try {
         const { createParseSourceWorkerClient } = await import('./createParseSourceWorkerClient');
@@ -178,16 +157,16 @@ export function useCodeProviderValue(
         // rejected — fall back to the synchronous highlighter.
         client = createParseSourceWorkerClient();
       } catch {
-        rollback();
+        reset();
         return;
       }
       workerRef.current = client;
       try {
-        await client.init(needed);
+        await client.init();
       } catch {
         client.terminate();
         workerRef.current = null;
-        rollback();
+        reset();
         return;
       }
       if (workerCancelledRef.current) {
@@ -196,8 +175,8 @@ export function useCodeProviderValue(
         return;
       }
       setParseSourceAsync(() => client.parseSourceAsync);
-    });
-    return workerChainRef.current;
+    })();
+    return workerPromiseRef.current;
   }, []);
 
   React.useEffect(() => {
@@ -206,7 +185,7 @@ export function useCodeProviderValue(
       workerCancelledRef.current = true;
       workerRef.current?.terminate();
       workerRef.current = null;
-      workerSentScopesRef.current = new Set();
+      workerPromiseRef.current = null;
     };
   }, []);
 

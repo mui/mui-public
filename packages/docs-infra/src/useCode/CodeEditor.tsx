@@ -3,7 +3,7 @@
 import * as React from 'react';
 import EditorImport from 'react-simple-code-editor';
 import type { EditableSourceProjection, HastRoot } from '../CodeHighlighter/types';
-import { useGrammarsReady } from '../CodeHighlighter/useGrammarsReady';
+import { useHighlighterReady } from '../CodeHighlighter/useHighlighterReady';
 import { useCodeContext, useDemandSourceParser } from '../CodeProvider/CodeContext';
 import { hastToJsx } from '../pipeline/hastUtils';
 import { resolveGrammarScope } from '../pipeline/parseSource/grammarMaps';
@@ -117,9 +117,8 @@ export function CodeEditor({
   const { ensureParseSourceWorker, loadSourceParser, parseSource, parseSourceAsync } =
     useCodeContext();
   const parseFileName = displayFileName ?? fileName ?? 'code.txt';
-  const grammarScope = resolveGrammarScope(parseFileName, language);
-  const grammarScopes = React.useMemo(() => (grammarScope ? [grammarScope] : []), [grammarScope]);
-  const grammarsReady = useGrammarsReady(grammarScopes, Boolean(loadSourceParser));
+  const highlightable = resolveGrammarScope(parseFileName, language) !== undefined;
+  const highlighterReady = useHighlighterReady(highlightable && Boolean(loadSourceParser));
   useDemandSourceParser(loadSourceParser, !parseSource);
   const editableProjection = React.useMemo(
     () => validateProjection(source, sourceProjection),
@@ -186,15 +185,15 @@ export function CodeEditor({
   }, [source, editableProjection, expanded, fileName, displayFileName]);
 
   React.useEffect(() => {
-    if ((!parseSourceAsync && !parseSource) || !grammarsReady) {
+    if ((!parseSourceAsync && !parseSource) || !highlighterReady) {
       return undefined;
     }
 
     const abortController = new AbortController();
     const highlight = async () => {
       try {
-        if (grammarScope) {
-          await ensureParseSourceWorker?.([grammarScope]);
+        if (highlightable) {
+          await ensureParseSourceWorker?.();
         }
         let hast: HastRoot;
         if (parseSourceAsync) {
@@ -224,8 +223,8 @@ export function CodeEditor({
     deferredValue,
     parseFileName,
     language,
-    grammarScope,
-    grammarsReady,
+    highlightable,
+    highlighterReady,
     ensureParseSourceWorker,
     parseSource,
     parseSourceAsync,
@@ -320,8 +319,8 @@ export function CodeEditor({
   );
 
   const parserPending = !parseSource && Boolean(loadSourceParser);
-  const grammarPending = Boolean(parseSource && grammarScope && !grammarsReady);
-  if (fallback && (parserPending || grammarPending)) {
+  const highlighterPending = Boolean(parseSource && highlightable && !highlighterReady);
+  if (fallback && (parserPending || highlighterPending)) {
     return fallback;
   }
 
@@ -338,7 +337,7 @@ export function CodeEditor({
             highlighted.language === language
           ) {
             content = highlightedNode;
-          } else if (parseSource && grammarsReady) {
+          } else if (parseSource && highlighterReady) {
             content = hastToJsx(parseSource(currentValue, parseFileName, language));
           } else {
             content = currentValue;

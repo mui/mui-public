@@ -128,7 +128,7 @@ function HighlightedCode({ code, fileName }: { code: string; fileName: string })
 
 ## How It Works
 
-1. **Initialization**: `createParseSource()` loads the highlighting engine, a single WebAssembly module with every supported language (loaded as a code-split chunk). `registerGrammars` and `ensureGrammars` load the same module on demand, which is how [`CodeProviderLazy`](../../components/code-provider/page.mdx#lazy-highlighting-engine) defers it
+1. **Initialization**: `createParseSource()` loads the highlighting engine, a single WebAssembly module with every supported language (loaded as a code-split chunk). [`CodeProviderLazy`](../../components/code-provider/page.mdx#lazy-highlighting-engine) defers this until a block highlights client-side
 2. **Language Detection**: File extension is extracted and mapped to a grammar scope
 3. **Syntax Highlighting**: The engine tokenizes the source, and the tokens are converted into HAST nodes with `pl-*` classes
 4. **Syntax Extensions**: Adds fine-grained `di-*` classes (numbers, booleans, nullish, attributes) without removing existing classes
@@ -256,12 +256,6 @@ import { TypesParseSource, TypesParseSourceAdditional } from './types';
 <TypesParseSource.getGrammarFromLanguage />
 
 [See Types](./types.md#getGrammarFromLanguage)
-
-### `registerGrammars`
-
-<TypesParseSource.registerGrammars />
-
-[See Types](./types.md#registerGrammars)
 
 ## Additional Types
 

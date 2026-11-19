@@ -88,10 +88,10 @@ describe('createParseSourceWorkerClient', () => {
 
   it('posts the init payload and resolves init() on init-ack', async () => {
     const client = createParseSourceWorkerClient();
-    const initPromise = client.init([]);
+    const initPromise = client.init();
     const worker = FakeWorker.instances[0];
 
-    expect(worker.posted).toEqual([{ type: 'init', scopes: [] }]);
+    expect(worker.posted).toEqual([{ type: 'init' }]);
 
     worker.respond({ type: 'init-ack' });
     await expect(initPromise).resolves.toBeUndefined();
@@ -101,8 +101,8 @@ describe('createParseSourceWorkerClient', () => {
 
   it('returns the same promise from repeated init() calls', () => {
     const client = createParseSourceWorkerClient();
-    const a = client.init([]);
-    const b = client.init([]);
+    const a = client.init();
+    const b = client.init();
     expect(a).toBe(b);
     // Only one `init` message posted.
     expect(FakeWorker.instances[0].posted).toHaveLength(1);
@@ -111,49 +111,18 @@ describe('createParseSourceWorkerClient', () => {
 
   it('rejects init() when the worker reports init-error', async () => {
     const client = createParseSourceWorkerClient();
-    const initPromise = client.init([]);
+    const initPromise = client.init();
     const worker = FakeWorker.instances[0];
 
-    worker.respond({ type: 'init-error', error: 'grammar boom' });
+    worker.respond({ type: 'init-error', error: 'engine boom' });
 
-    await expect(initPromise).rejects.toThrow('grammar boom');
-    client.terminate();
-  });
-
-  it('posts a register payload and resolves register() on register-ack', async () => {
-    const client = createParseSourceWorkerClient();
-    const initPromise = client.init([]);
-    const worker = FakeWorker.instances[0];
-    worker.respond({ type: 'init-ack' });
-    await initPromise;
-
-    const registerPromise = client.register([]);
-    // The register message follows the init message.
-    expect(worker.posted[1]).toEqual({ type: 'register', scopes: [] });
-
-    worker.respond({ type: 'register-ack' });
-    await expect(registerPromise).resolves.toBeUndefined();
-
-    client.terminate();
-  });
-
-  it('rejects register() when the worker reports a register-error', async () => {
-    const client = createParseSourceWorkerClient();
-    const initPromise = client.init([]);
-    const worker = FakeWorker.instances[0];
-    worker.respond({ type: 'init-ack' });
-    await initPromise;
-
-    const registerPromise = client.register([]);
-    worker.respond({ type: 'register-error', error: 'register boom' });
-
-    await expect(registerPromise).rejects.toThrow('register boom');
+    await expect(initPromise).rejects.toThrow('engine boom');
     client.terminate();
   });
 
   it('parses a request and resolves with the returned HAST', async () => {
     const client = createParseSourceWorkerClient();
-    const initPromise = client.init([]);
+    const initPromise = client.init();
     const worker = FakeWorker.instances[0];
     worker.respond({ type: 'init-ack' });
     await initPromise;
@@ -176,7 +145,7 @@ describe('createParseSourceWorkerClient', () => {
 
   it('rejects when the worker reports a parse error', async () => {
     const client = createParseSourceWorkerClient();
-    const initPromise = client.init([]);
+    const initPromise = client.init();
     const worker = FakeWorker.instances[0];
     worker.respond({ type: 'init-ack' });
     await initPromise;
@@ -192,7 +161,7 @@ describe('createParseSourceWorkerClient', () => {
 
   it('demultiplexes concurrent requests by id', async () => {
     const client = createParseSourceWorkerClient();
-    const initPromise = client.init([]);
+    const initPromise = client.init();
     const worker = FakeWorker.instances[0];
     worker.respond({ type: 'init-ack' });
     await initPromise;
@@ -219,7 +188,7 @@ describe('createParseSourceWorkerClient', () => {
 
   it('rejects with signal.reason when the signal is already aborted', async () => {
     const client = createParseSourceWorkerClient();
-    const initPromise = client.init([]);
+    const initPromise = client.init();
     const worker = FakeWorker.instances[0];
     worker.respond({ type: 'init-ack' });
     await initPromise;
@@ -239,7 +208,7 @@ describe('createParseSourceWorkerClient', () => {
 
   it('rejects in-flight requests when the signal aborts and ignores the late response', async () => {
     const client = createParseSourceWorkerClient();
-    const initPromise = client.init([]);
+    const initPromise = client.init();
     const worker = FakeWorker.instances[0];
     worker.respond({ type: 'init-ack' });
     await initPromise;
@@ -262,7 +231,7 @@ describe('createParseSourceWorkerClient', () => {
 
   it('terminate() rejects all pending requests and terminates the worker', async () => {
     const client = createParseSourceWorkerClient();
-    const initPromise = client.init([]);
+    const initPromise = client.init();
     const worker = FakeWorker.instances[0];
     worker.respond({ type: 'init-ack' });
     await initPromise;
@@ -284,7 +253,7 @@ describe('createParseSourceWorkerClient', () => {
 
   it('rejects in-flight parses and a pending init when the worker crashes, then fails fast', async () => {
     const client = createParseSourceWorkerClient();
-    const initPromise = client.init([]);
+    const initPromise = client.init();
     const worker = FakeWorker.instances[0];
     worker.respond({ type: 'init-ack' });
     await initPromise;
@@ -304,7 +273,7 @@ describe('createParseSourceWorkerClient', () => {
 
   it('rejects a pending init() handshake when the worker crashes', async () => {
     const client = createParseSourceWorkerClient();
-    const initPromise = client.init([]); // never acked
+    const initPromise = client.init(); // never acked
     const worker = FakeWorker.instances[0];
     const caught = initPromise.catch((error: Error) => error.message);
 
@@ -315,7 +284,7 @@ describe('createParseSourceWorkerClient', () => {
 
   it('removes the abort listener after a successful response', async () => {
     const client = createParseSourceWorkerClient();
-    const initPromise = client.init([]);
+    const initPromise = client.init();
     const worker = FakeWorker.instances[0];
     worker.respond({ type: 'init-ack' });
     await initPromise;

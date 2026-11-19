@@ -36,7 +36,7 @@ describe('transformHtmlCodeInline', () => {
   describe('inline code highlighting in MDX documentation', () => {
     it('highlights inline code when the highlighter was loaded lazily', async () => {
       resetHighlighter();
-      await createParseSource([]);
+      await createParseSource();
 
       const output = await processHtml('<code class="language-tsx">const value = 1</code>');
 

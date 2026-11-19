@@ -6,18 +6,12 @@
 
 ### createParseSource
 
-Loads the highlighting engine and returns a configured `parseSource`
-function. Only needs to be called once per application; the engine is stored
-globally for reuse across calls.
-
-`initialScopes` is accepted for compatibility with language-aware callers;
-the engine always includes every supported language.
-
-**Parameters:**
-
-| Parameter      | Type       | Default | Description |
-| :------------- | :--------- | :------ | :---------- |
-| initialScopes? | `string[]` | -       | -           |
+Loads the highlighting engine, which includes every supported language, and
+returns a configured `parseSource` function. Only needs to be called once per
+application; the engine is stored globally for reuse across calls. Client
+code that only needs to warm the engine should call the light facade
+`loadHighlighter` from `./highlighterCache`, so the engine stays out of
+the client bundle until a block needs it.
 
 **Return Value:**
 
@@ -91,38 +85,6 @@ HAST Root node containing highlighted code structure with line gutters
 
 ```tsx
 type ReturnValue = HastRoot;
-```
-
-### registerAllGrammars
-
-Loads the engine with every supported language.
-
-**Return Value:**
-
-```tsx
-type ReturnValue = Promise<void>;
-```
-
-### registerGrammars
-
-Makes the given scopes available to `parseSource`. Every supported language
-ships in one engine module, so this loads the engine once and is a no-op
-afterwards; scopes are accepted so callers can stay language-aware.
-
-This is the heavy implementation (it loads the engine). Client code should
-call the light facade `ensureGrammars` from `./grammarCache` instead, so
-the engine stays out of the client bundle until a block needs it.
-
-**Parameters:**
-
-| Parameter | Type       | Default | Description |
-| :-------- | :--------- | :------ | :---------- |
-| scopes    | `string[]` | -       | -           |
-
-**Return Value:**
-
-```tsx
-type ReturnValue = Promise<void>;
 ```
 
 ### resetHighlighter
