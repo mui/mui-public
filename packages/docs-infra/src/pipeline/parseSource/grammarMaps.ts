@@ -1,8 +1,7 @@
 /**
  * Light-weight grammar metadata maps. These can be statically imported without
- * pulling in the heavy TextMate grammar JSON payloads (which live in
- * `./grammars.ts` and should be loaded via dynamic `import('./grammars')` so
- * the bundler can code-split them into their own chunk).
+ * pulling in the highlighting engine (`./highlightToHast`, loaded via dynamic
+ * `import()` so the bundler can code-split it into its own chunk).
  */
 
 export const extensionMap: Record<string, string> = {
@@ -43,6 +42,11 @@ export const languageToGrammarMap: Record<string, string> = {
   yaml: 'source.yaml',
   yml: 'source.yaml',
 };
+
+/** Every grammar scope a file extension or language name resolves to. */
+export const grammarScopes: readonly string[] = [
+  ...new Set([...Object.values(extensionMap), ...Object.values(languageToGrammarMap)]),
+];
 
 /**
  * Gets the grammar scope from a language name.

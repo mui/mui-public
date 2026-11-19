@@ -9,10 +9,10 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { useGrammarsReady } from './useGrammarsReady';
 import * as grammarCache from '../pipeline/parseSource/grammarCache';
-import { resetStarryNight } from '../pipeline/parseSource/parseSource';
+import { resetHighlighter } from '../pipeline/parseSource/parseSource';
 
 beforeEach(() => {
-  resetStarryNight();
+  resetHighlighter();
 });
 
 afterEach(() => {

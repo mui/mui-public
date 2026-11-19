@@ -418,7 +418,9 @@ const e = 5; // @highlight`,
         'test.css',
       );
 
-      expect(result).toContain('<mark>, 40px</mark>');
+      expect(result).toContain(
+        '<mark>, <span class="pl-c1 di-num">40</span><span class="pl-k">px</span></mark>',
+      );
     });
 
     it('should handle @highlight and @highlight-text on adjacent CSS lines', async () => {
@@ -531,12 +533,12 @@ const e = 5; // @highlight`,
 
     it('should highlight all occurrences across element boundaries', async () => {
       const result = await testEmphasis(
-        `<Input value={a} /> <Input value={b} /> // @highlight-text "value"`,
+        `<><Input value={a} /> <Input value={b} /></> // @highlight-text "value"`,
         parseSource,
       );
 
       expect(result).toMatchInlineSnapshot(
-        `"<span class="frame" data-lined="" data-frame-type="focus"><span class="line" data-ln="1">&#x3C;<span class="pl-c1 di-jsx">Input</span> <mark class="pl-e di-ak">value</mark><span class="pl-k di-pu di-ae">=</span><span class="pl-pse">{</span><span class="pl-smi di-jv">a</span><span class="pl-pse">}</span> /> &#x3C;<span class="pl-c1 di-jsx">Input</span> <mark class="pl-e di-ak">value</mark><span class="pl-k di-pu di-ae">=</span><span class="pl-pse">{</span><span class="pl-smi di-jv">b</span><span class="pl-pse">}</span> /> <span class="pl-c">// @highlight-text "<mark>value</mark>"</span></span></span>"`,
+        `"<span class="frame" data-lined="" data-frame-type="focus"><span class="line" data-ln="1">&#x3C;>&#x3C;<span class="pl-c1 di-jsx">Input</span> <mark class="pl-e di-ak">value</mark><span class="pl-k di-pu di-ae">=</span><span class="pl-pse">{</span><span class="pl-smi di-jv">a</span><span class="pl-pse">}</span> /> &#x3C;<span class="pl-c1 di-jsx">Input</span> <mark class="pl-e di-ak">value</mark><span class="pl-k di-pu di-ae">=</span><span class="pl-pse">{</span><span class="pl-smi di-jv">b</span><span class="pl-pse">}</span> />&#x3C;/> <span class="pl-c">// @highlight-text "<mark>value</mark>"</span></span></span>"`,
       );
     });
 

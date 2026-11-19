@@ -1,6 +1,6 @@
 import type { Root as HastRoot, Element } from 'hast';
 import { visit } from 'unist-util-visit';
-import { getStarryNightInstance } from '../parseSource/parseSource';
+import { getHighlighter } from '../parseSource/parseSource';
 import { getGrammarFromLanguage } from '../parseSource/grammarMaps';
 import { extendSyntaxTokens } from '../parseSource/extendSyntaxTokens';
 import { getLanguageCapabilitiesFromScope } from '../parseSource/languageCapabilities';
@@ -52,7 +52,7 @@ export default function transformHtmlCodeInline(options: TransformHtmlCodeInline
   const { includePreElements = false } = options;
 
   return async (tree: HastRoot) => {
-    const starryNight = await getStarryNightInstance();
+    const highlighter = await getHighlighter();
 
     visit(tree, 'element', (node: Element, _index, parent) => {
       // Only process code elements (inline code or code blocks without special handling)
@@ -89,7 +89,7 @@ export default function transformHtmlCodeInline(options: TransformHtmlCodeInline
       let sourceToHighlight = highlightingPrefix ? `${highlightingPrefix}${source}` : source;
 
       // Inline JS-family snippets that look like a bare object literal (e.g. `{ height: 400 }`)
-      // are tokenized by starry-night as a block statement with labeled statements, which makes
+      // are tokenized as a block statement with labeled statements, which makes
       // the keys appear as `pl-en` (entity name) tokens rather than property names. Wrap them
       // in `(...)` so the snippet parses as an expression and `extendSyntaxTokens` can split
       // out the keys via `splitObjectKeys`. The wrapping characters are stripped after highlighting.
@@ -113,7 +113,10 @@ export default function transformHtmlCodeInline(options: TransformHtmlCodeInline
       }
 
       // Apply syntax highlighting
-      const highlighted = starryNight.highlight(sourceToHighlight, grammarScope);
+      const highlighted = highlighter.highlight(sourceToHighlight, grammarScope);
+      if (!highlighted) {
+        return;
+      }
       extendSyntaxTokens(highlighted, grammarScope);
 
       // Replace the code element's children with the highlighted nodes

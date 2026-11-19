@@ -22,7 +22,7 @@ const BASE_CAPABILITIES: LanguageCapabilities = {
 };
 
 /**
- * Resolves language capabilities from a starry-night grammar scope string.
+ * Resolves language capabilities from a grammar scope string.
  *
  * Note: `.jsx` files map to `source.tsx` via the extension map, so there is
  * no separate `source.jsx` scope. MDX is treated as JS+TS+JSX because it

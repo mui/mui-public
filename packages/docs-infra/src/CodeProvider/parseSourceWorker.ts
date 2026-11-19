@@ -2,27 +2,25 @@
  * Worker entry point for off-main-thread syntax highlighting.
  *
  * Lifecycle:
- *  1. Main thread posts `{ type: 'init', grammars }` once. The worker calls
- *     `createStarryNight(grammars)` and primes the singleton used by
- *     `parseSource`. Posts `{ type: 'init-ack' }` when ready.
+ *  1. Main thread posts `{ type: 'init', scopes }` once. The worker loads the
+ *     highlighting engine (which includes every supported language) and posts
+ *     `{ type: 'init-ack' }` when ready.
  *  2. For each parse request, main thread posts
  *     `{ type: 'parse', id, source, fileName, language? }`. The worker runs
  *     the same sync `parseSource` body that the main thread uses (so the HAST
  *     output is byte-identical) and posts `{ type: 'parse', id, ok, hast? , error? }`.
+ *  3. `{ type: 'register', scopes }` for languages added later resolves with
+ *     `register-ack` once the engine is loaded.
  *
  * Parse requests that arrive before init completes are queued and drained on
- * `init-ack`. The worker does not import `./grammars` statically — the heavy
- * grammar JSON payload travels across the boundary exactly once via the init
- * message so that the (lazy) main-thread grammar chunk is the single shared
- * source of truth.
+ * `init-ack`.
  */
 
-import { createStarryNight } from '@wooorm/starry-night';
-import { parseSource } from '../pipeline/parseSource/parseSource';
-
-type Grammar = Parameters<typeof createStarryNight>[0][number];
-
-const STARRY_NIGHT_KEY = '__docs_infra_starry_night_instance__';
+import {
+  parseSource,
+  registerAllGrammars,
+  registerGrammars,
+} from '../pipeline/parseSource/parseSource';
 
 type ParseRequest = {
   type: 'parse';
@@ -34,12 +32,12 @@ type ParseRequest = {
 
 type InitRequest = {
   type: 'init';
-  grammars: Grammar[];
+  scopes: string[];
 };
 
 type RegisterRequest = {
   type: 'register';
-  grammars: Grammar[];
+  scopes: string[];
 };
 
 type IncomingMessage = InitRequest | RegisterRequest | ParseRequest;
@@ -53,14 +51,13 @@ const queue: ParseRequest[] = [];
 let initialized = false;
 let initInFlight: Promise<void> | null = null;
 
-async function init(grammars: Grammar[]): Promise<void> {
+async function init(): Promise<void> {
   if (initInFlight) {
     return initInFlight;
   }
   initInFlight = (async () => {
     try {
-      const starryNight = await createStarryNight(grammars);
-      (globalThis as { [key: string]: unknown })[STARRY_NIGHT_KEY] = starryNight;
+      await registerAllGrammars();
       initialized = true;
       // Drain queued parse requests in arrival order.
       for (const req of queue.splice(0)) {
@@ -78,20 +75,13 @@ async function init(grammars: Grammar[]): Promise<void> {
   return initInFlight;
 }
 
-async function registerGrammars(grammars: Grammar[]): Promise<void> {
-  // Wait for init to finish (the client always inits before registering), then
-  // add the new grammars to the existing instance.
+async function register(scopes: string[]): Promise<void> {
+  // Wait for init to finish (the client always inits before registering).
   if (initInFlight) {
     await initInFlight;
   }
   try {
-    const starryNight = (globalThis as { [key: string]: unknown })[STARRY_NIGHT_KEY] as
-      { register: (grammars: Grammar[]) => Promise<undefined> } | undefined;
-    if (!starryNight) {
-      workerScope.postMessage({ type: 'register-error', error: 'worker not initialized' });
-      return;
-    }
-    await starryNight.register(grammars);
+    await registerGrammars(scopes);
     workerScope.postMessage({ type: 'register-ack' });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -123,13 +113,13 @@ workerScope.addEventListener('message', (event: MessageEvent<IncomingMessage>) =
   if (data.type === 'init') {
     // The promise rejection is observed by the client via `init-error`; the
     // local `.catch` here just prevents an unhandled rejection in the worker.
-    init(data.grammars).catch(() => {});
+    init().catch(() => {});
     return;
   }
   if (data.type === 'register') {
     // Failures are reported to the client via `register-error`; the `.catch`
     // just prevents an unhandled rejection in the worker.
-    registerGrammars(data.grammars).catch(() => {});
+    register(data.scopes).catch(() => {});
     return;
   }
   if (data.type === 'parse') {

@@ -4,6 +4,6 @@ export {
   parseSource,
   registerAllGrammars,
   registerGrammars,
-  resetStarryNight,
+  resetHighlighter,
 } from './parseSource';
 export { getGrammarFromLanguage, languageToGrammarMap, extensionMap } from './grammarMaps';

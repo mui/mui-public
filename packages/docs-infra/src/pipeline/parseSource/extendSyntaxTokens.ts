@@ -4,12 +4,12 @@ import { getLanguageCapabilitiesFromScope } from './languageCapabilities';
 
 /**
  * Classes that can represent CSS attribute selector names inside `[...]`.
- * Current starry-night uses `pl-c1`, but a future fix may use `pl-e`.
+ * The highlighter uses `pl-e`; `pl-c1` is accepted for hand-built trees.
  */
 const CSS_ATTR_SELECTOR_CLASSES = new Set(['pl-c1', 'pl-e']);
 
 /**
- * TypeScript built-in type keywords that starry-night classifies as `pl-c1`.
+ * TypeScript built-in type keywords that the highlighter classifies as `pl-c1`.
  * These are language primitives from the TypeScript specification.
  */
 export const BUILT_IN_TYPES = new Set([
@@ -28,7 +28,7 @@ export const BUILT_IN_TYPES = new Set([
 /**
  * Checks whether a `pl-c1` token's text represents a numeric value.
  *
- * Since starry-night already classified the token as a constant (`pl-c1`),
+ * Since the highlighter already classified the token as a constant (`pl-c1`),
  * we only need to distinguish numbers from named constants like `Button` or `color`.
  * A simple first-character check is sufficient: numbers start with a digit,
  * optional `-` sign, or `.` followed by a digit.
@@ -138,7 +138,7 @@ function enhanceConstantSpan(element: Element, isJs: boolean, isTs: boolean): vo
  * Enhances `pl-s` (string) spans for empty string literals (`""`, `''`)
  * by adding the `di-n` (nullish) class.
  *
- * Starry-night tokenizes an empty string as exactly two `pl-pds` quote-delimiter
+ * An empty string is exactly two `pl-pds` quote-delimiter
  * spans with no content between them:
  * `<span class="pl-s"><span class="pl-pds">"</span><span class="pl-pds">"</span></span>`
  * so we can detect it structurally without recursively serializing the text.
@@ -418,7 +418,7 @@ function processTemplateText(
  *
  * `entryStack` carries the interpolation state from previous lines (a single
  * `string` frame for the opening line). `isOpener` is true for the line that
- * holds the opening backtick. Because starry-night emits one `pl-s` span per line
+ * holds the opening backtick. Because the highlighter emits one `pl-s` span per line
  * and the line gutter splits on top-level newlines, a region can never cross a
  * line boundary — each line's slice is wrapped on its own, so a continuation
  * line opens a fresh `di-te` with no leading `${`. Returns the stack to carry to
@@ -698,7 +698,7 @@ function enhanceChildren(
     }
 
     // ── Template-literal interpolation (JS family) ──
-    // starry-night tokenizes a backtick string as a `pl-s` span (one per line for
+    // The highlighter emits a backtick string as a `pl-s` span (one per line for
     // multi-line literals). Wrap each `${ ... }` slice in a `di-te` region with
     // `di-td` delimiters so the interpolated expression resets from the string
     // color. `templateRun` carries the brace/nesting state across the per-line
@@ -903,9 +903,9 @@ function enhanceChildren(
 /**
  * Extends a syntax-highlighted HAST tree with additional `di-*` CSS classes
  * for fine-grained styling control. All extensions are **additive** — existing
- * `pl-*` classes from starry-night are never removed.
+ * `pl-*` classes from the highlighter are never removed.
  *
- * @param tree - The HAST root node produced by starry-night's `highlight()`
+ * @param tree - The highlighted HAST root (see `highlightToHast`)
  * @param grammarScope - The grammar scope used for highlighting (e.g., 'source.tsx', 'source.css')
  */
 export function extendSyntaxTokens(tree: Root, grammarScope: string): void {

@@ -311,7 +311,7 @@ describe('parseControlledCode', () => {
     it('does not cache plain HAST while a known grammar is still cold', () => {
       const registry = { scopes: vi.fn(() => ['source.tsx']) };
       const globalRegistry = globalThis as Record<string, unknown>;
-      const registryKey = '__docs_infra_starry_night_instance__';
+      const registryKey = '__docs_infra_highlighter_instance__';
       const previousRegistry = globalRegistry[registryKey];
       globalRegistry[registryKey] = registry;
       const controlledCode: ControlledCode = {

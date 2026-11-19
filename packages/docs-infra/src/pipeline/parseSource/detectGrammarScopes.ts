@@ -5,7 +5,7 @@ import { resolveGrammarScope } from './grammarMaps';
  * Enumerates the unique grammar scopes a code block needs to highlight every
  * file across all of its variants — the main file plus each extra file, by
  * extension or explicit `language`. Cheap and synchronous (it reads only the
- * lightweight metadata, never the grammar JSON), so it can run on every render
+ * lightweight metadata, never the engine), so it can run on every render
  * to drive a speculative grammar preload.
  *
  * Variants that are bare source strings (no file metadata) or `undefined`, and

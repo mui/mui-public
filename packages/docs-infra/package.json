@@ -121,7 +121,7 @@
     "@orama/orama": "^3.1.18",
     "@orama/plugin-qps": "^3.1.18",
     "@orama/stemmers": "^3.1.18",
-    "@wooorm/starry-night": "^3.11.0",
+    "@pierre/highlights": "^0.5.1",
     "autoprefixer": "^10.6.2",
     "chalk": "^6.0.1",
     "es-toolkit": "^1.53.2",
@@ -153,7 +153,6 @@
     "uint8-to-base64": "^0.2.1",
     "unified": "^11.0.5",
     "unist-util-visit": "^5.2.0",
-    "vscode-oniguruma": "^2.0.1",
     "yargs": "^18.2.0",
     "zx": "^8.8.5"
   },

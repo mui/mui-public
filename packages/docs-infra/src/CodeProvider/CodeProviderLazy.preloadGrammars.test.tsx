@@ -2,17 +2,17 @@
  * @vitest-environment jsdom
  *
  * The `preloadGrammars` provider opt-in: omitted leaves grammars fully lazy;
- * a language/scope list warms exactly those on mount; `'all'` warms everything.
+ * a language/scope list or `'all'` loads the highlighter on mount.
  */
 import * as React from 'react';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
 import { CodeProviderLazy } from './CodeProviderLazy';
 import { areGrammarsRegistered } from '../pipeline/parseSource/grammarCache';
-import { resetStarryNight } from '../pipeline/parseSource/parseSource';
+import { resetHighlighter } from '../pipeline/parseSource/parseSource';
 
 beforeEach(() => {
-  resetStarryNight();
+  resetHighlighter();
 });
 
 describe('CodeProviderLazy preloadGrammars', () => {
@@ -27,7 +27,7 @@ describe('CodeProviderLazy preloadGrammars', () => {
     expect(areGrammarsRegistered(['source.tsx'])).toBe(false);
   });
 
-  it('preloads exactly the listed languages on mount', async () => {
+  it('preloads the listed languages on mount', async () => {
     render(
       <CodeProviderLazy preloadGrammars={['tsx', 'css']}>
         <div />
@@ -35,8 +35,6 @@ describe('CodeProviderLazy preloadGrammars', () => {
     );
 
     await waitFor(() => expect(areGrammarsRegistered(['source.tsx', 'source.css'])).toBe(true));
-    // An unlisted language stays unregistered.
-    expect(areGrammarsRegistered(['source.yaml'])).toBe(false);
   });
 
   it("preloads every grammar with 'all'", async () => {

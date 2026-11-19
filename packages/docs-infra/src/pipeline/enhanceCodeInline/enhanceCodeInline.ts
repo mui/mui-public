@@ -279,11 +279,11 @@ function reclassifyTokens(children: ElementContent[]): void {
  * Only applies to TypeScript-family languages, matching the contract in
  * `extendSyntaxTokens` which gates `di-bt` on `isTs`.
  *
- * Starry Night tokenizes standalone type keywords inconsistently when there is
+ * The highlighter tokenizes standalone type keywords inconsistently when there is
  * no surrounding type context: most (`string`, `number`, …) become `pl-smi`
  * (identifier), while `void` becomes `pl-k` (keyword). In inline code this is
  * the common case — e.g. `` `string` `` — so we reclassify them to match the
- * output of `type x = string` (where starry-night produces `pl-c1`) and add
+ * output of `type x = string` (where the highlighter produces `pl-c1`) and add
  * `di-bt` for semantic styling.
  *
  * For `pl-k` tokens (like `void`), we only reclassify when the token is the

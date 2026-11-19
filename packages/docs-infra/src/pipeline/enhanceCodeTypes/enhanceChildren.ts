@@ -544,7 +544,7 @@ export function enhanceChildren(
       }
 
       // Import identifier collection: pl-smi spans inside an import statement
-      // are imported names (Starry Night tokenizes them as pl-smi, not pl-c1).
+      // are imported names (the highlighter tokenizes them as pl-smi, not pl-c1).
       if (moduleLinkMap && isSmiSpan(node) && state.sawJsImportKeyword) {
         collectImportIdentifier(getTextContent(node), state);
         newChildren.push(node);
@@ -1035,7 +1035,7 @@ function updateStateForEntity(
 
   // Import identifier collection: when inside an import statement,
   // identifier spans are imported names — collect them and skip other processing.
-  // Starry Night tokenizes import identifiers as pl-smi; pl-c1 is kept as a
+  // The highlighter tokenizes import identifiers as pl-smi; pl-c1 is kept as a
   // fallback for robustness.
   if ((isC1 || className?.includes('pl-smi')) && state.sawJsImportKeyword) {
     collectImportIdentifier(text, state);
@@ -1880,7 +1880,7 @@ function extractStringLiteralValue(node: Element): string | null {
  * Checks whether a pl-s span is a template literal with interpolations.
  * Looks for a backtick pl-pds delimiter and pl-pse interpolation boundaries.
  *
- * Starry-night renders template literal interpolations as:
+ * Recognizes interpolations wrapped in `pl-pse` delimiter spans:
  *   `<span class="pl-pse"><span class="pl-s1">${</span></span>`
  *   `<span class="pl-s1">name</span>`
  *   `<span class="pl-pse"><span class="pl-s1">}</span></span>`
@@ -1905,7 +1905,7 @@ function isTemplateLiteralWithInterpolations(node: Element): boolean {
 /**
  * Extracts expression tokens from a template literal with interpolations.
  *
- * Parses the pl-s span children based on starry-night's HAST structure:
+ * Parses the pl-s span children based on the highlighted HAST structure:
  * - Text nodes between pl-pds/pl-pse become string tokens
  * - `pl-pse` elements with `${` / `}` delimit interpolation regions
  * - Inside interpolation regions, simple `pl-s1` identifiers become
