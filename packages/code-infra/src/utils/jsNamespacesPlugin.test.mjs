@@ -1,4 +1,5 @@
 import * as fs from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import * as path from 'node:path';
 import { rolldown } from 'rolldown';
 import { describe, expect, it } from 'vitest';
@@ -14,8 +15,14 @@ const NAMED_NAMESPACE = /\{[^}]*_exports[^}]*\} from/;
  * @param {Record<string, string>} files
  * @param {string[]} entries
  * @param {import('rolldown').Plugin[]} plugins
+ * @param {'es' | 'cjs'} format
  */
-async function build(files, entries = ['index.js'], plugins = [jsNamespacesPlugin()]) {
+async function build(
+  files,
+  entries = ['index.js'],
+  plugins = [jsNamespacesPlugin()],
+  format = 'es',
+) {
   const cwd = await makeTempFiles(files);
   const bundle = await rolldown({
     cwd,
@@ -26,7 +33,7 @@ async function build(files, entries = ['index.js'], plugins = [jsNamespacesPlugi
   const outDir = path.join(cwd, 'build');
   await bundle.write({
     dir: outDir,
-    format: 'es',
+    format,
     preserveModules: true,
     preserveModulesRoot: path.join(cwd, 'src'),
   });
@@ -138,5 +145,27 @@ describe('jsNamespacesPlugin', () => {
     });
 
     expect((await import(path.join(outDir, 'index.js')))['module.exports'].Root).toBe('root');
+  });
+
+  it('leaves namespace objects out of CommonJS exports', async () => {
+    const outDir = await build(
+      {
+        'node_modules/external/index.js': 'exports.useExternal = () => 1;',
+        'src/index.js': "export * as Grid from './parts.js';",
+        'src/parts.js': "export * from 'external';\nexport const Root = 'root';",
+      },
+      ['index.js'],
+      [jsNamespacesPlugin()],
+      'cjs',
+    );
+
+    const load = createRequire(path.join(outDir, 'index.js'));
+    const { Grid } = load('./index.js');
+    const parts = load('./parts.js');
+
+    expect(Object.keys(parts).sort()).toEqual(['Root', 'useExternal']);
+    expect(Grid.Root).toBe('root');
+    expect(Grid.useExternal()).toBe(1);
+    expect(await fs.readdir(outDir)).toEqual(['index.js', 'parts.js']);
   });
 });

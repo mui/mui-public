@@ -1,6 +1,6 @@
 import * as path from 'node:path';
 import { RolldownMagicString } from 'rolldown';
-import { parse } from 'rolldown/utils';
+import { parse, Visitor } from 'rolldown/utils';
 
 const DTS_FILES = /\.d\.[cm]?ts$/;
 
@@ -12,6 +12,7 @@ const RUNTIME_MODULE = '\0rolldown/runtime.js';
  * @typedef {import('rolldown/utils').ESTree.Node} Node
  * @typedef {import('rolldown/utils').ESTree.ModuleExportName | import('rolldown/utils').ESTree.BindingIdentifier} Name
  * @typedef {import('rolldown/utils').ESTree.ImportDeclarationSpecifier | import('rolldown/utils').ESTree.ExportSpecifier} Specifier
+ * @typedef {'es' | 'cjs'} Format
  */
 
 /**
@@ -36,9 +37,152 @@ function getName(node) {
 }
 
 /** @param {import('tsdown').Rolldown.OutputChunk} chunk */
-async function parseChunk(chunk) {
+async function parseProgram(chunk) {
   const { program } = await parse(chunk.fileName, chunk.code, { lang: 'js' });
-  return program.body;
+
+  return program;
+}
+
+/** @param {import('tsdown').Rolldown.OutputChunk} chunk */
+async function parseChunk(chunk) {
+  return (await parseProgram(chunk)).body;
+}
+
+/**
+ * The chunk `node` loads when it is `require('./file')`.
+ * @param {import('tsdown').Rolldown.OutputChunk} chunk
+ * @param {Node | null | undefined} node
+ */
+function getRequired(chunk, node) {
+  const source = node?.type === 'CallExpression' ? node.arguments[0] : null;
+
+  if (
+    node?.type !== 'CallExpression' ||
+    node.callee.type !== 'Identifier' ||
+    node.callee.name !== 'require' ||
+    source?.type !== 'Literal' ||
+    typeof source.value !== 'string' ||
+    !source.value.startsWith('.')
+  ) {
+    return undefined;
+  }
+
+  return path.posix.join(path.posix.dirname(chunk.fileName), source.value);
+}
+
+/**
+ * The CommonJS reads of other chunks' exports, ie, `require_parts.name` and
+ * `require('./parts.js').name`.
+ * @param {import('tsdown').Rolldown.OutputChunk} chunk
+ */
+async function getRequiredReads(chunk) {
+  const program = await parseProgram(chunk);
+  /** @type {Map<string, string>} */
+  const bindings = new Map();
+
+  for (const node of program.body) {
+    for (const declarator of node.type === 'VariableDeclaration' ? node.declarations : []) {
+      const target = getRequired(chunk, declarator.init);
+
+      if (target && declarator.id.type === 'Identifier') {
+        bindings.set(declarator.id.name, target);
+      }
+    }
+  }
+
+  /** @type {Set<string>} */
+  const required = new Set();
+  /** @type {{ node: import('rolldown/utils').ESTree.MemberExpression; target: string; name: string }[]} */
+  const reads = [];
+  new Visitor({
+    CallExpression(node) {
+      const target = getRequired(chunk, node);
+
+      if (target) {
+        required.add(target);
+      }
+    },
+    MemberExpression(node) {
+      const { object, property } = node;
+
+      const target =
+        object.type === 'Identifier' ? bindings.get(object.name) : getRequired(chunk, object);
+
+      if (target && !node.computed && property.type === 'Identifier') {
+        reads.push({ node, target, name: property.name });
+      }
+    },
+  }).visit(program);
+
+  return { required, reads };
+}
+
+/**
+ * Whether `node` calls Rolldown's runtime `helper`, imported (ESM) or read off its `require()` (CJS).
+ * @param {Node | null | undefined} node
+ * @param {string} helper
+ */
+function callsHelper(node, helper) {
+  if (node?.type !== 'CallExpression') {
+    return false;
+  }
+
+  const { callee } = node;
+
+  if (callee.type === 'Identifier') {
+    return callee.name === helper;
+  }
+
+  return (
+    callee.type === 'MemberExpression' &&
+    !callee.computed &&
+    callee.property.type === 'Identifier' &&
+    callee.property.name === helper
+  );
+}
+
+/**
+ * The name `statement` exports as CommonJS through a getter returning `local`, ie,
+ * `Object.defineProperty(exports, "name", { get() { return local; } })`.
+ * @param {Node} statement
+ * @param {string} local
+ */
+function getCjsExport(statement, local) {
+  const call = statement.type === 'ExpressionStatement' ? statement.expression : null;
+
+  if (
+    call?.type !== 'CallExpression' ||
+    call.callee.type !== 'MemberExpression' ||
+    call.callee.object.type !== 'Identifier' ||
+    call.callee.object.name !== 'Object' ||
+    call.callee.property.type !== 'Identifier' ||
+    call.callee.property.name !== 'defineProperty' ||
+    call.arguments[0]?.type !== 'Identifier' ||
+    call.arguments[0].name !== 'exports' ||
+    call.arguments[1]?.type !== 'Literal' ||
+    call.arguments[2]?.type !== 'ObjectExpression'
+  ) {
+    return undefined;
+  }
+
+  const getter = call.arguments[2].properties.find(
+    (property) =>
+      property.type === 'Property' &&
+      property.key.type === 'Identifier' &&
+      property.key.name === 'get',
+  );
+
+  const body =
+    getter?.type === 'Property' && getter.value.type === 'FunctionExpression'
+      ? getter.value.body?.body
+      : null;
+
+  const returned =
+    body?.length === 1 && body[0].type === 'ReturnStatement' ? body[0].argument : null;
+
+  return returned?.type === 'Identifier' && returned.name === local
+    ? String(call.arguments[1].value)
+    : undefined;
 }
 
 /** @param {Name} node */
@@ -57,9 +201,8 @@ function getOwnStatements(chunk, body, name) {
   const reExports = body.filter(
     (statement) =>
       statement.type === 'ExpressionStatement' &&
+      callsHelper(statement.expression, '__reExport') &&
       statement.expression.type === 'CallExpression' &&
-      statement.expression.callee.type === 'Identifier' &&
-      statement.expression.callee.name === '__reExport' &&
       statement.expression.arguments[0]?.type === 'Identifier' &&
       statement.expression.arguments[0].name === name,
   );
@@ -70,8 +213,18 @@ function getOwnStatements(chunk, body, name) {
         )
       : [],
   );
-  const usedLocally = countReferences(chunk.code, name) !== 1 + reExports.length + exports.length;
-  return { reExports, usedLocally };
+
+  const cjsExports = body.filter((statement) => getCjsExport(statement, name) !== undefined);
+
+  const cjsReferences = cjsExports.reduce(
+    (count, statement) => count + countReferences(slice(chunk, statement), name),
+    0,
+  );
+
+  const usedLocally =
+    countReferences(chunk.code, name) !== 1 + reExports.length + exports.length + cjsReferences;
+
+  return { reExports, cjsExports, usedLocally };
 }
 
 /**
@@ -90,9 +243,8 @@ async function getNamespaces(chunk) {
     if (
       declarator?.id.type !== 'Identifier' ||
       !GENERATED_NAMESPACE.test(declarator.id.name) ||
+      !callsHelper(init, '__exportAll') ||
       init?.type !== 'CallExpression' ||
-      init.callee.type !== 'Identifier' ||
-      init.callee.name !== '__exportAll' ||
       init.arguments[0]?.type !== 'ObjectExpression'
     ) {
       continue;
@@ -146,6 +298,7 @@ function replace(node, text) {
  */
 async function getImportedNames(chunks) {
   const bodies = await Promise.all(chunks.map(parseChunk));
+  const requiredReads = await Promise.all(chunks.map(getRequiredReads));
   /** @type {Map<string, Set<string>>} */
   const imported = new Map();
   for (const [index, chunk] of chunks.entries()) {
@@ -167,6 +320,16 @@ async function getImportedNames(chunks) {
         }
       }
     }
+
+    const { required, reads } = requiredReads[index];
+
+    for (const target of required) {
+      imported.set(target, imported.get(target) ?? new Set());
+    }
+
+    for (const { target, name } of reads) {
+      imported.get(target)?.add(name);
+    }
   }
   return imported;
 }
@@ -187,20 +350,21 @@ async function dropUnusedNamespaces(chunk, imported) {
     if (
       declarator?.id.type !== 'Identifier' ||
       !GENERATED_NAMESPACE.test(declarator.id.name) ||
-      declarator.init?.type !== 'CallExpression' ||
-      declarator.init.callee.type !== 'Identifier' ||
-      declarator.init.callee.name !== '__exportAll' ||
+      !callsHelper(declarator.init, '__exportAll') ||
       imported.has(declarator.id.name)
     ) {
       continue;
     }
     const name = declarator.id.name;
-    const { reExports, usedLocally } = getOwnStatements(chunk, body, name);
+    const { reExports, cjsExports, usedLocally } = getOwnStatements(chunk, body, name);
     if (usedLocally) {
       continue;
     }
     dropped.add(name);
-    edits.push(replace(node, ''), ...reExports.map((statement) => replace(statement, '')));
+    edits.push(
+      replace(node, ''),
+      ...[...reExports, ...cjsExports].map((statement) => replace(statement, '')),
+    );
   }
   if (dropped.size === 0) {
     return;
@@ -266,6 +430,17 @@ async function dropUnusedImports(chunk) {
   /** @type {Edit[]} */
   const edits = [];
   for (const node of await parseChunk(chunk)) {
+    const declarator = node.type === 'VariableDeclaration' ? node.declarations[0] : null;
+
+    if (
+      declarator?.id.type === 'Identifier' &&
+      getRequired(chunk, declarator.init) &&
+      countReferences(chunk.code, declarator.id.name) === 1
+    ) {
+      edits.push(replace(node, ''));
+      continue;
+    }
+
     if (node.type !== 'ImportDeclaration') {
       continue;
     }
@@ -297,6 +472,13 @@ async function dropUnusedImports(chunk) {
 async function rewriteImports(chunk, rewritable) {
   /** @type {Edit[]} */
   const edits = [];
+
+  for (const { node, target, name } of (await getRequiredReads(chunk)).reads) {
+    if (rewritable.get(target)?.has(name)) {
+      edits.push(replace(node, slice(chunk, node.object)));
+    }
+  }
+
   for (const node of await parseChunk(chunk)) {
     if (
       (node.type !== 'ImportDeclaration' && node.type !== 'ExportNamedDeclaration') ||
@@ -357,8 +539,9 @@ async function dropUnusedRuntime(bundle, chunks) {
 /**
  * Rolldown turns `export * as X from './parts'` into an `__exportAll()` object holding every
  * export, which bundlers can't tree-shake. Rolldown also reads names an external `export *` provides
- * through that object. ESM chunks import such namespaces with `import * as` instead, and objects
- * nothing references any more are removed with their `<name>_exports` export.
+ * through that object. ESM chunks import such namespaces with `import * as` instead, and CommonJS
+ * chunks read the module's `exports`. Objects nothing references any more are removed with their
+ * `<name>_exports` export.
  * Remove this plugin once Rolldown keeps namespace re-exports in unbundled builds:
  * https://github.com/rolldown/rolldown/issues/6669
  * @returns {import('tsdown').Rolldown.Plugin}
@@ -367,7 +550,7 @@ export function jsNamespacesPlugin() {
   return {
     name: 'code-infra:js-namespaces',
     async generateBundle(options, bundle) {
-      if (options.format !== 'es') {
+      if (options.format !== 'es' && options.format !== 'cjs') {
         return;
       }
       const chunks = Object.values(bundle).filter(
