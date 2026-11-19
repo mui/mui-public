@@ -43,7 +43,7 @@ export async function readRecording(file: string): Promise<Recording> {
 }
 
 /** A real Octokit whose HTTP layer serves the recording and fails on anything else. */
-export function replay(recording: Recording) {
+export function replay(recording: Recording): Octokit {
   return new Octokit({
     request: {
       fetch: async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {

@@ -33,3 +33,30 @@ subjects. PRs labeled `cherry-pick` credit their original author; pass `cherryPi
 other labels. Pass `includeDirectCommits: true` to also return commits without a pull request,
 with `prNumber: null`; classifying their authors needs a token that can read organization
 memberships.
+
+#### Changelog as code (prototype)
+
+`fetchReleaseFacts` returns a serializable release: entries with resolved authors, and workspace
+packages with whether their version changed since `lastRelease`. A preset turns it into markdown
+with two pure functions, which `generateChangelog` runs instead of a config:
+
+```js
+import { md, EntryList, Heading, formatDate } from '@mui/internal-code-infra/changelog';
+
+/** @type {import('@mui/internal-code-infra/changelog').ChangelogPreset<import('@mui/internal-code-infra/changelog').ReleaseFacts>} */
+export default {
+  groom: (facts) => facts,
+  view: (facts) => md`
+## ${facts.version}
+
+${formatDate(facts.date)}
+
+${Heading(3, 'Changes')}
+
+${EntryList(facts.entries)}
+`,
+};
+```
+
+A module at the config path that exports `groom` and `view` is used as a preset. A config object
+renders through the built-in `configView(config)` preset.
