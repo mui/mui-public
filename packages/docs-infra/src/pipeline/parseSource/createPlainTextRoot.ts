@@ -1,5 +1,5 @@
 import type { ParseSource } from '../../CodeHighlighter/types';
-import { starryNightGutter } from './addLineGutters';
+import { addLineGutters } from './addLineGutters';
 
 // Lives apart from `parseSource.ts` so callers that only need plain text (the
 // server fallback in `buildStringFallback`) don't statically pull the
@@ -19,7 +19,7 @@ export function createPlainTextRoot(source: string): ReturnType<ParseSource> {
     ],
   };
   const sourceLines = source.split(/\r?\n|\r/);
-  starryNightGutter(root, sourceLines);
+  addLineGutters(root, sourceLines);
   return root;
 }
 

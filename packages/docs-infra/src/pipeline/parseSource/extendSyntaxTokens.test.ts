@@ -34,7 +34,7 @@ function textNode(value: string): Text {
 }
 
 /**
- * Helper to create a pl-s (string) span with pl-pds delimiters as starry-night would.
+ * Helper to create a pl-s (string) span with pl-pds delimiters, as the highlighter emits.
  * e.g. `"hello"` → `<span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span>`
  */
 function stringSpan(quote: string, content: string): Element {
@@ -144,7 +144,7 @@ describe('extendSyntaxTokens', () => {
     });
 
     it('adds di-num when unit is nested as pl-smi child', () => {
-      // Starry-night tokenizes `1rem` as `<span class="pl-c1">1<span class="pl-smi">rem</span></span>`
+      // A highlighter may tokenize `1rem` as `<span class="pl-c1">1<span class="pl-smi">rem</span></span>`
       const node: Element = {
         type: 'element',
         tagName: 'span',
@@ -331,7 +331,7 @@ describe('extendSyntaxTokens', () => {
 
   describe('CSS attribute selector enhancement (di-da)', () => {
     it('adds di-da to pl-c1 span preceded by [ text node', () => {
-      // Current starry-night: &[<span class="pl-c1">data-starting-style</span>]
+      // Attribute name classed as a constant: &[<span class="pl-c1">data-starting-style</span>]
       const attrSpan = span('pl-c1', 'data-starting-style');
       const tree = root([span('pl-ent', '&'), textNode('['), attrSpan, textNode(']')]);
 
@@ -341,7 +341,7 @@ describe('extendSyntaxTokens', () => {
       expect(getClasses(attrSpan)).toContain('di-da');
     });
 
-    it('adds di-da to pl-e span preceded by [ text node (future starry-night)', () => {
+    it('adds di-da to pl-e span preceded by [ text node', () => {
       const attrSpan = span('pl-e', 'data-ending-style');
       const tree = root([textNode('['), attrSpan, textNode(']')]);
 
@@ -401,7 +401,7 @@ describe('extendSyntaxTokens', () => {
     });
 
     it('does not modify & already tokenized as pl-ent', () => {
-      // If a future starry-night version tokenizes & as pl-ent, it should pass through
+      // An & already tokenized as pl-ent should pass through
       const ampersand = span('pl-ent', '&');
       const attrSpan = span('pl-c1', 'data-starting-style');
       const tree = root([ampersand, textNode('['), attrSpan, textNode(']')]);
@@ -415,7 +415,7 @@ describe('extendSyntaxTokens', () => {
 
   describe('CSS nesting selector enhancement (pl-ent)', () => {
     it('wraps bare & in text nodes with pl-ent span', () => {
-      // starry-night v3.x produces: "&[" as a text node
+      // A bare "&[" text node
       const tree = root([textNode('&['), span('pl-e', 'data-starting-style'), textNode(']')]);
 
       extendSyntaxTokens(tree, 'source.css');
@@ -1196,7 +1196,7 @@ describe('extendSyntaxTokens', () => {
     });
 
     it('does not add di-jsx for less-than comparison (< is pl-k, not text)', () => {
-      // `a < MAX_SIZE` — starry-night tokenizes < as pl-k, so the text before pl-c1
+      // `a < MAX_SIZE` — the highlighter tokenizes < as pl-k, so the text before pl-c1
       // is " " not "<", preventing a false match
       const constant = span('pl-c1', 'MAX_SIZE');
       const tree = root([
@@ -1213,7 +1213,7 @@ describe('extendSyntaxTokens', () => {
     });
 
     it('does not add di-jsx to TS built-in types in generics (e.g. useState<number | null>)', () => {
-      // React.useState<number | null>(2) — starry-night emits text "<" then pl-c1("number")
+      // React.useState<number | null>(2) — the highlighter emits text "<" then pl-c1("number")
       // which previously matched the JSX opening-tag pattern.
       const numberType = span('pl-c1', 'number');
       const nullType = span('pl-c1', 'null');
@@ -2058,7 +2058,7 @@ describe('extendSyntaxTokens', () => {
 
   describe('template literal interpolation (di-te / di-td)', () => {
     /**
-     * Helper to create a `pl-pds` backtick delimiter span as starry-night emits
+     * Helper to create a `pl-pds` backtick delimiter span as the highlighter emits
      * for the opening/closing of a template literal.
      */
     function backtick(): Element {
@@ -2066,7 +2066,7 @@ describe('extendSyntaxTokens', () => {
     }
 
     /**
-     * Helper to wrap children in a `pl-s` (string) span, the shape starry-night
+     * Helper to wrap children in a `pl-s` (string) span, the shape the highlighter
      * produces for a template literal line.
      */
     function templateString(children: ElementContent[]): Element {
@@ -2350,7 +2350,7 @@ describe('extendSyntaxTokens', () => {
         // `line1 ${a}
         // line2 ${ b
         //  + c }`
-        // starry-night emits one pl-s span per line with the newline between them.
+        // The highlighter emits one pl-s span per line with the newline between them.
         const line1 = templateString([
           backtick(),
           textNode('line1 ${'),

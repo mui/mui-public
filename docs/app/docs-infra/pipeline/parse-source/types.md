@@ -6,15 +6,12 @@
 
 ### createParseSource
 
-Initializes the highlighter and returns a configured `parseSource` function.
-Only needs to be called once per application; the instance is stored globally
-for reuse across calls.
+Loads the highlighting engine and returns a configured `parseSource`
+function. Only needs to be called once per application; the engine is stored
+globally for reuse across calls.
 
-With no `initialScopes`, registers ALL grammars — the eager `CodeProvider` /
-Node / build-time behavior. Pass `initialScopes` (possibly `[]`) to create a
-lean instance that registers grammars on demand via [`registerGrammars`](#registergrammars) —
-the `CodeProviderLazy` per-language path. The engine module itself is shared
-by every language and loads with the first registration.
+`initialScopes` is accepted for compatibility with language-aware callers;
+the engine always includes every supported language.
 
 **Parameters:**
 
@@ -98,7 +95,7 @@ type ReturnValue = HastRoot;
 
 ### registerAllGrammars
 
-Registers every supported grammar.
+Loads the engine with every supported language.
 
 **Return Value:**
 
@@ -108,12 +105,11 @@ type ReturnValue = Promise<void>;
 
 ### registerGrammars
 
-Registers `scopes` (and any grammar dependencies they pull in) on the global
-highlighter, creating it and loading the engine on demand. Idempotent and
-deduped. Fails open: an engine that fails to load leaves the scopes as plain
-text rather than rejecting.
+Makes the given scopes available to `parseSource`. Every supported language
+ships in one engine module, so this loads the engine once and is a no-op
+afterwards; scopes are accepted so callers can stay language-aware.
 
-This is the heavy implementation (it can load the engine). Client code should
+This is the heavy implementation (it loads the engine). Client code should
 call the light facade `ensureGrammars` from `./grammarCache` instead, so
 the engine stays out of the client bundle until a block needs it.
 
@@ -131,8 +127,8 @@ type ReturnValue = Promise<void>;
 
 ### resetHighlighter
 
-Clears the global highlighter singleton and registration state. Intended for
-tests exercising lazy registration from a known-empty registry.
+Clears the global highlighter singleton. Intended for tests exercising
+loading from a known-empty state.
 
 **Return Value:**
 

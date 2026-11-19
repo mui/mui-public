@@ -1,5 +1,4 @@
 import type { Root as HastRoot } from 'hast';
-import type { Grammar } from '../pipeline/parseSource/grammarLoaders';
 
 /**
  * Asynchronously parses source code into a HAST tree, typically off the main
@@ -36,18 +35,19 @@ type Pending = {
 
 export interface ParseSourceWorkerClient {
   /**
-   * Send the grammar scopes to register to the worker. Idempotent: subsequent
+   * Load the highlighting engine in the worker for the given grammar scopes.
+   * Idempotent: subsequent
    * calls return the same promise. Must be awaited (or composed via
    * `parseSourceAsync`, which awaits it implicitly) before parse requests
    * will be processed.
    */
-  init(grammars: Grammar[]): Promise<void>;
+  init(scopes: string[]): Promise<void>;
   /**
-   * Add more grammars to an already-initialized worker (the per-language path:
+   * Register more scopes with an already-initialized worker (the per-language path:
    * a block becomes editable in a language the worker wasn't initialized with).
    * Resolves on the worker's `register-ack`. Call after `init()`.
    */
-  register(grammars: Grammar[]): Promise<void>;
+  register(scopes: string[]): Promise<void>;
   /**
    * Async syntax-highlighter that runs inside the worker. Returns the same
    * HAST shape as the sync `parseSource`. If `signal` aborts before the
@@ -165,7 +165,7 @@ export function createParseSourceWorkerClient(): ParseSourceWorkerClient {
     handleFatal(new Error('Parse worker received an undeserializable message'));
   });
 
-  function init(grammars: Grammar[]): Promise<void> {
+  function init(scopes: string[]): Promise<void> {
     if (initPromise) {
       return initPromise;
     }
@@ -188,12 +188,12 @@ export function createParseSourceWorkerClient(): ParseSourceWorkerClient {
       }
       handshakeRejecters.add(reject);
       worker.addEventListener('message', onMessage);
-      worker.postMessage({ type: 'init', grammars });
+      worker.postMessage({ type: 'init', scopes });
     });
     return initPromise;
   }
 
-  function register(grammars: Grammar[]): Promise<void> {
+  function register(scopes: string[]): Promise<void> {
     if (dead) {
       return Promise.reject(new Error('Parse worker is no longer available'));
     }
@@ -213,13 +213,13 @@ export function createParseSourceWorkerClient(): ParseSourceWorkerClient {
       }
       handshakeRejecters.add(reject);
       worker.addEventListener('message', onMessage);
-      worker.postMessage({ type: 'register', grammars });
+      worker.postMessage({ type: 'register', scopes });
     });
   }
 
   const parseSourceAsync: ParseSourceAsync = async (source, fileName, language, signal) => {
     if (!initPromise) {
-      throw new Error('parseSourceAsync called before init(). Call client.init(grammars) first.');
+      throw new Error('parseSourceAsync called before init(). Call client.init(scopes) first.');
     }
     if (dead) {
       throw new Error('Parse worker is no longer available');

@@ -31,12 +31,11 @@ import {
 } from './constants';
 
 // Lazy: the highlighting engine (one WebAssembly module with every supported
-// language) loads on demand instead of shipping in the initial bundle, and the
-// instance starts with NO grammars registered — passing `[]` opts into
-// per-language registration, so each block registers only the grammar scopes it
-// needs via `ensureGrammars` (driven by `CodeHighlighter`'s speculative preload +
-// readiness gate). Nothing loads until a consumer calls `loadSourceParser`, so
-// this adds no first-render penalty.
+// language) loads with the parser on demand instead of shipping in the initial
+// bundle. Blocks also request it via `ensureGrammars` (driven by
+// `CodeHighlighter`'s speculative preload + readiness gate). Nothing loads until
+// a consumer calls `loadSourceParser` or a block needs highlighting, so this
+// adds no first-render penalty.
 const createSourceParserLazy = () =>
   import('../pipeline/parseSource/parseSource').then((mod) => mod.createParseSource([]));
 
@@ -51,12 +50,12 @@ interface CodeProviderLazyProps {
   loadSource?: LoadSource;
   sourceEnhancers?: SourceEnhancers;
   /**
-   * Register grammars at the provider level instead of waiting for each block
-   * to register its own on demand. Pass a list of language names (`'tsx'`,
-   * `'css'`) or scope names (`'source.tsx'`) to register exactly those, or
-   * `'all'` to register every grammar. Every language ships in one engine module
-   * (~150&nbsp;KB gzip), which the first registration loads. Omit it (the
-   * default) to keep registration fully lazy and per-language.
+   * Load the highlighting engine on mount instead of when the first block
+   * needs it. Pass a list of language names (`'tsx'`, `'css'`) or scope names
+   * (`'source.tsx'`), or `'all'`. The engine includes every supported language
+   * (~150&nbsp;KB gzip), so any value loads the same module. Useful for a layout
+   * that knows it will render code. Omit it (the default) to load the engine
+   * only when a block highlights.
    */
   preloadGrammars?: 'all' | string[];
 }

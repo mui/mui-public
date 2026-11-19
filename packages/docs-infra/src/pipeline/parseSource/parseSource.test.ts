@@ -152,7 +152,7 @@ describe('parseSource', () => {
 
 describe('parsePlainText', () => {
   it('frames plain text with line gutters so the enhancer can run without highlighting', () => {
-    // The deferred fallback parses with `parsePlainText` (no starry-night) instead of
+    // The deferred fallback parses with `parsePlainText` (no highlighting) instead of
     // skipping parsing, so the enhancer can compute the same frame structure as the
     // highlighted render. No grammar/instance is needed.
     const root = parsePlainText('const a = 1;\nconst b = 2;\nconst c = 3;');

@@ -128,11 +128,11 @@ function HighlightedCode({ code, fileName }: { code: string; fileName: string })
 
 ## How It Works
 
-1. **Initialization**: `createParseSource()` loads the highlighting engine, a single WebAssembly module with every supported language (loaded as a code-split chunk), and registers every grammar. Pass `initialScopes` (possibly `[]`) to create a lean instance that registers grammars on demand via `registerGrammars` — the per-language path used by [`CodeProviderLazy`](../../components/code-provider/page.mdx#lazy-highlighting-engine)
+1. **Initialization**: `createParseSource()` loads the highlighting engine, a single WebAssembly module with every supported language (loaded as a code-split chunk). `registerGrammars` and `ensureGrammars` load the same module on demand, which is how [`CodeProviderLazy`](../../components/code-provider/page.mdx#lazy-highlighting-engine) defers it
 2. **Language Detection**: File extension is extracted and mapped to a grammar scope
 3. **Syntax Highlighting**: The engine tokenizes the source, and the tokens are converted into HAST nodes with `pl-*` classes
 4. **Syntax Extensions**: Adds fine-grained `di-*` classes (numbers, booleans, nullish, attributes) without removing existing classes
-5. **Line Gutters**: `starryNightGutter()` adds line number elements to the tree
+5. **Line Gutters**: `addLineGutters()` adds line number elements to the tree
 6. **Fallback**: Unsupported file types return a simple text node
 
 The engine is cached globally using `__docs_infra_highlighter_instance__` to avoid re-initialization.
