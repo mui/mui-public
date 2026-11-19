@@ -101,7 +101,7 @@ let instance: StarryNight | undefined;
 export const starryNight: Engine = {
   name: 'starry-night',
   version: packageVersion('@wooorm/starry-night'),
-  unsupported: [],
+  fallbacks: {},
   async init() {
     instance = await createStarryNight(STARRY_NIGHT_GRAMMARS);
   },

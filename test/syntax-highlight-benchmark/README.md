@@ -5,7 +5,7 @@ Compares syntax highlighting engines as candidates to replace [Starry Night](htt
 ```bash
 pnpm release:build   # docs-infra is linked through its build output
 pnpm -F ./test/syntax-highlight-benchmark benchmark
-pnpm -F ./test/syntax-highlight-benchmark benchmark --engines starry-night,highlights --cold-runs 3 --skip-bundles
+pnpm -F ./test/syntax-highlight-benchmark benchmark --engines starry-night,highlights --runs 3 --skip-bundles
 pnpm -F ./test/syntax-highlight-benchmark benchmark:disagreements highlights css
 ```
 
@@ -25,40 +25,76 @@ The corpus (`src/corpus.ts`) uses real files from this repository for the 11 lan
 
 `docs-infra parseSource` is the production pipeline: Starry Night plus `extendSyntaxTokens` and line gutters. It shows how much of `parseSource` the engine itself accounts for.
 
-## Results: `@pierre/highlights`
+## Results
 
-[`@pierre/highlights`](https://diffs.com/highlights) 0.5.1 against `@wooorm/starry-night` 3.11.0, Node 26.13.1 on an Apple M1, 16 GiB.
+Node 26.13.1 on an Apple M1, 16 GiB, median of 7 fresh processes per engine. Versions: `@wooorm/starry-night` 3.11.0, [`@pierre/highlights`](https://diffs.com/highlights) 0.5.1, `@lezer/highlight` 1.2.5 with the `@lezer/*` grammars and `@codemirror/legacy-modes` 6.5.5.
 
-| metric                                   | starry-night |    highlights |       ratio |
-| :--------------------------------------- | -----------: | ------------: | ----------: |
-| warm, whole corpus (7,676 lines)         |       260 ms |        6.4 ms |  40× faster |
-| warm, 12-line tsx snippet                |      0.36 ms |      0.014 ms |  25× faster |
-| warm, 2,418-line ts file                 |       145 ms |        2.7 ms |  54× faster |
-| cold: import + init + first highlight    |       393 ms |         15 ms |  26× faster |
-| peak RSS growth                          |      376 MiB |        30 MiB | 12× smaller |
-| browser payload, tsx only (gzip)         |      213 KiB | 184 KiB (all) | 14% smaller |
-| browser payload, all 11 languages (gzip) |      320 KiB | 184 KiB (all) | 42% smaller |
-| elements across corpus                   |       21,529 |        32,833 |    52% more |
-| serialized HTML across corpus            |      830 KiB |     1,555 KiB |    87% more |
+| metric                                   | starry-night |         highlights | CodeMirror (Lezer) |
+| :--------------------------------------- | -----------: | -----------------: | -----------------: |
+| warm, whole corpus (7,678 lines)         |       260 ms |   6.0 ms (**43×**) |       82 ms (3.2×) |
+| warm, 12-line tsx snippet                |      0.36 ms | 0.012 ms (**29×**) |     0.11 ms (3.3×) |
+| warm, 2,418-line ts file                 |       146 ms |   2.5 ms (**59×**) |       37 ms (4.0×) |
+| cold: import + init + first highlight    |       394 ms |    15 ms (**26×**) |      101 ms (3.9×) |
+| peak RSS growth                          |      376 MiB |             30 MiB |             52 MiB |
+| browser payload, tsx only (gzip)         |      213 KiB |      184 KiB (all) |         **49 KiB** |
+| browser payload, all 11 languages (gzip) |      320 KiB |            184 KiB |            161 KiB |
+| elements across corpus                   |       21,529 |      32,833 (+52%) |      30,868 (+43%) |
+| serialized HTML across corpus            |      830 KiB |   1,555 KiB (+87%) |   1,303 KiB (+57%) |
 
-Speed-ups by language range from 10× (diff) to 69× (yaml). `extendSyntaxTokens` and line gutters add about 3% to Starry Night's time, so the engine dominates `parseSource`.
+Starry Night's payload counts `onig.wasm` (473 KiB raw), which it fetches separately at runtime. `extendSyntaxTokens` and line gutters add 3–10% to Starry Night's time, so the engine dominates `parseSource`.
 
-Starry Night's payload counts `onig.wasm` (473 KiB raw), which it fetches separately at runtime. Highlights ships one 300 KiB Wasm module with all 152 languages, inlined as base64 in its JS, so it cannot be split per language. It is still smaller than Starry Night with only the tsx grammar.
+The machine had other load during the runs. Starry Night and highlights stayed within a few percent across processes. CodeMirror did not: its corpus total ranged from 56 to 134 ms between processes, and one sample took 8 ms in some processes and 16–22 ms in others. Treat its numbers as a 3–5× speed-up, not a precise figure.
 
 ### Highlighting quality
 
-Agreement with Starry Night is 99.7% for `ts`, 100% for `json`, 95% for `yaml` and `diff`, and 87% for `tsx` and `html`. The lower numbers are mostly taxonomy, not errors:
+Token agreement with Starry Night, per language (see the table in `results/report.md`):
 
+| language | highlights | CodeMirror |
+| :------- | ---------: | ---------: |
+| `ts`     |      99.7% |      99.2% |
+| `json`   |       100% |       100% |
+| `tsx`    |      86.6% |      87.1% |
+| `html`   |      87.2% |      95.1% |
+| `yaml`   |      94.7% |      35.4% |
+| `diff`   |      94.9% |       100% |
+| `css`    |      58.3% |      67.4% |
+| `sh`     |      73.5% |      63.4% |
+| `md`     |      69.8% |      63.5% |
+| `mdx`    |      58.1% |      61.2% |
+| `js`     |      22.9% |      28.4% |
+
+Most of the gap is taxonomy, not errors. `compare.html` shows both engines are close to Starry Night, or better, on most samples:
+
+- `js` is a Starry Night bug. Its `source.js` grammar never leaves a template literal whose `${…}` contains `?.` or `??`, so the rest of the file renders as a string. `` `${a?.b}` `` is enough to trigger it. `source.ts` and `source.tsx` handle it, but docs-infra maps `.js` files to `source.js`. Both alternatives highlight these files correctly.
 - `tsx` tags: Starry Night colors component tags (`<Menu.Item>`) as constants and only lowercase tags as tags.
 - `md`/`mdx`: Starry Night colors inline-code backticks and link brackets as strings.
-- `css`: Starry Night colors attribute selectors as tags and does not know newer properties such as `view-transition-name`.
+- `css`: Starry Night colors attribute selectors as tags and units (`px`) as keywords. It also leaves newer properties such as `view-transition-name` unstyled.
+- `yaml` with CodeMirror: `@lezer/yaml` tags unquoted scalars and numbers as plain content, so they render unstyled. That is a real visual difference, not a mapping gap.
 
-`js` (23%) is a Starry Night bug. Its `source.js` grammar never leaves a template literal whose `${…}` contains `?.` or `??`, so the rest of the file renders as a string. `` `${a?.b}` `` is enough to trigger it. `source.ts` and `source.tsx` handle it, and docs-infra maps `.js` files to `source.js`. Highlights handles these files correctly and also tokenizes JSDoc tags.
+## `@pierre/highlights`
 
-### What adopting it would take
+The fastest option by an order of magnitude on every axis that measures time or memory. Highlights also tokenizes JSDoc tags, which Starry Night leaves inside the comment.
+
+Highlights ships one 300 KiB Wasm module with all 152 languages, inlined as base64 in its JS, so it cannot be split per language. Even so, it is smaller than Starry Night with only the tsx grammar.
+
+What adopting it would take:
 
 - **Class names.** docs-infra is built on Starry Night's `pl-*` classes: `extendSyntaxTokens`, `enhanceCodeTypes`, `enhanceCodeInline`, `enhanceCodeEmphasis`, `hastDictionary`, `loadServerTypes` and the demo themes all key on them. Highlights exposes semantic token types (`keyword.import`, `tag.jsx`, `attribute.jsx`, `property.json_key`, `type.builtin`, …) through `codeToTokens` with a CSS-variable theme. These are richer than `pl-*`, so several `extendSyntaxTokens` heuristics would become direct mappings. The alternative is an adapter that maps token types to `pl-*` classes.
-- **Token shape.** Highlights folds whitespace into the next or previous token (`"const "`) and merges adjacent tokens of one type (`"]}"`). It also emits a span for every punctuation and operator. That explains the 87% larger HTML. An adapter that leaves punctuation unstyled and splits off whitespace would cut it down, and the `enhanceCode*` passes depend on token boundaries, so it is needed anyway.
+- **Token shape.** Highlights attaches whitespace to neighboring tokens (`"const "`) and merges adjacent tokens of one type (`"]}"`). It also emits a span for every punctuation and operator, which explains the larger HTML. An adapter that leaves punctuation unstyled and splits off whitespace would shrink the output. The `enhanceCode*` passes match on token text, so they would need the whitespace split off either way.
 - **Simpler loading.** The API is synchronous once imported, and every language is in one module. The lazy grammar registration in `parseSource` (`grammarLoaders`, `registerGrammars`, the rebuild mutex) and `CodeProviderLazy`'s per-language chunks would no longer be needed.
 - **Extensibility.** Lexers are hand-written WebAssembly Text, so docs-infra users could no longer bring a TextMate grammar for another language. In return, 152 languages are built in, against the 11 docs-infra wires up today.
 - **Maturity.** The package is labeled beta. It was first published on 2026-09-09; 0.1.0 through 0.5.0 shipped between 2026-10-02 and 2026-11-09, and each minor can break the API.
+
+## CodeMirror (Lezer)
+
+`@lezer/highlight`'s `highlightCode` over the `@lezer/*` parsers, without `@codemirror/view` or an editor. The adapter (`src/engines/codemirrorLanguages.ts`) maps Lezer highlight tags to classes with `tagHighlighter`. The stock `classHighlighter` renders tag names as type names and has no class for function names or attributes, so docs-infra would need its own mapping too.
+
+It is 3–5× faster than Starry Night and uses a seventh of the memory, but it is 9–15× slower than highlights. Its strength is payload: each language is its own package, so the per-language lazy loading docs-infra already does maps onto it. A tsx-only page needs 49 KiB gzip, a quarter of Starry Night's.
+
+Coverage gaps for the 11 docs-infra languages:
+
+- **No MDX grammar.** The adapter parses MDX as Markdown and hands HTML blocks to the TSX parser, so JSX elements highlight. `import`/`export` lines and `{expressions}` stay plain paragraph text.
+- **No Lezer grammar for `sh` or `diff`.** Both come from `@codemirror/legacy-modes` through `StreamLanguage`, which needs `@codemirror/language` and with it `@codemirror/state` and `@codemirror/view`. That costs 77 KiB gzip: all 11 languages are 161 KiB, the 9 Lezer grammars alone 84 KiB. The legacy shell mode is also the weakest highlighter in the comparison: it leaves command names and `$(…)` substitutions unstyled and marks the shebang as meta.
+- **Markdown fences** need a `codeParser` that maps the info string to a parser, which the adapter does for the 11 languages.
+
+What adopting it would take: the same `pl-*` class migration as highlights, against Lezer's tag vocabulary (`tags.function(tags.variableName)`, `tags.tagName`, `tags.attributeName`, `tags.definition(…)`, …). Lezer's tokens are tight, so whitespace stays outside spans, and nested tags stack their classes, least specific first. Lezer grammars are written in its own grammar format, so as with highlights, docs-infra users could not reuse TextMate grammars.

@@ -15,12 +15,12 @@ import { compareCategories, jaccard, sumCounts } from './fidelity';
 import type { FidelityCounts } from './fidelity';
 import { countElements, textOf } from './hast';
 import { LANGUAGES } from './languages';
-import { measure, median } from './measure';
+import { median } from './measure';
 
 const { values: args } = parseArgs({
   options: {
     engines: { type: 'string', default: Object.keys(ENGINE_LOADERS).join(',') },
-    'cold-runs': { type: 'string', default: '5' },
+    runs: { type: 'string', default: '5' },
     'skip-bundles': { type: 'boolean', default: false },
   },
 });
@@ -40,6 +40,14 @@ const BUNDLES: Record<string, BundleEntry[]> = {
   ],
   highlights: [
     { label: '@pierre/highlights (all languages, Wasm inlined)', entry: 'highlights.ts' },
+  ],
+  codemirror: [
+    { label: 'CodeMirror (Lezer), tsx only', entry: 'codemirrorTsx.ts' },
+    { label: 'CodeMirror (Lezer), all 11 languages', entry: 'codemirrorAll.ts' },
+    {
+      label: 'CodeMirror (Lezer), Lezer grammars only (no sh/diff legacy modes)',
+      entry: 'codemirrorLezer.ts',
+    },
   ],
 };
 
@@ -89,23 +97,40 @@ if (textMismatches.length > 0) {
   section('Text round-trip failures', textMismatches.join('\n'));
 }
 
-console.error('Measuring warm highlighting…');
-const warm: Record<string, Record<string, number>> = {};
-for (const sample of corpus) {
-  warm[sample.id] = {};
-  for (const [key, engine] of engines) {
-    warm[sample.id][key] = measure(() => engine.highlight(sample.source, sample.language)).medianMs;
-  }
+interface TimingRun {
+  initMs: number;
+  firstHighlightMs: number;
+  rssGrowthMiB: number;
+  warm: Record<string, number>;
 }
+
+const runCount = Number(args.runs);
+const timings: Record<string, TimingRun[]> = {};
+for (const [key, engine] of engines) {
+  console.error(`Timing ${engine.name} in ${runCount} fresh processes…`);
+  timings[key] = Array.from({ length: runCount }, () =>
+    JSON.parse(
+      execFileSync(
+        process.execPath,
+        [...process.execArgv, fileURLToPath(new URL('./timing.ts', import.meta.url)), key],
+        { encoding: 'utf8' },
+      ),
+    ),
+  );
+}
+json.timings = timings;
+
+const warm = (key: string, sampleId: string) =>
+  median(timings[key].map((run) => run.warm[sampleId]));
 const lineCount = (source: string) => source.split('\n').length;
 const totalKiB = corpus.reduce((sum, sample) => sum + sample.source.length, 0) / 1024;
 const warmRows = corpus.map((sample) => {
-  const base = warm[sample.id][BASELINE_ENGINE];
+  const base = timings[BASELINE_ENGINE] ? warm(BASELINE_ENGINE, sample.id) : undefined;
   return [
     sample.id,
     String(lineCount(sample.source)),
     ...engines.map(([key]) => {
-      const ms = warm[sample.id][key];
+      const ms = warm(key, sample.id);
       return base && key !== BASELINE_ENGINE ? `${fmt(ms, 3)} (${fmt(base / ms, 1)}×)` : fmt(ms, 3);
     }),
   ];
@@ -114,46 +139,40 @@ warmRows.push([
   '**total**',
   String(corpus.reduce((sum, sample) => sum + lineCount(sample.source), 0)),
   ...engines.map(([key]) => {
-    const ms = corpus.reduce((sum, sample) => sum + warm[sample.id][key], 0);
+    const ms = corpus.reduce((sum, sample) => sum + warm(key, sample.id), 0);
     return `**${fmt(ms, 2)}** (${fmt(totalKiB / (ms / 1000), 0)} KiB/s)`;
+  }),
+]);
+warmRows.push([
+  'process totals, min–max',
+  '',
+  ...engines.map(([key]) => {
+    const totals = timings[key].map((run) =>
+      corpus.reduce((sum, sample) => sum + run.warm[sample.id], 0),
+    );
+    return `${fmt(Math.min(...totals), 1)}–${fmt(Math.max(...totals), 1)}`;
   }),
 ]);
 section(
   'Warm highlighting (median ms per call, source → HAST)',
-  `Speed-up relative to ${BASELINE_ENGINE} in parentheses.`,
+  `Each engine runs alone in a fresh process; median across ${runCount} processes. Speed-up relative to ${BASELINE_ENGINE} in parentheses.`,
   table(['sample', 'lines', ...engines.map(([, engine]) => engine.name)], warmRows),
 );
-json.warm = warm;
 
-console.error('Measuring cold start…');
-const coldRuns = Number(args['cold-runs']);
-const cold: Record<string, unknown> = {};
 const coldRows = engines.map(([key, engine]) => {
-  const runs = Array.from({ length: coldRuns }, () =>
-    JSON.parse(
-      execFileSync(
-        process.execPath,
-        [...process.execArgv, fileURLToPath(new URL('./cold.ts', import.meta.url)), key],
-        { encoding: 'utf8' },
-      ),
-    ),
-  );
-  const summary = {
-    initMs: median(runs.map((run) => run.initMs)),
-    firstHighlightMs: median(runs.map((run) => run.firstHighlightMs)),
-    rssGrowthMiB: median(runs.map((run) => run.peakRssMiB - run.baselineRssMiB)),
-  };
-  cold[key] = summary;
+  const runs = timings[key];
+  const initMs = median(runs.map((run) => run.initMs));
+  const firstHighlightMs = median(runs.map((run) => run.firstHighlightMs));
   return [
     engine.name,
-    fmt(summary.initMs, 1),
-    fmt(summary.firstHighlightMs, 1),
-    fmt(summary.initMs + summary.firstHighlightMs, 1),
-    fmt(summary.rssGrowthMiB, 0),
+    fmt(initMs, 1),
+    fmt(firstHighlightMs, 1),
+    fmt(initMs + firstHighlightMs, 1),
+    fmt(median(runs.map((run) => run.rssGrowthMiB)), 0),
   ];
 });
 section(
-  `Cold start (median of ${coldRuns} fresh processes)`,
+  `Cold start (median of ${runCount} fresh processes)`,
   'Import + init loads every docs-infra language. Memory is peak RSS growth after highlighting the whole corpus once.',
   table(
     [
@@ -166,7 +185,6 @@ section(
     coldRows,
   ),
 );
-json.cold = cold;
 
 // Precomputed HAST is serialized into the page, so the token count drives payload size.
 const outputRows = engines.map(([, engine]) => {
@@ -201,7 +219,7 @@ if (baseline) {
       }
       return [
         [
-          engine.unsupported.includes(language) ? `${language} (unsupported)` : language,
+          engine.fallbacks[language] ? `${language} (${engine.fallbacks[language]})` : language,
           ...COMPARABLE_CATEGORIES.map((category) => pct(jaccard(counts[category]))),
           `**${pct(jaccard(sumCounts(counts)))}**`,
         ],

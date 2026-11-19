@@ -99,7 +99,7 @@ export const categorizeHighlights: Categorize = (className) => {
 export const highlights: Engine = {
   name: '@pierre/highlights',
   version: packageVersion('@pierre/highlights'),
-  unsupported: [],
+  fallbacks: {},
   async init() {
     codeToTokens('', { lang: 'plain', theme: TOKEN_TYPE_THEME });
   },

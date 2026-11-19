@@ -14,7 +14,7 @@ let parse: ParseSource | undefined;
 export const docsInfra: Engine = {
   name: 'docs-infra parseSource',
   version: `starry-night ${packageVersion('@wooorm/starry-night')}`,
-  unsupported: [],
+  fallbacks: {},
   async init() {
     parse = await createParseSource();
   },

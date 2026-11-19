@@ -13,6 +13,6 @@ export interface Engine {
   highlight(source: string, language: Language): Root;
   /** Maps a token class name (and its text) to a shared category. */
   categorize: Categorize;
-  /** Languages the engine cannot highlight; they render as plain text. */
-  unsupported: readonly Language[];
+  /** Languages the engine only approximates, with how. */
+  fallbacks: Partial<Record<Language, string>>;
 }

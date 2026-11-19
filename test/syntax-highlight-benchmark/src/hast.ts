@@ -5,6 +5,7 @@ import type { Language } from './languages';
 
 export interface Token {
   text: string;
+  /** Space-separated classes, least specific first. */
   className?: string;
 }
 
@@ -19,7 +20,11 @@ export function linesToHast(lines: Token[][]): Root {
         children.push({
           type: 'element',
           tagName: 'span',
-          properties: { className: [token.className] },
+          properties: {
+            className: token.className.includes(' ')
+              ? [...new Set(token.className.split(' '))]
+              : [token.className],
+          },
           children: [{ type: 'text', value: token.text }],
         });
       } else {
@@ -30,9 +35,11 @@ export function linesToHast(lines: Token[][]): Root {
   return { type: 'root', children };
 }
 
-function firstClass(element: Element): string | undefined {
+/** The most specific class: engines that stack ancestor classes list the token's own class last. */
+function tokenClass(element: Element): string | undefined {
   const className = element.properties?.className;
-  return Array.isArray(className) && typeof className[0] === 'string' ? className[0] : undefined;
+  const last = Array.isArray(className) ? className[className.length - 1] : undefined;
+  return typeof last === 'string' ? last : undefined;
 }
 
 export function textOf(node: ElementContent | Root): string {
@@ -65,7 +72,7 @@ export function categorizeChars(
     if (node.type !== 'element') {
       return;
     }
-    const className = firstClass(node);
+    const className = tokenClass(node);
     const category = className ? categorize(className, textOf(node), language) : inherited;
     node.children.forEach((child) => visit(child, category));
   };
@@ -83,7 +90,7 @@ export function toCategoryHast(root: Root, categorize: Categorize, language: Lan
     if (node.type !== 'element') {
       return node;
     }
-    const className = firstClass(node);
+    const className = tokenClass(node);
     const children = node.children.map(visit);
     if (!className) {
       return { ...node, children };
