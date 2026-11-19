@@ -30,20 +30,15 @@ export function categorizeCommits(commits, config) {
 
     // Get all category keys for this commit (may be multiple)
     const categoryKeys = getCategoryKeys(categorizedCommit, config);
-    if (config.strategy === 'package' && !parsed.categoryOverride) {
-      categoryKeys.push(...(config.packageNaming?.additionalPackages?.(categorizedCommit) ?? []));
-    }
 
     // Add commit to all relevant categories
-    const uniqueCategoryKeys = new Set(
-      categoryKeys.map((key) => (typeof key === 'string' ? key : key.category)),
-    );
-    for (const categoryKey of uniqueCategoryKeys) {
-      if (!categories.has(categoryKey)) {
-        categories.set(categoryKey, []);
+    for (const categoryKey of categoryKeys) {
+      const cKey = typeof categoryKey === 'string' ? categoryKey : categoryKey.category;
+      if (!categories.has(cKey)) {
+        categories.set(cKey, []);
       }
 
-      categories.get(categoryKey)?.push(categorizedCommit);
+      categories.get(cKey)?.push(categorizedCommit);
     }
   }
 
@@ -109,7 +104,7 @@ function getCategoryKeysForComponent(commit, config) {
  * @throws {Error} If scope is required but missing, or mapping not found
  */
 function getCategoryKeysForPackage(commit, config) {
-  const { scopes } = commit.parsed;
+  const { scopes, plan } = commit.parsed;
 
   // If no scopes, use fallback
   if (scopes.length === 0) {
@@ -135,29 +130,18 @@ function getCategoryKeysForPackage(commit, config) {
     // Look up base package name from mappings
     const basePackage = config.packageNaming.mappings[scope];
     if (!basePackage) {
-      console.warn(
-        `No package mapping found for scope "${scope}" in commit ${commit.prNumber ?? commit.sha}; using ${config.sections.fallbackSection}.`,
+      throw new Error(
+        `No package mapping found for scope "${scope}" in commit #${commit.prNumber}. ` +
+          `Available mappings: ${Object.keys(config.packageNaming.mappings).join(', ')}`,
       );
-      keys.push(config.sections.fallbackSection);
-      continue;
     }
-
-    const scopePlan = commit.parsed.scopePlans?.[scope.toLowerCase()];
-    const plan = scopePlan ?? commit.parsed.plan;
 
     // Apply plan if specified
     if (plan && config.packageNaming.plans && config.packageNaming.plans[plan]) {
-      const planPackages = config.packageNaming.plans[plan];
-      const planPackage = planPackages[basePackage];
+      const planPackage = config.packageNaming.plans[plan][basePackage];
       if (!planPackage) {
-        const mappings = config.packageNaming.mappings;
-        // A shared PR's unscoped tier can belong to another product.
-        if (!scopePlan && scopes.some((other) => planPackages[mappings[other]])) {
-          keys.push({ scope, category: basePackage });
-          continue;
-        }
         throw new Error(
-          `No ${plan} plan package mapping found for base package "${basePackage}" in commit ${commit.prNumber === null ? commit.sha : `#${commit.prNumber}`}`,
+          `No ${plan} plan package mapping found for base package "${basePackage}" in commit #${commit.prNumber}`,
         );
       }
       keys.push({

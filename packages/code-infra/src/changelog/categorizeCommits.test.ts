@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 // eslint-disable-next-line import/extensions
 import { categorizeCommits } from './categorizeCommits.mjs';
 import type { FetchedCommitDetails, CategorizationConfig, LabelConfig } from './types';
@@ -33,19 +33,6 @@ function createCommit(
 }
 
 describe('categorizeCommits', () => {
-  it('keeps category overrides authoritative over additional packages', () => {
-    const result = categorizeCommits([createCommit(1, ['docs'])], {
-      strategy: 'package',
-      labels: { categoryOverrides: { docs: 'Docs' } },
-      sections: { fallbackSection: 'Other' },
-      packageNaming: {
-        mappings: { grid: '@test/grid' },
-        additionalPackages: () => ['@test/grid'],
-      },
-    });
-    expect([...result.keys()]).toEqual(['Docs']);
-  });
-
   describe('component strategy', () => {
     const componentConfig: CategorizationConfig = {
       strategy: 'component',
@@ -206,20 +193,12 @@ describe('categorizeCommits', () => {
       expect(result.get('@mui/x-data-grid')).toHaveLength(1);
     });
 
-    it('keeps unknown scopes in the fallback section and warns', () => {
-      const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      try {
-        const result = categorizeCommits(
-          [createCommit(42, ['scope: unknown-package', 'scope: data grid', 'scope: data grid'])],
-          packageConfig,
-        );
+    it('should throw error when scope mapping is not found', () => {
+      const commits = [createCommit(42, ['scope: unknown-package'])];
 
-        expect(result.get('Other')).toHaveLength(1);
-        expect(result.get('@mui/x-data-grid')).toHaveLength(1);
-        expect(warning).toHaveBeenCalledWith(expect.stringContaining('unknown-package'));
-      } finally {
-        warning.mockRestore();
-      }
+      expect(() => categorizeCommits(commits, packageConfig)).toThrow(
+        'No package mapping found for scope "unknown-package" in commit #42',
+      );
     });
 
     it('should throw error when plan mapping is not found for package', () => {

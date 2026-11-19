@@ -240,25 +240,6 @@ describe('parseCommitLabels', () => {
       expect(result.categoryOverride).toBe('Documentation');
     });
 
-    it('keeps a live prefixed override over a title-derived override', () => {
-      const commit = createCommit({
-        message: '[Docs] Update guides (#1)',
-        labels: ['scope: all components'],
-      });
-      const config: LabelConfig = {
-        ...baseLabelConfig,
-        titleMappings: { Docs: ['docs'] },
-        categoryOverrides: {
-          'scope: all components': 'General changes',
-          docs: 'Documentation',
-        },
-      };
-
-      const result = parseCommitLabels(commit, config);
-
-      expect(result.categoryOverride).toBe('General changes');
-    });
-
     it('should not set categoryOverride when no matching labels', () => {
       const commit = createCommit({ labels: ['scope: core'] });
       const config: LabelConfig = {
@@ -340,10 +321,10 @@ describe('parseCommitLabels', () => {
       const result = parseCommitLabels(commit, config);
 
       expect(result.scopes).toEqual(['core']);
-      expect(commit.labels).toEqual([]);
+      expect(commit.labels).toContain('scope: core');
     });
 
-    it('combines title labels with live labels without mutating them', () => {
+    it('should merge extracted labels with existing labels', () => {
       const commit = createCommit({
         message: '[charts] Add new feature',
         labels: ['enhancement'],
@@ -359,7 +340,8 @@ describe('parseCommitLabels', () => {
       const result = parseCommitLabels(commit, config);
 
       expect(result.scopes).toEqual(['charts']);
-      expect(commit.labels).toEqual(['enhancement']);
+      expect(commit.labels).toContain('scope: charts');
+      expect(commit.labels).toContain('enhancement');
     });
 
     it('should deduplicate labels when extracting from title', () => {
@@ -510,24 +492,20 @@ describe('parseCommitLabels', () => {
 
       expect(result.scopes).toEqual(['']);
     });
-  });
-});
 
-describe('title fallback precedence', () => {
-  it('fills missing categories without overriding GitHub labels', () => {
-    const commit = createCommit({
-      message: '[DataGridPro] Fix selection (#1)',
-      labels: ['scope: charts', 'component: legend'],
-    });
-    const labels = [...commit.labels];
-    const result = parseCommitLabels(commit, {
-      ...baseLabelConfig,
-      extractLabelsFromTitle: () => ['scope: data grid', 'component: grid', 'plan: pro'],
-    });
+    it('should mutate the original commit labels array when extracting from title', () => {
+      const commit = createCommit({ message: '[core] Fix bug', labels: [] });
+      const config: LabelConfig = {
+        ...baseLabelConfig,
+        extractLabelsFromTitle: (title) => {
+          const match = title.match(/^\[([^\]]+)\]/);
+          return match ? [`scope: ${match[1]}`] : [];
+        },
+      };
 
-    expect(result.scopes).toEqual(['charts']);
-    expect(result.components).toEqual(['legend']);
-    expect(result.plan).toBe('pro');
-    expect(commit.labels).toEqual(labels);
+      parseCommitLabels(commit, config);
+
+      expect(commit.labels).toEqual(['scope: core']);
+    });
   });
 });

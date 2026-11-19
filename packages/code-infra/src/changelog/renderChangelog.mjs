@@ -1,7 +1,5 @@
 import { startCase } from 'es-toolkit/string';
 import { templateString } from '../utils/template.mjs';
-import { parseTitle } from './parseTitle.mjs';
-import { collectCommits } from './buildSections.mjs';
 
 /**
  * @typedef {import('./types.js').ChangelogSection} ChangelogSection
@@ -9,8 +7,6 @@ import { collectCommits } from './buildSections.mjs';
  * @typedef {import('./types.js').ChangelogConfig} ChangelogConfig
  * @typedef {import('./types.js').GenerateChangelogResult} GenerateChangelogResult
  */
-
-const SHORT_SHA_LENGTH = 7;
 
 const MONTH_NAMES = [
   'Jan',
@@ -50,8 +46,19 @@ const FULL_MONTH_NAMES = [
  * @returns {{tags: string[], remaining: string}} Tags and remaining message
  */
 function extractTagsFromMessage(message) {
-  const { tags, remaining } = parseTitle(message);
-  return { tags: tags.map((tag) => tag.toLowerCase()), remaining };
+  const tagRegex = /^(\[[\w\s-]+\])+/;
+  const match = message.match(tagRegex);
+
+  if (!match) {
+    return { tags: [], remaining: message };
+  }
+
+  // Extract individual tags from the matched string
+  const tagMatches = match[0].match(/\[[\w\s-]+\]/g) || [];
+  const tags = tagMatches.map((tag) => tag.slice(1, -1).toLowerCase()); // Remove [ ] and lowercase
+  const remaining = message.slice(match[0].length).trimStart();
+
+  return { tags, remaining };
 }
 
 /**
@@ -74,7 +81,7 @@ function generateTagSortKey(tags) {
  *
  * @param {ChangelogSection[]} sections - Changelog sections
  * @param {ChangelogConfig} config - Changelog configuration
- * @param {import('./types.js').ChangelogRelease} options - Generate changelog options
+ * @param {import('./types.js').ChangelogRelease} options - Resolved release metadata
  * @param {{team: string[], community: string[], all: string[]}} contributors - Contributors
  * @returns {string} Formatted changelog markdown
  */
@@ -196,18 +203,14 @@ function renderSection(section, config, lines, parentSection) {
   }
 
   if (!parentSection || section.key !== parentSection.key) {
-    lines.push(`${heading} ${title.trimEnd()}`);
+    lines.push(`${heading} ${title}`);
     lines.push('');
   }
 
   const sortedCommits = [...section.commits].sort((a, b) => {
     // Extract tags from both commits
-    const aTagData = extractTagsFromMessage(
-      a.parsed.titlePrefixes?.map((tag) => `[${tag}]`).join('') ?? a.message,
-    );
-    const bTagData = extractTagsFromMessage(
-      b.parsed.titlePrefixes?.map((tag) => `[${tag}]`).join('') ?? b.message,
-    );
+    const aTagData = extractTagsFromMessage(a.message);
+    const bTagData = extractTagsFromMessage(b.message);
 
     // First sort by tag group
     const aTagKey = generateTagSortKey(aTagData.tags);
@@ -218,28 +221,41 @@ function renderSection(section, config, lines, parentSection) {
     }
 
     // Then sort by merge time within the same tag group
-    const aSort = a.mergedAt ? new Date(a.mergedAt).getTime() : (a.prNumber ?? 0);
-    const bSort = b.mergedAt ? new Date(b.mergedAt).getTime() : (b.prNumber ?? 0);
+    const aSort = a.mergedAt ? new Date(a.mergedAt).getTime() : a.prNumber;
+    const bSort = b.mergedAt ? new Date(b.mergedAt).getTime() : b.prNumber;
     return aSort - bSort;
   });
 
   if (parentSection) {
-    const hasEntries = collectCommits(section).length > 0;
     const isBasePlan = !section.pkgInfo?.plan || section.pkgInfo.plan === 'base';
     if (isBasePlan) {
-      if (!hasEntries && config.format?.showInternalChangesMessage) {
+      if (sortedCommits.length === 0 && config.format?.showInternalChangesMessage) {
         lines.push('Internal changes.');
         lines.push('');
       }
     } else {
-      const planMessage = !hasEntries
-        ? config.format?.planMessage?.same
-        : config.format?.planMessage?.plus;
+      const planMessage =
+        sortedCommits.length === 0
+          ? config.format?.planMessage?.same
+          : config.format?.planMessage?.plus;
 
       if (planMessage) {
-        const index = parentSection.subsections?.indexOf(section) ?? -1;
-        const previousPlan =
-          index > 0 ? parentSection.subsections?.[index - 1].pkgInfo?.plan : undefined;
+        const planOrder = config.categorization.labels.plan.values || [];
+        const currentPlan = section.pkgInfo?.plan || 'base';
+        /**
+         * @type {string|undefined}
+         */
+        let previousPlan;
+        for (let i = 0; i < planOrder.length; i += 1) {
+          if (planOrder[i] === currentPlan) {
+            if (i > 0) {
+              previousPlan = planOrder[i - 1];
+            } else if (i === 0) {
+              previousPlan = 'base';
+            }
+            break;
+          }
+        }
 
         if (previousPlan) {
           const previousPlanPkg = parentSection.subsections?.find((subsec) => {
@@ -289,15 +305,7 @@ function renderCommitMessage(commit, config) {
   // Extract only the first line of the commit message
   const rawMessage = commit.message.split('\n')[0].trim();
   // Remove component prefixes in square brackets at the start (e.g., [dialog][alert dialog])
-  let cleanMessage = parseTitle(rawMessage).remaining;
-  if (commit.prNumber !== null) {
-    cleanMessage = cleanMessage.replace(/\s?\(#(\d+)\)/g, '');
-  }
-
-  if (config.format?.preservePrefixes) {
-    const prefixes = commit.parsed.titlePrefixes ?? parseTitle(rawMessage).tags;
-    cleanMessage = `${prefixes.map((prefix) => `[${prefix}]`).join('')} ${cleanMessage}`.trim();
-  }
+  const cleanMessage = rawMessage.replace(/^(\[[\w\s-]+\])+\s*/i, '').replace(/\s?\(#(\d+)\)/g, '');
 
   const result =
     typeof config.format?.changelogMessage === 'function'
@@ -306,38 +314,22 @@ function renderCommitMessage(commit, config) {
   if (result) {
     return result;
   }
-  let template =
+  const template =
     typeof config.format?.changelogMessage === 'string'
       ? config.format.changelogMessage
       : '{{flagPrefix}}{{message}} (#{{prNumber}})';
 
-  if (commit.prNumber === null) {
-    template = template.replace(/\{\{\s*(\w+)\s*\}\}/g, '{{$1}}');
-    template = template.replace(
-      /\(\[?#\{\{prNumber\}\}\]?(?:\(\{\{prUrl\}\}\))?\)/g,
-      '[{{sha}}]({{prUrl}})',
-    );
-    template = template
-      .replace(/#?\[#?\{\{prNumber\}\}\]\(\{\{prUrl\}\}\)/g, '[{{sha}}]({{prUrl}})')
-      .replace(/#\{\{prNumber\}\}/g, '[{{sha}}]({{prUrl}})')
-      .replaceAll('{{prNumber}}', '{{sha}}');
-  }
-
   const login = commit.author?.login;
-  if (!login && commit.authorName) {
-    template = template
-      .replace(/\{\{\s*(\w+)\s*\}\}/g, '{{$1}}')
-      .replaceAll('@{{author}}', '{{author}}');
-  }
   return templateString(template, {
     message: cleanMessage,
     rawMessage,
-    prNumber: commit.prNumber ?? '',
-    sha: commit.sha.slice(0, SHORT_SHA_LENGTH),
+    prNumber: commit.prNumber,
     prUrl: commit.html_url,
-    author: login || commit.authorName || 'unknown',
-    authorUrl: login ? `https://github.com/${login}` : commit.html_url,
-    scope: commit.parsed.scopes[0],
+    author: commit.author?.login || 'unknown',
+    authorUrl: `https://github.com/${login}`,
+    scope: commit.labels.some((label) => label.startsWith('scope:'))
+      ? commit.parsed.scopes[0]
+      : undefined,
     plan: commit.parsed.plan,
     flagPrefix: commit.parsed.flags
       .filter((flag) => {
@@ -491,7 +483,7 @@ function renderDate(date, format) {
  * for other reasons (like missing labels or being in excludeLabels).
  *
  * @param {import('./types.js').FetchedCommitDetails[]} allCommits - All fetched commits
- * @param {(string|RegExp)[]} [excludeAuthors] - Exact logins or regular expressions to exclude
+ * @param {(string|RegExp)[]} [excludeAuthors] - Author patterns to exclude (e.g., ['[bot]'])
  * @returns {{team: string[], community: string[]; all: string[]}} Contributors grouped by type
  */
 export function extractContributorsFromAllCommits(allCommits, excludeAuthors = []) {
@@ -534,9 +526,9 @@ export function extractContributorsFromAllCommits(allCommits, excludeAuthors = [
 
   const result = {
     team: Array.from(teamSet).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase())),
-    community: Array.from(communitySet)
-      .filter((login) => !teamSet.has(login))
-      .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase())),
+    community: Array.from(communitySet).sort((a, b) =>
+      a.toLowerCase().localeCompare(b.toLowerCase()),
+    ),
     all: /** @type {string[]} */ ([]),
   };
   result.all = [...result.team, ...result.community].sort((a, b) =>
