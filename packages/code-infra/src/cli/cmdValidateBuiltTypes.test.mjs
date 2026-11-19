@@ -81,6 +81,67 @@ describe('validate-built-types', () => {
   );
 
   it(
+    'ignores the errors of an entry point expected to fail',
+    async () => {
+      const root = await createWorkspace({ declareA: false });
+
+      const { stdout } = await run(
+        process.execPath,
+        [CLI_PATH, 'validate-built-types', '--expect-error', '@test/b'],
+        { cwd: root },
+      );
+
+      expect(stdout).toContain('Ignoring 1 expected type errors in @test/b.');
+      expect(stdout).toContain('✅ 2 entry points of 2 packages type-check for consumers.');
+    },
+    CLI_TIMEOUT,
+  );
+
+  it(
+    'fails when an entry point expected to fail type-checks',
+    async () => {
+      const root = await createWorkspace({ declareA: true });
+
+      const result = await run(
+        process.execPath,
+        [CLI_PATH, 'validate-built-types', '--expect-error', '@test/b'],
+        { cwd: root },
+      ).then(
+        () => null,
+        (/** @type {{ code: number, stderr: string }} */ error) => error,
+      );
+
+      expect(result?.code).toBe(1);
+      expect(result?.stderr).toContain(
+        '❌ @test/b type-checks for consumers: remove it from --expect-error.',
+      );
+    },
+    CLI_TIMEOUT,
+  );
+
+  it(
+    'fails when an entry point expected to fail does not exist',
+    async () => {
+      const root = await createWorkspace({ declareA: true });
+
+      const result = await run(
+        process.execPath,
+        [CLI_PATH, 'validate-built-types', '--expect-error', '@test/missing'],
+        { cwd: root },
+      ).then(
+        () => null,
+        (/** @type {{ code: number, stderr: string }} */ error) => error,
+      );
+
+      expect(result?.code).toBe(1);
+      expect(result?.stderr).toContain(
+        "--expect-error names entry points that don't exist or have no types: @test/missing",
+      );
+    },
+    CLI_TIMEOUT,
+  );
+
+  it(
     'fails when no version of a shared peer satisfies every package',
     async () => {
       const root = await makeTempDir();
