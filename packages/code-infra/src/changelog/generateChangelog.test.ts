@@ -127,7 +127,7 @@ it('renders a preset exported from the config path', async () => {
   await fs.mkdir(path.join(cwd, 'scripts'));
   await fs.writeFile(
     path.join(cwd, 'scripts/changelog.config.mjs'),
-    'export default { groom: (facts) => facts.version, view: (version) => "## " + version + "\\n" };',
+    'export default { prepare: (facts) => facts.version, view: (version) => "## " + version + "\\n" };',
   );
 
   const octokit = new Octokit({
@@ -146,5 +146,5 @@ it('renders a preset exported from the config path', async () => {
 
   const result = await generateChangelog({ cwd, repo: 'test', octokit, lastRelease: 'v0' });
 
-  expect(result).toMatchObject({ markdown: '## 1.0.0\n', groomed: '1.0.0' });
+  expect(result).toMatchObject({ markdown: '## 1.0.0\n', prepared: '1.0.0' });
 });

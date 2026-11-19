@@ -45,7 +45,7 @@ import { md, EntryList, Heading, formatDate } from '@mui/internal-code-infra/cha
 
 /** @type {import('@mui/internal-code-infra/changelog').ChangelogPreset<import('@mui/internal-code-infra/changelog').ReleaseFacts>} */
 export default {
-  groom: (facts) => facts,
+  prepare: (facts) => facts,
   view: (facts) => md`
 ## ${facts.version}
 
@@ -58,5 +58,5 @@ ${EntryList(facts.entries)}
 };
 ```
 
-A module at the config path that exports `groom` and `view` is used as a preset. A config object
+A module at the config path that exports `prepare` and `view` is used as a preset. A config object
 renders through the built-in `configView(config)` preset.

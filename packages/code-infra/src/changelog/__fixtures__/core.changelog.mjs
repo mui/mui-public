@@ -18,7 +18,7 @@ import {
 /**
  * @typedef {import('../types.ts').ReleaseEntry} ReleaseEntry
  * @typedef {import('../types.ts').ReleaseFacts} ReleaseFacts
- * @typedef {import('../groom.mjs').ParsedEntryLabels} ParsedEntryLabels
+ * @typedef {import('../prepare.mjs').ParsedEntryLabels} ParsedEntryLabels
  * @typedef {ReleaseEntry & { parsed: ParsedEntryLabels }} CoreEntry
  * @typedef {{ title: string; pkg?: { name: string; version: string | null }; entries: CoreEntry[] }} CoreSection
  * @typedef {{ facts: ReleaseFacts; sections: CoreSection[]; contributors: string[] }} CoreRelease
@@ -180,7 +180,7 @@ export function coreChangelog(root) {
 
   return {
     includeDirectCommits: true,
-    groom(facts) {
+    prepare(facts) {
       const versions = new Map(
         facts.packages.flatMap((pkg) => (pkg.private ? [] : [[pkg.name, pkg.version]])),
       );

@@ -8,7 +8,7 @@ export { fetchReleaseFacts } from './fetchReleaseFacts.mjs';
 
 export { configView } from './configView.mjs';
 
-export * from './groom.mjs';
+export * from './prepare.mjs';
 
 export * from './md.mjs';
 
@@ -30,6 +30,6 @@ export { findLatestTaggedVersion } from '../utils/git.mjs';
 /** @typedef {import('./types.ts').ReleasePackage} ReleasePackage */
 /** @typedef {import('./types.ts').FetchReleaseFactsOptions} FetchReleaseFactsOptions */
 /**
- * @template Groomed
- * @typedef {import('./types.ts').ChangelogPreset<Groomed>} ChangelogPreset
+ * @template Prepared
+ * @typedef {import('./types.ts').ChangelogPreset<Prepared>} ChangelogPreset
  */
