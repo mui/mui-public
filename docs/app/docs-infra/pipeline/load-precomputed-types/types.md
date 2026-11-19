@@ -6,6 +6,16 @@
 
 ### default
 
+Webpack loader that processes types and precomputes meta.
+
+Finds createTypesMeta calls, loads and processes all component types,
+then injects the precomputed type meta back into the source.
+
+Supports single component syntax: createTypesMeta(import.meta.url, Component)
+And object syntax: createTypesMeta(import.meta.url, { Component1, Component2 })
+
+Automatically skips processing if skipPrecompute: true is set.
+
 **Parameters:**
 
 | Parameter | Type     | Default | Description |

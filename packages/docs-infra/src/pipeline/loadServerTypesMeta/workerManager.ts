@@ -1,18 +1,12 @@
 // webpack does not like node: imports
 // eslint-disable-next-line n/prefer-node-protocol
-import path from 'path';
-// eslint-disable-next-line n/prefer-node-protocol
-import { fileURLToPath } from 'url';
-// eslint-disable-next-line n/prefer-node-protocol
 import { isMainThread, Worker } from 'worker_threads';
 import { SocketClient, tryAcquireServerLock, releaseServerLock } from './socketClient';
 import type { WorkerRequest, WorkerResponse } from './worker';
 
-/**
- * Returns the path of the worker file, which must be compiled JS, not TS.
- */
-function getWorkerPath() {
-  return path.join(path.dirname(fileURLToPath(import.meta.url)), 'worker.mjs');
+// Keep the literal `new URL()`: the build only emits the worker and rewrites `.ts` when it sees one.
+function getWorkerUrl() {
+  return new URL('./worker.ts', import.meta.url);
 }
 
 /**
@@ -37,7 +31,7 @@ class TypesMetaWorkerManager implements TypesProcessor {
 
   private ensureWorker(): Worker {
     if (!this.worker) {
-      this.worker = new Worker(getWorkerPath());
+      this.worker = new Worker(getWorkerUrl());
 
       this.worker.on('message', (response: WorkerResponse & { requestId?: number }) => {
         const { requestId, ...rest } = response;
@@ -129,7 +123,7 @@ class WorkerThreadTypesProcessor implements TypesProcessor {
     if (isServer) {
       // We won the lock — spawn the bare worker which will become a socket server.
       // Keep the lock held so no other worker tries to spawn a second server.
-      this.serverWorker = new Worker(getWorkerPath(), {
+      this.serverWorker = new Worker(getWorkerUrl(), {
         workerData: { isServer: true },
       });
 
