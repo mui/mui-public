@@ -153,9 +153,14 @@ describe('createParseSourceWorkerClient', () => {
     const parsePromise = client.parseSourceAsync('hello', 'a.ts');
     await Promise.resolve();
     const parseMessage = worker.posted[1] as { id: number };
-    worker.respond({ type: 'parse', id: parseMessage.id, ok: false, error: 'unknown grammar' });
+    worker.respond({
+      type: 'parse',
+      id: parseMessage.id,
+      ok: false,
+      error: 'unsupported language',
+    });
 
-    await expect(parsePromise).rejects.toThrow('unknown grammar');
+    await expect(parsePromise).rejects.toThrow('unsupported language');
     client.terminate();
   });
 

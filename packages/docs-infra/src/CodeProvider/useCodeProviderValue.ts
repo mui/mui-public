@@ -209,7 +209,7 @@ export function useCodeProviderValue(
       // Eager synchronous parsers (small; on the sync render path).
       parseCode,
       parseControlledCode,
-      // Lazily spins up the live-editing worker with a block's grammar scopes.
+      // Lazily spins up the live-editing worker.
       ensureParseSourceWorker,
       // Provider-specific heavy-function provisioning (eager or lazy).
       ...heavyAccessors,

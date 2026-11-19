@@ -1115,7 +1115,7 @@ The `parseSource` utility parses source code into HAST (Hypertext Abstract Synta
 
 <summary>Outline</summary>
 
-- Keywords: syntax highlighting, highlights, grammars, HAST, WebAssembly
+- Keywords: syntax highlighting, highlights, languages, HAST, WebAssembly
 - Sections:
   - Basic Usage
   - Common Patterns
@@ -1135,19 +1135,19 @@ The `parseSource` utility parses source code into HAST (Hypertext Abstract Synta
   - Types
     - `createParseSource`
     - `parseSource`
-    - `getGrammarFromLanguage`
+    - `normalizeLanguage`
   - Additional Types
   - Related
 - Exports:
   - createParseSource
-  - getGrammarFromLanguage
+  - normalizeLanguage
     - Parameters: language
   - parsePlainText
     - Parameters: source
   - parseSource
     - Parameters: source, fileName, language
   - resetHighlighter
-- Types: extensionMap, languageToGrammarMap
+- Types: HighlightLanguage, extensionMap, languageAliasMap
 
 </details>
 

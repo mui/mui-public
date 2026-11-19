@@ -131,7 +131,7 @@ describe('transformHtmlCodeInline', () => {
     });
 
     it('preserves inline code with unsupported language', async () => {
-      // Using a language that isn't in the grammar list
+      // Using a language that isn't supported
       const input = '<code class="language-python">print("hello")</code>';
 
       const output = await processHtml(input);

@@ -7,7 +7,7 @@
  * `{ type: 'transpile', id, ok, code? | error? }`.
  *
  * Stateless and dependency-free of any handshake: sucrase is pure, so — unlike
- * the syntax-highlight worker — there is no `init`/grammar payload and no request
+ * the syntax-highlight worker — there is no `init` handshake and no request
  * queue. The heavy `sucrase` (and the import parser) are imported here, inside the
  * worker chunk, so they stay off the main thread's bundle.
  */

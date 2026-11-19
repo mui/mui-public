@@ -31,7 +31,7 @@ export function createPlainTextRoot(source: string): ReturnType<ParseSource> {
  *
  * Used for the deferred (un-highlighted) fallback: the enhancer pipeline needs the
  * line/frame structure to compute focus windows and truncation, but the syntax
- * colors are exactly the part being deferred — so we skip them. Cheap (no grammar,
+ * colors are exactly the part being deferred — so we skip them. Cheap (no highlighter,
  * no `getInstance`); the frames it produces collapse back to text via `buildRootFallback`.
  *
  * Takes only `source` (it ignores file name / language since it never highlights) but

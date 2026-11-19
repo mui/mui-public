@@ -240,7 +240,7 @@ Selection works with build-time and client-side loading. With server loading, th
 
 ### Reacting to Activation
 
-`onActivate` fires once when a block in the controller's scope first activates for editing — immediately under `editActivation: 'eager'`, or on the first hover/focus/click under `'interaction'`. Use it to fetch the editable source or light up surrounding UI at exactly the moment editing begins; `CodeHighlighter` separately warms its own live-editing dependencies (engine, grammars, worker) at the same moment, so leave it unset if the defaults are all you need.
+`onActivate` fires once when a block in the controller's scope first activates for editing — immediately under `editActivation: 'eager'`, or on the first hover/focus/click under `'interaction'`. Use it to fetch the editable source or light up surrounding UI at exactly the moment editing begins; `CodeHighlighter` separately warms its own live-editing dependencies (engine and worker) at the same moment, so leave it unset if the defaults are all you need.
 
 ## Integration with createDemo
 

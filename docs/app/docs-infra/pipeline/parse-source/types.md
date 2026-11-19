@@ -21,9 +21,9 @@ A Promise that resolves to the initialized `parseSource` function
 type ReturnValue = Promise<ParseSource>;
 ```
 
-### getGrammarFromLanguage
+### normalizeLanguage
 
-Gets the grammar scope from a language name.
+Normalizes a language name or alias to a supported language.
 
 **Parameters:**
 
@@ -33,10 +33,10 @@ Gets the grammar scope from a language name.
 
 **Return Value:**
 
-The grammar scope or undefined if not recognized
+The supported language, or undefined if not recognized
 
 ```tsx
-type ReturnValue = string | undefined;
+type ReturnValue = HighlightLanguage | undefined;
 ```
 
 ### parsePlainText
@@ -48,7 +48,7 @@ into the loader in place of the highlighting parser.
 
 Used for the deferred (un-highlighted) fallback: the enhancer pipeline needs the
 line/frame structure to compute focus windows and truncation, but the syntax
-colors are exactly the part being deferred — so we skip them. Cheap (no grammar,
+colors are exactly the part being deferred — so we skip them. Cheap (no highlighter,
 no `getInstance`); the frames it produces collapse back to text via `buildRootFallback`.
 
 Takes only `source` (it ignores file name / language since it never highlights) but
@@ -102,21 +102,28 @@ type ReturnValue = void;
 
 ### extensionMap
 
-Light-weight grammar metadata maps. These can be statically imported without
-pulling in the highlighting engine (`./highlightToHast`, loaded via dynamic
-`import()` so the bundler can code-split it into its own chunk).
+Maps file extensions to the language that highlights them.
 
 ```typescript
-type extensionMap = Record<string, string>;
+type extensionMap = Record<string, HighlightLanguage>;
 ```
 
-### languageToGrammarMap
+### HighlightLanguage
 
-Maps simplified language names back to grammar scope names.
+A language the highlighting engine supports.
+
+```typescript
+type HighlightLanguage =
+  'js' | 'ts' | 'tsx' | 'json' | 'md' | 'mdx' | 'html' | 'css' | 'sh' | 'yaml' | 'diff';
+```
+
+### languageAliasMap
+
+Maps language names and aliases to the language that highlights them.
 Used when `language` prop is provided instead of fileName.
 
 ```typescript
-type languageToGrammarMap = Record<string, string>;
+type languageAliasMap = Record<string, HighlightLanguage>;
 ```
 
 ## External Type Links

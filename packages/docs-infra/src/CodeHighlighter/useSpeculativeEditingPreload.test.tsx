@@ -3,7 +3,7 @@
  *
  * Contract for the first-render speculative editing preload: when a block will
  * be editable (`enabled`), CodeHighlighterClient warms the textarea editor (and
- * grammars + worker) so they're in flight before the user edits. Timing follows
+ * highlighting engine + worker) so they're in flight before the user edits. Timing follows
  * `editActivation`: `'eager'` warms on mount; `'interaction'` warms only once the
  * block is `activated` (engaged). A read-only block (`enabled = false`) warms
  * nothing.

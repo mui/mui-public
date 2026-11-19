@@ -1,2 +1,3 @@
 export { createParseSource, parsePlainText, parseSource, resetHighlighter } from './parseSource';
-export { getGrammarFromLanguage, languageToGrammarMap, extensionMap } from './grammarMaps';
+export { normalizeLanguage, languageAliasMap, extensionMap } from './languages';
+export type { HighlightLanguage } from './languages';

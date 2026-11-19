@@ -6,7 +6,7 @@ import type { EditableSourceProjection, HastRoot } from '../CodeHighlighter/type
 import { useHighlighterReady } from '../CodeHighlighter/useHighlighterReady';
 import { useCodeContext, useDemandSourceParser } from '../CodeProvider/CodeContext';
 import { hastToJsx } from '../pipeline/hastUtils';
-import { resolveGrammarScope } from '../pipeline/parseSource/grammarMaps';
+import { resolveLanguage } from '../pipeline/parseSource/languages';
 import { stripLeadingPerLine } from './stripLeadingPerLine';
 import type { SetSource } from './useSourceEditing';
 
@@ -117,7 +117,7 @@ export function CodeEditor({
   const { ensureParseSourceWorker, loadSourceParser, parseSource, parseSourceAsync } =
     useCodeContext();
   const parseFileName = displayFileName ?? fileName ?? 'code.txt';
-  const highlightable = resolveGrammarScope(parseFileName, language) !== undefined;
+  const highlightable = resolveLanguage(parseFileName, language) !== undefined;
   const highlighterReady = useHighlighterReady(highlightable && Boolean(loadSourceParser));
   useDemandSourceParser(loadSourceParser, !parseSource);
   const editableProjection = React.useMemo(

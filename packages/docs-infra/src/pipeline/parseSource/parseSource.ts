@@ -1,14 +1,15 @@
 import type { Root } from 'hast';
 import type { ParseSource } from '../../CodeHighlighter/types';
-import { resolveGrammarScope } from './grammarMaps';
+import { resolveLanguage } from './languages';
+import type { HighlightLanguage } from './languages';
 import { addLineGutters } from './addLineGutters';
 import { createPlainTextRoot } from './createPlainTextRoot';
 import { extendSyntaxTokens } from './extendSyntaxTokens';
 
 /** The loaded highlighting engine, shared through `globalThis`. */
 export interface Highlighter {
-  /** Highlights `source` for a grammar scope; `undefined` when it cannot. */
-  highlight: (source: string, scope: string) => Root | undefined;
+  /** Highlights `source` as `language`; `undefined` when it cannot. */
+  highlight: (source: string, language: HighlightLanguage) => Root | undefined;
 }
 
 // Must match HIGHLIGHTER_KEY in ./highlighterCache, which reads the instance without
@@ -44,15 +45,16 @@ export const parseSource: ParseSource = (source, fileName, language) => {
     );
   }
 
-  // Determine the grammar scope: prefer explicit language, then fall back to file extension
-  const grammarScope = resolveGrammarScope(fileName, language);
-  const highlighted = grammarScope ? highlighter.highlight(source, grammarScope) : undefined;
-  if (!grammarScope || !highlighted) {
+  const highlightLanguage = resolveLanguage(fileName, language);
+  const highlighted = highlightLanguage
+    ? highlighter.highlight(source, highlightLanguage)
+    : undefined;
+  if (!highlightLanguage || !highlighted) {
     // Unsupported file type: render the source as plain text.
     return createPlainTextRoot(source);
   }
 
-  extendSyntaxTokens(highlighted, grammarScope); // mutates the tree to add di-* classes
+  extendSyntaxTokens(highlighted, highlightLanguage); // mutates the tree to add di-* classes
   const sourceLines = source.split(/\r?\n|\r/);
   addLineGutters(highlighted, sourceLines); // mutates the tree to add line gutters
 

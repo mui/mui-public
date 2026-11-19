@@ -1,6 +1,6 @@
 import type { Root, Element, ElementContent, Text } from 'hast';
 import { getShallowTextContent } from '../loadServerTypes/hastTypeUtils';
-import { getLanguageCapabilitiesFromScope } from './languageCapabilities';
+import { capabilitiesForLanguage } from './languageCapabilities';
 
 /**
  * Classes that can represent CSS attribute selector names inside `[...]`.
@@ -736,7 +736,7 @@ function enhanceChildren(
     hasSpanSinceLastText = true;
     const firstClass = getFirstClass(child);
 
-    // ── Per-element enhancements (all grammars) ──
+    // ── Per-element enhancements (all languages) ──
     if (firstClass === 'pl-c1') {
       enhanceConstantSpan(child, isJs, isTs);
     } else if (firstClass === 'pl-s') {
@@ -906,12 +906,12 @@ function enhanceChildren(
  * `pl-*` classes from the highlighter are never removed.
  *
  * @param tree - The highlighted HAST root (see `highlightToHast`)
- * @param grammarScope - The grammar scope used for highlighting (e.g., 'source.tsx', 'source.css')
+ * @param language - The language used for highlighting (e.g., 'tsx', 'css')
  */
-export function extendSyntaxTokens(tree: Root, grammarScope: string): void {
-  const caps = getLanguageCapabilitiesFromScope(grammarScope);
+export function extendSyntaxTokens(tree: Root, language: string): void {
+  const caps = capabilitiesForLanguage(language);
   const isCss = caps.semantics === 'css';
-  const isHtmlJsx = caps.supportsJsx || grammarScope === 'text.html.basic';
+  const isHtmlJsx = caps.supportsJsx || language === 'html';
   const isJs = caps.semantics === 'js';
   const isTs = caps.supportsTypes;
   const isJsx = caps.supportsJsx;

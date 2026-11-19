@@ -141,7 +141,7 @@ export function Pre({
   editActivation?: 'eager' | 'interaction';
   /**
    * Fired once when the block first engages for editing. `CodeHighlighter` uses
-   * it to warm the live-editing runtime, grammars, and worker.
+   * it to warm the live-editing runtime, highlighting engine, and worker.
    */
   onActivate?: () => void;
   /** Expands a collapsed focused source when caret navigation crosses its boundary. */

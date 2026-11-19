@@ -9,6 +9,7 @@
  * Pure data transformation: the engine itself lives in `./highlightToHast`.
  */
 import type { Element, ElementContent, Root } from 'hast';
+import type { HighlightLanguage } from './languages';
 import type { Piece } from './splitHighlightTokens';
 import { isWhitespace } from './splitHighlightTokens';
 
@@ -16,18 +17,18 @@ const QUOTES = new Set(['"', "'", '`']);
 
 type Mode = 'js' | 'css' | 'json' | 'yaml' | 'sh' | 'html' | 'md' | 'diff';
 
-export const SCOPE_MODES: Record<string, Mode> = {
-  'source.js': 'js',
-  'source.ts': 'js',
-  'source.tsx': 'js',
-  'source.json': 'json',
-  'text.md': 'md',
-  'source.mdx': 'md',
-  'text.html.basic': 'html',
-  'source.css': 'css',
-  'source.shell': 'sh',
-  'source.yaml': 'yaml',
-  'source.diff': 'diff',
+export const LANGUAGE_MODES: Record<HighlightLanguage, Mode> = {
+  js: 'js',
+  ts: 'js',
+  tsx: 'js',
+  json: 'json',
+  md: 'md',
+  mdx: 'md',
+  html: 'html',
+  css: 'css',
+  sh: 'sh',
+  yaml: 'yaml',
+  diff: 'diff',
 };
 
 const FENCE_MODES: Record<string, Mode> = {
