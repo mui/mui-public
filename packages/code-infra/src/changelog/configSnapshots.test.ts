@@ -45,7 +45,9 @@ function baseUiConfig(
         plan: { values: [] },
         component: { prefix: ['component:', 'hook:'] },
         categoryOverrides: { 'scope: all components': general, ...overrides },
-        flags: { [BREAKING_CHANGE]: { name: 'Breaking changes', prefix: '🚨 **Breaking change:**' } },
+        flags: {
+          [BREAKING_CHANGE]: { name: 'Breaking changes', prefix: '🚨 **Breaking change:**' },
+        },
       },
       sections: { order: { [general]: -1 }, fallbackSection: general },
     },

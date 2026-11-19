@@ -459,3 +459,102 @@ export interface GenerateChangelogResult {
     all: string[];
   };
 }
+
+/** How an author relates to the organization. */
+export type ReleaseAssociation = 'team' | 'community' | 'first-timer';
+
+export interface ReleaseAuthor {
+  /** Null for direct commits without a linked GitHub account. */
+  login: string | null;
+  /** Git author name, set for direct commits. */
+  name?: string;
+  association: ReleaseAssociation;
+}
+
+/** One change in the release range: a merged pull request or, when opted in, a direct commit. */
+export interface ReleaseEntry {
+  sha: string;
+  /** Null for direct commits. */
+  pr: number | null;
+  /** Pull request or commit URL. */
+  url: string;
+  /** First line without bracket prefixes and, for pull requests, without `(#123)` references. */
+  title: string;
+  /** Bracket prefixes of the first line, e.g. `['DataGrid', 'l10n']` for `[DataGrid][l10n] …`. */
+  prefixes: string[];
+  /** Commit message; cherry-pick author suffixes are removed once the author is resolved. */
+  message: string;
+  /** Live pull request labels. */
+  labels: string[];
+  /** Pull request title, which can differ from the squashed subject. */
+  prTitle: string;
+  /** Pull request body. */
+  body: string;
+  author: ReleaseAuthor | null;
+  mergedAt: string | null;
+  createdAt: string | null;
+}
+
+export interface ReleasePackage {
+  name: string;
+  version: string | null;
+  private: boolean;
+  /** Directory relative to the workspace root, with `/` separators. */
+  path: string;
+  /** Whether the version differs from `lastRelease`; null when that ref is not available locally. */
+  changed: boolean | null;
+}
+
+/** Plain, serializable facts about a release range. */
+export interface ReleaseFacts {
+  repo: { owner: string; name: string };
+  lastRelease: string;
+  /** Resolved release ref; a local `HEAD` becomes its SHA. */
+  release: string;
+  version: string;
+  /** ISO 8601 release date. */
+  date: string;
+  entries: ReleaseEntry[];
+  /** Workspace packages; empty outside a pnpm workspace. */
+  packages: ReleasePackage[];
+}
+
+export interface FetchReleaseFactsOptions {
+  /** Workspace root; defaults to the process directory. */
+  cwd?: string;
+  /** Repository name; defaults to the `origin` remote. */
+  repo?: string;
+  /** GitHub organization; defaults to the `origin` remote's owner, or `mui` with `repo`. */
+  org?: string;
+  /** Defaults to the latest tag reachable from `HEAD`. */
+  lastRelease?: string;
+  /** Defaults to the local `HEAD`, resolved to its SHA. */
+  release?: string;
+  /** Defaults to the root manifest version. */
+  version?: string;
+  /** Defaults to now. */
+  date?: Date | string;
+  /** Labels marking cherry-picks whose original author is credited. */
+  cherryPickLabels?: string[];
+  /** Also return commits without a pull request; needs a token that can read organization memberships. */
+  includeDirectCommits?: boolean;
+  octokit?: Octokit;
+}
+
+/**
+ * A repository's changelog code: `groom` shapes facts into the view's input; `view` renders markdown.
+ * Both are pure, so a view can be snapshot-tested from a fixture without GitHub.
+ */
+export interface ChangelogPreset<Groomed> {
+  groom: (facts: ReleaseFacts) => Groomed;
+  view: (groomed: Groomed) => string;
+  /** Fetch option the preset needs; see `FetchReleaseFactsOptions`. */
+  includeDirectCommits?: boolean;
+  cherryPickLabels?: string[];
+}
+
+export interface PresetChangelogResult<Groomed> {
+  markdown: string;
+  facts: ReleaseFacts;
+  groomed: Groomed;
+}
