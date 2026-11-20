@@ -24,10 +24,8 @@ or shouldn't be fixed, say why instead of forcing a change.
 
 For each package, before changing anything:
 
-- **Already in flight:** an open PR from this skill already fixes it: its body has a
-  `### <package>` section. Use the caller's list of those PRs when it provides one, otherwise the
-  open PRs by whoever publishes this skill's PRs (`gh pr list --state open --author <author>`).
-  Report the PR instead.
+- **Already in flight:** skip alerts that an open pull request from this skill already links to
+  (see Report). A caller that provides the alerts may have left those out already.
 - **Required version:** for each vulnerable version that resolves, the lowest release in the same
   major that is outside every vulnerable range of the package's open alerts. Different chains can
   resolve different majors; fix each within its own. Only when a major has no such release does
@@ -95,9 +93,10 @@ validation: if the new major needs source changes, report it rather than editing
 ## Report
 
 - **Batch PR:** titled `[security] Fix Dependabot alerts`, labeled `dependencies` and `security`. One
-  section per package, headed exactly `### <package>` (later runs read these headings to know what's
-  in flight): the alerts it closes (GHSA id, severity, manifest), the old and new resolved versions,
-  the option used and why the earlier options didn't work. For an override, also the parent version
+  section per package, headed `### <package>`: the alerts it closes, each as a link to the alert
+  (`https://github.com/<owner>/<repo>/security/dependabot/<number>`; later runs read these links to
+  know what's in flight) with GHSA id, severity and manifest, the old and new resolved versions, the
+  option used and why the earlier options didn't work. For an override, also the parent version
   it's scoped to (it lapses when that parent is upgraded) and which validation exercises the parent.
   End with the validation actually run.
 - **Major PR:** titled `[security] Bump <dependency> to v<major> for <package> advisories`, same
@@ -106,7 +105,6 @@ validation: if the new major needs source changes, report it rather than editing
 
 For every other package, one of:
 
-- **In flight:** the existing PR.
 - **Not fixable:** no patched version, a major migration that needs code changes, a fix that broke
   validation, or one that needs an upstream release because no override is allowed, with the
   evidence.

@@ -47,6 +47,9 @@ steps:
       cache: pnpm
   - name: Install dependencies
     run: pnpm install --frozen-lockfile
+  # Open alerts, minus those an open fix PR already links to. This workflow's PRs are opened by the
+  # App configured in safe-outputs below; looked up here because the agent's gh calls only see
+  # content from trusted authors, which excludes that App.
   - name: Collect open Dependabot alerts
     env:
       GH_TOKEN: ${{ github.token }}
@@ -54,30 +57,6 @@ steps:
       set -euo pipefail
       out=/tmp/gh-aw/agent
       mkdir -p "$out"
-      gh api "repos/$GITHUB_REPOSITORY/dependabot/alerts?state=open&per_page=100" --paginate \
-        | jq -s 'add // [] | group_by(.dependency.package.name) | map({
-            package: .[0].dependency.package.name,
-            ecosystem: .[0].dependency.package.ecosystem,
-            alerts: map({
-              number,
-              ghsa: .security_advisory.ghsa_id,
-              severity: .security_advisory.severity,
-              summary: .security_advisory.summary,
-              manifest: .dependency.manifest_path,
-              relationship: .dependency.relationship,
-              scope: .dependency.scope,
-              vulnerable_range: .security_vulnerability.vulnerable_version_range,
-              first_patched: .security_vulnerability.first_patched_version.identifier
-            })
-          })' > "$out/dependabot-alerts.json"
-      echo "Packages with open alerts: $(jq length "$out/dependabot-alerts.json")"
-  # This workflow's own open PRs, opened by the App configured in safe-outputs below: the agent's gh
-  # calls only see content from trusted authors, which excludes that App.
-  - name: Collect this workflow's open PRs
-    env:
-      GH_TOKEN: ${{ github.token }}
-    run: |
-      set -euo pipefail
       gh pr list --repo "$GITHUB_REPOSITORY" --state open --author app/code-infra-auditor \
           --limit 100 --json number,title,url,body \
         | jq '
@@ -85,12 +64,35 @@ steps:
               number,
               url,
               title,
-              packages: [.body // "" | splits("\n") | capture("^### (?<p>\\S+)\\s*$").p] | unique
+              alerts: [.body // "" | scan("/security/dependabot/(\\d+)") | .[0] | tonumber] | unique
             })
             | { batch_open: any(.[]; .title == "[security] Fix Dependabot alerts"), pull_requests: . }
-          ' > /tmp/gh-aw/agent/open-fix-prs.json
+          ' > "$out/open-fix-prs.json"
+      gh api "repos/$GITHUB_REPOSITORY/dependabot/alerts?state=open&per_page=100" --paginate \
+        | jq -s --slurpfile prs "$out/open-fix-prs.json" '
+            ([$prs[0].pull_requests[].alerts[]]) as $in_flight
+            | add // []
+            | map(select(.number as $n | $in_flight | index($n) | not))
+            | group_by(.dependency.package.name)
+            | map({
+                package: .[0].dependency.package.name,
+                ecosystem: .[0].dependency.package.ecosystem,
+                alerts: map({
+                  number,
+                  url: .html_url,
+                  ghsa: .security_advisory.ghsa_id,
+                  severity: .security_advisory.severity,
+                  summary: .security_advisory.summary,
+                  manifest: .dependency.manifest_path,
+                  relationship: .dependency.relationship,
+                  scope: .dependency.scope,
+                  vulnerable_range: .security_vulnerability.vulnerable_version_range,
+                  first_patched: .security_vulnerability.first_patched_version.identifier
+                })
+              })' > "$out/dependabot-alerts.json"
       jq -r '"Open fix PRs: \(.pull_requests | length), batch open: \(.batch_open)"' \
-        /tmp/gh-aw/agent/open-fix-prs.json
+        "$out/open-fix-prs.json"
+      echo "Packages with alerts to work on: $(jq length "$out/dependabot-alerts.json")"
 safe-outputs:
   # The jobs that publish the outputs use the Code Infra - Auditor App: PRs opened with GITHUB_TOKEN
   # don't trigger GitHub Actions, and MUI repositories require Actions checks. Its credentials are
@@ -126,10 +128,10 @@ safe-outputs:
 
 Follow the `mui-dependabot-fix` skill for this repository (`${{ github.repository }}`).
 
-The open alerts are in `/tmp/gh-aw/agent/dependabot-alerts.json`, grouped by package. Dismissed
-alerts aren't included. This workflow's own open pull requests, with the packages each one fixes
-and whether a batch is open, are in `/tmp/gh-aw/agent/open-fix-prs.json`; use it for the skill's
-in-flight check. Dependencies are installed.
+The alerts to work on are in `/tmp/gh-aw/agent/dependabot-alerts.json`, grouped by package:
+dismissed alerts and alerts that an open pull request from this workflow already links to are left
+out. Those pull requests, and whether a batch is open, are in `/tmp/gh-aw/agent/open-fix-prs.json`.
+Dependencies are installed.
 
 Open pull requests with `create_pull_request`, each from its own branch off the default branch:
 
