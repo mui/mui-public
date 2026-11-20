@@ -1,11 +1,7 @@
 name: Dependabot fix
 
-# Runs the reusable Dependabot fix workflow against this repo: an agent works through the open
-# Dependabot alerts and opens a draft PR batching the non-major fixes, a PR per major-version fix, and
-# an issue for alerts that need a decision.
-# Runs daily, and can be dispatched by hand. This repo has the four ANTHROPIC_* variables, the
-# Code Infra - Auditor App installed, and its credentials in the master-only `code-infra-auditor`
-# environment.
+# Runs the reusable Dependabot fix workflow against this repo, daily or by hand. The setup it needs
+# is in the README's "Agentic workflows" section.
 
 on:
   schedule:
