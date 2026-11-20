@@ -88,6 +88,10 @@ Use [mui-renovate-fix](./skills/mui-renovate-fix/SKILL.md) when you want to impl
 
 For example, ask the agent to "Use mui-renovate-triage to review the open Renovate PRs", then respond with "merge" or "continue" as it presents each passing PR. Visual approval alone, external-service failures, and unrelated flaky tests do not call for a dependency fix.
 
+### Dependabot alerts
+
+Use [mui-dependabot-fix](./skills/mui-dependabot-fix/SKILL.md) to clear open Dependabot security alerts that Renovate and Dependabot leave open, typically vulnerable transitive dependencies. Per package, it picks the smallest fix the dependency policy allows (refresh, direct bump, parent bump, then a version-scoped override) and opens one PR, or reports why an alert is held back, not fixable, or should be dismissed. The [Dependabot fix workflow](./.github/workflows/dependabot-fix.md) runs it daily, and other repositories reuse it by importing [its shared component](./.github/workflows/shared/dependabot-fix.md).
+
 ## Versioning
 
 Steps:
