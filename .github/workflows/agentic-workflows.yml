@@ -1,0 +1,51 @@
+name: Agentic workflows
+
+# GitHub Actions only runs the compiled `*.lock.yml` of a GitHub Agentic Workflows (gh-aw) `*.md`
+# workflow. Recompile them and fail when the committed lock files are out of date, so a forgotten
+# `gh aw compile` shows up in review instead of on the next run.
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+      - '.github/aw/**'
+
+permissions: {}
+
+jobs:
+  compiled:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install the gh-aw version the lock files were compiled with
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          versions=$(for file in .github/workflows/*.lock.yml; do
+            sed -n '1s/^# gh-aw-metadata: //p' "$file" | jq -r .compiler_version
+          done | sort -u)
+          if [ "$(printf '%s\n' "$versions" | wc -l)" -ne 1 ]; then
+            echo "::error::Lock files were compiled with different gh-aw versions: $(echo $versions). Recompile them with one version."
+            exit 1
+          fi
+          gh extension install github/gh-aw --pin "$versions"
+      - name: Recompile
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh aw compile --strict
+      - name: Check the lock files are up to date
+        run: |
+          # Includes untracked files, for a new workflow committed without its lock file. gh-aw's
+          # local logs folder is never committed.
+          changes=$(git status --porcelain -- .github ':!.github/aw/logs')
+          if [ -n "$changes" ]; then
+            printf '%s\n' "$changes"
+            git diff -- .github
+            echo "::error::Lock files are out of date. Run \`gh aw compile\` and commit the result."
+            exit 1
+          fi
