@@ -85,9 +85,9 @@ export interface FormattedProperty {
   example?: HastRoot;
   /** Plain text version of example for markdown generation */
   exampleText?: string;
-  /** @see references as parsed markdown HAST */
+  /** `@see` references as parsed markdown HAST */
   see?: HastRoot;
-  /** Plain text version of @see references for markdown generation */
+  /** Plain text version of `@see` references for markdown generation */
   seeText?: string;
 }
 
@@ -126,9 +126,9 @@ export interface FormattedParameter {
   example?: HastRoot;
   /** Plain text version of example for markdown generation */
   exampleText?: string;
-  /** @see references as parsed markdown HAST */
+  /** `@see` references as parsed markdown HAST */
   see?: HastRoot;
-  /** Plain text version of @see references for markdown generation */
+  /** Plain text version of `@see` references for markdown generation */
   seeText?: string;
 }
 
@@ -155,15 +155,7 @@ function labelFromUrl(url: string): string {
  * - `plain text` (no link) → `- See plain text`
  */
 function formatSeeTag(value: string): string {
-  let trimmed = value.trim();
-
-  // Workaround: TypeScript's parser splits `@see https://example.com` into
-  // tag.name="https" and tag.comment="://example.com", so the extractor may
-  // deliver a truncated value starting with "://".  Restore the protocol.
-  // TODO: fix this in typescript-api-extractor
-  if (trimmed.startsWith('://')) {
-    trimmed = `https${trimmed}`;
-  }
+  const trimmed = value.trim();
 
   // Replace all {@link ...} occurrences
   const linkPattern = /\{@link\s+([^|}]+?)(?:\|([^}]+))?\}/g;
