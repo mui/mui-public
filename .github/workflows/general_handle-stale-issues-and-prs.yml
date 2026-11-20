@@ -32,6 +32,8 @@ jobs:
           days-before-issue-close: 5
           # only run on issues with the waiting for author label
           only-issue-labels: 'status: waiting for author'
+          # issues blocked on something else are not waiting on the author
+          exempt-issue-labels: 'on hold'
 
           # stale PR handling
           stale-pr-message: 'This pull request has been inactive for 30 days. Please remove the stale label or leave a comment to keep it open. Otherwise, it will be closed in 15 days.'
@@ -41,5 +43,6 @@ jobs:
           days-before-pr-close: 15
           # do not run this on draft PRs
           exempt-draft-pr: true
-          # dependency update PRs (Renovate) stay open until they are merged or superseded
-          exempt-pr-labels: 'dependencies'
+          # dependency update PRs (Renovate) stay open until they are merged or superseded,
+          # PRs on hold stay open until the blocker is resolved
+          exempt-pr-labels: 'dependencies,on hold'
