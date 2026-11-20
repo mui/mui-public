@@ -83,6 +83,7 @@ safe-outputs:
     client-id: ${{ secrets.CODE_INFRA_AUDITOR_CLIENT_ID }}
     private-key: ${{ secrets.CODE_INFRA_AUDITOR_PRIVATE_KEY }}
   create-pull-request:
+    # One batch of non-major fixes plus up to two major-version fixes per run.
     max: 3
     title-prefix: '[security] '
     labels: [dependencies, security]
@@ -108,13 +109,16 @@ Follow the `mui-dependabot-fix` skill for this repository (`${{ github.repositor
 The open alerts are in `/tmp/gh-aw/agent/dependabot-alerts.json`, grouped by package. Dismissed
 alerts aren't included. Dependencies are installed.
 
-Work through the packages, most severe first. Open at most three pull requests per run with
-`create_pull_request`, one per package, each from its own branch off the default branch, so every
-pull request contains only that package's fix. Packages left over are picked up by the next run.
+Open pull requests with `create_pull_request`, each from its own branch off the default branch:
 
-When at least one package is held back, not fixable, should be dismissed, or was left for the next
-run, create one issue with `create_issue` titled `Dependabot alerts that need a decision` that lists
-them with the evidence from the report. Leave out packages that have a pull request open.
+- At most one batch pull request with all non-major fixes. When a batch pull request from an
+  earlier run is still open, don't open another one: its packages are in flight, and the remaining
+  non-major fixes wait for the next run after it merges.
+- At most two major-version pull requests, one per fix, most severe first. Fixes left over are
+  picked up by the next run.
 
-When there are no alerts, or every package already has a pull request open, call `noop` with a
-short reason.
+When at least one package is held back, not fixable, should be dismissed, or left for the next run,
+create one issue with `create_issue` titled `Dependabot alerts that need a decision` that lists them
+with the evidence from the report. Leave out packages that have a pull request open.
+
+When there are no alerts, or every package is already in flight, call `noop` with a short reason.

@@ -9,15 +9,15 @@ description:
 # Dependabot alert fix
 
 Resolve each vulnerable package with the smallest change that keeps the repository's dependency
-policy, one pull request per package. When an alert can't or shouldn't be fixed, say why instead of
-forcing a change.
+policy. Fixes that stay within the current major versions go into one batch pull request; a fix
+that needs a new major version of a dependency gets a pull request of its own. When an alert can't
+or shouldn't be fixed, say why instead of forcing a change.
 
 ## Inputs
 
 - The open alerts, either from a JSON file the caller provides or from
   `gh api "repos/<owner>/<repo>/dependabot/alerts?state=open" --paginate`. Group them by package
   name: one package usually carries several alerts across advisories and manifests.
-- Manifest paths the caller asks to ignore. Never touch alerts on those manifests.
 - A checkout of the repository on its default branch. Read the repository's own instructions
   (`AGENTS.md`/`CLAUDE.md`) first; they override anything here.
 
@@ -25,9 +25,9 @@ forcing a change.
 
 For each package, before changing anything:
 
-- **Already in flight:** search open PRs for the package name
-  (`gh pr list --state open --search "<package> in:title"`). A Renovate, Dependabot or earlier run's
-  PR that bumps it means there is nothing to do; report the PR instead.
+- **Already in flight:** look for an open PR that already bumps it: a Renovate or Dependabot PR
+  (`gh pr list --state open --search "<package>"`), or an earlier batch or major PR from this skill
+  (title prefix `[security]`; check its body for the package). Report the PR instead.
 - **Required version:** take the highest `first_patched_version` across the package's open alerts.
   No patched version means no fix exists; report it.
 - **Where it comes from:** `pnpm why -r <package>` lists every resolved version and the chain that
@@ -46,13 +46,16 @@ Use the first option that removes every vulnerable version of the package:
    `pnpm update -r <package>` re-resolves it. Confirm with `pnpm why -r <package>`; pnpm may keep an
    old version for some chains.
 2. **Bump the direct dependency.** `pnpm -F <workspace> update '<package>@<range>'` for each
-   workspace that declares it. Stay within the current major; a major bump is a migration, report it.
+   workspace that declares it.
 3. **Bump the parent.** When a parent's range excludes the patched version, update that parent to the
-   lowest release whose range admits it, the same way. Same major rule.
-4. **Scoped override.** Only when no parent release admits the patched version. Add to `overrides`
-   in `pnpm-workspace.yaml`, scoped to the exact parent version so it lapses when the parent moves on:
-   `'<parent>@<parent-version>><package>': '<patched-range>'`. Never add an unscoped override
-   (`'<package>': ...`): it silently changes every consumer.
+   lowest release whose range admits it, the same way.
+4. **Scoped override.** Only when no release of the parent within its current major admits the
+   patched version. Add to `overrides` in `pnpm-workspace.yaml`, scoped to the exact parent version
+   so it lapses when the parent moves on: `'<parent>@<parent-version>><package>': '<patched-range>'`.
+   Never add an unscoped override (`'<package>': ...`): it silently changes every consumer.
+
+A fix is **major** when option 2 or 3 needs a new major version of the dependency it bumps. Prefer a
+scoped override within the current major when one works; take the major only when it doesn't.
 
 Then:
 
@@ -62,6 +65,15 @@ Then:
   security updates do (`# Security update: <GHSA id>`). Never lower `minimumReleaseAge` itself.
 - Run `pnpm dedupe` after the change, and `pnpm install` must succeed without `--force` or ignoring
   scripts that normally run.
+
+## Batch the non-major fixes
+
+Build the batch on one branch off the default branch, one package at a time, most severe first.
+After each package, run the validation below; when it fails, revert that package's change, report
+it, and continue with the next. One package that doesn't work must not block the others.
+
+Do a major fix on its own branch off the default branch instead, and only when the bump alone passes
+validation: if the new major needs source changes, report it rather than editing code.
 
 ## Validate
 
@@ -73,15 +85,20 @@ Then:
 
 ## Report
 
-Per package, one of:
+- **Batch PR:** titled `[security] Fix Dependabot alerts`, labeled `dependencies` and `security`. One
+  section per package: the alerts it closes (GHSA id, severity, manifest), the old and new resolved
+  versions, the option used and why the earlier options didn't work. End with the validation
+  actually run.
+- **Major PR:** titled `[security] Bump <dependency> to v<major> for <package> advisories`, same
+  labels, same per-package section, plus the release notes' breaking changes that could affect this
+  repository.
 
-- **Fixed:** a PR titled `[security] Fix <package> advisories`, labeled `dependencies` and `security`.
-  The body lists the alerts it closes (GHSA id, severity, manifest), the old and new resolved
-  versions, the option used and why the earlier options didn't work, and the validation actually run.
+For every other package, one of:
+
 - **In flight:** the existing PR.
 - **Held back:** the Renovate rule or PR holding it, and what unblocks it.
-- **Not fixable:** no patched version, a major migration needed, or a code change needed, with the
-  evidence.
+- **Not fixable:** no patched version, a major migration that needs code changes, or a fix that
+  broke validation, with the evidence.
 - **Should be dismissed:** the manifest is test-only or never shipped, with a dismissal reason a
   human can paste. Dismissing alerts is a human decision.
 
