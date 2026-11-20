@@ -169,9 +169,9 @@ Use the first option that removes every vulnerable version of the package:
    version, update that parent to the lowest release in its major whose range admits it, the same
    way.
 4. **Major.** Bump the direct dependency or the parent to the lowest new major that admits the
-   patched version, when that can reasonably be done: the bump, with any source changes it needs,
-   passes validation without changing behavior users would notice. This is a major fix (see "Open
-   pull requests").
+   patched version, when that can reasonably be done: the bump passes validation without changing
+   behavior users would notice, and needs at most small, contained source changes, not a migration.
+   This is a major fix (see "Open pull requests").
 5. **Scoped override.** When the major can't reasonably be done. Add to `overrides` in
    `pnpm-workspace.yaml`, scoped to the exact parent version so it lapses when the parent moves on:
    `'<parent>@<parent-version>><package>': '<patched-range>'`. Never add an unscoped override
@@ -218,9 +218,9 @@ Use `create_pull_request`, each from its own branch off the default branch:
   version had always been in place, guided by the failing output and the release notes:
   - No compatibility shims, workarounds, or pinning the dependency back.
   - No skipping or loosening tests, type casts to silence errors, or catching the new error.
-  - When a test fails because the change alters behavior users would notice, don't adapt the test
-    and don't open its pull request: use a scoped override instead when one is allowed, and report
-    the major for a person to decide.
+  - When the change would alter behavior users notice (don't adapt a test to hide it), or it turns
+    out to need more than small, contained source changes, don't open its pull request: use a
+    scoped override instead when one is allowed, and report the major for a person to decide.
 
 In each pull request, one section per package headed `### <package>`:
 
@@ -236,12 +236,15 @@ End each pull request with the validation actually run.
 
 ## Report the rest
 
-When at least one package is not fixable, should be dismissed, or was left for the next run, create
-one issue with `create_issue` titled `Dependabot alerts that need a decision`, listing each with its
-alerts and evidence:
+When at least one package has a major that needs a decision, is not fixable, should be dismissed,
+or was left for the next run, create one issue with `create_issue` titled
+`Dependabot alerts that need a decision`, listing each with its alerts and evidence:
 
-- **Not fixable:** no patched release, a major that would change behavior users notice, a fix that
-  broke validation, or one that needs an upstream release because no override is allowed.
+- **Major needs a decision:** a major left out because it would change behavior users notice or
+  needs a migration, with what it would take and whether a scoped override covers the alerts
+  meanwhile.
+- **Not fixable:** no patched release, a fix that broke validation, or one that needs an upstream
+  release because neither a major nor an override is possible.
 - **Should be dismissed:** the manifest is test-only or never shipped, with a dismissal reason a
   human can paste. Dismissing alerts is a human decision.
 
