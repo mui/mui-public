@@ -133,7 +133,7 @@ export function createShallowType(
     return new FunctionNode(typeName, []);
   }
 
-  return new ObjectNode(typeName, [], undefined);
+  return new ObjectNode(typeName, [], undefined, undefined, type.getProperties().length > 0);
 }
 
 // Internal TypeScript API used when enum literal types point at a member symbol

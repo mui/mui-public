@@ -906,7 +906,8 @@
 									"typeName": {
 										"name": "ManyNestedProps"
 									},
-									"properties": []
+									"properties": [],
+									"propertiesOmitted": true
 								},
 								{
 									"kind": "intrinsic",
@@ -1407,7 +1408,8 @@
 											"typeName": {
 												"name": "ManyNestedProps"
 											},
-											"properties": []
+											"properties": [],
+											"propertiesOmitted": true
 										},
 										{
 											"kind": "intrinsic",
@@ -1885,7 +1887,8 @@
 									"typeName": {
 										"name": "ManyNestedProps"
 									},
-									"properties": []
+									"properties": [],
+									"propertiesOmitted": true
 								},
 								{
 									"kind": "intrinsic",

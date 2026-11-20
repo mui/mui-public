@@ -27,7 +27,8 @@
 															"typeName": {
 																"name": "T"
 															},
-															"properties": []
+															"properties": [],
+															"propertiesOmitted": true
 														},
 														"optional": false
 													}
@@ -51,7 +52,8 @@
 													"typeName": {
 														"name": "T"
 													},
-													"properties": []
+													"properties": [],
+													"propertiesOmitted": true
 												},
 												"optional": false
 											}
@@ -71,7 +73,8 @@
 														"name": "T",
 														"constraint": {
 															"kind": "object",
-															"properties": []
+															"properties": [],
+															"propertiesOmitted": true
 														},
 														"kind": "typeParameter"
 													},
