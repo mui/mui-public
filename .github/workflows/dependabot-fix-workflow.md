@@ -163,13 +163,17 @@ Use the first option that removes every vulnerable version of the package:
 1. **Refresh within existing ranges.** When every parent's range already admits the patched version,
    `pnpm update -r <package>` re-resolves it. Confirm with `pnpm why -r <package>`; pnpm may keep an
    old version for some chains.
-2. **Bump the direct dependency** within its current major: `pnpm -F <workspace> update
-'<package>@<range>'` for each workspace that declares it.
+2. **Bump the direct dependency** within its current major, for each workspace that declares it:
+   `pnpm -F <workspace> update '<package>@<range>'`.
 3. **Bump the parent** within its current major: when a parent's range excludes the patched
    version, update that parent to the lowest release in its major whose range admits it, the same
    way.
-4. **Scoped override.** Add to `overrides` in `pnpm-workspace.yaml`, scoped to the exact parent
-   version so it lapses when the parent moves on:
+4. **Major.** Bump the direct dependency or the parent to the lowest new major that admits the
+   patched version, when that can reasonably be done: the bump, with any source changes it needs,
+   passes validation without changing behavior users would notice. This is a major fix (see "Open
+   pull requests").
+5. **Scoped override.** When the major can't reasonably be done. Add to `overrides` in
+   `pnpm-workspace.yaml`, scoped to the exact parent version so it lapses when the parent moves on:
    `'<parent>@<parent-version>><package>': '<patched-range>'`. Never add an unscoped override
    (`'<package>': ...`): it silently changes every consumer. An override replaces a version the
    parent chose, so use one only when all of these hold:
@@ -178,8 +182,6 @@ Use the first option that removes every vulnerable version of the package:
      is published. Overrides only apply to this repository's install, so there one would close the
      alert while the package's users still install the vulnerable version.
    - The validation exercises the parent (its tests, or the build or tool step that uses it).
-5. **Major.** Bump the direct dependency or the parent to the lowest new major that admits the
-   patched version. This is a major fix (see "Open pull requests").
 
 When none of these works, report the package as needing an upstream release.
 
@@ -216,8 +218,9 @@ Use `create_pull_request`, each from its own branch off the default branch:
   version had always been in place, guided by the failing output and the release notes:
   - No compatibility shims, workarounds, or pinning the dependency back.
   - No skipping or loosening tests, type casts to silence errors, or catching the new error.
-  - When a test fails because the change alters behavior users would notice, don't adapt the test:
-    report the major for a person to decide, and don't open its pull request.
+  - When a test fails because the change alters behavior users would notice, don't adapt the test
+    and don't open its pull request: use a scoped override instead when one is allowed, and report
+    the major for a person to decide.
 
 In each pull request, one section per package headed `### <package>`:
 
