@@ -139,7 +139,7 @@ Open pull requests with `create_pull_request`, each from its own branch off the 
 - At most two major-version pull requests, one per fix, most severe first. Fixes left over are
   picked up by the next run.
 
-When at least one package is held back, not fixable, should be dismissed, or left for the next run,
+When at least one package is not fixable, should be dismissed, or left for the next run,
 create one issue with `create_issue` titled `Dependabot alerts that need a decision` that lists them
 with the evidence from the report. Leave out packages that have a pull request open.
 
