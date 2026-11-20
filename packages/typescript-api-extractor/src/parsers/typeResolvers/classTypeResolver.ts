@@ -2,8 +2,8 @@ import ts from 'typescript';
 import type { ScopedParserContext } from '../../parserContext';
 import type { Documentation, AnyType } from '../../models';
 import { ClassNode, ConstructSignature, ClassProperty, ClassMethod } from '../../models';
-import { getFullName } from '../common';
-import { TypeName } from '../../models/typeName';
+import { copyTypeName, createTypeName, getFullName } from '../common';
+import type { TypeName } from '../../models/typeName';
 import { getDocumentationFromSymbol } from '../documentationParser';
 import type {
   ResolveTypeInContext,
@@ -76,9 +76,7 @@ function buildClassNodeFromType(
   }
 
   const fqn = getFullName(type, undefined, context);
-  const typeName = fqn?.name
-    ? new TypeName(fqn.name, fqn.namespaces, fqn.typeArguments)
-    : undefined;
+  const typeName = fqn?.name ? copyTypeName(fqn) : undefined;
 
   // Parse construct signatures
   const parsedConstructSignatures = constructSignatures.map((sig) =>
@@ -103,8 +101,8 @@ function buildClassNodeFromType(
   let typeParameters: TypeName[] | undefined;
   const declaration = symbol.declarations?.[0];
   if (declaration && ts.isClassDeclaration(declaration) && declaration.typeParameters) {
-    typeParameters = declaration.typeParameters.map(
-      (tp) => new TypeName(tp.name.text, undefined, undefined),
+    typeParameters = declaration.typeParameters.map((tp) =>
+      createTypeName(undefined, context, tp.name.text),
     );
   }
 

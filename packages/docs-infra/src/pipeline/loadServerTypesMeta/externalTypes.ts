@@ -44,8 +44,6 @@ export interface ExternalTypesCollector {
   allExports: tae.ExportNode[];
   /** Optional pattern to filter which external types to include */
   pattern?: RegExp;
-  /** Map of original export names to dotted display names, used to identify renamed own types */
-  typeNameMap?: Record<string, string>;
 }
 
 function withoutTypeArguments(printedName: string): string {
@@ -108,39 +106,15 @@ export function getNamedUnionSource(type: tae.UnionNode): tae.ExternalTypeSource
 }
 
 /**
- * Checks whether a type name belongs to one of the module's own exports.
- * Matches both direct export names (e.g., `AlertDialogRootChangeEventReason`)
- * and short names that appear as the last segment of a typeNameMap value
- * (e.g., `ChangeEventReason` matching `AlertDialog.Root.ChangeEventReason`).
+ * Checks whether a type name refers to one of the module's own exports: it names the declaration
+ * of one (e.g., `BaseOrientation` exported as `Tabs.Root.Orientation`), or is spelled like one.
  */
-export function isOwnTypeName(typeName: string, collector: ExternalTypesCollector): boolean {
-  if (collector.allExports.some((exp) => exp.name === typeName)) {
-    return true;
-  }
-  if (collector.typeNameMap) {
-    // Check if the typeName matches any dotted name in the typeNameMap
-    if (
-      Object.values(collector.typeNameMap).some(
-        (dotted) => dotted === typeName || dotted.endsWith(`.${typeName}`),
-      )
-    ) {
-      return true;
-    }
-    // Check if the typeName is the underlying type name of any exported type alias.
-    // e.g., BaseOrientation is the underlying type of TabsRootOrientation which maps to
-    // Tabs.Root.Orientation — so BaseOrientation is effectively an own type.
-    if (
-      collector.allExports.some(
-        (exp) =>
-          'typeName' in exp.type &&
-          (exp.type as { typeName?: tae.TypeName }).typeName?.name === typeName &&
-          collector.typeNameMap![exp.name] !== undefined,
-      )
-    ) {
-      return true;
-    }
-  }
-  return false;
+export function isOwnTypeName(typeName: tae.TypeName, collector: ExternalTypesCollector): boolean {
+  return collector.allExports.some(
+    (exp) =>
+      (typeName.declarationId !== undefined && exp.declarationId === typeName.declarationId) ||
+      exp.name === typeName.name,
+  );
 }
 
 /**
@@ -299,8 +273,8 @@ export function maybeCollectExternalUnion(
     return;
   }
 
-  // Own type (in exports or typeNameMap)
-  if (isOwnTypeName(typeName, collector)) {
+  // Own type
+  if (isOwnTypeName(type.typeName!, collector)) {
     return;
   }
 
@@ -348,8 +322,8 @@ export function maybeCollectExternalTemplateLiteral(
     return;
   }
 
-  // Own type (in exports or typeNameMap)
-  if (isOwnTypeName(typeName, collector)) {
+  // Own type
+  if (isOwnTypeName(type.typeName!, collector)) {
     return;
   }
 
@@ -390,8 +364,8 @@ export function maybeCollectExternalFunction(
     return;
   }
 
-  // Own type (in exports or typeNameMap)
-  if (isOwnTypeName(typeName, collector)) {
+  // Own type
+  if (isOwnTypeName(type.typeName!, collector)) {
     return;
   }
 
@@ -426,8 +400,8 @@ export function maybeCollectExternalReference(
     return;
   }
 
-  // Own type (already documented via typeNameMap)
-  if (isOwnTypeName(typeName, collector)) {
+  // Own type
+  if (isOwnTypeName(type.typeName, collector)) {
     return;
   }
 

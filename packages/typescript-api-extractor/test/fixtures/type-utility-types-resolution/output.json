@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "acceptsPickedProps"
+					"name": "acceptsPickedProps",
+					"declarationId": "3ba1dcac9a44e3e9"
 				},
 				"callSignatures": [
 					{
@@ -21,7 +22,8 @@
 												"type": {
 													"kind": "object",
 													"typeName": {
-														"name": "Base"
+														"name": "Base",
+														"declarationId": "307c5ddc5dce0f67"
 													},
 													"properties": [
 														{
@@ -120,14 +122,17 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "3ba1dcac9a44e3e9",
+			"declaredName": "acceptsPickedProps"
 		},
 		{
 			"name": "acceptsOmittedProps",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "acceptsOmittedProps"
+					"name": "acceptsOmittedProps",
+					"declarationId": "e5bc01226d63c9dc"
 				},
 				"callSignatures": [
 					{
@@ -142,7 +147,8 @@
 												"type": {
 													"kind": "object",
 													"typeName": {
-														"name": "Base"
+														"name": "Base",
+														"declarationId": "307c5ddc5dce0f67"
 													},
 													"properties": [
 														{
@@ -232,14 +238,17 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "e5bc01226d63c9dc",
+			"declaredName": "acceptsOmittedProps"
 		},
 		{
 			"name": "acceptsParameterTuple",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "acceptsParameterTuple"
+					"name": "acceptsParameterTuple",
+					"declarationId": "e47a51bae0ae5c84"
 				},
 				"callSignatures": [
 					{
@@ -257,7 +266,8 @@
 														"type": {
 															"kind": "object",
 															"typeName": {
-																"name": "Base"
+																"name": "Base",
+																"declarationId": "307c5ddc5dce0f67"
 															},
 															"properties": [
 																{
@@ -358,14 +368,17 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "e47a51bae0ae5c84",
+			"declaredName": "acceptsParameterTuple"
 		},
 		{
 			"name": "acceptsReturnType",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "acceptsReturnType"
+					"name": "acceptsReturnType",
+					"declarationId": "7f470286a2f3524c"
 				},
 				"callSignatures": [
 					{
@@ -388,7 +401,9 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "7f470286a2f3524c",
+			"declaredName": "acceptsReturnType"
 		}
 	]
 }

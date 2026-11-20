@@ -211,10 +211,7 @@ export function formatSeeTags(values: (string | undefined)[]): string | undefine
  *
  * @returns A string like `<T, K extends string>` or `''` if there are no type parameters.
  */
-export function formatTypeParameterDeclaration(
-  typeArguments: readonly tae.TypeArgument[],
-  typeNameMap: Record<string, string> = {},
-): string {
+export function formatTypeParameterDeclaration(typeArguments: readonly tae.TypeArgument[]): string {
   const typeParams = typeArguments
     .filter((arg): arg is tae.TypeArgument & { type: tae.TypeParameterNode } =>
       isTypeParameterType(arg.type),
@@ -226,13 +223,12 @@ export function formatTypeParameterDeclaration(
       if (param.constraint !== undefined) {
         const constraintStr = formatType(param.constraint, {
           exportNames: [],
-          typeNameMap,
         });
         result += ` extends ${constraintStr}`;
       }
 
       if (param.defaultValue !== undefined) {
-        const defaultStr = formatType(param.defaultValue, { exportNames: [], typeNameMap });
+        const defaultStr = formatType(param.defaultValue, { exportNames: [] });
         result += ` = ${defaultStr}`;
       }
 
@@ -254,16 +250,13 @@ export function formatTypeParameterDeclaration(
  *
  * @returns A string like `<T, K extends string>` or `''` if the type has no type parameters.
  */
-export function extractTypeParameters(
-  type: tae.AnyType,
-  typeNameMap: Record<string, string> = {},
-): string {
+export function extractTypeParameters(type: tae.AnyType): string {
   const typeWithName = type as { typeName?: tae.TypeName };
   if (!typeWithName.typeName?.typeArguments?.length) {
     return '';
   }
 
-  return formatTypeParameterDeclaration(typeWithName.typeName.typeArguments, typeNameMap);
+  return formatTypeParameterDeclaration(typeWithName.typeName.typeArguments);
 }
 
 /**
@@ -445,7 +438,6 @@ export async function prettyFormat(type: string, typeName?: string | null, print
  */
 export interface FormatPropertiesOptions {
   exportNames: string[];
-  typeNameMap: Record<string, string>;
   isComponentContext?: boolean;
   /** Options for inline type formatting (e.g., unionPrintWidth) */
   formatting?: FormatInlineTypeOptions;
@@ -471,7 +463,6 @@ export async function formatProperties(
 ): Promise<Record<string, FormattedProperty>> {
   const {
     exportNames,
-    typeNameMap,
     isComponentContext = false,
     externalTypes,
     descriptionReplacements,
@@ -511,7 +502,6 @@ export async function formatProperties(
         removeUndefined: prop.optional,
         jsdocTags: prop.documentation?.tags,
         exportNames,
-        typeNameMap,
         externalTypesCollector: externalTypes,
       });
 
@@ -572,7 +562,6 @@ export async function formatProperties(
  */
 export interface FormatParametersOptions {
   exportNames: string[];
-  typeNameMap: Record<string, string>;
   /** Options for inline type formatting (e.g., unionPrintWidth) */
   formatting?: FormatInlineTypeOptions;
   /** Collector for external types discovered during formatting */
@@ -592,7 +581,7 @@ export async function formatParameters(
   params: tae.Parameter[],
   options: FormatParametersOptions = {} as FormatParametersOptions,
 ): Promise<FormattedParameter[]> {
-  const { exportNames, typeNameMap, externalTypes, descriptionReplacements } = options;
+  const { exportNames, externalTypes, descriptionReplacements } = options;
 
   const result = await Promise.all(
     params.map(async (param) => {
@@ -634,7 +623,6 @@ export async function formatParameters(
         jsdocTags: param.documentation?.tags,
         expandObjects: shouldExpand,
         exportNames,
-        typeNameMap,
         externalTypesCollector: externalTypes,
       });
 
@@ -675,7 +663,6 @@ export async function formatParameters(
 export interface FormatDetailedTypeOptions {
   allExports: tae.ExportNode[];
   exportNames: string[];
-  typeNameMap: Record<string, string>;
   /** @internal Used for cycle detection in recursive calls */
   visited?: Set<string>;
 }
@@ -688,10 +675,10 @@ export interface FormatDetailedTypeOptions {
  * to prevent infinite recursion on self-referential types.
  */
 export function formatDetailedType(type: tae.AnyType, options: FormatDetailedTypeOptions): string {
-  const { allExports, exportNames, typeNameMap, visited = new Set<string>() } = options;
+  const { allExports, exportNames, visited = new Set<string>() } = options;
   // Prevent infinite recursion
   if (isExternalType(type)) {
-    const qualifiedName = getFullyQualifiedName(type.typeName, exportNames, typeNameMap);
+    const qualifiedName = getFullyQualifiedName(type.typeName, exportNames);
     if (visited.has(qualifiedName)) {
       return qualifiedName;
     }
@@ -702,7 +689,6 @@ export function formatDetailedType(type: tae.AnyType, options: FormatDetailedTyp
       return formatDetailedType((exportNode.type as unknown as tae.AnyType) ?? type, {
         allExports,
         exportNames,
-        typeNameMap,
         visited,
       });
     }
@@ -718,20 +704,20 @@ export function formatDetailedType(type: tae.AnyType, options: FormatDetailedTyp
 
   if (isUnionType(type)) {
     const memberTypes = type.types.map((t) =>
-      formatDetailedType(t, { allExports, exportNames, typeNameMap, visited }),
+      formatDetailedType(t, { allExports, exportNames, visited }),
     );
     return uniq(memberTypes).join(' | ');
   }
 
   if (isIntersectionType(type)) {
     const memberTypes = type.types.map((t) =>
-      formatDetailedType(t, { allExports, exportNames, typeNameMap, visited }),
+      formatDetailedType(t, { allExports, exportNames, visited }),
     );
     return uniq(memberTypes).join(' & ');
   }
 
   // For objects and everything else, reuse existing formatter with object expansion enabled
-  return formatType(type, { expandObjects: true, exportNames, typeNameMap });
+  return formatType(type, { expandObjects: true, exportNames });
 }
 
 /**

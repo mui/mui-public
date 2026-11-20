@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "ManyPropsComponent"
+					"name": "ManyPropsComponent",
+					"declarationId": "7e71d4447816852b"
 				},
 				"props": [
 					{
@@ -898,13 +899,15 @@
 						"type": {
 							"kind": "union",
 							"typeName": {
-								"name": "ManyNestedProps"
+								"name": "ManyNestedProps",
+								"declarationId": "ad74751cced9a27a"
 							},
 							"types": [
 								{
 									"kind": "object",
 									"typeName": {
-										"name": "ManyNestedProps"
+										"name": "ManyNestedProps",
+										"declarationId": "ad74751cced9a27a"
 									},
 									"properties": []
 								},
@@ -945,20 +948,24 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "7e71d4447816852b",
+			"declaredName": "ManyPropsComponent"
 		},
 		{
 			"name": "ManyComponentProps",
 			"type": {
 				"kind": "intersection",
 				"typeName": {
-					"name": "ManyComponentProps"
+					"name": "ManyComponentProps",
+					"declarationId": "10f32e31156fa9af"
 				},
 				"types": [
 					{
 						"kind": "object",
 						"typeName": {
-							"name": "ManyProps"
+							"name": "ManyProps",
+							"declarationId": "888a3f3d0b029ca2"
 						},
 						"properties": [
 							{
@@ -1374,7 +1381,8 @@
 					{
 						"kind": "object",
 						"typeName": {
-							"name": "ExtraProps"
+							"name": "ExtraProps",
+							"declarationId": "15e8ca654f76f52e"
 						},
 						"properties": [
 							{
@@ -1399,13 +1407,15 @@
 								"type": {
 									"kind": "union",
 									"typeName": {
-										"name": "ManyNestedProps"
+										"name": "ManyNestedProps",
+										"declarationId": "ad74751cced9a27a"
 									},
 									"types": [
 										{
 											"kind": "object",
 											"typeName": {
-												"name": "ManyNestedProps"
+												"name": "ManyNestedProps",
+												"declarationId": "ad74751cced9a27a"
 											},
 											"properties": []
 										},
@@ -1877,13 +1887,15 @@
 						"type": {
 							"kind": "union",
 							"typeName": {
-								"name": "ManyNestedProps"
+								"name": "ManyNestedProps",
+								"declarationId": "ad74751cced9a27a"
 							},
 							"types": [
 								{
 									"kind": "object",
 									"typeName": {
-										"name": "ManyNestedProps"
+										"name": "ManyNestedProps",
+										"declarationId": "ad74751cced9a27a"
 									},
 									"properties": []
 								},
@@ -1924,7 +1936,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "10f32e31156fa9af",
+			"declaredName": "ManyComponentProps"
 		}
 	],
 	"imports": ["react"]

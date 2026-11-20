@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "CallbackPropsComponent"
+					"name": "CallbackPropsComponent",
+					"declarationId": "ec177016bac4df10"
 				},
 				"props": [
 					{
@@ -91,7 +92,8 @@
 						"type": {
 							"kind": "function",
 							"typeName": {
-								"name": "OnClosingCallback"
+								"name": "OnClosingCallback",
+								"declarationId": "9f6dbaa2f6d6627c"
 							},
 							"callSignatures": [
 								{
@@ -119,7 +121,8 @@
 						"type": {
 							"kind": "function",
 							"typeName": {
-								"name": "OnOpenCallback"
+								"name": "OnOpenCallback",
+								"declarationId": "03ffa4d1fdbf8bbc"
 							},
 							"callSignatures": [
 								{
@@ -171,7 +174,9 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "ec177016bac4df10",
+			"declaredName": "CallbackPropsComponent"
 		}
 	],
 	"imports": ["react"]

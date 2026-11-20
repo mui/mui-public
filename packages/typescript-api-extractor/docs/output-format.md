@@ -18,6 +18,8 @@ interface ExportNode {
   isValue: boolean;
   isType: boolean;
   isNamespace: boolean;
+  declarationId?: string;
+  declaredName?: string;
 }
 ```
 
@@ -55,6 +57,78 @@ a local value merged with a type-only import keeps its value. Otherwise the valu
 space is masked, and an export left with nothing but a value, such as a function
 or variable with any namespace merged onto it, is omitted. A re-export from an
 unresolvable module gets the checker's fallback: a value of type `any`.
+
+## Declaration Ids
+
+`declarationId` identifies the declaration an export resolves to. A module can
+reach one declaration under several export names, for example a component
+exported as a namespace member and again through a type-only star export:
+
+```typescript
+export * as Dialog from './index.parts'; // export { DialogTrigger as Trigger } from './DialogTrigger';
+export type * from './DialogTrigger';
+```
+
+Every name is emitted, and `Dialog.Trigger` and `DialogTrigger` carry the same
+`declarationId`, as do `Dialog.Trigger.Props` and `DialogTrigger.Props`. Exports
+share a declaration when they resolve to the same symbol after following imports
+and re-exports, so merged declarations (a `const`, an `interface`, and a
+`namespace` of one name) count as one. An import with declarations merged onto
+it where it is imported, such as an imported function with a local interface of
+the same name, is a declaration of its own.
+
+A plain rename is the type it renames and shares its id: `type Props =
+DialogTriggerProps`, or `type Props<P = unknown> = DialogTriggerProps<P>` passing
+its type parameters through in order with the constraints and defaults of the
+type it names. A rename may add a default where the type it names has none. Any
+other alias, such as one that fixes a type argument or changes a default, is a
+declaration of its own, and so is a rename of a type from
+`node_modules` or the default library (`type Element = HTMLElement`).
+
+`declaredName` is the name the declaration is written with: `formatValue` for
+`export { formatValue as format }`, and `Button` for `export default Button`.
+
+The id is opaque: compare ids only for equality. It is stable across runs as a
+best effort, with no guarantee. Exports the checker cannot resolve, such as
+re-exports from a missing module, have no `declarationId`, and neither do
+exports typed by an ambient module that stands in for many modules
+(`declare module 'pkg';`, `declare module '*.svg' {}`).
+
+## Type Names
+
+A named type carries a `TypeName`:
+
+```typescript
+interface TypeName {
+  name: string;
+  namespaces?: string[];
+  typeArguments?: { type: TypeNode; equalToDefault: boolean }[];
+  declarationId?: string;
+}
+```
+
+`name` and `namespaces` are the name as declared or as written at the reference.
+`declarationId` is the id of the declaration the name refers to, the same id
+the exports of that declaration carry, so a reference can be matched to an
+export whatever name either is written with:
+
+```typescript
+// index.ts
+export type { State as ToggleState, Holder as ToggleHolder } from './toggle';
+// toggle.ts
+export interface State {
+  on: boolean;
+}
+export interface Holder {
+  state: State;
+}
+```
+
+Here `ToggleHolder.state` is named `State` and carries the `declarationId` of
+`ToggleState`. A reference through a plain rename carries the id of the type it
+renames. Only types the project declares have an id: types from `node_modules`
+or the default library, and names that do not come from a declaration, such as
+type parameters, have none.
 
 ## Type Operators
 

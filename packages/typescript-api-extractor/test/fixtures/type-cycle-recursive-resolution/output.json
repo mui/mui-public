@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "recursiveObject"
+					"name": "recursiveObject",
+					"declarationId": "6522afed4ef7806c"
 				},
 				"callSignatures": [
 					{
@@ -24,7 +25,8 @@
 												},
 												"equalToDefault": false
 											}
-										]
+										],
+										"declarationId": "c5f1a53f79a265aa"
 									},
 									"properties": [
 										{
@@ -41,7 +43,8 @@
 															},
 															"equalToDefault": false
 														}
-													]
+													],
+													"declarationId": "d69133554adce186"
 												},
 												"properties": [
 													{
@@ -58,7 +61,8 @@
 																		},
 																		"equalToDefault": false
 																	}
-																]
+																],
+																"declarationId": "c5f1a53f79a265aa"
 															},
 															"properties": []
 														},
@@ -83,14 +87,17 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "6522afed4ef7806c",
+			"declaredName": "recursiveObject"
 		},
 		{
 			"name": "testUnion",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "testUnion"
+					"name": "testUnion",
+					"declarationId": "ae01a1d2d2cbcccd"
 				},
 				"callSignatures": [
 					{
@@ -99,13 +106,15 @@
 								"type": {
 									"kind": "union",
 									"typeName": {
-										"name": "Union"
+										"name": "Union",
+										"declarationId": "ab7bc6c860a1a095"
 									},
 									"types": [
 										{
 											"kind": "object",
 											"typeName": {
-												"name": "UnionMember1"
+												"name": "UnionMember1",
+												"declarationId": "266290c0afb48ba6"
 											},
 											"properties": [
 												{
@@ -121,7 +130,8 @@
 													"type": {
 														"kind": "union",
 														"typeName": {
-															"name": "Union"
+															"name": "Union",
+															"declarationId": "ab7bc6c860a1a095"
 														},
 														"types": []
 													},
@@ -132,7 +142,8 @@
 										{
 											"kind": "object",
 											"typeName": {
-												"name": "UnionMember2"
+												"name": "UnionMember2",
+												"declarationId": "9882006ff49f227e"
 											},
 											"properties": [
 												{
@@ -148,7 +159,8 @@
 													"type": {
 														"kind": "union",
 														"typeName": {
-															"name": "Union"
+															"name": "Union",
+															"declarationId": "ab7bc6c860a1a095"
 														},
 														"types": []
 													},
@@ -171,14 +183,17 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "ae01a1d2d2cbcccd",
+			"declaredName": "testUnion"
 		},
 		{
 			"name": "testIntersection",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "testIntersection"
+					"name": "testIntersection",
+					"declarationId": "619f5148f47ded04"
 				},
 				"callSignatures": [
 					{
@@ -187,13 +202,15 @@
 								"type": {
 									"kind": "intersection",
 									"typeName": {
-										"name": "IntersectionWithCycle"
+										"name": "IntersectionWithCycle",
+										"declarationId": "a0205f3efe98989d"
 									},
 									"types": [
 										{
 											"kind": "object",
 											"typeName": {
-												"name": "IntersectionBase"
+												"name": "IntersectionBase",
+												"declarationId": "667b6504f7d126aa"
 											},
 											"properties": [
 												{
@@ -214,7 +231,8 @@
 													"type": {
 														"kind": "intersection",
 														"typeName": {
-															"name": "IntersectionWithCycle"
+															"name": "IntersectionWithCycle",
+															"declarationId": "a0205f3efe98989d"
 														},
 														"types": [],
 														"properties": []
@@ -238,7 +256,8 @@
 											"type": {
 												"kind": "intersection",
 												"typeName": {
-													"name": "IntersectionWithCycle"
+													"name": "IntersectionWithCycle",
+													"declarationId": "a0205f3efe98989d"
 												},
 												"types": [],
 												"properties": []
@@ -260,14 +279,17 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "619f5148f47ded04",
+			"declaredName": "testIntersection"
 		},
 		{
 			"name": "testArray",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "testArray"
+					"name": "testArray",
+					"declarationId": "cd82498a5d07c676"
 				},
 				"callSignatures": [
 					{
@@ -276,12 +298,14 @@
 								"type": {
 									"kind": "array",
 									"typeName": {
-										"name": "CyclicArray"
+										"name": "CyclicArray",
+										"declarationId": "19d21fb3575ebdf1"
 									},
 									"elementType": {
 										"kind": "object",
 										"typeName": {
-											"name": "ArrayElement"
+											"name": "ArrayElement",
+											"declarationId": "a56d8607f0dc757f"
 										},
 										"properties": [
 											{
@@ -297,7 +321,8 @@
 												"type": {
 													"kind": "array",
 													"typeName": {
-														"name": "CyclicArray"
+														"name": "CyclicArray",
+														"declarationId": "19d21fb3575ebdf1"
 													},
 													"elementType": {
 														"kind": "intrinsic",
@@ -322,14 +347,17 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "cd82498a5d07c676",
+			"declaredName": "testArray"
 		},
 		{
 			"name": "testTuple",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "testTuple"
+					"name": "testTuple",
+					"declarationId": "994988fc30e54b63"
 				},
 				"callSignatures": [
 					{
@@ -338,13 +366,15 @@
 								"type": {
 									"kind": "tuple",
 									"typeName": {
-										"name": "CyclicTuple"
+										"name": "CyclicTuple",
+										"declarationId": "80f58387603ceece"
 									},
 									"types": [
 										{
 											"kind": "object",
 											"typeName": {
-												"name": "TupleElement"
+												"name": "TupleElement",
+												"declarationId": "38eefd1d6f849c64"
 											},
 											"properties": [
 												{
@@ -360,7 +390,8 @@
 													"type": {
 														"kind": "tuple",
 														"typeName": {
-															"name": "CyclicTuple"
+															"name": "CyclicTuple",
+															"declarationId": "80f58387603ceece"
 														},
 														"types": []
 													},
@@ -387,7 +418,9 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "994988fc30e54b63",
+			"declaredName": "testTuple"
 		},
 		{
 			"name": "TestObject1",
@@ -403,7 +436,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"declarationId": "c5f1a53f79a265aa"
 				},
 				"properties": [
 					{
@@ -420,7 +454,8 @@
 										},
 										"equalToDefault": false
 									}
-								]
+								],
+								"declarationId": "d69133554adce186"
 							},
 							"properties": [
 								{
@@ -437,7 +472,8 @@
 													},
 													"equalToDefault": false
 												}
-											]
+											],
+											"declarationId": "c5f1a53f79a265aa"
 										},
 										"properties": [
 											{
@@ -454,7 +490,8 @@
 																},
 																"equalToDefault": false
 															}
-														]
+														],
+														"declarationId": "d69133554adce186"
 													},
 													"properties": [
 														{
@@ -471,7 +508,8 @@
 																			},
 																			"equalToDefault": false
 																		}
-																	]
+																	],
+																	"declarationId": "c5f1a53f79a265aa"
 																},
 																"properties": []
 															},
@@ -493,7 +531,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "c5f1a53f79a265aa",
+			"declaredName": "TestObject1"
 		},
 		{
 			"name": "TestObject2",
@@ -509,7 +549,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"declarationId": "d69133554adce186"
 				},
 				"properties": [
 					{
@@ -526,7 +567,8 @@
 										},
 										"equalToDefault": false
 									}
-								]
+								],
+								"declarationId": "c5f1a53f79a265aa"
 							},
 							"properties": [
 								{
@@ -543,7 +585,8 @@
 													},
 													"equalToDefault": false
 												}
-											]
+											],
+											"declarationId": "d69133554adce186"
 										},
 										"properties": [
 											{
@@ -560,7 +603,8 @@
 																},
 																"equalToDefault": false
 															}
-														]
+														],
+														"declarationId": "c5f1a53f79a265aa"
 													},
 													"properties": []
 												},
@@ -578,7 +622,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "d69133554adce186",
+			"declaredName": "TestObject2"
 		}
 	]
 }

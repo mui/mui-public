@@ -53,11 +53,6 @@ type TypesSourceData = {
   externalTypes: Record<string, string>;
   /** Links for the built-in types referenced in the file, keyed by printed name */
   externalTypeLinks: Record<string, string>;
-  /**
-   * Type name map (merged across all variants).
-   * Maps flat names (like "AccordionTriggerState") to dotted names (like "Accordion.Trigger.State").
-   */
-  typeNameMap: Record<string, string>;
   /** All dependencies that should be watched for changes */
   allDependencies: string[];
   /** Whether the types.md file was updated (false if loaded from existing file) */
@@ -78,11 +73,6 @@ type TypesSourceData = {
    * to only show types from that specific module.
    */
   variantTypeNames: Record<string, string[]>;
-  /**
-   * Maps variant names to their per-variant typeNameMaps.
-   * Used for Canonical Types annotations showing which variants contain each type.
-   */
-  variantTypeNameMaps: Record<string, Record<string, string>>;
 };
 ```
 

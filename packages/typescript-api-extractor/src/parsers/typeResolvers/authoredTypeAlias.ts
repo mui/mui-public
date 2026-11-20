@@ -1,6 +1,7 @@
 import ts from 'typescript';
-import { TypeName, withTypeName } from '../../models';
-import type { AnyType } from '../../models';
+import { withTypeName } from '../../models';
+import type { AnyType, TypeName } from '../../models';
+import { createTypeName } from '../common';
 import type { ScopedParserContext } from '../../parserContext';
 import { declarationHasNodeModulesPathSegment } from '../sourceFileUtils';
 import { deriveTypeParameterBindings } from '../typeParameterBindings';
@@ -185,7 +186,7 @@ function getAuthoredKeyofReplayPlan(
   return {
     reference,
     bindings,
-    typeName: getOuterAliasTypeName(request, reference.declaration),
+    typeName: getOuterAliasTypeName(request, reference.declaration, session.context),
     replayTypeNode: substituteTypeParameterTypeNode(
       reference.declaration.type,
       checker,
@@ -622,6 +623,7 @@ function getAuthoredAliasReference(
 function getOuterAliasTypeName(
   { type, typeName }: TypeResolutionRequest,
   referencedDeclaration: ts.TypeAliasDeclaration,
+  context: ScopedParserContext,
 ): TypeName | undefined {
   const semanticDeclaration = type.aliasSymbol?.declarations?.find(ts.isTypeAliasDeclaration);
   if (!type.aliasSymbol || !semanticDeclaration || semanticDeclaration === referencedDeclaration) {
@@ -629,7 +631,9 @@ function getOuterAliasTypeName(
   }
 
   const typeArgumentCount = semanticDeclaration.typeParameters?.length ?? 0;
-  return new TypeName(
+  return createTypeName(
+    type.aliasSymbol,
+    context,
     type.aliasSymbol.name,
     typeName?.namespaces,
     typeArgumentCount > 0 ? typeName?.typeArguments?.slice(0, typeArgumentCount) : undefined,

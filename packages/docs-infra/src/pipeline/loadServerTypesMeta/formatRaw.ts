@@ -102,7 +102,6 @@ export interface FormatRawOptions {
  *
  * @param exportNode - The export node from typescript-api-extractor
  * @param displayName - The display name (e.g., "Component.Root.State")
- * @param typeNameMap - Map for transforming type names
  * @param rewriteContext - Context for type string rewriting
  * @param options - Formatting options
  * @returns Formatted raw type metadata with the type declaration as formatted code
@@ -110,7 +109,6 @@ export interface FormatRawOptions {
 export async function formatRawData(
   exportNode: tae.ExportNode,
   displayName: string,
-  typeNameMap: Record<string, string>,
   rewriteContext: TypeRewriteContext,
   _options: FormatRawOptions = {},
 ): Promise<RawTypeMeta> {
@@ -180,7 +178,6 @@ export async function formatRawData(
   const formattedCode = await generateFormattedCode(
     exportNode,
     displayName,
-    typeNameMap,
     _options.externalTypes,
   );
 
@@ -207,7 +204,6 @@ export async function formatRawData(
     raw.properties = rewriteTypeStringsDeep(
       await formatProperties(exportNode.type.properties, {
         exportNames,
-        typeNameMap,
         externalTypes: _options.externalTypes,
         descriptionReplacements,
       }),
@@ -224,7 +220,6 @@ export async function formatRawData(
 async function generateFormattedCode(
   exportNode: tae.ExportNode,
   displayName: string,
-  typeNameMap: Record<string, string>,
   externalTypesCollector?: ExternalTypesCollector,
 ): Promise<string> {
   const typeAsAny = exportNode.type as any;
@@ -270,33 +265,14 @@ async function generateFormattedCode(
       sourceTypeText = 'any[]';
     }
 
-    // Transform type names using typeNameMap
-    let transformedTypeText = sourceTypeText;
-    if (typeNameMap) {
-      const namespaceMatch = displayName.match(/^([^.]+)\./);
-      const currentNamespace = namespaceMatch ? namespaceMatch[1] : null;
-      if (currentNamespace) {
-        for (const [, dottedName] of Object.entries(typeNameMap)) {
-          const nameParts = dottedName.split('.');
-          if (nameParts.length >= 2 && nameParts[0] === currentNamespace) {
-            const memberName = nameParts.slice(1).join('.');
-            const memberPattern = `\\w+\\.${memberName.replace(/\./g, '\\.')}`;
-            const regex = new RegExp(memberPattern, 'g');
-            transformedTypeText = transformedTypeText.replace(regex, dottedName);
-          }
-        }
-      }
-    }
-
-    const typeParams =
-      typeAsAny.typeParameters || extractTypeParameters(exportNode.type, typeNameMap);
+    const typeParams = typeAsAny.typeParameters || extractTypeParameters(exportNode.type);
     const fullTypeName = `${originalTypeName}${typeParams}`;
 
-    return prettyFormat(transformedTypeText, fullTypeName);
+    return prettyFormat(sourceTypeText, fullTypeName);
   }
 
   // For non-typeAlias types (interfaces, etc.), use formatType
-  const typeParams = extractTypeParameters(exportNode.type, typeNameMap);
+  const typeParams = extractTypeParameters(exportNode.type);
   const fullTypeName = `${originalTypeName}${typeParams}`;
 
   return prettyFormat(
@@ -304,7 +280,6 @@ async function generateFormattedCode(
       removeUndefined: true,
       expandObjects: true,
       exportNames: [],
-      typeNameMap,
       externalTypesCollector,
       selfName: originalTypeName,
       withPropertyComments: true,
@@ -340,14 +315,13 @@ export async function formatReExportData(
   exportNode: tae.ExportNode,
   displayName: string,
   reExportOf: ReExportInfo,
-  typeNameMap: Record<string, string>,
   rewriteContext: TypeRewriteContext,
 ): Promise<RawTypeMeta> {
   const descriptionText = exportNode.documentation?.description;
   const description = descriptionText ? await parseMarkdownToHast(descriptionText) : undefined;
 
   // Still generate the code for reference
-  const formattedCode = await generateFormattedCode(exportNode, displayName, typeNameMap);
+  const formattedCode = await generateFormattedCode(exportNode, displayName);
 
   // Rewrite type names in descriptions (but NOT in formattedCode which is valid TypeScript syntax)
   const rewrittenDescriptionText = descriptionText

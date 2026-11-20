@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "RefPropsComponent"
+					"name": "RefPropsComponent",
+					"declarationId": "3c9e5ee6a8c303b9"
 				},
 				"props": [
 					{
@@ -190,7 +191,9 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "3c9e5ee6a8c303b9",
+			"declaredName": "RefPropsComponent"
 		}
 	],
 	"imports": ["react"]

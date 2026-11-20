@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "listen"
+					"name": "listen",
+					"declarationId": "d3992e9427bac803"
 				},
 				"callSignatures": [
 					{
@@ -49,7 +50,9 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "d3992e9427bac803",
+			"declaredName": "listen"
 		},
 		{
 			"name": "Fraction",
@@ -65,7 +68,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "38a2f5a428700702",
+			"declaredName": "Fraction"
 		},
 		{
 			"name": "DataAttribute",
@@ -81,14 +86,17 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "7c14abc1fb4161cf",
+			"declaredName": "DataAttribute"
 		},
 		{
 			"name": "TrackMinimum",
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "TrackMinimum"
+					"name": "TrackMinimum",
+					"declarationId": "9194ebbcff359bda"
 				},
 				"types": [
 					{
@@ -98,7 +106,8 @@
 					{
 						"kind": "templateLiteral",
 						"typeName": {
-							"name": "Percentage"
+							"name": "Percentage",
+							"declarationId": "7f39cfac3bdd2fcc"
 						},
 						"texts": ["", "%"],
 						"types": [
@@ -116,7 +125,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "9194ebbcff359bda",
+			"declaredName": "TrackMinimum"
 		},
 		{
 			"name": "Placement",
@@ -147,7 +158,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "f2d4074c8dece607",
+			"declaredName": "Placement"
 		},
 		{
 			"name": "Nested",
@@ -163,7 +176,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "e537e6937d24b392",
+			"declaredName": "Nested"
 		},
 		{
 			"name": "Multiple",
@@ -183,14 +198,17 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "cc5e37123d2fd018",
+			"declaredName": "Multiple"
 		},
 		{
 			"name": "Props",
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "Props"
+					"name": "Props",
+					"declarationId": "5c7213d648af8665"
 				},
 				"properties": [
 					{
@@ -221,7 +239,8 @@
 						"type": {
 							"kind": "union",
 							"typeName": {
-								"name": "TrackMinimum"
+								"name": "TrackMinimum",
+								"declarationId": "9194ebbcff359bda"
 							},
 							"types": [
 								{
@@ -231,7 +250,8 @@
 								{
 									"kind": "templateLiteral",
 									"typeName": {
-										"name": "Percentage"
+										"name": "Percentage",
+										"declarationId": "7f39cfac3bdd2fcc"
 									},
 									"texts": ["", "%"],
 									"types": [
@@ -253,7 +273,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "5c7213d648af8665",
+			"declaredName": "Props"
 		}
 	]
 }

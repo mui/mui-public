@@ -19,7 +19,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"declarationId": "5f5895f2f0883657"
 				},
 				"properties": [
 					{
@@ -112,7 +113,8 @@
 													"type": {
 														"kind": "object",
 														"typeName": {
-															"name": "DialogRootChangeEventDetails"
+															"name": "DialogRootChangeEventDetails",
+															"declarationId": "89f9f0eed382f331"
 														},
 														"properties": [
 															{
@@ -120,7 +122,8 @@
 																"type": {
 																	"kind": "union",
 																	"typeName": {
-																		"name": "DialogRootChangeEventReason"
+																		"name": "DialogRootChangeEventReason",
+																		"declarationId": "3c50f97ccc6a3707"
 																	},
 																	"types": [
 																		{
@@ -144,7 +147,8 @@
 																"type": {
 																	"kind": "function",
 																	"typeName": {
-																		"name": "preventUnmountOnClose"
+																		"name": "preventUnmountOnClose",
+																		"declarationId": "ae9c3bb653f4b571"
 																	},
 																	"callSignatures": [
 																		{
@@ -253,14 +257,17 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "5f5895f2f0883657",
+			"declaredName": "DialogRootProps"
 		},
 		{
 			"name": "DialogRootActions",
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "DialogRootActions"
+					"name": "DialogRootActions",
+					"declarationId": "48f8103b82d5cb42"
 				},
 				"properties": [
 					{
@@ -268,7 +275,8 @@
 						"type": {
 							"kind": "function",
 							"typeName": {
-								"name": "unmount"
+								"name": "unmount",
+								"declarationId": "7bd38d531a77ca38"
 							},
 							"callSignatures": [
 								{
@@ -287,7 +295,8 @@
 						"type": {
 							"kind": "function",
 							"typeName": {
-								"name": "close"
+								"name": "close",
+								"declarationId": "c43a7b5591103939"
 							},
 							"callSignatures": [
 								{
@@ -305,14 +314,17 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "48f8103b82d5cb42",
+			"declaredName": "DialogRootActions"
 		},
 		{
 			"name": "DialogRootChangeEventReason",
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "DialogRootChangeEventReason"
+					"name": "DialogRootChangeEventReason",
+					"declarationId": "3c50f97ccc6a3707"
 				},
 				"types": [
 					{
@@ -331,14 +343,17 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "3c50f97ccc6a3707",
+			"declaredName": "DialogRootChangeEventReason"
 		},
 		{
 			"name": "DialogRootChangeEventDetails",
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "DialogRootChangeEventDetails"
+					"name": "DialogRootChangeEventDetails",
+					"declarationId": "89f9f0eed382f331"
 				},
 				"properties": [
 					{
@@ -346,7 +361,8 @@
 						"type": {
 							"kind": "union",
 							"typeName": {
-								"name": "DialogRootChangeEventReason"
+								"name": "DialogRootChangeEventReason",
+								"declarationId": "3c50f97ccc6a3707"
 							},
 							"types": [
 								{
@@ -370,7 +386,8 @@
 						"type": {
 							"kind": "function",
 							"typeName": {
-								"name": "preventUnmountOnClose"
+								"name": "preventUnmountOnClose",
+								"declarationId": "ae9c3bb653f4b571"
 							},
 							"callSignatures": [
 								{
@@ -388,7 +405,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "89f9f0eed382f331",
+			"declaredName": "DialogRootChangeEventDetails"
 		},
 		{
 			"name": "DialogRoot.Props",
@@ -409,7 +428,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"declarationId": "5f5895f2f0883657"
 				},
 				"properties": [
 					{
@@ -502,7 +522,8 @@
 													"type": {
 														"kind": "object",
 														"typeName": {
-															"name": "DialogRootChangeEventDetails"
+															"name": "DialogRootChangeEventDetails",
+															"declarationId": "89f9f0eed382f331"
 														},
 														"properties": [
 															{
@@ -510,7 +531,8 @@
 																"type": {
 																	"kind": "union",
 																	"typeName": {
-																		"name": "DialogRootChangeEventReason"
+																		"name": "DialogRootChangeEventReason",
+																		"declarationId": "3c50f97ccc6a3707"
 																	},
 																	"types": [
 																		{
@@ -534,7 +556,8 @@
 																"type": {
 																	"kind": "function",
 																	"typeName": {
-																		"name": "preventUnmountOnClose"
+																		"name": "preventUnmountOnClose",
+																		"declarationId": "ae9c3bb653f4b571"
 																	},
 																	"callSignatures": [
 																		{
@@ -643,7 +666,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "5f5895f2f0883657",
+			"declaredName": "DialogRootProps"
 		},
 		{
 			"name": "DialogRoot.Actions",
@@ -651,7 +676,8 @@
 				"kind": "object",
 				"typeName": {
 					"name": "Actions",
-					"namespaces": ["DialogRoot"]
+					"namespaces": ["DialogRoot"],
+					"declarationId": "48f8103b82d5cb42"
 				},
 				"properties": [
 					{
@@ -659,7 +685,8 @@
 						"type": {
 							"kind": "function",
 							"typeName": {
-								"name": "unmount"
+								"name": "unmount",
+								"declarationId": "7bd38d531a77ca38"
 							},
 							"callSignatures": [
 								{
@@ -678,7 +705,8 @@
 						"type": {
 							"kind": "function",
 							"typeName": {
-								"name": "close"
+								"name": "close",
+								"declarationId": "c43a7b5591103939"
 							},
 							"callSignatures": [
 								{
@@ -696,7 +724,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "48f8103b82d5cb42",
+			"declaredName": "DialogRootActions"
 		},
 		{
 			"name": "DialogRoot.ChangeEventReason",
@@ -704,7 +734,8 @@
 				"kind": "union",
 				"typeName": {
 					"name": "ChangeEventReason",
-					"namespaces": ["DialogRoot"]
+					"namespaces": ["DialogRoot"],
+					"declarationId": "3c50f97ccc6a3707"
 				},
 				"types": [
 					{
@@ -723,7 +754,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "3c50f97ccc6a3707",
+			"declaredName": "DialogRootChangeEventReason"
 		},
 		{
 			"name": "DialogRoot.ChangeEventDetails",
@@ -731,7 +764,8 @@
 				"kind": "object",
 				"typeName": {
 					"name": "ChangeEventDetails",
-					"namespaces": ["DialogRoot"]
+					"namespaces": ["DialogRoot"],
+					"declarationId": "89f9f0eed382f331"
 				},
 				"properties": [
 					{
@@ -739,7 +773,8 @@
 						"type": {
 							"kind": "union",
 							"typeName": {
-								"name": "DialogRootChangeEventReason"
+								"name": "DialogRootChangeEventReason",
+								"declarationId": "3c50f97ccc6a3707"
 							},
 							"types": [
 								{
@@ -763,7 +798,8 @@
 						"type": {
 							"kind": "function",
 							"typeName": {
-								"name": "preventUnmountOnClose"
+								"name": "preventUnmountOnClose",
+								"declarationId": "ae9c3bb653f4b571"
 							},
 							"callSignatures": [
 								{
@@ -781,7 +817,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "89f9f0eed382f331",
+			"declaredName": "DialogRootChangeEventDetails"
 		},
 		{
 			"name": "AlertDialogRootProps",
@@ -801,7 +839,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"declarationId": "a3a3e75503e3b2fc"
 				},
 				"properties": [
 					{
@@ -827,13 +866,15 @@
 														"kind": "intersection",
 														"typeName": {
 															"name": "ChangeEventDetails",
-															"namespaces": ["AlertDialogRoot"]
+															"namespaces": ["AlertDialogRoot"],
+															"declarationId": "b6abf3c3f25f84b3"
 														},
 														"types": [
 															{
 																"kind": "object",
 																"typeName": {
-																	"name": "DialogRootChangeEventDetails"
+																	"name": "DialogRootChangeEventDetails",
+																	"declarationId": "89f9f0eed382f331"
 																},
 																"properties": [
 																	{
@@ -841,7 +882,8 @@
 																		"type": {
 																			"kind": "union",
 																			"typeName": {
-																				"name": "DialogRootChangeEventReason"
+																				"name": "DialogRootChangeEventReason",
+																				"declarationId": "3c50f97ccc6a3707"
 																			},
 																			"types": [
 																				{
@@ -865,7 +907,8 @@
 																		"type": {
 																			"kind": "function",
 																			"typeName": {
-																				"name": "preventUnmountOnClose"
+																				"name": "preventUnmountOnClose",
+																				"declarationId": "ae9c3bb653f4b571"
 																			},
 																			"callSignatures": [
 																				{
@@ -918,7 +961,8 @@
 																"type": {
 																	"kind": "union",
 																	"typeName": {
-																		"name": "DialogRootChangeEventReason"
+																		"name": "DialogRootChangeEventReason",
+																		"declarationId": "3c50f97ccc6a3707"
 																	},
 																	"types": [
 																		{
@@ -942,7 +986,8 @@
 																"type": {
 																	"kind": "function",
 																	"typeName": {
-																		"name": "preventUnmountOnClose"
+																		"name": "preventUnmountOnClose",
+																		"declarationId": "ae9c3bb653f4b571"
 																	},
 																	"callSignatures": [
 																		{
@@ -1120,7 +1165,9 @@
 			],
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "a3a3e75503e3b2fc",
+			"declaredName": "AlertDialogRootProps"
 		},
 		{
 			"name": "AlertDialogRootActions",
@@ -1128,7 +1175,8 @@
 				"kind": "object",
 				"typeName": {
 					"name": "Actions",
-					"namespaces": ["DialogRoot"]
+					"namespaces": ["DialogRoot"],
+					"declarationId": "48f8103b82d5cb42"
 				},
 				"properties": [
 					{
@@ -1136,7 +1184,8 @@
 						"type": {
 							"kind": "function",
 							"typeName": {
-								"name": "unmount"
+								"name": "unmount",
+								"declarationId": "7bd38d531a77ca38"
 							},
 							"callSignatures": [
 								{
@@ -1155,7 +1204,8 @@
 						"type": {
 							"kind": "function",
 							"typeName": {
-								"name": "close"
+								"name": "close",
+								"declarationId": "c43a7b5591103939"
 							},
 							"callSignatures": [
 								{
@@ -1173,7 +1223,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "48f8103b82d5cb42",
+			"declaredName": "DialogRootActions"
 		},
 		{
 			"name": "AlertDialogRootChangeEventReason",
@@ -1181,7 +1233,8 @@
 				"kind": "union",
 				"typeName": {
 					"name": "ChangeEventReason",
-					"namespaces": ["DialogRoot"]
+					"namespaces": ["DialogRoot"],
+					"declarationId": "3c50f97ccc6a3707"
 				},
 				"types": [
 					{
@@ -1200,20 +1253,24 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "3c50f97ccc6a3707",
+			"declaredName": "DialogRootChangeEventReason"
 		},
 		{
 			"name": "AlertDialogRootChangeEventDetails",
 			"type": {
 				"kind": "intersection",
 				"typeName": {
-					"name": "AlertDialogRootChangeEventDetails"
+					"name": "AlertDialogRootChangeEventDetails",
+					"declarationId": "b6abf3c3f25f84b3"
 				},
 				"types": [
 					{
 						"kind": "object",
 						"typeName": {
-							"name": "DialogRootChangeEventDetails"
+							"name": "DialogRootChangeEventDetails",
+							"declarationId": "89f9f0eed382f331"
 						},
 						"properties": [
 							{
@@ -1221,7 +1278,8 @@
 								"type": {
 									"kind": "union",
 									"typeName": {
-										"name": "DialogRootChangeEventReason"
+										"name": "DialogRootChangeEventReason",
+										"declarationId": "3c50f97ccc6a3707"
 									},
 									"types": [
 										{
@@ -1245,7 +1303,8 @@
 								"type": {
 									"kind": "function",
 									"typeName": {
-										"name": "preventUnmountOnClose"
+										"name": "preventUnmountOnClose",
+										"declarationId": "ae9c3bb653f4b571"
 									},
 									"callSignatures": [
 										{
@@ -1298,7 +1357,8 @@
 						"type": {
 							"kind": "union",
 							"typeName": {
-								"name": "DialogRootChangeEventReason"
+								"name": "DialogRootChangeEventReason",
+								"declarationId": "3c50f97ccc6a3707"
 							},
 							"types": [
 								{
@@ -1322,7 +1382,8 @@
 						"type": {
 							"kind": "function",
 							"typeName": {
-								"name": "preventUnmountOnClose"
+								"name": "preventUnmountOnClose",
+								"declarationId": "ae9c3bb653f4b571"
 							},
 							"callSignatures": [
 								{
@@ -1365,7 +1426,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "b6abf3c3f25f84b3",
+			"declaredName": "AlertDialogRootChangeEventDetails"
 		},
 		{
 			"name": "AlertDialogRoot.Props",
@@ -1386,7 +1449,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"declarationId": "a3a3e75503e3b2fc"
 				},
 				"properties": [
 					{
@@ -1412,13 +1476,15 @@
 														"kind": "intersection",
 														"typeName": {
 															"name": "ChangeEventDetails",
-															"namespaces": ["AlertDialogRoot"]
+															"namespaces": ["AlertDialogRoot"],
+															"declarationId": "b6abf3c3f25f84b3"
 														},
 														"types": [
 															{
 																"kind": "object",
 																"typeName": {
-																	"name": "DialogRootChangeEventDetails"
+																	"name": "DialogRootChangeEventDetails",
+																	"declarationId": "89f9f0eed382f331"
 																},
 																"properties": [
 																	{
@@ -1426,7 +1492,8 @@
 																		"type": {
 																			"kind": "union",
 																			"typeName": {
-																				"name": "DialogRootChangeEventReason"
+																				"name": "DialogRootChangeEventReason",
+																				"declarationId": "3c50f97ccc6a3707"
 																			},
 																			"types": [
 																				{
@@ -1450,7 +1517,8 @@
 																		"type": {
 																			"kind": "function",
 																			"typeName": {
-																				"name": "preventUnmountOnClose"
+																				"name": "preventUnmountOnClose",
+																				"declarationId": "ae9c3bb653f4b571"
 																			},
 																			"callSignatures": [
 																				{
@@ -1503,7 +1571,8 @@
 																"type": {
 																	"kind": "union",
 																	"typeName": {
-																		"name": "DialogRootChangeEventReason"
+																		"name": "DialogRootChangeEventReason",
+																		"declarationId": "3c50f97ccc6a3707"
 																	},
 																	"types": [
 																		{
@@ -1527,7 +1596,8 @@
 																"type": {
 																	"kind": "function",
 																	"typeName": {
-																		"name": "preventUnmountOnClose"
+																		"name": "preventUnmountOnClose",
+																		"declarationId": "ae9c3bb653f4b571"
 																	},
 																	"callSignatures": [
 																		{
@@ -1699,7 +1769,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "a3a3e75503e3b2fc",
+			"declaredName": "AlertDialogRootProps"
 		},
 		{
 			"name": "AlertDialogRoot.Actions",
@@ -1707,7 +1779,8 @@
 				"kind": "object",
 				"typeName": {
 					"name": "Actions",
-					"namespaces": ["AlertDialogRoot"]
+					"namespaces": ["AlertDialogRoot"],
+					"declarationId": "48f8103b82d5cb42"
 				},
 				"properties": [
 					{
@@ -1715,7 +1788,8 @@
 						"type": {
 							"kind": "function",
 							"typeName": {
-								"name": "unmount"
+								"name": "unmount",
+								"declarationId": "7bd38d531a77ca38"
 							},
 							"callSignatures": [
 								{
@@ -1734,7 +1808,8 @@
 						"type": {
 							"kind": "function",
 							"typeName": {
-								"name": "close"
+								"name": "close",
+								"declarationId": "c43a7b5591103939"
 							},
 							"callSignatures": [
 								{
@@ -1752,7 +1827,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "48f8103b82d5cb42",
+			"declaredName": "DialogRootActions"
 		},
 		{
 			"name": "AlertDialogRoot.ChangeEventReason",
@@ -1760,7 +1837,8 @@
 				"kind": "union",
 				"typeName": {
 					"name": "ChangeEventReason",
-					"namespaces": ["AlertDialogRoot"]
+					"namespaces": ["AlertDialogRoot"],
+					"declarationId": "3c50f97ccc6a3707"
 				},
 				"types": [
 					{
@@ -1779,7 +1857,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "3c50f97ccc6a3707",
+			"declaredName": "DialogRootChangeEventReason"
 		},
 		{
 			"name": "AlertDialogRoot.ChangeEventDetails",
@@ -1787,13 +1867,15 @@
 				"kind": "intersection",
 				"typeName": {
 					"name": "ChangeEventDetails",
-					"namespaces": ["AlertDialogRoot"]
+					"namespaces": ["AlertDialogRoot"],
+					"declarationId": "b6abf3c3f25f84b3"
 				},
 				"types": [
 					{
 						"kind": "object",
 						"typeName": {
-							"name": "DialogRootChangeEventDetails"
+							"name": "DialogRootChangeEventDetails",
+							"declarationId": "89f9f0eed382f331"
 						},
 						"properties": [
 							{
@@ -1801,7 +1883,8 @@
 								"type": {
 									"kind": "union",
 									"typeName": {
-										"name": "DialogRootChangeEventReason"
+										"name": "DialogRootChangeEventReason",
+										"declarationId": "3c50f97ccc6a3707"
 									},
 									"types": [
 										{
@@ -1825,7 +1908,8 @@
 								"type": {
 									"kind": "function",
 									"typeName": {
-										"name": "preventUnmountOnClose"
+										"name": "preventUnmountOnClose",
+										"declarationId": "ae9c3bb653f4b571"
 									},
 									"callSignatures": [
 										{
@@ -1878,7 +1962,8 @@
 						"type": {
 							"kind": "union",
 							"typeName": {
-								"name": "DialogRootChangeEventReason"
+								"name": "DialogRootChangeEventReason",
+								"declarationId": "3c50f97ccc6a3707"
 							},
 							"types": [
 								{
@@ -1902,7 +1987,8 @@
 						"type": {
 							"kind": "function",
 							"typeName": {
-								"name": "preventUnmountOnClose"
+								"name": "preventUnmountOnClose",
+								"declarationId": "ae9c3bb653f4b571"
 							},
 							"callSignatures": [
 								{
@@ -1945,7 +2031,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "b6abf3c3f25f84b3",
+			"declaredName": "AlertDialogRootChangeEventDetails"
 		}
 	],
 	"imports": ["react"]

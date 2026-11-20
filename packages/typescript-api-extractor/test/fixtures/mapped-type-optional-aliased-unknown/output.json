@@ -23,7 +23,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"declarationId": "63e2235ac875101f"
 				},
 				"properties": [],
 				"indexSignature": {
@@ -46,7 +47,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "63e2235ac875101f",
+			"declaredName": "OptionalUnknownMap"
 		}
 	]
 }

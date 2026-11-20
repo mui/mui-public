@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "processWithUnionAlias"
+					"name": "processWithUnionAlias",
+					"declarationId": "47ff20b125034294"
 				},
 				"callSignatures": [
 					{
@@ -15,7 +16,8 @@
 								"type": {
 									"kind": "union",
 									"typeName": {
-										"name": "UnionAlias"
+										"name": "UnionAlias",
+										"declarationId": "d9a38e248bac003a"
 									},
 									"types": [
 										{
@@ -45,14 +47,17 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "47ff20b125034294",
+			"declaredName": "processWithUnionAlias"
 		},
 		{
 			"name": "processWithObjectAlias",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "processWithObjectAlias"
+					"name": "processWithObjectAlias",
+					"declarationId": "365481b4b80ed4db"
 				},
 				"callSignatures": [
 					{
@@ -61,7 +66,8 @@
 								"type": {
 									"kind": "object",
 									"typeName": {
-										"name": "ObjectAlias"
+										"name": "ObjectAlias",
+										"declarationId": "8326e63aa8e0cd64"
 									},
 									"properties": [
 										{
@@ -95,7 +101,9 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "365481b4b80ed4db",
+			"declaredName": "processWithObjectAlias"
 		},
 		{
 			"name": "SimpleAlias",
@@ -105,14 +113,17 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "54c3572bf05bb252",
+			"declaredName": "SimpleAlias"
 		},
 		{
 			"name": "UnionAlias",
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "UnionAlias"
+					"name": "UnionAlias",
+					"declarationId": "d9a38e248bac003a"
 				},
 				"types": [
 					{
@@ -131,14 +142,17 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "d9a38e248bac003a",
+			"declaredName": "UnionAlias"
 		},
 		{
 			"name": "ObjectAlias",
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "ObjectAlias"
+					"name": "ObjectAlias",
+					"declarationId": "8326e63aa8e0cd64"
 				},
 				"properties": [
 					{
@@ -161,7 +175,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "8326e63aa8e0cd64",
+			"declaredName": "ObjectAlias"
 		},
 		{
 			"name": "GenericAlias",
@@ -177,7 +193,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"declarationId": "d2cca0996e410c4e"
 				},
 				"properties": [
 					{
@@ -200,7 +217,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "d2cca0996e410c4e",
+			"declaredName": "GenericAlias"
 		},
 		{
 			"name": "ConditionalAlias",
@@ -219,20 +238,24 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "9b3a73ae671da0f5",
+			"declaredName": "ConditionalAlias"
 		},
 		{
 			"name": "ExtendedAlias",
 			"type": {
 				"kind": "intersection",
 				"typeName": {
-					"name": "ExtendedAlias"
+					"name": "ExtendedAlias",
+					"declarationId": "e67483854e61e67f"
 				},
 				"types": [
 					{
 						"kind": "object",
 						"typeName": {
-							"name": "BaseInterface"
+							"name": "BaseInterface",
+							"declarationId": "87f327de9b57204d"
 						},
 						"properties": [
 							{
@@ -280,7 +303,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "e67483854e61e67f",
+			"declaredName": "ExtendedAlias"
 		}
 	]
 }

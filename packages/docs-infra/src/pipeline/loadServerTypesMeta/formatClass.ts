@@ -100,14 +100,12 @@ export interface FormatClassOptions {
  * Formats class export data into a structured metadata object.
  *
  * @param classExport - The class export node from typescript-api-extractor
- * @param typeNameMap - Map for transforming type names
  * @param rewriteContext - Context for type string rewriting including type compatibility map
  * @param options - Formatting options
  * @returns Formatted class metadata with constructor and methods
  */
 export async function formatClassData(
   classExport: tae.ExportNode,
-  typeNameMap: Record<string, string>,
   rewriteContext: TypeRewriteContext,
   options: FormatClassOptions = {},
 ): Promise<ClassTypeMeta> {
@@ -129,7 +127,6 @@ export async function formatClassData(
 
   const constructorParameters = await formatParameters(constructorParams, {
     exportNames,
-    typeNameMap,
     formatting,
     externalTypes,
     descriptionReplacements,
@@ -148,7 +145,6 @@ export async function formatClassData(
       const typeText = formatType(prop.type, {
         expandObjects: true,
         exportNames,
-        typeNameMap,
         externalTypesCollector: externalTypes,
       });
 
@@ -182,7 +178,6 @@ export async function formatClassData(
       const signature = method.callSignatures?.[0];
       const methodParameters = await formatParameters(signature?.parameters ?? [], {
         exportNames,
-        typeNameMap,
         formatting,
         externalTypes,
         descriptionReplacements,
@@ -192,7 +187,6 @@ export async function formatClassData(
         ? formatType(signature.returnValueType, {
             expandObjects: true,
             exportNames,
-            typeNameMap,
             externalTypesCollector: externalTypes,
           })
         : 'void';
