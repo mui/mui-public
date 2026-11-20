@@ -183,6 +183,9 @@ Use the first option that removes every vulnerable version of the package:
      alert while the package's users still install the vulnerable version.
    - The validation exercises the parent (its tests, or the build or tool step that uses it).
 
+   An override is a stopgap: the parent still needs an upstream release that accepts the patched
+   version.
+
 When none of these works, report the package as needing an upstream release.
 
 Then:
@@ -227,8 +230,9 @@ In each pull request, one section per package headed `### <package>`:
 - The alerts it closes, each as a link to the alert (its `url`; later runs read these links to know
   what's in flight), with GHSA id, severity and manifest.
 - The old and new resolved versions, the option used and why the earlier options didn't work.
-- For an override, the parent version it's scoped to (it lapses when that parent is upgraded) and
-  which validation exercises the parent.
+- For an override, the parent version it's scoped to (it lapses when that parent is upgraded), the
+  upstream release it waits for (the parent accepting the patched version), and which validation
+  exercises the parent.
 - For a major, the release notes' breaking changes that could affect this repository, and the source
   changes made for them.
 
