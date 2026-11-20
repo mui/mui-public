@@ -3,17 +3,20 @@ import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { globby } from 'globby';
+import * as semver from 'semver';
 
 import { getOutExtension, getPackageSources, validatePkgJson } from '../utils/build.mjs';
 import { getVersionEnvVariables } from '../utils/babel.mjs';
 import { babelPlugin } from '../utils/babelPlugin.mjs';
 import { fileUrlEntriesPlugin } from '../utils/fileUrlEntriesPlugin.mjs';
 import { getPublishedPkgJson } from '../utils/getPublishedPkgJson.mjs';
+import { readPnpmConfig } from '../utils/pnpm.mjs';
 
 /**
  * @typedef {Object} Args
  * @property {import('../utils/build.mjs').BundleType[]} bundle
  * @property {string[]} copy
+ * @property {boolean} enableReactCompiler
  */
 
 const SOURCE_DIR = 'src';
@@ -23,6 +26,14 @@ const MODULE_LEVEL_DIRECTIVE = 'MODULE_LEVEL_DIRECTIVE';
 
 /** @type {Record<import('../utils/build.mjs').BundleType, 'es' | 'cjs'>} */
 const FORMATS = { esm: 'es', cjs: 'cjs' };
+
+const BABEL_CONFIG_FILES = ['babel.config.js', 'babel.config.mjs'];
+
+const BABEL_RUNTIME = '@babel/runtime';
+
+const OXC_HELPERS = '@oxc-project/runtime/helpers/';
+// Oxc's legacy decorator helpers have no `@babel/runtime` equivalent, so Rolldown bundles them.
+const OXC_SHARED_HELPERS = /^@oxc-project\/runtime\/helpers\/(?!decorate)/;
 
 /** @type {Record<import('../utils/build.mjs').BundleType, string>} */
 const BROWSERSLIST_ENVS = { esm: 'stable', cjs: 'node' };
@@ -62,6 +73,99 @@ function getTarget(cwd, bundle) {
   }
 
   return targets.map(([engine, version]) => `${engine}${version}`);
+}
+
+/**
+ * The workspace Babel config, or the base config without one.
+ * @param {string} cwd
+ * @returns {Promise<string>}
+ */
+async function getBabelConfigFile(cwd) {
+  const workspaceDir = await findWorkspaceDir(cwd);
+  if (!workspaceDir) {
+    throw new Error('Workspace directory not found');
+  }
+  for (const name of BABEL_CONFIG_FILES) {
+    const file = path.join(workspaceDir, name);
+    // eslint-disable-next-line no-await-in-loop
+    if (await exists(file)) {
+      return file;
+    }
+  }
+  return path.join(import.meta.dirname, '../babel-config.mjs');
+}
+
+/**
+ * @param {import('./packageJson').PackageJson} packageJson
+ * @returns {Promise<string | undefined>} The `@babel/runtime` range the package depends on.
+ */
+async function getBabelRuntime(packageJson) {
+  const version = packageJson.dependencies?.[BABEL_RUNTIME];
+  if (version !== 'catalog:') {
+    return version;
+  }
+  const config = await readPnpmConfig();
+  return config.catalog[BABEL_RUNTIME];
+}
+
+/**
+ * The environment Babel runs in; workspace configs branch on it.
+ * @param {import('./packageJson').PackageJson} packageJson
+ * @param {{ bundles: import('../utils/build.mjs').BundleType[]; babelRuntime: string | undefined; reactCompiler: 'on' | 'off' }} options
+ * @returns {Record<string, string>}
+ */
+function getBabelEnv(packageJson, { bundles, babelRuntime, reactCompiler }) {
+  const dependencies = packageJson.dependencies ?? {};
+  /** @type {Record<string, string>} */
+  const env = {
+    NODE_ENV: 'production',
+    // One Babel pass serves every format, so configs see the first bundle's environment.
+    BABEL_ENV: BROWSERSLIST_ENVS[bundles[0]],
+  };
+  if (dependencies['prop-types'] !== undefined) {
+    env.MUI_REMOVE_PROP_TYPES = 'true';
+  }
+  if (dependencies.clsx !== undefined || dependencies.classnames !== undefined) {
+    env.MUI_OPTIMIZE_CLSX = 'true';
+  }
+  if (babelRuntime) {
+    env.MUI_BABEL_RUNTIME_VERSION = babelRuntime;
+  }
+  if (reactCompiler === 'on') {
+    env.MUI_REACT_COMPILER = '1';
+    env.MUI_REACT_COMPILER_REACT_VERSION =
+      semver.minVersion(packageJson.peerDependencies?.react ?? '')?.version ?? 'latest';
+  }
+  return env;
+}
+
+/**
+ * Fails the build when the output imports Babel helpers the package doesn't depend on.
+ * @param {string | undefined} babelRuntime
+ * @returns {import('tsdown').Rolldown.Plugin}
+ */
+function babelRuntimePlugin(babelRuntime) {
+  return {
+    name: 'code-infra:babel-runtime',
+    generateBundle(_options, bundle) {
+      if (babelRuntime) {
+        return;
+      }
+      const chunk = Object.values(bundle).find(
+        (output) =>
+          output.type === 'chunk' &&
+          output.imports.some(
+            (id) => id.startsWith(`${BABEL_RUNTIME}/`) || id.startsWith(OXC_HELPERS),
+          ),
+      );
+      if (!chunk) {
+        return;
+      }
+      this.error(
+        `${chunk.fileName} imports Babel helpers, so package.json needs a dependency on \`${BABEL_RUNTIME}\`.`,
+      );
+    },
+  };
 }
 
 /**
@@ -148,25 +252,34 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         type: 'string',
         default: /** @type {string[]} */ ([]),
         description: 'Files to copy to the output directory, as `glob` or `glob:target`.',
+      })
+      .option('enableReactCompiler', {
+        type: 'boolean',
+        default: false,
+        description: 'Compile components with the React compiler.',
       }),
   async handler(args) {
     const cwd = process.cwd();
     const packageJson = JSON.parse(await fs.readFile(path.join(cwd, 'package.json'), 'utf8'));
-    validatePkgJson(packageJson);
+    validatePkgJson(packageJson, { enableReactCompiler: args.enableReactCompiler });
 
     const outDir = path.join(cwd, packageJson.publishConfig.directory);
     const packageType = packageJson.type === 'module' ? 'module' : 'commonjs';
     const bundles = [...new Set(args.bundle)];
 
-    const [entry, copy, { build }] = await Promise.all([
+    const [entry, copy, babelRuntime, babelConfigFile, { build }] = await Promise.all([
       getEntry(packageJson, cwd),
       getCopy(cwd, outDir, args.copy),
+      getBabelRuntime(packageJson),
+      getBabelConfigFile(cwd),
       import('tsdown'),
     ]);
 
     const { MUI_PRERELEASE: prerelease, ...versionEnv } = getVersionEnvVariables(
       packageJson.version,
     );
+    const reactCompiler = args.enableReactCompiler ? 'on' : 'off';
+    Object.assign(process.env, getBabelEnv(packageJson, { bundles, babelRuntime, reactCompiler }));
     await build({
       cwd,
       config: false,
@@ -186,17 +299,33 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
           prerelease === undefined ? 'undefined' : JSON.stringify(prerelease),
       },
       envPrefix: [],
-      plugins: [fileUrlEntriesPlugin(), babelPlugin(packageJson)],
+      // `.js` sources may contain JSX.
+      loader: { '.js': 'jsx' },
+      plugins: [
+        fileUrlEntriesPlugin(),
+        babelPlugin(babelConfigFile),
+        babelRuntimePlugin(babelRuntime),
+      ],
       outExtensions: ({ format }) => ({
         js: getOutExtension(format === 'es' ? 'esm' : 'cjs', { packageType }),
       }),
       deps: { neverBundle: true },
       inputOptions: {
-        external: [PACKAGE_IMPORTS],
+        external: [PACKAGE_IMPORTS, OXC_SHARED_HELPERS],
         // tsdown otherwise takes `jsx` from the package's tsconfig, which may preserve JSX.
         transform: { jsx: { runtime: 'automatic' } },
       },
-      outputOptions: { exports: 'named' },
+      outputOptions: {
+        exports: 'named',
+        // Returning the id itself would print relative externals unresolved; `undefined` keeps
+        // Rolldown's own path for them.
+        paths: /** @type {(id: string) => string} */ (
+          (id) =>
+            id.startsWith(OXC_HELPERS)
+              ? `${BABEL_RUNTIME}/helpers/${id.slice(OXC_HELPERS.length)}`
+              : undefined
+        ),
+      },
       dts: false,
       exports: false,
       report: false,
