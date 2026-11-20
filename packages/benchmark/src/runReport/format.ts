@@ -1,4 +1,4 @@
-import { CONFIDENCE, tCritical } from './analyzeRun';
+import { CONFIDENCE, runPrecision, tCritical } from './analyzeRun';
 import type {
   BenchmarkAnalysis,
   Change,
@@ -80,11 +80,27 @@ export function precisionTone({ alarm, precision }: MetricComparison): Tone {
   return alarm?.error !== undefined && precision >= alarm.error ? 'error' : 'none';
 }
 
+/** A scalar precision, a fraction, as it reads: `±1.4%`. */
+function formatScalarPrecision(precision: number): string {
+  return `±${(precision * 100).toFixed(1)}%`;
+}
+
 /** A comparison's precision as it reads: `±1.4%`, or `±0.5` for a discrete metric. */
 export function formatPrecision(comparison: MetricComparison, definition: RunMetricDefinition) {
   return definition.kind === 'discrete'
     ? `±${comparison.precision.toFixed(1)}`
-    : `±${(comparison.precision * 100).toFixed(1)}%`;
+    : formatScalarPrecision(comparison.precision);
+}
+
+/**
+ * How precisely a run pinned its changes down, as it reads in its summary:
+ * `precise to ±4.2% (±12.0% at worst)`. `null` when nothing in the run could alarm.
+ */
+export function formatRunPrecision(analyses: BenchmarkAnalysis[]): string | null {
+  const precision = runPrecision(analyses);
+  return precision === null
+    ? null
+    : `precise to ${formatScalarPrecision(precision.median)} (${formatScalarPrecision(precision.widest)} at worst)`;
 }
 
 /**
@@ -245,8 +261,8 @@ export function formatRounds(
 }
 
 /**
- * The line a run is summed up in: how many benchmarks measured, regressed, timed out and failed, and
- * how long the run took when the report says.
+ * The line a run is summed up in: how many benchmarks measured, regressed, timed out and failed, how
+ * precise it was, and how long the run took when the report says.
  */
 export function formatRunSummary(
   analyses: BenchmarkAnalysis[],
@@ -260,6 +276,7 @@ export function formatRunSummary(
   return [
     `${measured} benchmark${measured === 1 ? '' : 's'} measured`,
     regressed > 0 ? `${regressed} with regressions` : 'no regressions',
+    formatRunPrecision(analyses),
     timedOut > 0 ? `${timedOut} timed out` : null,
     failed > 0 ? `${failed} failed` : null,
     durationMs === undefined ? null : `ran ${formatDuration(durationMs)}`,

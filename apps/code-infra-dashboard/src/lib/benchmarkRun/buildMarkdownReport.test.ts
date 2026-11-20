@@ -84,7 +84,9 @@ describe('buildBenchmarkRunMarkdownReport', () => {
   it('is a single line when nothing needs attention', () => {
     expect(
       buildBenchmarkRunMarkdownReport(reportOf([unchanged, libraries]), { title: 'Performance' }),
-    ).toBe('## Performance\n\nNo regressions in 2 benchmarks');
+    ).toBe(
+      '## Performance\n\nNo regressions in 2 benchmarks · precise to ±32.1% (±32.1% at worst)',
+    );
   });
 
   it('tables the rows that improved on alarmed metrics, and leaves informational ones out', () => {
@@ -92,7 +94,7 @@ describe('buildBenchmarkRunMarkdownReport', () => {
       .toMatchInlineSnapshot(`
         "## Performance
 
-        No regressions in 1 benchmark
+        No regressions in 1 benchmark · precise to ±0.0% (±0.0% at worst)
 
         **Tooltip mount**
 
@@ -136,7 +138,7 @@ describe('buildBenchmarkRunMarkdownReport', () => {
     ).toMatchInlineSnapshot(`
       "## Performance ⚠️
 
-      1 regression in 2 benchmarks
+      1 regression in 2 benchmarks · precise to ±0.0% (±0.0% at worst)
 
       ❌ **Chart zoom**: Render failed
 
@@ -158,6 +160,12 @@ describe('buildBenchmarkRunMarkdownReport', () => {
 
     expect(markdown).toContain('No regressions');
     expect(markdown).not.toContain('libs / mount');
+  });
+
+  it('leaves the precision out when no comparison can alarm', () => {
+    expect(buildBenchmarkRunMarkdownReport(reportOf([libraries]), { title: 'Performance' })).toBe(
+      '## Performance\n\nNo regressions in 1 benchmark',
+    );
   });
 
   it('links the full run when given where it is', () => {
