@@ -374,7 +374,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         ...options,
         // tsdown otherwise takes `jsx` from the package's tsconfig, which may preserve JSX.
         transform: { ...options.transform, jsx: { runtime: 'automatic' } },
-        plugins: [dtsExportsPlugin(path.join(cwd, SOURCE_DIR)), options.plugins],
+        plugins: [dtsExportsPlugin(), options.plugins],
         external: [PACKAGE_IMPORTS, OXC_SHARED_HELPERS],
       }),
       outExtensions: ({ format }) => ({
