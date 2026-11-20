@@ -6,6 +6,7 @@ import type { SetSource } from './useSourceEditing';
 import type { EditableSourceProjection, VariantSource } from '../CodeHighlighter/types';
 import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
 import { fallbackToHast, fallbackIsHighlighted } from '../CodeHighlighter/fallbackFormat';
+import { renderFallbackLines, restoreFallbackLines } from '../CodeHighlighter/renderFallbackLines';
 import { useCodeContext } from '../CodeProvider/CodeContext';
 import { hastToJsx, frameFallbackFromSpans, stringOrHastToString } from '../pipeline/hastUtils';
 import { stripHighlightingSpans } from '../pipeline/hastUtils/stripHighlightingSpans';
@@ -22,6 +23,7 @@ import { CodeEditorLazy } from './CodeEditorLazy';
 
 const hastChildrenCache = new WeakMap<ElementContent[], React.ReactNode>();
 const fallbackHastCache = new WeakMap<ElementContent[], React.ReactNode>();
+const fallbackLinesCache = new WeakMap<ElementContent[], React.ReactNode>();
 
 function resolveFrameTypeAttribute(
   frameType: string | undefined,
@@ -33,10 +35,10 @@ function resolveFrameTypeAttribute(
 
 function renderCode(
   hastChildren: ElementContent[],
-  renderHast?: boolean,
+  mode: 'highlighted' | 'lines' | 'plain',
   fallback?: ElementContent[],
 ) {
-  if (renderHast) {
+  if (mode === 'highlighted') {
     let jsx = hastChildrenCache.get(hastChildren);
     if (!jsx) {
       jsx = hastToJsx({ type: 'root', children: hastChildren });
@@ -45,28 +47,16 @@ function renderCode(
     return jsx;
   }
 
-  // Server-rendered / pre-hydration fallback: drop highlighting spans but
-  // keep frame + collapse placeholders + link structure so the rendered
-  // block matches the height of the fully-highlighted version. This avoids
-  // a layout shift when a frame swaps from fallback to highlighted on
-  // intersection.
-  //
-  // Prefer a precomputed fallback (set on `frame.data.fallback` by
-  // `addLineGutters` for multi-frame splits) — usually a single text node —
-  // so the renderer skips the per-frame `stripHighlightingSpans` walk.
-  if (fallback) {
-    let jsx = fallbackHastCache.get(fallback);
-    if (!jsx) {
-      jsx = hastToJsx({ type: 'root', children: fallback });
-      fallbackHastCache.set(fallback, jsx);
-    }
-    return jsx;
-  }
-
-  let jsx = fallbackHastCache.get(hastChildren);
+  const cache = mode === 'lines' ? fallbackLinesCache : fallbackHastCache;
+  const key = fallback ?? hastChildren;
+  let jsx = cache.get(key);
   if (!jsx) {
-    jsx = hastToJsx({ type: 'root', children: frameFallbackFromSpans(hastChildren) });
-    fallbackHastCache.set(hastChildren, jsx);
+    const nodes = fallback ?? frameFallbackFromSpans(hastChildren);
+    jsx = hastToJsx({
+      type: 'root',
+      children: mode === 'lines' ? renderFallbackLines(nodes) : nodes,
+    });
+    cache.set(key, jsx);
   }
   return jsx;
 }
@@ -509,6 +499,8 @@ export function Pre({
         const currentFrameIndex = frameIndex;
         const isVisible = Boolean(visibleFrames[currentFrameIndex]);
         const shouldRenderHast = shouldHighlight && isVisible;
+        const visibleMode = shouldRenderHast ? 'highlighted' : 'lines';
+        const mode = isVisible ? visibleMode : 'plain';
 
         frameIndex += 1;
 
@@ -521,7 +513,7 @@ export function Pre({
           <span
             key={index}
             className="frame"
-            data-lined={shouldRenderHast ? '' : undefined}
+            data-lined={isVisible ? '' : undefined}
             data-frame-type={resolveFrameTypeAttribute(
               child.properties.dataFrameType ? String(child.properties.dataFrameType) : undefined,
               collapseToEmpty,
@@ -544,7 +536,7 @@ export function Pre({
             data-frame-focus-target={frameFocusTarget}
             ref={observeFrame}
           >
-            {renderCode(child.children, shouldRenderHast, child.data?.fallback)}
+            {renderCode(child.children, mode, child.data?.fallback)}
           </span>
         );
       }
@@ -721,7 +713,9 @@ export function Pre({
     if (!frameNodes) {
       return null;
     }
-    const root = fallbackToHast(frameNodes);
+
+    const root = restoreFallbackLines(fallbackToHast(frameNodes));
+
     if (collapseToEmpty) {
       for (const child of root.children) {
         if (child.type !== 'element' || !isFrameSpan(child)) {

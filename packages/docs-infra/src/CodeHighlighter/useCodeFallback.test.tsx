@@ -2,6 +2,7 @@
  * @vitest-environment jsdom
  */
 import * as React from 'react';
+import * as ReactDOMServer from 'react-dom/server';
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { ContentLoadingProps } from './types';
@@ -16,6 +17,46 @@ function getCodeElement(props: ContentLoadingProps<object>) {
 }
 
 describe('useCodeFallback', () => {
+  it('renders line boundaries without changing compact source text', () => {
+    const text = 'first\r\n\r\nlast\r\n';
+    const fallback: FallbackNode[] = [['span', 'frame', { dataFrameType: 'focus' }, text]];
+    const serialized = JSON.stringify(fallback);
+
+    function Loading() {
+      const { code } = useCodeFallback({ source: fallback });
+
+      return <pre>{code}</pre>;
+    }
+
+    const view = ReactDOMServer.renderToStaticMarkup(<Loading />);
+    expect(view).toContain('data-lined=""');
+    expect(view.match(/class="line"/g)).toHaveLength(3);
+
+    const element = document.createElement('div');
+    element.innerHTML = view;
+    expect(element.textContent).toBe(text.replaceAll('\r\n', '\n'));
+    expect(JSON.stringify(fallback)).toBe(serialized);
+  });
+
+  it('preserves existing highlighted lines in the loading source', () => {
+    const fallback: FallbackNode[] = [
+      [
+        'span',
+        'frame',
+        { dataFrameType: 'focus' },
+        [['span', 'line', [['span', 'token keyword', 'const'], ' value = 1;']], '\n'],
+      ],
+    ];
+
+    const { result } = renderHook(() => useCodeFallback({ source: fallback }));
+
+    const view = ReactDOMServer.renderToStaticMarkup(<pre>{result.current.code}</pre>);
+
+    expect(view.match(/class="line"/g)).toHaveLength(1);
+    expect(view).toContain('class="token keyword"');
+    expect(view).toContain('data-lined=""');
+  });
+
   it('updates loading markup and variants after optional props change', () => {
     const { result, rerender } = renderHook(
       (props: ContentLoadingProps<object> | undefined) => useCodeFallback(props),
