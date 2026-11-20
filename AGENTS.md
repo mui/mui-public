@@ -19,7 +19,7 @@ Always reference these instructions first and fallback to search or bash command
 
 ### Bootstrap, Build, and Test the Repository
 
-- **Prerequisites**: Node.js 22.23.3+ required. Use the pnpm version pinned in the root `package.json`'s `packageManager` field.
+- **Prerequisites**: Node.js 22.23.4+ required. Use the pnpm version pinned in the root `package.json`'s `packageManager` field.
 - **Install dependencies**: `pnpm install --no-frozen-lockfile` -- takes 15-20 seconds. **NEVER CANCEL**. Set timeout to 30+ minutes.
 - **Build all packages**: `pnpm release:build` -- takes 5-10 seconds. **NEVER CANCEL**. Set timeout to 30+ minutes.
 - **Type checking**: `pnpm typescript` -- takes 10-15 seconds. **NEVER CANCEL**. Set timeout to 30+ minutes.
@@ -109,6 +109,8 @@ Applies to the whole repository.
 - **Bundle size check**: `pnpm size:snapshot`
 
 ### GitHub Actions
+
+- Release freshness uses the explicit commit status `Release branch up to date` on PR heads. Every adopting repository needs a caller for PR and base-push events plus a required-status rule; scheduled calls recover missed or failed runs. Use one base/label configuration per repository. The reusable workflow lives in mui-public; deploy it before callers because its script is loaded from the default branch. Statuses are SHA-scoped, so PRs sharing a head must share the release requirement. One serialized job reconciles all open heads to handle replaced pending jobs; retain event and previous heads for synchronization cleanup. Status reads are optional deduplication, never a prerequisite for writing a result. Custom commit statuses update asynchronously and cannot guarantee freshness atomically at merge time.
 
 - The reusable Claude triage workflow accepts explicit issue/mode/comment inputs. Keep event-specific command or label parsing in callers; authorize the event sender in the reusable workflow. Bot senders may request triage for the issue they labeled; human replies on labeled issues may also come from the issue author or repository/organization members. Labeling automation needs an App token or PAT because GITHUB_TOKEN label events do not trigger workflows.
 - Bot-triggered Claude jobs must also configure the Claude action's `allowed_bots` input; workflow-level authorization does not bypass the action's independent human-actor check.
