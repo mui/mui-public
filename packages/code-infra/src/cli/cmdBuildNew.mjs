@@ -381,7 +381,12 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         ...options,
         // tsdown otherwise takes `jsx` from the package's tsconfig, which may preserve JSX.
         transform: { ...options.transform, jsx: { runtime: 'automatic' } },
-        plugins: [dtsExportsPlugin(), dtsNamespacesPlugin(), options.plugins],
+        plugins: [
+          dtsExportsPlugin(),
+          // https://github.com/sxzz/rolldown-plugin-dts/issues/300
+          dtsNamespacesPlugin(),
+          options.plugins,
+        ],
         external: [PACKAGE_IMPORTS, OXC_SHARED_HELPERS],
       }),
       outExtensions: ({ format }) => ({

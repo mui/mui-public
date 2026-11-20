@@ -208,7 +208,8 @@ function jsFileName(fileName) {
 /**
  * For a namespace import, rolldown-plugin-dts declares a `<name>_exports` namespace that leaves out
  * names re-exported from packages. Importers get `import * as` instead, as tsc emits, and the
- * namespace is dropped. Remove this plugin once rolldown-plugin-dts keeps those names.
+ * namespace is dropped. Remove this plugin once rolldown-plugin-dts keeps those names:
+ * https://github.com/sxzz/rolldown-plugin-dts/issues/300
  * @returns {import('tsdown').Rolldown.Plugin}
  */
 export function dtsNamespacesPlugin() {
