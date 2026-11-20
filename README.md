@@ -92,9 +92,16 @@ For example, ask the agent to "Use mui-renovate-triage to review the open Renova
 
 ### Dependabot alerts
 
-The reusable [Dependabot fix workflow](./.github/workflows/dependabot-fix-workflow.md) (GitHub Agentic Workflows) clears the open Dependabot security alerts that dependency-update tooling leaves open, typically vulnerable transitive dependencies. Per package, an agent picks the smallest fix the dependency policy allows (refresh, direct bump, parent bump, then a version-scoped override). It batches the fixes within current major versions into one PR and gives each major-version fix its own, and reports in an issue why other alerts are not fixable or should be dismissed. Alerts that are deliberately left unfixed should be dismissed, so it stops proposing them.
+The reusable [Dependabot fix workflow](./.github/workflows/dependabot-fix-workflow.md) (GitHub Agentic Workflows) clears the open Dependabot security alerts that dependency-update tooling leaves open, typically vulnerable transitive dependencies. Per package, an agent tries a refresh, a direct or parent bump within the major, a major bump when it can reasonably be done, then a version-scoped override. It batches the fixes within current major versions into one PR and gives each major-version fix its own, and reports in an issue the alerts that need a decision. Alerts that are deliberately left unfixed should be dismissed, so it stops proposing them.
 
-Repositories call its compiled `dependabot-fix-workflow.lock.yml` on their own schedule, like [mui-public does daily](./.github/workflows/dependabot-fix.yml), and it runs against the calling repository. Each repository running it needs the [Code Infra - Auditor](https://github.com/apps/code-infra-auditor) GitHub App installed and a `code-infra-auditor` environment, restricted to the default branch, with the App's `CODE_INFRA_AUDITOR_CLIENT_ID` and `CODE_INFRA_AUDITOR_PRIVATE_KEY` as environment secrets, and any ruleset that restricts branch creation must exempt `refs/heads/code-infra-auditor/*`. After editing the workflow, recompile it with `gh aw compile dependabot-fix-workflow`.
+Repositories call its compiled `dependabot-fix-workflow.lock.yml` on their own schedule, like [mui-public does daily](./.github/workflows/dependabot-fix.yml), and it runs against the calling repository. Each repository running it needs:
+
+- The four `ANTHROPIC_*` repository variables the Claude workflows use, with the Anthropic federation rule accepting the repository's default-branch OIDC subject.
+- The [Code Infra - Auditor](https://github.com/apps/code-infra-auditor) GitHub App installed.
+- A `code-infra-auditor` environment, restricted to the default branch, with the App's `CODE_INFRA_AUDITOR_CLIENT_ID` and `CODE_INFRA_AUDITOR_PRIVATE_KEY` as environment secrets. The caller passes both under `secrets:`: a reusable workflow gets no secret the caller doesn't pass.
+- An exemption for `refs/heads/code-infra-auditor/*` in any ruleset that restricts branch creation.
+
+After editing the workflow, recompile it with `gh aw compile dependabot-fix-workflow`.
 
 ## Versioning
 

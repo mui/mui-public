@@ -20,6 +20,11 @@ jobs:
       id-token: write # Anthropic WIF (agent, detection jobs)
       issues: write # report issue (safe-outputs job)
       pull-requests: write # open the draft PRs (safe-outputs job)
-      security-events: read # read the Dependabot alerts (agent job)
+      security-events: read # requested by the agent job
       vulnerability-alerts: read # read the Dependabot alerts (agent job)
     uses: ./.github/workflows/dependabot-fix-workflow.lock.yml
+    # Reusable workflows only get secrets the caller passes. These resolve to the code-infra-auditor
+    # environment's secrets, because the jobs that use them run in that environment.
+    secrets:
+      CODE_INFRA_AUDITOR_CLIENT_ID: ${{ secrets.CODE_INFRA_AUDITOR_CLIENT_ID }}
+      CODE_INFRA_AUDITOR_PRIVATE_KEY: ${{ secrets.CODE_INFRA_AUDITOR_PRIVATE_KEY }}

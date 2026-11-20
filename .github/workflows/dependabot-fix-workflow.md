@@ -13,8 +13,9 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-  # Let GITHUB_TOKEN read Dependabot alerts.
+  # Lets GITHUB_TOKEN read Dependabot alerts.
   vulnerability-alerts: read
+  # Code scanning; kept until a run confirms vulnerability-alerts alone reads Dependabot alerts.
   security-events: read
   # Mints the GitHub OIDC token exchanged for a Claude token (engine.auth below).
   id-token: write
@@ -31,10 +32,14 @@ engine:
     service-account-id: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
     workspace-id: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
 model: claude-opus-5-5
+# Installs, type checks and test suites take minutes in the larger repositories.
+timeout-minutes: 60
 # Compile the prompt into the lock file: when another repository calls this workflow, its checkout
 # doesn't contain it.
 inlined-imports: true
 tools:
+  # Seconds per tool call, Bash included.
+  timeout: 900
   github:
     mode: gh-proxy
     toolsets: [default]
@@ -76,7 +81,7 @@ steps:
         | jq -s --slurpfile prs "$out/open-fix-prs.json" '
             ([$prs[0].pull_requests[].alerts[]]) as $in_flight
             | add // []
-            | map(select(IN(.number; $in_flight[]) | not))
+            | map(select(.dependency.package.ecosystem == "npm" and (IN(.number; $in_flight[]) | not)))
             | group_by(.dependency.package.name)
             | map({
                 package: .[0].dependency.package.name,
@@ -151,6 +156,9 @@ instructions (`AGENTS.md`/`CLAUDE.md`) first; they override anything here.
 
 ## Find the required version
 
+A **major** here means a change of the leftmost non-zero version number, the boundary caret ranges
+use: `1.x` to `2.0.0`, but also `0.3.x` to `0.4.0`.
+
 For each package:
 
 - **Where it comes from:** `pnpm why -r <package>` lists every resolved version and the chain that
@@ -202,6 +210,8 @@ Then:
   (`# Security update: <GHSA id>`). Never lower `minimumReleaseAge` itself.
 - Run `pnpm dedupe` after the change, and `pnpm install` must succeed without `--force` or ignoring
   scripts that normally run.
+- After reverting a change or switching branches, run `pnpm install --frozen-lockfile` before
+  validating, so `node_modules` matches the lockfile.
 
 ## Validate
 
@@ -217,8 +227,7 @@ Then:
 Use `create_pull_request`, each from its own branch off the default branch:
 
 - **Batch:** at most one, titled exactly `Fix Dependabot alerts` (later runs recognize the batch by
-  it), with every non-major fix. Add packages one
-  at a time, most severe first; after each, run the validation, and when it fails, revert that
+  it), with every non-major fix. Add packages one at a time, most severe first; after each, run the validation, and when it fails, revert that
   package's change, report it, and continue. When `open-fix-prs.json` shows a batch is already open,
   don't open another: the remaining non-major fixes wait for the next run after it merges.
 - **Major:** at most two, one per fix, most severe first, titled
@@ -233,8 +242,9 @@ Use `create_pull_request`, each from its own branch off the default branch:
 
 In each pull request, one section per package headed `### <package>`:
 
-- The alerts it closes, each as a link to the alert (its `url`; later runs read these links to know
-  what's in flight), with GHSA id, severity and manifest.
+- The alerts it closes, each as a link to the alert (its `url`; later runs treat every linked alert
+  as in flight), with GHSA id, severity and manifest. Mention any other alert, such as one whose fix
+  was reverted, by number only, without a link.
 - The old and new resolved versions, the option used and why the earlier options didn't work.
 - For an override, the parent version it's scoped to (it lapses when that parent is upgraded), the
   upstream release it waits for (the parent accepting the patched version), and which validation
@@ -246,8 +256,8 @@ End each pull request with the validation actually run.
 
 ## Report the rest
 
-When at least one package has a major that needs a decision, is not fixable, should be dismissed,
-or was left for the next run, create one issue with `create_issue` titled
+When at least one package has a major that needs a decision, is not fixable, or should be
+dismissed, create one issue with `create_issue` titled
 `Dependabot alerts that need a decision`, listing each with its alerts and evidence:
 
 - **Major needs a decision:** a major left out because it would change behavior users notice or
