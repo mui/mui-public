@@ -1,13 +1,17 @@
 import * as path from 'node:path';
-import { RolldownMagicString } from 'rolldown';
 import { parse } from 'rolldown/utils';
 
-const DTS_FILES = /\.d\.[cm]?ts$/;
+import {
+  applyEdits,
+  countReferences,
+  DTS_FILES,
+  GENERATED_NAMESPACE,
+  getBinding,
+  getName,
+  slice,
+} from './rolldownOutput.mjs';
 
-const GENERATED_NAMESPACE = /_exports$/;
-
-/** @typedef {import('rolldown/utils').ESTree.Node} Node */
-/** @typedef {import('rolldown/utils').ESTree.ModuleExportName | import('rolldown/utils').ESTree.BindingIdentifier} Name */
+/** @typedef {import('./rolldownOutput.mjs').Node} Node */
 
 /**
  * @param {import('tsdown').Rolldown.OutputChunk} chunk
@@ -73,31 +77,6 @@ function getNamespaces(body) {
 }
 
 /**
- * @param {string} code
- * @param {string} name
- */
-function countReferences(code, name) {
-  const escaped = name.replace(/[$]/g, '\\$&');
-  return code.match(new RegExp(`(?<![\\w$])${escaped}(?![\\w$])`, 'g'))?.length ?? 0;
-}
-
-/**
- * @param {string} code
- * @param {{ start: number; end: number; text: string }[]} edits
- */
-function applyEdits(code, edits) {
-  const result = new RolldownMagicString(code);
-  for (const { start, end, text } of edits) {
-    if (text) {
-      result.update(start, end, text);
-    } else {
-      result.remove(start, end);
-    }
-  }
-  return result.toString();
-}
-
-/**
  * Rewrites imports of generated namespaces to `import * as`, then drops the namespaces.
  * @param {import('tsdown').Rolldown.OutputChunk[]} chunks
  */
@@ -110,7 +89,7 @@ async function inlineNamespaces(chunks) {
   );
 
   for (const { chunk, body } of parsed) {
-    /** @type {{ start: number; end: number; text: string }[]} */
+    /** @type {import('./rolldownOutput.mjs').Edit[]} */
     const edits = [];
     for (const node of body) {
       if (
@@ -138,10 +117,6 @@ async function inlineNamespaces(chunks) {
       for (const specifier of node.specifiers) {
         if (specifier.type === 'ImportDefaultSpecifier') {
           defaultImport = specifier.local.name;
-          continue;
-        }
-        if (specifier.type === 'ImportNamespaceSpecifier') {
-          statements.push(`import ${typeOnly}* as ${specifier.local.name} from ${source};`);
           continue;
         }
         const [imported, alias] = getBinding(specifier);
@@ -192,7 +167,7 @@ async function inlineNamespaces(chunks) {
       continue;
     }
     const names = new Set(unused.map(([name]) => name));
-    /** @type {{ start: number; end: number; text: string }[]} */
+    /** @type {import('./rolldownOutput.mjs').Edit[]} */
     const edits = unused.map(([, { node }]) => ({
       start: node.start,
       end: node.end,
@@ -220,33 +195,6 @@ async function inlineNamespaces(chunks) {
     }
     chunk.code = applyEdits(chunk.code, edits);
   }
-}
-
-/**
- * @param {Node} specifier
- * @returns {[Name, Name] | []}
- */
-function getBinding(specifier) {
-  if (specifier.type === 'ImportSpecifier') {
-    return [specifier.imported, specifier.local];
-  }
-  if (specifier.type === 'ExportSpecifier') {
-    return [specifier.local, specifier.exported];
-  }
-  return [];
-}
-
-/** @param {Name} node */
-function getName(node) {
-  return node.type === 'Identifier' ? node.name : String(node.value);
-}
-
-/**
- * @param {string} source
- * @param {Node} node
- */
-function slice(source, node) {
-  return source.slice(node.start, node.end);
 }
 
 /**

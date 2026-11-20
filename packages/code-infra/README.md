@@ -94,10 +94,11 @@ Babel helpers, and the helpers Oxc's lowering needs, are imported from the `@bab
 the package depends on; the build fails when the output imports them without that dependency.
 Declarations come from tsdown's `dts` with the workspace TypeScript 7 `tsc` and the package's
 `tsconfig.build.json` (`--no-buildTypes` skips them); hand-written `.d.ts` files need explicit
-exports. ESM output and declarations keep `export * as` and `import * as` namespaces, which Rolldown
-turns into `<name>_exports` objects in unbundled builds. A namespace whose constants Rolldown
-inlines into the object stays an object. CommonJS output still exports the object as
-`<name>_exports`. The output is validated with publint, as in `code-infra build`. With `--cjsCopy`,
+exports. The output keeps `export * as` and `import * as` namespaces, which Rolldown turns into
+`<name>_exports` objects in unbundled builds. A namespace stays an object when Rolldown inlines its
+constants into it, when the module reads it itself, or, in JavaScript, when it is imported next
+to a default import or by a quoted name.
+The output is validated with publint, as in `code-infra build`. With `--cjsCopy`,
 imported `.cjs` sources are emitted unchanged and imported as-is, as in `code-infra build`, and the
 local modules they `require` are built at the paths they name; the build fails when no bundle
 outputs a module at that path. `--cjsCopy` is deprecated: only `@mui/material-nextjs` needs it,

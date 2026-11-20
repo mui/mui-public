@@ -116,6 +116,18 @@ describe('jsNamespacesPlugin', () => {
     expect((await import(path.join(outDir, 'index.js'))).Shape()).toBe(3);
   });
 
+  it('keeps side-effect imports of a dropped namespace module', async () => {
+    const outDir = await build({
+      'node_modules/external/package.json': JSON.stringify({ name: 'external', type: 'module' }),
+      'node_modules/external/index.js': 'globalThis.externalLoaded = true;',
+      'src/index.js': "export * as Grid from './parts.js';",
+      'src/parts.js': "import 'external';\nexport const Root = 'root';",
+    });
+
+    await import(path.join(outDir, 'index.js'));
+    expect(/** @type {{ externalLoaded?: boolean }} */ (globalThis).externalLoaded).toBe(true);
+  });
+
   it('keeps namespaces whose members Rolldown inlines', async () => {
     const outDir = await build({
       'src/index.js': "export * as Parts from './parts.js';",

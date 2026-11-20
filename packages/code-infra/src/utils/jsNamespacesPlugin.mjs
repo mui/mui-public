@@ -1,40 +1,22 @@
 import * as path from 'node:path';
-import { RolldownMagicString } from 'rolldown';
 import { parse, Visitor } from 'rolldown/utils';
 
-const DTS_FILES = /\.d\.[cm]?ts$/;
+import {
+  applyEdits,
+  countReferences,
+  DTS_FILES,
+  GENERATED_NAMESPACE,
+  getBinding,
+  getName,
+  slice,
+} from './rolldownOutput.mjs';
 
-const GENERATED_NAMESPACE = /_exports$/;
 const RUNTIME_MODULE = '\0rolldown/runtime.js';
 
 /**
- * @typedef {{ start: number; end: number; text: string }} Edit
- * @typedef {import('rolldown/utils').ESTree.Node} Node
- * @typedef {import('rolldown/utils').ESTree.ModuleExportName | import('rolldown/utils').ESTree.BindingIdentifier} Name
- * @typedef {import('rolldown/utils').ESTree.ImportDeclarationSpecifier | import('rolldown/utils').ESTree.ExportSpecifier} Specifier
- * @typedef {'es' | 'cjs'} Format
+ * @typedef {import('./rolldownOutput.mjs').Edit} Edit
+ * @typedef {import('./rolldownOutput.mjs').Node} Node
  */
-
-/**
- * @param {string} code
- * @param {Edit[]} edits
- */
-function applyEdits(code, edits) {
-  const result = new RolldownMagicString(code);
-  for (const { start, end, text } of edits) {
-    if (text) {
-      result.update(start, end, text);
-    } else {
-      result.remove(start, end);
-    }
-  }
-  return result.toString();
-}
-
-/** @param {Name} node */
-function getName(node) {
-  return node.type === 'Identifier' ? node.name : String(node.value);
-}
 
 /** @param {import('tsdown').Rolldown.OutputChunk} chunk */
 async function parseProgram(chunk) {
@@ -185,11 +167,6 @@ function getCjsExport(statement, local) {
     : undefined;
 }
 
-/** @param {Name} node */
-function printName(node) {
-  return node.type === 'Identifier' ? node.name : JSON.stringify(node.value);
-}
-
 /**
  * The `__reExport()` calls filling namespace `name`, and whether the module reads it beyond
  * those, its declaration and its exports.
@@ -217,7 +194,7 @@ function getOwnStatements(chunk, body, name) {
   const cjsExports = body.filter((statement) => getCjsExport(statement, name) !== undefined);
 
   const cjsReferences = cjsExports.reduce(
-    (count, statement) => count + countReferences(slice(chunk, statement), name),
+    (count, statement) => count + countReferences(slice(chunk.code, statement), name),
     0,
   );
 
@@ -253,10 +230,8 @@ async function getNamespaces(chunk) {
       (property) =>
         property.type === 'Property' &&
         !property.computed &&
-        (property.key.type === 'Identifier' || property.key.type === 'Literal') &&
-        exported.has(
-          property.key.type === 'Identifier' ? property.key.name : String(property.key.value),
-        ),
+        property.key.type === 'Identifier' &&
+        exported.has(property.key.name),
     );
     // Rewriting would leave the module's own references on a second, different object.
     if (complete && !getOwnStatements(chunk, body, declarator.id.name).usedLocally) {
@@ -264,23 +239,6 @@ async function getNamespaces(chunk) {
     }
   }
   return namespaces;
-}
-
-/**
- * @param {string} code
- * @param {string} name
- */
-function countReferences(code, name) {
-  const escaped = name.replace(/[$]/g, '\\$&');
-  return code.match(new RegExp(`(?<![\\w$])${escaped}(?![\\w$])`, 'g'))?.length ?? 0;
-}
-
-/**
- * @param {import('tsdown').Rolldown.OutputChunk} chunk
- * @param {Node} node
- */
-function slice(chunk, node) {
-  return chunk.code.slice(node.start, node.end);
 }
 
 /**
@@ -380,46 +338,14 @@ async function dropUnusedNamespaces(chunk, imported) {
       continue;
     }
     edits.push(
-      replace(node, `export { ${kept.map((specifier) => slice(chunk, specifier)).join(', ')} };`),
+      replace(
+        node,
+        `export { ${kept.map((specifier) => slice(chunk.code, specifier)).join(', ')} };`,
+      ),
     );
   }
   chunk.code = applyEdits(chunk.code, edits);
   await dropUnusedImports(chunk);
-}
-
-/**
- * Prints statements for the specifiers of an `import` or `export ... from`, keeping default and
- * namespace imports out of the braces.
- * @param {import('tsdown').Rolldown.OutputChunk} chunk
- * @param {Specifier[]} specifiers
- * @param {'import' | 'export'} keyword
- * @param {string} source The quoted module specifier.
- * @returns {string[]}
- */
-function printSpecifiers(chunk, specifiers, keyword, source) {
-  /** @type {string[]} */
-  const statements = [];
-  /** @type {string | undefined} */
-  let defaultImport;
-  /** @type {string[]} */
-  const named = [];
-  for (const specifier of specifiers) {
-    if (specifier.type === 'ImportDefaultSpecifier') {
-      defaultImport = specifier.local.name;
-      continue;
-    }
-    if (specifier.type === 'ImportNamespaceSpecifier') {
-      statements.push(`import * as ${specifier.local.name} from ${source};`);
-      continue;
-    }
-    named.push(slice(chunk, specifier));
-  }
-
-  const clauses = [defaultImport, named.length > 0 ? `{ ${named.join(', ')} }` : undefined];
-  if (defaultImport || named.length > 0) {
-    statements.unshift(`${keyword} ${clauses.filter(Boolean).join(', ')} from ${source};`);
-  }
-  return statements;
 }
 
 /**
@@ -441,9 +367,11 @@ async function dropUnusedImports(chunk) {
       continue;
     }
 
-    if (node.type !== 'ImportDeclaration') {
+    // `import 'x'` has no specifiers to drop and keeps its side effects.
+    if (node.type !== 'ImportDeclaration' || node.specifiers.length === 0) {
       continue;
     }
+
     const kept = node.specifiers.filter(
       (specifier) =>
         !(
@@ -452,15 +380,9 @@ async function dropUnusedImports(chunk) {
             ['__exportAll', '__reExport'].includes(getName(specifier.imported)))
         ) || countReferences(chunk.code, specifier.local.name) > 1,
     );
-    if (kept.length === node.specifiers.length) {
-      continue;
-    }
     if (kept.length === 0) {
       edits.push(replace(node, ''));
-      continue;
     }
-    const source = JSON.stringify(node.source.value);
-    edits.push(replace(node, printSpecifiers(chunk, kept, 'import', source).join('\n')));
   }
   chunk.code = applyEdits(chunk.code, edits);
 }
@@ -475,7 +397,7 @@ async function rewriteImports(chunk, rewritable) {
 
   for (const { node, target, name } of (await getRequiredReads(chunk)).reads) {
     if (rewritable.get(target)?.has(name)) {
-      edits.push(replace(node, slice(chunk, node.object)));
+      edits.push(replace(node, slice(chunk.code, node.object)));
     }
   }
 
@@ -489,33 +411,39 @@ async function rewriteImports(chunk, rewritable) {
     const target = rewritable.get(
       path.posix.join(path.posix.dirname(chunk.fileName), node.source.value),
     );
+
+    const bindings = node.specifiers.map((specifier) => getBinding(specifier));
+
+    // A default import or a quoted name keeps the statement, and with it the object.
+    if (!target || bindings.some(([, alias]) => alias?.type !== 'Identifier')) {
+      continue;
+    }
+
     const source = JSON.stringify(node.source.value);
     const keyword = node.type === 'ImportDeclaration' ? 'import' : 'export';
-    /** @type {Specifier[]} */
+    /** @type {string[]} */
     const rest = [];
     /** @type {string[]} */
     const namespaces = [];
-    for (const specifier of node.specifiers) {
-      /** @type {[Name, Name] | []} */
-      let binding = [];
-      if (specifier.type === 'ImportSpecifier') {
-        binding = [specifier.imported, specifier.local];
-      } else if (specifier.type === 'ExportSpecifier') {
-        binding = [specifier.local, specifier.exported];
-      }
-      const [imported, alias] = binding;
-      const name = imported ? getName(imported) : null;
-      if (!name || !alias || !target?.has(name)) {
-        rest.push(specifier);
+
+    for (const [index, [imported, alias]] of bindings.entries()) {
+      if (!imported || !alias || !target.has(getName(imported))) {
+        rest.push(slice(chunk.code, node.specifiers[index]));
         continue;
       }
-      namespaces.push(`${keyword} * as ${printName(alias)} from ${source};`);
+
+      namespaces.push(`${keyword} * as ${getName(alias)} from ${source};`);
     }
+
     if (namespaces.length === 0) {
       continue;
     }
-    const statements = [...printSpecifiers(chunk, rest, keyword, source), ...namespaces];
-    edits.push(replace(node, statements.join('\n')));
+
+    if (rest.length > 0) {
+      namespaces.unshift(`${keyword} { ${rest.join(', ')} } from ${source};`);
+    }
+
+    edits.push(replace(node, namespaces.join('\n')));
   }
   chunk.code = applyEdits(chunk.code, edits);
 }
