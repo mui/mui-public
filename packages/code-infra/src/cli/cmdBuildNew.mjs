@@ -10,6 +10,7 @@ import * as semver from 'semver';
 import { getOutExtension, getPackageSources, validatePkgJson } from '../utils/build.mjs';
 import { getVersionEnvVariables } from '../utils/babel.mjs';
 import { babelPlugin } from '../utils/babelPlugin.mjs';
+import { cjsSourcesPlugin } from '../utils/cjsSourcesPlugin.mjs';
 import { dtsExportsPlugin } from '../utils/dtsExportsPlugin.mjs';
 import { fileUrlEntriesPlugin } from '../utils/fileUrlEntriesPlugin.mjs';
 import { getPublishedPkgJson } from '../utils/getPublishedPkgJson.mjs';
@@ -23,6 +24,7 @@ import { getTsconfig } from '../utils/typescript.mjs';
  * @property {string[]} copy
  * @property {boolean} buildTypes
  * @property {boolean} enableReactCompiler
+ * @property {boolean} cjsCopy
  */
 
 const SOURCE_DIR = 'src';
@@ -305,6 +307,14 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         type: 'boolean',
         default: false,
         description: 'Compile components with the React compiler.',
+      })
+      // Remove once `next` has an `exports` map: https://github.com/vercel/next.js/issues/77200
+      .option('cjsCopy', {
+        type: 'boolean',
+        deprecated: 'Only for `@mui/material-nextjs`.',
+        default: false,
+        description:
+          'Emit imported `.cjs` sources unchanged instead of compiling them, and build the local modules they require.',
       }),
   async handler(args) {
     const cwd = process.cwd();
@@ -353,6 +363,11 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       // `.js` sources may contain JSX.
       loader: { '.js': 'jsx' },
       plugins: [
+        args.cjsCopy &&
+          cjsSourcesPlugin(
+            path.join(cwd, SOURCE_DIR),
+            bundles.includes('cjs') ? getOutExtension('cjs', { packageType }) : undefined,
+          ),
         fileUrlEntriesPlugin(),
         babelPlugin(babelConfigFile),
         babelRuntimePlugin(babelRuntime),
