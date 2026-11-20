@@ -56,7 +56,17 @@ Use the first option that removes every vulnerable version of the package:
 4. **Scoped override.** Only when no release of the parent within its current major admits the
    patched version. Add to `overrides` in `pnpm-workspace.yaml`, scoped to the exact parent version
    so it lapses when the parent moves on: `'<parent>@<parent-version>><package>': '<patched-range>'`.
-   Never add an unscoped override (`'<package>': ...`): it silently changes every consumer.
+   Never add an unscoped override (`'<package>': ...`): it silently changes every consumer. An
+   override replaces a version the parent chose, so use one only when all of these hold:
+   - The overridden version stays in the major the parent's range declares. Never override across
+     the package's major.
+   - The chain isn't shipped: it doesn't run through the `dependencies` of a workspace package that
+     is published. Overrides only apply to this repository's install, so there one would close the
+     alert while the package's users still install the vulnerable version. Bump the published
+     package's own dependency instead, or report that it needs an upstream release.
+   - The validation exercises the parent (its tests, or the build or tool step that uses it).
+
+   Otherwise, report the package as needing an upstream release.
 
 A fix is **major** when option 2 or 3 needs a new major version of the dependency it bumps. Prefer a
 scoped override within the current major when one works; take the major only when it doesn't.
@@ -92,7 +102,9 @@ validation: if the new major needs source changes, report it rather than editing
 - **Batch PR:** titled `[security] Fix Dependabot alerts`, labeled `dependencies` and `security`. One
   section per package, headed exactly `### <package>` (later runs read these headings to know what's
   in flight): the alerts it closes (GHSA id, severity, manifest), the old and new resolved versions,
-  the option used and why the earlier options didn't work. End with the validation actually run.
+  the option used and why the earlier options didn't work. For an override, also the parent version
+  it's scoped to (it lapses when that parent is upgraded) and which validation exercises the parent.
+  End with the validation actually run.
 - **Major PR:** titled `[security] Bump <dependency> to v<major> for <package> advisories`, same
   labels, same `### <package>` section, plus the release notes' breaking changes that could affect
   this repository.
@@ -101,8 +113,9 @@ For every other package, one of:
 
 - **In flight:** the existing PR.
 - **Held back:** the Renovate rule or PR holding it, and what unblocks it.
-- **Not fixable:** no patched version, a major migration that needs code changes, or a fix that
-  broke validation, with the evidence.
+- **Not fixable:** no patched version, a major migration that needs code changes, a fix that broke
+  validation, or one that needs an upstream release because no override is allowed, with the
+  evidence.
 - **Should be dismissed:** the manifest is test-only or never shipped, with a dismissal reason a
   human can paste. Dismissing alerts is a human decision.
 
