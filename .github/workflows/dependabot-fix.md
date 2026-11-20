@@ -1,19 +1,23 @@
 ---
-description: Fix open Dependabot security alerts in mui-public with one PR per package.
+description: Fix open Dependabot security alerts with one PR per package.
 on:
   schedule: daily
   workflow_dispatch:
-# What shared/dependabot-fix.md needs; gh-aw requires the importing workflow to grant it.
+  # Other MUI repositories call the compiled dependabot-fix.lock.yml with `secrets: inherit`;
+  # it runs against the caller's repository.
+  workflow_call:
 permissions:
   contents: read
+  issues: read
   pull-requests: read
+  # Lets GITHUB_TOKEN read Dependabot alerts.
   security-events: read
   # Mints the GitHub OIDC token exchanged for a Claude token (engine.auth below).
   id-token: write
 engine:
   id: claude
-  # Keyless Workload Identity Federation, the same repository variables the Claude review and
-  # triage workflows use.
+  # Keyless Workload Identity Federation with the calling repository's variables, the same ones the
+  # Claude review and triage workflows use.
   auth:
     type: github-oidc
     provider: anthropic
@@ -23,12 +27,91 @@ engine:
     service-account-id: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
     workspace-id: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
 model: claude-opus-5-5
+# When another repository calls this workflow, its checkout contains neither this prompt nor the
+# skill: compile the prompt into the lock file, and install the skill from mui-public. gh-aw doesn't
+# accept expressions such as job.workflow_sha in skill refs, so the skill tracks master.
+inlined-imports: true
 skills:
-  - skills/mui-dependabot-fix
-imports:
-  - shared/dependabot-fix.md
+  - mui/mui-public/skills/mui-dependabot-fix@master
+tools:
+  github:
+    mode: gh-proxy
+    toolsets: [default]
+network:
+  allowed: [defaults, node]
+steps:
+  - name: Set up pnpm
+    uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+  - name: Set up Node.js
+    uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+    with:
+      node-version-file: package.json
+      cache: pnpm
+  - name: Install dependencies
+    run: pnpm install --frozen-lockfile
+  - name: Collect open Dependabot alerts
+    env:
+      GH_TOKEN: ${{ github.token }}
+    run: |
+      set -euo pipefail
+      out=/tmp/gh-aw/agent
+      mkdir -p "$out"
+      gh api "repos/$GITHUB_REPOSITORY/dependabot/alerts?state=open&per_page=100" --paginate \
+        | jq -s 'add // [] | group_by(.dependency.package.name) | map({
+            package: .[0].dependency.package.name,
+            ecosystem: .[0].dependency.package.ecosystem,
+            alerts: map({
+              number,
+              ghsa: .security_advisory.ghsa_id,
+              severity: .security_advisory.severity,
+              summary: .security_advisory.summary,
+              manifest: .dependency.manifest_path,
+              relationship: .dependency.relationship,
+              scope: .dependency.scope,
+              vulnerable_range: .security_vulnerability.vulnerable_version_range,
+              first_patched: .security_vulnerability.first_patched_version.identifier
+            })
+          })' > "$out/dependabot-alerts.json"
+      echo "Packages with open alerts: $(jq length "$out/dependabot-alerts.json")"
+safe-outputs:
+  # PRs opened with GITHUB_TOKEN don't trigger GitHub Actions, and MUI repositories require Actions
+  # checks. The code-infra Renovate App already opens dependency PRs in them.
+  github-app:
+    client-id: ${{ secrets.RENOVATE_APP_CLIENT_ID }}
+    private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
+  create-pull-request:
+    max: 3
+    title-prefix: '[security] '
+    labels: [dependencies, security]
+    draft: true
+    # The job of this workflow is to change dependency manifests, which gh-aw protects by default.
+    protected-files: allowed
+    allowed-files:
+      - package.json
+      - '**/package.json'
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+  create-issue:
+    max: 1
+    title-prefix: '[security] '
+    labels: [dependencies, security]
+    close-older-issues: true
 ---
 
-# Dependabot fix
+# Fix open Dependabot alerts
 
-Fix the open Dependabot security alerts in this repository.
+Follow the `mui-dependabot-fix` skill for this repository (`${{ github.repository }}`).
+
+The open alerts are in `/tmp/gh-aw/agent/dependabot-alerts.json`, grouped by package. Dismissed
+alerts aren't included. Dependencies are installed.
+
+Work through the packages, most severe first. Open at most three pull requests per run with
+`create_pull_request`, one per package, each from its own branch off the default branch, so every
+pull request contains only that package's fix. Packages left over are picked up by the next run.
+
+When at least one package is held back, not fixable, should be dismissed, or was left for the next
+run, create one issue with `create_issue` titled `Dependabot alerts that need a decision` that lists
+them with the evidence from the report. Leave out packages that have a pull request open.
+
+When there are no alerts, or every package already has a pull request open, call `noop` with a
+short reason.

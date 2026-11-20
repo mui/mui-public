@@ -90,7 +90,7 @@ For example, ask the agent to "Use mui-renovate-triage to review the open Renova
 
 ### Dependabot alerts
 
-Use [mui-dependabot-fix](./skills/mui-dependabot-fix/SKILL.md) to clear open Dependabot security alerts that Renovate and Dependabot leave open, typically vulnerable transitive dependencies. Per package, it picks the smallest fix the dependency policy allows (refresh, direct bump, parent bump, then a version-scoped override) and opens one PR, or reports why an alert is held back, not fixable, or should be dismissed. The [Dependabot fix workflow](./.github/workflows/dependabot-fix.md) runs it daily, and other repositories reuse it by importing [its shared component](./.github/workflows/shared/dependabot-fix.md).
+Use [mui-dependabot-fix](./skills/mui-dependabot-fix/SKILL.md) to clear open Dependabot security alerts that Renovate and Dependabot leave open, typically vulnerable transitive dependencies. Per package, it picks the smallest fix the dependency policy allows (refresh, direct bump, parent bump, then a version-scoped override) and opens one PR, or reports why an alert is held back, not fixable, or should be dismissed. The [Dependabot fix workflow](./.github/workflows/dependabot-fix.md) runs it daily. Other repositories call its compiled `dependabot-fix.lock.yml` as a reusable workflow with `secrets: inherit`; it runs against the calling repository. After changing the skill, recompile the workflow with `gh aw compile` once the change is on `master`: the compiled workflow pins the skill to the `master` commit it was compiled against.
 
 ## Versioning
 

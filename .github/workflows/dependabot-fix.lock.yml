@@ -1,5 +1,5 @@
-# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"3ff99b18299acd89aea099f4230da49feb65198faf0952061311b36472441c56","body_hash":"8c3e2585ccc46848b5e2dd2f5d4aacc190bd63b8c0b17cbd17103042917abf1d","compiler_version":"v1.2.2","strict":true,"agent_id":"claude","agent_model":"claude-opus-5-5","engine_versions":{"claude":"2.1.317"}}
-# gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_CI_TRIGGER_TOKEN","GH_AW_DEFAULT_OTLP_ENDPOINT","GH_AW_DEFAULT_OTLP_HEADERS","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN","RENOVATE_APP_CLIENT_ID","RENOVATE_APP_PRIVATE_KEY"],"actions":[{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/create-github-app-token","sha":"64ab729a6294000f5aa4a4bc0b73d1f32bc45510","version":"v3.3.0"},{"repo":"actions/download-artifact","sha":"9000827ccba6bdab643e8b6fd33ac0654aef8333","version":"v8.0.2"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"949feb2413d6458794dcd2491c4babbbce0c15c1","version":"v7.1.0"},{"repo":"actions/upload-artifact","sha":"cf430e030ddbb5b0abf93d22962f4752f3646cd9","version":"v7.0.2"},{"repo":"github/gh-aw-actions/setup","sha":"53d0749e19424a918acd82b4d140264ce48f2f14","version":"v1.2.2"},{"repo":"pnpm/action-setup","sha":"73e46992e05b19abd31f2f3c20e0e7370d762115","version":"v6.1.1"}],"skills":["skills/mui-dependabot-fix"],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.29.11","digest":"sha256:8774a73c351395b41d2ad0af4ddb4689007c67de3cd08bd9f43bb8a0e300690e","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.29.11@sha256:8774a73c351395b41d2ad0af4ddb4689007c67de3cd08bd9f43bb8a0e300690e"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.29.11","digest":"sha256:88d2d0e315a504d93fd4fb8847fd0f6b7f4469f41a6fc6047b3dc9654c56ab2c","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.29.11@sha256:88d2d0e315a504d93fd4fb8847fd0f6b7f4469f41a6fc6047b3dc9654c56ab2c"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.29.11","digest":"sha256:97782bc0d8ff7f80f19ae2fdc5e1668517aa732a6fa077e64b8d3919238496d2","pinned_image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.29.11@sha256:97782bc0d8ff7f80f19ae2fdc5e1668517aa732a6fa077e64b8d3919238496d2"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.29.11","digest":"sha256:861739ecf924dd2db5e5fb652db2ad82aaafd1615623297ddabc8f41a36b2847","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.29.11@sha256:861739ecf924dd2db5e5fb652db2ad82aaafd1615623297ddabc8f41a36b2847"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.5.6","digest":"sha256:342cd624e1f179d91be2de7a146fc4f387092e62e6c8a47506d7932e113d2311","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.5.6@sha256:342cd624e1f179d91be2de7a146fc4f387092e62e6c8a47506d7932e113d2311"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:8735428c2d4e602f90781ba0c571c400e8ff93c7ee1508a75d71f87e34e415cc","pinned_image":"ghcr.io/github/gh-aw-node@sha256:8735428c2d4e602f90781ba0c571c400e8ff93c7ee1508a75d71f87e34e415cc"},{"image":"ghcr.io/github/github-mcp-server:v2.1.0","digest":"sha256:f6056fc10bfffcc8c81a6417a2e9ca12808647e8dd6049642a4feaadee0e0f8a","pinned_image":"ghcr.io/github/github-mcp-server:v2.1.0@sha256:f6056fc10bfffcc8c81a6417a2e9ca12808647e8dd6049642a4feaadee0e0f8a"}],"mcp_servers":[{"name":"safeoutputs","tools":["create_issue","create_pull_request","noop","report_incomplete","report_missing_data","report_missing_tool"]}],"threat_detection":{"mode":"enabled"},"admission":false,"agent_metadata":{}}
+# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"48be755f0cf855aca772cd8c3eb1c0028745a704577513d2551cd87650752007","body_hash":"f9270af4d680a5fe16d11167f034a49da29383661f4b3997386d82e55601ce8b","compiler_version":"v1.2.2","strict":true,"agent_id":"claude","agent_model":"claude-opus-5-5","engine_versions":{"claude":"2.1.317"}}
+# gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_CI_TRIGGER_TOKEN","GH_AW_DEFAULT_OTLP_ENDPOINT","GH_AW_DEFAULT_OTLP_HEADERS","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN","RENOVATE_APP_CLIENT_ID","RENOVATE_APP_PRIVATE_KEY"],"actions":[{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/create-github-app-token","sha":"64ab729a6294000f5aa4a4bc0b73d1f32bc45510","version":"v3.3.0"},{"repo":"actions/download-artifact","sha":"9000827ccba6bdab643e8b6fd33ac0654aef8333","version":"v8.0.2"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"949feb2413d6458794dcd2491c4babbbce0c15c1","version":"v7.1.0"},{"repo":"actions/upload-artifact","sha":"cf430e030ddbb5b0abf93d22962f4752f3646cd9","version":"v7.0.2"},{"repo":"github/gh-aw-actions/setup","sha":"53d0749e19424a918acd82b4d140264ce48f2f14","version":"v1.2.2"},{"repo":"pnpm/action-setup","sha":"73e46992e05b19abd31f2f3c20e0e7370d762115","version":"v6.1.1"}],"skills":["mui/mui-public/skills/mui-dependabot-fix@cadaa1261967a644001b866f7189b4e076aa9296"],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.29.11","digest":"sha256:8774a73c351395b41d2ad0af4ddb4689007c67de3cd08bd9f43bb8a0e300690e","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.29.11@sha256:8774a73c351395b41d2ad0af4ddb4689007c67de3cd08bd9f43bb8a0e300690e"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.29.11","digest":"sha256:88d2d0e315a504d93fd4fb8847fd0f6b7f4469f41a6fc6047b3dc9654c56ab2c","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.29.11@sha256:88d2d0e315a504d93fd4fb8847fd0f6b7f4469f41a6fc6047b3dc9654c56ab2c"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.29.11","digest":"sha256:97782bc0d8ff7f80f19ae2fdc5e1668517aa732a6fa077e64b8d3919238496d2","pinned_image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.29.11@sha256:97782bc0d8ff7f80f19ae2fdc5e1668517aa732a6fa077e64b8d3919238496d2"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.29.11","digest":"sha256:861739ecf924dd2db5e5fb652db2ad82aaafd1615623297ddabc8f41a36b2847","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.29.11@sha256:861739ecf924dd2db5e5fb652db2ad82aaafd1615623297ddabc8f41a36b2847"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.5.6","digest":"sha256:342cd624e1f179d91be2de7a146fc4f387092e62e6c8a47506d7932e113d2311","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.5.6@sha256:342cd624e1f179d91be2de7a146fc4f387092e62e6c8a47506d7932e113d2311"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:8735428c2d4e602f90781ba0c571c400e8ff93c7ee1508a75d71f87e34e415cc","pinned_image":"ghcr.io/github/gh-aw-node@sha256:8735428c2d4e602f90781ba0c571c400e8ff93c7ee1508a75d71f87e34e415cc"},{"image":"ghcr.io/github/github-mcp-server:v2.1.0","digest":"sha256:f6056fc10bfffcc8c81a6417a2e9ca12808647e8dd6049642a4feaadee0e0f8a","pinned_image":"ghcr.io/github/github-mcp-server:v2.1.0@sha256:f6056fc10bfffcc8c81a6417a2e9ca12808647e8dd6049642a4feaadee0e0f8a"}],"mcp_servers":[{"name":"safeoutputs","tools":["create_issue","create_pull_request","noop","report_incomplete","report_missing_data","report_missing_tool"]}],"threat_detection":{"mode":"enabled"},"admission":false,"agent_metadata":{}}
 # This file was automatically generated by gh-aw (v1.2.2). DO NOT EDIT. To debug this workflow, load the skill at https://github.com/github/gh-aw/blob/main/debug.md
 #
 #    ___                   _   _
@@ -23,11 +23,9 @@
 #
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
-# Fix open Dependabot security alerts in mui-public with one PR per package.
+# Fix open Dependabot security alerts with one PR per package.
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/dependabot-fix.md
+# inlined-imports: true
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN
@@ -59,10 +57,47 @@
 #   - ghcr.io/github/gh-aw-node@sha256:8735428c2d4e602f90781ba0c571c400e8ff93c7ee1508a75d71f87e34e415cc
 #   - ghcr.io/github/github-mcp-server:v2.1.0@sha256:f6056fc10bfffcc8c81a6417a2e9ca12808647e8dd6049642a4feaadee0e0f8a
 
-name: "Dependabot fix"
+name: "Fix open Dependabot alerts"
 on:
   schedule:
-    - cron: "49 3 * * *"  # Friendly format: daily (scattered)
+    - cron: "49 3 * * *"
+  workflow_call:
+    inputs:
+      aw_context:
+        default: ""
+        description: "Agent caller context (Reserved for Agentic Workflows)."
+        required: false
+        type: string
+    outputs:
+      created_issue_number:
+        description: Number of the first created issue
+        value: ${{ jobs.safe_outputs.outputs.created_issue_number }}
+      created_issue_url:
+        description: URL of the first created issue
+        value: ${{ jobs.safe_outputs.outputs.created_issue_url }}
+      created_pr_number:
+        description: Number of the first created pull request
+        value: ${{ jobs.safe_outputs.outputs.created_pr_number }}
+      created_pr_url:
+        description: URL of the first created pull request
+        value: ${{ jobs.safe_outputs.outputs.created_pr_url }}
+    secrets:
+      COPILOT_GITHUB_TOKEN:
+        required: false
+      GH_AW_CI_TRIGGER_TOKEN:
+        required: false
+      GH_AW_DEFAULT_OTLP_ENDPOINT:
+        required: false
+      GH_AW_DEFAULT_OTLP_HEADERS:
+        required: false
+      GH_AW_GITHUB_MCP_SERVER_TOKEN:
+        required: false
+      GH_AW_GITHUB_TOKEN:
+        required: false
+      RENOVATE_APP_CLIENT_ID:
+        required: false
+      RENOVATE_APP_PRIVATE_KEY:
+        required: false
   workflow_dispatch:
     inputs:
       aw_context:
@@ -72,20 +107,19 @@ on:
         type: string
 
 # Jobs receive only their explicitly declared permissions.
-# What shared/dependabot-fix.md needs; gh-aw requires the importing workflow to grant it.
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}"
+  group: "gh-aw-dependabot-fix-${{ github.run_id }}"
   queue: max
 
-run-name: "Dependabot fix"
+run-name: "Fix open Dependabot alerts"
 
 env:
   OTEL_EXPORTER_OTLP_ENDPOINT: ${{ secrets.GH_AW_DEFAULT_OTLP_ENDPOINT || vars.GH_AW_DEFAULT_OTLP_ENDPOINT }}
   OTEL_EXPORTER_OTLP_PROTOCOL: ${{ vars.OTEL_EXPORTER_OTLP_PROTOCOL }}
   OTEL_SERVICE_NAME: gh-aw.dependabot-fix
-  OTEL_RESOURCE_ATTRIBUTES: 'gh-aw.workflow.name=Dependabot%20fix,gh-aw.repository=${{ github.repository }},gh-aw.run.id=${{ github.run_id }},github.run_id=${{ github.run_id }},gh-aw.engine.id=claude'
+  OTEL_RESOURCE_ATTRIBUTES: 'gh-aw.workflow.name=Fix%20open%20Dependabot%20alerts,gh-aw.repository=${{ github.repository }},gh-aw.run.id=${{ github.run_id }},github.run_id=${{ github.run_id }},gh-aw.engine.id=claude'
   OTEL_EXPORTER_OTLP_HEADERS: ${{ secrets.GH_AW_DEFAULT_OTLP_HEADERS }}
   GH_AW_OTLP_LOGS_ENABLED: ${{ vars.GH_AW_OTLP_LOGS_ENABLED }}
   GH_AW_OTLP_LOGS_MAX_BYTES: ${{ vars.GH_AW_OTLP_LOGS_MAX_BYTES }}
@@ -95,6 +129,8 @@ env:
 jobs:
   activation:
     name: activation
+    needs: pre_activation
+    if: needs.pre_activation.outputs.activated == 'true'
     runs-on: ubuntu-slim
     # Permissions for the activation job (workflow permissions default to none).
     permissions:
@@ -105,6 +141,7 @@ jobs:
       GH_AW_MAX_DAILY_AI_CREDITS: ${{ vars.GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS || '5000' }}
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
     outputs:
+      artifact_prefix: ${{ steps.artifact-prefix.outputs.prefix }}
       aw_context: ${{ steps.generate_aw_info.outputs.aw_context }}
       comment_id: ""
       comment_repo: ""
@@ -131,9 +168,11 @@ jobs:
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
+          trace-id: ${{ needs.pre_activation.outputs.setup-trace-id }}
+          parent-span-id: ${{ needs.pre_activation.outputs.setup-parent-span-id || needs.pre_activation.outputs.setup-span-id }}
           safe-output-artifact-client: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}
         env:
-          GH_AW_SETUP_WORKFLOW_NAME: "Dependabot fix"
+          GH_AW_SETUP_WORKFLOW_NAME: "Fix open Dependabot alerts"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/dependabot-fix.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.317"
           GH_AW_INFO_AWF_VERSION: "v0.29.11"
@@ -141,6 +180,11 @@ jobs:
           GH_AW_SETUP_AW_CONTEXT: ${{ inputs.aw_context }}
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
+      - name: Compute artifact prefix
+        id: artifact-prefix
+        env:
+          INPUTS_JSON: ${{ toJSON(inputs) }}
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/compute_artifact_prefix.sh"
       - name: Generate agentic run info
         id: generate_aw_info
         env:
@@ -150,7 +194,7 @@ jobs:
           GH_AW_INFO_VERSION: "2.1.317"
           GH_AW_INFO_AGENT_VERSION: "2.1.317"
           GH_AW_INFO_CLI_VERSION: "v1.2.2"
-          GH_AW_INFO_WORKFLOW_NAME: "Dependabot fix"
+          GH_AW_INFO_WORKFLOW_NAME: "Fix open Dependabot alerts"
           GH_AW_INFO_WORKFLOW_ID: ${{ job.workflow_ref }}
           GH_AW_INFO_WORKFLOW_SHA: ${{ job.workflow_sha }}
           GH_AW_INFO_EXPERIMENTAL: "false"
@@ -166,7 +210,7 @@ jobs:
           GH_AW_INFO_MAX_AI_CREDITS: ${{ vars.GH_AW_DEFAULT_MAX_AI_CREDITS || '1000' }}
           GH_AW_COMPILED_STRICT: "true"
           GH_AW_INFO_MODEL_COSTS: '{"providers":{"anthropic":{"models":{"claude-opus-5-5":{"cost":{"cache_read":"2e-07","cache_write":"5e-06","input":"4e-06","output":"2e-05"}}}}}}'
-          GH_AW_INFO_SKILLS: '["skills/mui-dependabot-fix"]'
+          GH_AW_INFO_SKILLS: '["mui/mui-public/skills/mui-dependabot-fix@cadaa1261967a644001b866f7189b4e076aa9296"]'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
@@ -197,7 +241,7 @@ jobs:
         if: ${{ env.GH_AW_ADMISSION_RESULT != 'admitted' && env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          GH_AW_WORKFLOW_NAME: "Dependabot fix"
+          GH_AW_WORKFLOW_NAME: "Fix open Dependabot alerts"
           GH_AW_WORKFLOW_ID: "dependabot-fix"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT: ${{ github.event.inputs.aw_context || '' }}
@@ -243,7 +287,6 @@ jobs:
             .codex
             .gemini
             .pi
-            skills
           sparse-checkout-cone-mode: true
           fetch-depth: 1
       - name: Save agent config folders for base branch restoration
@@ -272,7 +315,7 @@ jobs:
           GH_AW_COMPILED_VERSION: "v1.2.2"
           GH_AW_HAS_SAFE_OUTPUTS: "true"
           GH_AW_BLOCKED_VERSION_REPORT_AS_ISSUE: "true"
-          GH_AW_WORKFLOW_NAME: "Dependabot fix"
+          GH_AW_WORKFLOW_NAME: "Fix open Dependabot alerts"
         with:
           script: |
             const path = require('path');
@@ -283,14 +326,14 @@ jobs:
             await main();
       - name: Upgrade gh CLI for frontmatter skills
         run: bash "${RUNNER_TEMP}/gh-aw/actions/ensure_gh_cli_min_version.sh" "2.90.0"
-      - name: "Install frontmatter skill: skills/mui-dependabot-fix"
+      - name: "Install frontmatter skill: mui/mui-public/skills/mui-dependabot-fix"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_AW_INFO_ENGINE_ID: "claude"
           GH_AW_GH_SKILL_AGENT_NAME: "claude-code"
           GH_AW_SKILL_DIR: ".claude/skills"
           GH_AW_SKILL_INSTALL_INDEX: "1"
-          GH_AW_FRONTMATTER_SKILLS: "skills/mui-dependabot-fix"
+          GH_AW_FRONTMATTER_SKILLS: "mui/mui-public/skills/mui-dependabot-fix@cadaa1261967a644001b866f7189b4e076aa9296"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
@@ -343,7 +386,7 @@ jobs:
           GH_AW_OTLP_LOGS_ENABLED: ""
           GH_AW_OTLP_LOGS_MAX_BYTES: ""
           GH_AW_PROMPT: ${{ runner.temp }}/gh-aw/aw-prompts/prompt.txt
-          GH_AW_PROMPT_CONFIG: "{\"items\":[{\"content_env\":\"GH_AW_PROMPT_CONTENT_0000\"},{\"file\":\"xpia.md\"},{\"file\":\"temp_folder_prompt.md\"},{\"file\":\"markdown.md\"},{\"file\":\"safe_outputs_mcp_transport_prompt.md\"},{\"file\":\"safe_outputs_prompt.md\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0001\"},{\"file\":\"safe_outputs_create_pull_request.md\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0002\"},{\"file\":\"mcp_cli_tools_with_safeoutputs_prompt.md\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0003\"},{\"file\":\"cli_proxy_with_safeoutputs_prompt.md\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0004\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0005\"},{\"author_file\":\".github/workflows/dependabot-fix.md\"}],\"system_item_count\":13,\"author_expressions\":{\"github.repository\":\"GH_AW_GITHUB_REPOSITORY\"}}"
+          GH_AW_PROMPT_CONFIG: "{\"items\":[{\"content_env\":\"GH_AW_PROMPT_CONTENT_0000\"},{\"file\":\"xpia.md\"},{\"file\":\"temp_folder_prompt.md\"},{\"file\":\"markdown.md\"},{\"file\":\"safe_outputs_mcp_transport_prompt.md\"},{\"file\":\"safe_outputs_prompt.md\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0001\"},{\"file\":\"safe_outputs_create_pull_request.md\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0002\"},{\"file\":\"mcp_cli_tools_with_safeoutputs_prompt.md\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0003\"},{\"file\":\"cli_proxy_with_safeoutputs_prompt.md\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0004\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0005\"}],\"system_item_count\":13}"
           GH_AW_PROMPT_CONTENT_0000: |
             <system>
           GH_AW_PROMPT_CONTENT_0001: |
@@ -381,13 +424,13 @@ jobs:
 
           GH_AW_PROMPT_CONTENT_0004: |
             </system>
-          GH_AW_PROMPT_CONTENT_0005: |
+          GH_AW_PROMPT_CONTENT_0005: |+
             # Fix open Dependabot alerts
 
             Follow the `mui-dependabot-fix` skill for this repository (`__GH_AW_GITHUB_REPOSITORY__`).
 
-            The open alerts are in `/tmp/gh-aw/agent/dependabot-alerts.json`, grouped by package. Alerts on
-            manifests the repository chose to ignore are already removed. Dependencies are installed.
+            The open alerts are in `/tmp/gh-aw/agent/dependabot-alerts.json`, grouped by package. Dismissed
+            alerts aren't included. Dependencies are installed.
 
             Work through the packages, most severe first. Open at most three pull requests per run with
             `create_pull_request`, one per package, each from its own branch off the default branch, so every
@@ -395,10 +438,11 @@ jobs:
 
             When at least one package is held back, not fixable, should be dismissed, or was left for the next
             run, create one issue with `create_issue` titled `Dependabot alerts that need a decision` that lists
-            them with the evidence from the skill's report. Leave out packages that have a pull request open.
+            them with the evidence from the report. Leave out packages that have a pull request open.
 
             When there are no alerts, or every package already has a pull request open, call `noop` with a
             short reason.
+
           GH_AW_SAFE_OUTPUTS: ${{ runner.temp }}/gh-aw/safeoutputs/outputs.jsonl
           OTEL_EXPORTER_OTLP_ENDPOINT: ""
           OTEL_EXPORTER_OTLP_HEADERS: ""
@@ -410,14 +454,14 @@ jobs:
         with:
           github-token: no-authentication
           script: |
-            const promptEnvironment = new Set(["GH_AW_ACTIONS_DIR","GH_AW_ENGINE_ID","GH_AW_EXPR_76DF9333","GH_AW_EXPR_77C1A4D2","GH_AW_EXPR_7C248226","GH_AW_EXPR_C19C384F","GH_AW_GITHUB_ACTOR","GH_AW_GITHUB_REPOSITORY","GH_AW_GITHUB_RUN_ID","GH_AW_GITHUB_WORKSPACE","GH_AW_MCP_CLI_SERVERS_LIST","GH_AW_PROMPT","GH_AW_SKILL_DIR","GH_AW_SKILL_EXT","GH_AW_SUB_AGENT_DIR","GH_AW_SUB_AGENT_EXT","GITHUB_ACTION","GITHUB_ACTOR","GITHUB_API_URL","GITHUB_EVENT_NAME","GITHUB_EVENT_PATH","GITHUB_GRAPHQL_URL","GITHUB_JOB","GITHUB_OUTPUT","GITHUB_REF","GITHUB_REPOSITORY","GITHUB_RUN_ATTEMPT","GITHUB_RUN_ID","GITHUB_RUN_NUMBER","GITHUB_SERVER_URL","GITHUB_SHA","GITHUB_STEP_SUMMARY","GITHUB_WORKFLOW","GITHUB_WORKSPACE","PATH","RUNNER_ARCH","RUNNER_OS","RUNNER_TEMP"]);
+            const promptEnvironment = new Set(["GH_AW_ACTIONS_DIR","GH_AW_ENGINE_ID","GH_AW_EXPR_76DF9333","GH_AW_EXPR_77C1A4D2","GH_AW_EXPR_7C248226","GH_AW_EXPR_C19C384F","GH_AW_GITHUB_ACTOR","GH_AW_GITHUB_REPOSITORY","GH_AW_GITHUB_RUN_ID","GH_AW_GITHUB_WORKSPACE","GH_AW_MCP_CLI_SERVERS_LIST","GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED","GH_AW_PROMPT","GH_AW_SKILL_DIR","GH_AW_SKILL_EXT","GH_AW_SUB_AGENT_DIR","GH_AW_SUB_AGENT_EXT","GITHUB_ACTION","GITHUB_ACTOR","GITHUB_API_URL","GITHUB_EVENT_NAME","GITHUB_EVENT_PATH","GITHUB_GRAPHQL_URL","GITHUB_JOB","GITHUB_OUTPUT","GITHUB_REF","GITHUB_REPOSITORY","GITHUB_RUN_ATTEMPT","GITHUB_RUN_ID","GITHUB_RUN_NUMBER","GITHUB_SERVER_URL","GITHUB_SHA","GITHUB_STEP_SUMMARY","GITHUB_WORKFLOW","GITHUB_WORKSPACE","PATH","RUNNER_ARCH","RUNNER_OS","RUNNER_TEMP"]);
             for (const name of Object.keys(process.env)) {
               if (!promptEnvironment.has(name)) delete process.env[name];
             }
             global.core = core;
             global.context = context;
             const { main } = require(process.env.GH_AW_ACTIONS_DIR + '/interpolate_prompt.cjs');
-            await main({ authorExpressions: {"github.repository":"GH_AW_GITHUB_REPOSITORY"} });
+            await main({ authorExpressions: {"github.repository":"GH_AW_GITHUB_REPOSITORY","needs.pre_activation.outputs.activated":"GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED"} });
         env:
           GH_AW_ACTIONS_DIR: ${{ runner.temp }}/gh-aw/actions
           GH_AW_ENGINE_ID: claude
@@ -430,6 +474,7 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
           GH_AW_MCP_CLI_SERVERS_LIST: "- `safeoutputs` — run `safeoutputs --help` to see available tools"
+          GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: ${{ needs.pre_activation.outputs.activated }}
           GH_AW_OTLP_ENDPOINTS: ""
           GH_AW_OTLP_IF_MISSING: ""
           GH_AW_OTLP_LOGS_ENABLED: ""
@@ -449,7 +494,7 @@ jobs:
         with:
           github-token: no-authentication
           script: |
-            const promptEnvironment = new Set(["GH_AW_ACTIONS_DIR","GH_AW_EXPR_76DF9333","GH_AW_EXPR_77C1A4D2","GH_AW_EXPR_7C248226","GH_AW_EXPR_C19C384F","GH_AW_GITHUB_ACTOR","GH_AW_GITHUB_REPOSITORY","GH_AW_GITHUB_RUN_ID","GH_AW_GITHUB_WORKSPACE","GH_AW_MCP_CLI_SERVERS_LIST","GH_AW_PROMPT","GITHUB_ACTION","GITHUB_ACTOR","GITHUB_API_URL","GITHUB_EVENT_NAME","GITHUB_EVENT_PATH","GITHUB_GRAPHQL_URL","GITHUB_JOB","GITHUB_OUTPUT","GITHUB_REF","GITHUB_REPOSITORY","GITHUB_RUN_ATTEMPT","GITHUB_RUN_ID","GITHUB_RUN_NUMBER","GITHUB_SERVER_URL","GITHUB_SHA","GITHUB_STEP_SUMMARY","GITHUB_WORKFLOW","GITHUB_WORKSPACE","PATH","RUNNER_ARCH","RUNNER_OS","RUNNER_TEMP"]);
+            const promptEnvironment = new Set(["GH_AW_ACTIONS_DIR","GH_AW_EXPR_76DF9333","GH_AW_EXPR_77C1A4D2","GH_AW_EXPR_7C248226","GH_AW_EXPR_C19C384F","GH_AW_GITHUB_ACTOR","GH_AW_GITHUB_REPOSITORY","GH_AW_GITHUB_RUN_ID","GH_AW_GITHUB_WORKSPACE","GH_AW_MCP_CLI_SERVERS_LIST","GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED","GH_AW_PROMPT","GITHUB_ACTION","GITHUB_ACTOR","GITHUB_API_URL","GITHUB_EVENT_NAME","GITHUB_EVENT_PATH","GITHUB_GRAPHQL_URL","GITHUB_JOB","GITHUB_OUTPUT","GITHUB_REF","GITHUB_REPOSITORY","GITHUB_RUN_ATTEMPT","GITHUB_RUN_ID","GITHUB_RUN_NUMBER","GITHUB_SERVER_URL","GITHUB_SHA","GITHUB_STEP_SUMMARY","GITHUB_WORKFLOW","GITHUB_WORKSPACE","PATH","RUNNER_ARCH","RUNNER_OS","RUNNER_TEMP"]);
             for (const name of Object.keys(process.env)) {
               if (!promptEnvironment.has(name)) delete process.env[name];
             }
@@ -470,7 +515,8 @@ jobs:
                 GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
                 GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID,
                 GH_AW_GITHUB_WORKSPACE: process.env.GH_AW_GITHUB_WORKSPACE,
-                GH_AW_MCP_CLI_SERVERS_LIST: process.env.GH_AW_MCP_CLI_SERVERS_LIST
+                GH_AW_MCP_CLI_SERVERS_LIST: process.env.GH_AW_MCP_CLI_SERVERS_LIST,
+                GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED
               }
             });
         env:
@@ -484,6 +530,7 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
           GH_AW_MCP_CLI_SERVERS_LIST: "- `safeoutputs` — run `safeoutputs --help` to see available tools"
+          GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: ${{ needs.pre_activation.outputs.activated }}
           GH_AW_OTLP_ENDPOINTS: ""
           GH_AW_OTLP_IF_MISSING: ""
           GH_AW_OTLP_LOGS_ENABLED: ""
@@ -539,7 +586,7 @@ jobs:
         if: success() || failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: info
+          name: ${{ steps.artifact-prefix.outputs.prefix }}info
           path: /tmp/gh-aw/aw_info.json
           if-no-files-found: ignore
           retention-days: ${{ vars.GH_AW_DEFAULT_ARTIFACT_RETENTION_DAYS || '0' }}
@@ -551,7 +598,7 @@ jobs:
         if: success() || failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: activation
+          name: ${{ steps.artifact-prefix.outputs.prefix }}activation
           include-hidden-files: true
           path: |
             /tmp/gh-aw/aw_info.json
@@ -576,16 +623,17 @@ jobs:
     if: needs.activation.outputs.daily_ai_credits_exceeded != 'true'
     runs-on: ubuntu-latest
     # Permissions for the agent job (workflow permissions default to none).
-    # What shared/dependabot-fix.md needs; gh-aw requires the importing workflow to grant it.
     permissions:
       contents: read
       # Mints the GitHub OIDC token exchanged for a Claude token (engine.auth below).
       id-token: write
+      issues: read # Read issues and comments for workflow context.
       pull-requests: read # Read pull requests and review comments for workflow context.
-      security-events: read # Read code scanning results for workflow context.
+      # Lets GITHUB_TOKEN read Dependabot alerts.
+      security-events: read
     cache-mode: read
     concurrency:
-      group: "gh-aw-claude-${{ github.workflow }}"
+      group: "gh-aw-claude-dependabot-fix"
       queue: max
     timeout-minutes: 60
     env:
@@ -612,6 +660,7 @@ jobs:
       ai_credits_rate_limit_error: ${{ steps.parse-mcp-gateway.outputs.ai_credits_rate_limit_error || 'false' }}
       aic: ${{ steps.parse-token-usage.outputs.aic }}
       ambient_context: ${{ steps.parse-token-usage.outputs.ambient_context }}
+      artifact_prefix: ${{ needs.activation.outputs.artifact_prefix }}
       checkout_pr_invalidated: ${{ steps.checkout-pr.outputs.checkout_pr_invalidated || 'false' }}
       checkout_pr_success: ${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}
       has_patch: ${{ steps.collect_output.outputs.has_patch }}
@@ -642,7 +691,7 @@ jobs:
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
           parent-span-id: ${{ needs.activation.outputs.setup-parent-span-id || needs.activation.outputs.setup-span-id }}
         env:
-          GH_AW_SETUP_WORKFLOW_NAME: "Dependabot fix"
+          GH_AW_SETUP_WORKFLOW_NAME: "Fix open Dependabot alerts"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/dependabot-fix.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.317"
           GH_AW_INFO_AWF_VERSION: "v0.29.11"
@@ -684,7 +733,7 @@ jobs:
       - name: Download activation artifact
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: activation
+          name: ${{ needs.activation.outputs.artifact_prefix }}activation
           path: /tmp/gh-aw
       - name: Set up pnpm
         uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
@@ -698,7 +747,7 @@ jobs:
       - env:
           GH_TOKEN: ${{ github.token }}
         name: Collect open Dependabot alerts
-        run: "set -euo pipefail\n# The ignore patterns are matched against manifest paths, never expanded against the checkout.\nset -f\nout=/tmp/gh-aw/agent\nmkdir -p \"$out\"\ngh api \"repos/$GITHUB_REPOSITORY/dependabot/alerts?state=open&per_page=100\" --paginate \\\n  | jq -s 'add // []' > \"$out/all-alerts.json\"\n# Drop alerts on ignored manifests here rather than in the prompt, so the agent never sees them.\njq -r '.[].dependency.manifest_path' \"$out/all-alerts.json\" | sort -u | while read -r manifest; do\n  for pattern in $IGNORE_MANIFESTS; do\n    # Unquoted on purpose: $pattern is a shell pattern.\n    # shellcheck disable=SC2053\n    if [[ \"$manifest\" == $pattern ]]; then\n      echo \"$manifest\"\n      break\n    fi\n  done\ndone | jq -R . | jq -s . > \"$out/ignored-manifests.json\"\njq --slurpfile ignored \"$out/ignored-manifests.json\" '\n  [ .[] | select(.dependency.manifest_path as $m | $ignored[0] | index($m) | not) ]\n  | group_by(.dependency.package.name)\n  | map({\n      package: .[0].dependency.package.name,\n      ecosystem: .[0].dependency.package.ecosystem,\n      alerts: map({\n        number,\n        ghsa: .security_advisory.ghsa_id,\n        severity: .security_advisory.severity,\n        summary: .security_advisory.summary,\n        manifest: .dependency.manifest_path,\n        relationship: .dependency.relationship,\n        scope: .dependency.scope,\n        vulnerable_range: .security_vulnerability.vulnerable_version_range,\n        first_patched: .security_vulnerability.first_patched_version.identifier\n      })\n    })' \"$out/all-alerts.json\" > \"$out/dependabot-alerts.json\"\necho \"Open alerts: $(jq length \"$out/all-alerts.json\"), packages to consider: $(jq length \"$out/dependabot-alerts.json\"), ignored manifests: $(jq -c . \"$out/ignored-manifests.json\")\"\nrm \"$out/all-alerts.json\"\n"
+        run: "set -euo pipefail\nout=/tmp/gh-aw/agent\nmkdir -p \"$out\"\ngh api \"repos/$GITHUB_REPOSITORY/dependabot/alerts?state=open&per_page=100\" --paginate \\\n  | jq -s 'add // [] | group_by(.dependency.package.name) | map({\n      package: .[0].dependency.package.name,\n      ecosystem: .[0].dependency.package.ecosystem,\n      alerts: map({\n        number,\n        ghsa: .security_advisory.ghsa_id,\n        severity: .security_advisory.severity,\n        summary: .security_advisory.summary,\n        manifest: .dependency.manifest_path,\n        relationship: .dependency.relationship,\n        scope: .dependency.scope,\n        vulnerable_range: .security_vulnerability.vulnerable_version_range,\n        first_patched: .security_vulnerability.first_patched_version.identifier\n      })\n    })' > \"$out/dependabot-alerts.json\"\necho \"Packages with open alerts: $(jq length \"$out/dependabot-alerts.json\")\""
 
       - name: Configure Git credentials
         env:
@@ -1487,7 +1536,7 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: agent-output-fallback
+          name: ${{ needs.activation.outputs.artifact_prefix }}agent-output-fallback
           path: |
             /tmp/gh-aw/agent_output.json
             /tmp/gh-aw/safeoutputs.jsonl
@@ -1511,7 +1560,7 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: agent
+          name: ${{ needs.activation.outputs.artifact_prefix }}agent
           path: |
             /tmp/gh-aw/aw-prompts/prompt.txt
             /tmp/gh-aw/agent_execution.json
@@ -1570,9 +1619,9 @@ jobs:
       cancel-in-progress: false
       queue: max
     env:
-      GH_AW_JOB_DISPLAY_NAMES: "{\"activation\":\"activation\",\"agent\":\"agent\",\"conclusion\":\"conclusion\",\"detection\":\"detection\",\"safe_outputs\":\"safe_outputs\"}"
+      GH_AW_JOB_DISPLAY_NAMES: "{\"activation\":\"activation\",\"agent\":\"agent\",\"conclusion\":\"conclusion\",\"detection\":\"detection\",\"pre_activation\":\"pre_activation\",\"safe_outputs\":\"safe_outputs\"}"
       GH_AW_JOB_RESULTS: "{\"activation\":{\"result\":\"${{ needs.activation.result }}\"},\"agent\":{\"result\":\"${{ needs.agent.result }}\"},\"detection\":{\"result\":\"${{ needs.detection.result }}\"},\"safe_outputs\":{\"result\":\"${{ needs.safe_outputs.result }}\"}}"
-      GH_AW_JOB_TIMING_ELIGIBLE: "{\"activation\":true,\"agent\":true,\"conclusion\":true,\"detection\":true,\"safe_outputs\":true}"
+      GH_AW_JOB_TIMING_ELIGIBLE: "{\"activation\":true,\"agent\":true,\"conclusion\":true,\"detection\":true,\"pre_activation\":true,\"safe_outputs\":true}"
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
     outputs:
       incomplete_count: ${{ steps.report_incomplete.outputs.incomplete_count }}
@@ -1590,12 +1639,29 @@ jobs:
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
           parent-span-id: ${{ needs.activation.outputs.setup-parent-span-id || needs.activation.outputs.setup-span-id }}
         env:
-          GH_AW_SETUP_WORKFLOW_NAME: "Dependabot fix"
+          GH_AW_SETUP_WORKFLOW_NAME: "Fix open Dependabot alerts"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/dependabot-fix.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.317"
           GH_AW_INFO_AWF_VERSION: "v0.29.11"
           GH_AW_INFO_ENGINE_ID: "claude"
           GH_AW_SETUP_AW_CONTEXT: ${{ inputs.aw_context }}
+      - name: Derive GitHub App owner
+        id: safe-outputs-app-token-owner
+        env:
+          GH_AW_TARGET_REPOSITORY: ${{ needs.activation.outputs.target_repo || github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "[gh-aw] Deriving GitHub App owner from GH_AW_TARGET_REPOSITORY"
+          repo="${GH_AW_TARGET_REPOSITORY%.wiki}"
+          echo "[gh-aw] Normalized repository candidate: $repo"
+          owner="${repo%%/*}"
+          if [[ -z "$repo" || -z "$owner" || "$owner" == "$repo" ]]; then
+            echo "[gh-aw] Unable to derive GitHub App owner from repository: $GH_AW_TARGET_REPOSITORY" >&2
+            exit 1
+          fi
+          echo "[gh-aw] Derived GitHub App owner: $owner"
+          echo "owner=$owner" >> "$GITHUB_OUTPUT"
       - name: Generate GitHub App token
         id: safe-outputs-app-token
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
@@ -1603,8 +1669,8 @@ jobs:
           client-id: ${{ secrets.RENOVATE_APP_CLIENT_ID }}
           private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
           skip-token-revoke: false
-          owner: ${{ github.repository_owner }}
-          repositories: ${{ github.event.repository.name }}
+          owner: ${{ steps.safe-outputs-app-token-owner.outputs.owner }}
+          repositories: ${{ needs.activation.outputs.target_repo_name || github.event.repository.name }}
           github-api-url: ${{ github.api_url }}
           permission-actions: read
           permission-checks: read
@@ -1616,7 +1682,7 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          pattern: "{agent,agent-output-fallback}"
+          pattern: "{${{ needs.activation.outputs.artifact_prefix }}agent,${{ needs.activation.outputs.artifact_prefix }}agent-output-fallback}"
           merge-multiple: true
           path: /tmp/gh-aw/
       - name: Setup agent output environment variable
@@ -1633,7 +1699,7 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: info
+          name: ${{ needs.activation.outputs.artifact_prefix }}info
           path: /tmp/gh-aw/
       - name: Warn if threat detection produced no verdict
         if: always() && needs.detection.result != 'skipped' && (needs.detection.outputs.detection_reason == 'agent_failure' || needs.detection.outputs.detection_reason == 'parse_error' || needs.detection.outputs.detection_conclusion == '')
@@ -1643,7 +1709,7 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: detection
+          name: ${{ needs.activation.outputs.artifact_prefix }}detection
           path: /tmp/gh-aw/threat-detection/
       - name: Download Safe Outputs Items Manifest
         id: download-safe-outputs-manifest
@@ -1651,7 +1717,7 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          pattern: safe-outputs-items
+          pattern: ${{ needs.activation.outputs.artifact_prefix }}safe-outputs-items
           merge-multiple: true
           path: /tmp/gh-aw/
       - name: Process no-op messages
@@ -1660,7 +1726,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: "2"
-          GH_AW_WORKFLOW_NAME: "Dependabot fix"
+          GH_AW_WORKFLOW_NAME: "Fix open Dependabot alerts"
           GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/dependabot-fix.md"
           GH_AW_ENGINE_ID: "claude"
           GH_AW_ENGINE_MODEL: "claude-opus-5-5"
@@ -1685,7 +1751,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Dependabot fix"
+          GH_AW_WORKFLOW_NAME: "Fix open Dependabot alerts"
           GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/dependabot-fix.md"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.outputs.detection_conclusion }}
@@ -1706,7 +1772,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_MISSING_TOOL_CREATE_ISSUE: "true"
-          GH_AW_WORKFLOW_NAME: "Dependabot fix"
+          GH_AW_WORKFLOW_NAME: "Fix open Dependabot alerts"
           GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/dependabot-fix.md"
           GH_AW_ENGINE_ID: "claude"
           GH_AW_ENGINE_MODEL: "claude-opus-5-5"
@@ -1725,7 +1791,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_REPORT_INCOMPLETE_CREATE_ISSUE: "true"
-          GH_AW_WORKFLOW_NAME: "Dependabot fix"
+          GH_AW_WORKFLOW_NAME: "Fix open Dependabot alerts"
           GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/dependabot-fix.md"
           GH_AW_ENGINE_ID: "claude"
           GH_AW_ENGINE_MODEL: "claude-opus-5-5"
@@ -1744,7 +1810,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Dependabot fix"
+          GH_AW_WORKFLOW_NAME: "Fix open Dependabot alerts"
           GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/dependabot-fix.md"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
@@ -1808,7 +1874,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Dependabot fix"
+          GH_AW_WORKFLOW_NAME: "Fix open Dependabot alerts"
           GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/dependabot-fix.md"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_REPORT_FAILED_JOBS: "true"
@@ -1856,7 +1922,7 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: usage
+          name: ${{ needs.activation.outputs.artifact_prefix }}usage
           path: |
             /tmp/gh-aw/usage/aw_session.jsonl
             /tmp/gh-aw/usage/aw_info.json
@@ -1895,7 +1961,7 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: usage
+          name: ${{ needs.activation.outputs.artifact_prefix }}usage
           path: |
             /tmp/gh-aw/usage/aw_session.jsonl
             /tmp/gh-aw/usage/aw_info.json
@@ -1958,7 +2024,7 @@ jobs:
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
           parent-span-id: ${{ needs.activation.outputs.setup-parent-span-id || needs.activation.outputs.setup-span-id }}
         env:
-          GH_AW_SETUP_WORKFLOW_NAME: "Dependabot fix"
+          GH_AW_SETUP_WORKFLOW_NAME: "Fix open Dependabot alerts"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/dependabot-fix.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.317"
           GH_AW_INFO_AWF_VERSION: "v0.29.11"
@@ -1968,14 +2034,14 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: activation
+          name: ${{ needs.activation.outputs.artifact_prefix }}activation
           path: /tmp/gh-aw
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          pattern: "{agent,agent-output-fallback}"
+          pattern: "{${{ needs.agent.outputs.artifact_prefix }}agent,${{ needs.agent.outputs.artifact_prefix }}agent-output-fallback}"
           merge-multiple: true
           path: /tmp/gh-aw/
       - name: Setup agent output environment variable
@@ -2039,8 +2105,8 @@ jobs:
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          WORKFLOW_NAME: "Dependabot fix"
-          WORKFLOW_DESCRIPTION: "Fix open Dependabot security alerts in mui-public with one PR per package."
+          WORKFLOW_NAME: "Fix open Dependabot alerts"
+          WORKFLOW_DESCRIPTION: "Fix open Dependabot security alerts with one PR per package."
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
           GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
           GH_AW_DETECTION_SKIP_PROMPT_SUMMARY: "true"
@@ -2115,8 +2181,8 @@ jobs:
           MCP_TOOL_TIMEOUT: 60000
           RUNNER_TEMP: ${{ runner.temp }}
           TRACEPARENT: ${{ env.GITHUB_AW_OTEL_TRACE_ID != '' && env.GITHUB_AW_OTEL_PARENT_SPAN_ID != '' && format('00-{0}-{1}-01', env.GITHUB_AW_OTEL_TRACE_ID, env.GITHUB_AW_OTEL_PARENT_SPAN_ID) || '' }}
-          WORKFLOW_NAME: "Dependabot fix"
-          WORKFLOW_DESCRIPTION: "Fix open Dependabot security alerts in mui-public with one PR per package."
+          WORKFLOW_NAME: "Fix open Dependabot alerts"
+          WORKFLOW_DESCRIPTION: "Fix open Dependabot security alerts with one PR per package."
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
           GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         run: |
@@ -2242,7 +2308,7 @@ jobs:
         if: always() && steps.detection_guard.outputs.run_detection == 'true' && steps.redact_detection_logs.outcome == 'success' && steps.redact_detection_artifacts.outcome == 'success'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: detection
+          name: ${{ needs.agent.outputs.artifact_prefix }}detection
           path: |
             /tmp/gh-aw/threat-detection/detection_result.json
             /tmp/gh-aw/threat-detection/execution.json
@@ -2268,10 +2334,50 @@ jobs:
         if: always() && steps.detection_guard.outputs.run_detection == 'false'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: detection
+          name: ${{ needs.agent.outputs.artifact_prefix }}detection
           path: /tmp/gh-aw/threat-detection/execution.json
           if-no-files-found: ignore
           retention-days: ${{ vars.GH_AW_DEFAULT_ARTIFACT_RETENTION_DAYS || '0' }}
+
+  pre_activation:
+    name: pre_activation
+    runs-on: ubuntu-slim
+    env:
+      GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
+    outputs:
+      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
+      matched_command: ''
+      setup-parent-span-id: ${{ steps.setup.outputs.parent-span-id || steps.setup.outputs.span-id }}
+      setup-span-id: ${{ steps.setup.outputs.span-id }}
+      setup-trace-id: ${{ steps.setup.outputs.trace-id }}
+    steps:
+      - name: Setup Scripts
+        id: setup
+        uses: github/gh-aw-actions/setup@53d0749e19424a918acd82b4d140264ce48f2f14 # v1.2.2
+        with:
+          destination: ${{ runner.temp }}/gh-aw/actions
+          job-name: ${{ github.job }}
+        env:
+          GH_AW_SETUP_WORKFLOW_NAME: "Fix open Dependabot alerts"
+          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/dependabot-fix.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "2.1.317"
+          GH_AW_INFO_AWF_VERSION: "v0.29.11"
+          GH_AW_INFO_ENGINE_ID: "claude"
+          GH_AW_SETUP_AW_CONTEXT: ${{ inputs.aw_context }}
+      - name: Check team membership for workflow
+        id: check_membership
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          GH_AW_REQUIRED_ROLES: "admin,maintainer,write"
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const path = require('path');
+            const actionsDir = path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions');
+            const { setupGlobals } = require(path.join(actionsDir, 'setup_globals.cjs'));
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require(path.join(actionsDir, 'check_membership.cjs'));
+            await main();
 
   safe_outputs:
     name: safe_outputs
@@ -2305,7 +2411,7 @@ jobs:
       GH_AW_RUN_DETECTION: ${{ needs.detection.outputs.run_detection }}
       GH_AW_THREAT_DETECTION_AIC: ${{ needs.detection.outputs.aic }}
       GH_AW_WORKFLOW_ID: "dependabot-fix"
-      GH_AW_WORKFLOW_NAME: "Dependabot fix"
+      GH_AW_WORKFLOW_NAME: "Fix open Dependabot alerts"
       GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/dependabot-fix.md"
     outputs:
       activation_comment_links: ${{ steps.process_safe_outputs.outputs.activation_comment_links }}
@@ -2337,7 +2443,7 @@ jobs:
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
           parent-span-id: ${{ needs.activation.outputs.setup-parent-span-id || needs.activation.outputs.setup-span-id }}
         env:
-          GH_AW_SETUP_WORKFLOW_NAME: "Dependabot fix"
+          GH_AW_SETUP_WORKFLOW_NAME: "Fix open Dependabot alerts"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/dependabot-fix.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.317"
           GH_AW_INFO_AWF_VERSION: "v0.29.11"
@@ -2350,7 +2456,7 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          pattern: "{agent,agent-output-fallback}"
+          pattern: "{${{ needs.activation.outputs.artifact_prefix }}agent,${{ needs.activation.outputs.artifact_prefix }}agent-output-fallback}"
           merge-multiple: true
           path: /tmp/gh-aw/
       - name: Setup agent output environment variable
@@ -2366,8 +2472,25 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: agent
+          name: ${{ needs.activation.outputs.artifact_prefix }}agent
           path: /tmp/gh-aw/
+      - name: Derive GitHub App owner
+        id: safe-outputs-app-token-owner
+        env:
+          GH_AW_TARGET_REPOSITORY: ${{ needs.activation.outputs.target_repo || github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "[gh-aw] Deriving GitHub App owner from GH_AW_TARGET_REPOSITORY"
+          repo="${GH_AW_TARGET_REPOSITORY%.wiki}"
+          echo "[gh-aw] Normalized repository candidate: $repo"
+          owner="${repo%%/*}"
+          if [[ -z "$repo" || -z "$owner" || "$owner" == "$repo" ]]; then
+            echo "[gh-aw] Unable to derive GitHub App owner from repository: $GH_AW_TARGET_REPOSITORY" >&2
+            exit 1
+          fi
+          echo "[gh-aw] Derived GitHub App owner: $owner"
+          echo "owner=$owner" >> "$GITHUB_OUTPUT"
       - name: Generate GitHub App token
         id: safe-outputs-app-token
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
@@ -2375,8 +2498,8 @@ jobs:
           client-id: ${{ secrets.RENOVATE_APP_CLIENT_ID }}
           private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
           skip-token-revoke: false
-          owner: ${{ github.repository_owner }}
-          repositories: ${{ github.event.repository.name }}
+          owner: ${{ steps.safe-outputs-app-token-owner.outputs.owner }}
+          repositories: ${{ needs.activation.outputs.target_repo_name || github.event.repository.name }}
           github-api-url: ${{ github.api_url }}
           permission-contents: write
           permission-issues: write
@@ -2431,7 +2554,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: safe-outputs-items
+          name: ${{ needs.activation.outputs.artifact_prefix }}safe-outputs-items
           path: |
             /tmp/gh-aw/safe-output-items.jsonl
             /tmp/gh-aw/safe-output-outcomes.jsonl
