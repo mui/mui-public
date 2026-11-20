@@ -107,6 +107,9 @@ safe-outputs:
     title-prefix: '[security] '
     labels: [dependencies, security]
     draft: true
+    # MUI repositories only allow new branches under listed prefixes; their "Disallow new branches"
+    # rulesets exempt this one.
+    branch-prefix: code-infra-auditor/
     # Major-version PRs may adapt source code, so PRs can touch any file except gh-aw's protected
     # set (CI configuration, agent instructions), which is blocked. Package manifests are in that
     # set too, but changing them is this workflow's job.
