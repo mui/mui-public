@@ -21,7 +21,7 @@
     "./cli": "./src/cli/index.ts"
   },
   "scripts": {
-    "build": "code-infra build --flat --tsgo --bundle esm",
+    "build": "code-infra build-new --bundle esm",
     "typescript": "tsc -noEmit"
   },
   "dependencies": {
