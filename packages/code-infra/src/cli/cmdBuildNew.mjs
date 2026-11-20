@@ -12,6 +12,8 @@ import { getVersionEnvVariables } from '../utils/babel.mjs';
 import { babelPlugin } from '../utils/babelPlugin.mjs';
 import { cjsSourcesPlugin } from '../utils/cjsSourcesPlugin.mjs';
 import { dtsExportsPlugin } from '../utils/dtsExportsPlugin.mjs';
+import { dtsNamespacesPlugin } from '../utils/dtsNamespacesPlugin.mjs';
+import { jsNamespacesPlugin } from '../utils/jsNamespacesPlugin.mjs';
 import { fileUrlEntriesPlugin } from '../utils/fileUrlEntriesPlugin.mjs';
 import { getPublishedPkgJson } from '../utils/getPublishedPkgJson.mjs';
 import { readPnpmConfig } from '../utils/pnpm.mjs';
@@ -370,6 +372,8 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
           ),
         fileUrlEntriesPlugin(),
         babelPlugin(babelConfigFile),
+        // https://github.com/rolldown/rolldown/issues/6669
+        jsNamespacesPlugin(),
         babelRuntimePlugin(babelRuntime),
       ],
       // tsdown leaves `plugins` out of its CJS declaration pass; `inputOptions` reaches every pass.
@@ -377,7 +381,12 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         ...options,
         // tsdown otherwise takes `jsx` from the package's tsconfig, which may preserve JSX.
         transform: { ...options.transform, jsx: { runtime: 'automatic' } },
-        plugins: [dtsExportsPlugin(), options.plugins],
+        plugins: [
+          dtsExportsPlugin(),
+          // https://github.com/sxzz/rolldown-plugin-dts/issues/300
+          dtsNamespacesPlugin(),
+          options.plugins,
+        ],
         external: [PACKAGE_IMPORTS, OXC_SHARED_HELPERS],
       }),
       outExtensions: ({ format }) => ({

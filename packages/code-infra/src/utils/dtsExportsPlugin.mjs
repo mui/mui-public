@@ -1,7 +1,7 @@
 import { RolldownMagicString } from 'rolldown';
 import { parse } from 'rolldown/utils';
 
-const DTS_FILES = /\.d\.[cm]?ts$/;
+import { DTS_FILES } from './rolldownOutput.mjs';
 
 /** @typedef {import('rolldown/utils').ParseResult['program']['body']} Body */
 
