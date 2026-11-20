@@ -1,0 +1,27 @@
+name: Dependabot fix
+
+# Runs the reusable Dependabot fix workflow against this repo: an agent works through the open
+# Dependabot alerts and opens a draft PR per package, plus an issue for alerts that need a decision.
+# Runs daily, and can be dispatched by hand. This repo has the four ANTHROPIC_* variables, the
+# Code Infra - Auditor App installed, and its credentials in the master-only `code-infra-auditor`
+# environment.
+
+on:
+  schedule:
+    - cron: '17 5 * * *' # daily 05:17 UTC
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  dependabot-fix:
+    # Maximum grant required by the reusable workflow; its agent job only gets read access.
+    permissions:
+      actions: read # workflow context (activation, conclusion jobs)
+      checks: read # workflow context (conclusion job)
+      contents: write # push the fix branches (safe-outputs job)
+      id-token: write # Anthropic WIF (agent, detection jobs)
+      issues: write # report issue (safe-outputs job)
+      pull-requests: write # open the draft PRs (safe-outputs job)
+      security-events: read # read the Dependabot alerts (agent job)
+    uses: ./.github/workflows/dependabot-fix-workflow.lock.yml

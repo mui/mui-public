@@ -1,10 +1,8 @@
 ---
 description: Fix open Dependabot security alerts with one PR per package.
+# Reusable only: repositories, mui-public included (dependabot-fix.yml), call the compiled
+# dependabot-fix-workflow.lock.yml on their own schedule, and it runs against the calling repository.
 on:
-  schedule: daily
-  workflow_dispatch:
-  # Other MUI repositories call the compiled dependabot-fix.lock.yml with `secrets: inherit`;
-  # it runs against the caller's repository.
   workflow_call:
 permissions:
   contents: read
