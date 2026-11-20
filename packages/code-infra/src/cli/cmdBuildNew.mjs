@@ -14,6 +14,7 @@ import { dtsExportsPlugin } from '../utils/dtsExportsPlugin.mjs';
 import { fileUrlEntriesPlugin } from '../utils/fileUrlEntriesPlugin.mjs';
 import { getPublishedPkgJson } from '../utils/getPublishedPkgJson.mjs';
 import { readPnpmConfig } from '../utils/pnpm.mjs';
+import { getTsconfig } from '../utils/typescript.mjs';
 
 /**
  * @typedef {Object} Args
@@ -99,20 +100,6 @@ async function getBabelConfigFile(cwd) {
     }
   }
   return path.join(import.meta.dirname, '../babel-config.mjs');
-}
-
-/**
- * @param {string} cwd
- * @returns {Promise<string>} The `tsconfig.build.json` to emit declarations with.
- */
-async function getTsconfig(cwd) {
-  const tsconfig = path.join(cwd, 'tsconfig.build.json');
-  if (!(await exists(tsconfig))) {
-    throw new Error(
-      `Unable to find a tsconfig to build types. Add 'tsconfig.build.json' to '${cwd}'.`,
-    );
-  }
-  return tsconfig;
 }
 
 /**
