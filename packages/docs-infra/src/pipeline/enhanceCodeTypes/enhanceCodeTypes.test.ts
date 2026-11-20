@@ -221,6 +221,26 @@ describe('enhanceCodeTypes', () => {
       expect(output).not.toContain('https://example.com/theme');
     });
 
+    it.each([
+      [
+        'destructuring',
+        // const { Theme } = themes; let value: Theme;
+        '<span class="pl-k">const</span> { <span class="pl-c1">Theme</span> } <span class="pl-k">=</span> themes; <span class="pl-k">let</span> <span class="pl-c1">value</span><span class="pl-k">:</span> <span class="pl-en">Theme</span>;',
+      ],
+      [
+        'a second declarator',
+        // const a = 1, Theme = 2; let value: Theme;
+        '<span class="pl-k">const</span> <span class="pl-c1">a</span> <span class="pl-k">=</span> <span class="pl-c1">1</span>, <span class="pl-c1">Theme</span> <span class="pl-k">=</span> <span class="pl-c1">2</span>; <span class="pl-k">let</span> <span class="pl-c1">value</span><span class="pl-k">:</span> <span class="pl-en">Theme</span>;',
+      ],
+    ])('does not link a name a variable declares through %s, or its uses', async (_form, code) => {
+      const output = await processWithExternalLinks(
+        `<code class="language-tsx">${code}</code>`,
+        {},
+      );
+
+      expect(output).not.toContain('https://example.com/theme');
+    });
+
     it('does not link uses that come before the declaration', async () => {
       // function apply(value: Theme) {}
       // interface Theme {}
