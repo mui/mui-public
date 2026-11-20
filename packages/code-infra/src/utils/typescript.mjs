@@ -55,6 +55,27 @@ export async function findTscPair(cwd) {
 }
 
 /**
+ * @param {string} cwd
+ * @returns {Promise<string>} The `tsconfig.build.json` to emit declarations with.
+ */
+export async function getTsconfig(cwd) {
+  const tsconfig = path.join(cwd, 'tsconfig.build.json');
+
+  const exists = await fs.stat(tsconfig).then(
+    (file) => file.isFile(),
+    () => false,
+  );
+
+  if (!exists) {
+    throw new Error(
+      `Unable to find a tsconfig to build types. Add 'tsconfig.build.json' to '${cwd}'.`,
+    );
+  }
+
+  return tsconfig;
+}
+
+/**
  * Emits TypeScript declaration files.
  * @param {string} tsconfig - The path to the tsconfig.json file.
  * @param {string} outDir - The output directory for the declaration files.
@@ -233,19 +254,8 @@ export async function createTypes({
 
   try {
     await copyDeclarations(srcDir, tmpDir, { verbose });
-    const tsconfigPath = path.join(cwd, 'tsconfig.build.json');
-    const tsconfigExists = await fs.stat(tsconfigPath).then(
-      (file) => file.isFile(),
-      () => false,
-    );
     if (!skipTsc) {
-      if (!tsconfigExists) {
-        throw new Error(
-          'Unable to find a tsconfig to build this project. ' +
-            `The package root needs to contain a 'tsconfig.build.json'. ` +
-            `The package root is '${cwd}'`,
-        );
-      }
+      const tsconfigPath = await getTsconfig(cwd);
       console.log(`Building types for ${tsconfigPath} in ${tmpDir}`);
       await emitDeclarations(tsconfigPath, tmpDir, { useTsgo });
     }

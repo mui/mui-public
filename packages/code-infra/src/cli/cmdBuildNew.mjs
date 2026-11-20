@@ -1,21 +1,26 @@
 import getTargets from '@babel/helper-compilation-targets';
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import * as fs from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import * as path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { globby } from 'globby';
 import * as semver from 'semver';
 
 import { getOutExtension, getPackageSources, validatePkgJson } from '../utils/build.mjs';
 import { getVersionEnvVariables } from '../utils/babel.mjs';
 import { babelPlugin } from '../utils/babelPlugin.mjs';
+import { dtsExportsPlugin } from '../utils/dtsExportsPlugin.mjs';
 import { fileUrlEntriesPlugin } from '../utils/fileUrlEntriesPlugin.mjs';
 import { getPublishedPkgJson } from '../utils/getPublishedPkgJson.mjs';
 import { readPnpmConfig } from '../utils/pnpm.mjs';
+import { getTsconfig } from '../utils/typescript.mjs';
 
 /**
  * @typedef {Object} Args
  * @property {import('../utils/build.mjs').BundleType[]} bundle
  * @property {string[]} copy
+ * @property {boolean} buildTypes
  * @property {boolean} enableReactCompiler
  */
 
@@ -28,6 +33,8 @@ const MODULE_LEVEL_DIRECTIVE = 'MODULE_LEVEL_DIRECTIVE';
 const FORMATS = { esm: 'es', cjs: 'cjs' };
 
 const BABEL_CONFIG_FILES = ['babel.config.js', 'babel.config.mjs'];
+
+const TYPESCRIPT = 'typescript';
 
 const BABEL_RUNTIME = '@babel/runtime';
 
@@ -93,6 +100,41 @@ async function getBabelConfigFile(cwd) {
     }
   }
   return path.join(import.meta.dirname, '../babel-config.mjs');
+}
+
+/**
+ * @param {string} cwd
+ * @returns {Promise<string>} The native binary of the workspace's TypeScript 7, which
+ * rolldown-plugin-dts runs as `tsgo`.
+ */
+async function getTsc(cwd) {
+  const workspaceDir = await findWorkspaceDir(cwd);
+  if (!workspaceDir) {
+    throw new Error('Workspace directory not found');
+  }
+  const manifest = path.join(workspaceDir, 'package.json');
+  const { dependencies, devDependencies } = JSON.parse(await fs.readFile(manifest, 'utf8'));
+  const require = createRequire(manifest);
+  const candidates = await Promise.all(
+    Object.entries({ ...dependencies, ...devDependencies })
+      .filter(([name, spec]) => name === TYPESCRIPT || spec.startsWith(`npm:${TYPESCRIPT}@`))
+      .map(async ([name]) => {
+        const file = require.resolve(`${name}/package.json`);
+        const { version } = JSON.parse(await fs.readFile(file, 'utf8'));
+        return { dir: path.dirname(file), version };
+      }),
+  );
+  const native = candidates.find(({ version }) => semver.major(version) >= 7);
+  if (!native) {
+    throw new Error(
+      'Install TypeScript 7 at the workspace root, as "typescript@^7" or under an alias such as "@typescript/native", to build types.',
+    );
+  }
+  // `node_modules/.bin/tsc` is a shell script on Windows, which rolldown-plugin-dts can't spawn.
+  const { default: getExePath } = await import(
+    pathToFileURL(path.join(native.dir, 'lib/getExePath.js')).href
+  );
+  return getExePath();
 }
 
 /**
@@ -253,6 +295,11 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         default: /** @type {string[]} */ ([]),
         description: 'Files to copy to the output directory, as `glob` or `glob:target`.',
       })
+      .option('buildTypes', {
+        type: 'boolean',
+        default: true,
+        description: 'Whether to write declarations with the workspace TypeScript 7 `tsc`.',
+      })
       .option('enableReactCompiler', {
         type: 'boolean',
         default: false,
@@ -267,13 +314,16 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     const packageType = packageJson.type === 'module' ? 'module' : 'commonjs';
     const bundles = [...new Set(args.bundle)];
 
-    const [entry, copy, babelRuntime, babelConfigFile, { build }] = await Promise.all([
-      getEntry(packageJson, cwd),
-      getCopy(cwd, outDir, args.copy),
-      getBabelRuntime(packageJson),
-      getBabelConfigFile(cwd),
-      import('tsdown'),
-    ]);
+    const [entry, copy, babelRuntime, babelConfigFile, tsconfig, tsc, { build }] =
+      await Promise.all([
+        getEntry(packageJson, cwd),
+        getCopy(cwd, outDir, args.copy),
+        getBabelRuntime(packageJson),
+        getBabelConfigFile(cwd),
+        args.buildTypes ? getTsconfig(cwd) : undefined,
+        args.buildTypes ? getTsc(cwd) : undefined,
+        import('tsdown'),
+      ]);
 
     const { MUI_PRERELEASE: prerelease, ...versionEnv } = getVersionEnvVariables(
       packageJson.version,
@@ -306,15 +356,18 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         babelPlugin(babelConfigFile),
         babelRuntimePlugin(babelRuntime),
       ],
+      // tsdown leaves `plugins` out of its CJS declaration pass; `inputOptions` reaches every pass.
+      inputOptions: (options) => ({
+        ...options,
+        // tsdown otherwise takes `jsx` from the package's tsconfig, which may preserve JSX.
+        transform: { ...options.transform, jsx: { runtime: 'automatic' } },
+        plugins: [dtsExportsPlugin(), options.plugins],
+        external: [PACKAGE_IMPORTS, OXC_SHARED_HELPERS],
+      }),
       outExtensions: ({ format }) => ({
         js: getOutExtension(format === 'es' ? 'esm' : 'cjs', { packageType }),
       }),
       deps: { neverBundle: true },
-      inputOptions: {
-        external: [PACKAGE_IMPORTS, OXC_SHARED_HELPERS],
-        // tsdown otherwise takes `jsx` from the package's tsconfig, which may preserve JSX.
-        transform: { jsx: { runtime: 'automatic' } },
-      },
       outputOptions: {
         exports: 'named',
         // Returning the id itself would print relative externals unresolved; `undefined` keeps
@@ -326,7 +379,12 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
               : undefined
         ),
       },
-      dts: false,
+      tsconfig,
+      // Keeps CJS declarations on `export default`, matching the named-exports JS interop.
+      cjsDefault: false,
+      // TODO: tsdown >=0.23.5 (rolldown-plugin-dts >=0.29) runs TS7 through its API, which needs
+      // TypeScript 7.1. Once it's stable, bump and replace `tsgo.path` with `tsgo.moduleUrl`.
+      dts: args.buildTypes ? { generator: 'tsgo', tsgo: { path: tsc }, sourcemap: false } : false,
       exports: false,
       report: false,
       copy,
@@ -340,7 +398,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       bundles,
       outputDir: outDir,
       cwd,
-      addTypes: false,
+      addTypes: args.buildTypes,
       packageType,
     });
     await fs.writeFile(
