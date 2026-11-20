@@ -73,6 +73,11 @@ steps:
       echo "Open alerts: $(jq length "$out/all-alerts.json"), packages to consider: $(jq length "$out/dependabot-alerts.json"), ignored manifests: $(jq -c . "$out/ignored-manifests.json")"
       rm "$out/all-alerts.json"
 safe-outputs:
+  # PRs opened with GITHUB_TOKEN don't trigger GitHub Actions, and MUI repositories require Actions
+  # checks. The code-infra Renovate App already opens dependency PRs in them.
+  github-app:
+    client-id: ${{ secrets.RENOVATE_APP_CLIENT_ID }}
+    private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
   create-pull-request:
     max: 3
     title-prefix: '[security] '
