@@ -71,6 +71,26 @@ steps:
             })
           })' > "$out/dependabot-alerts.json"
       echo "Packages with open alerts: $(jq length "$out/dependabot-alerts.json")"
+  # This workflow's own open PRs: the agent's gh calls only see content from trusted authors, which
+  # excludes the App that opens them. Matched by title and label, which the safe outputs below set.
+  - name: Collect this workflow's open PRs
+    env:
+      GH_TOKEN: ${{ github.token }}
+    run: |
+      set -euo pipefail
+      gh pr list --repo "$GITHUB_REPOSITORY" --state open --label dependencies --label security \
+          --search 'in:title "[security]"' --limit 100 --json number,title,url,body \
+        | jq '
+            map(select(.title | startswith("[security] ")) | {
+              number,
+              url,
+              title,
+              packages: [.body // "" | splits("\n") | capture("^### (?<p>\\S+)\\s*$").p] | unique
+            })
+            | { batch_open: any(.[]; .title == "[security] Fix Dependabot alerts"), pull_requests: . }
+          ' > /tmp/gh-aw/agent/open-fix-prs.json
+      jq -r '"Open fix PRs: \(.pull_requests | length), batch open: \(.batch_open)"' \
+        /tmp/gh-aw/agent/open-fix-prs.json
 safe-outputs:
   # The jobs that publish the outputs use the Code Infra - Auditor App: PRs opened with GITHUB_TOKEN
   # don't trigger GitHub Actions, and MUI repositories require Actions checks. Its credentials are
@@ -107,7 +127,9 @@ safe-outputs:
 Follow the `mui-dependabot-fix` skill for this repository (`${{ github.repository }}`).
 
 The open alerts are in `/tmp/gh-aw/agent/dependabot-alerts.json`, grouped by package. Dismissed
-alerts aren't included. Dependencies are installed.
+alerts aren't included. This workflow's own open pull requests, with the packages each one fixes
+and whether a batch is open, are in `/tmp/gh-aw/agent/open-fix-prs.json`; use it for the skill's
+in-flight check. Dependencies are installed.
 
 Open pull requests with `create_pull_request`, each from its own branch off the default branch:
 

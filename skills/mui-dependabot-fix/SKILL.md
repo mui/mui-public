@@ -25,9 +25,11 @@ or shouldn't be fixed, say why instead of forcing a change.
 
 For each package, before changing anything:
 
-- **Already in flight:** look for an open PR that already bumps it: a Renovate or Dependabot PR
-  (`gh pr list --state open --search "<package>"`), or an earlier batch or major PR from this skill
-  (title prefix `[security]`; check its body for the package). Report the PR instead.
+- **Already in flight:** an open PR from this skill (title prefix `[security] `, labels
+  `dependencies` and `security`) already fixes it: its body has a `### <package>` section. Use the
+  caller's list of those PRs when it provides one, otherwise
+  `gh pr list --state open --label dependencies --label security --search 'in:title "[security]"'`.
+  Report the PR instead. Renovate and Dependabot PRs aren't tracked: they resolve on their own.
 - **Required version:** take the highest `first_patched_version` across the package's open alerts.
   No patched version means no fix exists; report it.
 - **Where it comes from:** `pnpm why -r <package>` lists every resolved version and the chain that
@@ -86,12 +88,12 @@ validation: if the new major needs source changes, report it rather than editing
 ## Report
 
 - **Batch PR:** titled `[security] Fix Dependabot alerts`, labeled `dependencies` and `security`. One
-  section per package: the alerts it closes (GHSA id, severity, manifest), the old and new resolved
-  versions, the option used and why the earlier options didn't work. End with the validation
-  actually run.
+  section per package, headed exactly `### <package>` (later runs read these headings to know what's
+  in flight): the alerts it closes (GHSA id, severity, manifest), the old and new resolved versions,
+  the option used and why the earlier options didn't work. End with the validation actually run.
 - **Major PR:** titled `[security] Bump <dependency> to v<major> for <package> advisories`, same
-  labels, same per-package section, plus the release notes' breaking changes that could affect this
-  repository.
+  labels, same `### <package>` section, plus the release notes' breaking changes that could affect
+  this repository.
 
 For every other package, one of:
 
