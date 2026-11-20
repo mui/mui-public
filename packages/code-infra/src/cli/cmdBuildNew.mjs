@@ -14,6 +14,7 @@ import { dtsExportsPlugin } from '../utils/dtsExportsPlugin.mjs';
 import { fileUrlEntriesPlugin } from '../utils/fileUrlEntriesPlugin.mjs';
 import { getPublishedPkgJson } from '../utils/getPublishedPkgJson.mjs';
 import { readPnpmConfig } from '../utils/pnpm.mjs';
+import { validateWithPublint } from '../utils/publint.mjs';
 import { getTsconfig } from '../utils/typescript.mjs';
 
 /**
@@ -406,5 +407,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       JSON.stringify(publishedPkgJson, null, 2),
       'utf-8',
     );
+
+    await validateWithPublint(outDir);
   },
 });
