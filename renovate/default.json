@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": "Renovate configuration for MUI repositories. On top of renovate/legacy.json, it groups all non-major updates of each package manager into one PR.",
+  "description": "Renovate configuration for MUI repositories. On top of renovate/legacy.json, it groups most non-major updates into one npm PR, one GitHub Actions PR, and one CI tooling PR.",
   "extends": ["github>mui/mui-public//renovate/legacy"],
   "vulnerabilityAlerts": {
     "description": "Keep security fixes on their own branch so they are never blocked behind an unrelated group PR.",
