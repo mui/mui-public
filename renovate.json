@@ -7,6 +7,11 @@
   },
   "packageRules": [
     {
+      "description": "gh-aw generates these lock files and pins their actions itself. Recompile with `gh aw compile` instead.",
+      "matchFileNames": [".github/workflows/*.lock.yml"],
+      "enabled": false
+    },
+    {
       "description": "This repository loads its own orb from master on purpose, so never pin it to a digest.",
       "matchDepNames": ["code-infra-orb"],
       "enabled": false
