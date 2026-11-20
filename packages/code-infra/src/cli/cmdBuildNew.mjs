@@ -7,7 +7,12 @@ import { pathToFileURL } from 'node:url';
 import { globby } from 'globby';
 import * as semver from 'semver';
 
-import { getOutExtension, getPackageSources, validatePkgJson } from '../utils/build.mjs';
+import {
+  getOutExtension,
+  getPackageSources,
+  validateEnginesNode,
+  validatePkgJson,
+} from '../utils/build.mjs';
 import { getVersionEnvVariables } from '../utils/babel.mjs';
 import { babelPlugin } from '../utils/babelPlugin.mjs';
 import { cjsSourcesPlugin } from '../utils/cjsSourcesPlugin.mjs';
@@ -27,6 +32,7 @@ import { getTsconfig } from '../utils/typescript.mjs';
  * @property {boolean} buildTypes
  * @property {boolean} enableReactCompiler
  * @property {boolean} cjsCopy
+ * @property {boolean} expand
  */
 
 const SOURCE_DIR = 'src';
@@ -187,6 +193,23 @@ function getBabelEnv(packageJson, { bundles, babelRuntime, reactCompiler }) {
 }
 
 /**
+ * @param {import('./packageJson').PackageJson} packageJson
+ * @returns {string | undefined} The package's license header.
+ */
+function getBanner(packageJson) {
+  if (!packageJson.license) {
+    return undefined;
+  }
+  return `/**
+ * ${packageJson.name} v${packageJson.version}
+ *
+ * @license ${packageJson.license}
+ * This source code is licensed under the ${packageJson.license} license found in the
+ * LICENSE file in the root directory of this source tree.
+ */`;
+}
+
+/**
  * Fails the build when the output imports Babel helpers the package doesn't depend on.
  * @param {string | undefined} babelRuntime
  * @returns {import('tsdown').Rolldown.Plugin}
@@ -317,11 +340,20 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         default: false,
         description:
           'Emit imported `.cjs` sources unchanged instead of compiling them, and build the local modules they require.',
+      })
+      .option('expand', {
+        type: 'boolean',
+        default: true,
+        deprecated:
+          'Patterns will always be expanded; this flag will be removed in a future release.',
+        description:
+          'Enumerate glob patterns in the package.json "exports"/"imports" into concrete entries. Use --no-expand to keep them as Node runtime subpath patterns.',
       }),
   async handler(args) {
     const cwd = process.cwd();
     const packageJson = JSON.parse(await fs.readFile(path.join(cwd, 'package.json'), 'utf8'));
     validatePkgJson(packageJson, { enableReactCompiler: args.enableReactCompiler });
+    validateEnginesNode(packageJson, cwd);
 
     const outDir = path.join(cwd, packageJson.publishConfig.directory);
     const packageType = packageJson.type === 'module' ? 'module' : 'commonjs';
@@ -404,6 +436,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
               : undefined
         ),
       },
+      banner: { js: getBanner(packageJson) },
       tsconfig,
       // Keeps CJS declarations on `export default`, matching the named-exports JS interop.
       cjsDefault: false,
@@ -424,6 +457,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       outputDir: outDir,
       cwd,
       addTypes: args.buildTypes,
+      expand: args.expand,
       packageType,
     });
     await fs.writeFile(

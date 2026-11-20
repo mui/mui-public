@@ -30,8 +30,12 @@ export async function getPublishedPkgJson({
   } = source;
 
   if (packageJson.publishConfig) {
-    const { directory, ...publishConfig } = packageJson.publishConfig;
+    const { directory, scripts: publishedScripts, ...publishConfig } = packageJson.publishConfig;
     packageJson.publishConfig = publishConfig;
+
+    if (publishedScripts) {
+      Object.assign(packageJson, { scripts: publishedScripts });
+    }
   }
 
   const resolvedPackageType = packageType || packageJson.type || 'commonjs';
