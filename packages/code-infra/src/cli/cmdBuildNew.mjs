@@ -5,6 +5,7 @@ import { globby } from 'globby';
 
 import { getOutExtension, getPackageSources, validatePkgJson } from '../utils/build.mjs';
 import { fileUrlEntriesPlugin } from '../utils/fileUrlEntriesPlugin.mjs';
+import { getPublishedPkgJson } from '../utils/getPublishedPkgJson.mjs';
 
 /**
  * @typedef {Object} Args
@@ -89,7 +90,7 @@ async function getCopy(cwd, outDir, globs) {
 
 export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
   command: 'build-new',
-  describe: 'Experimental tsdown build. Compiles JavaScript and copies files.',
+  describe: 'Experimental tsdown build. Compiles JavaScript, copies files and writes package.json.',
   builder: (yargs) =>
     yargs
       .option('bundle', {
@@ -112,6 +113,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
 
     const outDir = path.join(cwd, packageJson.publishConfig.directory);
     const packageType = packageJson.type === 'module' ? 'module' : 'commonjs';
+    const bundles = [...new Set(args.bundle)];
 
     const [entry, copy, { build }] = await Promise.all([
       getEntry(packageJson, cwd),
@@ -128,7 +130,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       root: SOURCE_DIR,
       outDir,
       clean: true,
-      format: [...new Set(args.bundle)].map((bundle) => FORMATS[bundle]),
+      format: bundles.map((bundle) => FORMATS[bundle]),
       outExtensions: ({ format }) => ({
         js: getOutExtension(format === 'es' ? 'esm' : 'cjs', { packageType }),
       }),
@@ -148,5 +150,19 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       // Unbundled output keeps each module's directives; the warning is about bundling.
       suppressWarnings: [MODULE_LEVEL_DIRECTIVE],
     });
+
+    const publishedPkgJson = await getPublishedPkgJson({
+      packageJson,
+      bundles,
+      outputDir: outDir,
+      cwd,
+      addTypes: false,
+      packageType,
+    });
+    await fs.writeFile(
+      path.join(outDir, 'package.json'),
+      JSON.stringify(publishedPkgJson, null, 2),
+      'utf-8',
+    );
   },
 });
