@@ -17,6 +17,7 @@ engine:
   auth:
     type: github-oidc
     provider: anthropic
+    audience: https://api.anthropic.com
     federation-rule-id: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID }}
     organization-id: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
     service-account-id: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
