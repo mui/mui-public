@@ -29,8 +29,11 @@ For each package, before changing anything:
   `### <package>` section. Use the caller's list of those PRs when it provides one, otherwise the
   open PRs by whoever publishes this skill's PRs (`gh pr list --state open --author <author>`).
   Report the PR instead.
-- **Required version:** take the highest `first_patched_version` across the package's open alerts.
-  No patched version means no fix exists; report it.
+- **Required version:** for each vulnerable version that resolves, the lowest release in the same
+  major that is outside every vulnerable range of the package's open alerts. Different chains can
+  resolve different majors; fix each within its own. Only when a major has no such release does
+  that fix need a new major. `pnpm view <package> versions` lists what's published. No patched
+  release at all means no fix exists; report it.
 - **Where it comes from:** `pnpm why -r <package>` lists every resolved version and the chain that
   pulls it in. Note which chains resolve a vulnerable version and whether the package is a direct
   dependency of any workspace.
