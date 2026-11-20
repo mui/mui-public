@@ -71,17 +71,17 @@ steps:
             })
           })' > "$out/dependabot-alerts.json"
       echo "Packages with open alerts: $(jq length "$out/dependabot-alerts.json")"
-  # This workflow's own open PRs: the agent's gh calls only see content from trusted authors, which
-  # excludes the App that opens them. Matched by title and label, which the safe outputs below set.
+  # This workflow's own open PRs, opened by the App configured in safe-outputs below: the agent's gh
+  # calls only see content from trusted authors, which excludes that App.
   - name: Collect this workflow's open PRs
     env:
       GH_TOKEN: ${{ github.token }}
     run: |
       set -euo pipefail
-      gh pr list --repo "$GITHUB_REPOSITORY" --state open --label dependencies --label security \
-          --search 'in:title "[security]"' --limit 100 --json number,title,url,body \
+      gh pr list --repo "$GITHUB_REPOSITORY" --state open --author app/code-infra-auditor \
+          --limit 100 --json number,title,url,body \
         | jq '
-            map(select(.title | startswith("[security] ")) | {
+            map({
               number,
               url,
               title,

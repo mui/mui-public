@@ -25,11 +25,10 @@ or shouldn't be fixed, say why instead of forcing a change.
 
 For each package, before changing anything:
 
-- **Already in flight:** an open PR from this skill (title prefix `[security] `, labels
-  `dependencies` and `security`) already fixes it: its body has a `### <package>` section. Use the
-  caller's list of those PRs when it provides one, otherwise
-  `gh pr list --state open --label dependencies --label security --search 'in:title "[security]"'`.
-  Report the PR instead. Renovate and Dependabot PRs aren't tracked: they resolve on their own.
+- **Already in flight:** an open PR from this skill already fixes it: its body has a
+  `### <package>` section. Use the caller's list of those PRs when it provides one, otherwise the
+  open PRs by whoever publishes this skill's PRs (`gh pr list --state open --author <author>`).
+  Report the PR instead.
 - **Required version:** take the highest `first_patched_version` across the package's open alerts.
   No patched version means no fix exists; report it.
 - **Where it comes from:** `pnpm why -r <package>` lists every resolved version and the chain that
