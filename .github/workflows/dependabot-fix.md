@@ -74,7 +74,7 @@ steps:
           })' > "$out/dependabot-alerts.json"
       echo "Packages with open alerts: $(jq length "$out/dependabot-alerts.json")"
 safe-outputs:
-  # The jobs that publish the outputs use the code-infra-auditor App: PRs opened with GITHUB_TOKEN
+  # The jobs that publish the outputs use the Code Infra - Code Auditor App: PRs opened with GITHUB_TOKEN
   # don't trigger GitHub Actions, and MUI repositories require Actions checks. Its credentials are
   # secrets of a `code-infra-auditor` environment in the repository the workflow runs against,
   # restricted to the default branch, so a workflow pushed to any other branch can't read them.
