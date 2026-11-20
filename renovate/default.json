@@ -1,319 +1,71 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": "Renovate configuration for MUI repositories.",
-  "extends": [
-    "github>mui/mui-public//renovate/base",
-    ":semanticCommitsDisabled",
-    ":pinDevDependencies",
-    "group:definitelyTyped",
-    "config:recommended",
-    "helpers:pinGitHubActionDigests",
-    "security:minimumReleaseAgeNpm"
-  ],
-  "automerge": false,
-  "commitMessageAction": "Bump",
-  "commitMessageExtra": "to {{newValue}}",
-  "commitMessageTopic": "{{depName}}",
-  "dependencyDashboard": true,
-  "rebaseWhen": "conflicted",
-  "labels": ["dependencies"],
-  "lockFileMaintenance": {
-    "enabled": true
-  },
-  "postUpdateOptions": ["pnpmDedupe"],
-  "prConcurrentLimit": 30,
-  "prHourlyLimit": 0,
-  "rangeStrategy": "bump",
-  "timezone": "UTC",
-  "internalChecksFilter": "strict",
-  "ignorePresets": [":ignoreModulesAndTests"],
-  "ignorePaths": ["**/node_modules/**", "**/examples/**", "**/__tests__/**", "**/__fixtures__/**"],
-  "customManagers": [
-    {
-      "description": "Custom manager for MUI public repository digests",
-      "customType": "regex",
-      "fileMatch": ["(^|\\/)?\\.circleci\\/.+\\.ya?ml$"],
-      "matchStrings": [
-        // For CircleCI config files
-        "https:\\\/\\\/raw\\.githubusercontent\\.com\\\/mui\\\/mui-public\\\/(?<currentDigest>.*?)\\\/.+"
-      ],
-      "currentValueTemplate": "master",
-      "depNameTemplate": "code-infra-orb",
-      "packageNameTemplate": "https://github.com/mui/mui-public",
-      "datasourceTemplate": "git-refs"
-    },
-    {
-      "description": "Custom manager for Playwright Docker image versions",
-      "customType": "regex",
-      "fileMatch": ["(^|\\\/)\\.circleci\\\/.+\\.ya?ml$"],
-      "matchStrings": [
-        // For Playwright Docker image versions
-        "playwright-img-version:\\s*'?(?<currentValue>[^'\\s]+)'?"
-      ],
-      "depNameTemplate": "code-infra-playwright",
-      "packageNameTemplate": "mcr.microsoft.com/playwright",
-      "datasourceTemplate": "docker"
-    },
-    {
-      "description": "Custom manager for Vale version pinned in package.json config.valeVersion",
-      "customType": "regex",
-      "fileMatch": ["(^|/)package\\.json$"],
-      "matchStrings": ["\"valeVersion\"\\s*:\\s*\"(?<currentValue>[^\"]+)\""],
-      "depNameTemplate": "vale-cli/vale",
-      "datasourceTemplate": "github-releases",
-      "extractVersionTemplate": "^v(?<version>.+)$"
-    },
-    {
-      "description": "Custom manager for Node.js version in netlify.toml NODE_VERSION",
-      "customType": "regex",
-      "fileMatch": ["(^|/)netlify\\.toml$"],
-      "matchStrings": ["NODE_VERSION\\s*=\\s*\"(?<currentValue>[^\"]+)\""],
-      "depNameTemplate": "node",
-      "datasourceTemplate": "node-version",
-      "versioningTemplate": "node"
-    },
-    {
-      "description": "Custom manager for Node.js versions in CircleCI configurations",
-      "customType": "regex",
-      "fileMatch": ["(^|/)\\.circleci/.+\\.ya?ml$"],
-      "matchStrings": [
-        "node-version:\\s*\\n\\s*type:\\s*string\\s*\\n\\s*default:\\s*'(?<currentValue>[^']+)'",
-        "node-version:\\s*'(?<currentValue>[^']+)'"
-      ],
-      "depNameTemplate": "node",
-      "datasourceTemplate": "node-version",
-      "versioningTemplate": "node"
-    },
-    {
-      "description": "Custom manager for the Node.js version passed to the publish-prepare action",
-      "customType": "regex",
-      "fileMatch": ["(^|/)\\.github/workflows/.+\\.ya?ml$"],
-      "matchStringsStrategy": "recursive",
-      "matchStrings": [
-        // Scoped to publish-prepare so actions/setup-node inputs stay with the built-in github-actions
-        // manager. Both call forms: the local "./" path mui-public itself uses, and the pinned
-        // "mui/mui-public/...@<ref>" form consumer repos use. The local form has no "@<ref>" suffix.
-        // Renovate compiles these with RE2, so no look-around: intervening lines may not start with "-", which ends the match at the next step.
-        "uses: (?:\\./|mui/mui-public/)\\.github/actions/publish-prepare[^\\n]*\\n(?:[ \\t]*(?:[^-\\s\\n][^\\n]*)?\\n)*?[ \\t]*node-version:\\s*'?[^'\\s]+'?",
-        "node-version:\\s*'?(?<currentValue>[^'\\s]+)'?"
-      ],
-      "depNameTemplate": "node",
-      "datasourceTemplate": "node-version",
-      "versioningTemplate": "node"
-    }
-  ],
-  "postUpgradeTasks": {
-    // Renovate only commits the pnpm-lock.yaml its own install writes, so the stale
-    // minimumReleaseAgeExclude entries pnpm prunes from pnpm-workspace.yaml are lost and the
-    // repo's generated-files check fails. Re-running the install commits that prune.
-    // Remove once Renovate keeps the prune: https://github.com/renovatebot/renovate/discussions/47167
-    "commands": ["pnpm install --lockfile-only --ignore-scripts"],
-    // Install the repo's pinned node and pnpm (`packageManager`, `engines`) rather than use
-    // whatever the container has on PATH: only recent pnpm versions prune on install.
-    "installTools": { "node": {}, "pnpm": {} },
-    "fileFilters": ["pnpm-workspace.yaml", "pnpm-lock.yaml"],
-    "executionMode": "branch"
-  },
+  "description": "Renovate configuration for MUI repositories. On top of renovate/legacy.json, it groups most non-major updates into one npm PR, one GitHub Actions PR, and one CI tooling PR.",
+  "extends": ["github>mui/mui-public//renovate/legacy"],
   "vulnerabilityAlerts": {
-    "addLabels": ["security"],
-    // Replaces the top-level postUpgradeTasks, so it repeats the install.
-    "postUpgradeTasks": {
-      "commands": [
-        "pnpm install --lockfile-only --ignore-scripts",
-        "pnpm exec prettier --write pnpm-workspace.yaml package.json"
-      ],
-      "installTools": { "node": {}, "pnpm": {} },
-      "fileFilters": ["**/*"],
-      "executionMode": "branch"
-    }
+    "description": "Keep security fixes on their own branch so they are never blocked behind an unrelated group PR.",
+    "groupName": null
   },
   "packageRules": [
-    {
-      "description": "Do not require Minimum Release Age for dependency pinning",
-      "matchDatasources": ["npm"],
-      "matchUpdateTypes": ["pin"],
-      "prBodyNotes": [
-        "⚠️ Renovate's pinning functionality [does not currently](https://github.com/renovatebot/renovate/discussions/39058) wire in the release age for a package, so the Minimum Release Age checks can apply. You will need to manually validate the Minimum Release Age for these package(s)."
-      ],
-      "minimumReleaseAge": null
-    },
-    {
-      "matchDepTypes": ["peerDependencies"],
-      "rangeStrategy": "widen"
-    },
-    {
-      "matchPackageNames": ["@mui/*"],
-      "schedule": null,
-      "minimumReleaseAge": null
-    },
-    {
-      "groupName": "MUI public packages",
-      "description": "Exclude -dev versions, which are an early experiment with canary publishing and can cause conflicting packages when installed.",
-      "matchPackageNames": ["@mui/*", "!@mui/internal-*"],
-      "allowedVersions": "!/-dev/"
-    },
-    {
-      "groupName": "MUI infra packages",
-      "matchPackageNames": ["@mui/internal-*", "https://github.com/mui/mui-public"],
-      "reviewers": ["team:infra"]
-    },
-    {
-      "groupName": "MUI docs infra packages",
-      "matchPackageNames": ["@mui/internal-docs-infra", "@mui/internal-core-docs"],
-      "reviewers": ["team:infra"]
-    },
-    {
-      "description": "Infra packages publish a canary on every merge. Without a schedule each one re-pushes the infra branches and reruns the full CI of every repo. Batch them once a day.",
-      "matchPackageNames": ["@mui/internal-*", "https://github.com/mui/mui-public"],
-      "schedule": ["* 0-1 * * *"],
-      "updateNotScheduled": false
-    },
-    {
-      "matchSourceUrls": ["https://github.com/mui/mui-public"],
-      "matchDatasources": ["npm"],
-      "followTag": "canary"
-    },
-    {
-      "description": "material-ui publishes its internal packages to the canary tag. Follow it across prerelease majors, which ignoreUnstable otherwise blocks even when the current version is already newer than latest.",
-      "matchPackageNames": ["@mui/internal-*"],
-      "matchDatasources": ["npm"],
-      "followTag": "canary"
-    },
-    {
-      "groupName": "GitHub Actions",
-      "matchManagers": ["github-actions"],
-      "reviewers": ["team:infra"]
-    },
-    {
-      "groupName": "@definitelytyped tools",
-      "matchPackageNames": ["@definitelytyped/*"]
-    },
-    {
-      "groupName": "jsdom",
-      "description": "Keep jsdom and its type declarations in sync.",
-      "matchPackageNames": ["jsdom", "@types/jsdom"]
-    },
-    {
-      "groupName": "node",
-      "description": "Restricts Node.js version bumps in Github Actions workflows.",
-      "extends": ["group:nodeJs"],
-      "allowedVersions": "22"
-    },
-    {
-      "groupName": "node",
-      "matchDepTypes": ["uses-with"],
-      "matchDepNames": ["node"],
-      "allowedVersions": "22"
-    },
-    {
-      "groupName": "node",
-      "matchPackageNames": ["@types/node"],
-      "allowedVersions": "22"
-    },
-    {
-      "matchDepTypes": ["engines"],
-      "matchFileNames": ["packages/*/package.json"],
-      "enabled": false
-    },
-    {
-      "groupName": "eslint",
-      "extends": ["monorepo:eslint", "monorepo:typescript-eslint"]
-    },
+    // Keep ESLint plugin majors and pins in the eslint group: the legacy preset's later react rule
+    // takes eslint-plugin-react-hooks and eslint-plugin-react-compiler otherwise.
     {
       "groupName": "eslint",
       "matchPackageNames": [
         "eslint-plugin-*",
         "*/eslint-plugin-*",
         "@vitest/eslint-plugin",
-        // Should stay with the Next.js group
         "!@next/eslint-plugin-next"
       ]
     },
+    // Collapsing every non-major update into one group per package manager also turns each family
+    // group in the legacy preset (eslint, babel monorepo, Vite & Vitest, ...) into a majors-only
+    // group, because those rules are unscoped by update type and these ones are applied after.
     {
-      "groupName": "eslint",
-      "matchSourceUrls": ["https://github.com/eslint/*"]
+      "groupName": "npm non-major",
+      "description": "All npm patch/minor updates in a single PR. @mui/* is excluded because it keeps its own schedule (none for public packages, daily for @mui/internal-*) and is exempt from the minimum release age, which a weekly group would take away from it; node (the engines field) and @types/node because they have to move with the Node version pinned across CI and Netlify, in the node group.",
+      "matchManagers": ["npm"],
+      "matchUpdateTypes": ["minor", "patch", "bump"],
+      "matchPackageNames": ["!@mui/*", "!node", "!@types/node"]
     },
     {
-      "groupName": "eslint",
-      "description": "Catch utility packages published from the eslint-plugin-import monorepo (eslint-module-utils, eslint-import-resolver-*) whose names don't match the eslint-plugin-* pattern.",
-      "matchSourceUrls": ["https://github.com/import-js/eslint-plugin-import"]
+      "groupName": "GitHub Actions non-major",
+      "description": "Most action updates arrive as digest updates because of helpers:pinGitHubActionDigests. Matching the action and workflow (reusable workflow) depTypes leaves uses-with alone, so actions/setup-node's Node version stays in the node group.",
+      "matchManagers": ["github-actions"],
+      "matchDepTypes": ["action", "workflow"],
+      "matchUpdateTypes": ["minor", "patch", "digest", "pin", "bump"],
+      "reviewers": ["team:infra"]
     },
     {
-      "groupName": "Orama Search Packages",
-      "matchSourceUrls": ["https://github.com/oramasearch/*"]
+      "groupName": "CI images & tooling non-major",
+      "description": "The Playwright image stays with the npm packages it has to match, Node stays in the cross-manager node group, and the code-infra orb stays with the MUI infra packages it is released alongside.",
+      "matchManagers": ["circleci", "custom.regex", "dockerfile", "docker-compose", "nvm"],
+      "matchUpdateTypes": ["minor", "patch", "digest", "pin", "bump"],
+      "matchPackageNames": [
+        "!mcr.microsoft.com/playwright",
+        "!node",
+        "!https://github.com/mui/mui-public"
+      ],
+      "reviewers": ["team:infra"]
     },
     {
-      "groupName": "playwright monorepo",
-      "description": "Extends existing playwright preset to include docker images. See https://github.com/renovatebot/renovate/discussions/23889",
-      "matchPackageNames": ["mcr.microsoft.com/playwright"]
+      "groupName": "npm non-major",
+      "description": "The Playwright Docker image has to match the npm package exactly or the browser tests break, and the npm package is in the group above. Pull the image in after it rather than leaving it with the other CI images, so the two can never land in separate PRs. Majors are left alone and stay in the playwright monorepo group.",
+      "matchPackageNames": ["mcr.microsoft.com/playwright"],
+      "matchUpdateTypes": ["minor", "patch", "digest", "pin", "bump"]
     },
+    // Linters and formatters join the group too. A release that needs code changes fails the group
+    // until a mui-renovate-fix PR merges; the bump moves out only if the fix needs the new version.
     {
-      "groupName": "Tailwind CSS",
-      "description": "Widens the sourceUrl of the existing monorepo:tailwindcss preset to cover the entire tailwindlabs org, including prettier-plugin-tailwindcss.",
-      "matchSourceUrls": ["https://github.com/tailwindlabs/**"]
-    },
-    {
-      "groupName": "react",
-      "extends": ["monorepo:react"]
-    },
-    {
-      "groupName": "react",
-      "description": "@types/react is published from DefinitelyTyped, so group:definitelyTyped would otherwise split it away from the React release it describes.",
-      "matchPackageNames": ["@types/react", "@types/react-dom", "@types/react-is"]
-    },
-    {
-      "groupName": "remark monorepo",
-      "extends": ["group:remarkMonorepo"]
-    },
-    {
-      "groupName": "remark monorepo",
-      "description": "Catch remark plugins outside the remark monorepo (including remark-mdx) and keep them in the same group.",
-      "matchPackageNames": ["remark-*"]
-    },
-    {
-      "groupName": "Vite & Vitest",
-      "extends": ["packages:vite"]
-    },
-    {
-      "groupName": "Vite & Vitest",
-      "extends": ["monorepo:vitest"]
-    },
-    {
-      "groupName": "Vite & Vitest",
-      "matchPackageNames": ["esbuild", "vitest-browser-react"]
-    },
-    {
-      // https://www.stepsecurity.io/blog/supply-chain-security-alert-eslint-config-prettier-package-shows-signs-of-compromise
-      "matchPackageNames": ["eslint-config-prettier"],
-      "allowedVersions": ">=10.1.8"
-    },
-    {
-      "groupName": "Prettier",
-      "description": "Group Prettier-related dependencies and run a full Prettier pass on the branch after updating.",
+      "description": "Skip the full Prettier pass that the legacy preset's Prettier group runs, so a reformat never lands inside the group. This repeats the top-level postUpgradeTasks, because a package rule replaces that object as a whole.",
       "matchPackageNames": ["prettier", "pretty-quick", "eslint-config-prettier"],
+      "matchUpdateTypes": ["minor", "patch", "bump"],
       "postUpgradeTasks": {
-        "commands": [
-          "pnpm install --lockfile-only --ignore-scripts",
-          "pnpm exec prettier --write . --ignore-path .lintignore"
-        ],
+        "commands": ["pnpm install --lockfile-only --ignore-scripts"],
         "installTools": { "node": {}, "pnpm": {} },
-        "fileFilters": ["**/*"],
+        "fileFilters": ["pnpm-workspace.yaml", "pnpm-lock.yaml"],
         "executionMode": "branch"
       }
-    },
-    {
-      "description": "Disable replacements for @tsconfig/node* packages",
-      "matchPackageNames": ["@tsconfig/node*"],
-      "replacementName": null,
-      "replacementVersion": null
-    },
-    {
-      "groupName": "inquirer",
-      "matchSourceUrls": ["https://github.com/SBoudrias/Inquirer.js"]
-    },
-    {
-      "groupName": "stylelint",
-      "matchSourceUrls": ["https://github.com/stylelint/*"]
     }
   ]
 }
