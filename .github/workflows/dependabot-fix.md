@@ -74,11 +74,16 @@ steps:
           })' > "$out/dependabot-alerts.json"
       echo "Packages with open alerts: $(jq length "$out/dependabot-alerts.json")"
 safe-outputs:
-  # PRs opened with GITHUB_TOKEN don't trigger GitHub Actions, and MUI repositories require Actions
-  # checks. The code-infra Renovate App already opens dependency PRs in them.
+  # The jobs that publish the outputs use the code-infra-auditor App: PRs opened with GITHUB_TOKEN
+  # don't trigger GitHub Actions, and MUI repositories require Actions checks. Its credentials are
+  # secrets of a `code-infra-auditor` environment in the repository the workflow runs against,
+  # restricted to the default branch, so a workflow pushed to any other branch can't read them.
+  environment:
+    name: code-infra-auditor
+    deployment: false
   github-app:
-    client-id: ${{ secrets.RENOVATE_APP_CLIENT_ID }}
-    private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
+    client-id: ${{ secrets.CODE_INFRA_AUDITOR_CLIENT_ID }}
+    private-key: ${{ secrets.CODE_INFRA_AUDITOR_PRIVATE_KEY }}
   create-pull-request:
     max: 3
     title-prefix: '[security] '
