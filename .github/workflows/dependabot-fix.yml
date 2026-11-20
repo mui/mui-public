@@ -21,4 +21,5 @@ jobs:
       issues: write # report issue (safe-outputs job)
       pull-requests: write # open the draft PRs (safe-outputs job)
       security-events: read # read the Dependabot alerts (agent job)
+      vulnerability-alerts: read # read the Dependabot alerts (agent job)
     uses: ./.github/workflows/dependabot-fix-workflow.lock.yml

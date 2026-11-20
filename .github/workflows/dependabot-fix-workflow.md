@@ -4,11 +4,17 @@ description: Fix open Dependabot security alerts, batching the non-major fixes i
 # dependabot-fix-workflow.lock.yml on their own schedule, and it runs against the calling repository.
 on:
   workflow_call:
+# One run at a time per repository, queued rather than cancelled: a run that starts while another is
+# still publishing would collect the same alerts before its PRs exist, and propose them again.
+concurrency:
+  group: dependabot-fix-${{ github.repository }}
+  cancel-in-progress: false
 permissions:
   contents: read
   issues: read
   pull-requests: read
-  # Lets GITHUB_TOKEN read Dependabot alerts.
+  # Let GITHUB_TOKEN read Dependabot alerts.
+  vulnerability-alerts: read
   security-events: read
   # Mints the GitHub OIDC token exchanged for a Claude token (engine.auth below).
   id-token: write
