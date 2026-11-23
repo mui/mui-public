@@ -251,7 +251,7 @@ In each pull request, one section per package headed `### <package>`:
 - For a major, the release notes' breaking changes that could affect this repository, and the source
   changes made for them.
 
-End each pull request with the validation actually run.
+End each pull request with the validation actually run. Don't add a sign-off or attribution line.
 
 ## Report the rest
 
