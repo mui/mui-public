@@ -80,6 +80,15 @@ To enable the skills for everyone who works in a repo, use `--scope project`, wh
 }
 ```
 
+To use the skills while working in this repo, install the plugin from your checkout:
+
+```bash
+claude plugin marketplace add ./
+claude plugin install code-infra@mui-public --scope local
+```
+
+Don't symlink them into `.agents/` or `.claude/`: agentic workflows check out only those folders and fail on links that point outside them.
+
 ### Renovate PR workflow
 
 Use [mui-renovate-triage](./skills/mui-renovate-triage/SKILL.md) to fetch a deterministic snapshot of open Renovate PRs and review them one at a time. For each PR, it shows a summary and link, asks whether to merge or continue when CI passes, and runs mui-renovate-fix when CI fails. Follow-up requests continue through the original snapshot without a persistent queue. Request read-only review to skip fixes.
