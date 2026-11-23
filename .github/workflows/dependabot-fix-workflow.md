@@ -36,6 +36,8 @@ timeout-minutes: 60
 # Compile the prompt into the lock file: when another repository calls this workflow, its checkout
 # doesn't contain it.
 inlined-imports: true
+checkout:
+  pull-request: false
 tools:
   # Seconds per tool call, Bash included.
   timeout: 900
