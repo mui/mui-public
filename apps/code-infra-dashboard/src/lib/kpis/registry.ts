@@ -1,16 +1,13 @@
-import type { KpiConfig, KpiInfo } from './types';
+import type { KpiConfig, KpiInfo, KpiResult } from './types';
 import type { Repository } from '../../constants';
-import { MUI_KPI_REPOS } from '../../constants';
+import { MUI_PER_REPO_KPI_REPOS } from '../../constants';
 import * as github from './fetchers/github';
 import * as githubActivity from './fetchers/githubActivity';
 import * as zendesk from './fetchers/zendesk';
 import * as circleCI from './fetchers/circleCI';
 import * as hibob from './fetchers/hibob';
 import * as store from './fetchers/store';
-
-const REPOS = MUI_KPI_REPOS.filter((repo) =>
-  ['material-ui', 'mui-x', 'base-ui'].includes(repo.name),
-);
+import { errorResult } from './fetchers/utils';
 
 async function fetchOpenPRs(repoName: string) {
   return github.fetchOpenPRs(repoName);
@@ -164,7 +161,7 @@ function createMissingGitHubLabelCard(repo: Repository): KpiConfig<[string]> {
 
 export const kpiRegistry: KpiConfig<any[]>[] = [
   // Per-repo KPIs
-  ...REPOS.flatMap((repo) => [
+  ...MUI_PER_REPO_KPI_REPOS.flatMap((repo) => [
     createOpenPRsCard(repo),
     createWaitingForMaintainerCard(repo),
     createMissingGitHubLabelCard(repo),
@@ -252,6 +249,15 @@ export const kpiRegistry: KpiConfig<any[]>[] = [
 
 export function getKpiById(id: string): KpiConfig<any[]> | undefined {
   return kpiRegistry.find((kpi) => kpi.id === id);
+}
+
+// A failing KPI renders as an error card instead of failing the whole page (and the build).
+export async function fetchKpi(kpi: KpiConfig<any[]>): Promise<KpiResult> {
+  try {
+    return await kpi.fetch(...(kpi.fetchParams ?? []));
+  } catch (error) {
+    return errorResult(error instanceof Error ? error.message : String(error));
+  }
 }
 
 export function toKpiInfo(kpi: KpiConfig<any[]>): KpiInfo {

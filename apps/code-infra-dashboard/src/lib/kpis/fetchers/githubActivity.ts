@@ -1,6 +1,6 @@
 import * as React from 'react';
 import type { KpiResult } from '../types';
-import { errorResult, successResult } from './utils';
+import { successResult } from './utils';
 import { getOctokit } from '../../github';
 
 const WINDOW_DAYS = 30;
@@ -105,100 +105,71 @@ async function searchAll<TNode>(graphqlQuery: string, searchQuery: string): Prom
   return nodes;
 }
 
+function countAuthors(pullRequests: PullRequestNode[]): number {
+  return new Set(pullRequests.map((pullRequest) => pullRequest.author?.login)).size;
+}
+
 // Shared by the time-to-merge and community KPIs within a render.
 const fetchMergedPullRequests = React.cache(async (repo: string) => {
   const pullRequests = await searchAll<PullRequestNode>(
     PULL_REQUESTS_QUERY,
     `repo:mui/${repo} is:pr is:merged merged:>=${daysAgo(WINDOW_DAYS)}`,
   );
-  return pullRequests.filter((pullRequest) => !isBot(pullRequest.author));
+  const all = pullRequests.filter((pullRequest) => !isBot(pullRequest.author));
+  const maintainers = all.filter((pullRequest) =>
+    MAINTAINER_ASSOCIATIONS.has(pullRequest.authorAssociation),
+  );
+  const community = all.filter(
+    (pullRequest) => !MAINTAINER_ASSOCIATIONS.has(pullRequest.authorAssociation),
+  );
+  return { all, community, maintainers };
 });
 
-async function withPullRequests(
-  repo: string,
-  compute: (pullRequests: PullRequestNode[]) => KpiResult,
-): Promise<KpiResult> {
-  let pullRequests: PullRequestNode[];
-  try {
-    pullRequests = await fetchMergedPullRequests(repo);
-  } catch (error) {
-    return errorResult(error instanceof Error ? error.message : 'GitHub GraphQL error');
-  }
-  return compute(pullRequests);
-}
-
-function splitByAuthor(pullRequests: PullRequestNode[]) {
-  const community: PullRequestNode[] = [];
-  const maintainers: PullRequestNode[] = [];
-  for (const pullRequest of pullRequests) {
-    if (MAINTAINER_ASSOCIATIONS.has(pullRequest.authorAssociation)) {
-      maintainers.push(pullRequest);
-    } else {
-      community.push(pullRequest);
-    }
-  }
-  return { community, maintainers };
-}
-
-function countAuthors(pullRequests: PullRequestNode[]): number {
-  return new Set(pullRequests.map((pullRequest) => pullRequest.author?.login)).size;
-}
-
 export async function fetchTimeToMerge(repo: string): Promise<KpiResult> {
-  return withPullRequests(repo, (pullRequests) => {
-    if (pullRequests.length === 0) {
-      return { value: null, metadata: 'No merged pull requests' };
-    }
-    const hours = pullRequests.map(
-      (pullRequest) =>
-        (Date.parse(pullRequest.mergedAt) - Date.parse(pullRequest.createdAt)) / MS_PER_HOUR,
-    );
-    const days = Math.round((percentile(hours, 0.75) / 24) * 100) / 100;
-    return successResult(
-      days,
-      `75th percentile over the last ${WINDOW_DAYS} days (${pullRequests.length} PRs)`,
-    );
-  });
+  const { all } = await fetchMergedPullRequests(repo);
+  if (all.length === 0) {
+    return { value: null, metadata: 'No merged pull requests' };
+  }
+  const hours = all.map(
+    (pullRequest) =>
+      (Date.parse(pullRequest.mergedAt) - Date.parse(pullRequest.createdAt)) / MS_PER_HOUR,
+  );
+  const days = Math.round((percentile(hours, 0.75) / 24) * 100) / 100;
+  return successResult(
+    days,
+    `75th percentile over the last ${WINDOW_DAYS} days (${all.length} PRs)`,
+  );
 }
 
 export async function fetchCommunityContributors(repo: string): Promise<KpiResult> {
-  return withPullRequests(repo, (pullRequests) => {
-    const { community, maintainers } = splitByAuthor(pullRequests);
-    const maintainerCount = countAuthors(maintainers);
-    if (maintainerCount === 0) {
-      return { value: null, metadata: 'No maintainer pull requests' };
-    }
-    const communityCount = countAuthors(community);
-    return successResult(
-      Math.round((communityCount / maintainerCount) * 10) / 10,
-      `${communityCount} community vs ${maintainerCount} maintainers, last ${WINDOW_DAYS} days`,
-    );
-  });
+  const { community, maintainers } = await fetchMergedPullRequests(repo);
+  const maintainerCount = countAuthors(maintainers);
+  if (maintainerCount === 0) {
+    return { value: null, metadata: 'No maintainer pull requests' };
+  }
+  const communityCount = countAuthors(community);
+  return successResult(
+    Math.round((communityCount / maintainerCount) * 10) / 10,
+    `${communityCount} community vs ${maintainerCount} maintainers, last ${WINDOW_DAYS} days`,
+  );
 }
 
 export async function fetchCommunityPullRequests(repo: string): Promise<KpiResult> {
-  return withPullRequests(repo, (pullRequests) => {
-    const { community, maintainers } = splitByAuthor(pullRequests);
-    if (maintainers.length === 0) {
-      return { value: null, metadata: 'No maintainer pull requests' };
-    }
-    return successResult(
-      Math.round((community.length / maintainers.length) * 1000) / 10,
-      `${community.length} community vs ${maintainers.length} maintainer PRs, last ${WINDOW_DAYS} days`,
-    );
-  });
+  const { community, maintainers } = await fetchMergedPullRequests(repo);
+  if (maintainers.length === 0) {
+    return { value: null, metadata: 'No maintainer pull requests' };
+  }
+  return successResult(
+    Math.round((community.length / maintainers.length) * 1000) / 10,
+    `${community.length} community vs ${maintainers.length} maintainer PRs, last ${WINDOW_DAYS} days`,
+  );
 }
 
 export async function fetchIssueFirstResponse(repo: string): Promise<KpiResult> {
-  let issues: IssueNode[];
-  try {
-    issues = await searchAll<IssueNode>(
-      ISSUES_QUERY,
-      `repo:mui/${repo} is:issue created:>=${daysAgo(WINDOW_DAYS)}`,
-    );
-  } catch (error) {
-    return errorResult(error instanceof Error ? error.message : 'GitHub GraphQL error');
-  }
+  const issues = await searchAll<IssueNode>(
+    ISSUES_QUERY,
+    `repo:mui/${repo} is:issue created:>=${daysAgo(WINDOW_DAYS)}`,
+  );
 
   const hours: number[] = [];
   for (const issue of issues) {
@@ -224,8 +195,7 @@ export async function fetchIssueFirstResponse(repo: string): Promise<KpiResult> 
   );
 }
 
-// GraphQL search counts don't draw from the REST search API's 30 requests/minute,
-// which the other KPIs already use up during a build.
+// Both counts in one request.
 const ISSUE_COUNTS_QUERY = `
 query countIssues($openedQuery: String!, $closedQuery: String!) {
   opened: search(query: $openedQuery, type: ISSUE, first: 0) { issueCount }
@@ -239,15 +209,10 @@ interface IssueCountsResult {
 
 export async function fetchOpenedVsClosedIssues(repo: string): Promise<KpiResult> {
   const since = daysAgo(ISSUE_RATIO_WINDOW_DAYS);
-  let counts: IssueCountsResult;
-  try {
-    counts = await getOctokit().graphql<IssueCountsResult>(ISSUE_COUNTS_QUERY, {
-      openedQuery: `repo:mui/${repo} is:issue created:>=${since}`,
-      closedQuery: `repo:mui/${repo} is:issue closed:>=${since}`,
-    });
-  } catch (error) {
-    return errorResult(error instanceof Error ? error.message : 'GitHub GraphQL error');
-  }
+  const counts = await getOctokit().graphql<IssueCountsResult>(ISSUE_COUNTS_QUERY, {
+    openedQuery: `repo:mui/${repo} is:issue created:>=${since}`,
+    closedQuery: `repo:mui/${repo} is:issue closed:>=${since}`,
+  });
 
   const opened = counts.opened.issueCount;
   const closed = counts.closed.issueCount;

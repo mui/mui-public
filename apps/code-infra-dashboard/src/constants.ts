@@ -233,3 +233,10 @@ export const MUI_KPI_REPOS = [
   repositories.get('mui/mui-design-kits')!,
   repositories.get('mui/mui-private')!,
 ];
+
+// Repos that get the per-repo KPI cards (open PRs, CI, time to merge, community, ...).
+export const MUI_PER_REPO_KPI_REPOS = [
+  repositories.get('mui/material-ui')!,
+  repositories.get('mui/mui-x')!,
+  repositories.get('mui/base-ui')!,
+];
