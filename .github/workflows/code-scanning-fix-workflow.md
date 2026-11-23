@@ -47,6 +47,12 @@ tools:
 network:
   allowed: [defaults, node]
 steps:
+  - name: Set up pnpm
+    uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+    with:
+      # The agent's sandbox mounts the tool cache but not the home directory, where pnpm goes by
+      # default. The PATH entry the action adds carries over into the sandbox.
+      dest: ${{ runner.tool_cache }}/pnpm
   - name: Set up Node.js
     uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
     with:
@@ -54,10 +60,6 @@ steps:
       # The agent runs pnpm in this job; don't let it modify dependency caches that later
       # workflows might restore.
       package-manager-cache: false
-  # Into Node.js's own bin directory, the one the agent's sandbox has on its PATH; pnpm installed
-  # elsewhere isn't found there, and the sandbox's firewall stops corepack from downloading it.
-  - name: Set up pnpm
-    run: npm install --global "$(node -p 'require("./package.json").packageManager.split("+")[0]')"
   - name: Install dependencies
     run: pnpm install --frozen-lockfile
   # Open alerts, minus those an open fix PR already links to. This workflow's PRs are opened by the
