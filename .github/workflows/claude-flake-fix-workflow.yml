@@ -384,10 +384,12 @@ jobs:
                the timeline to find what made it start failing: a change in our code, a dependency
                bump, or a moving toolchain channel (`@next`, nightly, canary). You may reproduce it
                — install deps, run the failing test, build a minimal repro — but keep that brief;
-               CI re-runs on the PR anyway. A FLAKY target is the exception: one green CI run
-               proves nothing about it, so make it deterministic first (step 3).
-            3. For a FLAKY target, make the flake deterministic. A flake is a deterministic failure
-               whose trigger only sometimes happens, so find the trigger and force it:
+               CI re-runs on the PR anyway. A suspected race condition is the exception: one green
+               CI run proves nothing about it, so stabilize it first (step 3).
+            3. When you suspect a race condition, stabilize it. Most flakes are races, and a single
+               UNCONFIRMED failure can be one too. A race is a deterministic failure whose trigger
+               only sometimes happens, so find the trigger and force the race to go the failing way
+               every time:
                - List the hypotheses: each nondeterministic input that could produce exactly this
                  error. Look at what the test does not control — state an earlier test can leave
                  behind (real pointer position, focus, globals, storage, module state, mocks),
@@ -415,9 +417,8 @@ jobs:
                - A legitimate change in external code → adapt our code to it.
                - A bug in external code → stop; it belongs in the report, not a patch.
             5. Check your confidence. Go ahead only if you understand the cause and your change
-               addresses it. If the cause stays unclear or the fix is a guess, stop. For a FLAKY
-               target, the cause is clear only once forcing its trigger fails the test every run
-               (step 3). Hold an UNCONFIRMED target (a single failure) to a higher bar: fix it only
+               addresses it. If the cause stays unclear or the fix is a guess, stop. For a race,
+               the cause is clear only once forcing its trigger fails the test every run (step 3). Hold an UNCONFIRMED target (a single failure) to a higher bar: fix it only
                when the cause is unmistakable.
             6. Make the right change: the one that removes the root cause, written the way a
                maintainer would write it, not the narrowest edit that turns CI green. Stay on that one
@@ -432,15 +433,15 @@ jobs:
             - ${{ runner.temp }}/flake-out/pr-title.txt — a single line.
             - ${{ runner.temp }}/flake-out/pr-body.md — what breaks and how often, the evidence
               (CircleCI links), why it started failing (the trigger) and why this change is the right
-              response to it, what the change does, and what you did or did not verify. For a FLAKY
-              target, name the trigger and give the run counts: how often the test fails with the
+              response to it, what the change does, and what you did or did not verify. For a race,
+              name the trigger and give the run counts: how often the test fails with the
               trigger forced and without the fix, and how often it passes with the fix.
 
             If you had a target but stopped without a patch — at any step above — write
             ${{ runner.temp }}/flake-out/no-fix.txt instead: ONE plain sentence, shown on the tracking
             issue, naming the target by its short name from the report and saying why there is no PR
             (e.g. "**TouchRipple act() warning** — the warning comes from React's scheduler, not our
-            code; it needs an upstream fix."). For a FLAKY target you couldn't reproduce, say which
+            code; it needs an upstream fix."). For a suspected race you couldn't stabilize, say which
             triggers you forced without making it fail. No error codes, stack traces, or links.
 
       - name: Collect outputs
