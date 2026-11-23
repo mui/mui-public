@@ -19,36 +19,35 @@ import Heading from '../components/Heading';
 import FileDiff from '../components/FileDiff';
 import FileExplorer from '../components/FileExplorer';
 import { useSearchParamsState } from '../hooks/useSearchParamsState';
-import type { FileDiffResult } from '../lib/packageDiff/computePackageDiff';
+import type { DiffOptions, FileDiffResult } from '../lib/packageDiff/computePackageDiff';
 import { usePackageDiff } from '../lib/packageDiff/usePackageDiff';
 
 const EMPTY_FILES: FileDiffResult[] = [];
 const EMPTY_BLOCKS: FileDiffResult['blocks'] = [];
 
+const CODEC_FLAG = {
+  defaultValue: false,
+  serialize: (value: boolean) => (value ? '1' : ''),
+  deserialize: (value: string) => value === '1',
+};
+
 const SEARCH_PARAMS_CONFIG = {
-  format: {
-    defaultValue: false,
-    serialize: (value: boolean) => (value ? '1' : ''),
-    deserialize: (value: string) => value === '1',
-  },
+  format: CODEC_FLAG,
+  removeComments: CODEC_FLAG,
 };
 
 const DiffContent = React.memo(function DiffContent({
   files,
   loading,
   updating,
-  ignoreWhitespace,
-  onIgnoreWhitespaceChange,
-  format,
-  onFormatChange,
+  options,
+  onOptionsChange,
 }: {
   files: FileDiffResult[];
   loading: boolean;
   updating: boolean;
-  ignoreWhitespace: boolean;
-  onIgnoreWhitespaceChange: (value: boolean) => void;
-  format: boolean;
-  onFormatChange: (value: boolean) => void;
+  options: DiffOptions;
+  onOptionsChange: (options: Partial<DiffOptions>) => void;
 }) {
   const [filter, setFilter] = React.useState('');
 
@@ -81,8 +80,8 @@ const DiffContent = React.memo(function DiffContent({
         <FormControlLabel
           control={
             <Checkbox
-              checked={ignoreWhitespace}
-              onChange={(event) => onIgnoreWhitespaceChange(event.target.checked)}
+              checked={options.ignoreWhitespace}
+              onChange={(event) => onOptionsChange({ ignoreWhitespace: event.target.checked })}
               size="small"
             />
           }
@@ -92,13 +91,26 @@ const DiffContent = React.memo(function DiffContent({
         <FormControlLabel
           control={
             <Checkbox
-              checked={format}
-              onChange={(event) => onFormatChange(event.target.checked)}
+              checked={options.format}
+              onChange={(event) => onOptionsChange({ format: event.target.checked })}
               size="small"
             />
           }
           label="Format code"
           title="Format JavaScript, TypeScript, JSON and CSS with Prettier before diffing, so differences in build tool output style don't show up"
+          sx={{ mr: 0, flexShrink: 0 }}
+        />
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={options.removeComments}
+              onChange={(event) => onOptionsChange({ removeComments: event.target.checked })}
+              size="small"
+            />
+          }
+          disabled={!options.format}
+          label="Remove comments"
+          title="Leave comments out of the formatted code, so differences in comments, license headers and annotations don't show up"
           sx={{ mr: 0, flexShrink: 0 }}
         />
       </Box>
@@ -155,9 +167,19 @@ export default function DiffPackage() {
 
   const package1Spec = searchParams.get('package1');
   const package2Spec = searchParams.get('package2');
-  const [{ format }, setParams] = useSearchParamsState(SEARCH_PARAMS_CONFIG, { replace: true });
+  const [{ format, removeComments }, setParams] = useSearchParamsState(SEARCH_PARAMS_CONFIG, {
+    replace: true,
+  });
+  const options = React.useMemo(
+    () => ({ ignoreWhitespace, format, removeComments }),
+    [ignoreWhitespace, format, removeComments],
+  );
 
-  const diffQuery = usePackageDiff(package1Spec, package2Spec, { ignoreWhitespace, format });
+  const diffQuery = usePackageDiff(package1Spec, package2Spec, {
+    ...options,
+    // Doesn't apply without formatting, keep it out of the cache key then
+    removeComments: format && removeComments,
+  });
   const loading = diffQuery.isLoading;
   const package1Error = diffQuery.error?.oldError;
   const package2Error = diffQuery.error?.newError;
@@ -182,7 +204,16 @@ export default function DiffPackage() {
     router.replace(`${pathname}?${params.toString()}`);
   });
 
-  const onFormatChange = useEventCallback((value: boolean) => setParams({ format: value }));
+  const onOptionsChange = useEventCallback(
+    ({ ignoreWhitespace: newIgnoreWhitespace, ...params }: Partial<DiffOptions>) => {
+      if (newIgnoreWhitespace !== undefined) {
+        setIgnoreWhitespace(newIgnoreWhitespace);
+      }
+      if (Object.keys(params).length > 0) {
+        setParams(params);
+      }
+    },
+  );
 
   return (
     <Box sx={{ mt: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -278,10 +309,8 @@ export default function DiffPackage() {
           files={diffQuery.data ?? EMPTY_FILES}
           loading={loading}
           updating={diffQuery.isPlaceholderData && diffQuery.isFetching}
-          ignoreWhitespace={ignoreWhitespace}
-          onIgnoreWhitespaceChange={setIgnoreWhitespace}
-          format={format}
-          onFormatChange={onFormatChange}
+          options={options}
+          onOptionsChange={onOptionsChange}
         />
       )}
     </Box>

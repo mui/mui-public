@@ -23,7 +23,7 @@ describe('computePackageDiff', () => {
     const files = await computePackageDiff(
       createPackage('1.0.0', { 'b.js': 'b;\n', 'c.js': 'c;\n', 'same.js': 'same;\n' }),
       createPackage('2.0.0', { 'a.js': 'a;\n', 'b.js': 'b2;\n', 'same.js': 'same;\n' }),
-      { ignoreWhitespace, format: false },
+      { ignoreWhitespace, format: false, removeComments: false },
     );
 
     expect(files.map(({ path, changeType }) => ({ path, changeType }))).toEqual([
@@ -57,6 +57,7 @@ describe('computePackageDiff', () => {
     const raw = await computePackageDiff(oldPackage, newPackage, {
       ignoreWhitespace,
       format: false,
+      removeComments: false,
     });
     expect(raw.map((file) => file.path)).toEqual([
       'index.d.ts',
@@ -68,6 +69,7 @@ describe('computePackageDiff', () => {
     const formatted = await computePackageDiff(oldPackage, newPackage, {
       ignoreWhitespace,
       format: true,
+      removeComments: false,
     });
     expect(formatted).toEqual([]);
   });
@@ -76,7 +78,7 @@ describe('computePackageDiff', () => {
     const [file] = await computePackageDiff(
       createPackage('1.0.0', { 'index.js': 'export function f(){return "a"}' }),
       createPackage('2.0.0', { 'index.js': "export function f() {\n  return 'b';\n}\n" }),
-      { ignoreWhitespace, format: true },
+      { ignoreWhitespace, format: true, removeComments: false },
     );
 
     expect(file.formatError).toBeUndefined();
@@ -87,7 +89,7 @@ describe('computePackageDiff', () => {
     const [file] = await computePackageDiff(
       createPackage('1.0.0', { 'index.js': 'export const a = "x"\n' }),
       createPackage('2.0.0', { 'index.js': 'export const = ;\n' }),
-      { ignoreWhitespace, format: true },
+      { ignoreWhitespace, format: true, removeComments: false },
     );
 
     expect(file.formatError).toEqual(expect.any(String));
@@ -98,10 +100,54 @@ describe('computePackageDiff', () => {
     const [file] = await computePackageDiff(
       createPackage('1.0.0', { 'index.js.map': '{"version":3}' }),
       createPackage('2.0.0', { 'index.js.map': '{ "version": 3 }' }),
-      { ignoreWhitespace, format: true },
+      { ignoreWhitespace, format: true, removeComments: false },
     );
 
     expect(file.path).toBe('index.js.map');
     expect(file.formatError).toBeUndefined();
+  });
+
+  it('drops files that only differ in comments when removing comments', async () => {
+    const oldPackage = createPackage('1.0.0', {
+      'index.js': '/** @license MIT */\nexport const a = /*#__PURE__*/ f(); // trailing\n',
+      'index.d.ts': '/**\n * Docs.\n */\nexport declare const a: string;\n',
+      'tsconfig.json': '{ "a": 1 }',
+      'styles.css': 'a { color: red; }',
+    });
+    const newPackage = createPackage('2.0.0', {
+      'index.js': 'export const a = f();\n',
+      'index.d.ts': 'export declare const a: string;\n',
+      'tsconfig.json': '{\n  // comment\n  "a": 1\n}',
+      'styles.css': '/* header */\na {\n  /* inner */\n  color: red;\n}\n',
+    });
+
+    const withComments = await computePackageDiff(oldPackage, newPackage, {
+      ignoreWhitespace,
+      format: true,
+      removeComments: false,
+    });
+    expect(withComments.map((file) => file.path)).toEqual([
+      'index.d.ts',
+      'index.js',
+      'styles.css',
+      'tsconfig.json',
+    ]);
+
+    const withoutComments = await computePackageDiff(oldPackage, newPackage, {
+      ignoreWhitespace,
+      format: true,
+      removeComments: true,
+    });
+    expect(withoutComments).toEqual([]);
+  });
+
+  it('keeps comment syntax inside strings when removing comments', async () => {
+    const [file] = await computePackageDiff(
+      createPackage('1.0.0', { 'index.js': 'const a = "/* x */"; // c\n' }),
+      createPackage('2.0.0', { 'index.js': 'const a = "// y";\n' }),
+      { ignoreWhitespace, format: true, removeComments: true },
+    );
+
+    expect(patchText(file)).toContain(`-const a = "/* x */";\n+const a = "// y";\n`);
   });
 });

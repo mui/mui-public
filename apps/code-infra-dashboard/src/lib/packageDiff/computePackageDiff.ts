@@ -1,4 +1,5 @@
 import * as diff from 'diff';
+import type { Parser, Plugin } from 'prettier';
 import type { FileContent, PackageContents } from '../packageDownload';
 
 export type ChangeType = 'added' | 'removed' | 'modified';
@@ -7,6 +8,8 @@ export interface DiffOptions {
   ignoreWhitespace: boolean;
   /** Run both sides through Prettier so differences in build tool output style disappear. */
   format: boolean;
+  /** Leave comments out of the formatted code. Only applies when `format` is set. */
+  removeComments: boolean;
 }
 
 export interface DiffBlock {
@@ -33,6 +36,47 @@ function getPrettierParser(path: string): string | null {
   return PRETTIER_PARSERS.find(([pattern]) => pattern.test(path))?.[1] ?? null;
 }
 
+const NO_COMMENTS_SUFFIX = '-no-comments';
+
+interface AstNode {
+  type?: string;
+  comments?: unknown[];
+  nodes?: AstNode[];
+}
+
+// Prettier prints the comments it finds in `ast.comments` (JavaScript, TypeScript, JSON),
+// PostCSS keeps them as nodes in the tree instead.
+function removeComments(node: AstNode) {
+  if (node.comments) {
+    node.comments = [];
+  }
+  if (node.nodes) {
+    node.nodes = node.nodes.filter((child) => child.type !== 'css-comment');
+    node.nodes.forEach(removeComments);
+  }
+}
+
+/**
+ * Adds a `<name>-no-comments` variant of every parser in `plugins`, whose AST has its
+ * comments removed, so Prettier prints the code without them.
+ */
+function createNoCommentsPlugin(plugins: Plugin[]): Plugin {
+  const parsers: Record<string, Parser> = {};
+  for (const plugin of plugins) {
+    for (const [name, parser] of Object.entries(plugin.parsers ?? {})) {
+      parsers[`${name}${NO_COMMENTS_SUFFIX}`] = {
+        ...parser,
+        parse: async (text, options) => {
+          const ast = await parser.parse(text, options);
+          removeComments(ast);
+          return ast;
+        },
+      };
+    }
+  }
+  return { parsers };
+}
+
 let prettierPromise: Promise<(source: string, parser: string) => Promise<string>> | null = null;
 
 // Prettier and its parsers are several hundred KB, only load them once formatting is requested.
@@ -43,7 +87,8 @@ function loadPrettier() {
     import('prettier/plugins/estree'),
     import('prettier/plugins/typescript'),
     import('prettier/plugins/postcss'),
-  ]).then(([prettier, ...plugins]) => {
+  ]).then(([prettier, ...languagePlugins]) => {
+    const plugins = [...languagePlugins, createNoCommentsPlugin(languagePlugins)];
     return (source, parser) =>
       // By default Prettier keeps an object expanded when the source had a newline after
       // `{`, which would preserve exactly the style differences this is meant to remove.
@@ -52,18 +97,23 @@ function loadPrettier() {
   return prettierPromise;
 }
 
-// Keyed by file identity, so diffing the same downloaded package again with other
-// options doesn't format its files a second time.
-const formattedCache = new WeakMap<FileContent, Promise<string>>();
+// Keyed by file identity and parser, so diffing the same downloaded package again with
+// other options doesn't format its files a second time.
+const formattedCache = new WeakMap<FileContent, Map<string, Promise<string>>>();
 
 function formatFile(file: FileContent | undefined, parser: string): Promise<string> {
   if (!file) {
     return Promise.resolve('');
   }
-  let formatted = formattedCache.get(file);
+  let fileCache = formattedCache.get(file);
+  if (!fileCache) {
+    fileCache = new Map();
+    formattedCache.set(file, fileCache);
+  }
+  let formatted = fileCache.get(parser);
   if (!formatted) {
     formatted = loadPrettier().then((format) => format(file.content, parser));
-    formattedCache.set(file, formatted);
+    fileCache.set(parser, formatted);
   }
   return formatted;
 }
@@ -126,8 +176,11 @@ async function diffFile(
   }
 
   let formatError: string | undefined;
-  const parser = options.format ? getPrettierParser(path) : null;
-  if (parser) {
+  const languageParser = options.format ? getPrettierParser(path) : null;
+  if (languageParser) {
+    const parser = options.removeComments
+      ? `${languageParser}${NO_COMMENTS_SUFFIX}`
+      : languageParser;
     try {
       [oldContent, newContent] = await Promise.all([
         formatFile(oldFile, parser),
