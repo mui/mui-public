@@ -20,6 +20,16 @@ const API = process.env.CIRCLECI_API_BASE || 'https://circleci.com/api/v2';
 const API_V1 = process.env.CIRCLECI_API_V1_BASE || 'https://circleci.com/api/v1.1';
 const APP = process.env.CIRCLECI_APP_BASE || 'https://app.circleci.com';
 const LOG_TAIL_BYTES = 4096;
+// Up to half of a log excerpt goes to failure lines from before the tail.
+const FAILURE_LINES_BUDGET = LOG_TAIL_BYTES / 2;
+const FAILURE_LINE_MAX = 300;
+// Lines that name what failed. A test runner prints them once and then a long stack, so the tail
+// alone often misses them. Vitest/Jest (FAIL, ×, ✗, ●, "Failed Tests"), Playwright and Mocha
+// (numbered "1) " entries, "N failing"), TypeScript (error TS), ESLint (line:col error).
+const FAILURE_LINE =
+  /^\s*(?:FAIL\s|[×✗✘●]\s|\d+\) |.*Failed Tests\b|\d+ failing\b)|\berror TS\d+|^\s*\d+:\d+\s+error\s/;
+// A step command is a CircleCI-rendered script; cap it so one huge script can't crowd the file.
+const COMMAND_MAX = 2000;
 const CONCURRENCY = 16;
 // Job files are named 0000.txt, 0001.txt, …; the set is capped well under 10000, so four digits
 // always suffice.
@@ -150,8 +160,29 @@ function commitSubject(pipeline) {
   return message.split('\n', 1)[0].slice(0, 120);
 }
 
-function tailBytes(text, limit) {
-  return text.length <= limit ? text : text.slice(-limit);
+// The tail of a log, preceded by the failure-naming lines from before it, all within `limit`.
+function excerptLog(text, limit) {
+  if (text.length <= limit) {
+    return text;
+  }
+  const failureLines = [];
+  let used = 0;
+  for (const line of text.slice(0, -(limit - FAILURE_LINES_BUDGET)).split('\n')) {
+    const kept = line.slice(0, FAILURE_LINE_MAX);
+    if (!FAILURE_LINE.test(line) || failureLines.includes(kept)) {
+      continue;
+    }
+    if (used + kept.length + 1 > FAILURE_LINES_BUDGET) {
+      break;
+    }
+    failureLines.push(kept);
+    used += kept.length + 1;
+  }
+  const prefix =
+    failureLines.length > 0
+      ? `[failure lines from earlier in the log]\n${failureLines.join('\n')}\n[…]\n`
+      : '';
+  return prefix + text.slice(-(limit - prefix.length));
 }
 
 // Newest first: the one sort order the timeline, the failure cap, and the job-file indexing share.
@@ -209,6 +240,7 @@ function writeTimeline(outDir, { slug, branch, window, jobRuns, failingJobs, fil
         result: run.result, // PASS | FAIL | SKIP (skipped / did not run — no signal)
         time: run.createdAt,
         pipeline: run.pipelineNumber,
+        sha: run.sha,
         commit: oneLineSubject(run.subject),
         url: run.url,
         // The log for this FAIL run, or null when it is a PASS/SKIP or a failure past the log cap.
@@ -279,6 +311,7 @@ async function main() {
         status: workflow.status,
         pipelineNumber: pipeline.number,
         createdAt: workflow.created_at,
+        sha: pipeline.vcs?.revision ?? '',
         subject,
         url: `${APP}/pipelines/${vcs}/${org}/${repo}/${pipeline.number}/workflows/${workflow.id}`,
       });
@@ -351,11 +384,19 @@ async function main() {
         token,
       });
       const steps = [];
+      // Every step's script, in order: the install, any version overrides, the failing command.
+      // Replaying them is how the agent reproduces the job.
+      const commands = [];
       let timedOut = false;
       for (const step of data.steps ?? []) {
         for (const action of step.actions ?? []) {
           if (action.status === 'timedout') {
             timedOut = true;
+          }
+          if (action.bash_command) {
+            commands.push(
+              `## ${step.name}\n${action.bash_command.slice(0, COMMAND_MAX).trimEnd()}`,
+            );
           }
           if (
             (action.failed || action.status === 'failed' || action.status === 'timedout') &&
@@ -365,7 +406,7 @@ async function main() {
           }
         }
       }
-      return [job.jobNumber, { steps, timedOut }];
+      return [job.jobNumber, { steps, commands, timedOut }];
     }),
   );
 
@@ -393,11 +434,11 @@ async function main() {
       const joined = JSON.parse(raw)
         .map((entry) => entry.message ?? '')
         .join('');
-      // Tail-truncate at fetch, not at read: whole logs would hold hundreds of MB alive across
-      // a bad week, and only the tail is ever classified.
+      // Truncate at fetch, not at read: whole logs would hold hundreds of MB alive across a bad
+      // week, and only the excerpt is ever classified.
       logTexts.set(
         `${task.jobNumber}:${task.stepIndex}`,
-        tailBytes(stripVTControlCharacters(joined), LOG_TAIL_BYTES),
+        excerptLog(stripVTControlCharacters(joined), LOG_TAIL_BYTES),
       );
     },
     24,
@@ -416,6 +457,10 @@ async function main() {
           `### ${step.name}\n${logTexts.get(`${job.jobNumber}:${stepIndex}`) ?? ''}`,
       )
       .join('\n\n');
+    const commands =
+      detail.commands.length > 0
+        ? `\n\n### Job commands, in order\n${detail.commands.join('\n\n')}\n`
+        : '';
     // Each file carries its own metadata header, which is what makes it self-describing under grep.
     const header = [
       `INDEX=${jobIndex}`,
@@ -425,11 +470,12 @@ async function main() {
       `STATUS=${job.jobStatus}`,
       `TIMED_OUT=${detail.timedOut}`,
       `TIME=${job.createdAt}`,
+      `SHA=${job.sha}`,
       `COMMIT=${oneLineSubject(job.subject)}`,
       '',
       '',
     ].join('\n');
-    fs.writeFileSync(path.join(outDir, relativePath), header + body);
+    fs.writeFileSync(path.join(outDir, relativePath), header + body + commands);
   });
 
   writeTimeline(outDir, {
