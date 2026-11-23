@@ -238,11 +238,11 @@ jobs:
         with:
           ref: ${{ inputs.branch || github.event.repository.default_branch }}
           persist-credentials: false
-          # Full history without file contents, so the agent can `git log` a failure's trigger range
-          # cheaply. Contents of older commits load on demand, which needs no credentials on a
-          # public repo.
+          # Every commit but no older trees or files, so the agent can `git log` a failure's trigger
+          # range cheaply. Older trees and files load on demand (`--stat`, diffs), which needs no
+          # credentials on a public repo; on a private one only the commit list is available.
           fetch-depth: 0
-          filter: blob:none
+          filter: tree:0
 
       - name: Download the failure data
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -357,13 +357,13 @@ jobs:
             then the problem on a single line linking its last occurrence.
 
             Live problems first (🔴 still failing, 🟡 flaky, 🟠 unconfirmed — a single failure, real or a
-            one-off). On the first target the subagent named, end its cell with the literal token
-            {{fix}} (the workflow swaps in the PR link). A problem an OPEN fix PR in prs.json already
+            one-off). Leave {{fix}} out for now: step 2 adds it to the row it patches. A problem an
+            OPEN fix PR in prs.json already
             covers stays here too, linking that PR inline as "fix: <PR>".
 
             | | |
             | - | - |
-            | 🔴 | **<short name>** — <one plain sentence>. Still failing, <how often>. [last occurrence](<url>){{fix}} |
+            | 🔴 | **<short name>** — <one plain sentence>. Still failing, <how often>. [last occurrence](<url>) |
             | 🟡 | **<short name>** — <one plain sentence>. Flaky, <how often>. [last occurrence](<url>) |
             | 🟠 | **<short name>** — <one plain sentence>. One failure so far. [last occurrence](<url>) |
 
@@ -388,21 +388,17 @@ jobs:
 
             1. Pick the target. Work through the targets the subagent named, in order. If it named
                none, stop: change nothing and write no patch and no no-fix.txt (the report already
-               shows why). When you stop on a target without a patch, record why (see no-fix.txt
-               below), revert your edits, move the {{fix}} token in report.md to the next target's
-               row, and start again at step 2 with that target. Stop at the first patch, or after
-               the third target.
+               shows why). When you stop on a target without a patch, revert your edits and start
+               again at step 2 with the next target. Stop at the first patch.
             2. Find the root cause. Read only that target's log (jobs/NNNN.txt) for the exact error,
                then trace it into the checkout until you can say which code is at fault and why. Find
                what made it start failing: a change in our code, a dependency bump, or a moving
                toolchain channel (`@next`, nightly, canary). The checkout has full history, so
                `git log --stat <lastPass.sha>..<firstSeen.sha>` lists the commits that started it; a
-               dependency bump shows as a lockfile change there. You may reproduce it, but keep that
-               brief; CI re-runs on the PR anyway. To reproduce, replay the job: the "Job commands"
-               section of its job file holds the install and any version override exactly as CI ran
-               them (e.g. `pnpm code-infra set-version-overrides --pkg react@^18.0.0`). Then run only
-               the failing test file, not the job's whole command. A suspected race is the exception
-               (step 3).
+               dependency bump shows as a lockfile change there. To reproduce (briefly; CI re-runs on
+               the PR), replay the install and any version overrides from the "Job commands" section
+               of its job file, then run only the failing test file. A suspected race is the
+               exception (step 3).
             3. If you suspect a race condition (most flakes are one), stabilize it before fixing
                anything. Find what can happen in either order or at varying times and would produce
                exactly this error, then force it each way, e.g. by delaying one side, reordering
@@ -442,6 +438,8 @@ jobs:
               (CircleCI links), why it started failing (the trigger) and why this change is the right
               response to it, what the change does, and what you did or did not verify. For a race,
               say how you forced it and give the run counts with and without the fix.
+            - In report.md, end the patched target's cell with the literal token {{fix}} (the
+              workflow swaps in the PR link).
 
             For each target you stopped on without a patch — at any step above — add a line to
             ${{ runner.temp }}/flake-out/no-fix.txt: ONE plain sentence, shown on the tracking issue,
@@ -629,14 +627,18 @@ jobs:
             // is posted as a fresh comment (an edit would not notify subscribers) and the previous
             // report comment is deleted, so the issue only ever holds the latest one.
             let report = read('report.md') || read('summary.txt') || 'No CircleCI data this week.';
-            // The agent marks the problem it fixes this run with a {{fix}} token; swap in the PR link
-            // (or a dry-run note), and drop a stray token when no fix opened. Fixes already in flight
-            // and merged fixes are linked by the agent itself from prs.json.
+            // The agent marks the problem it patched with a {{fix}} token; swap in the PR link (or a
+            // dry-run note), and drop a stray token when no fix opened. A PR with no token to carry
+            // it still gets linked, on its own line. Fixes already in flight and merged fixes are
+            // linked by the agent itself from prs.json.
             let fixText = '';
             if (prUrl) {
               fixText = ` — fix: ${prUrl}`;
             } else if (fixProposed) {
               fixText = ' — fix: _(dry run — a draft PR would open)_';
+            }
+            if (fixText && !report.includes('{{fix}}')) {
+              report = `${report.trimEnd()}\n\n${fixText.replace(/^ — /, '')}`;
             }
             report = report.replaceAll('{{fix}}', fixText).trimEnd();
             // One line per target that got no PR: the agent's reason for each target it gave up on,

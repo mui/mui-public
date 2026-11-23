@@ -395,7 +395,7 @@ async function main() {
           }
           if (action.bash_command) {
             commands.push(
-              `## ${step.name}\n${action.bash_command.slice(0, COMMAND_MAX).trimEnd()}`,
+              `## ${step.name}\n${action.bash_command.slice(0, COMMAND_MAX).trimEnd()}${action.bash_command.length > COMMAND_MAX ? '\n[… command truncated]' : ''}`,
             );
           }
           if (
