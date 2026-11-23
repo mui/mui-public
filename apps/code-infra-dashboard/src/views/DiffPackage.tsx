@@ -7,6 +7,7 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Checkbox from '@mui/material/Checkbox';
 import FormControlLabel from '@mui/material/FormControlLabel';
+import LinearProgress from '@mui/material/LinearProgress';
 import TextField from '@mui/material/TextField';
 import { useEventCallback } from '@mui/material/utils';
 import IconButton from '@mui/material/IconButton';
@@ -17,78 +18,42 @@ import { scrollToHash } from '../utils/dom';
 import Heading from '../components/Heading';
 import FileDiff from '../components/FileDiff';
 import FileExplorer from '../components/FileExplorer';
-import type { ChangeType } from '../components/FileExplorer';
-import { usePackageContent } from '../lib/npmPackage';
-import type { PackageContents } from '../lib/npmPackage';
+import type { FileDiffResult } from '../lib/packageDiff/computePackageDiff';
+import type { PackageOutcome } from '../lib/packageDiff/protocol';
+import { usePackageDiff } from '../lib/packageDiff/usePackageDiff';
+
+const EMPTY_FILES: FileDiffResult[] = [];
+const EMPTY_BLOCKS: FileDiffResult['blocks'] = [];
+
+function getPackageError(outcome: PackageOutcome | undefined): string | undefined {
+  return outcome && 'error' in outcome ? outcome.error : undefined;
+}
 
 const DiffContent = React.memo(function DiffContent({
-  pkg1,
-  pkg2,
+  files,
   loading,
+  updating,
+  ignoreWhitespace,
+  onIgnoreWhitespaceChange,
+  format,
+  onFormatChange,
 }: {
-  pkg1: PackageContents | undefined;
-  pkg2: PackageContents | undefined;
+  files: FileDiffResult[];
   loading: boolean;
+  updating: boolean;
+  ignoreWhitespace: boolean;
+  onIgnoreWhitespaceChange: (value: boolean) => void;
+  format: boolean;
+  onFormatChange: (value: boolean) => void;
 }) {
-  const [ignoreWhitespace, setIgnoreWhitespace] = React.useState(true);
   const [filter, setFilter] = React.useState('');
 
-  const filesToDiff = React.useMemo(() => {
-    if (!pkg1 || !pkg2) {
-      return [];
-    }
-
-    const pkg1FileMap = new Map(pkg1.files.map((file) => [file.path, file]));
-    const pkg2FileMap = new Map(pkg2.files.map((file) => [file.path, file]));
-
-    const allFiles = new Set([...pkg1FileMap.keys(), ...pkg2FileMap.keys()]);
-
-    const files: {
-      path: string;
-      old: string;
-      new: string;
-      oldHeader: string;
-      newHeader: string;
-      changeType: ChangeType;
-    }[] = [];
-
-    for (const filePath of Array.from(allFiles).sort()) {
-      const file1 = pkg1FileMap.get(filePath);
-      const file2 = pkg2FileMap.get(filePath);
-
-      const content1 = file1?.content || '';
-      const content2 = file2?.content || '';
-
-      if (content1 !== content2) {
-        let changeType: ChangeType;
-        if (!file1) {
-          changeType = 'added';
-        } else if (!file2) {
-          changeType = 'removed';
-        } else {
-          changeType = 'modified';
-        }
-
-        files.push({
-          path: filePath,
-          old: content1,
-          new: content2,
-          oldHeader: `${pkg1.name}@${pkg1.version}`,
-          newHeader: `${pkg2.name}@${pkg2.version}`,
-          changeType,
-        });
-      }
-    }
-
-    return files;
-  }, [pkg1, pkg2]);
-
-  const filteredFilesToDiff = useFilteredItems(filesToDiff, filter);
+  const filteredFiles = useFilteredItems(files, filter);
 
   // Scroll to the anchor element after async content loads
   React.useEffect(() => {
     scrollToHash();
-  }, [filteredFilesToDiff]);
+  }, [filteredFiles]);
 
   return (
     <Box>
@@ -113,19 +78,32 @@ const DiffContent = React.memo(function DiffContent({
           control={
             <Checkbox
               checked={ignoreWhitespace}
-              onChange={(event) => setIgnoreWhitespace(event.target.checked)}
+              onChange={(event) => onIgnoreWhitespaceChange(event.target.checked)}
               size="small"
             />
           }
           label="Ignore whitespace"
           sx={{ mr: 0, flexShrink: 0 }}
         />
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={format}
+              onChange={(event) => onFormatChange(event.target.checked)}
+              size="small"
+            />
+          }
+          label="Format code"
+          title="Format JavaScript, TypeScript, JSON and CSS with Prettier before diffing, so differences in build tool output style don't show up"
+          sx={{ mr: 0, flexShrink: 0 }}
+        />
       </Box>
+      <LinearProgress sx={{ mb: 2, visibility: updating ? 'visible' : 'hidden' }} />
       <Box sx={{ display: 'flex', gap: 2 }}>
         <Box sx={{ display: { xs: 'none', md: 'block' }, width: 300, flexShrink: 0 }}>
           <FileExplorer
-            files={filteredFilesToDiff}
-            title={`Changed Files (${filteredFilesToDiff.length}/${filesToDiff.length})`}
+            files={filteredFiles}
+            title={`Changed Files (${filteredFiles.length}/${files.length})`}
             loading={loading}
           />
         </Box>
@@ -133,32 +111,15 @@ const DiffContent = React.memo(function DiffContent({
           {/* eslint-disable-next-line no-nested-ternary */}
           {loading ? (
             Array.from({ length: 3 }, (_, i) => (
-              <FileDiff
-                key={i}
-                filePath=""
-                oldValue=""
-                newValue=""
-                oldHeader=""
-                newHeader=""
-                ignoreWhitespace={ignoreWhitespace}
-                loading
-              />
+              <FileDiff key={i} fileName="" blocks={EMPTY_BLOCKS} loading />
             ))
-          ) : filteredFilesToDiff.length > 0 ? (
-            filteredFilesToDiff.map(({ path, old, new: newContent, oldHeader, newHeader }) => (
-              <FileDiff
-                key={path}
-                filePath={path}
-                oldValue={old}
-                newValue={newContent}
-                oldHeader={oldHeader}
-                newHeader={newHeader}
-                ignoreWhitespace={ignoreWhitespace}
-              />
+          ) : filteredFiles.length > 0 ? (
+            filteredFiles.map(({ path, blocks, formatError }) => (
+              <FileDiff key={path} fileName={path} blocks={blocks} formatError={formatError} />
             ))
           ) : (
             <Alert severity="info">
-              {filesToDiff.length === 0
+              {files.length === 0
                 ? 'No differences found between the packages.'
                 : 'No files match the current filter.'}
             </Alert>
@@ -175,6 +136,7 @@ export default function DiffPackage() {
   const pathname = usePathname();
   const [package1Input, setPackage1Input] = React.useState(searchParams.get('package1') || '');
   const [package2Input, setPackage2Input] = React.useState(searchParams.get('package2') || '');
+  const [ignoreWhitespace, setIgnoreWhitespace] = React.useState(true);
 
   // Sync input fields with URL parameters when they change. Re-seed the editable
   // inputs during render whenever the searchParams reference changes (back/forward,
@@ -189,10 +151,12 @@ export default function DiffPackage() {
 
   const package1Spec = searchParams.get('package1');
   const package2Spec = searchParams.get('package2');
+  const format = searchParams.get('format') === '1';
 
-  const pkg1Query = usePackageContent(package1Spec);
-  const pkg2Query = usePackageContent(package2Spec);
-  const loading = pkg1Query.isLoading || pkg2Query.isLoading;
+  const diffQuery = usePackageDiff(package1Spec, package2Spec, { ignoreWhitespace, format });
+  const loading = diffQuery.isLoading;
+  const package1Error = getPackageError(diffQuery.data?.oldPackage);
+  const package2Error = getPackageError(diffQuery.data?.newPackage);
 
   const onSwapPackages = useEventCallback(() => {
     const temp = package1Input;
@@ -211,6 +175,16 @@ export default function DiffPackage() {
     const params = new URLSearchParams(searchParams.toString());
     params.set('package1', pkg1Spec);
     params.set('package2', pkg2Spec);
+    router.replace(`${pathname}?${params.toString()}`);
+  });
+
+  const onFormatChange = useEventCallback((value: boolean) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value) {
+      params.set('format', '1');
+    } else {
+      params.delete('format');
+    }
     router.replace(`${pathname}?${params.toString()}`);
   });
 
@@ -239,8 +213,8 @@ export default function DiffPackage() {
             placeholder="e.g., react@18.0.0, @mui/material@~5.0.0"
             value={package1Input}
             onChange={(event) => setPackage1Input(event.target.value)}
-            error={!!pkg1Query.error}
-            helperText={pkg1Query.error?.message}
+            error={!!package1Error}
+            helperText={package1Error}
             sx={{
               flex: { sm: 1 },
               width: { xs: '100%', sm: 'auto' },
@@ -269,8 +243,8 @@ export default function DiffPackage() {
             placeholder="e.g., react@19.0.0, @mui/material@6.x"
             value={package2Input}
             onChange={(event) => setPackage2Input(event.target.value)}
-            error={!!pkg2Query.error}
-            helperText={pkg2Query.error?.message}
+            error={!!package2Error}
+            helperText={package2Error}
             sx={{
               flex: { sm: 1 },
               width: { xs: '100%', sm: 'auto' },
@@ -298,11 +272,19 @@ export default function DiffPackage() {
         </Box>
       </Box>
 
-      <DiffContent
-        pkg1={pkg1Query.data}
-        pkg2={pkg2Query.data}
-        loading={pkg1Query.isLoading || pkg2Query.isLoading}
-      />
+      {diffQuery.error ? <Alert severity="error">{diffQuery.error.message}</Alert> : null}
+
+      {diffQuery.data?.files === null ? null : (
+        <DiffContent
+          files={diffQuery.data?.files ?? EMPTY_FILES}
+          loading={loading}
+          updating={diffQuery.isPlaceholderData && diffQuery.isFetching}
+          ignoreWhitespace={ignoreWhitespace}
+          onIgnoreWhitespaceChange={setIgnoreWhitespace}
+          format={format}
+          onFormatChange={onFormatChange}
+        />
+      )}
     </Box>
   );
 }
