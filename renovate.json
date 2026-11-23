@@ -7,7 +7,7 @@
   },
   "packageRules": [
     {
-      "description": "gh-aw generates these lock files and pins their actions itself. Recompile with `gh aw compile` instead.",
+      "description": "gh-aw generates these lock files and pins their actions itself. Bump the actions in the .md sources and gh-aw itself by hand, then recompile with `gh aw compile`.",
       "matchFileNames": [".github/workflows/*.lock.yml"],
       "enabled": false
     },

@@ -92,7 +92,7 @@ For example, ask the agent to "Use mui-renovate-triage to review the open Renova
 
 ### Dependabot alerts
 
-The reusable [Dependabot fix workflow](./.github/workflows/dependabot-fix-workflow.md) (GitHub Agentic Workflows) clears the open Dependabot security alerts that dependency-update tooling leaves open, typically vulnerable transitive dependencies. Per package, an agent tries a refresh, a direct or parent bump within the major, a major bump when it can reasonably be done, then a version-scoped override. It batches the fixes within current major versions into one PR and gives each major-version fix its own, and reports in an issue the alerts that need a decision. Alerts that are deliberately left unfixed should be dismissed, so it stops proposing them.
+The reusable [Dependabot fix workflow](./.github/workflows/dependabot-fix-workflow.md) (GitHub Agentic Workflows) clears the open Dependabot security alerts that dependency-update tooling leaves open, typically vulnerable transitive dependencies. Per package, an agent picks the least invasive fix the dependency policy allows. It batches the fixes within current major versions into one PR and gives each major-version fix its own, and reports in an issue the alerts that need a decision. Alerts that are deliberately left unfixed should be dismissed, so it stops proposing them.
 
 Repositories call its compiled `dependabot-fix-workflow.lock.yml` on their own schedule, like [mui-public does daily](./.github/workflows/dependabot-fix.yml), and it runs against the calling repository. Each repository running it needs:
 

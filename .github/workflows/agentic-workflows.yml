@@ -25,33 +25,19 @@ jobs:
         with:
           persist-credentials: false
       - name: Install the gh-aw version the lock files were compiled with
-        id: install
         run: |
           set -euo pipefail
-          shopt -s nullglob
-          workflows=(.github/workflows/*.md .github/workflows/*.lock.yml)
-          if [ ${#workflows[@]} -eq 0 ]; then
-            echo "No agentic workflows."
-            exit 0
-          fi
-          versions=$(for file in .github/workflows/*.lock.yml; do
-            sed -n '1s/^# gh-aw-metadata: //p' "$file" | jq -r '.compiler_version // empty'
-          done | sort -u)
-          if [ -z "$versions" ]; then
+          # Lock files compiled with another version show up as a diff after recompiling.
+          version=$(sed -n '1s/^# gh-aw-metadata: //p' .github/workflows/*.lock.yml \
+            | jq -r '.compiler_version // empty' | head -n1)
+          if [ -z "$version" ]; then
             echo "::error::No lock file records a gh-aw version. Run \`gh aw compile\` and commit the result."
             exit 1
           fi
-          if [[ $versions == *$'\n'* ]]; then
-            echo "::error::Lock files were compiled with different gh-aw versions: $(echo $versions). Recompile them with one version."
-            exit 1
-          fi
-          gh extension install github/gh-aw --pin "$versions"
-          echo "installed=true" >> "$GITHUB_OUTPUT"
+          gh extension install github/gh-aw --pin "$version"
       - name: Recompile
-        if: steps.install.outputs.installed == 'true'
         run: gh aw compile --strict
       - name: Check the lock files are up to date
-        if: steps.install.outputs.installed == 'true'
         run: |
           # Includes untracked files, for a new workflow committed without its lock file.
           changes=$(git status --porcelain -- .github)
