@@ -2,6 +2,7 @@ import type { KpiConfig, KpiInfo } from './types';
 import type { Repository } from '../../constants';
 import { MUI_KPI_REPOS } from '../../constants';
 import * as github from './fetchers/github';
+import * as githubActivity from './fetchers/githubActivity';
 import * as zendesk from './fetchers/zendesk';
 import * as circleCI from './fetchers/circleCI';
 import * as hibob from './fetchers/hibob';
@@ -62,6 +63,71 @@ function createHeadCISuccessRateCard(repo: Repository): KpiConfig<[string]> {
   };
 }
 
+function createMedianTimeToCompletionCard(repo: Repository): KpiConfig<[string]> {
+  return {
+    id: `median-time-to-completion-${repo.name}`,
+    title: `Median Time to Completion - ${repo.displayName}`,
+    description: '75th percentile time for pull requests to be merged',
+    unit: ' days',
+    thresholds: { warning: 3, problem: 5, lowerIsBetter: true },
+    group: repo.displayName,
+    fetchParams: [repo.name],
+    fetch: githubActivity.fetchTimeToMerge,
+  };
+}
+
+function createIssueFirstCommentCard(repo: Repository): KpiConfig<[string]> {
+  return {
+    id: `issue-first-comment-${repo.name}`,
+    title: `Issue First Comment - ${repo.displayName}`,
+    description: '75th percentile time to the first reply on new issues',
+    unit: ' hours',
+    thresholds: { warning: 8, problem: 24, lowerIsBetter: true },
+    group: repo.displayName,
+    fetchParams: [repo.name],
+    fetch: githubActivity.fetchIssueFirstResponse,
+  };
+}
+
+function createClosedVsOpenedIssuesCard(repo: Repository): KpiConfig<[string]> {
+  return {
+    id: `closed-vs-opened-issues-${repo.name}`,
+    title: `Closed vs Opened Issues - ${repo.displayName}`,
+    description: 'Ratio of opened to closed issues over last 3 months',
+    unit: ' ratio',
+    thresholds: { warning: 2, problem: 2, lowerIsBetter: true },
+    group: repo.displayName,
+    fetchParams: [repo.name],
+    fetch: githubActivity.fetchOpenedVsClosedIssues,
+  };
+}
+
+function createCommunityContributorsCard(repo: Repository): KpiConfig<[string]> {
+  return {
+    id: `community-contributors-${repo.name}`,
+    title: `Community Contributors - ${repo.displayName}`,
+    description: 'Ratio of community contributors to maintainers',
+    unit: 'x',
+    thresholds: { warning: 3, problem: 2, lowerIsBetter: false },
+    group: repo.displayName,
+    fetchParams: [repo.name],
+    fetch: githubActivity.fetchCommunityContributors,
+  };
+}
+
+function createCommunityPRsCard(repo: Repository): KpiConfig<[string]> {
+  return {
+    id: `community-prs-${repo.name}`,
+    title: `Community PRs - ${repo.displayName}`,
+    description: 'Ratio of community PRs to maintainer PRs',
+    unit: '%',
+    thresholds: { warning: 50, problem: 35, lowerIsBetter: false },
+    group: repo.displayName,
+    fetchParams: [repo.name],
+    fetch: githubActivity.fetchCommunityPullRequests,
+  };
+}
+
 async function fetchCICompletionTime(repoName: string) {
   return circleCI.fetchCompletionTime(repoName);
 }
@@ -103,6 +169,11 @@ export const kpiRegistry: KpiConfig<any[]>[] = [
     createWaitingForMaintainerCard(repo),
     createMissingGitHubLabelCard(repo),
     createHeadCISuccessRateCard(repo),
+    createMedianTimeToCompletionCard(repo),
+    createIssueFirstCommentCard(repo),
+    createClosedVsOpenedIssuesCard(repo),
+    createCommunityContributorsCard(repo),
+    createCommunityPRsCard(repo),
     createCICompletionTimeCard(repo),
   ]),
 
