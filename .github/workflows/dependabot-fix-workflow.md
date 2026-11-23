@@ -51,7 +51,9 @@ steps:
     uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
     with:
       node-version-file: package.json
-      cache: pnpm
+      # The agent runs pnpm in this job; don't let it modify dependency caches that later
+      # workflows might restore.
+      package-manager-cache: false
   - name: Install dependencies
     run: pnpm install --frozen-lockfile
   # Open alerts, minus those an open fix PR already links to. This workflow's PRs are opened by the
