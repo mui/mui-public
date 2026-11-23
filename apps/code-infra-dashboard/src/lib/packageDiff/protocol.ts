@@ -7,14 +7,13 @@ export interface PackageDiffRequest {
   options: DiffOptions;
 }
 
-export type PackageOutcome = { name: string; version: string } | { error: string };
-
-export interface PackageDiffResult {
-  oldPackage: PackageOutcome;
-  newPackage: PackageOutcome;
-  /** `null` when either package failed to download. */
-  files: FileDiffResult[] | null;
+export interface PackageDiffFailure {
+  message: string;
+  /** Why the old package couldn't be downloaded, if it couldn't. */
+  oldError?: string;
+  /** Why the new package couldn't be downloaded, if it couldn't. */
+  newError?: string;
 }
 
 export type PackageDiffResponse =
-  { id: number; result: PackageDiffResult } | { id: number; error: string };
+  { id: number; files: FileDiffResult[] } | { id: number; failure: PackageDiffFailure };

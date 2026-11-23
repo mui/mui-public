@@ -1,12 +1,24 @@
 import { useQuery } from '@tanstack/react-query';
-import type { DiffOptions } from './computePackageDiff';
-import type { PackageDiffRequest, PackageDiffResponse, PackageDiffResult } from './protocol';
+import type { DiffOptions, FileDiffResult } from './computePackageDiff';
+import type { PackageDiffFailure, PackageDiffRequest, PackageDiffResponse } from './protocol';
+
+export class PackageDiffError extends Error {
+  declare oldError?: string;
+
+  declare newError?: string;
+
+  constructor({ message, oldError, newError }: PackageDiffFailure) {
+    super(message);
+    this.oldError = oldError;
+    this.newError = newError;
+  }
+}
 
 let worker: Worker | null = null;
 let nextRequestId = 0;
 const pendingRequests = new Map<
   number,
-  { resolve: (result: PackageDiffResult) => void; reject: (error: Error) => void }
+  { resolve: (files: FileDiffResult[]) => void; reject: (error: PackageDiffError) => void }
 >();
 
 function getWorker(): Worker {
@@ -18,16 +30,18 @@ function getWorker(): Worker {
       if (!pending) {
         return;
       }
-      if ('error' in event.data) {
-        pending.reject(new Error(event.data.error));
+      if ('failure' in event.data) {
+        pending.reject(new PackageDiffError(event.data.failure));
       } else {
-        pending.resolve(event.data.result);
+        pending.resolve(event.data.files);
       }
     });
     worker.addEventListener('error', (event) => {
       // The worker failed to load or threw outside a request, nothing in flight will answer
       for (const pending of pendingRequests.values()) {
-        pending.reject(new Error(event.message || 'Package diff worker failed'));
+        pending.reject(
+          new PackageDiffError({ message: event.message || 'Package diff worker failed' }),
+        );
       }
       pendingRequests.clear();
       worker?.terminate();
@@ -41,7 +55,7 @@ function requestPackageDiff(
   oldSpec: string,
   newSpec: string,
   options: DiffOptions,
-): Promise<PackageDiffResult> {
+): Promise<FileDiffResult[]> {
   return new Promise((resolve, reject) => {
     nextRequestId += 1;
     const request: PackageDiffRequest = { id: nextRequestId, oldSpec, newSpec, options };
@@ -55,8 +69,8 @@ export function usePackageDiff(
   newSpec: string | null,
   options: DiffOptions,
 ) {
-  return useQuery({
-    queryKey: ['package-diff', oldSpec, newSpec, options.ignoreWhitespace, options.format],
+  return useQuery<FileDiffResult[], PackageDiffError>({
+    queryKey: ['package-diff', oldSpec, newSpec, options],
     queryFn: () => requestPackageDiff(oldSpec!, newSpec!, options),
     enabled: Boolean(oldSpec?.trim() && newSpec?.trim()),
     retry: false,

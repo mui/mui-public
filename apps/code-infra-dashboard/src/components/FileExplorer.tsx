@@ -6,8 +6,7 @@ import { RichTreeViewPro } from '@mui/x-tree-view-pro/RichTreeViewPro';
 import { TreeItem, useTreeItemModel } from '@mui/x-tree-view-pro';
 import type { TreeItemProps } from '@mui/x-tree-view-pro';
 import { escapeHtmlId } from '../utils/dom';
-
-export type ChangeType = 'added' | 'removed' | 'modified';
+import type { ChangeType } from '../lib/packageDiff/computePackageDiff';
 
 interface TreeViewItem {
   id: string;

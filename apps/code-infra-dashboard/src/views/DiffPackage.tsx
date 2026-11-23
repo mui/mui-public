@@ -18,16 +18,20 @@ import { scrollToHash } from '../utils/dom';
 import Heading from '../components/Heading';
 import FileDiff from '../components/FileDiff';
 import FileExplorer from '../components/FileExplorer';
+import { useSearchParamsState } from '../hooks/useSearchParamsState';
 import type { FileDiffResult } from '../lib/packageDiff/computePackageDiff';
-import type { PackageOutcome } from '../lib/packageDiff/protocol';
 import { usePackageDiff } from '../lib/packageDiff/usePackageDiff';
 
 const EMPTY_FILES: FileDiffResult[] = [];
 const EMPTY_BLOCKS: FileDiffResult['blocks'] = [];
 
-function getPackageError(outcome: PackageOutcome | undefined): string | undefined {
-  return outcome && 'error' in outcome ? outcome.error : undefined;
-}
+const SEARCH_PARAMS_CONFIG = {
+  format: {
+    defaultValue: false,
+    serialize: (value: boolean) => (value ? '1' : ''),
+    deserialize: (value: string) => value === '1',
+  },
+};
 
 const DiffContent = React.memo(function DiffContent({
   files,
@@ -151,12 +155,12 @@ export default function DiffPackage() {
 
   const package1Spec = searchParams.get('package1');
   const package2Spec = searchParams.get('package2');
-  const format = searchParams.get('format') === '1';
+  const [{ format }, setParams] = useSearchParamsState(SEARCH_PARAMS_CONFIG, { replace: true });
 
   const diffQuery = usePackageDiff(package1Spec, package2Spec, { ignoreWhitespace, format });
   const loading = diffQuery.isLoading;
-  const package1Error = getPackageError(diffQuery.data?.oldPackage);
-  const package2Error = getPackageError(diffQuery.data?.newPackage);
+  const package1Error = diffQuery.error?.oldError;
+  const package2Error = diffQuery.error?.newError;
 
   const onSwapPackages = useEventCallback(() => {
     const temp = package1Input;
@@ -178,15 +182,7 @@ export default function DiffPackage() {
     router.replace(`${pathname}?${params.toString()}`);
   });
 
-  const onFormatChange = useEventCallback((value: boolean) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (value) {
-      params.set('format', '1');
-    } else {
-      params.delete('format');
-    }
-    router.replace(`${pathname}?${params.toString()}`);
-  });
+  const onFormatChange = useEventCallback((value: boolean) => setParams({ format: value }));
 
   return (
     <Box sx={{ mt: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -272,11 +268,14 @@ export default function DiffPackage() {
         </Box>
       </Box>
 
-      {diffQuery.error ? <Alert severity="error">{diffQuery.error.message}</Alert> : null}
+      {/* Download failures show under their input instead */}
+      {diffQuery.error && !package1Error && !package2Error ? (
+        <Alert severity="error">{diffQuery.error.message}</Alert>
+      ) : null}
 
-      {diffQuery.data?.files === null ? null : (
+      {diffQuery.error ? null : (
         <DiffContent
-          files={diffQuery.data?.files ?? EMPTY_FILES}
+          files={diffQuery.data ?? EMPTY_FILES}
           loading={loading}
           updating={diffQuery.isPlaceholderData && diffQuery.isFetching}
           ignoreWhitespace={ignoreWhitespace}

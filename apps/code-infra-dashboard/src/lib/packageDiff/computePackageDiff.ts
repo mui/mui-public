@@ -134,10 +134,8 @@ async function diffFile(
         formatFile(newFile, parser),
       ]);
     } catch (error) {
-      // Fall back to the raw contents of both sides, a half formatted diff is useless
+      // Both sides keep their raw contents, a half formatted diff is useless
       formatError = error instanceof Error ? error.message : String(error);
-      oldContent = oldFile?.content ?? '';
-      newContent = newFile?.content ?? '';
     }
     if (oldContent === newContent) {
       return null;

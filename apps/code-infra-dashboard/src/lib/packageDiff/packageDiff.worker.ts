@@ -3,13 +3,10 @@
 import { downloadAndExtractPackage } from '../packageDownload';
 import type { PackageContents } from '../packageDownload';
 import { computePackageDiff } from './computePackageDiff';
-import type {
-  PackageDiffRequest,
-  PackageDiffResponse,
-  PackageDiffResult,
-  PackageOutcome,
-} from './protocol';
+import type { PackageDiffFailure, PackageDiffRequest, PackageDiffResponse } from './protocol';
 
+// Holds the packages of the latest request only, so toggling diff options reuses the
+// download and formatted files. Earlier diffs are cached as results on the main thread.
 const packages = new Map<string, Promise<PackageContents>>();
 
 function getPackage(spec: string): Promise<PackageContents> {
@@ -23,37 +20,42 @@ function getPackage(spec: string): Promise<PackageContents> {
   return pkg;
 }
 
-function toOutcome(result: PromiseSettledResult<PackageContents>): PackageOutcome {
-  if (result.status === 'rejected') {
-    return {
-      error: result.reason instanceof Error ? result.reason.message : String(result.reason),
-    };
-  }
-  return { name: result.value.name, version: result.value.version };
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
-async function handleRequest({
-  oldSpec,
-  newSpec,
-  options,
-}: PackageDiffRequest): Promise<PackageDiffResult> {
+async function handleRequest({ oldSpec, newSpec, options }: PackageDiffRequest) {
+  for (const spec of packages.keys()) {
+    if (spec !== oldSpec && spec !== newSpec) {
+      packages.delete(spec);
+    }
+  }
+
   const [oldResult, newResult] = await Promise.allSettled([
     getPackage(oldSpec),
     getPackage(newSpec),
   ]);
-  const files =
-    oldResult.status === 'fulfilled' && newResult.status === 'fulfilled'
-      ? await computePackageDiff(oldResult.value, newResult.value, options)
-      : null;
-  return { oldPackage: toOutcome(oldResult), newPackage: toOutcome(newResult), files };
+  if (oldResult.status === 'rejected' || newResult.status === 'rejected') {
+    const failure: PackageDiffFailure = { message: 'Failed to download the packages' };
+    if (oldResult.status === 'rejected') {
+      failure.oldError = getErrorMessage(oldResult.reason);
+    }
+    if (newResult.status === 'rejected') {
+      failure.newError = getErrorMessage(newResult.reason);
+    }
+    return failure;
+  }
+  return computePackageDiff(oldResult.value, newResult.value, options);
 }
 
 globalThis.addEventListener('message', async (event: MessageEvent<PackageDiffRequest>) => {
+  const { id } = event.data;
   let response: PackageDiffResponse;
   try {
-    response = { id: event.data.id, result: await handleRequest(event.data) };
+    const result = await handleRequest(event.data);
+    response = Array.isArray(result) ? { id, files: result } : { id, failure: result };
   } catch (error) {
-    response = { id: event.data.id, error: error instanceof Error ? error.message : String(error) };
+    response = { id, failure: { message: getErrorMessage(error) } };
   }
   globalThis.postMessage(response);
 });
