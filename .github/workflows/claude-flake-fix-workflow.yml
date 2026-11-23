@@ -407,6 +407,12 @@ jobs:
                  pass every run. The unmodified test failing now and then under the same setup is
                  extra evidence that this is the CI flake.
                - If no forced trigger reproduces the error, the cause is unclear: stop (step 5).
+               - Decide where the race lives. If it is in the test (its setup, teardown, state it
+                 leaves behind, or an assertion that doesn't wait for what it checks), fix the test.
+                 If it is in the code under test (the code misbehaves when the race goes that way,
+                 which users can hit too), fix the code. Never reduce test coverage to make it pass:
+                 don't skip, delete, or weaken the test or its assertions, and don't paper over it
+                 with longer timeouts or retries.
                Then fix the cause and encode the trigger in the patch where the code has tests:
                change a test or add one so the trigger always happens, so that reverting the fix
                fails it every run instead of sometimes. Before writing the patch, confirm the fix
