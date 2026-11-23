@@ -401,10 +401,7 @@ jobs:
                  deferred promise, or a barrier; run the steps in the other order; leave behind the
                  state an earlier step would; run things in parallel. Prefer the hooks and APIs the
                  code and its tests already use over patching internals: a trigger that needs
-                 patched internals is less convincing and harder to keep as a test. (Example from a
-                 browser test: an earlier test hovering with the real pointer and leaving it there,
-                 plus a real browser command to let a frame render under fake timers, made a
-                 toast's timer pause on every run.)
+                 patched internals is less convincing and harder to keep as a test.
                - Run each variant several times (5–10). A hypothesis is confirmed only when forcing
                  it fails every run with the same error as in CI, and controls that don't force it
                  pass every run. The unmodified test failing now and then under the same setup is
