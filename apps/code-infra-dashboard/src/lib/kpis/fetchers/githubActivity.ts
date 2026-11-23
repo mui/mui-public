@@ -32,7 +32,8 @@ interface IssueNode {
 interface SearchResult<TNode> {
   search: {
     pageInfo: { hasNextPage: boolean; endCursor: string | null };
-    nodes: TNode[];
+    // Search can return null for items the viewer can't resolve.
+    nodes: (TNode | null)[];
   };
 }
 
@@ -99,14 +100,17 @@ async function searchAll<TNode>(graphqlQuery: string, searchQuery: string): Prom
       graphqlQuery,
       { searchQuery, cursor },
     );
-    nodes.push(...result.search.nodes);
+    nodes.push(...result.search.nodes.filter((node): node is TNode => node !== null));
     cursor = result.search.pageInfo.hasNextPage ? result.search.pageInfo.endCursor : null;
   } while (cursor);
   return nodes;
 }
 
 function countAuthors(pullRequests: PullRequestNode[]): number {
-  return new Set(pullRequests.map((pullRequest) => pullRequest.author?.login)).size;
+  // Deleted accounts have no author; they can't be told apart, so they don't count.
+  return new Set(
+    pullRequests.flatMap((pullRequest) => (pullRequest.author ? [pullRequest.author.login] : [])),
+  ).size;
 }
 
 // Shared by the time-to-merge and community KPIs within a render.

@@ -1,3 +1,5 @@
+import { PHASE_PRODUCTION_BUILD } from 'next/constants';
+import { unstable_rethrow } from 'next/navigation';
 import type { KpiConfig, KpiInfo, KpiResult } from './types';
 import type { Repository } from '../../constants';
 import { MUI_PER_REPO_KPI_REPOS } from '../../constants';
@@ -251,11 +253,16 @@ export function getKpiById(id: string): KpiConfig<any[]> | undefined {
   return kpiRegistry.find((kpi) => kpi.id === id);
 }
 
-// A failing KPI renders as an error card instead of failing the whole page (and the build).
+// At build time a failing KPI renders as an error card, since a throw would fail the deploy.
+// Afterwards it throws, so a failed hourly revalidation keeps serving the last good page.
 export async function fetchKpi(kpi: KpiConfig<any[]>): Promise<KpiResult> {
   try {
     return await kpi.fetch(...(kpi.fetchParams ?? []));
   } catch (error) {
+    unstable_rethrow(error);
+    if (process.env.NEXT_PHASE !== PHASE_PRODUCTION_BUILD) {
+      throw error;
+    }
     return errorResult(error instanceof Error ? error.message : String(error));
   }
 }
