@@ -19,11 +19,10 @@ import { parseArgs, stripVTControlCharacters } from 'node:util';
 const API = process.env.CIRCLECI_API_BASE || 'https://circleci.com/api/v2';
 const API_V1 = process.env.CIRCLECI_API_V1_BASE || 'https://circleci.com/api/v1.1';
 const APP = process.env.CIRCLECI_APP_BASE || 'https://app.circleci.com';
-const LOG_TAIL_BYTES = 4096;
-// The full log the agent greps around its fingerprint for context, such as the failing test's
-// name, which a test runner prints once before a long stack. Capped so one runaway log can't
-// bloat the artifact.
-const FULL_LOG_MAX_BYTES = 2_000_000;
+// A failed step's log is kept whole, so the agent can grep around its fingerprint for context such
+// as the failing test's name, which a test runner prints once before a long stack. Capped at its
+// tail so one runaway log can't bloat the artifact.
+const LOG_MAX_BYTES = 2_000_000;
 // A step command is a CircleCI-rendered script; cap it so one huge script can't crowd the file.
 const COMMAND_MAX = 2000;
 const CONCURRENCY = 16;
@@ -368,10 +367,13 @@ async function main() {
           if (action.status === 'timedout') {
             timedOut = true;
           }
-          if (action.bash_command) {
-            commands.push(
-              `## ${step.name}\n${action.bash_command.slice(0, COMMAND_MAX).trimEnd()}${action.bash_command.length > COMMAND_MAX ? '\n[… command truncated]' : ''}`,
-            );
+          const command = action.bash_command;
+          if (command) {
+            const shown =
+              command.length > COMMAND_MAX
+                ? `${command.slice(0, COMMAND_MAX).trimEnd()}\n[… command truncated]`
+                : command.trimEnd();
+            commands.push(`## ${step.name}\n${shown}`);
           }
           if (
             (action.failed || action.status === 'failed' || action.status === 'timedout') &&
@@ -401,54 +403,41 @@ async function main() {
     return;
   }
 
-  // One file per failed run, newest first, self-describing under grep (jobs/NNNN.txt), plus each
-  // failed step's full log beside it (jobs/NNNN.<step>.log). The timeline points at the .txt.
-  fs.mkdirSync(path.join(outDir, 'jobs'), { recursive: true });
-  const basePathByJobNumber = new Map(
-    logged.map((job, jobIndex) => [
-      job.jobNumber,
-      path.join('jobs', String(jobIndex).padStart(PAD_WIDTH, '0')),
-    ]),
-  );
-  const fullLogPath = (jobNumber, stepIndex) =>
-    `${basePathByJobNumber.get(jobNumber)}.${stepIndex}.log`;
-
   const logTexts = new Map();
   await mapPool(
     logTasks,
     async (task) => {
       const raw = await httpGet(task.url, { raw: true, timeoutMs: 60000 });
-      const text = stripVTControlCharacters(
-        JSON.parse(raw)
-          .map((entry) => entry.message ?? '')
-          .join(''),
+      const joined = JSON.parse(raw)
+        .map((entry) => entry.message ?? '')
+        .join('');
+      // Cap at fetch, not at read: whole logs would hold hundreds of MB alive across a bad week.
+      logTexts.set(
+        `${task.jobNumber}:${task.stepIndex}`,
+        tailBytes(stripVTControlCharacters(joined), LOG_MAX_BYTES),
       );
-      // The full log goes straight to disk and only the tail stays in memory: whole logs would
-      // hold hundreds of MB alive across a bad week.
-      fs.writeFileSync(
-        path.join(outDir, fullLogPath(task.jobNumber, task.stepIndex)),
-        tailBytes(text, FULL_LOG_MAX_BYTES),
-      );
-      logTexts.set(`${task.jobNumber}:${task.stepIndex}`, tailBytes(text, LOG_TAIL_BYTES));
     },
     24,
   );
 
+  // One file per failed run, newest first, self-describing under grep. The timeline points here.
+  // The logs go last, so the file's tail is the failing step's tail.
+  fs.mkdirSync(path.join(outDir, 'jobs'), { recursive: true });
   const fileByJobNumber = new Map();
   logged.forEach((job, jobIndex) => {
-    const relativePath = `${basePathByJobNumber.get(job.jobNumber)}.txt`;
+    const relativePath = path.join('jobs', `${String(jobIndex).padStart(PAD_WIDTH, '0')}.txt`);
     fileByJobNumber.set(job.jobNumber, relativePath);
     const detail = stepsByJob.get(job.jobNumber);
+    const commands =
+      detail.commands.length > 0
+        ? `### Job commands, in order\n${detail.commands.join('\n\n')}\n\n`
+        : '';
     const body = detail.steps
       .map(
         (step, stepIndex) =>
           `### ${step.name}\n${logTexts.get(`${job.jobNumber}:${stepIndex}`) ?? ''}`,
       )
       .join('\n\n');
-    const commands =
-      detail.commands.length > 0
-        ? `\n\n### Job commands, in order\n${detail.commands.join('\n\n')}\n`
-        : '';
     // Each file carries its own metadata header, which is what makes it self-describing under grep.
     const header = [
       `INDEX=${jobIndex}`,
@@ -460,11 +449,10 @@ async function main() {
       `TIME=${job.createdAt}`,
       `SHA=${job.sha}`,
       `COMMIT=${oneLineSubject(job.subject)}`,
-      `FULL_LOGS=${detail.steps.map((step, stepIndex) => fullLogPath(job.jobNumber, stepIndex)).join(' ')}`,
       '',
       '',
     ].join('\n');
-    fs.writeFileSync(path.join(outDir, relativePath), header + body + commands);
+    fs.writeFileSync(path.join(outDir, relativePath), header + commands + body);
   });
 
   writeTimeline(outDir, {

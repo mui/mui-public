@@ -254,7 +254,7 @@ async function runFetch(scenario, failOn) {
 }
 
 describe('fetch', () => {
-  it('writes a per-job file with header and log tail when a job fails', async () => {
+  it('writes a per-job file with header and log when a job fails', async () => {
     const { code, dataDir, classify } = await runFetch('failing');
     expect(code).toBe(0);
     expect(classify).toBe('classify=true');
@@ -270,7 +270,10 @@ describe('fetch', () => {
   it('lists the job commands in order, so the agent can replay the job', async () => {
     const { dataDir } = await runFetch('failing');
     const content = fs.readFileSync(path.join(dataDir, 'jobs', '0000.txt'), 'utf8');
-    const commands = content.slice(content.indexOf('### Job commands'));
+    const commands = content.slice(
+      content.indexOf('### Job commands'),
+      content.indexOf('### run tests\n'),
+    );
     expect(commands).toBe(
       [
         '### Job commands, in order',
@@ -281,24 +284,20 @@ describe('fetch', () => {
         '## run tests',
         'pnpm test:node --no-isolate',
         '',
+        '',
       ].join('\n'),
     );
   });
 
-  it('keeps the full log beside a job file whose excerpt is only the tail', async () => {
+  it('keeps the whole log, so the line naming the failing test survives a long stack', async () => {
     const { dataDir } = await runFetch('long-log');
     const content = fs.readFileSync(path.join(dataDir, 'jobs', '0000.txt'), 'utf8');
-    expect(content).toMatch(/^FULL_LOGS=jobs\/0000\.0\.log$/m);
-    // The job file holds the tail, which misses the line naming the failing test.
-    expect(content).toContain(' Test Files  1 failed | 474 passed');
-    expect(content).not.toContain('FAIL  src/Button.test.js');
-    // The full log has it, ANSI-free, for the agent to grep around its fingerprint.
-    const fullLog = fs.readFileSync(path.join(dataDir, 'jobs', '0000.0.log'), 'utf8');
-    expect(fullLog).toContain(
+    expect(content).toContain(
       ' FAIL  src/Button.test.js > <Button /> > should fire event callbacks',
     );
-    expect(fullLog.endsWith(' Test Files  1 failed | 474 passed')).toBe(true);
-    expect(fullLog).not.toContain('\x1b[');
+    expect(content).not.toContain('\x1b[');
+    // The log comes last, so the file's tail is the failing step's tail.
+    expect(content.endsWith(' Test Files  1 failed | 474 passed')).toBe(true);
   });
 
   it('builds a timeline.json that shows passes, in time order, with log pointers to the failures', async () => {

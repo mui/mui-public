@@ -311,15 +311,15 @@ jobs:
             brief:
 
             (a) Fingerprint the failures — from the logs. Each failed run has a log at
-            ${{ runner.temp }}/flake-data/jobs/NNNN.txt (a KEY=value header, then the tail of each
-            failed step, then the job's commands). The tail often misses what a test runner prints
-            once before a long stack, such as the failing test's name; each step's full log is
-            listed in the FULL_LOGS header, so grep it for a fingerprint with context to find that
-            (`grep -n -m1 -B10 -A3 '<fingerprint>' <full log>`). Find the distinct errors without reading every log: read one, take as its fingerprint the
+            ${{ runner.temp }}/flake-data/jobs/NNNN.txt (a KEY=value header, the job's commands, then
+            each failed step's whole log). Logs are long: read a file's end (`tail -c 4096`), not all
+            of it, and grep around a fingerprint for what the end lacks, such as the failing test's
+            name (`grep -n -m1 -B10 -A3 '<fingerprint>' <file>`). Find the distinct errors without
+            reading every log: read one's end, take as its fingerprint the
             specific line that names one class of failure — not a generic wrapper the job prints on
             any failure, and with run-varying tokens stripped (see the fingerprint rule below) — then
             `grep -LE '<fingerprints so far>' ${{ runner.temp }}/flake-data/jobs/*.txt | head -1` to
-            jump to the first failure matching none of them; read only that one; repeat until grep -L
+            jump to the first failure matching none of them; read only that one's end; repeat until grep -L
             returns nothing. That gives every distinct error from a handful of reads.
 
             Write ${{ runner.temp }}/flake-out/fingerprints.json — one entry per distinct error.
@@ -360,8 +360,7 @@ jobs:
             then the problem on a single line linking its last occurrence.
 
             Live problems first (🔴 still failing, 🟡 flaky, 🟠 unconfirmed — a single failure, real or a
-            one-off). Leave {{fix}} out for now: step 2 adds it to the row it patches. A problem an
-            OPEN fix PR in prs.json already
+            one-off). A problem an OPEN fix PR in prs.json already
             covers stays here too, linking that PR inline as "fix: <PR>".
 
             | | |
@@ -393,12 +392,13 @@ jobs:
                none, stop: change nothing and write no patch and no no-fix.txt (the report already
                shows why). When you stop on a target without a patch, revert your edits and start
                again at step 2 with the next target. Stop at the first patch.
-            2. Find the root cause. Read only that target's log (jobs/NNNN.txt) for the exact error,
+            2. Find the root cause. Grep only that target's log (jobs/NNNN.txt) for the exact error,
                then trace it into the checkout until you can say which code is at fault and why. Find
                what made it start failing: a change in our code, a dependency bump, or a moving
-               toolchain channel (`@next`, nightly, canary). The checkout has full history, so
-               `git log --stat <lastPass.sha>..<firstSeen.sha>` lists the commits that started it; a
-               dependency bump shows as a lockfile change there. To reproduce (briefly; CI re-runs on
+               toolchain channel (`@next`, nightly, canary). The checkout has every commit, so
+               `git log --oneline <lastPass.sha>..<firstSeen.sha>` lists the ones that started it;
+               `git show --stat <sha>` only the likely ones (each fetches its files on demand). A
+               dependency bump shows as a lockfile change. To reproduce (briefly; CI re-runs on
                the PR), replay the install and any version overrides from the "Job commands" section
                of its job file, then run only the failing test file. A suspected race is the
                exception (step 3).
@@ -634,16 +634,18 @@ jobs:
             // dry-run note), and drop a stray token when no fix opened. A PR with no token to carry
             // it still gets linked, on its own line. Fixes already in flight and merged fixes are
             // linked by the agent itself from prs.json.
-            let fixText = '';
+            let fix = '';
             if (prUrl) {
-              fixText = ` — fix: ${prUrl}`;
+              fix = `fix: ${prUrl}`;
             } else if (fixProposed) {
-              fixText = ' — fix: _(dry run — a draft PR would open)_';
+              fix = 'fix: _(dry run — a draft PR would open)_';
             }
-            if (fixText && !report.includes('{{fix}}')) {
-              report = `${report.trimEnd()}\n\n${fixText.replace(/^ — /, '')}`;
+            if (report.includes('{{fix}}')) {
+              report = report.replaceAll('{{fix}}', fix && ` — ${fix}`);
+            } else if (fix) {
+              report = `${report.trimEnd()}\n\n${fix}`;
             }
-            report = report.replaceAll('{{fix}}', fixText).trimEnd();
+            report = report.trimEnd();
             // One line per target that got no PR: the agent's reason for each target it gave up on,
             // and the build step's refusal of its patch. Shown even when a later target's PR opened.
             // Absent when there was nothing to fix.
