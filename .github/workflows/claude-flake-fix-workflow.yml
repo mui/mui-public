@@ -384,52 +384,29 @@ jobs:
                the timeline to find what made it start failing: a change in our code, a dependency
                bump, or a moving toolchain channel (`@next`, nightly, canary). You may reproduce it
                — install deps, run the failing test, build a minimal repro — but keep that brief;
-               CI re-runs on the PR anyway. A suspected race condition is the exception: one green
-               CI run proves nothing about it, so stabilize it first (step 3).
-            3. When you suspect a race condition, stabilize it. Most flakes are races, and a single
-               UNCONFIRMED failure can be one too. A race is a deterministic failure whose trigger
-               only sometimes happens, so find the trigger and force the race to go the failing way
-               every time:
-               - List the hypotheses: each pair of things whose order or timing nothing controls and
-                 that could produce exactly this error. Look for state shared across tests, workers,
-                 or processes (globals, module caches, env vars, files, ports, databases, a browser's
-                 pointer or focus); concurrent work finishing in either order (promises, events,
-                 callbacks, workers, parallel build tasks); timing (timeouts, debounces, retries,
-                 real vs fake clocks, scheduler ticks or rendered frames); and machine load.
-               - Force one hypothesis at a time in a scratch copy of the failing test or a minimal
-                 script. Widen the race window or pin one side: hold back one side with a delay, a
-                 deferred promise, or a barrier; run the steps in the other order; leave behind the
-                 state an earlier step would; run things in parallel. Prefer the hooks and APIs the
-                 code and its tests already use over patching internals: a trigger that needs
-                 patched internals is less convincing and harder to keep as a test.
-               - Run each variant several times (5–10). A hypothesis is confirmed only when forcing
-                 it fails every run with the same error as in CI, and controls that don't force it
-                 pass every run. The unmodified test failing now and then under the same setup is
-                 extra evidence that this is the CI flake.
-               - If no forced trigger reproduces the error, the cause is unclear: stop (step 5).
-               - Decide where the race lives. If it is in the test (its setup, teardown, state it
-                 leaves behind, or an assertion that doesn't wait for what it checks), fix the test.
-                 If it is in the code under test (the code misbehaves when the race goes that way,
-                 which users can hit too), fix the code. Never reduce test coverage to make it pass:
-                 don't skip, delete, or weaken the test or its assertions, and don't paper over it
-                 with longer timeouts or retries.
-               Then fix the cause and encode the trigger in the patch where the code has tests:
-               change a test or add one so the trigger always happens, so that reverting the fix
-               fails it every run instead of sometimes. Before writing the patch, confirm the fix
-               passes every run with the trigger forced and fails every run without the fix.
-               Delete the scratch files.
+               CI re-runs on the PR anyway. A suspected race is the exception (step 3).
+            3. If you suspect a race condition (most flakes are one), stabilize it before fixing
+               anything. Find what can happen in either order or at varying times and would produce
+               exactly this error, then force it each way, e.g. by delaying one side, reordering
+               steps, or leaving behind the state an earlier test would. Prefer the hooks the code
+               and its tests already use over patching internals. Run each 5–10 times: the race is
+               confirmed only when forcing the failing order fails every run with the CI error and
+               forcing the other order passes every run. Then revert every forcing change.
             4. Decide what kind of failure it is:
-               - A bug in our code → fix it. That includes code an older toolchain merely tolerated
-                 (e.g. stable silently emits `any` where nightly asks for an explicit type).
+               - A bug in our code, the test included → fix it. That includes code an older
+                 toolchain merely tolerated (e.g. stable silently emits `any` where nightly asks
+                 for an explicit type).
                - A legitimate change in external code → adapt our code to it.
                - A bug in external code → stop; it belongs in the report, not a patch.
             5. Check your confidence. Go ahead only if you understand the cause and your change
-               addresses it. If the cause stays unclear or the fix is a guess, stop. For a race,
-               the cause is clear only once forcing its trigger fails the test every run (step 3). Hold an UNCONFIRMED target (a single failure) to a higher bar: fix it only
-               when the cause is unmistakable.
+               addresses it. If the cause stays unclear or the fix is a guess, stop; a race counts as
+               understood only once step 3 confirmed it. Hold an UNCONFIRMED target (a single
+               failure) to a higher bar: fix it only when the cause is unmistakable.
             6. Make the right change: the one that removes the root cause, written the way a
-               maintainer would write it, not the narrowest edit that turns CI green. Stay on that one
-               problem — no unrelated cleanups, dependency bumps, or edits to .github/workflows/.
+               maintainer would write it, not the narrowest edit that turns CI green. Never skip,
+               delete, or weaken a test to make it pass. For a race, make a test force the failing
+               order, so it fails every run without your fix. Stay on that one problem — no
+               unrelated cleanups, dependency bumps, or edits to .github/workflows/.
 
             If and only if you edited files, produce the fix as a patch and write the PR text:
             - Stage exactly the files that are your fix with `git add <files>` — not pnpm-lock.yaml
@@ -441,15 +418,14 @@ jobs:
             - ${{ runner.temp }}/flake-out/pr-body.md — what breaks and how often, the evidence
               (CircleCI links), why it started failing (the trigger) and why this change is the right
               response to it, what the change does, and what you did or did not verify. For a race,
-              name the trigger and give the run counts: how often the test fails with the
-              trigger forced and without the fix, and how often it passes with the fix.
+              say how you forced it and give the run counts with and without the fix.
 
             If you had a target but stopped without a patch — at any step above — write
             ${{ runner.temp }}/flake-out/no-fix.txt instead: ONE plain sentence, shown on the tracking
             issue, naming the target by its short name from the report and saying why there is no PR
             (e.g. "**TouchRipple act() warning** — the warning comes from React's scheduler, not our
-            code; it needs an upstream fix."). For a suspected race you couldn't stabilize, say which
-            triggers you forced without making it fail. No error codes, stack traces, or links.
+            code; it needs an upstream fix."). For a race you couldn't stabilize, say what you
+            tried. No error codes, stack traces, or links.
 
       - name: Collect outputs
         if: ${{ always() }}
