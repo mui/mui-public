@@ -348,9 +348,9 @@ jobs:
             then the problem on a single line linking its last occurrence.
 
             Live problems first (🔴 still failing, 🟡 flaky, 🟠 unconfirmed — a single failure, real or a
-            one-off). On the fix target the subagent named, end its cell with the literal token {{fix}}
-            (the workflow swaps in the PR link, or why no PR opened). A problem an OPEN fix PR in
-            prs.json already covers stays here too, linking that PR inline as "fix: <PR>".
+            one-off). On the one problem you are fixing THIS run, end its cell with the literal token
+            {{fix}} (the workflow swaps in the PR link). A problem an OPEN fix PR in prs.json already
+            covers stays here too, linking that PR inline as "fix: <PR>".
 
             | | |
             | - | - |
@@ -378,7 +378,7 @@ jobs:
             wrong one is not.
 
             1. Pick the target. Use the fix target the subagent named. If it named none, stop:
-               change nothing and write no patch.
+               change nothing and write no patch and no no-fix.txt (the report already shows why).
             2. Find the root cause. Read only that target's log (jobs/NNNN.txt) for the exact error,
                then trace it into the checkout until you can say which code is at fault and why. Use
                the timeline to find what made it start failing: a change in our code, a dependency
@@ -390,27 +390,31 @@ jobs:
                UNCONFIRMED failure can be one too. A race is a deterministic failure whose trigger
                only sometimes happens, so find the trigger and force the race to go the failing way
                every time:
-               - List the hypotheses: each nondeterministic input that could produce exactly this
-                 error. Look at what the test does not control — state an earlier test can leave
-                 behind (real pointer position, focus, globals, storage, module state, mocks),
-                 timing (whether a real frame, macrotask, or timer slips in between awaits; fake
-                 timers stop page timers, not the browser's frames), ordering of async work, and
-                 machine load.
-               - Force one hypothesis at a time in a scratch copy of the failing test. Prefer the
-                 APIs the suite already uses over patching internals: set up the state the way an
-                 earlier test would (e.g. a test that hovers with the real pointer and leaves it
-                 there), and create the timing with awaits the suite already has (any real browser
-                 command, such as `vitest/browser` `userEvent`, lets a real frame pass). A trigger
-                 that needs patched internals is less convincing and harder to keep as a test.
+               - List the hypotheses: each pair of things whose order or timing nothing controls and
+                 that could produce exactly this error. Look for state shared across tests, workers,
+                 or processes (globals, module caches, env vars, files, ports, databases, a browser's
+                 pointer or focus); concurrent work finishing in either order (promises, events,
+                 callbacks, workers, parallel build tasks); timing (timeouts, debounces, retries,
+                 real vs fake clocks, scheduler ticks or rendered frames); and machine load.
+               - Force one hypothesis at a time in a scratch copy of the failing test or a minimal
+                 script. Widen the race window or pin one side: hold back one side with a delay, a
+                 deferred promise, or a barrier; run the steps in the other order; leave behind the
+                 state an earlier step would; run things in parallel. Prefer the hooks and APIs the
+                 code and its tests already use over patching internals: a trigger that needs
+                 patched internals is less convincing and harder to keep as a test. (Example from a
+                 browser test: an earlier test hovering with the real pointer and leaving it there,
+                 plus a real browser command to let a frame render under fake timers, made a
+                 toast's timer pause on every run.)
                - Run each variant several times (5–10). A hypothesis is confirmed only when forcing
                  it fails every run with the same error as in CI, and controls that don't force it
                  pass every run. The unmodified test failing now and then under the same setup is
                  extra evidence that this is the CI flake.
                - If no forced trigger reproduces the error, the cause is unclear: stop (step 5).
-               Then fix the cause and encode the trigger in the patch: change the test or add one so
-               the trigger always happens, so that reverting the fix fails it every run instead of
-               sometimes. Before writing the patch, confirm the fix passes every run with the trigger
-               forced and that the test fails every run without the fix. Delete the scratch files.
+               Then fix the cause and encode the trigger in the patch where the code has tests:
+               change a test or add one so the trigger always happens, so that reverting the fix
+               fails it every run instead of sometimes. Before writing the patch, confirm the fix
+               passes every run with the trigger forced and fails every run without the fix.
+               Delete the scratch files.
             4. Decide what kind of failure it is:
                - A bug in our code → fix it. That includes code an older toolchain merely tolerated
                  (e.g. stable silently emits `any` where nightly asks for an explicit type).
@@ -437,11 +441,12 @@ jobs:
               name the trigger and give the run counts: how often the test fails with the
               trigger forced and without the fix, and how often it passes with the fix.
 
-            If you had a target but wrote no patch, write ${{ runner.temp }}/flake-out/no-fix.txt: one
-            short plain clause saying why, shown in the target's row in place of {{fix}} (e.g. "the
-            warning comes from React's scheduler, not our code"). For a suspected race you couldn't
-            stabilize, name the triggers you forced without making it fail. No error codes, stack
-            traces, or links.
+            If you had a target but stopped without a patch — at any step above — write
+            ${{ runner.temp }}/flake-out/no-fix.txt instead: ONE plain sentence, shown on the tracking
+            issue, naming the target by its short name from the report and saying why there is no PR
+            (e.g. "**TouchRipple act() warning** — the warning comes from React's scheduler, not our
+            code; it needs an upstream fix."). For a suspected race you couldn't stabilize, say which
+            triggers you forced without making it fail. No error codes, stack traces, or links.
 
       - name: Collect outputs
         if: ${{ always() }}
@@ -511,14 +516,11 @@ jobs:
         run: |
           set -euo pipefail
           input="$PWD/publish-input"
-          # Dropping a proposed fix overwrites the agent's no-fix.txt, so the tracking issue says why
-          # the fix never became a PR.
-          drop() {
-            echo "$1"
-            printf '%s\n' "$1" > "$input/no-fix.txt"
-          }
+          # A refusal here overwrites the agent's no-fix.txt, so the tracking issue says why the
+          # proposed fix never became a PR.
           refuse() {
-            drop "$1"
+            echo "$1"
+            printf 'The proposed fix was dropped: %s.\n' "$1" > "$input/no-fix.txt"
             exit 1
           }
           # All three are required; a run cut short after the patch but before the title would
@@ -526,7 +528,7 @@ jobs:
           if [ ! -s "$input/fix.patch" ] || [ ! -s "$input/pr-body.md" ] || [ ! -s "$input/pr-title.txt" ]; then
             echo "no complete fix proposed"
             if [ -s "$input/fix.patch" ]; then
-              drop "the run ended before writing the PR title and body for its patch"
+              printf 'The proposed fix was dropped: the run ended before writing its PR title and body.\n' > "$input/no-fix.txt"
             fi
             exit 0
           fi
@@ -535,7 +537,7 @@ jobs:
           # person reviews the PR. (git apply --cached --check below validates it applies.)
           files=$(git -C repo apply --numstat "$input/fix.patch" | wc -l)
           if [ "$files" -gt 25 ]; then
-            refuse "the proposed patch touches $files files, too many for a minimal fix"
+            refuse "the patch touches $files files, too many for a minimal fix"
           fi
 
           # Turn the patch into a commit through a throwaway index (GIT_INDEX_FILE), so the changed
@@ -543,7 +545,7 @@ jobs:
           base=$(git -C repo rev-parse HEAD)
           export GIT_INDEX_FILE="$RUNNER_TEMP/fix-index"
           git -C repo read-tree "$base"
-          git -C repo apply --cached --check "$input/fix.patch" || refuse "the proposed patch does not apply to the default branch"
+          git -C repo apply --cached --check "$input/fix.patch" || refuse "the patch does not apply to the default branch"
           git -C repo apply --cached "$input/fix.patch"
           tree=$(git -C repo write-tree)
           commit=$(GIT_AUTHOR_NAME='github-actions[bot]' \
@@ -622,24 +624,22 @@ jobs:
             // is posted as a fresh comment (an edit would not notify subscribers) and the previous
             // report comment is deleted, so the issue only ever holds the latest one.
             let report = read('report.md') || read('summary.txt') || 'No CircleCI data this week.';
-            // The agent marks the problem it targets this run with a {{fix}} token; swap in the PR link
-            // (or a dry-run note), or why no PR opened: the agent's stop reason or the build step's
-            // refusal of its patch, from no-fix.txt. Fixes already in flight and merged fixes are
-            // linked by the agent itself from prs.json.
-            const noFix = read('no-fix.txt').replace(/\s+/g, ' ').trim();
+            // The agent marks the problem it fixes this run with a {{fix}} token; swap in the PR link
+            // (or a dry-run note), and drop a stray token when no fix opened. Fixes already in flight
+            // and merged fixes are linked by the agent itself from prs.json.
             let fixText = '';
             if (prUrl) {
               fixText = ` — fix: ${prUrl}`;
             } else if (fixProposed) {
               fixText = ' — fix: _(dry run — a draft PR would open)_';
-            } else if (noFix) {
-              fixText = ` — no fix: ${noFix}`;
-            }
-            // A reason with no token to carry it still gets shown, on its own line.
-            if (!fixProposed && noFix && !report.includes('{{fix}}')) {
-              report = `${report.trimEnd()}\n\n_No fix PR this run:_ ${noFix}`;
             }
             report = report.replaceAll('{{fix}}', fixText).trimEnd();
+            // Why this run opened no PR although it had a target: the agent's own stop reason, or the
+            // build step's refusal of its patch. Absent when there was nothing to fix.
+            const noFix = read('no-fix.txt').replace(/\s+/g, ' ').trim();
+            if (!fixProposed && noFix) {
+              report += `\n\n_No fix PR this run:_ ${noFix}`;
+            }
 
             // One footer line after a rule: the run, this run's agent cost, and the insights link.
             const marker = '<!-- flake-fix-report -->';
