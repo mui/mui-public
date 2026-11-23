@@ -120,12 +120,10 @@ const fetchMergedPullRequests = React.cache(async (repo: string) => {
     `repo:mui/${repo} is:pr is:merged merged:>=${daysAgo(WINDOW_DAYS)}`,
   );
   const all = pullRequests.filter((pullRequest) => !isBot(pullRequest.author));
-  const maintainers = all.filter((pullRequest) =>
-    MAINTAINER_ASSOCIATIONS.has(pullRequest.authorAssociation),
-  );
-  const community = all.filter(
-    (pullRequest) => !MAINTAINER_ASSOCIATIONS.has(pullRequest.authorAssociation),
-  );
+  const isMaintainer = (pullRequest: PullRequestNode) =>
+    MAINTAINER_ASSOCIATIONS.has(pullRequest.authorAssociation);
+  const maintainers = all.filter(isMaintainer);
+  const community = all.filter((pullRequest) => !isMaintainer(pullRequest));
   return { all, community, maintainers };
 });
 
