@@ -440,7 +440,8 @@ jobs:
             - ${{ runner.temp }}/flake-out/pr-body.md — what breaks and how often, the evidence
               (CircleCI links), why it started failing (the trigger) and why this change is the right
               response to it, what the change does, and what you did or did not verify. For a race,
-              say how you forced it and give the run counts with and without the fix.
+              say how you forced it and give the run counts with and without the fix. No AI
+              signature or "Generated with" footer: the workflow appends its own.
             - In report.md, end the patched target's cell with the literal token {{fix}} (the
               workflow swaps in the PR link).
 
