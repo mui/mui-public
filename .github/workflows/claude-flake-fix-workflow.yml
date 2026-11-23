@@ -378,7 +378,7 @@ jobs:
             wrong one is not.
 
             1. Pick the target. Use the fix target the subagent named. If it named none, stop:
-               change nothing and write no patch.
+               change nothing and write no patch and no no-fix.txt (the report already shows why).
             2. Find the root cause. Read only that target's log (jobs/NNNN.txt) for the exact error,
                then trace it into the checkout until you can say which code is at fault and why. Use
                the timeline to find what made it start failing: a change in our code, a dependency
@@ -408,6 +408,12 @@ jobs:
             - ${{ runner.temp }}/flake-out/pr-body.md — what breaks and how often, the evidence
               (CircleCI links), why it started failing (the trigger) and why this change is the right
               response to it, what the change does, and what you did or did not verify.
+
+            If you had a target but stopped without a patch — at any step above — write
+            ${{ runner.temp }}/flake-out/no-fix.txt instead: ONE plain sentence, shown on the tracking
+            issue, naming the target by its short name from the report and saying why there is no PR
+            (e.g. "**TouchRipple act() warning** — the warning comes from React's scheduler, not our
+            code; it needs an upstream fix."). No error codes, stack traces, or links.
 
       - name: Collect outputs
         if: ${{ always() }}
@@ -477,10 +483,20 @@ jobs:
         run: |
           set -euo pipefail
           input="$PWD/publish-input"
+          # A refusal here overwrites the agent's no-fix.txt, so the tracking issue says why the
+          # proposed fix never became a PR.
+          refuse() {
+            echo "$1"
+            printf 'The proposed fix was dropped: %s.\n' "$1" > "$input/no-fix.txt"
+            exit 1
+          }
           # All three are required; a run cut short after the patch but before the title would
           # otherwise start opening a PR and then die on the missing title, throwing the fix away.
           if [ ! -s "$input/fix.patch" ] || [ ! -s "$input/pr-body.md" ] || [ ! -s "$input/pr-title.txt" ]; then
             echo "no complete fix proposed"
+            if [ -s "$input/fix.patch" ]; then
+              printf 'The proposed fix was dropped: the run ended before writing its PR title and body.\n' > "$input/no-fix.txt"
+            fi
             exit 0
           fi
           # A runaway diff isn't a minimal fix — refuse it rather than open a noisy PR. The patch
@@ -488,8 +504,7 @@ jobs:
           # person reviews the PR. (git apply --cached --check below validates it applies.)
           files=$(git -C repo apply --numstat "$input/fix.patch" | wc -l)
           if [ "$files" -gt 25 ]; then
-            echo "patch touches $files files — too many for a minimal fix"
-            exit 1
+            refuse "the patch touches $files files, too many for a minimal fix"
           fi
 
           # Turn the patch into a commit through a throwaway index (GIT_INDEX_FILE), so the changed
@@ -497,7 +512,7 @@ jobs:
           base=$(git -C repo rev-parse HEAD)
           export GIT_INDEX_FILE="$RUNNER_TEMP/fix-index"
           git -C repo read-tree "$base"
-          git -C repo apply --cached --check "$input/fix.patch"
+          git -C repo apply --cached --check "$input/fix.patch" || refuse "the patch does not apply to the default branch"
           git -C repo apply --cached "$input/fix.patch"
           tree=$(git -C repo write-tree)
           commit=$(GIT_AUTHOR_NAME='github-actions[bot]' \
@@ -586,6 +601,12 @@ jobs:
               fixText = ' — fix: _(dry run — a draft PR would open)_';
             }
             report = report.replaceAll('{{fix}}', fixText).trimEnd();
+            // Why this run opened no PR although it had a target: the agent's own stop reason, or the
+            // build step's refusal of its patch. Absent when there was nothing to fix.
+            const noFix = read('no-fix.txt').replace(/\s+/g, ' ').trim();
+            if (!fixProposed && noFix) {
+              report += `\n\n_No fix PR this run:_ ${noFix}`;
+            }
 
             // One footer line after a rule: the run, this run's agent cost, and the insights link.
             const marker = '<!-- flake-fix-report -->';
