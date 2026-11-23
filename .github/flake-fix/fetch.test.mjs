@@ -88,7 +88,7 @@ function scenarioModel(scenario) {
         7: [
           ' ✓ src/Other.test.js (3 tests)',
           '       × should fire event callbacks 22ms',
-          ' FAIL  src/Button.test.js > <Button /> > should fire event callbacks',
+          ' \x1b[41m FAIL \x1b[49m src/Button.test.js > <Button /> > should fire event callbacks',
           'Error: Expected test not to call console.error().',
           stack,
           ' Test Files  1 failed | 474 passed',
@@ -285,19 +285,20 @@ describe('fetch', () => {
     );
   });
 
-  it('keeps the lines naming the failing test when the log is longer than its excerpt', async () => {
+  it('keeps the full log beside a job file whose excerpt is only the tail', async () => {
     const { dataDir } = await runFetch('long-log');
     const content = fs.readFileSync(path.join(dataDir, 'jobs', '0000.txt'), 'utf8');
-    const log = content.slice(
-      content.indexOf('### run tests\n'),
-      content.indexOf('\n\n### Job commands'),
+    expect(content).toMatch(/^FULL_LOGS=jobs\/0000\.0\.log$/m);
+    // The job file holds the tail, which misses the line naming the failing test.
+    expect(content).toContain(' Test Files  1 failed | 474 passed');
+    expect(content).not.toContain('FAIL  src/Button.test.js');
+    // The full log has it, ANSI-free, for the agent to grep around its fingerprint.
+    const fullLog = fs.readFileSync(path.join(dataDir, 'jobs', '0000.0.log'), 'utf8');
+    expect(fullLog).toContain(
+      ' FAIL  src/Button.test.js > <Button /> > should fire event callbacks',
     );
-    expect(log).toContain(' FAIL  src/Button.test.js > <Button /> > should fire event callbacks');
-    expect(log).toContain('× should fire event callbacks');
-    expect(log).not.toContain('src/Other.test.js');
-    // The tail still ends the excerpt, and the excerpt stays within its budget.
-    expect(log.endsWith(' Test Files  1 failed | 474 passed')).toBe(true);
-    expect(log.length - '### run tests\n'.length).toBeLessThanOrEqual(4096);
+    expect(fullLog.endsWith(' Test Files  1 failed | 474 passed')).toBe(true);
+    expect(fullLog).not.toContain('\x1b[');
   });
 
   it('builds a timeline.json that shows passes, in time order, with log pointers to the failures', async () => {

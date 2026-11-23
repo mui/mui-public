@@ -20,14 +20,10 @@ const API = process.env.CIRCLECI_API_BASE || 'https://circleci.com/api/v2';
 const API_V1 = process.env.CIRCLECI_API_V1_BASE || 'https://circleci.com/api/v1.1';
 const APP = process.env.CIRCLECI_APP_BASE || 'https://app.circleci.com';
 const LOG_TAIL_BYTES = 4096;
-// Up to half of a log excerpt goes to failure lines from before the tail.
-const FAILURE_LINES_BUDGET = LOG_TAIL_BYTES / 2;
-const FAILURE_LINE_MAX = 300;
-// Lines that name what failed. A test runner prints them once and then a long stack, so the tail
-// alone often misses them. Vitest/Jest (FAIL, ×, ✗, ●, "Failed Tests"), Playwright and Mocha
-// (numbered "1) " entries, "N failing"), TypeScript (error TS), ESLint (line:col error).
-const FAILURE_LINE =
-  /^\s*(?:FAIL\s|[×✗✘●]\s|\d+\) |.*Failed Tests\b|\d+ failing\b)|\berror TS\d+|^\s*\d+:\d+\s+error\s/;
+// The full log the agent greps around its fingerprint for context, such as the failing test's
+// name, which a test runner prints once before a long stack. Capped so one runaway log can't
+// bloat the artifact.
+const FULL_LOG_MAX_BYTES = 2_000_000;
 // A step command is a CircleCI-rendered script; cap it so one huge script can't crowd the file.
 const COMMAND_MAX = 2000;
 const CONCURRENCY = 16;
@@ -160,29 +156,8 @@ function commitSubject(pipeline) {
   return message.split('\n', 1)[0].slice(0, 120);
 }
 
-// The tail of a log, preceded by the failure-naming lines from before it, all within `limit`.
-function excerptLog(text, limit) {
-  if (text.length <= limit) {
-    return text;
-  }
-  const failureLines = [];
-  let used = 0;
-  for (const line of text.slice(0, -(limit - FAILURE_LINES_BUDGET)).split('\n')) {
-    const kept = line.slice(0, FAILURE_LINE_MAX);
-    if (!FAILURE_LINE.test(line) || failureLines.includes(kept)) {
-      continue;
-    }
-    if (used + kept.length + 1 > FAILURE_LINES_BUDGET) {
-      break;
-    }
-    failureLines.push(kept);
-    used += kept.length + 1;
-  }
-  const prefix =
-    failureLines.length > 0
-      ? `[failure lines from earlier in the log]\n${failureLines.join('\n')}\n[…]\n`
-      : '';
-  return prefix + text.slice(-(limit - prefix.length));
+function tailBytes(text, limit) {
+  return text.length <= limit ? text : text.slice(-limit);
 }
 
 // Newest first: the one sort order the timeline, the failure cap, and the job-file indexing share.
@@ -426,29 +401,42 @@ async function main() {
     return;
   }
 
+  // One file per failed run, newest first, self-describing under grep (jobs/NNNN.txt), plus each
+  // failed step's full log beside it (jobs/NNNN.<step>.log). The timeline points at the .txt.
+  fs.mkdirSync(path.join(outDir, 'jobs'), { recursive: true });
+  const basePathByJobNumber = new Map(
+    logged.map((job, jobIndex) => [
+      job.jobNumber,
+      path.join('jobs', String(jobIndex).padStart(PAD_WIDTH, '0')),
+    ]),
+  );
+  const fullLogPath = (jobNumber, stepIndex) =>
+    `${basePathByJobNumber.get(jobNumber)}.${stepIndex}.log`;
+
   const logTexts = new Map();
   await mapPool(
     logTasks,
     async (task) => {
       const raw = await httpGet(task.url, { raw: true, timeoutMs: 60000 });
-      const joined = JSON.parse(raw)
-        .map((entry) => entry.message ?? '')
-        .join('');
-      // Truncate at fetch, not at read: whole logs would hold hundreds of MB alive across a bad
-      // week, and only the excerpt is ever classified.
-      logTexts.set(
-        `${task.jobNumber}:${task.stepIndex}`,
-        excerptLog(stripVTControlCharacters(joined), LOG_TAIL_BYTES),
+      const text = stripVTControlCharacters(
+        JSON.parse(raw)
+          .map((entry) => entry.message ?? '')
+          .join(''),
       );
+      // The full log goes straight to disk and only the tail stays in memory: whole logs would
+      // hold hundreds of MB alive across a bad week.
+      fs.writeFileSync(
+        path.join(outDir, fullLogPath(task.jobNumber, task.stepIndex)),
+        tailBytes(text, FULL_LOG_MAX_BYTES),
+      );
+      logTexts.set(`${task.jobNumber}:${task.stepIndex}`, tailBytes(text, LOG_TAIL_BYTES));
     },
     24,
   );
 
-  // One file per failed run, newest first, self-describing under grep. The timeline points here.
-  fs.mkdirSync(path.join(outDir, 'jobs'), { recursive: true });
   const fileByJobNumber = new Map();
   logged.forEach((job, jobIndex) => {
-    const relativePath = path.join('jobs', `${String(jobIndex).padStart(PAD_WIDTH, '0')}.txt`);
+    const relativePath = `${basePathByJobNumber.get(job.jobNumber)}.txt`;
     fileByJobNumber.set(job.jobNumber, relativePath);
     const detail = stepsByJob.get(job.jobNumber);
     const body = detail.steps
@@ -472,6 +460,7 @@ async function main() {
       `TIME=${job.createdAt}`,
       `SHA=${job.sha}`,
       `COMMIT=${oneLineSubject(job.subject)}`,
+      `FULL_LOGS=${detail.steps.map((step, stepIndex) => fullLogPath(job.jobNumber, stepIndex)).join(' ')}`,
       '',
       '',
     ].join('\n');
