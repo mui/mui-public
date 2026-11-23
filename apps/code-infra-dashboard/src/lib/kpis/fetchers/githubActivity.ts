@@ -224,26 +224,39 @@ export async function fetchIssueFirstResponse(repo: string): Promise<KpiResult> 
   );
 }
 
+// GraphQL search counts don't draw from the REST search API's 30 requests/minute,
+// which the other KPIs already use up during a build.
+const ISSUE_COUNTS_QUERY = `
+query countIssues($openedQuery: String!, $closedQuery: String!) {
+  opened: search(query: $openedQuery, type: ISSUE, first: 0) { issueCount }
+  closed: search(query: $closedQuery, type: ISSUE, first: 0) { issueCount }
+}`;
+
+interface IssueCountsResult {
+  opened: { issueCount: number };
+  closed: { issueCount: number };
+}
+
 export async function fetchOpenedVsClosedIssues(repo: string): Promise<KpiResult> {
   const since = daysAgo(ISSUE_RATIO_WINDOW_DAYS);
-  const octokit = getOctokit();
-  const [opened, closed] = await Promise.all([
-    octokit.rest.search.issuesAndPullRequests({
-      q: `repo:mui/${repo} is:issue created:>=${since}`,
-      per_page: 1,
-    }),
-    octokit.rest.search.issuesAndPullRequests({
-      q: `repo:mui/${repo} is:issue closed:>=${since}`,
-      per_page: 1,
-    }),
-  ]);
+  let counts: IssueCountsResult;
+  try {
+    counts = await getOctokit().graphql<IssueCountsResult>(ISSUE_COUNTS_QUERY, {
+      openedQuery: `repo:mui/${repo} is:issue created:>=${since}`,
+      closedQuery: `repo:mui/${repo} is:issue closed:>=${since}`,
+    });
+  } catch (error) {
+    return errorResult(error instanceof Error ? error.message : 'GitHub GraphQL error');
+  }
 
-  if (closed.data.total_count === 0) {
+  const opened = counts.opened.issueCount;
+  const closed = counts.closed.issueCount;
+  if (closed === 0) {
     return { value: null, metadata: 'No closed issues' };
   }
 
   return successResult(
-    Math.round((opened.data.total_count / closed.data.total_count) * 100) / 100,
-    `${opened.data.total_count} opened vs ${closed.data.total_count} closed, last ${ISSUE_RATIO_WINDOW_DAYS} days`,
+    Math.round((opened / closed) * 100) / 100,
+    `${opened} opened vs ${closed} closed, last ${ISSUE_RATIO_WINDOW_DAYS} days`,
   );
 }
