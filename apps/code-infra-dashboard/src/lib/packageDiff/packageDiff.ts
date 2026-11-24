@@ -164,52 +164,6 @@ function createDiffBlocks(
   return blocks;
 }
 
-async function diffFile(
-  { path, changeType }: ChangedFile,
-  oldFile: FileContent | undefined,
-  newFile: FileContent | undefined,
-  oldHeader: string,
-  newHeader: string,
-  options: DiffOptions,
-): Promise<FileDiffResult | null> {
-  let oldContent = oldFile?.content ?? '';
-  let newContent = newFile?.content ?? '';
-
-  let formatError: string | undefined;
-  const languageParser = options.format ? getPrettierParser(path) : null;
-  if (languageParser) {
-    const parser = options.removeComments
-      ? `${languageParser}${NO_COMMENTS_SUFFIX}`
-      : languageParser;
-    try {
-      [oldContent, newContent] = await Promise.all([
-        formatFile(oldFile, parser),
-        formatFile(newFile, parser),
-      ]);
-    } catch (error) {
-      // Both sides keep their raw contents, a half formatted diff is useless
-      formatError = error instanceof Error ? error.message : String(error);
-    }
-    if (oldContent === newContent) {
-      return null;
-    }
-  }
-
-  return {
-    path,
-    changeType,
-    blocks: createDiffBlocks(
-      path,
-      oldContent,
-      newContent,
-      oldHeader,
-      newHeader,
-      options.ignoreWhitespace,
-    ),
-    formatError,
-  };
-}
-
 export interface PackageDiff {
   /** The files whose raw contents differ, sorted by path. Cheap, available right away. */
   files: ChangedFile[];
@@ -249,14 +203,45 @@ export function createPackageDiff(
 
   return {
     files,
-    diffFile: (file, options) =>
-      diffFile(
-        file,
-        oldFiles.get(file.path),
-        newFiles.get(file.path),
-        oldHeader,
-        newHeader,
-        options,
-      ),
+    async diffFile({ path, changeType }, options) {
+      const oldFile = oldFiles.get(path);
+      const newFile = newFiles.get(path);
+      let oldContent = oldFile?.content ?? '';
+      let newContent = newFile?.content ?? '';
+
+      let formatError: string | undefined;
+      const languageParser = options.format ? getPrettierParser(path) : null;
+      if (languageParser) {
+        const parser = options.removeComments
+          ? `${languageParser}${NO_COMMENTS_SUFFIX}`
+          : languageParser;
+        try {
+          [oldContent, newContent] = await Promise.all([
+            formatFile(oldFile, parser),
+            formatFile(newFile, parser),
+          ]);
+        } catch (error) {
+          // Both sides keep their raw contents, a half formatted diff is useless
+          formatError = error instanceof Error ? error.message : String(error);
+        }
+        if (oldContent === newContent) {
+          return null;
+        }
+      }
+
+      return {
+        path,
+        changeType,
+        blocks: createDiffBlocks(
+          path,
+          oldContent,
+          newContent,
+          oldHeader,
+          newHeader,
+          options.ignoreWhitespace,
+        ),
+        formatError,
+      };
+    },
   };
 }

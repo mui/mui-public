@@ -14,7 +14,7 @@ import IconButton from '@mui/material/IconButton';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import SwapVertIcon from '@mui/icons-material/SwapVert';
 import { useFilteredItems, PLACEHOLDER } from '../hooks/useFilteredItems';
-import { scrollToHash } from '../utils/dom';
+import { escapeHtmlId, scrollToHash } from '../utils/dom';
 import Heading from '../components/Heading';
 import FileDiff from '../components/FileDiff';
 import FileExplorer from '../components/FileExplorer';
@@ -41,35 +41,44 @@ const DiffContent = React.memo(function DiffContent({
   diff,
   loading,
   streaming,
+  previous,
   options,
   onOptionsChange,
 }: {
   diff: PackageDiffState | undefined;
   loading: boolean;
-  /** Results are still coming in. Without `diff.files` yet, `diff` is the previous one. */
+  /** Results are still coming in. */
   streaming: boolean;
+  /** `diff` is the one for the previous options, until the new one starts streaming. */
+  previous: boolean;
   options: DiffOptions;
   onOptionsChange: (options: Partial<DiffOptions>) => void;
 }) {
   const [filter, setFilter] = React.useState('');
 
-  const allFiles = diff?.files ?? EMPTY_FILES;
-  const unchanged = diff?.unchanged;
+  const files = diff?.files ?? EMPTY_FILES;
   const results = diff?.results;
-  const files = React.useMemo(
-    () => (unchanged?.size ? allFiles.filter((file) => !unchanged.has(file.path)) : allFiles),
-    [allFiles, unchanged],
-  );
   const filteredFiles = useFilteredItems(files, filter);
 
-  // Scroll to the anchor once the files of a package pair are listed. The cards are there
-  // from the start, so it doesn't need to wait for their diffs.
-  const hasFiles = files.length > 0;
+  // Scroll to the anchor once its diff is in. Diffs arrive in display order, so the cards
+  // above it have their final size by then.
+  const scrolledRef = React.useRef(false);
   React.useEffect(() => {
-    if (hasFiles) {
+    if (files.length === 0) {
+      // A new package pair
+      scrolledRef.current = false;
+      return;
+    }
+    if (scrolledRef.current) {
+      return;
+    }
+    const hash = window.location.hash.slice(1);
+    const target = files.find((file) => `file-${escapeHtmlId(file.path)}` === hash);
+    if (!target || results?.has(target.path)) {
+      scrolledRef.current = true;
       scrollToHash();
     }
-  }, [hasFiles]);
+  }, [files, results]);
 
   const copyText = React.useMemo(
     () =>
@@ -87,8 +96,7 @@ const DiffContent = React.memo(function DiffContent({
     [streaming, filteredFiles, results],
   );
 
-  const doneCount = (results?.size ?? 0) + (unchanged?.size ?? 0);
-  const progress = allFiles.length > 0 ? (doneCount / allFiles.length) * 100 : 0;
+  const progress = diff?.total ? (diff.results.size / diff.total) * 100 : 0;
 
   return (
     <Box>
@@ -152,7 +160,7 @@ const DiffContent = React.memo(function DiffContent({
         />
       </Box>
       <LinearProgress
-        variant={progress < 100 ? 'determinate' : 'indeterminate'}
+        variant={previous ? 'indeterminate' : 'determinate'}
         value={progress}
         sx={{ mb: 2, visibility: streaming && !loading ? 'visible' : 'hidden' }}
       />
@@ -356,6 +364,7 @@ export default function DiffPackage() {
           diff={diffQuery.data}
           loading={loading}
           streaming={diffQuery.isFetching}
+          previous={diffQuery.isPlaceholderData}
           options={options}
           onOptionsChange={onOptionsChange}
         />

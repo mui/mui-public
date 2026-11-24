@@ -13,17 +13,12 @@ export interface PackageDiffFailure {
   newError?: string;
 }
 
-/** A diff streams in as one `files` chunk followed by `results` chunks in the same order. */
-export type PackageDiffChunk =
-  | { type: 'files'; files: ChangedFile[] }
-  | {
-      type: 'results';
-      results: FileDiffResult[];
-      /** Files that turned out unchanged once formatted. */
-      unchanged: string[];
-    };
-
+/**
+ * A diff streams in as one `files` response, then `results` in the same order, then `done`.
+ * A `null` result is a file that turned out unchanged once formatted.
+ */
 export type PackageDiffResponse =
-  | { id: number; type: 'chunk'; chunk: PackageDiffChunk }
+  | { id: number; type: 'files'; files: ChangedFile[] }
+  | { id: number; type: 'results'; results: [path: string, result: FileDiffResult | null][] }
   | { id: number; type: 'done' }
   | { id: number; type: 'failure'; failure: PackageDiffFailure };

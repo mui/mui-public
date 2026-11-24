@@ -1,11 +1,6 @@
 import { experimental_streamedQuery as streamedQuery, useQuery } from '@tanstack/react-query';
 import type { ChangedFile, DiffOptions, FileDiffResult } from './packageDiff';
-import type {
-  PackageDiffChunk,
-  PackageDiffFailure,
-  PackageDiffRequest,
-  PackageDiffResponse,
-} from './protocol';
+import type { PackageDiffFailure, PackageDiffRequest, PackageDiffResponse } from './protocol';
 
 export class PackageDiffError extends Error {
   declare oldError?: string;
@@ -20,28 +15,28 @@ export class PackageDiffError extends Error {
 }
 
 export interface PackageDiffState {
-  /** The changed files, in display order. */
+  /** The changed files in display order, without those that turned out unchanged. */
   files: ChangedFile[];
-  /** The diffs computed so far, by path. */
-  results: ReadonlyMap<string, FileDiffResult>;
-  /** Files that turned out unchanged once formatted. */
-  unchanged: ReadonlySet<string>;
+  /** The diffs computed so far by path, `null` for files that turned out unchanged. */
+  results: ReadonlyMap<string, FileDiffResult | null>;
+  /** How many files are being diffed in total. */
+  total: number;
 }
 
-const INITIAL_STATE: PackageDiffState = { files: [], results: new Map(), unchanged: new Set() };
+type PackageDiffChunk = Extract<PackageDiffResponse, { type: 'files' | 'results' }>;
+
+const INITIAL_STATE: PackageDiffState = { files: [], results: new Map(), total: 0 };
 
 function reduceChunk(state: PackageDiffState, chunk: PackageDiffChunk): PackageDiffState {
   if (chunk.type === 'files') {
-    return { ...state, files: chunk.files };
+    return { files: chunk.files, results: new Map(), total: chunk.files.length };
   }
-  return {
-    files: state.files,
-    results: new Map([
-      ...state.results,
-      ...chunk.results.map((result) => [result.path, result] as const),
-    ]),
-    unchanged: new Set([...state.unchanged, ...chunk.unchanged]),
-  };
+  const results = new Map([...state.results, ...chunk.results]);
+  // Keep the same list unless files dropped out, so the file tree isn't rebuilt for nothing
+  const files = chunk.results.some(([, result]) => result === null)
+    ? state.files.filter((file) => results.get(file.path) !== null)
+    : state.files;
+  return { files, results, total: state.total };
 }
 
 let worker: Worker | null = null;
@@ -75,57 +70,49 @@ async function* streamPackageDiff(
 ): AsyncGenerator<PackageDiffChunk> {
   nextRequestId += 1;
   const id = nextRequestId;
-  // Responses that arrived while nobody was waiting, and the waiter otherwise
-  const queue: PackageDiffResponse[] = [];
+
+  // Responses that arrived while nobody was waiting, or the one waiting for the next.
+  // `null` means the request was aborted.
+  const queue: (PackageDiffResponse | null)[] = [];
   let waiting: ((response: PackageDiffResponse | null) => void) | null = null;
-  listeners.set(id, (response) => {
+  const push = (response: PackageDiffResponse | null) => {
     if (waiting) {
       waiting(response);
       waiting = null;
     } else {
       queue.push(response);
     }
-  });
-  const onAbort = () => {
-    waiting?.(null);
-    waiting = null;
   };
-  signal.addEventListener('abort', onAbort);
   const next = () =>
     queue.length > 0
       ? Promise.resolve(queue.shift()!)
       : new Promise<PackageDiffResponse | null>((resolve) => {
           waiting = resolve;
         });
+  listeners.set(id, push);
+  const onAbort = () => push(null);
+  signal.addEventListener('abort', onAbort);
 
   const request: PackageDiffRequest = { type: 'diff', id, oldSpec, newSpec, options };
   getWorker().postMessage(request);
-
-  let finished = false;
   try {
-    while (!signal.aborted) {
+    while (true) {
       // eslint-disable-next-line no-await-in-loop
       const response = await next();
-      if (!response) {
+      if (!response || response.type === 'done') {
         return;
       }
-      if (response.type === 'chunk') {
-        yield response.chunk;
-      } else if (response.type === 'done') {
-        finished = true;
-        return;
-      } else {
-        finished = true;
+      if (response.type === 'failure') {
         throw new PackageDiffError(response.failure);
       }
+      yield response;
     }
   } finally {
     listeners.delete(id);
     signal.removeEventListener('abort', onAbort);
-    if (!finished) {
-      const cancel: PackageDiffRequest = { type: 'cancel', id };
-      worker?.postMessage(cancel);
-    }
+    // Nothing happens when the worker is done with it already
+    const cancel: PackageDiffRequest = { type: 'cancel', id };
+    worker?.postMessage(cancel);
   }
 }
 

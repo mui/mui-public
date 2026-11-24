@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
@@ -30,22 +31,19 @@ export default function CopyButton({
     });
   };
 
-  const button = (
-    <IconButton
-      size="small"
-      onClick={handleCopy}
-      disabled={disabled}
-      color={copied ? 'success' : 'default'}
-      sx={sx}
-    >
-      {copied ? <CheckIcon fontSize="small" /> : <ContentCopyIcon fontSize="small" />}
-    </IconButton>
-  );
-
   return (
     <Tooltip title={copied ? 'Copied!' : title}>
       {/* A disabled button fires no events, the wrapper keeps its tooltip working */}
-      {disabled ? <span>{button}</span> : button}
+      <Box component="span" sx={[{ display: 'inline-flex' }, ...(Array.isArray(sx) ? sx : [sx])]}>
+        <IconButton
+          size="small"
+          onClick={handleCopy}
+          disabled={disabled}
+          color={copied ? 'success' : 'default'}
+        >
+          {copied ? <CheckIcon fontSize="small" /> : <ContentCopyIcon fontSize="small" />}
+        </IconButton>
+      </Box>
     </Tooltip>
   );
 }
