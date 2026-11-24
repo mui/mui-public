@@ -78,6 +78,32 @@ describe('changes', () => {
     ]);
   });
 
+  it('finds a pull request that GitHub does not list for its commit', async () => {
+    const github = createGitHub({
+      commits: [
+        { message: 'Fix it (#9) (#1)' },
+        { message: 'Refer to another change (#1)' },
+        { message: 'Refer to an open change (#2)' },
+        { message: 'Revert "Fix it (#1)"' },
+      ],
+      pulls: [
+        { number: 1, mergeCommitSha: shaOf(0), login: 'octocat', labels: ['type: bug'] },
+        { number: 2, mergedAt: null, mergeCommitSha: shaOf(2) },
+      ],
+    });
+
+    expect((await fetchDummyRelease(github)).changes).toMatchObject([
+      {
+        title: 'Fix it (#9)',
+        sha: shaOf(0),
+        url: 'https://github.com/mui/test/pull/1',
+        labels: ['type: bug'],
+        pullRequest: { number: 1 },
+        author: { login: 'octocat' },
+      },
+    ]);
+  });
+
   it('only includes commits without a pull request on request', async () => {
     const message = 'Fix issue (#999)\n\nCloses #1000';
     const github = createGitHub({
@@ -140,7 +166,7 @@ describe('failures', () => {
       message: 'First (#1)',
       pulls: [{ number: 1, login: 'github-actions[bot]', body: 'Cherry-pick of #10' }],
     },
-    { message: 'Second', login: 'octocat' },
+    { message: 'Second (#2)', login: 'octocat' },
   ];
 
   const BAD_REQUEST = { status: 400, body: { message: 'Bad Request' } };
@@ -150,6 +176,7 @@ describe('failures', () => {
       '/repos/mui/test/commits/v1.1.0',
       '/repos/mui/test/compare/v1.0.0...v1.1.0',
       `/repos/mui/test/commits/${shaOf(0)}/pulls`,
+      '/repos/mui/test/pulls/2',
       '/repos/mui/test/pulls/10',
       '/orgs/mui/members/octocat',
     ].flatMap((path): [string, number, ResponseFixture][] => [

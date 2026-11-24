@@ -300,19 +300,42 @@ export async function fetchChangelogChanges({
   }
 
   /**
-   * Asks GitHub rather than parsing the message, where a reference to an issue or to another pull
+   * Asks GitHub rather than trusting the message, where a reference to an issue or to another pull
    * request looks the same as the pull request the commit was merged from.
    *
    * @param {string} sha
+   * @param {string} subject
    */
-  async function findPullRequest(sha) {
+  async function findPullRequest(sha, subject) {
+    const isMergedAsCommit = (
+      /** @type {{ merged_at: string | null, merge_commit_sha: string | null }} */ pull,
+    ) => pull.merged_at !== null && pull.merge_commit_sha === sha;
+
     const pulls = await octokit.paginate(octokit.repos.listPullRequestsAssociatedWithCommit, {
       ...location,
       commit_sha: sha,
       per_page: 100,
     });
     // On maintenance branches, GitHub also lists pull requests that merely contain the commit.
-    return pulls.find((pull) => pull.merged_at !== null && pull.merge_commit_sha === sha) ?? null;
+    const listed = pulls.find(isMergedAsCommit);
+    if (listed) {
+      return listed;
+    }
+
+    // GitHub lists nothing for some commits, such as mui/mui-x@227a2fee.
+    const reference = /\(#(\d+)\)$/.exec(subject);
+    if (!reference) {
+      return null;
+    }
+    try {
+      const { data } = await octokit.pulls.get({ ...location, pull_number: Number(reference[1]) });
+      return isMergedAsCommit(data) ? data : null;
+    } catch (/** @type {any} */ error) {
+      if (error.status === 404) {
+        return null;
+      }
+      throw error;
+    }
   }
 
   /**
@@ -324,7 +347,7 @@ export async function fetchChangelogChanges({
     const { message } = commit.commit;
     const subject = message.split('\n', 1)[0].trim();
 
-    const pull = await findPullRequest(sha);
+    const pull = await findPullRequest(sha, subject);
     if (pull) {
       const { author, references } = await authors.fromPullRequest(pull);
       const ownReference = `#${pull.number}`;
