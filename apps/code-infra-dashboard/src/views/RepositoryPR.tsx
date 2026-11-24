@@ -16,7 +16,6 @@ import GitHubIcon from '@mui/icons-material/GitHub';
 import SpeedIcon from '@mui/icons-material/Speed';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import Skeleton from '@mui/material/Skeleton';
-import Alert from '@mui/material/Alert';
 import Heading from '../components/Heading';
 import GitHubPRReference from '../components/GitHubPRReference';
 import ErrorDisplay from '../components/ErrorDisplay';
@@ -66,7 +65,6 @@ export default function RepositoryPR() {
   // Find repository packages
   const repository = repositories.get(fullRepo);
   const packages = repository?.packages || [];
-  const isPublic = repository?.isPublic !== false;
 
   const { prInfo, isLoading: isPrLoading, error: prError } = useGitHubPR(fullRepo, prNumber);
   const {
@@ -75,15 +73,6 @@ export default function RepositoryPR() {
     error: mergeBaseError,
   } = useCompareCommits(fullRepo, prInfo?.base.ref, prInfo?.head.sha);
   const mergeBase = compareInfo?.mergeBase || null;
-
-  if (!isPublic) {
-    return (
-      <Alert severity="info">
-        This is a private repository. Pull request data is not available through the public GitHub
-        API.
-      </Alert>
-    );
-  }
 
   return (
     <Box>

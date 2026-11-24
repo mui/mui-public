@@ -1,4 +1,7 @@
+import { repositories } from '@/constants';
+import type { Repository } from '@/constants';
 import type { CiSnapshot, ProjectMetrics, WorkflowMetrics, PeriodSummary } from './ciAnalytics';
+import { listPrivateRepositories } from './privateRepositories';
 
 // --- Project config ---
 
@@ -8,15 +11,22 @@ interface ProjectConfig {
   workflows: string[];
 }
 
-const PROJECTS: ProjectConfig[] = [
-  { slug: 'gh/mui/mui-x', displayName: 'MUI X', workflows: ['pipeline'] },
-  { slug: 'gh/mui/base-ui', displayName: 'Base UI', workflows: ['pipeline', 'react-18'] },
-  { slug: 'gh/mui/base-ui-charts', displayName: 'Base UI Charts', workflows: ['pipeline'] },
-  { slug: 'gh/mui/base-ui-mosaic', displayName: 'Base UI Mosaic', workflows: ['pipeline'] },
-  { slug: 'gh/mui/material-ui', displayName: 'MUI Core', workflows: ['pipeline', 'nightly-cron'] },
-  { slug: 'gh/mui/mui-public', displayName: 'Code infra', workflows: ['pipeline'] },
-  { slug: 'gh/mui/mui-private', displayName: 'MUI Private', workflows: ['pipeline'] },
-];
+function toProject(repo: Repository): ProjectConfig[] {
+  return repo.circleCi
+    ? [
+        {
+          slug: `gh/${repo.owner}/${repo.name}`,
+          displayName: repo.displayName,
+          workflows: repo.circleCi.workflows,
+        },
+      ]
+    : [];
+}
+
+/** The CircleCI project of a repository, `gh/<owner>/<name>`, is public when its repository is. */
+export function isPublicProject(slug: string): boolean {
+  return repositories.has(slug.replace(/^gh\//, ''));
+}
 
 // --- CircleCI API client ---
 
@@ -290,12 +300,22 @@ export async function collectCiSnapshot(): Promise<CiSnapshot> {
   const nowISO = now.toISOString();
   const monthStartISO = monthStart.toISOString();
 
-  const projects = await Promise.all(
-    PROJECTS.map((project) => {
-      console.warn(`Collecting metrics for ${project.displayName}...`);
-      return collectProjectMetrics(project, monthStartISO, nowISO);
-    }),
-  );
+  const collect = (project: ProjectConfig) => {
+    console.warn(`Collecting metrics for ${project.displayName}...`);
+    return collectProjectMetrics(project, monthStartISO, nowISO);
+  };
+  const [publicProjects, privateProjects] = await Promise.all([
+    Promise.all([...repositories.values()].flatMap(toProject).map(collect)),
+    // Private repositories are discovered rather than configured, so not every one has a CircleCI
+    // project: those are skipped rather than failing the snapshot.
+    listPrivateRepositories().then((repos) =>
+      Promise.allSettled(repos.flatMap(toProject).map(collect)),
+    ),
+  ]);
+  const projects = [
+    ...publicProjects,
+    ...privateProjects.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : [])),
+  ];
 
   const [orgWeek, orgMonth] = await Promise.all([
     fetchOrgSummary('gh/mui', 'last-7-days'),

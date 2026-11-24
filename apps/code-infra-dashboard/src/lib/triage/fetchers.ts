@@ -1,4 +1,5 @@
 import type { TriageRow } from './types';
+import type { Repository } from '../../constants';
 import {
   MUI_KPI_REPOS,
   LABEL_WAITING_FOR_MAINTAINER,
@@ -9,8 +10,12 @@ import {
 } from '../../constants';
 import { getOctokit } from '../github';
 
-const PUBLIC_REPOS = MUI_KPI_REPOS.filter((r) => r.isPublic);
-const ALL_REPOS = MUI_KPI_REPOS;
+const PUBLIC_REPOS = MUI_KPI_REPOS;
+
+/** The search filter for the public repositories plus the given private ones. */
+function repoFilter(privateRepos: Repository[]): string {
+  return [...PUBLIC_REPOS, ...privateRepos].map((r) => `repo:mui/${r.name}`).join(' ');
+}
 
 interface TriageRowInput {
   id: number;
@@ -57,8 +62,8 @@ function toTriageRow(item: TriageRowInput): TriageRow {
 }
 
 // 1. Issues without labels
-export async function fetchIssuesWithoutLabels(): Promise<TriageRow[]> {
-  const allRepoFilter = ALL_REPOS.map((r) => `repo:mui/${r.name}`).join(' ');
+export async function fetchIssuesWithoutLabels(privateRepos: Repository[]): Promise<TriageRow[]> {
+  const allRepoFilter = repoFilter(privateRepos);
 
   const [closedData, openData] = await Promise.all([
     getOctokit().rest.search.issuesAndPullRequests({
@@ -100,8 +105,8 @@ function repoAlias(name: string): string {
   return name.replace(/-/g, '_');
 }
 
-export async function fetchPrsWithoutLabels(): Promise<TriageRow[]> {
-  const allRepoFilter = ALL_REPOS.map((r) => `repo:mui/${r.name}`).join(' ');
+export async function fetchPrsWithoutLabels(privateRepos: Repository[]): Promise<TriageRow[]> {
+  const allRepoFilter = repoFilter(privateRepos);
 
   const prFields = `pullRequests(first: 100, orderBy: {direction: DESC, field: CREATED_AT}) {
         nodes { number url title state isDraft createdAt repository { name } labels(first: 10) { nodes { name } } }
