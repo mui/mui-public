@@ -1633,8 +1633,27 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     preParsedCache,
   });
 
-  // Determine the final overlaid code (controlled takes precedence)
-  const overlaidCode = parsedControlledCode || transformedCode || codeWithGlobals;
+  const controlledTransformInput = React.useMemo(() => {
+    if (!parsedControlledCode || availableTransforms.length === 0) {
+      return undefined;
+    }
+
+    // Delta conversion mutates HAST; the shared parse cache must remain unchanged.
+    return structuredClone(parsedControlledCode);
+  }, [parsedControlledCode, availableTransforms.length]);
+
+  const {
+    transformedCode: transformedControlledCode,
+    waitingForTransformedCode: waitingForControlledTransforms,
+  } = useCodeTransforms({
+    parsedCode: controlledTransformInput,
+    variantName,
+  });
+
+  const controlledOverlayReady = !waitingForControlledTransforms;
+
+  const overlaidCode =
+    transformedControlledCode || parsedControlledCode || transformedCode || codeWithGlobals;
 
   // For fallback context, use the processed code or fall back to non-controlled code
   const codeForFallback =
@@ -1716,7 +1735,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   const context: CodeHighlighterContextType = React.useMemo(
     () => ({
       code: overlaidCode, // Use processed/transformed code
-      controlledCode: parsedControlledInput,
+      controlledCode: controlledOverlayReady ? parsedControlledInput : undefined,
       initialCode: codeWithGlobals,
       setCode: controlled?.setCode,
       selection: controlled?.selection || selection,
@@ -1737,6 +1756,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     [
       overlaidCode,
       parsedControlledInput,
+      controlledOverlayReady,
       codeWithGlobals,
       controlled?.setCode,
       selection,
