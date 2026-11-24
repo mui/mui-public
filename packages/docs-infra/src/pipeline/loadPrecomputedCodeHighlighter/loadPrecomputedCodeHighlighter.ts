@@ -2,6 +2,8 @@
 // eslint-disable-next-line n/prefer-node-protocol
 import path from 'path';
 // eslint-disable-next-line n/prefer-node-protocol
+import { createHash } from 'crypto';
+// eslint-disable-next-line n/prefer-node-protocol
 import { fileURLToPath, pathToFileURL } from 'url';
 
 import type { LoaderContext } from 'webpack';
@@ -82,7 +84,8 @@ function getDeferredCache(
   options: LoaderOptions,
 ) {
   const { _compilation: compilation } = context;
-  if (!options.deferPrecompute || !compilation || !isSerializable(options)) {
+
+  if (options.deferPrecompute !== true || !compilation || !isSerializable(options)) {
     return undefined;
   }
 
@@ -197,8 +200,13 @@ export type LoaderOptions = {
    * enable it when the rendered demos need both TS and JS sources.
    */
   transformTypescriptToJavascript?: boolean;
-  /** Split complete highlighted source into a per-demo async chunk. */
-  deferPrecompute?: boolean;
+  /**
+   * Defer complete highlighted source until it is needed.
+   * `true` uses an async module. `'asset'` emits content-hashed JSON instead,
+   * reducing webpack's chunk map. Asset mode requires a browser webpack compiler;
+   * keep `true` for server compilers and Turbopack.
+   */
+  deferPrecompute?: boolean | 'asset';
 };
 
 function createFallbackSource({
@@ -246,6 +254,36 @@ export function createPrecomputeShell(code: Code): Code {
       ];
     }),
   );
+}
+
+/** Emits metadata outside webpack's asynchronous module graph. */
+function emitPrecomputeAsset(context: LoaderContext<LoaderOptions>, code: Code): string {
+  const contents = JSON.stringify(code);
+  const hash = createHash('sha256').update(contents).digest('hex');
+  const filename = `static/media/docs-precompute.${hash}.json`;
+  context.emitFile(filename, contents);
+
+  return `(() => {
+    let pending;
+    return () => {
+      if (pending) {
+        return pending;
+      }
+      pending = (async () => {
+        try {
+          const response = await fetch(__webpack_public_path__ + ${JSON.stringify(filename)});
+          if (!response.ok) {
+            throw new Error('Failed to load demo source: HTTP ' + response.status);
+          }
+          return await response.json();
+        } catch (error) {
+          pending = undefined;
+          throw error;
+        }
+      })();
+      return pending;
+    };
+  })()`;
 }
 
 const functionName = 'Load Precomputed Code Highlighter';
@@ -497,9 +535,12 @@ export async function loadPrecomputedCodeHighlighter(
       options.deferPrecompute
         ? {
             additionalOptions: {
-              loadPrecompute: `() => import(${JSON.stringify(
-                deferredRequest,
-              )}).then((module) => module.default)`,
+              loadPrecompute:
+                options.deferPrecompute === 'asset'
+                  ? emitPrecomputeAsset(this, variantData)
+                  : `() => import(${JSON.stringify(
+                      deferredRequest,
+                    )}).then((module) => module.default)`,
             },
           }
         : undefined,

@@ -1,12 +1,16 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["github>mui/mui-public//renovate/experimental"],
+  "extends": ["github>mui/mui-public//renovate/default"],
   "schedule": "* 5-9 * * 7",
   "lockFileMaintenance": {
-    "description": "Match the schedule above. Lock file maintenance defaults to its own Monday window, which would open the group PR a second time outside the weekly one.",
-    "schedule": "* 5-9 * * 7"
+    "schedule": "* 0-4 3 * *"
   },
   "packageRules": [
+    {
+      "description": "gh-aw generates these lock files and pins their actions itself. Bump the actions in the .md sources and gh-aw itself by hand, then recompile with `gh aw compile`.",
+      "matchFileNames": [".github/workflows/*.lock.yml"],
+      "enabled": false
+    },
     {
       "description": "This repository loads its own orb from master on purpose, so never pin it to a digest.",
       "matchDepNames": ["code-infra-orb"],

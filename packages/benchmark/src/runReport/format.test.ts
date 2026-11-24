@@ -7,6 +7,7 @@ import {
   formatPrecisionDetail,
   precisionTone,
   formatRounds,
+  formatRunPrecision,
   formatRunSummary,
   runReportFootnote,
 } from './format';
@@ -105,10 +106,40 @@ describe('formatRounds', () => {
 });
 
 describe('formatRunSummary', () => {
-  it('ends with how long the run took', () => {
-    expect(formatRunSummary(analyzeRun(reportOf([benchmarkOf('a')])), [], 845_000)).toBe(
-      '1 benchmark measured · no regressions · ran 14m 05s',
+  it('states how precise the run was, and ends with how long it took', () => {
+    expect(formatRunSummary(analyzeRun(reportOf([benchmarkOf('a')])), [], 845_000)).toMatch(
+      /^1 benchmark measured · no regressions · precise to ±\d+\.\d% \(±\d+\.\d% at worst\) · ran 14m 05s$/,
     );
+  });
+});
+
+describe('formatRunPrecision', () => {
+  it('reads as the median and the widest precision, in percent', () => {
+    const quiet = {
+      ...benchmarkOf('quiet'),
+      samples: {
+        current: { render: [101, 99, 101, 99] },
+        baseline: { render: [100, 100, 100, 100] },
+      },
+    };
+    const noisy = {
+      ...benchmarkOf('noisy'),
+      samples: {
+        current: { render: [110, 90, 110, 90] },
+        baseline: { render: [100, 100, 100, 100] },
+      },
+    };
+
+    expect(formatRunPrecision(analyzeRun(reportOf([quiet, noisy])))).toBe(
+      'precise to ±18.5% (±33.7% at worst)',
+    );
+  });
+
+  it('is null when nothing in the run can alarm', () => {
+    const report = reportOf([benchmarkOf('a')]);
+    expect(
+      formatRunPrecision(analyzeRun({ ...report, metrics: { render: { kind: 'scalar' } } })),
+    ).toBe(null);
   });
 });
 

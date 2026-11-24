@@ -3,6 +3,7 @@
 import * as React from 'react';
 import type { ContentLoadingVariant, Fallbacks, HastRoot } from './types';
 import { fallbackToHast } from './fallbackFormat';
+import { restoreFallbackLines } from './renderFallbackLines';
 import { resolveCollapsedFrameType } from '../pipeline/parseSource/frameVisibility';
 import { isFrameSpan } from '../pipeline/parseSource/isFrameSpan';
 import { hastToJsx } from '../pipeline/hastUtils';
@@ -118,13 +119,13 @@ function convertVariantSource(
   let source: HastRoot | undefined;
   let extraSource: Record<string, UseCodeFallbackFile> | undefined;
   if (variant.source) {
-    source = rewrite(fallbackToHast(variant.source));
+    source = rewrite(restoreFallbackLines(fallbackToHast(variant.source)));
   }
   if (variant.extraSource) {
     extraSource = {};
     for (const [fName, file] of Object.entries(variant.extraSource)) {
       extraSource[fName] = {
-        source: rewrite(fallbackToHast(file.source)),
+        source: rewrite(restoreFallbackLines(fallbackToHast(file.source))),
         totalLines: file.totalLines,
         focusedLines: focused(file.focusedLines),
         collapsible: collapseToEmpty ? true : file.collapsible,

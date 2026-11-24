@@ -316,6 +316,41 @@ config.module.rules.push({
 });
 ```
 
+### Deferred source loading
+
+Set `deferPrecompute: true` to keep a fallback source preview in the initial bundle and
+load complete highlighted source from an async module when needed.
+
+Large webpack sites can use `deferPrecompute: 'asset'` in their **browser compilation**
+to fetch content-hashed JSON instead. This avoids adding one async chunk-map entry per
+demo while preserving per-demo loading and caching.
+
+```javascript
+// next.config.mjs
+export default {
+  webpack(config, { isServer }) {
+    config.module.rules.push({
+      test: /[/\\]demos[/\\][^/\\]+[/\\]index\.ts$/,
+      use: [
+        {
+          loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+          options: { deferPrecompute: isServer ? true : 'asset' },
+        },
+      ],
+    });
+    return config;
+  },
+};
+```
+
+Keep `true` in server compilations and Turbopack rules. Turbopack loaders cannot
+emit these assets. Server rendering still uses the fallback preview without fetching.
+
+Asset URLs use webpack's public path, including Next.js `basePath` or `assetPrefix`.
+Fetching from a separate asset origin requires CORS and a CSP `connect-src` policy
+that permits that origin. Successful requests are shared across mounts; failed requests
+can be retried. A source or imported-helper change produces a new content hash.
+
 ### Comment Extraction Options
 
 These options control how comments are extracted from source files and made available to [`sourceEnhancers`](../../hooks/use-code/page.mdx#source-enhancers):

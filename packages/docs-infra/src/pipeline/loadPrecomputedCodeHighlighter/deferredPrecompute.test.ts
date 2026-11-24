@@ -1,4 +1,5 @@
-import { mkdtemp, realpath, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
+import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -13,6 +14,8 @@ const webpack: typeof webpackCompiler = nextWebpack;
 const require = createRequire(import.meta.url);
 const directories: string[] = [];
 const DEFERRED_QUERY = '?mui-deferred-precompute';
+const ASSET_PUBLIC_PATH = '/docs/_next/';
+const HTTP_UNAVAILABLE = 503;
 const WATCH_TIMEOUT_MS = 30_000;
 const WATCH_AGGREGATE_MS = 20;
 const VARIANT_MEASURE =
@@ -113,11 +116,16 @@ function runCompiler(compiler: webpackCompiler.Compiler) {
 }
 
 /** Loads the new bundle without reusing the previous watch build's module. */
-async function readVariants(directory: string) {
+function readDemo(directory: string) {
   const outputPath = path.join(directory, 'dist/main.cjs');
   delete require.cache[outputPath];
+
   // eslint-disable-next-line import/no-dynamic-require -- Loads the emitted fixture bundle.
-  return require(outputPath).default.loadPrecompute();
+  return require(outputPath).default;
+}
+
+async function readVariants(directory: string) {
+  return readDemo(directory).loadPrecompute();
 }
 
 it(
@@ -220,6 +228,188 @@ it('reuses deferred output when options contain undefined values', async () => {
   } finally {
     await new Promise<void>((resolve) => {
       compiler.close(() => resolve());
+    });
+  }
+});
+
+/** Serves emitted files over HTTP rather than substituting fetch. */
+async function createAssetServer(directory: string, behavior: 'retry' | 'serve') {
+  const requests: string[] = [];
+
+  const server = createServer(async (request, response) => {
+    requests.push(request.url ?? '');
+
+    if (behavior === 'retry' && requests.length === 1) {
+      response.writeHead(HTTP_UNAVAILABLE);
+      response.end();
+
+      return;
+    }
+
+    const asset = request.url?.replace(ASSET_PUBLIC_PATH, '');
+    response.setHeader('Content-Type', 'application/json');
+    response.end(await readFile(path.join(directory, 'dist', asset ?? '')));
+  });
+
+  await new Promise<void>((resolve) => {
+    server.listen(0, '127.0.0.1', resolve);
+  });
+  const address = server.address();
+
+  if (!address || typeof address === 'string') {
+    throw new Error('Expected an HTTP server address');
+  }
+
+  return {
+    server,
+    requests,
+    publicPath: `http://127.0.0.1:${address.port}${ASSET_PUBLIC_PATH}`,
+  };
+}
+
+it('loads JSON assets lazily using webpack publicPath and caches successful requests', async () => {
+  const { directory, loader } = await createFixture();
+
+  const moduleCompiler = webpack(
+    createConfig(directory, [
+      { test: /index\.ts$/, use: [{ loader, options: { deferPrecompute: true } }] },
+    ]),
+  );
+
+  let moduleDemo: ReturnType<typeof readDemo>;
+  let moduleVariants: Awaited<ReturnType<typeof readVariants>>;
+
+  try {
+    await runCompiler(moduleCompiler);
+    moduleDemo = readDemo(directory);
+    moduleVariants = await moduleDemo.loadPrecompute();
+  } finally {
+    await new Promise<void>((resolve) => {
+      moduleCompiler.close(() => resolve());
+    });
+  }
+
+  const { server, requests, publicPath } = await createAssetServer(directory, 'retry');
+
+  const config = createConfig(directory, [
+    { test: /index\.ts$/, use: [{ loader, options: { deferPrecompute: 'asset' } }] },
+  ]);
+
+  config.target = 'web';
+  config.output = {
+    ...config.output,
+    publicPath,
+  };
+  const compiler = webpack(config);
+
+  try {
+    const stats = await runCompiler(compiler);
+    const assets = stats.toJson({ all: false, assets: true }).assets ?? [];
+    const metadata = assets.filter((asset) => asset.name.endsWith('.json'));
+    expect(metadata).toHaveLength(1);
+    expect(stats.compilation.chunks.size).toBe(1);
+    expect(metadata[0].name).toMatch(/^static\/media\/docs-precompute\.[a-f0-9]+\.json$/);
+    expect(
+      [...stats.compilation.modules].some((module) => module.identifier().includes(DEFERRED_QUERY)),
+    ).toBe(false);
+
+    const demo = readDemo(directory);
+    expect(requests).toHaveLength(0);
+    expect(demo.precompute).toEqual(moduleDemo.precompute);
+    await expect(demo.loadPrecompute()).rejects.toThrow(String(HTTP_UNAVAILABLE));
+    const firstLoad = demo.loadPrecompute();
+    const secondLoad = demo.loadPrecompute();
+    expect(firstLoad).toBe(secondLoad);
+    const variants = await firstLoad;
+    expect(variants).toEqual(moduleVariants);
+    expect(JSON.stringify(variants)).toContain('Before');
+    expect(await demo.loadPrecompute()).toBe(variants);
+    expect(requests).toEqual(Array(2).fill(`${ASSET_PUBLIC_PATH}${metadata[0].name}`));
+  } finally {
+    await new Promise<void>((resolve) => {
+      compiler.close(() => resolve());
+    });
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => {
+        if (error) {
+          reject(error);
+
+          return;
+        }
+
+        resolve();
+      });
+    });
+  }
+});
+
+it('changes the JSON asset URL when imported source changes', async () => {
+  const { directory, loader } = await createFixture();
+  const { server, requests, publicPath } = await createAssetServer(directory, 'serve');
+
+  const config = createConfig(directory, [
+    { test: /index\.ts$/, use: [{ loader, options: { deferPrecompute: 'asset' } }] },
+  ]);
+
+  config.target = 'web';
+  config.output = { ...config.output, publicPath };
+  const compiler = webpack(config);
+  let watching: Watching | undefined;
+  let previousAsset: string | undefined;
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      watching = compiler.watch({ aggregateTimeout: WATCH_AGGREGATE_MS }, (error, stats) => {
+        void (async () => {
+          checkStats(error, stats);
+          const assets = stats.toJson({ all: false, assets: true }).assets ?? [];
+          const metadata = assets.find((asset) => asset.name.endsWith('.json'));
+
+          if (!metadata) {
+            throw new Error('Missing JSON metadata asset');
+          }
+
+          const contents = JSON.stringify(await readVariants(directory));
+          expect(requests.at(-1)).toBe(`${ASSET_PUBLIC_PATH}${metadata.name}`);
+
+          if (!previousAsset) {
+            previousAsset = metadata.name;
+            expect(contents).toContain('Before');
+            await writeFile(path.join(directory, 'helper.js'), 'export const label = "After";\n');
+
+            return;
+          }
+
+          expect(metadata.name).not.toBe(previousAsset);
+          expect(contents).toContain('After');
+          expect(contents).not.toContain('Before');
+          resolve();
+        })().catch(reject);
+      });
+    });
+  } finally {
+    await new Promise<void>((resolve) => {
+      if (!watching) {
+        resolve();
+
+        return;
+      }
+
+      watching.close(() => resolve());
+    });
+    await new Promise<void>((resolve) => {
+      compiler.close(() => resolve());
+    });
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => {
+        if (error) {
+          reject(error);
+
+          return;
+        }
+
+        resolve();
+      });
     });
   }
 });

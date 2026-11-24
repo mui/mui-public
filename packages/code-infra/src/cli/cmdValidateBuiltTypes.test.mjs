@@ -1,0 +1,164 @@
+import { execFile } from 'node:child_process';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
+import { describe, expect, it } from 'vitest';
+
+import { makeTempDir, writePackage } from '../utils/testUtils.mjs';
+
+const run = promisify(execFile);
+const CLI_PATH = fileURLToPath(new URL('../../bin/code-infra.mjs', import.meta.url));
+// The fixtures have no node_modules, so the CLI finds `tsc` on `PATH`, as in a consumer repo.
+const BIN_PATH = fileURLToPath(new URL('../../node_modules/.bin', import.meta.url));
+
+/**
+ * An empty workspace with its packages under `packages/`.
+ */
+async function createRoot() {
+  const root = await makeTempDir();
+  await writePackage(root, '.', { private: true });
+  await fs.writeFile(path.join(root, 'pnpm-workspace.yaml'), 'packages:\n  - packages/*\n');
+  return root;
+}
+
+/**
+ * A workspace where `@test/b`'s types import `@test/a`.
+ *
+ * @param {{ declareA: boolean }} options
+ */
+async function createWorkspace({ declareA }) {
+  const root = await createRoot();
+  /**
+   * @param {string} name
+   * @param {string} types
+   * @param {Record<string, string>} [dependencies]
+   */
+  const writeTypedPackage = async (name, types, dependencies) => {
+    const pkgDir = await writePackage(root, `packages/${name}`, {
+      name: `@test/${name}`,
+      version: '1.0.0',
+      dependencies,
+      exports: { '.': { types: './index.d.ts', default: './index.js' } },
+      files: ['index.d.ts', 'index.js'],
+    });
+    await fs.writeFile(path.join(pkgDir, 'index.d.ts'), types);
+    await fs.writeFile(path.join(pkgDir, 'index.js'), 'export {};\n');
+  };
+  await writeTypedPackage('a', 'export type A = string;\n');
+  await writeTypedPackage(
+    'b',
+    "import type { A } from '@test/a';\nexport type B = A;\n",
+    declareA ? { '@test/a': 'workspace:*' } : undefined,
+  );
+  return root;
+}
+
+/**
+ * Runs `validate-built-types` in `root`.
+ *
+ * @param {string} root
+ * @param {string[]} args
+ * @returns {Promise<{ code: number, stdout: string, stderr: string }>}
+ */
+function validate(root, ...args) {
+  return run(process.execPath, [CLI_PATH, 'validate-built-types', ...args], {
+    cwd: root,
+    env: { ...process.env, PATH: `${BIN_PATH}${path.delimiter}${process.env.PATH}` },
+  }).then(
+    ({ stdout, stderr }) => ({ code: 0, stdout, stderr }),
+    (/** @type {{ code: number, stdout: string, stderr: string }} */ error) => error,
+  );
+}
+
+describe('validate-built-types', { timeout: 120_000 }, () => {
+  it('passes when every package declares what its types import', async () => {
+    const root = await createWorkspace({ declareA: true });
+
+    const result = await validate(root);
+
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain('✅ 2 entry points of 2 packages type-check for consumers.');
+  });
+
+  it('reports a package its types import without declaring it, even when the consumer installed it', async () => {
+    const root = await createWorkspace({ declareA: false });
+
+    const result = await validate(root);
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain(
+      "@test/b/index.d.ts: TS2307 Cannot find module '@test/a' or its corresponding type declarations.",
+    );
+  });
+
+  it('ignores the errors in a path expected to fail', async () => {
+    const root = await createWorkspace({ declareA: false });
+
+    const result = await validate(root, '--expect-error', '@test/b/');
+
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain('Ignoring 1 expected type errors in @test/b.');
+    expect(result.stdout).toContain('✅ 2 entry points of 2 packages type-check for consumers.');
+  });
+
+  it('fails when a path expected to fail has no type errors', async () => {
+    const root = await createWorkspace({ declareA: true });
+
+    const result = await validate(root, '--expect-error', '@test/b');
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('❌ No type errors in @test/b: remove it from --expect-error.');
+  });
+
+  it('fails when no version of a shared peer satisfies every package', async () => {
+    const root = await createRoot();
+    await Promise.all(
+      [
+        ['d', '^18.0.0'],
+        ['e', '^22.0.0'],
+      ].map(([name, range]) =>
+        writePackage(root, `packages/${name}`, {
+          name: `@test/${name}`,
+          version: '1.0.0',
+          peerDependencies: { '@types/node': range },
+        }),
+      ),
+    );
+
+    const result = await validate(root);
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain(
+      'No version of "@types/node" satisfies every peer range: "^18.0.0" and "^22.0.0".',
+    );
+  });
+
+  it('leaves out entry points that only have types, which nothing imports', async () => {
+    const root = await createRoot();
+    const pkgDir = await writePackage(root, 'packages/c', {
+      name: '@test/c',
+      version: '1.0.0',
+      exports: {
+        '.': { types: './index.d.ts', default: './index.js' },
+        './env': { types: './env.d.ts' },
+      },
+      files: ['index.d.ts', 'index.js', 'env.d.ts'],
+    });
+    await fs.writeFile(
+      path.join(pkgDir, 'index.d.ts'),
+      '/// <reference types="node" />\nexport declare const cwd: typeof process.cwd;\n',
+    );
+    await fs.writeFile(path.join(pkgDir, 'index.js'), 'export {};\n');
+    // Conflicts with Node's `process`, like code-infra's build-env.
+    await fs.writeFile(
+      path.join(pkgDir, 'env.d.ts'),
+      'export {};\ndeclare global {\n  const process: { env: {} };\n}\n',
+    );
+
+    const result = await validate(root);
+
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain('✅ 1 entry points of 1 packages type-check for consumers.');
+  });
+});
