@@ -126,6 +126,12 @@ steps:
           'c64d8a57-d0f4-11e7-8ed1-001e67ed4656', // More than three parameters in URL
           '24c2faf0-0fab-40f1-9adf-3a73cdc59ceb', // SERP title changed
         ]);
+        /**
+         * "… missing … schema": structured data docs pages have nothing real to fill (dates, authors,
+         * prices), which no search or assistant feature rewards. Raises the score, not the traffic.
+         */
+        const isSchemaIssue = (issue) => /\bschema\b/i.test(issue.name);
+        const isSkipped = (issue) => UNFIXABLE.has(issue.issue_id) || isSchemaIssue(issue);
         const IMPORTANCE = { Error: 0, Warning: 1, Notice: 2 };
         const PAGE_FIELDS = 'url,origin,http_code,title,h1,meta_description,canonical,jsonld_schema_types';
         const USER_AGENT =
@@ -250,7 +256,7 @@ steps:
         const candidates = issues
           .filter(
             (issue) =>
-              issue.crawled > 0 && !UNFIXABLE.has(issue.issue_id),
+              issue.crawled > 0 && !isSkipped(issue),
           )
           // Link issues first: each is a clear, contained fix. Then the rest by importance and reach.
           .sort(
@@ -309,7 +315,7 @@ steps:
             .filter(
               (issue) =>
                 issue.crawled > 0 &&
-                !UNFIXABLE.has(issue.issue_id) &&
+                !isSkipped(issue) &&
                 !candidates.includes(issue),
             )
             .map((issue) => `${issue.name} (${issue.crawled})`),
@@ -435,9 +441,8 @@ fix single pages only when the cause is local.
 - **Social tags:** complete Open Graph and X card tags from the page's existing title, description
   and image.
 - **Canonical:** duplicates without a canonical get one pointing at the page that should rank.
-- **Structured data:** add the schema.org type the page is (`Article` for blog posts and guides,
-  `Product` for products, `Organization` for the company) as JSON-LD, filled from data the page
-  already has. Never invent facts: no made-up dates, authors, prices or ratings.
+- **Structured data:** missing-schema issues are left out of the input on purpose. Don't add
+  structured data to fix another issue either.
 - **Pages without outgoing links:** check whether that's intended (a redirect stub, a utility page)
   before adding links.
 
