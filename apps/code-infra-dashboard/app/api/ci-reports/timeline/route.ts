@@ -6,14 +6,15 @@ import { z } from 'zod/v4';
 import { repositories } from '@/constants';
 import { findViewableRepository } from '@/lib/privateRepositories';
 import { listKeys } from '@/lib/ciReports/s3';
-import { repoSchema, reportTypeSchema } from '@/lib/ciReports/schemas';
+import { reportTypeSchema } from '@/lib/ciReports/schemas';
 import { isTimeline, parseTimelineKeys, timelinePrefix } from '@/lib/ciReports/timeline';
 
 // A timeline gains an upload per commit at most, so a few minutes' staleness costs nothing.
 const STALE_SECONDS = 300;
 
 const querySchema = z.object({
-  repo: repoSchema,
+  // The dashboard's repositories only, so a request can't make up prefixes to list.
+  repo: z.string().refine((repo) => repositories.has(repo), 'Unknown repository'),
   timeline: z.string().refine(isTimeline, 'Not a timeline: a tracked branch or @<name>'),
   reportType: reportTypeSchema,
   /** Commits to list. */
@@ -40,9 +41,9 @@ export async function GET(request: NextRequest) {
   }
   const { repo, timeline, reportType, limit, cursor } = parsed.data;
 
-  // The dashboard's repositories only, so a request can't make up prefixes to list. The same answer
-  // for a private repository as for one that doesn't exist.
-  if (!(await findViewableRepository(repo))) {
+  // The same answer for a private repository as for one that doesn't exist.
+  const repoConfig = await findViewableRepository(repo);
+  if (!repoConfig) {
     return errorResponse('Unknown repository', 404);
   }
 
@@ -63,7 +64,7 @@ export async function GET(request: NextRequest) {
     {
       headers: {
         // A private repository's answer depends on who asks, so no shared cache may keep it.
-        'Cache-Control': `${repositories.has(repo) ? 'public' : 'private'}, max-age=${STALE_SECONDS}`,
+        'Cache-Control': `${repoConfig.isPublic ? 'public' : 'private'}, max-age=${STALE_SECONDS}`,
       },
     },
   );

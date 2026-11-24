@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { unstable_cache } from 'next/cache';
-import { collectCiSnapshot, isPublicProject } from '../../../../src/lib/collectCiMetrics';
+import { repositories } from '../../../../src/constants';
+import { collectCiSnapshot } from '../../../../src/lib/collectCiMetrics';
 import { listViewablePrivateRepositories } from '../../../../src/lib/privateRepositories';
 
 const getCachedSnapshot = unstable_cache(collectCiSnapshot, ['ci-analytics-snapshot'], {
@@ -19,7 +20,8 @@ export async function GET(request: NextRequest) {
   ]);
   const viewable = new Set(viewablePrivate.map((repo) => `gh/${repo.owner}/${repo.name}`));
   const projects = snapshot.projects.filter(
-    (project) => isPublicProject(project.slug) || viewable.has(project.slug),
+    (project) =>
+      repositories.get(project.slug.replace(/^gh\//, ''))?.isPublic || viewable.has(project.slug),
   );
   return NextResponse.json(
     { ...snapshot, projects },

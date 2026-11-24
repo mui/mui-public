@@ -20,9 +20,8 @@ export interface Repository {
   displayName: string;
   description: string;
   packages: string[];
+  isPublic: boolean;
   ossInsightId?: string;
-  /** CircleCI workflows whose metrics CI analytics collects. */
-  circleCi?: { workflows: string[] };
   prComment?: {
     bundleSize?: boolean;
     benchmark?: boolean;
@@ -35,10 +34,6 @@ export interface Repository {
   };
 }
 
-/**
- * The public repositories. Private ones are deliberately not listed: this source is public, and
- * the server discovers them from its GitHub App installation instead (`@/lib/privateRepositories`).
- */
 export const repositories = new Map<string, Repository>(
   (
     [
@@ -47,8 +42,8 @@ export const repositories = new Map<string, Repository>(
         name: 'material-ui',
         displayName: 'MUI Core',
         description: "React components implementing Google's Material Design",
+        isPublic: true,
         ossInsightId: '23083156',
-        circleCi: { workflows: ['pipeline', 'nightly-cron'] },
         packages: [
           '@mui/codemod',
           '@mui/core-downloads-tracker',
@@ -86,8 +81,8 @@ export const repositories = new Map<string, Repository>(
         name: 'mui-x',
         displayName: 'MUI X',
         description: 'Advanced components for complex use cases',
+        isPublic: true,
         ossInsightId: '260240241',
-        circleCi: { workflows: ['pipeline'] },
         packages: [
           '@mui/x-charts',
           '@mui/x-charts-premium',
@@ -141,9 +136,45 @@ export const repositories = new Map<string, Repository>(
         name: 'base-ui',
         displayName: 'Base UI',
         description: 'Unstyled React components and low-level hooks',
+        isPublic: true,
         ossInsightId: '762289766',
-        circleCi: { workflows: ['pipeline', 'react-18'] },
         packages: ['@base-ui/react', '@base-ui/utils'],
+        prComment: {
+          bundleSize: true,
+          benchmark: true,
+        },
+      },
+      {
+        owner: 'mui',
+        name: 'base-ui-charts',
+        displayName: 'Base UI Charts',
+        description: 'Chart components for Base UI',
+        isPublic: false,
+        packages: [],
+        prComment: {
+          bundleSize: true,
+          benchmark: true,
+        },
+      },
+      {
+        owner: 'mui',
+        name: 'base-ui-mosaic',
+        displayName: 'Base UI Mosaic',
+        description: 'Mosaic layout components for Base UI',
+        isPublic: false,
+        packages: [],
+        prComment: {
+          bundleSize: true,
+          benchmark: true,
+        },
+      },
+      {
+        owner: 'mui',
+        name: 'base-ui-plus',
+        displayName: 'Base UI Plus',
+        description: 'More Base UI components',
+        isPublic: false,
+        packages: [],
         prComment: {
           bundleSize: true,
           benchmark: true,
@@ -154,6 +185,7 @@ export const repositories = new Map<string, Repository>(
         name: 'mui-design-kits',
         displayName: 'Design Kits',
         description: 'MUI design kits for Figma and other design tools',
+        isPublic: true,
         packages: [],
       },
       {
@@ -161,7 +193,7 @@ export const repositories = new Map<string, Repository>(
         name: 'mui-public',
         displayName: 'Code infra',
         description: 'Public monorepo with shared infrastructure and tooling',
-        circleCi: { workflows: ['pipeline'] },
+        isPublic: true,
         packages: [
           '@mui/internal-babel-plugin-display-name',
           '@mui/internal-babel-plugin-minify-errors',
@@ -185,6 +217,14 @@ export const repositories = new Map<string, Repository>(
           },
         },
       },
+      {
+        owner: 'mui',
+        name: 'mui-private',
+        displayName: 'MUI Private',
+        description: 'Private monorepo for internal MUI packages',
+        isPublic: false,
+        packages: [],
+      },
     ] satisfies Repository[]
   ).map((repo) => [`${repo.owner}/${repo.name}`, repo]),
 );
@@ -195,4 +235,5 @@ export const MUI_KPI_REPOS = [
   repositories.get('mui/base-ui')!,
   repositories.get('mui/mui-public')!,
   repositories.get('mui/mui-design-kits')!,
+  repositories.get('mui/mui-private')!,
 ];

@@ -13,8 +13,7 @@ import { generateDeployPreviewReport } from '@/lib/ciReports/deployPreviewReport
 import type { ReportResult } from '@/lib/ciReports/types';
 import { fetchParentCommits } from '@/utils/fetchCiReportWithFallback';
 import { getOctokit } from '@/lib/github';
-import { DASHBOARD_ORIGIN } from '@/constants';
-import { findRepository } from '@/lib/privateRepositories';
+import { DASHBOARD_ORIGIN, repositories } from '@/constants';
 import { repoSchema } from '@/lib/ciReports/schemas';
 
 const syncPrCommentSchema = z.object({
@@ -104,7 +103,7 @@ export async function POST(request: NextRequest) {
     baseCandidates = [mergeBaseCommit];
   }
 
-  const repoConfig = await findRepository(prRepo);
+  const repoConfig = repositories.get(prRepo);
   const prCommentConfig = repoConfig?.prComment;
 
   const reportOptions = {

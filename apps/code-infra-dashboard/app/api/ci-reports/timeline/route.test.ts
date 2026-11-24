@@ -13,9 +13,9 @@ function timelineRequest(repo: string): NextRequest {
 
 describe('GET /api/ci-reports/timeline', () => {
   // The commits it lists are what a private repository's report URLs need, so signed out, a
-  // repository that isn't public is answered like one that doesn't exist, before the bucket is read.
-  it('treats a repository outside the public list as unknown when signed out', async () => {
-    const response = await GET(timelineRequest('mui/not-a-public-repository'));
+  // private repository is answered like one that doesn't exist, before the bucket is read.
+  it('treats a private repository as unknown when signed out', async () => {
+    const response = await GET(timelineRequest('mui/base-ui-charts'));
 
     expect(response.status).toBe(404);
     expect(await response.json()).toEqual({ error: 'Unknown repository' });

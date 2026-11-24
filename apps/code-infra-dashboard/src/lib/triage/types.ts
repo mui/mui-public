@@ -27,6 +27,6 @@ export interface TriageViewConfig {
   notionUrl?: string;
   columns: GridColDef<TriageRow>[];
   initialSortModel?: GridSortModel;
-  /** Gets the private repositories the visitor may see, for the views that include them. */
-  fetch: (privateRepos: Repository[]) => Promise<TriageRow[]>;
+  /** Gets the repositories the visitor may see, private ones included, for the views that search them all. */
+  fetch: (repos: Repository[]) => Promise<TriageRow[]>;
 }
