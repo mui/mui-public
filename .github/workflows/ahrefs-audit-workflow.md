@@ -134,7 +134,7 @@ steps:
         /** Page lists cost 50 API units each, so a run fetches this many issue types at most. */
         const MAX_ISSUE_TYPES = 10;
         const PAGE_FIELDS = 'url,title,h1,meta_description,canonical';
-        const LINK_FIELDS = 'url,origin';
+        const LINK_FIELDS = 'url,origin,redirect';
         const USER_AGENT =
           'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36';
 
@@ -204,35 +204,42 @@ steps:
         };
 
         /**
-         * Re-checks a link target from here, as the agent can't reach other sites: `broken` when it's gone
-         * for good (not found, the host is gone, or a deep page now lands on the site's root), `redirect`
-         * with the final URL when it moved, or null when it's fine now or inconclusive (rate limited, down).
-         * A link to a site's root is never a redirect to fix: it's the entry point the site chose to send
-         * visitors on from. Neither is one that only adds to the query: that's the site tagging the visit,
-         * which a link shouldn't copy. Any other redirect, `www.` and `https` ones included, costs every
-         * visitor an extra round trip.
+         * What a redirect from `url` to `finalUrl` asks of a link. A link to a site's root is never a
+         * redirect to fix: it's the entry point the site chose to send visitors on from. Neither is one that
+         * only adds to the query: that's the site tagging the visit, which a link shouldn't copy. Any other
+         * redirect, `www.` and `https` ones included, costs every visitor an extra round trip.
          */
+        async function redirectVerdict(url, finalUrl) {
+          const isDeep = new URL(url).pathname !== '/';
+          if (isDeep && new URL(finalUrl).pathname === '/') {
+            return { verdict: 'broken', status: 'lands on the site root', archived: await archived(url) };
+          }
+          if (isDeep && withoutQuery(finalUrl) !== withoutQuery(url)) {
+            return { verdict: 'redirect', finalUrl };
+          }
+          return null;
+        }
+
         /** Targets left unchecked, by status: a site blocking the runner shows up here. */
         const inconclusive = new Map();
 
-        async function checkLink(url) {
+        /**
+         * Re-checks a link target from here, as the agent can't reach other sites: `broken` when it's gone
+         * for good (not found, the host is gone), `redirect` with the final URL when it moved, or null when
+         * it's fine now or inconclusive. Sites that block the runner (403, 429, 5xx) can't confirm a broken
+         * link, but the redirect Ahrefs' crawler saw (`crawledRedirect`, its next hop) still counts.
+         */
+        async function checkLink(url, crawledRedirect) {
           const result = await resolve(url);
-          const isDeep = new URL(url).pathname !== '/';
-          if (result.status !== 200) {
-            if (result.status === 404 || result.status === 410 || result.error === 'ENOTFOUND') {
-              return { verdict: 'broken', status: result.status || result.error, archived: await archived(url) };
-            }
-            const status = String(result.status || result.error);
-            inconclusive.set(status, [...(inconclusive.get(status) ?? []), new URL(url).hostname]);
-            return null;
+          if (result.status === 200) {
+            return redirectVerdict(url, result.finalUrl);
           }
-          if (isDeep && new URL(result.finalUrl).pathname === '/') {
-            return { verdict: 'broken', status: 'lands on the site root', archived: await archived(url) };
+          if (result.status === 404 || result.status === 410 || result.error === 'ENOTFOUND') {
+            return { verdict: 'broken', status: result.status || result.error, archived: await archived(url) };
           }
-          if (isDeep && withoutQuery(result.finalUrl) !== withoutQuery(url)) {
-            return { verdict: 'redirect', finalUrl: result.finalUrl };
-          }
-          return null;
+          const status = String(result.status || result.error);
+          inconclusive.set(status, [...(inconclusive.get(status) ?? []), new URL(url).hostname]);
+          return crawledRedirect ? redirectVerdict(url, new URL(crawledRedirect, url).href) : null;
         }
 
         const [{ healthscores }, { issues }] = await Promise.all([
@@ -277,19 +284,21 @@ steps:
         );
 
         // Each link target is re-checked once, however many issues list it.
-        const linkedFrom = new Map();
+        const linkTargets = new Map();
         for (const [index, issue] of candidates.entries()) {
           if (LINK_ISSUES.has(issue.issue_id)) {
             for (const page of pageLists[index]) {
-              if (page.origin && isOwned(page.origin) && !linkedFrom.has(page.url)) {
-                linkedFrom.set(page.url, page.origin);
+              if (page.origin && isOwned(page.origin) && !linkTargets.has(page.url)) {
+                linkTargets.set(page.url, { linkedFrom: page.origin, crawledRedirect: page.redirect });
               }
             }
           }
         }
-        const targets = [...linkedFrom.keys()];
+        const targets = [...linkTargets.keys()];
         const verdicts = new Map(
-          (await mapLimited(targets, 8, checkLink)).map((verdict, index) => [targets[index], verdict]),
+          (
+            await mapLimited(targets, 8, (url) => checkLink(url, linkTargets.get(url).crawledRedirect))
+          ).map((verdict, index) => [targets[index], verdict]),
         );
 
         const fixable = [];
@@ -297,7 +306,7 @@ steps:
           const pages = LINK_ISSUES.has(issue.issue_id)
             ? [...new Set(pageLists[index].map((page) => page.url))]
                 .filter((url) => verdicts.get(url))
-                .map((url) => ({ url, linkedFrom: linkedFrom.get(url), ...verdicts.get(url) }))
+                .map((url) => ({ url, linkedFrom: linkTargets.get(url).linkedFrom, ...verdicts.get(url) }))
             : pageLists[index].filter((page) => isOwned(page.url));
           if (pages.length > 0) {
             fixable.push({ group: groupOf(issue), name: issue.name, pages });
