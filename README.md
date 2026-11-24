@@ -103,6 +103,12 @@ Repositories call its compiled `dependabot-fix-workflow.lock.yml` on their own s
 
 After editing the workflow, recompile it with `gh aw compile dependabot-fix-workflow`.
 
+### Code scanning alerts
+
+The reusable [code scanning fix workflow](./.github/workflows/code-scanning-fix-workflow.md) works through the open code scanning alerts, such as CodeQL's. An agent checks each alert against the code: it fixes the real problems in one PR per rule, and reports in an issue the alerts to dismiss as false positives, with the reason to pick, and those that need a decision. Fixed alerts close when code scanning re-analyzes the default branch.
+
+Repositories call its compiled `code-scanning-fix-workflow.lock.yml`, like [mui-public does daily](./.github/workflows/code-scanning-fix.yml). It needs the same setup as the Dependabot fix workflow, and code scanning enabled. After editing it, recompile it with `gh aw compile code-scanning-fix-workflow`.
+
 ## Versioning
 
 Steps:
