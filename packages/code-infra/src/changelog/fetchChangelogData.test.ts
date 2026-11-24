@@ -2,10 +2,10 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
-import type { PullFixture, ReleaseRepository } from './__fixtures__/releaseRepository';
-import { createRepository, tempDir, writeFiles } from './__fixtures__/releaseRepository';
+import type { PullFixture, ChangelogRepository } from './__fixtures__/changelogRepository';
+import { createRepository, tempDir, writeFiles } from './__fixtures__/changelogRepository';
 // eslint-disable-next-line import/extensions
-import { fetchReleaseData } from './index.mjs';
+import { fetchChangelogData } from './index.mjs';
 
 const RATE_LIMITED = {
   status: 403,
@@ -22,13 +22,13 @@ beforeEach(() => {
   return () => spy.mockRestore();
 });
 
-/** The release data of the remote's main branch since v1.0.0, seen from a fresh checkout. */
+/** The changelog data of the remote's main branch since v1.0.0, seen from a fresh checkout. */
 async function dataOf(
-  repository: ReleaseRepository,
-  options: Parameters<typeof fetchReleaseData>[0] = {},
+  repository: ChangelogRepository,
+  options: Parameters<typeof fetchChangelogData>[0] = {},
 ) {
   const { dir } = await repository.clone();
-  return fetchReleaseData({ cwd: dir, octokit: repository.octokit, ...options });
+  return fetchChangelogData({ cwd: dir, octokit: repository.octokit, ...options });
 }
 
 describe('release', () => {
@@ -42,7 +42,7 @@ describe('release', () => {
     const data = await dataOf(repository);
 
     expect(data).toMatchObject({
-      repository: { owner: 'mui', name: repository.name },
+      repository: { owner: 'mui', repo: repository.name },
       previous: { ref: 'v1.0.0', sha: await repository.git('rev-parse', 'v1.0.0') },
       release: { ref: sha, sha },
       version: '1.1.0',
@@ -84,7 +84,7 @@ describe('release', () => {
     await repository.land('First (#1)', [{ number: 1 }]);
     const { dir } = await repository.clone();
 
-    const data = await fetchReleaseData({
+    const data = await fetchChangelogData({
       cwd: path.join(dir, 'packages/a/src'),
       octokit: repository.octokit,
     });
@@ -99,7 +99,7 @@ describe('release', () => {
     const { dir } = await repository.clone();
     await writeFiles(dir, { 'package.json': { name: 'root', version: '1.1.0' } });
 
-    const data = await fetchReleaseData({ cwd: dir, octokit: repository.octokit });
+    const data = await fetchChangelogData({ cwd: dir, octokit: repository.octokit });
 
     expect(data.version).toBe('1.1.0');
     expect(data.packages).toMatchObject([{ version: '1.1.0', versionChanged: true }]);
@@ -161,7 +161,7 @@ describe('release', () => {
       const repository = await createMaintainedRepository();
       const { dir } = await repository.clone('--branch=v1.x', '--single-branch');
 
-      const data = await fetchReleaseData({ cwd: dir, octokit: repository.octokit });
+      const data = await fetchChangelogData({ cwd: dir, octokit: repository.octokit });
 
       expect(data).toMatchObject(expected);
     });
@@ -170,7 +170,7 @@ describe('release', () => {
       const repository = await createMaintainedRepository();
       const { dir } = await repository.clone('--branch=main', '--single-branch');
 
-      const data = await fetchReleaseData({
+      const data = await fetchChangelogData({
         cwd: dir,
         octokit: repository.octokit,
         release: 'v1.x',
@@ -186,7 +186,7 @@ describe('release', () => {
       'package.json': { name: 'root', version: '1.1.0' },
     });
 
-    const data = await fetchReleaseData({
+    const data = await fetchChangelogData({
       cwd: await tempDir(),
       octokit: repository.octokit,
       repo: repository.name,
@@ -209,7 +209,7 @@ describe('release', () => {
     });
     const { dir } = await other.clone();
 
-    const data = await fetchReleaseData({
+    const data = await fetchChangelogData({
       cwd: path.join(dir, 'nested'),
       octokit: repository.octokit,
       repo: repository.name,
@@ -226,7 +226,7 @@ describe('release', () => {
     await git('commit', '--allow-empty', '-m', 'Local');
     const sha = await git('rev-parse', 'HEAD');
 
-    await expect(fetchReleaseData({ cwd: dir, octokit: repository.octokit })).rejects.toThrow(
+    await expect(fetchChangelogData({ cwd: dir, octokit: repository.octokit })).rejects.toThrow(
       `HEAD (${sha}) is not on GitHub in mui/${repository.name}. Push it, or pass a \`release\` ref that is already pushed.`,
     );
     expect(repository.requests).toHaveLength(1);
@@ -656,7 +656,7 @@ describe('cherry-picks', () => {
 });
 
 describe('direct commit authors', () => {
-  async function authorsOf(repository: ReleaseRepository) {
+  async function authorsOf(repository: ChangelogRepository) {
     const { changes } = await dataOf(repository, { includeDirectCommits: true });
     return changes.map((change) => change.author);
   }
@@ -757,7 +757,7 @@ describe('failures', () => {
       const restore = repository.respondWith(route, response);
       // eslint-disable-next-line no-await-in-loop
       await expect(
-        fetchReleaseData({ cwd: dir, octokit: repository.octokit, includeDirectCommits: true }),
+        fetchChangelogData({ cwd: dir, octokit: repository.octokit, includeDirectCommits: true }),
         route,
       ).rejects.toMatchObject({ status });
       restore();
@@ -934,7 +934,7 @@ describe('packages', () => {
       'packages/ignored/package.json': { name: 'ignored', version: '1.0.0' },
     });
 
-    const data = await fetchReleaseData({ cwd: dir, octokit: repository.octokit });
+    const data = await fetchChangelogData({ cwd: dir, octokit: repository.octokit });
 
     expect(data.packages).toMatchObject([
       { name: 'root' },
@@ -969,7 +969,7 @@ describe('packages', () => {
     const repository = await createNestedRepository();
     const { dir } = await repository.clone();
 
-    const data = await fetchReleaseData({
+    const data = await fetchChangelogData({
       cwd: path.join(dir, 'inner'),
       octokit: repository.octokit,
     });
@@ -985,7 +985,7 @@ describe('packages', () => {
     const { dir, git } = await repository.clone('--depth=1');
     const shallow = await git('rev-list', '--all', '--count');
 
-    const data = await fetchReleaseData({
+    const data = await fetchChangelogData({
       cwd: path.join(dir, 'inner'),
       octokit: repository.octokit,
       lastRelease: 'v1.0.0',
@@ -1000,7 +1000,7 @@ describe('packages', () => {
     const repository = await createNestedRepository();
     const { dir } = await repository.clone('--depth=1');
 
-    const data = await fetchReleaseData({
+    const data = await fetchChangelogData({
       cwd: path.join(dir, 'inner'),
       octokit: repository.octokit,
       lastRelease: 'v1.0.0',
@@ -1020,7 +1020,7 @@ describe('packages', () => {
     const { dir } = await repository.clone('--depth=1');
 
     await expect(
-      fetchReleaseData({ cwd: dir, octokit: repository.octokit, lastRelease: 'v1.0.0' }),
+      fetchChangelogData({ cwd: dir, octokit: repository.octokit, lastRelease: 'v1.0.0' }),
     ).rejects.toThrow(`GitHub truncates the file list of ${base}.`);
   });
 
@@ -1062,7 +1062,7 @@ describe('packages', () => {
     const inner = path.join(outer, 'inner');
     await fs.rename(dir, inner);
 
-    const data = await fetchReleaseData({ cwd: inner, octokit: repository.octokit });
+    const data = await fetchChangelogData({ cwd: inner, octokit: repository.octokit });
 
     expect(data.packages).toMatchObject([{ name: 'root' }]);
   });

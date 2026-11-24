@@ -20,14 +20,14 @@ npm install @mui/internal-code-infra
 
 TODO
 
-## Release data
+## Changelog data
 
-`fetchReleaseData` collects what happened in a release as plain data: the release, its changes and its packages. Turn it into a changelog with code in your own repository:
+`fetchChangelogData` collects what happened in a release as plain data: the release, its changes and its packages. Turn it into a changelog with code in your own repository:
 
 ```js
-import { fetchReleaseData } from '@mui/internal-code-infra/changelog';
+import { fetchChangelogData } from '@mui/internal-code-infra/changelog';
 
-const { previous, version, changes } = await fetchReleaseData();
+const { previous, version, changes } = await fetchChangelogData();
 
 const lines = changes.map((change) => `- ${change.title} (${change.url})`);
 console.log(`## ${version}\n\nChanges since ${previous.ref}:\n\n${lines.join('\n')}`);

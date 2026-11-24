@@ -40,7 +40,7 @@ type Git = (...args: string[]) => Promise<string>;
 
 type Files = Record<string, unknown>;
 
-export interface ReleaseRepository {
+export interface ChangelogRepository {
   dir: string;
   name: string;
   git: Git;
@@ -63,7 +63,7 @@ export interface ReleaseRepository {
 }
 
 export async function tempDir() {
-  const dir = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'release-data-')));
+  const dir = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'changelog-data-')));
   onTestFinished(() => fs.rm(dir, { recursive: true, force: true }));
   return dir;
 }
@@ -108,7 +108,7 @@ function pullResponse(pull: PullFixture, repository: string, sha?: string) {
  * The GitHub repository `mui/<name>`, released as v1.0.0: a git repository for what it contains, and
  * a real Octokit of which the HTTP responses are derived from it.
  */
-export async function createRepository(files: Files = {}): Promise<ReleaseRepository> {
+export async function createRepository(files: Files = {}): Promise<ChangelogRepository> {
   const dir = await tempDir();
   const name = path.basename(dir);
   const git = gitIn(dir);

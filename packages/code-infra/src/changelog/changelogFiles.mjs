@@ -113,7 +113,7 @@ export async function openCommit({ octokit, repository, checkout, sha, signal })
   }
 
   const prefix = checkout?.prefix ?? '';
-  const parameters = { owner: repository.owner, repo: repository.name, request: { signal } };
+  const parameters = { ...repository, request: { signal } };
   const { data } = await octokit.git.getTree({ ...parameters, tree_sha: sha, recursive: '1' });
   if (data.truncated) {
     throw new Error(

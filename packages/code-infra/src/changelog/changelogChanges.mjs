@@ -5,8 +5,8 @@ import { getRateLimitRetryTime } from '../utils/github.mjs';
 /**
  * @typedef {import('@octokit/rest').Octokit} Octokit
  * @typedef {import('./types.ts').GitHubRepository} GitHubRepository
- * @typedef {import('./types.ts').ReleaseAuthor} ReleaseAuthor
- * @typedef {import('./types.ts').ReleaseChange} ReleaseChange
+ * @typedef {import('./types.ts').ChangelogAuthor} ChangelogAuthor
+ * @typedef {import('./types.ts').ChangelogChange} ChangelogChange
  * @typedef {Awaited<ReturnType<Octokit['repos']['compareCommitsWithBasehead']>>['data']['commits'][number]} Commit
  */
 
@@ -22,7 +22,7 @@ import { getRateLimitRetryTime } from '../utils/github.mjs';
  * @property {{ name?: string }[]} labels
  */
 
-/** @type {Record<string, ReleaseAuthor['association']>} */
+/** @type {Record<string, ChangelogAuthor['association']>} */
 const ASSOCIATIONS = {
   OWNER: 'team',
   MEMBER: 'team',
@@ -36,7 +36,7 @@ const ASSOCIATIONS = {
 
 const CHERRY_PICK_LABEL = 'cherry-pick';
 const PULL_REFERENCE =
-  /(?:https:\/\/github\.com\/(?<urlOwner>[\w.-]+)\/(?<urlName>[\w.-]+)\/pull\/|(?:(?<owner>[\w.-]+)\/(?<name>[\w.-]+))?#)(?<number>\d+)/;
+  /(?:https:\/\/github\.com\/(?<urlOwner>[\w.-]+)\/(?<urlRepo>[\w.-]+)\/pull\/|(?:(?<owner>[\w.-]+)\/(?<repo>[\w.-]+))?#)(?<number>\d+)/;
 // Unnamed, so that the pattern can be repeated.
 const ANY_PULL_REFERENCE = PULL_REFERENCE.source.replaceAll(/\(\?<\w+>/g, '(?:');
 // Anchored to the start of a line: changelogs quoted in dependency bumps mention cherry-picks too.
@@ -54,7 +54,7 @@ function getCherryPickReferences(pull, repository) {
   return [...(pull.body ?? '').matchAll(CHERRY_PICK_LINE)].flatMap(([, references]) =>
     [...references.matchAll(new RegExp(PULL_REFERENCE, 'g'))].map(({ 0: text, groups = {} }) => ({
       owner: groups.urlOwner ?? groups.owner ?? repository.owner,
-      name: groups.urlName ?? groups.name ?? repository.name,
+      repo: groups.urlRepo ?? groups.repo ?? repository.repo,
       number: Number(groups.number),
       text,
     })),
@@ -109,7 +109,7 @@ function createAuthorResolver({ octokit, repository, signal }) {
   const getMembership = memoize(
     /**
      * @param {string} login
-     * @returns {Promise<ReleaseAuthor['association']>}
+     * @returns {Promise<ChangelogAuthor['association']>}
      */
     async (login) => {
       try {
@@ -155,7 +155,7 @@ function createAuthorResolver({ octokit, repository, signal }) {
   /**
    * @param {PullRequest} pull
    * @param {GitHubRepository} pullRepository
-   * @returns {Promise<ReleaseAuthor | null>}
+   * @returns {Promise<ChangelogAuthor | null>}
    */
   async function getOpener(pull, pullRepository) {
     if (!pull.user) {
@@ -163,8 +163,8 @@ function createAuthorResolver({ octokit, repository, signal }) {
     }
     const { login, type } = pull.user;
     const isSameRepository =
-      pullRepository.owner === repository.owner && pullRepository.name === repository.name;
-    /** @type {ReleaseAuthor['association']} */
+      pullRepository.owner === repository.owner && pullRepository.repo === repository.repo;
+    /** @type {ChangelogAuthor['association']} */
     let association = 'community';
     if (type !== 'Bot') {
       association = isSameRepository
@@ -179,7 +179,7 @@ function createAuthorResolver({ octokit, repository, signal }) {
    * @param {PullRequest} pull
    * @param {GitHubRepository} pullRepository
    * @param {string[]} chain - Cherry-picks that led to this pull request
-   * @returns {Promise<{ author: ReleaseAuthor | null, references: string[] } | null>} `null` when the
+   * @returns {Promise<{ author: ChangelogAuthor | null, references: string[] } | null>} `null` when the
    * pull request is a cherry-pick of which the original author is unknown
    */
   async function resolve(pull, pullRepository, chain = []) {
@@ -194,7 +194,7 @@ function createAuthorResolver({ octokit, repository, signal }) {
 
     const authors = await Promise.all(
       references.map(async (reference) => {
-        const key = `${reference.owner}/${reference.name}/${reference.number}`;
+        const key = `${reference.owner}/${reference.repo}/${reference.number}`;
         const original = chain.includes(key) ? null : await getOriginal(key);
         return original && (await resolve(original, reference, [...chain, key]))?.author;
       }),
@@ -208,7 +208,7 @@ function createAuthorResolver({ octokit, repository, signal }) {
   return {
     /**
      * @param {PullRequest} pull
-     * @returns {Promise<{ author: ReleaseAuthor | null, references: string[] }>}
+     * @returns {Promise<{ author: ChangelogAuthor | null, references: string[] }>}
      */
     async fromPullRequest(pull) {
       const resolved = await resolve(pull, repository);
@@ -224,7 +224,7 @@ function createAuthorResolver({ octokit, repository, signal }) {
     },
     /**
      * @param {Commit} commit
-     * @returns {Promise<ReleaseAuthor>}
+     * @returns {Promise<ChangelogAuthor>}
      */
     async fromCommit(commit) {
       const login = commit.author?.login ?? null;
@@ -264,9 +264,9 @@ function stripTrailingReferences(title, references, stripCredits) {
  * @param {string} options.releaseSha
  * @param {boolean} options.includeDirectCommits
  * @param {AbortController} options.controller - Aborted when a request fails
- * @returns {Promise<ReleaseChange[]>}
+ * @returns {Promise<ChangelogChange[]>}
  */
-export async function fetchReleaseChanges({
+export async function fetchChangelogChanges({
   octokit,
   repository,
   previousSha,
@@ -275,7 +275,7 @@ export async function fetchReleaseChanges({
   controller,
 }) {
   const { signal } = controller;
-  const location = { owner: repository.owner, repo: repository.name, request: { signal } };
+  const location = { ...repository, request: { signal } };
   const authors = createAuthorResolver({ octokit, repository, signal });
 
   async function listCommits() {
@@ -317,7 +317,7 @@ export async function fetchReleaseChanges({
 
   /**
    * @param {Commit} commit
-   * @returns {Promise<ReleaseChange | null>}
+   * @returns {Promise<ChangelogChange | null>}
    */
   async function toChange(commit) {
     const { sha } = commit;

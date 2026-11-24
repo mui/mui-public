@@ -1,4 +1,6 @@
 import type { Octokit } from '@octokit/rest';
+// eslint-disable-next-line import/extensions
+import type { RepoInfo } from '../utils/git.mjs';
 
 /**
  * Commit details fetched from GitHub including PR information and labels.
@@ -441,10 +443,7 @@ export interface GenerateChangelogResult {
   };
 }
 
-export interface GitHubRepository {
-  owner: string;
-  name: string;
-}
+export type GitHubRepository = Pick<RepoInfo, 'owner' | 'repo'>;
 
 export interface ReleaseRef {
   /**
@@ -454,7 +453,7 @@ export interface ReleaseRef {
   sha: string;
 }
 
-export interface ReleaseAuthor {
+export interface ChangelogAuthor {
   /**
    * `null` for a commit author without a linked GitHub account.
    */
@@ -469,7 +468,7 @@ export interface ReleaseAuthor {
 /**
  * A merged pull request, or a commit that landed without one.
  */
-export interface ReleaseChange {
+export interface ChangelogChange {
   /**
    * Subject of the commit, without the references that the other fields already carry: the pull
    * request it belongs to and, for a cherry-pick, the original pull request and its author.
@@ -489,7 +488,7 @@ export interface ReleaseChange {
   /**
    * `null` when the GitHub account was deleted.
    */
-  author: ReleaseAuthor | null;
+  author: ChangelogAuthor | null;
   /**
    * When the pull request was opened, or the commit authored. ISO 8601.
    */
@@ -500,7 +499,7 @@ export interface ReleaseChange {
   mergedAt: string | null;
 }
 
-export interface ReleasePackage {
+export interface ChangelogPackage {
   name: string;
   version: string | null;
   /**
@@ -524,7 +523,7 @@ export interface ReleasePackage {
 /**
  * What happened in a release, as JSON-serializable data.
  */
-export interface ReleaseData {
+export interface ChangelogData {
   repository: GitHubRepository;
   previous: ReleaseRef;
   release: ReleaseRef;
@@ -536,14 +535,14 @@ export interface ReleaseData {
   /**
    * Oldest first.
    */
-  changes: ReleaseChange[];
+  changes: ChangelogChange[];
   /**
    * Named packages of the workspace, sorted by path. Without a workspace, only the root package.
    */
-  packages: ReleasePackage[];
+  packages: ChangelogPackage[];
 }
 
-export interface FetchReleaseDataOptions {
+export interface FetchChangelogDataOptions {
   /**
    * A directory of the released workspace.
    * @default process.cwd()

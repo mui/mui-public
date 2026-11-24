@@ -1,6 +1,6 @@
 import { $ } from 'execa';
 
-import { hasCommit } from './releaseFiles.mjs';
+import { hasCommit } from './changelogFiles.mjs';
 
 /**
  * The closest version tag behind a commit. Tags on the commit itself are the release being made, not

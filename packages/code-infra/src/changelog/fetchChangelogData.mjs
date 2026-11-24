@@ -3,25 +3,25 @@ import * as semver from 'semver';
 
 import { getCurrentGitSha, getRepositoryInfo } from '../utils/git.mjs';
 import { createOctokit } from './octokit.mjs';
-import { fetchReleaseChanges } from './releaseChanges.mjs';
-import { comparePackages, readManifests } from './releasePackages.mjs';
-import { findCheckout, openCommit, openWorkingTree } from './releaseFiles.mjs';
-import { findPreviousVersionTag } from './releaseTags.mjs';
+import { fetchChangelogChanges } from './changelogChanges.mjs';
+import { comparePackages, readManifests } from './changelogPackages.mjs';
+import { findCheckout, openCommit, openWorkingTree } from './changelogFiles.mjs';
+import { findPreviousVersionTag } from './changelogTags.mjs';
 
 /**
- * @typedef {import('./types.ts').FetchReleaseDataOptions} FetchReleaseDataOptions
+ * @typedef {import('./types.ts').FetchChangelogDataOptions} FetchChangelogDataOptions
  * @typedef {import('./types.ts').GitHubRepository} GitHubRepository
- * @typedef {import('./types.ts').ReleaseData} ReleaseData
+ * @typedef {import('./types.ts').ChangelogData} ChangelogData
  */
 
 /**
  * Collects what happened in a release: its changes and its packages. Run inside a checkout of the
  * repository, every option is optional.
  *
- * @param {FetchReleaseDataOptions} [options]
- * @returns {Promise<ReleaseData>}
+ * @param {FetchChangelogDataOptions} [options]
+ * @returns {Promise<ChangelogData>}
  */
-export async function fetchReleaseData(options = {}) {
+export async function fetchChangelogData(options = {}) {
   const controller = new AbortController();
   try {
     return await collectData(options, controller);
@@ -34,9 +34,9 @@ export async function fetchReleaseData(options = {}) {
 }
 
 /**
- * @param {FetchReleaseDataOptions} options
+ * @param {FetchChangelogDataOptions} options
  * @param {AbortController} controller
- * @returns {Promise<ReleaseData>}
+ * @returns {Promise<ChangelogData>}
  */
 async function collectData(options, controller) {
   const cwd = await fs.realpath(options.cwd ?? process.cwd());
@@ -51,7 +51,7 @@ async function collectData(options, controller) {
   const releaseCommit = await getCommit(octokit, repository, releaseRef, signal).catch((error) => {
     if (isLocalHead && error.status === 422) {
       throw new Error(
-        `HEAD (${releaseRef}) is not on GitHub in ${repository.owner}/${repository.name}. ` +
+        `HEAD (${releaseRef}) is not on GitHub in ${repository.owner}/${repository.repo}. ` +
           'Push it, or pass a `release` ref that is already pushed.',
         { cause: error },
       );
@@ -64,7 +64,7 @@ async function collectData(options, controller) {
     options.lastRelease ?? (await findPreviousVersionTag({ cwd, remote, sha: releaseSha }));
   const previousSha = (await getCommit(octokit, repository, previousRef, signal)).sha;
 
-  const changes = await fetchReleaseChanges({
+  const changes = await fetchChangelogChanges({
     octokit,
     repository,
     previousSha,
@@ -112,7 +112,7 @@ async function collectData(options, controller) {
  * The repository, and the remote of the checkout that points at it, if any.
  *
  * @param {string} cwd
- * @param {FetchReleaseDataOptions} options
+ * @param {FetchChangelogDataOptions} options
  * @returns {Promise<{ repository: GitHubRepository, remote: string | null }>}
  */
 async function resolveRepository(cwd, options) {
@@ -123,9 +123,9 @@ async function resolveRepository(cwd, options) {
     throw error;
   });
   const owner = options.org ?? 'mui';
-  const name = options.repo ?? /** @type {NonNullable<typeof info>} */ (info).repo;
-  const isCheckout = info?.owner === owner && info.repo === name;
-  return { repository: { owner, name }, remote: isCheckout ? info.remoteName : null };
+  const repo = options.repo ?? /** @type {NonNullable<typeof info>} */ (info).repo;
+  const isCheckout = info?.owner === owner && info.repo === repo;
+  return { repository: { owner, repo }, remote: isCheckout ? info.remoteName : null };
 }
 
 /**
@@ -138,8 +138,7 @@ async function resolveRepository(cwd, options) {
  */
 async function getCommit(octokit, repository, ref, signal) {
   const { data } = await octokit.repos.getCommit({
-    owner: repository.owner,
-    repo: repository.name,
+    ...repository,
     ref,
     // Limits the file list, which can be large and isn't needed.
     per_page: 1,

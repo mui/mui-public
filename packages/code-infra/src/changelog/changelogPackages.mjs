@@ -3,8 +3,8 @@ import { minimatch } from 'minimatch';
 import { parse as parseYaml } from 'yaml';
 
 /**
- * @typedef {import('./releaseFiles.mjs').FileSource} FileSource
- * @typedef {import('./types.ts').ReleasePackage} ReleasePackage
+ * @typedef {import('./changelogFiles.mjs').FileSource} FileSource
+ * @typedef {import('./types.ts').ChangelogPackage} ChangelogPackage
  */
 
 /**
@@ -75,7 +75,7 @@ export async function readManifests(source) {
  *
  * @param {Manifest[]} manifests
  * @param {Manifest[]} previousManifests
- * @returns {ReleasePackage[]}
+ * @returns {ChangelogPackage[]}
  */
 export function comparePackages(manifests, previousManifests) {
   const previousByName = new Map(previousManifests.map((manifest) => [manifest.name, manifest]));
