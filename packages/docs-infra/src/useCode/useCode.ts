@@ -287,16 +287,16 @@ export function useCode<T extends {} = {}>(
     return enhancers.length > 0 ? enhancers : undefined;
   }, [codeContext.sourceEnhancers, controllerEnhancers, sourceEnhancers]);
 
-  // Prefer controller state because context can lag while controlled source is seeded.
+  // Context code can lag behind freshly seeded controller source.
   const controlledCode = controllerContext?.code;
   const effectiveCode = React.useMemo(() => {
-    if (controlledCode) {
+    if (controlledCode && controlledCode !== context?.controlledCode) {
       return Object.fromEntries(
         Object.entries(controlledCode).filter((entry) => entry[1] != null),
       ) as Code;
     }
     return context?.code || contentProps.code || {};
-  }, [controlledCode, context?.code, contentProps.code]);
+  }, [controlledCode, context?.controlledCode, context?.code, contentProps.code]);
   const initialCode = contentProps.code ?? context?.initialCode ?? context?.code;
 
   // Memoize userProps with auto-generated name and slug if missing

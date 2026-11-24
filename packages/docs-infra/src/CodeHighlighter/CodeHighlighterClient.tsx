@@ -808,7 +808,7 @@ function useControlledCodeParsing({
   useDemandSourceParser(loadSourceParser, Boolean(code) && grammarsReady && !parseSource);
 
   // Parse the controlled code separately (no need to check readyForContent)
-  const parsedControlledCode = React.useMemo(() => {
+  const controlledSnapshot = React.useMemo(() => {
     if (!code || !grammarsReady) {
       return undefined;
     }
@@ -837,7 +837,7 @@ function useControlledCodeParsing({
       return undefined;
     }
 
-    return parseControlledCode(code, parseSource, preParsedCache);
+    return { code: parseControlledCode(code, parseSource, preParsedCache), input: code };
   }, [
     code,
     grammarsReady,
@@ -849,7 +849,10 @@ function useControlledCodeParsing({
     preParsedCache,
   ]);
 
-  return { parsedControlledCode };
+  return {
+    parsedControlledCode: controlledSnapshot?.code,
+    controlledCode: controlledSnapshot?.input,
+  };
 }
 
 function useGlobalsCodeMerging({
@@ -1622,7 +1625,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     refreshAllVariants();
   }, [preParsedCache, refreshAllVariants]);
 
-  const { parsedControlledCode } = useControlledCodeParsing({
+  const { parsedControlledCode, controlledCode: parsedControlledInput } = useControlledCodeParsing({
     code: controlled?.code,
     grammarScopes: editableGrammarScopes,
     forceClient: props.forceClient,
@@ -1713,6 +1716,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   const context: CodeHighlighterContextType = React.useMemo(
     () => ({
       code: overlaidCode, // Use processed/transformed code
+      controlledCode: parsedControlledInput,
       initialCode: codeWithGlobals,
       setCode: controlled?.setCode,
       selection: controlled?.selection || selection,
@@ -1732,6 +1736,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     }),
     [
       overlaidCode,
+      parsedControlledInput,
       codeWithGlobals,
       controlled?.setCode,
       selection,
