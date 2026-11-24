@@ -105,7 +105,7 @@ After editing the workflow, recompile it with `gh aw compile dependabot-fix-work
 
 ### Ahrefs Site Audit
 
-The reusable [Ahrefs audit workflow](./.github/workflows/ahrefs-audit-workflow.md) fixes what the Ahrefs Site Audit crawl of a repository's site reports. A step before the agent reads the crawl's issues with the Ahrefs API, keeps the pages the repository builds, and re-checks link targets; the agent then fixes the source, typically a shared template. It opens one pull request for links and one for content and metadata, and waits while either is open.
+The reusable [Ahrefs audit workflow](./.github/workflows/ahrefs-audit-workflow.md) fixes what the Ahrefs Site Audit crawl of a repository's site reports. A step before the agent reads the crawl's issues with the Ahrefs API, keeps the pages the repository builds, and re-checks link targets; the agent then fixes the source, typically a shared template. It opens one pull request for links and one for content and metadata, and later runs add their fixes to those while they're open.
 
 Repositories call its compiled `ahrefs-audit-workflow.lock.yml` with their Site Audit `project_id` and the site paths they build (`include_paths`, `exclude_paths`). It needs the same setup as the Dependabot fix workflow, plus an `AHREFS_API_KEY` secret in the `code-infra-auditor` environment, which the caller passes along. Each run costs about 550 Ahrefs API units. After editing it, recompile it with `gh aw compile ahrefs-audit-workflow`.
 

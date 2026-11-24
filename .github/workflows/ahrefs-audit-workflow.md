@@ -17,7 +17,7 @@ on:
         type: string
         default: ''
 # One run at a time per repository: a run that starts while another is still publishing would
-# propose the same fixes again.
+# propose the same fixes again, or push onto a branch that is about to move.
 concurrency:
   group: ahrefs-audit-${{ github.repository }}
   cancel-in-progress: false
@@ -54,6 +54,8 @@ inlined-imports: true
 # pointing outside those folders (github/gh-aw#80360).
 checkout:
   pull-request: false
+  # This workflow's pull request branches (see safe-outputs below), so later runs can add to them.
+  fetch: ['code-infra-auditor/*']
 tools:
   # Seconds per tool call, Bash included.
   timeout: 900
@@ -78,23 +80,22 @@ steps:
       package-manager-cache: false
   - name: Install dependencies
     run: pnpm install --frozen-lockfile
-  # Each group of issues gets a pull request of its own and waits while it's open. This workflow's
-  # pull requests are opened by the App configured in safe-outputs below; looked up here because
-  # the agent's gh calls only see content from trusted authors, which excludes that App.
+  # Each group of issues has a pull request of its own, which later runs add to while it's open.
+  # This workflow's pull requests are opened by the App configured in safe-outputs below; looked up
+  # here because the agent's gh calls only see content from trusted authors, which excludes that App.
   - name: Find open audit pull requests
-    id: open
     env:
       GH_TOKEN: ${{ github.token }}
     run: |
       set -euo pipefail
-      titles=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --author app/code-infra-auditor \
-        --limit 100 --json title --jq '.[].title')
-      skip=()
+      mkdir -p /tmp/gh-aw/agent
       # The prompt below titles the pull requests exactly so.
-      grep -q 'Fix links reported by Ahrefs$' <<< "$titles" && skip+=(links)
-      grep -q 'Fix content and metadata reported by Ahrefs$' <<< "$titles" && skip+=(content)
-      echo "skip=${skip[*]:-}" >> "$GITHUB_OUTPUT"
-      echo "Groups with an open pull request: ${skip[*]:-none}"
+      gh pr list --repo "$GITHUB_REPOSITORY" --state open --author app/code-infra-auditor \
+          --limit 100 --json number,title,headRefName \
+        | jq '[.[] | select(.title | test("Fix (links|content and metadata) reported by Ahrefs$"))
+            | { group: (if (.title | test("Fix links")) then "links" else "content" end), number,
+                branch: .headRefName }]' > /tmp/gh-aw/agent/open-prs.json
+      echo "Open audit pull requests: $(jq -c 'map("\(.group): #\(.number)")' /tmp/gh-aw/agent/open-prs.json)"
   # Ahrefs is asked for the fields the fixes need only, never traffic: this run's logs may be
   # public. Link targets are re-checked here, as the agent can't reach other sites.
   - name: Collect Ahrefs Site Audit issues
@@ -103,13 +104,11 @@ steps:
       PROJECT_ID: ${{ inputs.project_id }}
       INCLUDE_PATHS: ${{ inputs.include_paths }}
       EXCLUDE_PATHS: ${{ inputs.exclude_paths }}
-      SKIP_GROUPS: ${{ steps.open.outputs.skip }}
       OUT_FILE: /tmp/gh-aw/agent/ahrefs-issues.json
     run: |
-      mkdir -p /tmp/gh-aw/agent
       node --input-type=module <<'SCRIPT'
         // Collects the Ahrefs Site Audit issues this repository can fix, with the affected pages.
-        // Env: AHREFS_API_KEY, PROJECT_ID, INCLUDE_PATHS, EXCLUDE_PATHS, MAX_ISSUE_TYPES, SKIP_GROUPS, OUT_FILE.
+        // Env: AHREFS_API_KEY, PROJECT_ID, INCLUDE_PATHS, EXCLUDE_PATHS, MAX_ISSUE_TYPES, OUT_FILE.
         // Issues come in two groups, each fixed in a pull request of its own: `links` and `content`.
         import { writeFileSync } from 'node:fs';
 
@@ -135,8 +134,6 @@ steps:
         const include = prefixes('INCLUDE_PATHS');
         const exclude = prefixes('EXCLUDE_PATHS');
         const maxIssueTypes = Number(process.env.MAX_ISSUE_TYPES || 10);
-        /** Groups whose pull request is still open: their issues wait for the next run after it merges. */
-        const skipGroups = new Set(prefixes('SKIP_GROUPS'));
         const groupOf = (issue) => (LINK_ISSUES.has(issue.issue_id) ? 'links' : 'content');
 
         async function ahrefs(path, params) {
@@ -222,12 +219,6 @@ steps:
           return null;
         }
 
-        if (skipGroups.has('links') && skipGroups.has('content')) {
-          writeFileSync(process.env.OUT_FILE, `${JSON.stringify({ issues: [], skipped: 'both pull requests are open' })}\n`);
-          console.log('Both pull requests are open: nothing to collect.');
-          process.exit(0);
-        }
-
         const [{ healthscores }, { issues }] = await Promise.all([
           ahrefs('site-audit/projects', { project_id: process.env.PROJECT_ID }),
           ahrefs('site-audit/issues', { project_id: process.env.PROJECT_ID }),
@@ -236,7 +227,7 @@ steps:
         const candidates = issues
           .filter(
             (issue) =>
-              issue.crawled > 0 && !UNFIXABLE.has(issue.issue_id) && !skipGroups.has(groupOf(issue)),
+              issue.crawled > 0 && !UNFIXABLE.has(issue.issue_id),
           )
           // Link issues first: each is a clear, contained fix. Then the rest by importance and reach.
           .sort(
@@ -297,7 +288,6 @@ steps:
               (issue) =>
                 issue.crawled > 0 &&
                 !UNFIXABLE.has(issue.issue_id) &&
-                !skipGroups.has(groupOf(issue)) &&
                 !candidates.includes(issue),
             )
             .map((issue) => `${issue.name} (${issue.crawled})`),
@@ -319,7 +309,7 @@ safe-outputs:
     client-id: ${{ secrets.CODE_INFRA_AUDITOR_CLIENT_ID }}
     private-key: ${{ secrets.CODE_INFRA_AUDITOR_PRIVATE_KEY }}
   create-pull-request:
-    # One for links, one for content and metadata.
+    # One for links, one for content and metadata, when that group has none open.
     max: 2
     title-prefix: '[docs] '
     labels: [docs]
@@ -332,6 +322,22 @@ safe-outputs:
     allowed-files: ['**']
     protected-files:
       policy: blocked
+  # Later runs add to the open pull requests. Only to this workflow's: the agent names the pull
+  # request, and these checks reject any without the title prefix and label it opens them with.
+  push-to-pull-request-branch:
+    target: '*'
+    required-title-prefix: '[docs] '
+    required-labels: [docs]
+    max: 2
+    if-no-changes: ignore
+    protected-files:
+      policy: blocked
+  update-pull-request:
+    target: '*'
+    required-title-prefix: '[docs] '
+    required-labels: [docs]
+    title: false
+    max: 2
 ---
 
 # Fix what Ahrefs Site Audit reports
@@ -343,9 +349,11 @@ first; they override anything here.
 ## Input
 
 `/tmp/gh-aw/agent/ahrefs-issues.json`: the site, its health score, and the issue types with pages
-to fix, most important first. Each issue has a `group`: `links` or `content`. A group whose pull
-request is still open is left out, and when both are, `issues` is empty. `notFetched` lists further
-issue types that didn't fit this run; leave them for later runs.
+to fix, most important first. Each issue has a `group`: `links` or `content`. `notFetched` lists
+further issue types that didn't fit this run; leave them for later runs.
+
+`/tmp/gh-aw/agent/open-prs.json`: this workflow's open pull request per group, with its number and
+branch, which is fetched locally.
 
 - **Link issues** (`links: external` or `internal`) list link targets, each with the page linking to
   it (`linkedFrom`), already re-checked from the runner: `verdict: broken` (gone: not found, the
@@ -354,7 +362,8 @@ issue types that didn't fit this run; leave them for later runs.
 - **Content issues** list the affected pages with their crawled `title`, `h1`, `meta_description`,
   `canonical` and `jsonld_schema_types`.
 
-The page lists are what Ahrefs saw on the last crawl, possibly days old; the source is the truth.
+The page lists are what Ahrefs saw on the last crawl of the live site, possibly days old, and the
+live site doesn't have the fixes of open pull requests yet: the source is the truth.
 
 ## Find the source
 
@@ -405,19 +414,28 @@ Run the repository's quick gates for what changed: Prettier on the changed files
 type check of the docs when code or templates changed, and the repository's link check when links
 changed and it runs without a full docs build. State exactly what you ran; CI runs the rest.
 
-## Open pull requests
+## Open or update pull requests
 
-Use `create_pull_request`, each from its own branch off the default branch, at most one per group:
+One pull request per group, titled exactly so (later runs recognize them by it):
 
 - `Fix links reported by Ahrefs`: every link fix.
 - `Fix content and metadata reported by Ahrefs`: every content fix.
 
-Use these titles exactly; later runs recognize the pull requests by them. In each, one section per
-issue type with what was wrong, the cause, and the change, then what was left as is and why. Start
-with the site's health score from the input. End with the validation actually run. Don't add a
-sign-off or attribution line.
+**When the group has an open pull request** (`open-prs.json`), work on its branch: `git switch` to
+it, see what it already fixes (`git log` and `git diff` against the default branch), and fix only
+what the input reports that the branch doesn't fix yet. Keep every commit already on the branch,
+including those people added, and never revert or rewrite what they changed. Commit on the branch,
+then call `push_to_pull_request_branch` with its number, and `update_pull_request` with its number
+and a body that describes everything the pull request now fixes. When there's nothing new for the
+group, leave its pull request alone.
 
-When there's nothing to fix, call `noop` with a short reason.
+**Otherwise**, call `create_pull_request` from a branch off the default branch.
+
+In each body, one section per issue type with what was wrong, the cause, and the change, then what
+was left as is and why. Start with the site's health score from the input. End with the validation
+actually run. Don't add a sign-off or attribution line.
+
+When there's nothing to fix or add, call `noop` with a short reason.
 
 ## Guardrails
 
