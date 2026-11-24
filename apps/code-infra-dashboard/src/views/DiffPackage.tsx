@@ -19,11 +19,12 @@ import Heading from '../components/Heading';
 import FileDiff from '../components/FileDiff';
 import FileExplorer from '../components/FileExplorer';
 import { useSearchParamsState } from '../hooks/useSearchParamsState';
-import type { DiffOptions, FileDiffResult } from '../lib/packageDiff/computePackageDiff';
+import CopyButton from '../components/CopyButton';
+import type { ChangedFile, DiffOptions } from '../lib/packageDiff/packageDiff';
 import { usePackageDiff } from '../lib/packageDiff/usePackageDiff';
+import type { PackageDiffState } from '../lib/packageDiff/usePackageDiff';
 
-const EMPTY_FILES: FileDiffResult[] = [];
-const EMPTY_BLOCKS: FileDiffResult['blocks'] = [];
+const EMPTY_FILES: ChangedFile[] = [];
 
 const CODEC_FLAG = {
   defaultValue: false,
@@ -37,26 +38,57 @@ const SEARCH_PARAMS_CONFIG = {
 };
 
 const DiffContent = React.memo(function DiffContent({
-  files,
+  diff,
   loading,
-  updating,
+  streaming,
   options,
   onOptionsChange,
 }: {
-  files: FileDiffResult[];
+  diff: PackageDiffState | undefined;
   loading: boolean;
-  updating: boolean;
+  /** Results are still coming in. Without `diff.files` yet, `diff` is the previous one. */
+  streaming: boolean;
   options: DiffOptions;
   onOptionsChange: (options: Partial<DiffOptions>) => void;
 }) {
   const [filter, setFilter] = React.useState('');
 
+  const allFiles = diff?.files ?? EMPTY_FILES;
+  const unchanged = diff?.unchanged;
+  const results = diff?.results;
+  const files = React.useMemo(
+    () => (unchanged?.size ? allFiles.filter((file) => !unchanged.has(file.path)) : allFiles),
+    [allFiles, unchanged],
+  );
   const filteredFiles = useFilteredItems(files, filter);
 
-  // Scroll to the anchor element after async content loads
+  // Scroll to the anchor once the files of a package pair are listed. The cards are there
+  // from the start, so it doesn't need to wait for their diffs.
+  const hasFiles = files.length > 0;
   React.useEffect(() => {
-    scrollToHash();
-  }, [filteredFiles]);
+    if (hasFiles) {
+      scrollToHash();
+    }
+  }, [hasFiles]);
+
+  const copyText = React.useMemo(
+    () =>
+      streaming || !results
+        ? ''
+        : filteredFiles
+            .map(
+              ({ path }) =>
+                results
+                  .get(path)
+                  ?.blocks.map((block) => block.text)
+                  .join('') ?? '',
+            )
+            .join(''),
+    [streaming, filteredFiles, results],
+  );
+
+  const doneCount = (results?.size ?? 0) + (unchanged?.size ?? 0);
+  const progress = allFiles.length > 0 ? (doneCount / allFiles.length) * 100 : 0;
 
   return (
     <Box>
@@ -113,8 +145,17 @@ const DiffContent = React.memo(function DiffContent({
           title="Leave comments out of the formatted code, so differences in comments, license headers and annotations don't show up"
           sx={{ mr: 0, flexShrink: 0 }}
         />
+        <CopyButton
+          text={copyText}
+          disabled={!copyText}
+          title={streaming ? 'Copy diff (available once all files are diffed)' : 'Copy diff'}
+        />
       </Box>
-      <LinearProgress sx={{ mb: 2, visibility: updating ? 'visible' : 'hidden' }} />
+      <LinearProgress
+        variant={progress < 100 ? 'determinate' : 'indeterminate'}
+        value={progress}
+        sx={{ mb: 2, visibility: streaming && !loading ? 'visible' : 'hidden' }}
+      />
       <Box sx={{ display: 'flex', gap: 2 }}>
         <Box sx={{ display: { xs: 'none', md: 'block' }, width: 300, flexShrink: 0 }}>
           <FileExplorer
@@ -126,13 +167,19 @@ const DiffContent = React.memo(function DiffContent({
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 0 }}>
           {/* eslint-disable-next-line no-nested-ternary */}
           {loading ? (
-            Array.from({ length: 3 }, (_, i) => (
-              <FileDiff key={i} fileName="" blocks={EMPTY_BLOCKS} loading />
-            ))
+            Array.from({ length: 3 }, (_, i) => <FileDiff key={i} fileName="" loading />)
           ) : filteredFiles.length > 0 ? (
-            filteredFiles.map(({ path, blocks, formatError }) => (
-              <FileDiff key={path} fileName={path} blocks={blocks} formatError={formatError} />
-            ))
+            filteredFiles.map(({ path }) => {
+              const result = results?.get(path);
+              return (
+                <FileDiff
+                  key={path}
+                  fileName={path}
+                  blocks={result?.blocks}
+                  formatError={result?.formatError}
+                />
+              );
+            })
           ) : (
             <Alert severity="info">
               {files.length === 0
@@ -306,9 +353,9 @@ export default function DiffPackage() {
 
       {diffQuery.error ? null : (
         <DiffContent
-          files={diffQuery.data ?? EMPTY_FILES}
+          diff={diffQuery.data}
           loading={loading}
-          updating={diffQuery.isPlaceholderData && diffQuery.isFetching}
+          streaming={diffQuery.isFetching}
           options={options}
           onOptionsChange={onOptionsChange}
         />

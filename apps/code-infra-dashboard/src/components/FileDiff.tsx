@@ -6,11 +6,12 @@ import Skeleton from '@mui/material/Skeleton';
 import Typography from '@mui/material/Typography';
 import CodeSkeleton from './CodeSkeleton';
 import { escapeHtmlId } from '../utils/dom';
-import type { DiffBlock } from '../lib/packageDiff/computePackageDiff';
+import type { DiffBlock } from '../lib/packageDiff/packageDiff';
 
 interface FileDiffProps {
   fileName: string;
-  blocks: DiffBlock[];
+  /** Left out while the diff of this file is still being computed. */
+  blocks?: DiffBlock[];
   /** Set when the file couldn't be formatted and the diff shows its raw contents. */
   formatError?: string;
   wrapLines?: boolean;
@@ -102,8 +103,14 @@ const FileDiff = React.memo(function FileDiff({
           }}
         >
           <code>
+            {/* eslint-disable-next-line no-nested-ternary */}
             {loading ? (
               <CodeSkeleton />
+            ) : // Not animated, a long list of pulsing placeholders keeps the main thread busy
+            !blocks ? (
+              <Typography component="span" variant="body2" color="text.secondary">
+                Computing diff…
+              </Typography>
             ) : (
               blocks.map((block, index) =>
                 block.className ? (

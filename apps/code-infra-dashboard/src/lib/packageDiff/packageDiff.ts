@@ -17,9 +17,12 @@ export interface DiffBlock {
   className: string | null;
 }
 
-export interface FileDiffResult {
+export interface ChangedFile {
   path: string;
   changeType: ChangeType;
+}
+
+export interface FileDiffResult extends ChangedFile {
   blocks: DiffBlock[];
   /** Set when formatting was requested but failed; the diff then shows the raw contents. */
   formatError?: string;
@@ -162,7 +165,7 @@ function createDiffBlocks(
 }
 
 async function diffFile(
-  path: string,
+  { path, changeType }: ChangedFile,
   oldFile: FileContent | undefined,
   newFile: FileContent | undefined,
   oldHeader: string,
@@ -171,9 +174,6 @@ async function diffFile(
 ): Promise<FileDiffResult | null> {
   let oldContent = oldFile?.content ?? '';
   let newContent = newFile?.content ?? '';
-  if (oldContent === newContent) {
-    return null;
-  }
 
   let formatError: string | undefined;
   const languageParser = options.format ? getPrettierParser(path) : null;
@@ -195,13 +195,6 @@ async function diffFile(
     }
   }
 
-  let changeType: ChangeType = 'modified';
-  if (!oldFile) {
-    changeType = 'added';
-  } else if (!newFile) {
-    changeType = 'removed';
-  }
-
   return {
     path,
     changeType,
@@ -217,25 +210,53 @@ async function diffFile(
   };
 }
 
-/**
- * Lists the files that differ between two packages, sorted by path, with their unified diff.
- */
-export async function computePackageDiff(
+export interface PackageDiff {
+  /** The files whose raw contents differ, sorted by path. Cheap, available right away. */
+  files: ChangedFile[];
+  /**
+   * The unified diff of one of `files`, or `null` when the file turns out unchanged
+   * once formatted.
+   */
+  diffFile(file: ChangedFile, options: DiffOptions): Promise<FileDiffResult | null>;
+}
+
+export function createPackageDiff(
   oldPackage: PackageContents,
   newPackage: PackageContents,
-  options: DiffOptions,
-): Promise<FileDiffResult[]> {
+): PackageDiff {
   const oldFiles = new Map(oldPackage.files.map((file) => [file.path, file]));
   const newFiles = new Map(newPackage.files.map((file) => [file.path, file]));
   const allPaths = Array.from(new Set([...oldFiles.keys(), ...newFiles.keys()])).sort();
 
+  const files: ChangedFile[] = [];
+  for (const path of allPaths) {
+    const oldFile = oldFiles.get(path);
+    const newFile = newFiles.get(path);
+    if (oldFile?.content === newFile?.content) {
+      continue;
+    }
+    let changeType: ChangeType = 'modified';
+    if (!oldFile) {
+      changeType = 'added';
+    } else if (!newFile) {
+      changeType = 'removed';
+    }
+    files.push({ path, changeType });
+  }
+
   const oldHeader = `${oldPackage.name}@${oldPackage.version}`;
   const newHeader = `${newPackage.name}@${newPackage.version}`;
 
-  const results = await Promise.all(
-    allPaths.map((path) =>
-      diffFile(path, oldFiles.get(path), newFiles.get(path), oldHeader, newHeader, options),
-    ),
-  );
-  return results.filter((result) => result !== null);
+  return {
+    files,
+    diffFile: (file, options) =>
+      diffFile(
+        file,
+        oldFiles.get(file.path),
+        newFiles.get(file.path),
+        oldHeader,
+        newHeader,
+        options,
+      ),
+  };
 }

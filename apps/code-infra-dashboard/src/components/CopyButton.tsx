@@ -9,10 +9,18 @@ import type { SxProps, Theme } from '@mui/material/styles';
 
 interface CopyButtonProps {
   text: string;
+  /** Tooltip shown before copying. */
+  title?: string;
+  disabled?: boolean;
   sx?: SxProps<Theme>;
 }
 
-export default function CopyButton({ text, sx }: CopyButtonProps) {
+export default function CopyButton({
+  text,
+  title = 'Copy to clipboard',
+  disabled,
+  sx,
+}: CopyButtonProps) {
   const [copied, setCopied] = React.useState(false);
 
   const handleCopy = () => {
@@ -22,11 +30,22 @@ export default function CopyButton({ text, sx }: CopyButtonProps) {
     });
   };
 
+  const button = (
+    <IconButton
+      size="small"
+      onClick={handleCopy}
+      disabled={disabled}
+      color={copied ? 'success' : 'default'}
+      sx={sx}
+    >
+      {copied ? <CheckIcon fontSize="small" /> : <ContentCopyIcon fontSize="small" />}
+    </IconButton>
+  );
+
   return (
-    <Tooltip title={copied ? 'Copied!' : 'Copy to clipboard'}>
-      <IconButton size="small" onClick={handleCopy} color={copied ? 'success' : 'default'} sx={sx}>
-        {copied ? <CheckIcon fontSize="small" /> : <ContentCopyIcon fontSize="small" />}
-      </IconButton>
+    <Tooltip title={copied ? 'Copied!' : title}>
+      {/* A disabled button fires no events, the wrapper keeps its tooltip working */}
+      {disabled ? <span>{button}</span> : button}
     </Tooltip>
   );
 }
