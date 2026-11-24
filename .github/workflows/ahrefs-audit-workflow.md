@@ -210,8 +210,17 @@ steps:
          * for good (not found, the host is gone, or a deep page now lands on the site's root), `redirect`
          * with the final URL when it moved, or null when it's fine now or inconclusive (rate limited, down).
          * A link to a site's root is never a redirect to fix: it's the entry point the site chose to send
-         * visitors on from.
+         * visitors on from. Neither is one that lands on the same page under another form of its address.
          */
+        /**
+         * The page an address is for, without what a site only normalizes or tags a visit with: the
+         * scheme, `www.`, a trailing slash, and the query.
+         */
+        function pageOf(address) {
+          const { hostname, pathname } = new URL(address);
+          return `${hostname.replace(/^www\./, '')}${pathname.replace(/\/$/, '')}`;
+        }
+
         async function checkLink(url) {
           const result = await resolve(url);
           const landsOnRoot =
@@ -219,7 +228,11 @@ steps:
           if (result.status === 404 || result.status === 410 || result.error === 'ENOTFOUND' || landsOnRoot) {
             return { verdict: 'broken', status: result.status || result.error, archived: await archived(url) };
           }
-          if (result.status === 200 && result.finalUrl !== url && new URL(url).pathname !== '/') {
+          if (
+            result.status === 200 &&
+            pageOf(result.finalUrl) !== pageOf(url) &&
+            new URL(url).pathname !== '/'
+          ) {
             return { verdict: 'redirect', finalUrl: result.finalUrl };
           }
           return null;
@@ -395,10 +408,9 @@ kept in sync by tooling, or content another repository builds.
   status (302, 307). Elsewhere: short, vanity and invite links (`discord.gg/…`, `bit.ly/…`, `go.…`),
   and links an owner gave us (sponsors, backers, showcase, community chats). Their indirection is
   the point: the target can change without a change here.
-- **Redirects:** otherwise, replace with `finalUrl` when it's the same content at its canonical
-  address: a page moved within its site or to a renamed domain, `https`, a `www.` host, a trailing
-  slash. On this site, that's a link to a path whose permanent redirect (301, 308) exists because the
-  page moved; link to where it moved. Keep the original's fragment and query parameters
+- **Redirects:** otherwise, replace with `finalUrl` when it's the same content that moved: to
+  another path on its site, or to a renamed domain. On this site, that's a link to a path whose
+  permanent redirect (301, 308) exists because the page moved; link to where it moved. Keep the original's fragment and query parameters
   the site added on purpose (such as `utm_*` on sponsor links). Don't follow redirects that depend
   on who asks: a locale or region (`/en-EU`), a sign-in, consent or session page, added tracking
   parameters (`?gi=`), or a version alias resolved to a fixed version (`@latest`). Leave those.
