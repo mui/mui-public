@@ -808,7 +808,7 @@ function useControlledCodeParsing({
   useDemandSourceParser(loadSourceParser, Boolean(code) && grammarsReady && !parseSource);
 
   // Parse the controlled code separately (no need to check readyForContent)
-  const parsedControlledCode = React.useMemo(() => {
+  const controlledSnapshot = React.useMemo(() => {
     if (!code || !grammarsReady) {
       return undefined;
     }
@@ -837,7 +837,7 @@ function useControlledCodeParsing({
       return undefined;
     }
 
-    return parseControlledCode(code, parseSource, preParsedCache);
+    return { code: parseControlledCode(code, parseSource, preParsedCache), input: code };
   }, [
     code,
     grammarsReady,
@@ -849,7 +849,10 @@ function useControlledCodeParsing({
     preParsedCache,
   ]);
 
-  return { parsedControlledCode };
+  return {
+    parsedControlledCode: controlledSnapshot?.code,
+    controlledCode: controlledSnapshot?.input,
+  };
 }
 
 function useGlobalsCodeMerging({
@@ -1622,7 +1625,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     refreshAllVariants();
   }, [preParsedCache, refreshAllVariants]);
 
-  const { parsedControlledCode } = useControlledCodeParsing({
+  const { parsedControlledCode, controlledCode: parsedControlledInput } = useControlledCodeParsing({
     code: controlled?.code,
     grammarScopes: editableGrammarScopes,
     forceClient: props.forceClient,
@@ -1630,8 +1633,27 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     preParsedCache,
   });
 
-  // Determine the final overlaid code (controlled takes precedence)
-  const overlaidCode = parsedControlledCode || transformedCode || codeWithGlobals;
+  const controlledTransformInput = React.useMemo(() => {
+    if (!parsedControlledCode || availableTransforms.length === 0) {
+      return undefined;
+    }
+
+    // Delta conversion mutates HAST; the shared parse cache must remain unchanged.
+    return structuredClone(parsedControlledCode);
+  }, [parsedControlledCode, availableTransforms.length]);
+
+  const {
+    transformedCode: transformedControlledCode,
+    waitingForTransformedCode: waitingForControlledTransforms,
+  } = useCodeTransforms({
+    parsedCode: controlledTransformInput,
+    variantName,
+  });
+
+  const controlledOverlayReady = !waitingForControlledTransforms;
+
+  const overlaidCode =
+    transformedControlledCode || parsedControlledCode || transformedCode || codeWithGlobals;
 
   // For fallback context, use the processed code or fall back to non-controlled code
   const codeForFallback =
@@ -1713,6 +1735,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   const context: CodeHighlighterContextType = React.useMemo(
     () => ({
       code: overlaidCode, // Use processed/transformed code
+      controlledCode: controlledOverlayReady ? parsedControlledInput : undefined,
       initialCode: codeWithGlobals,
       setCode: controlled?.setCode,
       selection: controlled?.selection || selection,
@@ -1732,6 +1755,8 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     }),
     [
       overlaidCode,
+      parsedControlledInput,
+      controlledOverlayReady,
       codeWithGlobals,
       controlled?.setCode,
       selection,
