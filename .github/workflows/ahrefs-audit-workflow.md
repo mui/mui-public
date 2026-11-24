@@ -406,14 +406,15 @@ kept in sync by tooling, or content another repository builds.
   the new location of the same content when the source or its surroundings name it. Otherwise
   remove the link and keep its text. List each removal in the pull request.
 - **Redirects meant to stay:** never replace a link to a redirect that exists on purpose, whatever
-  its target. On this site: a path the repository's own redirect configuration (such as
-  `_redirects` or the framework's redirects) defines as a short link (`/r/…`) or with a temporary
-  status (302, 307). Elsewhere: short, vanity and invite links (`discord.gg/…`, `bit.ly/…`, `go.…`),
+  its target. For links to this site's own paths: a path the repository's redirect configuration
+  (such as `_redirects` or the framework's redirects) defines as a short link (`/r/…`) or with a
+  temporary status (302, 307). For links to other sites: short, vanity and invite links (`discord.gg/…`, `bit.ly/…`, `go.…`),
   and links an owner gave us (sponsors, backers, showcase, community chats). Their indirection is
   the point: the target can change without a change here.
 - **Redirects:** otherwise, replace with `finalUrl` when it's the same content that moved: to
-  another path on its site, or to a renamed domain. On this site, that's a link to a path whose
-  permanent redirect (301, 308) exists because the page moved; link to where it moved. Keep the original's fragment and query parameters
+  another path on its site, or to a renamed domain. For links to this site's own paths, that's a path
+  the redirect configuration sends on permanently (301, 308, or a forced `301!`) because the page
+  moved: link to where it moved, even when that's another site. Keep the original's fragment and query parameters
   the site added on purpose (such as `utm_*` on sponsor links). Don't follow redirects that depend
   on who asks: a locale or region (`/en-EU`), a sign-in, consent or session page, added tracking
   parameters (`?gi=`), or a version alias resolved to a fixed version (`@latest`). Leave those.
