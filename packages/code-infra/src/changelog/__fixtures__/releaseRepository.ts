@@ -63,7 +63,7 @@ export interface ReleaseRepository {
 }
 
 export async function tempDir() {
-  const dir = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'release-facts-')));
+  const dir = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'release-data-')));
   onTestFinished(() => fs.rm(dir, { recursive: true, force: true }));
   return dir;
 }

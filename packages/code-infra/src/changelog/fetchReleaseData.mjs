@@ -9,22 +9,22 @@ import { findCheckout, openCommit, openWorkingTree } from './releaseFiles.mjs';
 import { findPreviousVersionTag } from './releaseTags.mjs';
 
 /**
- * @typedef {import('./types.ts').FetchReleaseFactsOptions} FetchReleaseFactsOptions
+ * @typedef {import('./types.ts').FetchReleaseDataOptions} FetchReleaseDataOptions
  * @typedef {import('./types.ts').GitHubRepository} GitHubRepository
- * @typedef {import('./types.ts').ReleaseFacts} ReleaseFacts
+ * @typedef {import('./types.ts').ReleaseData} ReleaseData
  */
 
 /**
  * Collects what happened in a release: its changes and its packages. Run inside a checkout of the
  * repository, every option is optional.
  *
- * @param {FetchReleaseFactsOptions} [options]
- * @returns {Promise<ReleaseFacts>}
+ * @param {FetchReleaseDataOptions} [options]
+ * @returns {Promise<ReleaseData>}
  */
-export async function fetchReleaseFacts(options = {}) {
+export async function fetchReleaseData(options = {}) {
   const controller = new AbortController();
   try {
-    return await collectFacts(options, controller);
+    return await collectData(options, controller);
   } catch (error) {
     // Cancels what is still in flight. The first failure is the reason, not the cancellations
     // that follow from it.
@@ -34,11 +34,11 @@ export async function fetchReleaseFacts(options = {}) {
 }
 
 /**
- * @param {FetchReleaseFactsOptions} options
+ * @param {FetchReleaseDataOptions} options
  * @param {AbortController} controller
- * @returns {Promise<ReleaseFacts>}
+ * @returns {Promise<ReleaseData>}
  */
-async function collectFacts(options, controller) {
+async function collectData(options, controller) {
   const cwd = await fs.realpath(options.cwd ?? process.cwd());
   const octokit = options.octokit ?? createOctokit();
   const { signal } = controller;
@@ -112,7 +112,7 @@ async function collectFacts(options, controller) {
  * The repository, and the remote of the checkout that points at it, if any.
  *
  * @param {string} cwd
- * @param {FetchReleaseFactsOptions} options
+ * @param {FetchReleaseDataOptions} options
  * @returns {Promise<{ repository: GitHubRepository, remote: string | null }>}
  */
 async function resolveRepository(cwd, options) {

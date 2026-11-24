@@ -524,7 +524,7 @@ export interface ReleasePackage {
 /**
  * What happened in a release, as JSON-serializable data.
  */
-export interface ReleaseFacts {
+export interface ReleaseData {
   repository: GitHubRepository;
   previous: ReleaseRef;
   release: ReleaseRef;
@@ -543,7 +543,7 @@ export interface ReleaseFacts {
   packages: ReleasePackage[];
 }
 
-export interface FetchReleaseFactsOptions {
+export interface FetchReleaseDataOptions {
   /**
    * A directory of the released workspace.
    * @default process.cwd()

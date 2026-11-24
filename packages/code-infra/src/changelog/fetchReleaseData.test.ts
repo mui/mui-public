@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import type { PullFixture, ReleaseRepository } from './__fixtures__/releaseRepository';
 import { createRepository, tempDir, writeFiles } from './__fixtures__/releaseRepository';
 // eslint-disable-next-line import/extensions
-import { fetchReleaseFacts } from './index.mjs';
+import { fetchReleaseData } from './index.mjs';
 
 const RATE_LIMITED = {
   status: 403,
@@ -22,13 +22,13 @@ beforeEach(() => {
   return () => spy.mockRestore();
 });
 
-/** The facts of the remote's main branch since v1.0.0, seen from a fresh checkout. */
-async function factsOf(
+/** The release data of the remote's main branch since v1.0.0, seen from a fresh checkout. */
+async function dataOf(
   repository: ReleaseRepository,
-  options: Parameters<typeof fetchReleaseFacts>[0] = {},
+  options: Parameters<typeof fetchReleaseData>[0] = {},
 ) {
   const { dir } = await repository.clone();
-  return fetchReleaseFacts({ cwd: dir, octokit: repository.octokit, ...options });
+  return fetchReleaseData({ cwd: dir, octokit: repository.octokit, ...options });
 }
 
 describe('release', () => {
@@ -39,9 +39,9 @@ describe('release', () => {
     });
     const before = Date.now();
 
-    const facts = await factsOf(repository);
+    const data = await dataOf(repository);
 
-    expect(facts).toMatchObject({
+    expect(data).toMatchObject({
       repository: { owner: 'mui', name: repository.name },
       previous: { ref: 'v1.0.0', sha: await repository.git('rev-parse', 'v1.0.0') },
       release: { ref: sha, sha },
@@ -49,9 +49,9 @@ describe('release', () => {
       changes: [{ title: '[button] Fix it' }],
       packages: [{ name: 'root', versionChanged: true }],
     });
-    expect(Date.parse(facts.date)).toBeGreaterThanOrEqual(before);
-    expect(Date.parse(facts.date)).toBeLessThanOrEqual(Date.now());
-    expect(JSON.parse(JSON.stringify(facts))).toEqual(facts);
+    expect(Date.parse(data.date)).toBeGreaterThanOrEqual(before);
+    expect(Date.parse(data.date)).toBeLessThanOrEqual(Date.now());
+    expect(JSON.parse(JSON.stringify(data))).toEqual(data);
   });
 
   it('uses the options it is given', async () => {
@@ -60,14 +60,14 @@ describe('release', () => {
     await repository.git('branch', 'feature/branch');
     await repository.land('Second (#2)', [{ number: 2 }]);
 
-    const facts = await factsOf(repository, {
+    const data = await dataOf(repository, {
       release: 'feature/branch',
       lastRelease: 'v1.0.0',
       version: '3.0.0',
       date: new Date('2020-01-01'),
     });
 
-    expect(facts).toMatchObject({
+    expect(data).toMatchObject({
       release: { ref: 'feature/branch', sha: first },
       version: '3.0.0',
       date: '2020-01-01T00:00:00.000Z',
@@ -84,13 +84,13 @@ describe('release', () => {
     await repository.land('First (#1)', [{ number: 1 }]);
     const { dir } = await repository.clone();
 
-    const facts = await fetchReleaseFacts({
+    const data = await fetchReleaseData({
       cwd: path.join(dir, 'packages/a/src'),
       octokit: repository.octokit,
     });
 
-    expect(facts.version).toBe('1.0.0');
-    expect(facts.packages.map((pkg) => pkg.path)).toEqual(['.', 'packages/a']);
+    expect(data.version).toBe('1.0.0');
+    expect(data.packages.map((pkg) => pkg.path)).toEqual(['.', 'packages/a']);
   });
 
   it('includes a version bump that is not committed yet', async () => {
@@ -99,10 +99,10 @@ describe('release', () => {
     const { dir } = await repository.clone();
     await writeFiles(dir, { 'package.json': { name: 'root', version: '1.1.0' } });
 
-    const facts = await fetchReleaseFacts({ cwd: dir, octokit: repository.octokit });
+    const data = await fetchReleaseData({ cwd: dir, octokit: repository.octokit });
 
-    expect(facts.version).toBe('1.1.0');
-    expect(facts.packages).toMatchObject([{ version: '1.1.0', versionChanged: true }]);
+    expect(data.version).toBe('1.1.0');
+    expect(data.packages).toMatchObject([{ version: '1.1.0', versionChanged: true }]);
   });
 
   it('takes the version, date and range of a version tag from the tag', async () => {
@@ -111,9 +111,9 @@ describe('release', () => {
     await repository.git('tag', 'v1.1.0-alpha.0');
     await repository.git('tag', 'not-a-version');
 
-    const facts = await factsOf(repository, { release: 'v1.1.0-alpha.0' });
+    const data = await dataOf(repository, { release: 'v1.1.0-alpha.0' });
 
-    expect(facts).toMatchObject({
+    expect(data).toMatchObject({
       previous: { ref: 'v1.0.0' },
       // Not 1.0.0, which the root package.json was left at.
       version: '1.1.0-alpha.0',
@@ -128,7 +128,7 @@ describe('release', () => {
     await repository.git('tag', 'vale-rules');
     await repository.land('Second (#2)', [{ number: 2 }]);
 
-    expect((await factsOf(repository)).previous.ref).toBe('v1.0.0');
+    expect((await dataOf(repository)).previous.ref).toBe('v1.0.0');
   });
 
   describe('on a maintenance branch', () => {
@@ -161,22 +161,22 @@ describe('release', () => {
       const repository = await createMaintainedRepository();
       const { dir } = await repository.clone('--branch=v1.x', '--single-branch');
 
-      const facts = await fetchReleaseFacts({ cwd: dir, octokit: repository.octokit });
+      const data = await fetchReleaseData({ cwd: dir, octokit: repository.octokit });
 
-      expect(facts).toMatchObject(expected);
+      expect(data).toMatchObject(expected);
     });
 
     it('can be released from a checkout of another branch', async () => {
       const repository = await createMaintainedRepository();
       const { dir } = await repository.clone('--branch=main', '--single-branch');
 
-      const facts = await fetchReleaseFacts({
+      const data = await fetchReleaseData({
         cwd: dir,
         octokit: repository.octokit,
         release: 'v1.x',
       });
 
-      expect(facts).toMatchObject(expected);
+      expect(data).toMatchObject(expected);
     });
   });
 
@@ -186,7 +186,7 @@ describe('release', () => {
       'package.json': { name: 'root', version: '1.1.0' },
     });
 
-    const facts = await fetchReleaseFacts({
+    const data = await fetchReleaseData({
       cwd: await tempDir(),
       octokit: repository.octokit,
       repo: repository.name,
@@ -194,7 +194,7 @@ describe('release', () => {
       release: 'main',
     });
 
-    expect(facts).toMatchObject({
+    expect(data).toMatchObject({
       version: '1.1.0',
       changes: [{ title: 'First' }],
       packages: [{ name: 'root', previousVersion: '1.0.0' }],
@@ -209,7 +209,7 @@ describe('release', () => {
     });
     const { dir } = await other.clone();
 
-    const facts = await fetchReleaseFacts({
+    const data = await fetchReleaseData({
       cwd: path.join(dir, 'nested'),
       octokit: repository.octokit,
       repo: repository.name,
@@ -217,7 +217,7 @@ describe('release', () => {
       release: 'main',
     });
 
-    expect(facts.packages).toMatchObject([{ name: 'root', version: '1.0.0' }]);
+    expect(data.packages).toMatchObject([{ name: 'root', version: '1.0.0' }]);
   });
 
   it('explains how to fix a HEAD that is not pushed', async () => {
@@ -226,7 +226,7 @@ describe('release', () => {
     await git('commit', '--allow-empty', '-m', 'Local');
     const sha = await git('rev-parse', 'HEAD');
 
-    await expect(fetchReleaseFacts({ cwd: dir, octokit: repository.octokit })).rejects.toThrow(
+    await expect(fetchReleaseData({ cwd: dir, octokit: repository.octokit })).rejects.toThrow(
       `HEAD (${sha}) is not on GitHub in mui/${repository.name}. Push it, or pass a \`release\` ref that is already pushed.`,
     );
     expect(repository.requests).toHaveLength(1);
@@ -237,16 +237,16 @@ describe('release', () => {
     const sha = await repository.git('rev-parse', 'HEAD');
     repository.respondWith(`commits/${sha}`, { status: 404, body: { message: 'Not Found' } });
 
-    await expect(factsOf(repository)).rejects.toThrow(/^Not Found/);
+    await expect(dataOf(repository)).rejects.toThrow(/^Not Found/);
   });
 
   it('keeps the original error of an unknown ref', async () => {
     const repository = await createRepository();
 
-    await expect(factsOf(repository, { release: 'v9.9.9' })).rejects.toThrow(
+    await expect(dataOf(repository, { release: 'v9.9.9' })).rejects.toThrow(
       /^No commit found for SHA: v9\.9\.9/,
     );
-    await expect(factsOf(repository, { lastRelease: 'v9.9.9' })).rejects.toThrow(
+    await expect(dataOf(repository, { lastRelease: 'v9.9.9' })).rejects.toThrow(
       /^No commit found for SHA: v9\.9\.9/,
     );
   });
@@ -255,14 +255,14 @@ describe('release', () => {
     const repository = await createRepository();
     await repository.git('tag', '-d', 'v1.0.0');
 
-    await expect(factsOf(repository)).rejects.toThrow(/No version tag found behind \w+/);
+    await expect(dataOf(repository)).rejects.toThrow(/No version tag found behind \w+/);
   });
 
   it('requires a version', async () => {
     const repository = await createRepository({ 'package.json': { name: 'root' } });
     await repository.land('First (#1)', [{ number: 1 }]);
 
-    await expect(factsOf(repository)).rejects.toThrow('Pass the `version` of the release.');
+    await expect(dataOf(repository)).rejects.toThrow('Pass the `version` of the release.');
   });
 });
 
@@ -281,7 +281,7 @@ describe('changes', () => {
       },
     ]);
 
-    const { changes } = await factsOf(repository);
+    const { changes } = await dataOf(repository);
 
     expect(changes).toEqual([
       {
@@ -313,7 +313,7 @@ describe('changes', () => {
     repository.addPull({ number: 100 });
     repository.addPull({ number: 101 });
 
-    const { changes } = await factsOf(repository);
+    const { changes } = await dataOf(repository);
 
     expect(changes).toMatchObject([{ title, pullRequest: { number: 1 } }]);
   });
@@ -325,7 +325,7 @@ describe('changes', () => {
       { number: 2, title: '[menu] Fix it' },
     ]);
 
-    const { changes } = await factsOf(repository);
+    const { changes } = await dataOf(repository);
 
     expect(changes).toMatchObject([
       { title: '[select] Fix it', pullRequest: { number: 1 } },
@@ -345,7 +345,7 @@ describe('changes', () => {
       { number: 2, mergeCommitSha: 'b'.repeat(40) },
     ]);
 
-    const { changes } = await factsOf(repository);
+    const { changes } = await dataOf(repository);
 
     expect(changes).toMatchObject([{ pullRequest: { number: 1 } }]);
   });
@@ -355,7 +355,7 @@ describe('changes', () => {
     await repository.push('Fix issue (#999)', 'octocat');
     repository.addPull({ number: 999 });
 
-    expect((await factsOf(repository)).changes).toEqual([]);
+    expect((await dataOf(repository)).changes).toEqual([]);
     expect(repository.requests).not.toContain('/orgs/mui/members/octocat');
   });
 
@@ -365,7 +365,7 @@ describe('changes', () => {
     const sha = await repository.push(message, 'octocat');
     repository.addPull({ number: 999 });
 
-    const { changes } = await factsOf(repository, { includeDirectCommits: true });
+    const { changes } = await dataOf(repository, { includeDirectCommits: true });
 
     expect(changes).toEqual([
       {
@@ -387,8 +387,8 @@ describe('changes', () => {
     await repository.land('Merged by a deleted account (#40)');
     await repository.land('Fix it (#41)', [{ number: 41 }]);
 
-    expect((await factsOf(repository)).changes).toMatchObject([{ title: 'Fix it' }]);
-    expect((await factsOf(repository, { includeDirectCommits: true })).changes).toMatchObject([
+    expect((await dataOf(repository)).changes).toMatchObject([{ title: 'Fix it' }]);
+    expect((await dataOf(repository, { includeDirectCommits: true })).changes).toMatchObject([
       { title: 'Merged by a deleted account (#40)', pullRequest: null },
       { title: 'Fix it' },
     ]);
@@ -406,7 +406,7 @@ describe('changes', () => {
     const repository = await createRepository();
     await repository.land('Fix it (#1)', [{ number: 1, association }]);
 
-    expect((await factsOf(repository)).changes[0].author?.association).toBe(expected);
+    expect((await dataOf(repository)).changes[0].author?.association).toBe(expected);
   });
 
   it('never credits a bot as a first-timer', async () => {
@@ -415,14 +415,14 @@ describe('changes', () => {
       { number: 1, login: 'renovate[bot]', association: 'NONE' },
     ]);
 
-    expect((await factsOf(repository)).changes[0].author?.association).toBe('community');
+    expect((await dataOf(repository)).changes[0].author?.association).toBe('community');
   });
 
   it('has no author when the account was deleted', async () => {
     const repository = await createRepository();
     await repository.land('Fix it (#1)', [{ number: 1, login: null }]);
 
-    expect((await factsOf(repository)).changes[0].author).toBe(null);
+    expect((await dataOf(repository)).changes[0].author).toBe(null);
   });
 
   it('lists releases of any size completely and oldest first', async () => {
@@ -440,7 +440,7 @@ describe('changes', () => {
     }
     await repository.git('reset', '--hard', head);
 
-    const { changes } = await factsOf(repository, { includeDirectCommits: true });
+    const { changes } = await dataOf(repository, { includeDirectCommits: true });
 
     expect(changes.map((change) => change.title)).toEqual(
       Array.from({ length: 250 }, (_, index) => `Commit ${index}`),
@@ -456,7 +456,7 @@ describe('changes', () => {
       body: { url: '', total_commits: 2, commits: [] },
     });
 
-    await expect(factsOf(repository)).rejects.toThrow(
+    await expect(dataOf(repository)).rejects.toThrow(
       'GitHub listed 0 of the 2 commits in the release.',
     );
   });
@@ -466,7 +466,7 @@ describe('changes', () => {
     const base = await repository.git('rev-parse', 'HEAD');
     const head = await repository.land('Fix it (#1)', [{ number: 1 }]);
 
-    await factsOf(repository, { release: 'main' });
+    await dataOf(repository, { release: 'main' });
 
     expect(repository.requests).toContain(`compare/${base}...${head}?per_page=100`);
   });
@@ -483,7 +483,7 @@ describe('cherry-picks', () => {
       { number: 1, login: 'github-actions[bot]', ...pull },
     ]);
     originals.forEach((original) => repository.addPull(original));
-    const { changes } = await factsOf(repository);
+    const { changes } = await dataOf(repository);
     return changes[0];
   }
 
@@ -505,7 +505,7 @@ describe('cherry-picks', () => {
     repository.addPull(ORIGINAL);
     repository.addPull({ number: 11, login: 'someone-else' });
 
-    expect((await factsOf(repository)).changes[0].author).toEqual(OCTOCAT);
+    expect((await dataOf(repository)).changes[0].author).toEqual(OCTOCAT);
     expect(warnings).toEqual([]);
   });
 
@@ -538,7 +538,7 @@ describe('cherry-picks', () => {
       // Being new to the other repository doesn't make someone new to this one.
       repository.addPull({ ...ORIGINAL, association: 'FIRST_TIME_CONTRIBUTOR' }, 'mui/other');
 
-      expect((await factsOf(repository)).changes[0].author).toEqual(OCTOCAT);
+      expect((await dataOf(repository)).changes[0].author).toEqual(OCTOCAT);
     },
   );
 
@@ -554,7 +554,7 @@ describe('cherry-picks', () => {
     repository.addPull({ number: 11, login: 'muier', association: 'NONE' }, 'facebook/react');
     repository.respondWith('/orgs/mui/members/muier', { status: 204 });
 
-    const { changes } = await factsOf(repository);
+    const { changes } = await dataOf(repository);
 
     expect(changes.map((change) => change.author?.association)).toEqual(['community', 'team']);
   });
@@ -628,7 +628,7 @@ describe('cherry-picks', () => {
     ]);
     repository.respondWith('/repos/mui/private/pulls/10', FORBIDDEN);
 
-    expect((await factsOf(repository)).changes[0].author).toEqual(BOT);
+    expect((await dataOf(repository)).changes[0].author).toEqual(BOT);
     expect(warnings).toHaveLength(1);
   });
 
@@ -657,7 +657,7 @@ describe('cherry-picks', () => {
 
 describe('direct commit authors', () => {
   async function authorsOf(repository: ReleaseRepository) {
-    const { changes } = await factsOf(repository, { includeDirectCommits: true });
+    const { changes } = await dataOf(repository, { includeDirectCommits: true });
     return changes.map((change) => change.author);
   }
 
@@ -757,7 +757,7 @@ describe('failures', () => {
       const restore = repository.respondWith(route, response);
       // eslint-disable-next-line no-await-in-loop
       await expect(
-        fetchReleaseFacts({ cwd: dir, octokit: repository.octokit, includeDirectCommits: true }),
+        fetchReleaseData({ cwd: dir, octokit: repository.octokit, includeDirectCommits: true }),
         route,
       ).rejects.toMatchObject({ status });
       restore();
@@ -787,7 +787,7 @@ describe('failures', () => {
       });
     });
 
-    await expect(factsOf(repository)).rejects.toThrow('Bad Request');
+    await expect(dataOf(repository)).rejects.toThrow('Bad Request');
 
     const isPullRequest = (request: string) => request.includes('/pulls');
     expect(repository.requests.filter(isPullRequest)).toHaveLength(10);
@@ -819,7 +819,7 @@ describe('packages', () => {
       'packages/a/package.json': { name: '@mui/a', version: '1.1.0' },
     });
 
-    const { packages } = await factsOf(repository);
+    const { packages } = await dataOf(repository);
 
     const unchanged = { previousVersion: '1.0.0', versionChanged: false };
     expect(packages).toEqual([
@@ -874,7 +874,7 @@ describe('packages', () => {
       'packages/edited/index.js': 'edited',
     });
 
-    expect((await factsOf(repository)).packages).toMatchObject([
+    expect((await dataOf(repository)).packages).toMatchObject([
       { name: 'root' },
       { name: 'bumped', previousVersion: '1.0.0', versionChanged: true },
       { name: 'edited', previousVersion: '1.0.0', versionChanged: false },
@@ -893,7 +893,7 @@ describe('packages', () => {
       'packages/new/package.json': { name: 'new', version: '1.0.0' },
     });
 
-    expect((await factsOf(repository)).packages).toMatchObject([
+    expect((await dataOf(repository)).packages).toMatchObject([
       { name: 'root' },
       { name: 'moved', previousVersion: '1.0.0', versionChanged: false },
       { name: 'new', previousVersion: null, versionChanged: true },
@@ -914,7 +914,7 @@ describe('packages', () => {
       'packages/later/package.json': { name: 'later', version: '1.2.0' },
     });
 
-    expect((await factsOf(repository, { release: 'v1.1.0' })).packages).toMatchObject([
+    expect((await dataOf(repository, { release: 'v1.1.0' })).packages).toMatchObject([
       { name: 'root' },
       { name: 'a', version: '1.1.0', previousVersion: '1.0.0' },
     ]);
@@ -934,9 +934,9 @@ describe('packages', () => {
       'packages/ignored/package.json': { name: 'ignored', version: '1.0.0' },
     });
 
-    const facts = await fetchReleaseFacts({ cwd: dir, octokit: repository.octokit });
+    const data = await fetchReleaseData({ cwd: dir, octokit: repository.octokit });
 
-    expect(facts.packages).toMatchObject([
+    expect(data.packages).toMatchObject([
       { name: 'root' },
       { name: 'added', versionChanged: true },
     ]);
@@ -969,12 +969,12 @@ describe('packages', () => {
     const repository = await createNestedRepository();
     const { dir } = await repository.clone();
 
-    const facts = await fetchReleaseFacts({
+    const data = await fetchReleaseData({
       cwd: path.join(dir, 'inner'),
       octokit: repository.octokit,
     });
 
-    expect(facts).toMatchObject(NESTED);
+    expect(data).toMatchObject(NESTED);
   });
 
   it('reads refs that are missing locally from GitHub', async () => {
@@ -985,14 +985,14 @@ describe('packages', () => {
     const { dir, git } = await repository.clone('--depth=1');
     const shallow = await git('rev-list', '--all', '--count');
 
-    const facts = await fetchReleaseFacts({
+    const data = await fetchReleaseData({
       cwd: path.join(dir, 'inner'),
       octokit: repository.octokit,
       lastRelease: 'v1.0.0',
       release: await repository.git('rev-parse', 'HEAD~1'),
     });
 
-    expect(facts).toMatchObject(NESTED);
+    expect(data).toMatchObject(NESTED);
     expect(await git('rev-list', '--all', '--count')).toBe(shallow);
   });
 
@@ -1000,13 +1000,13 @@ describe('packages', () => {
     const repository = await createNestedRepository();
     const { dir } = await repository.clone('--depth=1');
 
-    const facts = await fetchReleaseFacts({
+    const data = await fetchReleaseData({
       cwd: path.join(dir, 'inner'),
       octokit: repository.octokit,
       lastRelease: 'v1.0.0',
     });
 
-    expect(facts).toMatchObject(NESTED);
+    expect(data).toMatchObject(NESTED);
   });
 
   it('fails rather than comparing with an incomplete file list', async () => {
@@ -1020,7 +1020,7 @@ describe('packages', () => {
     const { dir } = await repository.clone('--depth=1');
 
     await expect(
-      fetchReleaseFacts({ cwd: dir, octokit: repository.octokit, lastRelease: 'v1.0.0' }),
+      fetchReleaseData({ cwd: dir, octokit: repository.octokit, lastRelease: 'v1.0.0' }),
     ).rejects.toThrow(`GitHub truncates the file list of ${base}.`);
   });
 
@@ -1031,7 +1031,7 @@ describe('packages', () => {
     });
     await repository.land('Release', [], { 'package.json': { name: 'solo', version: '1.1.0' } });
 
-    expect((await factsOf(repository)).packages).toEqual([
+    expect((await dataOf(repository)).packages).toEqual([
       {
         name: 'solo',
         path: '.',
@@ -1047,7 +1047,7 @@ describe('packages', () => {
     const repository = await createRepository();
     await repository.land('Release', [], { 'package.json': null });
 
-    expect((await factsOf(repository, { version: '1.1.0' })).packages).toEqual([]);
+    expect((await dataOf(repository, { version: '1.1.0' })).packages).toEqual([]);
   });
 
   it('does not look for a workspace outside of the repository', async () => {
@@ -1062,9 +1062,9 @@ describe('packages', () => {
     const inner = path.join(outer, 'inner');
     await fs.rename(dir, inner);
 
-    const facts = await fetchReleaseFacts({ cwd: inner, octokit: repository.octokit });
+    const data = await fetchReleaseData({ cwd: inner, octokit: repository.octokit });
 
-    expect(facts.packages).toMatchObject([{ name: 'root' }]);
+    expect(data.packages).toMatchObject([{ name: 'root' }]);
   });
 
   it('recognizes packages from before a migration to a pnpm workspace', async () => {
@@ -1074,7 +1074,7 @@ describe('packages', () => {
     });
     await repository.land('Release', [], { 'pnpm-workspace.yaml': WORKSPACE });
 
-    expect((await factsOf(repository)).packages).toMatchObject([
+    expect((await dataOf(repository)).packages).toMatchObject([
       { name: 'root' },
       { name: 'a', versionChanged: false },
     ]);
