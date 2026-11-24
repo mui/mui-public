@@ -17,6 +17,8 @@ export interface PreParsedCacheEntry {
 
 export interface CodeHighlighterContextType {
   code?: Code;
+  /** Controller input that produced the parsed code overlay. */
+  controlledCode?: ControlledCode;
   /** Loaded source before controlled edits are overlaid. */
   initialCode?: Code;
   setCode?: React.Dispatch<React.SetStateAction<ControlledCode | null>>;
