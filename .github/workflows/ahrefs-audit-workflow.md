@@ -150,10 +150,14 @@ steps:
           return response.json();
         }
 
+        /** The site's host, from the project's target (`mui.com/`); a crawl also reaches its subdomains. */
+        let siteHost;
+
         /** Whether this repository builds a page of the site. */
         function isOwned(pageUrl) {
-          const { pathname } = new URL(pageUrl);
+          const { hostname, pathname } = new URL(pageUrl);
           return (
+            hostname.replace(/^www\./, '') === siteHost &&
             (include.length === 0 || include.some((prefix) => pathname.startsWith(prefix))) &&
             !exclude.some((prefix) => pathname.startsWith(prefix))
           );
@@ -223,6 +227,8 @@ steps:
           ahrefs('site-audit/projects', { project_id: process.env.PROJECT_ID }),
           ahrefs('site-audit/issues', { project_id: process.env.PROJECT_ID }),
         ]);
+
+        siteHost = new URL(`https://${healthscores[0].target_url}`).hostname.replace(/^www\./, '');
 
         const candidates = issues
           .filter(
@@ -308,6 +314,9 @@ safe-outputs:
   github-app:
     client-id: ${{ secrets.CODE_INFRA_AUDITOR_CLIENT_ID }}
     private-key: ${{ secrets.CODE_INFRA_AUDITOR_PRIVATE_KEY }}
+  # Links in pull request bodies to other domains are redacted; the sites these fixes are about
+  # aren't.
+  allowed-domains: [default-safe-outputs, mui.com, '*.mui.com', base-ui.com]
   create-pull-request:
     # One for links, one for content and metadata, when that group has none open.
     max: 2
