@@ -209,6 +209,8 @@ steps:
          * Re-checks a link target from here, as the agent can't reach other sites: `broken` when it's gone
          * for good (not found, the host is gone, or a deep page now lands on the site's root), `redirect`
          * with the final URL when it moved, or null when it's fine now or inconclusive (rate limited, down).
+         * A link to a site's root is never a redirect to fix: it's the entry point the site chose to send
+         * visitors on from.
          */
         async function checkLink(url) {
           const result = await resolve(url);
@@ -217,7 +219,7 @@ steps:
           if (result.status === 404 || result.status === 410 || result.error === 'ENOTFOUND' || landsOnRoot) {
             return { verdict: 'broken', status: result.status || result.error, archived: await archived(url) };
           }
-          if (result.status === 200 && result.finalUrl !== url) {
+          if (result.status === 200 && result.finalUrl !== url && new URL(url).pathname !== '/') {
             return { verdict: 'redirect', finalUrl: result.finalUrl };
           }
           return null;
@@ -387,8 +389,16 @@ kept in sync by tooling, or content another repository builds.
 - **Broken:** replace with the `archived` copy when the link is a reference worth keeping, or with
   the new location of the same content when the source or its surroundings name it. Otherwise
   remove the link and keep its text. List each removal in the pull request.
-- **Redirects:** replace with `finalUrl` when it's the same content at its canonical address: a
-  move, `https`, a `www.` host, a trailing slash. Keep the original's fragment and query parameters
+- **Redirects meant to stay:** never replace a link to a redirect that exists on purpose, whatever
+  its target. On this site: a path the repository's own redirect configuration (such as
+  `_redirects` or the framework's redirects) defines as a short link (`/r/…`) or with a temporary
+  status (302, 307). Elsewhere: short, vanity and invite links (`discord.gg/…`, `bit.ly/…`, `go.…`),
+  and links an owner gave us (sponsors, backers, showcase, community chats). Their indirection is
+  the point: the target can change without a change here.
+- **Redirects:** otherwise, replace with `finalUrl` when it's the same content at its canonical
+  address: a page moved within its site or to a renamed domain, `https`, a `www.` host, a trailing
+  slash. On this site, that's a link to a path whose permanent redirect (301, 308) exists because the
+  page moved; link to where it moved. Keep the original's fragment and query parameters
   the site added on purpose (such as `utm_*` on sponsor links). Don't follow redirects that depend
   on who asks: a locale or region (`/en-EU`), a sign-in, consent or session page, added tracking
   parameters (`?gi=`), or a version alias resolved to a fixed version (`@latest`). Leave those.
