@@ -102,16 +102,58 @@ describe('cherry-pick authors', () => {
     expect(warnings).toEqual([]);
   });
 
-  it('keeps the person who opened it', async () => {
-    const change = await changeOf({
-      login: 'maintainer',
-      association: 'MEMBER',
-      body: 'Cherry-pick of #10',
-      labels: ['cherry-pick'],
+  it('credits a bot for the original it opened', async () => {
+    const change = await changeOf({ body: 'Cherry-pick of #10' }, [
+      { number: 10, login: 'renovate[bot]' },
+    ]);
+
+    expect(change.author?.login).toBe('renovate[bot]');
+    expect(warnings).toEqual([]);
+  });
+
+  describe('opened by a person', () => {
+    const PERSON: Partial<PullFixture> = { login: 'maintainer', association: 'MEMBER' };
+    const MAINTAINER = { login: 'maintainer', name: null, association: 'team' };
+
+    it('credits the original author', async () => {
+      const change = await changeOf({
+        ...PERSON,
+        title: 'Fix it (@octocat) (#10)',
+        body: 'Cherry-pick of https://github.com/mui/test/pull/10',
+      });
+
+      expect(change).toMatchObject({ title: 'Fix it', author: OCTOCAT });
+      expect(warnings).toEqual([]);
     });
 
-    expect(change.author).toEqual({ login: 'maintainer', name: null, association: 'team' });
-    expect(warnings).toEqual([]);
+    it.each<[string, PullFixture[]]>([
+      ['the original is by a bot', [{ number: 10, login: 'renovate[bot]' }]],
+      ['the original does not exist', []],
+      [
+        'the original author is unknown',
+        [{ number: 10, login: 'github-actions[bot]', labels: ['cherry-pick'] }],
+      ],
+    ])('keeps the person, without a warning, when %s', async (reason, originals) => {
+      const change = await changeOf(
+        {
+          ...PERSON,
+          title: 'Fix it (@octocat)',
+          body: 'Cherry-pick of #10',
+          labels: ['cherry-pick'],
+        },
+        originals,
+      );
+
+      expect(change).toMatchObject({ title: 'Fix it (@octocat)', author: MAINTAINER });
+      expect(warnings).toEqual([]);
+    });
+
+    it('keeps the person when no original is named', async () => {
+      const change = await changeOf({ ...PERSON, body: 'See #10', labels: ['cherry-pick'] });
+
+      expect(change.author).toEqual(MAINTAINER);
+      expect(warnings).toEqual([]);
+    });
   });
 });
 

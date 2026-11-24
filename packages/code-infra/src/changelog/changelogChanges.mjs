@@ -52,12 +52,18 @@ const CHERRY_PICK_LINE = new RegExp(
  */
 function getCherryPickReferences(pull, repository) {
   return [...(pull.body ?? '').matchAll(CHERRY_PICK_LINE)].flatMap(([, references]) =>
-    [...references.matchAll(new RegExp(PULL_REFERENCE, 'g'))].map(({ 0: text, groups = {} }) => ({
-      owner: groups.urlOwner ?? groups.owner ?? repository.owner,
-      repo: groups.urlRepo ?? groups.repo ?? repository.repo,
-      number: Number(groups.number),
-      text,
-    })),
+    [...references.matchAll(new RegExp(PULL_REFERENCE, 'g'))].map(({ groups = {} }) => {
+      const owner = groups.urlOwner ?? groups.owner ?? repository.owner;
+      const repo = groups.urlRepo ?? groups.repo ?? repository.repo;
+      const isSameRepository = owner === repository.owner && repo === repository.repo;
+      return {
+        owner,
+        repo,
+        number: Number(groups.number),
+        // As written in a title, also when the body has a link.
+        text: isSameRepository ? `#${groups.number}` : `${owner}/${repo}#${groups.number}`,
+      };
+    }),
   );
 }
 
@@ -179,30 +185,42 @@ function createAuthorResolver({ octokit, repository, signal }) {
    * @param {PullRequest} pull
    * @param {GitHubRepository} pullRepository
    * @param {string[]} chain - Cherry-picks that led to this pull request
-   * @returns {Promise<{ author: ChangelogAuthor | null, references: string[] } | null>} `null` when the
-   * pull request is a cherry-pick of which the original author is unknown
+   * @returns {Promise<{ author: ChangelogAuthor | null, isBot: boolean, references: string[] } | null>}
+   * `null` when the pull request is a cherry-pick by a bot of which the original author is unknown
    */
   async function resolve(pull, pullRepository, chain = []) {
-    const opener = async () => ({ author: await getOpener(pull, pullRepository), references: [] });
-    if (pull.user?.type !== 'Bot') {
-      return opener();
-    }
+    const isBot = pull.user?.type === 'Bot';
+    const opener = async () => ({
+      author: await getOpener(pull, pullRepository),
+      isBot,
+      references: [],
+    });
     const references = getCherryPickReferences(pull, pullRepository);
     if (references.length === 0) {
-      return pull.labels.some((label) => label.name === CHERRY_PICK_LABEL) ? null : opener();
+      const isLabeled = pull.labels.some((label) => label.name === CHERRY_PICK_LABEL);
+      return isBot && isLabeled ? null : opener();
     }
 
-    const authors = await Promise.all(
+    const originals = await Promise.all(
       references.map(async (reference) => {
         const key = `${reference.owner}/${reference.repo}/${reference.number}`;
         const original = chain.includes(key) ? null : await getOriginal(key);
-        return original && (await resolve(original, reference, [...chain, key]))?.author;
+        return original && resolve(original, reference, [...chain, key]);
       }),
     );
-    const [author] = authors;
-    return author && authors.every((other) => other?.login === author.login)
-      ? { author, references: references.map((reference) => reference.text) }
-      : null;
+    const author = originals[0]?.author;
+    if (author && originals.every((original) => original?.author?.login === author.login)) {
+      // A person who cherry-picks the work of a bot is the better credit.
+      const isBotAuthor = originals.some((original) => original?.isBot);
+      if (isBot || !isBotAuthor) {
+        return {
+          author,
+          isBot: isBotAuthor,
+          references: references.map((reference) => reference.text),
+        };
+      }
+    }
+    return isBot ? null : opener();
   }
 
   return {
