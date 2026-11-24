@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { notFound } from 'next/navigation';
 import Box from '@mui/material/Box';
-import { getKpiById, getAllKpiIds, toKpiInfo } from '@/lib/kpis';
+import { getKpiById, getAllKpiIds, toKpiInfo, fetchKpi } from '@/lib/kpis';
 import KpiDetail from '@/views/KpiDetail';
 
 export async function generateStaticParams() {
@@ -22,7 +22,7 @@ export default async function KpiPage({ params }: PageProps) {
     notFound();
   }
 
-  const result = await kpi.fetch(...(kpi.fetchParams ?? []));
+  const result = await fetchKpi(kpi);
 
   return (
     <Box sx={{ p: 2 }}>
