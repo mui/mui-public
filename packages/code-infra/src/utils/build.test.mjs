@@ -7,6 +7,7 @@ import {
   createPackageBin,
   createPackageExports,
   createPackageImports,
+  getPackageSources,
   validateEnginesNode,
 } from './build.mjs';
 
@@ -1264,6 +1265,48 @@ describe('createPackageImports', () => {
         },
       },
     });
+  });
+});
+
+describe('getPackageSources', () => {
+  it('lists the sources exports, imports and bin point at', async () => {
+    const cwd = await makeTempDir();
+    await Promise.all(
+      [
+        'src/index.ts',
+        'src/Button/index.ts',
+        'src/internal/index.ts',
+        'src/styles.css',
+        'src/node/index.ts',
+        'src/browser/index.ts',
+        'src/env.ts',
+        'src/cli.ts',
+      ].map((file) => createFile(path.join(cwd, file))),
+    );
+
+    const sources = await getPackageSources(
+      {
+        exports: {
+          '.': './src/index.ts',
+          './*': './src/*/index.ts',
+          './internal': null,
+          './styles.css': './src/styles.css',
+          './platform': { node: './src/node/index.ts', default: './src/browser/index.ts' },
+        },
+        imports: { '#env': './src/env.ts', '#external': 'external/index.js' },
+        bin: { cli: './src/cli.ts' },
+      },
+      cwd,
+    );
+
+    expect(sources.sort()).toEqual([
+      'src/Button/index.ts',
+      'src/browser/index.ts',
+      'src/cli.ts',
+      'src/env.ts',
+      'src/index.ts',
+      'src/node/index.ts',
+    ]);
   });
 });
 

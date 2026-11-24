@@ -795,6 +795,53 @@ export async function createPackageBin(bin, { bundles, cwd, packageType }) {
 }
 
 /**
+ * @param {unknown} value
+ * @returns {string[]}
+ */
+function getLeaves(value) {
+  if (typeof value === 'string') {
+    return [value];
+  }
+
+  if (!value || typeof value !== 'object') {
+    return [];
+  }
+
+  return Object.values(value).flatMap(getLeaves);
+}
+
+/**
+ * The JS/TS sources the package's `exports`, `imports` and `bin` point at, relative to `cwd`.
+ * Glob patterns are expanded against the files on disk, as in the published `package.json`.
+ * @param {import('../cli/packageJson').PackageJson} packageJson
+ * @param {string} cwd
+ * @returns {Promise<string[]>}
+ */
+export async function getPackageSources({ exports, imports, bin }, cwd) {
+  const maps = await Promise.all(
+    [
+      typeof exports === 'string' || Array.isArray(exports) ? { '.': exports } : exports,
+      imports,
+    ].map((map) =>
+      expandExportGlobs(
+        /** @type {import('../cli/packageJson').PackageJson.ExportConditions} */ (map ?? {}),
+        cwd,
+      ),
+    ),
+  );
+
+  return [...new Set(getLeaves([...maps, bin]))].flatMap((leaf) => {
+    const rel = srcRelative(leaf);
+
+    if (rel === null || rel.includes('*') || !JS_TS_EXTENSIONS.has(path.extname(rel))) {
+      return [];
+    }
+
+    return [path.posix.join('src', rel)];
+  });
+}
+
+/**
  * Validates the package.json before building.
  * @param {Record<string, any>} packageJson
  * @param {Object} [options]

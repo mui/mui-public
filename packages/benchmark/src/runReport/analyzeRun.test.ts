@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { analyzeRun, compareSamples, findRegressions, tCritical } from './analyzeRun';
+import { analyzeRun, compareSamples, findRegressions, runPrecision, tCritical } from './analyzeRun';
 import type { BenchmarkAnalysis } from './analyzeRun';
 import type { BenchmarkRunReport, RunBenchmark, RunMetricDefinition } from './schema';
 
@@ -371,5 +371,50 @@ describe('findRegressions', () => {
     expect(findRegressions(analyses)).toMatchObject([
       { benchmark: 'Button mount', metric: 'render' },
     ]);
+  });
+});
+
+describe('runPrecision', () => {
+  /** A benchmark whose `metric` alternates `±swing` around a steady baseline of 100. */
+  function swinging(name: string, swing: number, metric = 'render'): RunBenchmark {
+    return {
+      name,
+      file: `${name}.bench.tsx`,
+      kind: 'baseline',
+      variants: ['current', 'baseline'],
+      samples: {
+        current: { [metric]: [100 + swing, 100 - swing, 100 + swing, 100 - swing] },
+        baseline: { [metric]: [100, 100, 100, 100] },
+      },
+    };
+  }
+
+  it('gives the median and the widest precision of the comparisons that can alarm', () => {
+    const analyses = analyzeRun(
+      reportOf([swinging('quiet', 1), swinging('middle', 4), swinging('noisy', 10)], {
+        render: SCALAR,
+      }),
+    );
+
+    expect(runPrecision(analyses)).toEqual({
+      median: expect.closeTo(0.135, 3),
+      widest: expect.closeTo(0.337, 3),
+    });
+  });
+
+  it('leaves out discrete metrics, whose precision is a count', () => {
+    const analyses = analyzeRun(
+      reportOf([swinging('counted', 4, 'count')], { count: { kind: 'discrete', alarm: {} } }),
+    );
+
+    expect(runPrecision(analyses)).toBe(null);
+  });
+
+  it('is null when nothing can alarm', () => {
+    const analyses = analyzeRun(
+      reportOf([swinging('informational', 4)], { render: { kind: 'scalar' } }),
+    );
+
+    expect(runPrecision(analyses)).toBe(null);
   });
 });

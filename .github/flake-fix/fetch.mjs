@@ -73,7 +73,8 @@ async function httpGet(url, { token, raw = false, timeoutMs = 30000 } = {}) {
       clearTimeout(timer);
     }
     if (response.status !== 429 || attempt === MAX_RETRIES) {
-      const error = new Error(`HTTP ${response.status} on ${url}`);
+      // Drop the query string: step log URLs carry a signed token.
+      const error = new Error(`HTTP ${response.status} on ${url.split('?')[0]}`);
       error.status = response.status;
       throw error;
     }
@@ -89,8 +90,8 @@ async function httpGet(url, { token, raw = false, timeoutMs = 30000 } = {}) {
   }
 }
 
-// Bounded-concurrency map: hundreds of calls that individually tolerate failure, so one 429 or
-// 502 loses a single data point rather than the whole window.
+// Bounded-concurrency map. The first failed call fails the run: partial data can look like a
+// clean week.
 async function mapPool(items, mapper, concurrency = CONCURRENCY) {
   const out = new Array(items.length);
   let next = 0;
@@ -263,15 +264,9 @@ async function main() {
   // Failed-workflow statuses include `error`/`unauthorized`: a workflow that never ran its jobs
   // (broken config, permissions) is still a failed week, not a green one.
   const FAILED_WF_STATUSES = new Set(['failed', 'failing', 'error', 'unauthorized']);
-  let dropped = 0;
   const workflowsByPipeline = await mapPool(pipelines, async (pipeline) => {
-    try {
-      const data = await httpGet(`${API}/pipeline/${pipeline.id}/workflow`, { token });
-      return { pipeline, workflows: data.items ?? [] };
-    } catch {
-      dropped += 1;
-      return { pipeline, workflows: [] };
-    }
+    const data = await httpGet(`${API}/pipeline/${pipeline.id}/workflow`, { token });
+    return { pipeline, workflows: data.items ?? [] };
   });
 
   const allWorkflows = [];
@@ -305,13 +300,8 @@ async function main() {
   // failures: a job that broke and then recovered looks identical to a still-broken one if you
   // only ever see its failures. Cheap — one status list per run, no logs yet.
   const jobsByWorkflow = await mapPool(allWorkflows, async (workflow) => {
-    try {
-      const data = await httpGet(`${API}/workflow/${workflow.wfId}/job`, { token });
-      return { workflow, jobs: data.items ?? [] };
-    } catch {
-      dropped += 1;
-      return { workflow, jobs: [] };
-    }
+    const data = await httpGet(`${API}/workflow/${workflow.wfId}/job`, { token });
+    return { workflow, jobs: data.items ?? [] };
   });
 
   // One entry per (run, job), tagged PASS / FAIL / SKIP. SKIP is blocked / not-run / canceled etc.
@@ -357,29 +347,25 @@ async function main() {
   // Per failed job, the v1.1 job API exposes each failed step's log URL.
   const stepsByJob = new Map(
     await mapPool(logged, async (job) => {
-      try {
-        const data = await httpGet(`${API_V1}/project/${vcs}/${org}/${repo}/${job.jobNumber}`, {
-          token,
-        });
-        const steps = [];
-        let timedOut = false;
-        for (const step of data.steps ?? []) {
-          for (const action of step.actions ?? []) {
-            if (action.status === 'timedout') {
-              timedOut = true;
-            }
-            if (
-              (action.failed || action.status === 'failed' || action.status === 'timedout') &&
-              action.output_url
-            ) {
-              steps.push({ name: step.name, url: action.output_url });
-            }
+      const data = await httpGet(`${API_V1}/project/${vcs}/${org}/${repo}/${job.jobNumber}`, {
+        token,
+      });
+      const steps = [];
+      let timedOut = false;
+      for (const step of data.steps ?? []) {
+        for (const action of step.actions ?? []) {
+          if (action.status === 'timedout') {
+            timedOut = true;
+          }
+          if (
+            (action.failed || action.status === 'failed' || action.status === 'timedout') &&
+            action.output_url
+          ) {
+            steps.push({ name: step.name, url: action.output_url });
           }
         }
-        return [job.jobNumber, { steps, timedOut }];
-      } catch {
-        return [job.jobNumber, { steps: [], timedOut: false }];
       }
+      return [job.jobNumber, { steps, timedOut }];
     }),
   );
 
@@ -390,11 +376,11 @@ async function main() {
     });
   }
   if (logTasks.length === 0) {
-    // Failed jobs exist but none exposed a step log — CircleCI's job API is not answering. With no
-    // logs the agent can't tell real failures from flakes, so stop here instead.
+    // Failed jobs exist but none exposed a step log. With no logs the agent can't tell real
+    // failures from flakes, so stop here instead.
     finishQuiet(
       outDir,
-      `CircleCI triage: ${allFailures.length} failed jobs but no step logs available — CircleCI's job API is not answering.`,
+      `CircleCI triage: ${allFailures.length} failed jobs but no step logs available.`,
     );
     return;
   }
@@ -403,19 +389,16 @@ async function main() {
   await mapPool(
     logTasks,
     async (task) => {
-      let text = '';
-      try {
-        const raw = await httpGet(task.url, { raw: true, timeoutMs: 60000 });
-        const joined = JSON.parse(raw)
-          .map((entry) => entry.message ?? '')
-          .join('');
-        // Tail-truncate at fetch, not at read: whole logs would hold hundreds of MB alive across
-        // a bad week, and only the tail is ever classified.
-        text = tailBytes(stripVTControlCharacters(joined), LOG_TAIL_BYTES);
-      } catch {
-        text = '';
-      }
-      logTexts.set(`${task.jobNumber}:${task.stepIndex}`, text);
+      const raw = await httpGet(task.url, { raw: true, timeoutMs: 60000 });
+      const joined = JSON.parse(raw)
+        .map((entry) => entry.message ?? '')
+        .join('');
+      // Tail-truncate at fetch, not at read: whole logs would hold hundreds of MB alive across
+      // a bad week, and only the tail is ever classified.
+      logTexts.set(
+        `${task.jobNumber}:${task.stepIndex}`,
+        tailBytes(stripVTControlCharacters(joined), LOG_TAIL_BYTES),
+      );
     },
     24,
   );
@@ -477,11 +460,6 @@ async function main() {
   logLine(
     `wrote ${logged.length} job files + a timeline for ${failingJobs.size} job(s) (${failureRate}% of runs failed)`,
   );
-  if (dropped > 0) {
-    logWarning(
-      `${dropped} CircleCI API calls failed and were skipped — this window is missing some data.`,
-    );
-  }
   signalClassify(true);
 }
 

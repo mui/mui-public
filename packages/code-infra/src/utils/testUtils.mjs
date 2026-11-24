@@ -20,6 +20,24 @@ export async function makeTempDir() {
 }
 
 /**
+ * Creates a temporary directory (see {@link makeTempDir}) containing `files`.
+ *
+ * @param {Record<string, string>} files - File contents keyed by path relative to the directory.
+ * @returns {Promise<string>} The path of the created temporary directory.
+ */
+export async function makeTempFiles(files) {
+  const tmpDir = await makeTempDir();
+  await Promise.all(
+    Object.entries(files).map(async ([name, contents]) => {
+      const file = path.join(tmpDir, name);
+      await fs.mkdir(path.dirname(file), { recursive: true });
+      await fs.writeFile(file, contents);
+    }),
+  );
+  return tmpDir;
+}
+
+/**
  * Write a package.json into a subdirectory of a temp workspace.
  *
  * @param {string} root - Workspace root
@@ -50,4 +68,12 @@ export function publicPkg(name, pkgPath) {
  */
 export function privatePkg(name, pkgPath) {
   return { name, version: '1.0.0', path: pkgPath, isPrivate: true };
+}
+
+export async function getTsgo() {
+  const { default: getExePath } = await import(
+    new URL('../../../../node_modules/@typescript/native/lib/getExePath.js', import.meta.url).href
+  );
+
+  return getExePath();
 }

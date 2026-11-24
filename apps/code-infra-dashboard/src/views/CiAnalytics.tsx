@@ -41,20 +41,25 @@ function buildMarkdownReport(
   dashboardSource: string,
 ): string {
   const SEVERITY_EMOJI: Record<string, string> = {
-    error: '\uD83D\uDD34',
-    warning: '\uD83D\uDFE1',
+    error: '🔴',
+    warning: '🟡',
   };
-  const GREEN = '\uD83D\uDFE2';
+  const GREEN = '🟢';
 
   const lines = projects
     .flatMap((project) =>
       project.workflows.map((wf) => {
         const analysis = computeWorkflowAnalysis(wf);
+        const url = getCircleCiInsightsUrl(project.slug, wf.name);
+        const label = `[${project.displayName} / ${wf.name}](${url})`;
+        if (!analysis) {
+          return `  ${GREEN} ${label} — no runs`;
+        }
         const emoji = analysis.severity ? SEVERITY_EMOJI[analysis.severity] : GREEN;
         const success = formatSuccessRate(analysis.successRate);
-        const runtime = formatDuration(analysis.runtimeSecs);
-        const url = getCircleCiInsightsUrl(project.slug, wf.name);
-        return `  ${emoji} [${project.displayName} / ${wf.name}](${url}) \u2014 ${success} success, ${runtime}`;
+        const runtime =
+          analysis.runtimeSecs === null ? '' : `, ${formatDuration(analysis.runtimeSecs)}`;
+        return `  ${emoji} ${label} — ${success} success${runtime}`;
       }),
     )
     .join('\n');

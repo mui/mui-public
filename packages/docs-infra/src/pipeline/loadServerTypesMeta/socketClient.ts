@@ -271,6 +271,8 @@ export class SocketClient {
   private attemptConnect(socketPath: string): Promise<void> {
     return new Promise((resolve, reject) => {
       this.socket = connect(socketPath);
+      // Decoding each chunk separately corrupts characters split across chunks.
+      this.socket.setEncoding('utf8');
 
       this.socket.on('connect', () => {
         // Remove error listener after successful connection
@@ -285,7 +287,7 @@ export class SocketClient {
         reject(error);
       });
 
-      this.socket.on('data', (data) => {
+      this.socket.on('data', (data: string) => {
         this.handleData(data);
       });
 
@@ -300,8 +302,7 @@ export class SocketClient {
    * Optimized to avoid O(n²) behavior on large messages: only split the buffer
    * when the incoming chunk actually contains a newline delimiter.
    */
-  private handleData(data: Buffer): void {
-    const chunk = data.toString();
+  private handleData(chunk: string): void {
     this.buffer += chunk;
 
     // Fast path: skip expensive split if this chunk has no message boundary

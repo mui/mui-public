@@ -1,0 +1,30 @@
+name: Dependabot fix
+
+# Runs the reusable Dependabot fix workflow against this repo, daily or by hand. The setup it needs
+# is in the README's "Agentic workflows" section.
+
+on:
+  schedule:
+    - cron: '17 5 * * *' # daily 05:17 UTC
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  dependabot-fix:
+    # Maximum grant required by the reusable workflow; its agent job only gets read access.
+    permissions:
+      actions: read
+      checks: read
+      contents: write # push the fix branches
+      id-token: write # Anthropic WIF
+      issues: write # decision issue
+      pull-requests: write # draft fix PRs
+      security-events: read
+      vulnerability-alerts: read # Dependabot alerts
+    uses: ./.github/workflows/dependabot-fix-workflow.lock.yml
+    # Reusable workflows only get secrets the caller passes. These resolve to the code-infra-auditor
+    # environment's secrets, because the jobs that use them run in that environment.
+    secrets:
+      CODE_INFRA_AUDITOR_CLIENT_ID: ${{ secrets.CODE_INFRA_AUDITOR_CLIENT_ID }}
+      CODE_INFRA_AUDITOR_PRIVATE_KEY: ${{ secrets.CODE_INFRA_AUDITOR_PRIVATE_KEY }}

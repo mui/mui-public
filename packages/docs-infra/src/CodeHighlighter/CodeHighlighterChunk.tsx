@@ -6,9 +6,10 @@ import type {
 import { createCoordinatedLazy } from '../CoordinatedLazy/createCoordinatedLazy';
 import type { Code, CodeHighlighterBaseProps, ContentLoadingProps } from './types';
 import type { CompressedFallback } from './fallbackFormat';
-import { createClientProps } from './createClientProps';
+import { createClientProps, createContentFrame } from './createClientProps';
 import type { CreateClientPropsOptions } from './createClientProps';
 import { CodeHighlighterClient } from './CodeHighlighterClient';
+import { ContentFrameProvider } from './useContentFrame';
 
 /**
  * The user props the CodeHighlighter chunk threads to its content + loaders. It
@@ -58,12 +59,19 @@ function CodeHighlighterChunkContent(props: CodeHighlighterChunkContentProps): R
  * The chunk's loading placeholder, used as the Suspense fallback while a server
  * loader streams. It renders the pre-prepared `<ContentLoading />` element threaded
  * through the user props (the actual loading UI is built up front by
- * `prepareInitialSource`).
+ * `prepareInitialSource`), inside the `ContentFrame` when one is configured.
  */
 function CodeHighlighterChunkLoading(
   props: CoordinatedChunkLoadingProps<CodeHighlighterChunkUserProps, Code>,
 ): React.ReactElement {
-  return <React.Fragment>{props.fallback ?? null}</React.Fragment>;
+  const frame = createContentFrame(
+    props,
+    <ContentFrameProvider framed>{props.fallback}</ContentFrameProvider>,
+  );
+  if (frame) {
+    return frame;
+  }
+  return <ContentFrameProvider framed={false}>{props.fallback ?? null}</ContentFrameProvider>;
 }
 
 /**

@@ -80,6 +80,20 @@ useIsoLayoutEffect(() => {});`,
   invalid: [
     // React.* API calls without 'use client' directive
     {
+      name: 'inserts use client after leading comments',
+      code: `/* license header */
+React.useState();`,
+      errors: [
+        {
+          message:
+            "Using 'React.useState' is forbidden if the file doesn't have a 'use client' directive.",
+        },
+      ],
+      output: `/* license header */
+'use client';
+React.useState();`,
+    },
+    {
       name: 'React.useState without use client directive',
       code: `React.useState();`,
       errors: [

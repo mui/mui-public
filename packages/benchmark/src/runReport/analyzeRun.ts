@@ -450,3 +450,30 @@ export function findRegressions(analyses: BenchmarkAnalysis[]): AlarmedChange[] 
     ),
   );
 }
+
+/** How precisely a run pinned its changes down, as fractions. */
+export interface RunPrecision {
+  /** The median `precision` of the run's comparisons that can alarm. */
+  median: number;
+  /** The widest one. */
+  widest: number;
+}
+
+/**
+ * How precisely a run pinned down the changes that could alarm, on its scalar metrics: a run that
+ * found no regression could still have missed one about that large. `null` when nothing could alarm.
+ */
+export function runPrecision(analyses: BenchmarkAnalysis[]): RunPrecision | null {
+  const precisions = analyses
+    .flatMap(({ metrics }) => metrics)
+    // A discrete metric's precision is a count, not a fraction.
+    .filter(({ definition }) => definition.kind === 'scalar')
+    .flatMap(({ comparisons }) => comparisons)
+    .filter(({ alarm }) => alarm !== null)
+    .map(({ precision }) => precision)
+    // Not finite on a reference whose mean is 0, or without rounds.
+    .filter(Number.isFinite);
+  return precisions.length === 0
+    ? null
+    : { median: median(precisions), widest: Math.max(...precisions) };
+}

@@ -41,5 +41,6 @@ jobs:
           days-before-pr-close: 15
           # do not run this on draft PRs
           exempt-draft-pr: true
-          # dependency update PRs (Renovate) stay open until they are merged or superseded
-          exempt-pr-labels: 'dependencies'
+          # dependency update PRs (Renovate) stay open until they are merged or superseded,
+          # PRs on hold stay open until the blocker is resolved
+          exempt-pr-labels: 'dependencies,on hold'

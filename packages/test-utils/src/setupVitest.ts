@@ -9,6 +9,7 @@ import chaiDom from 'chai-dom';
 import chaiPlugin from './chaiPlugin';
 import { configure } from './configure';
 import type { Configuration } from './configure';
+import { reactMajor } from './env';
 
 let isInitialized = false;
 
@@ -83,6 +84,14 @@ export default function setupVitest({
           return true;
         }
 
+        // React 18 removed this warning: https://github.com/facebook/react/pull/22114
+        if (
+          reactMajor < 18 &&
+          message.includes("Can't perform a React state update on an unmounted component")
+        ) {
+          return true;
+        }
+
         return false;
       },
     });
@@ -106,7 +115,10 @@ export default function setupVitest({
     chai.use(chaiDom);
 
     // Enable missing act warnings: https://github.com/reactwg/react-18/discussions/102
-    (globalThis as any).jest = null;
+    // React 17 legacy roots would warn for every update outside `act()`, for example from timers.
+    if (reactMajor >= 18) {
+      (globalThis as any).jest = null;
+    }
     (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
     if (window.navigator.userAgent.includes('jsdom')) {

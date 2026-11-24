@@ -11,6 +11,7 @@ import { access, mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from
 import { pipeline } from 'node:stream/promises';
 import chalk from 'chalk';
 import { mapAsync } from 'es-toolkit/array';
+import { limitAsync } from 'es-toolkit/promise';
 import { execa, parseCommandString } from 'execa';
 import { resolveCommit } from './git';
 import { listPublishablePackages } from './pnpm';
@@ -47,6 +48,8 @@ export interface PackRefOptions {
    * the cache key.
    */
   buildCmd?: string;
+  /** Stops the run: a build still waiting for its turn then doesn't start. */
+  signal?: AbortSignal;
 }
 
 const MANIFEST = 'manifest.json';
@@ -119,16 +122,26 @@ async function removeAbandonedCheckouts(repoRoot: string, outRoot: string): Prom
 // asks for, such as a JSON report.
 const PROGRESS_STDIO = { stdin: 'inherit', stdout: process.stderr, stderr: 'inherit' } as const;
 
-/** Runs `buildCmd` in `cwd`, with the nx daemon off so nothing keeps writing after it returns. */
-async function build(cwd: string, buildCmd: string): Promise<void> {
-  const [file, ...args] = parseCommandString(buildCmd);
-  await execa(file, args, {
-    cwd,
-    env: { NX_DAEMON: 'false' },
-    ...PROGRESS_STDIO,
-    verbose: 'short',
-  });
-}
+/**
+ * Runs `buildCmd` in `cwd`, with the nx daemon off so nothing keeps writing after it returns.
+ *
+ * One build at a time: a build command typically uses every CPU, so two at once can outgrow a CI
+ * machine's memory without finishing sooner. The rest of packing a side still overlaps.
+ */
+const build = limitAsync(
+  async (cwd: string, buildCmd: string, signal?: AbortSignal): Promise<void> => {
+    // A build waiting for its turn when the run stops never starts.
+    signal?.throwIfAborted();
+    const [file, ...args] = parseCommandString(buildCmd);
+    await execa(file, args, {
+      cwd,
+      env: { NX_DAEMON: 'false' },
+      ...PROGRESS_STDIO,
+      verbose: 'short',
+    });
+  },
+  1,
+);
 
 /** Content hash of a file, short enough to live in a filename. */
 async function hashFile(file: string): Promise<string> {
@@ -201,6 +214,7 @@ export async function packRef(options: PackRefOptions): Promise<PackedPackage[]>
     outRoot,
     installCmd = 'pnpm install --frozen-lockfile --prefer-offline --config.engine-strict=false',
     buildCmd = 'pnpm release:build',
+    signal,
   } = options;
 
   const sha = await resolveCommit(repoRoot, ref);
@@ -233,7 +247,7 @@ export async function packRef(options: PackRefOptions): Promise<PackedPackage[]>
       await execa(installFile, installArgs, { cwd: checkout, ...PROGRESS_STDIO, verbose: 'short' });
     }
     console.log(chalk.cyan(`\nBuilding packages for ${sha.slice(0, 9)}…`));
-    await build(checkout, buildCmd);
+    await build(checkout, buildCmd, signal);
 
     const packages = await packBuiltPackages(checkout, staging);
     const manifest: Manifest = {
@@ -266,11 +280,13 @@ export async function packWorkingTree(options: {
   outRoot: string;
   /** Command that builds the publishable packages. Defaults to `pnpm release:build`. */
   buildCmd?: string;
+  /** Stops the run: a build still waiting for its turn then doesn't start. */
+  signal?: AbortSignal;
 }): Promise<PackedPackage[]> {
-  const { repoRoot, outRoot, buildCmd = 'pnpm release:build' } = options;
+  const { repoRoot, outRoot, buildCmd = 'pnpm release:build', signal } = options;
 
   console.log(chalk.cyan(`\nBuilding workspace packages for "working tree" (${buildCmd})…`));
-  await build(repoRoot, buildCmd);
+  await build(repoRoot, buildCmd, signal);
 
   console.log(chalk.cyan('\nPacking the working tree…'));
   await rm(outRoot, { recursive: true, force: true });

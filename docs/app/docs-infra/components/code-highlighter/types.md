@@ -26,6 +26,7 @@ never reaches the path that renders precomputed content.
 | collapseToEmpty         | `boolean`                                      | -         | Render-time "collapse to empty": collapse the code block to an empty window so&#xA;the whole block is hidden until expanded. Threaded into `contentProps` and&#xA;consumed by `useCode`/`<Pre>`. Runtime-only — the precomputed HAST is&#xA;unchanged.                                                                                                                                                                                                                                                                  |
 | initialExpanded         | `boolean`                                      | -         | Whether the (collapsible) code block starts expanded. Threaded into&#xA;`contentProps` so both `useCode` and the loading fallback honor it.                                                                                                                                                                                                                                                                                                                                                                             |
 | Content\*               | `React.ComponentType<ContentProps<{}>>`        | -         | Component to render the code content and preview                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ContentFrame            | `React.ComponentType<ContentFrameProps<{}>>`   | -         | Client Component that keeps the preview shell mounted while loading and&#xA;interactive chrome change. Requires `ContentLoading`.                                                                                                                                                                                                                                                                                                                                                                                       |
 | ContentLoading          | `React.ComponentType<ContentLoadingProps<{}>>` | -         | Component to show while code is being loaded or processed                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | code                    | `Code`                                         | -         | Static code content with variants and metadata                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | components              | `Components`                                   | -         | React components for live preview alongside code                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
@@ -250,6 +251,18 @@ so this hook simply passes props through.
 type ReturnValue = UseCodeFallbackResult;
 ```
 
+### useContentFrame
+
+Hook for `Content` and `ContentLoading` components to detect a surrounding
+`ContentFrame`. When `framed` is `true`, the frame renders the preview, so the
+component should render only its chrome.
+
+**useContentFrame Return Value:**
+
+```tsx
+type ReturnValue = UseContentFrameResult;
+```
+
 ## Additional Types
 
 ### UseCodeFallbackResult
@@ -296,6 +309,15 @@ type UseCodeFallbackResult = {
 };
 ```
 
+### UseContentFrameResult
+
+```typescript
+type UseContentFrameResult = {
+  /** Whether a `ContentFrame` surrounds this content and renders the preview. */
+  framed: boolean;
+};
+```
+
 ### BaseContentLoadingProps
 
 ```typescript
@@ -337,6 +359,8 @@ Client-specific rendering props
 
 ```typescript
 type CodeClientRenderingProps = {
+  /** Pre-rendered persistent shell, seeded from the initial loading metadata. */
+  frame?: ReactElement;
   /** The CodeContent component that renders the code display and syntax highlighting */
   children: React.ReactNode;
   /** Loading placeholder shown while code is being processed */
@@ -523,6 +547,11 @@ type CodeHighlighterBaseProps<T extends {}> = {
    * `loadSource` into hosted URLs before they reach the client.
    */
   urlPrefix?: { from: string; to: string };
+  /**
+   * Client Component that keeps the preview shell mounted while loading and
+   * interactive chrome change. Requires `ContentLoading`.
+   */
+  ContentFrame?: React.ComponentType<ContentFrameProps<T>>;
   /** Component to render the code content and preview */
   Content: React.ComponentType<ContentProps<T>>;
   /** Additional props passed to the Content component */
@@ -620,6 +649,8 @@ type CodeHighlighterClientProps = {
    * @default 'gzip'
    */
   deferParsing?: 'none' | 'json' | 'gzip';
+  /** Pre-rendered persistent shell, seeded from the initial loading metadata. */
+  frame?: ReactElement;
   /** The CodeContent component that renders the code display and syntax highlighting */
   children: React.ReactNode;
   /** Loading placeholder shown while code is being processed */
@@ -753,6 +784,11 @@ type CodeHighlighterProps<T extends {}> = {
    * `loadSource` into hosted URLs before they reach the client.
    */
   urlPrefix?: { from: string; to: string };
+  /**
+   * Client Component that keeps the preview shell mounted while loading and
+   * interactive chrome change. Requires `ContentLoading`.
+   */
+  ContentFrame?: React.ComponentType<ContentFrameProps<T>>;
   /** Component to render the code content and preview */
   Content: React.ComponentType<ContentProps<T>>;
   /** Additional props passed to the Content component */
@@ -839,10 +875,15 @@ type CodeLoadingProps = {
 
 ### CodeRenderingProps
 
-Component and rendering props
+Component and rendering props.
 
 ```typescript
 type CodeRenderingProps<T extends {}> = {
+  /**
+   * Client Component that keeps the preview shell mounted while loading and
+   * interactive chrome change. Requires `ContentLoading`.
+   */
+  ContentFrame?: React.ComponentType<ContentFrameProps<T>>;
   /** Component to render the code content and preview */
   Content: React.ComponentType<ContentProps<T>>;
   /** Additional props passed to the Content component */
@@ -864,6 +905,25 @@ type CollapseMap = { [key: number]: { offset: number; comments: string[]; bounda
 
 ```typescript
 type Components = { [key: string]: React.ReactNode };
+```
+
+### ContentFrameProps
+
+A persistent shell surrounding loading and interactive content. It must be a
+Client Component. `component` follows the selected variant and its live preview;
+every other prop is the initial loading snapshot and does not update on the client.
+
+```typescript
+type ContentFrameProps<T extends {}> = ContentLoadingVariant &
+  CodeIdentityProps & { extraVariants?: Record<string, ContentLoadingVariant> } & T & {
+    component: React.ReactNode;
+    components?: Record<string, React.ReactNode>;
+    initialFilename?: string;
+    initialVariant?: string;
+    fallbackCollapsed?: boolean;
+    collapseToEmpty?: boolean;
+    initialExpanded?: boolean;
+  } & { children: React.ReactNode };
 ```
 
 ### ContentLoadingFile
@@ -1357,8 +1417,8 @@ type VariantSource = string | HastRoot | { hastJson: string } | { hastCompressed
 
 ## Export Groups
 
-- `CodeHighlighter`: `useCodeFallback`, `UseCodeFallbackResult`, `mergeComments`, `CodeHighlighter`
-- `CodeHighlighterTypes`: `Components`, `EditableSourceProjection`, `Transforms`, `ExternalImportItem`, `Externals`, `HastRoot`, `VariantSource`, `VariantExtraFiles`, `VariantCode`, `Code`, `CollapseMap`, `ControlledVariantExtraFiles`, `ControlledVariantCode`, `ControlledCode`, `ContentProps`, `Fallbacks`, `ContentLoadingFile`, `ContentLoadingVariant`, `BaseContentLoadingProps`, `ContentLoadingProps`, `LoadCodeMeta`, `LoadVariantMeta`, `LoadSource`, `TransformSource`, `ParseSource`, `SourceTransformer`, `SourceTransformers`, `SourceComments`, `SourceEnhancer`, `SourceEnhancers`, `LoadFileOptions`, `LoadVariantOptions`, `LoadFallbackCodeOptions`, `CodeIdentityProps`, `CodeContentProps`, `CodeLoadingProps`, `CodeFunctionProps`, `CodeRenderingProps`, `CodeClientRenderingProps`, `CodeHighlighterBaseProps`, `CodeHighlighterClientProps`, `CodeHighlighterProps`
+- `CodeHighlighter`: `useCodeFallback`, `UseCodeFallbackResult`, `useContentFrame`, `UseContentFrameResult`, `mergeComments`, `CodeHighlighter`
+- `CodeHighlighterTypes`: `Components`, `EditableSourceProjection`, `Transforms`, `ExternalImportItem`, `Externals`, `HastRoot`, `VariantSource`, `VariantExtraFiles`, `VariantCode`, `Code`, `CollapseMap`, `ControlledVariantExtraFiles`, `ControlledVariantCode`, `ControlledCode`, `ContentProps`, `Fallbacks`, `ContentLoadingFile`, `ContentLoadingVariant`, `BaseContentLoadingProps`, `ContentLoadingProps`, `LoadCodeMeta`, `LoadVariantMeta`, `LoadSource`, `TransformSource`, `ParseSource`, `SourceTransformer`, `SourceTransformers`, `SourceComments`, `SourceEnhancer`, `SourceEnhancers`, `LoadFileOptions`, `LoadVariantOptions`, `LoadFallbackCodeOptions`, `CodeIdentityProps`, `CodeContentProps`, `CodeLoadingProps`, `CodeFunctionProps`, `ContentFrameProps`, `CodeRenderingProps`, `CodeClientRenderingProps`, `CodeHighlighterBaseProps`, `CodeHighlighterClientProps`, `CodeHighlighterProps`
 
 ## External Type Links
 

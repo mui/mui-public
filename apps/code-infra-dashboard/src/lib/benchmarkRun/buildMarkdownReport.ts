@@ -4,6 +4,7 @@ import {
   benchmarkTable,
   findRegressions,
   formatDuration,
+  formatRunPrecision,
   isImprovement,
   isRegression,
   runReportFootnote,
@@ -85,6 +86,8 @@ export function buildBenchmarkRunMarkdownReport(
     regressions.length > 0
       ? `${regressions.length} regression${regressions.length === 1 ? '' : 's'} in ${benchmarks}`
       : `No regressions in ${benchmarks}`,
+    // What a "no regressions" is worth: a change smaller than this could have gone unseen.
+    formatRunPrecision(analyses),
     report.durationMs === undefined ? null : `ran ${formatDuration(report.durationMs)}`,
     options.detailsUrl ? `[details](${options.detailsUrl})` : null,
   ].filter(Boolean);

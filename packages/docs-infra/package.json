@@ -113,29 +113,34 @@
     "typescript": "tsc -noEmit"
   },
   "dependencies": {
-    "@babel/runtime": "^8.0.7",
-    "@csstools/postcss-light-dark-function": "^3.0.7",
-    "@csstools/postcss-relative-color-syntax": "^4.0.15",
+    "@babel/runtime": "^8.1.2",
+    "@csstools/postcss-light-dark-function": "^3.0.8",
+    "@csstools/postcss-relative-color-syntax": "^4.0.16",
     "@csstools/postcss-stepped-value-functions": "^5.0.9",
     "@mui/internal-typescript-api-extractor": "workspace:*",
     "@orama/orama": "^3.1.18",
     "@orama/plugin-qps": "^3.1.18",
     "@orama/stemmers": "^3.1.18",
+    "@types/estree": "^1.0.10",
+    "@types/hast": "^3.0.5",
+    "@types/mdast": "^4.0.4",
+    "@types/proper-lockfile": "^4.1.4",
+    "@types/yargs": "^17.0.35",
     "@wooorm/starry-night": "^3.11.0",
-    "autoprefixer": "^10.6.1",
+    "autoprefixer": "^10.6.2",
     "chalk": "^6.0.1",
-    "es-toolkit": "^1.52.0",
+    "es-toolkit": "^1.53.2",
     "fflate": "^0.8.3",
-    "hast-util-to-jsx-runtime": "^2.3.6",
-    "hast-util-to-text": "^4.0.2",
+    "hast-util-to-jsx-runtime": "^2.3.7",
+    "hast-util-to-text": "^4.0.3",
     "icss-utils": "^5.1.0",
     "import-meta-resolve": "^4.2.0",
     "jiti": "^2.7.0",
-    "jsondiffpatch": "^0.7.6",
+    "jsondiffpatch": "^0.7.7",
     "kebab-case": "^2.0.2",
     "lz-string": "^1.5.0",
     "path-module": "^0.1.2",
-    "postcss": "^8.5.31",
+    "postcss": "^8.5.33",
     "postcss-modules-extract-imports": "^3.1.0",
     "postcss-modules-local-by-default": "^4.2.0",
     "postcss-modules-scope": "^3.2.1",
@@ -145,13 +150,14 @@
     "remark-gfm": "^4.0.1",
     "remark-mdx": "^3.1.1",
     "remark-parse": "^11.0.0",
+    "remark-rehype": "^11.1.2",
     "remark-stringify": "^11.0.0",
-    "remark-typography": "^0.8.10",
+    "remark-typography": "^0.8.11",
     "sucrase": "^3.35.1",
     "typescript": "npm:@typescript/typescript6@6.0.2",
     "uint8-to-base64": "^0.2.1",
     "unified": "^11.0.5",
-    "unist-util-visit": "^5.1.0",
+    "unist-util-visit": "^5.2.0",
     "vscode-oniguruma": "^2.0.1",
     "yargs": "^18.2.0",
     "zx": "^8.8.5"
@@ -160,40 +166,43 @@
     "@testing-library/react": "16.3.3",
     "@types/babel__standalone": "7.1.9",
     "@types/babel__traverse": "7.28.0",
-    "@types/estree": "1.0.9",
-    "@types/hast": "3.0.5",
-    "@types/mdast": "4.0.4",
     "@types/node": "22.20.5",
-    "@types/proper-lockfile": "4.1.4",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
-    "@types/webpack": "5.28.5",
-    "@types/yargs": "17.0.35",
-    "@typescript-eslint/utils": "8.72.0",
+    "@typescript-eslint/utils": "8.72.2",
+    "eslint": "10.15.0",
     "estree-util-to-js": "2.0.0",
-    "hast-util-to-html": "9.0.5",
-    "next": "16.4.3",
+    "hast-util-to-html": "9.0.6",
+    "next": "16.4.6",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "rehype-parse": "9.0.1",
     "rehype-stringify": "10.0.1",
-    "remark-rehype": "11.1.2"
+    "webpack": "5.112.2"
   },
   "peerDependencies": {
     "@types/react": "^17.0.0 || ^18.0.0 || ^19.0.0",
+    "eslint": "^9.0.0 || ^10.0.0",
     "next": "^15.0.0 || ^16.0.0",
     "prettier": "^3.0.0",
     "react": "^17.0.0 || ^18.0.0 || ^19.0.0",
-    "react-dom": "^17.0.0 || ^18.0.0 || ^19.0.0"
+    "react-dom": "^17.0.0 || ^18.0.0 || ^19.0.0",
+    "webpack": "^5.0.0"
   },
   "peerDependenciesMeta": {
     "@types/react": {
+      "optional": true
+    },
+    "eslint": {
       "optional": true
     },
     "next": {
       "optional": true
     },
     "prettier": {
+      "optional": true
+    },
+    "webpack": {
       "optional": true
     }
   },

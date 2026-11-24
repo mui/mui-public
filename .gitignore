@@ -72,3 +72,6 @@ next-env.d.ts
 # .gitignore and never reads nested ones.
 /test/benchmark/.benchmark/
 /test/benchmark/src/__bench__/
+
+# gh-aw downloads workflow run logs here
+.github/aw/logs/

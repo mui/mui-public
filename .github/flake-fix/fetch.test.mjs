@@ -84,7 +84,7 @@ function scenarioModel(scenario) {
 
 // A tiny fake CircleCI: v2 pipelines/workflows/jobs, v1.1 job detail, and a log endpoint — all
 // served from the scenario model. The handler writes a response on every branch and returns nothing.
-function fakeCircleCI(scenario) {
+function fakeCircleCI(scenario, failOn) {
   const model = scenarioModel(scenario);
   const workflowsById = new Map();
   for (const pipeline of model.pipelines) {
@@ -94,6 +94,10 @@ function fakeCircleCI(scenario) {
   }
   return createServer((request, response) => {
     const url = request.url || '';
+    if (failOn?.test(url)) {
+      response.writeHead(404).end();
+      return;
+    }
     const json = (payload) => {
       response.writeHead(200, { 'content-type': 'application/json' });
       response.end(JSON.stringify(payload));
@@ -133,7 +137,7 @@ function fakeCircleCI(scenario) {
     if (detailMatch) {
       const jobNumber = Number(detailMatch[1]);
       const hasLog = Object.hasOwn(model.logs, jobNumber);
-      const outputUrl = `http://127.0.0.1:${response.socket.localPort}/logs/${jobNumber}`;
+      const outputUrl = `http://127.0.0.1:${response.socket.localPort}/logs/${jobNumber}?token=secret`;
       json({
         steps: hasLog
           ? [
@@ -146,7 +150,7 @@ function fakeCircleCI(scenario) {
       });
       return;
     }
-    const logMatch = url.match(/^\/logs\/(\d+)$/);
+    const logMatch = url.match(/^\/logs\/(\d+)\?/);
     if (logMatch) {
       // \x1b is a real ESC byte at runtime, so the fetcher has actual ANSI to strip.
       const message = model.logs[Number(logMatch[1])] ?? '';
@@ -158,8 +162,8 @@ function fakeCircleCI(scenario) {
   });
 }
 
-async function runFetch(scenario) {
-  const server = fakeCircleCI(scenario);
+async function runFetch(scenario, failOn) {
+  const server = fakeCircleCI(scenario, failOn);
   server.listen(0);
   await once(server, 'listening');
   const { port } = server.address();
@@ -189,15 +193,20 @@ async function runFetch(scenario) {
         CIRCLECI_APP_BASE: base,
         GITHUB_OUTPUT: githubOutput,
       },
-      stdio: ['ignore', 'ignore', 'ignore'],
+      stdio: ['ignore', 'ignore', 'pipe'],
     },
   );
-  const [code] = await once(child, 'exit');
+  let stderr = '';
+  child.stderr.on('data', (chunk) => {
+    stderr += chunk;
+  });
+  const [code] = await once(child, 'close');
   server.close();
   return {
     code,
     dataDir: path.join(outDir, 'data'),
     classify: fs.readFileSync(githubOutput, 'utf8').trim(),
+    stderr,
   };
 }
 
@@ -256,5 +265,20 @@ describe('fetch', () => {
     const { code, classify } = await runFetch('no-failed-jobs');
     expect(code).toBe(0);
     expect(classify).toBe('classify=false');
+  });
+
+  // CircleCI answers 404 on the workflow list without a token. Partial data must not read as clean.
+  it.each([
+    ['workflow list', /^\/pipeline\/pipe-1\/workflow$/],
+    ['job list', /^\/workflow\/wf-1\/job$/],
+    ['job details', /^\/project\/github\/acme\/widget\/7$/],
+    ['step log', /^\/logs\/7\?/],
+  ])('fails on the first CircleCI error (%s)', async (call, failOn) => {
+    const { code, classify, stderr } = await runFetch('failing', failOn);
+    expect(code).toBe(1);
+    expect(classify).toBe('');
+    expect(stderr).toMatch(/error: HTTP 404 on /);
+    // The signed token in a step log URL must not reach the public run log.
+    expect(stderr).not.toContain('secret');
   });
 });
