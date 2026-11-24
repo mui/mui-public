@@ -230,8 +230,8 @@ export default function Reactions() {
     >
       <Heading level={1}>GitHub reactions</Heading>
       <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2 }}>
-        Paste a public GitHub issue or pull request URL to list every reaction and the users who
-        left them. Only public repositories are supported. Examples:{' '}
+        Paste a GitHub issue or pull request URL to list every reaction and the users who left them.
+        Sign in to use private repositories. Examples:{' '}
         {EXAMPLES.map((example, index) => (
           <React.Fragment key={example.url}>
             {index > 0 ? ', ' : null}

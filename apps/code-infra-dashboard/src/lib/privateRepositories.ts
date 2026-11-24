@@ -15,6 +15,16 @@ const PRIVATE_DEFAULTS = {
   circleCi: { workflows: ['pipeline'] },
 } satisfies Partial<Repository>;
 
+function hasStatus(error: unknown, statuses: number[]): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'status' in error &&
+    typeof error.status === 'number' &&
+    statuses.includes(error.status)
+  );
+}
+
 async function fetchPrivateRepositories(): Promise<Repository[]> {
   const octokit = getOctokit();
   let installed;
@@ -24,9 +34,12 @@ async function fetchPrivateRepositories(): Promise<Repository[]> {
     });
   } catch (error) {
     // Only a GitHub App installation can list its repositories; deploys authenticated otherwise
-    // (a token, or nothing) see the public repositories only.
-    console.warn('Could not list the GitHub App installation repositories:', error);
-    return [];
+    // (a token, or nothing) are refused and see the public repositories only. Anything else is
+    // thrown, so that a passing GitHub failure isn't cached as "no private repositories".
+    if (hasStatus(error, [401, 403])) {
+      return [];
+    }
+    throw error;
   }
   return installed
     .filter((repo) => repo.private && repo.owner.login === 'mui')
@@ -54,25 +67,19 @@ export async function findRepository(fullName: string): Promise<Repository | und
   );
 }
 
-function isNotFound(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'status' in error &&
-    (error.status === 404 || error.status === 403 || error.status === 401)
-  );
-}
-
-/** GitHub decides who sees a private repository: whoever its API lets read it with their token. */
+/**
+ * GitHub decides who sees a private repository: whoever its API lets read it with their token.
+ * Any failure counts as no access, so that one repository's check can't fail a whole page.
+ */
 async function canRead(token: string, repo: Repository): Promise<boolean> {
   try {
     await new Octokit({ auth: token }).rest.repos.get({ owner: repo.owner, repo: repo.name });
     return true;
   } catch (error) {
-    if (isNotFound(error)) {
-      return false;
+    if (!hasStatus(error, [401, 403, 404])) {
+      console.warn(`Could not check access to ${repo.owner}/${repo.name}:`, error);
     }
-    throw error;
+    return false;
   }
 }
 

@@ -307,10 +307,13 @@ export async function collectCiSnapshot(): Promise<CiSnapshot> {
   const [publicProjects, privateProjects] = await Promise.all([
     Promise.all([...repositories.values()].flatMap(toProject).map(collect)),
     // Private repositories are discovered rather than configured, so not every one has a CircleCI
-    // project: those are skipped rather than failing the snapshot.
-    listPrivateRepositories().then((repos) =>
-      Promise.allSettled(repos.flatMap(toProject).map(collect)),
-    ),
+    // project: those are skipped rather than failing the snapshot, as is a failed discovery.
+    listPrivateRepositories()
+      .catch((error) => {
+        console.warn('Could not list the private repositories:', error);
+        return [];
+      })
+      .then((repos) => Promise.allSettled(repos.flatMap(toProject).map(collect))),
   ]);
   const projects = [
     ...publicProjects,
