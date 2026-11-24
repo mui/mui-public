@@ -212,13 +212,19 @@ steps:
          * which a link shouldn't copy. Any other redirect, `www.` and `https` ones included, costs every
          * visitor an extra round trip.
          */
+        /** Targets left unchecked, by status: a site blocking the runner shows up here. */
+        const inconclusive = new Map();
+
         async function checkLink(url) {
           const result = await resolve(url);
           const isDeep = new URL(url).pathname !== '/';
           if (result.status !== 200) {
-            return result.status === 404 || result.status === 410 || result.error === 'ENOTFOUND'
-              ? { verdict: 'broken', status: result.status || result.error, archived: await archived(url) }
-              : null;
+            if (result.status === 404 || result.status === 410 || result.error === 'ENOTFOUND') {
+              return { verdict: 'broken', status: result.status || result.error, archived: await archived(url) };
+            }
+            const status = String(result.status || result.error);
+            inconclusive.set(status, [...(inconclusive.get(status) ?? []), new URL(url).hostname]);
+            return null;
           }
           if (isDeep && new URL(result.finalUrl).pathname === '/') {
             return { verdict: 'broken', status: 'lands on the site root', archived: await archived(url) };
@@ -309,6 +315,9 @@ steps:
           `Health score ${result.healthScore}: ${fixable.length} issue types with pages to fix ` +
             `(${fixable.map((issue) => `${issue.name}: ${issue.pages.length}`).join(', ')})`,
         );
+        for (const [status, hosts] of inconclusive) {
+          console.log(`Inconclusive (${status}), left out: ${[...new Set(hosts)].join(', ')}`);
+        }
       SCRIPT
   # After collecting, so a bad key or an Ahrefs outage fails the run before the install.
   - name: Install dependencies
