@@ -62,7 +62,7 @@ export interface ChangelogRepository {
   clone(...args: string[]): Promise<{ dir: string; git: Git }>;
 }
 
-export async function tempDir() {
+async function tempDir() {
   const dir = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'changelog-data-')));
   onTestFinished(() => fs.rm(dir, { recursive: true, force: true }));
   return dir;
