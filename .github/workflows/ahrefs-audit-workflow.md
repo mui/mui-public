@@ -78,8 +78,6 @@ steps:
       # The agent runs pnpm in this job; don't let it modify dependency caches that later
       # workflows might restore.
       package-manager-cache: false
-  - name: Install dependencies
-    run: pnpm install --frozen-lockfile
   # Each group of issues (an Ahrefs category) has a pull request of its own, which later runs add to
   # while it's open.
   # This workflow's pull requests are opened by the App configured in safe-outputs below; looked up
@@ -108,17 +106,18 @@ steps:
     run: |
       node --input-type=module <<'SCRIPT'
         // Collects the Ahrefs Site Audit issues this repository can fix, with the affected pages.
-        // Env: AHREFS_API_KEY, PROJECT_ID, INCLUDE_PATHS, EXCLUDE_PATHS, MAX_ISSUE_TYPES, OUT_FILE.
-        // Issues are grouped by their Ahrefs category, each group fixed in a pull request of its own; the
-        // link categories share one.
+        // Env: AHREFS_API_KEY, PROJECT_ID, INCLUDE_PATHS, EXCLUDE_PATHS, OUT_FILE.
         import { writeFileSync } from 'node:fs';
 
-        /** Issues about links. The page to edit is the one linking (`origin`), and the target is re-checked. */
-        const LINK_ISSUES = new Map([
-          ['c64d89a6-d0f4-11e7-8ed1-001e67ed4656', 'external'], // External 4XX
-          ['c64d8847-d0f4-11e7-8ed1-001e67ed4656', 'external'], // External 3XX redirect
-          ['c64d12c1-d0f4-11e7-8ed1-001e67ed4656', 'internal'], // 3XX redirect
+        /** Issues about link targets: the page to edit is the linking one (`origin`); targets are re-checked. */
+        const LINK_ISSUES = new Set([
+          'c64d89a6-d0f4-11e7-8ed1-001e67ed4656', // External 4XX
+          'c64d8847-d0f4-11e7-8ed1-001e67ed4656', // External 3XX redirect
+          'c64d12c1-d0f4-11e7-8ed1-001e67ed4656', // 3XX redirect
         ]);
+        /** Each group of issues gets a pull request; Ahrefs splits links over three categories. */
+        const LINK_CATEGORIES = new Set(['Links', 'Redirects', 'External pages']);
+        const groupOf = (issue) => (LINK_CATEGORIES.has(issue.category) ? 'Links' : issue.category);
         /** Issues the source can't fix: server setup, search traffic, crawler limits. */
         const UNFIXABLE = new Set([
           '91326507-26f0-4b4b-a680-bfdff5dd74c7', // Robots.txt is not accessible
@@ -127,23 +126,21 @@ steps:
           '24c2faf0-0fab-40f1-9adf-3a73cdc59ceb', // SERP title changed
         ]);
         /**
-         * "… missing … schema": structured data docs pages have nothing real to fill (dates, authors,
-         * prices), which no search or assistant feature rewards. Raises the score, not the traffic.
+         * Also "… missing … schema": structured data docs pages have nothing real to fill (dates,
+         * authors, prices), which no search or assistant feature rewards. Raises the score, not traffic.
          */
-        const isSchemaIssue = (issue) => /\bschema\b/i.test(issue.name);
-        const isSkipped = (issue) => UNFIXABLE.has(issue.issue_id) || isSchemaIssue(issue);
+        const isSkipped = (issue) => UNFIXABLE.has(issue.issue_id) || /\bschema\b/i.test(issue.name);
         const IMPORTANCE = { Error: 0, Warning: 1, Notice: 2 };
-        const PAGE_FIELDS = 'url,origin,http_code,title,h1,meta_description,canonical,jsonld_schema_types';
+        /** Page lists cost 50 API units each, so a run fetches this many issue types at most. */
+        const MAX_ISSUE_TYPES = 10;
+        const PAGE_FIELDS = 'url,title,h1,meta_description,canonical';
+        const LINK_FIELDS = 'url,origin';
         const USER_AGENT =
           'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36';
 
         const prefixes = (name) => (process.env[name] ?? '').split(/\s+/).filter(Boolean);
         const include = prefixes('INCLUDE_PATHS');
         const exclude = prefixes('EXCLUDE_PATHS');
-        const maxIssueTypes = Number(process.env.MAX_ISSUE_TYPES || 10);
-        /** Ahrefs splits links over three categories; they're fixed together. */
-        const LINK_CATEGORIES = new Set(['Links', 'Redirects', 'External pages']);
-        const groupOf = (issue) => (LINK_CATEGORIES.has(issue.category) ? 'Links' : issue.category);
 
         async function ahrefs(path, params) {
           const url = new URL(`https://api.ahrefs.com/v3/${path}`);
@@ -157,19 +154,6 @@ steps:
             throw new Error(`Ahrefs ${path}: HTTP ${response.status} ${await response.text()}`);
           }
           return response.json();
-        }
-
-        /** The site's host, from the project's target (`mui.com/`); a crawl also reaches its subdomains. */
-        let siteHost;
-
-        /** Whether this repository builds a page of the site. */
-        function isOwned(pageUrl) {
-          const { hostname, pathname } = new URL(pageUrl);
-          return (
-            hostname.replace(/^www\./, '') === siteHost &&
-            (include.length === 0 || include.some((prefix) => pathname.startsWith(prefix))) &&
-            !exclude.some((prefix) => pathname.startsWith(prefix))
-          );
         }
 
         /** Fetches a URL the way a browser would; status 0 when it can't be reached at all. */
@@ -214,6 +198,11 @@ steps:
           return results;
         }
 
+        const withoutQuery = (address) => {
+          const { origin, pathname } = new URL(address);
+          return `${origin}${pathname}`;
+        };
+
         /**
          * Re-checks a link target from here, as the agent can't reach other sites: `broken` when it's gone
          * for good (not found, the host is gone, or a deep page now lands on the site's root), `redirect`
@@ -223,24 +212,18 @@ steps:
          * which a link shouldn't copy. Any other redirect, `www.` and `https` ones included, costs every
          * visitor an extra round trip.
          */
-        /** The address without its query and fragment. */
-        function withoutQuery(address) {
-          const { origin, pathname } = new URL(address);
-          return `${origin}${pathname}`;
-        }
-
         async function checkLink(url) {
           const result = await resolve(url);
-          const landsOnRoot =
-            result.status === 200 && new URL(url).pathname !== '/' && new URL(result.finalUrl).pathname === '/';
-          if (result.status === 404 || result.status === 410 || result.error === 'ENOTFOUND' || landsOnRoot) {
-            return { verdict: 'broken', status: result.status || result.error, archived: await archived(url) };
+          const isDeep = new URL(url).pathname !== '/';
+          if (result.status !== 200) {
+            return result.status === 404 || result.status === 410 || result.error === 'ENOTFOUND'
+              ? { verdict: 'broken', status: result.status || result.error, archived: await archived(url) }
+              : null;
           }
-          if (
-            result.status === 200 &&
-            withoutQuery(result.finalUrl) !== withoutQuery(url) &&
-            new URL(url).pathname !== '/'
-          ) {
+          if (isDeep && new URL(result.finalUrl).pathname === '/') {
+            return { verdict: 'broken', status: 'lands on the site root', archived: await archived(url) };
+          }
+          if (isDeep && withoutQuery(result.finalUrl) !== withoutQuery(url)) {
             return { verdict: 'redirect', finalUrl: result.finalUrl };
           }
           return null;
@@ -250,75 +233,76 @@ steps:
           ahrefs('site-audit/projects', { project_id: process.env.PROJECT_ID }),
           ahrefs('site-audit/issues', { project_id: process.env.PROJECT_ID }),
         ]);
+        const project = healthscores[0];
+        /** The site's host, from the project's target (`mui.com/`); a crawl also reaches its subdomains. */
+        const siteHost = new URL(`https://${project.target_url}`).hostname.replace(/^www\./, '');
 
-        siteHost = new URL(`https://${healthscores[0].target_url}`).hostname.replace(/^www\./, '');
+        /** Whether this repository builds a page of the site. */
+        function isOwned(pageUrl) {
+          const { hostname, pathname } = new URL(pageUrl);
+          return (
+            hostname.replace(/^www\./, '') === siteHost &&
+            (include.length === 0 || include.some((prefix) => pathname.startsWith(prefix))) &&
+            !exclude.some((prefix) => pathname.startsWith(prefix))
+          );
+        }
 
-        const candidates = issues
-          .filter(
-            (issue) =>
-              issue.crawled > 0 && !isSkipped(issue),
-          )
+        const eligible = issues
+          .filter((issue) => issue.crawled > 0 && !isSkipped(issue))
           // Link issues first: each is a clear, contained fix. Then the rest by importance and reach.
           .sort(
             (a, b) =>
               Number(LINK_ISSUES.has(b.issue_id)) - Number(LINK_ISSUES.has(a.issue_id)) ||
               IMPORTANCE[a.importance] - IMPORTANCE[b.importance] ||
               b.crawled - a.crawled,
-          )
-          .slice(0, maxIssueTypes);
+          );
+        const candidates = eligible.slice(0, MAX_ISSUE_TYPES);
 
-        const fixable = [];
-        // One page list at a time: Ahrefs allows 60 requests a minute.
-        for (const issue of candidates) {
-          const { pages } = await ahrefs('site-audit/page-explorer', {
-            project_id: process.env.PROJECT_ID,
-            issue_id: issue.issue_id,
-            select: PAGE_FIELDS,
-            limit: '1000',
-          });
-          const linkKind = LINK_ISSUES.get(issue.issue_id);
-          let affected;
-          if (linkKind) {
-            const byUrl = new Map();
-            for (const page of pages) {
-              if (page.origin && isOwned(page.origin) && !byUrl.has(page.url)) {
-                byUrl.set(page.url, { url: page.url, linkedFrom: page.origin });
+        // At most a dozen requests a run, well within Ahrefs' 60 a minute.
+        const pageLists = await Promise.all(
+          candidates.map((issue) =>
+            ahrefs('site-audit/page-explorer', {
+              project_id: process.env.PROJECT_ID,
+              issue_id: issue.issue_id,
+              select: LINK_ISSUES.has(issue.issue_id) ? LINK_FIELDS : PAGE_FIELDS,
+              limit: '1000',
+            }).then(({ pages }) => pages),
+          ),
+        );
+
+        // Each link target is re-checked once, however many issues list it.
+        const linkedFrom = new Map();
+        for (const [index, issue] of candidates.entries()) {
+          if (LINK_ISSUES.has(issue.issue_id)) {
+            for (const page of pageLists[index]) {
+              if (page.origin && isOwned(page.origin) && !linkedFrom.has(page.url)) {
+                linkedFrom.set(page.url, page.origin);
               }
             }
-            const checked = await mapLimited([...byUrl.values()], 8, async (link) => ({
-              ...link,
-              ...(await checkLink(link.url)),
-            }));
-            affected = checked.filter((link) => link.verdict);
-          } else {
-            affected = pages
-              .filter((page) => isOwned(page.url))
-              .map(({ origin, ...page }) => page);
           }
-          if (affected.length > 0) {
-            fixable.push({
-              group: groupOf(issue),
-              name: issue.name,
-              importance: issue.importance,
-              ...(linkKind ? { links: linkKind } : {}),
-              pages: affected,
-            });
+        }
+        const targets = [...linkedFrom.keys()];
+        const verdicts = new Map(
+          (await mapLimited(targets, 8, checkLink)).map((verdict, index) => [targets[index], verdict]),
+        );
+
+        const fixable = [];
+        for (const [index, issue] of candidates.entries()) {
+          const pages = LINK_ISSUES.has(issue.issue_id)
+            ? [...new Set(pageLists[index].map((page) => page.url))]
+                .filter((url) => verdicts.get(url))
+                .map((url) => ({ url, linkedFrom: linkedFrom.get(url), ...verdicts.get(url) }))
+            : pageLists[index].filter((page) => isOwned(page.url));
+          if (pages.length > 0) {
+            fixable.push({ group: groupOf(issue), name: issue.name, pages });
           }
         }
 
-        const project = healthscores?.[0];
         const result = {
-          site: project?.target_url,
-          healthScore: project?.health_score,
+          site: project.target_url,
+          healthScore: project.health_score,
           issues: fixable,
-          notFetched: issues
-            .filter(
-              (issue) =>
-                issue.crawled > 0 &&
-                !isSkipped(issue) &&
-                !candidates.includes(issue),
-            )
-            .map((issue) => `${issue.name} (${issue.crawled})`),
+          notFetched: eligible.slice(MAX_ISSUE_TYPES).map((issue) => `${issue.name} (${issue.crawled})`),
         };
         writeFileSync(process.env.OUT_FILE, `${JSON.stringify(result, null, 2)}\n`);
         console.log(
@@ -326,6 +310,9 @@ steps:
             `(${fixable.map((issue) => `${issue.name}: ${issue.pages.length}`).join(', ')})`,
         );
       SCRIPT
+  # After collecting, so a bad key or an Ahrefs outage fails the run before the install.
+  - name: Install dependencies
+    run: pnpm install --frozen-lockfile
 safe-outputs:
   # The jobs that publish the outputs use the Code Infra - Auditor App: PRs opened with GITHUB_TOKEN
   # don't trigger GitHub Actions, and MUI repositories require Actions checks. Its credentials are
@@ -337,7 +324,7 @@ safe-outputs:
     client-id: ${{ secrets.CODE_INFRA_AUDITOR_CLIENT_ID }}
     private-key: ${{ secrets.CODE_INFRA_AUDITOR_PRIVATE_KEY }}
   # Links in pull request bodies to other domains are redacted; the sites these fixes are about
-  # aren't.
+  # aren't. A static list, as gh-aw reads it at compile time: add new sites here.
   allowed-domains: [default-safe-outputs, mui.com, '*.mui.com', base-ui.com]
   create-pull-request:
     # One per group of issues that has none open: the Ahrefs categories, with links in one.
@@ -387,12 +374,12 @@ for later runs.
 `/tmp/gh-aw/agent/open-prs.json`: this workflow's open pull request per group, with its number and
 branch, which is fetched locally.
 
-- **Link issues** (`links: external` or `internal`) list link targets, each with the page linking to
-  it (`linkedFrom`), already re-checked from the runner: `verdict: broken` (gone: not found, the
+- **Link issues** list link targets, each with the page linking to it (`linkedFrom`), already
+  re-checked from the runner: `verdict: broken` (gone: not found, the
   host is gone, or a deep page now lands on the site's root) with an `archived` Wayback Machine copy
   when there is one, or `verdict: redirect` with the `finalUrl` it ends at.
-- **Content issues** list the affected pages with their crawled `title`, `h1`, `meta_description`,
-  `canonical` and `jsonld_schema_types`.
+- **Content issues** list the affected pages with their crawled `title`, `h1`, `meta_description`
+  and `canonical`.
 
 The page lists are what Ahrefs saw on the last crawl of the live site, possibly days old, and the
 live site doesn't have the fixes of open pull requests yet: the source is the truth.
@@ -413,19 +400,19 @@ kept in sync by tooling, or content another repository builds.
 - **Redirects meant to stay:** never replace a link to a redirect that exists on purpose, whatever
   its target. For links to this site's own paths: a path the repository's redirect configuration
   (such as `_redirects` or the framework's redirects) defines as a short link (`/r/…`) or with a
-  temporary status (302, 307). For links to other sites: short, vanity and invite links (`discord.gg/…`, `bit.ly/…`, `go.…`),
-  and links an owner gave us (sponsors, backers, showcase, community chats). Their indirection is
-  the point: the target can change without a change here.
+  temporary status (302, 307). For links to other sites: short, vanity and invite links
+  (`discord.gg/…`, `bit.ly/…`, `go.…`). Their indirection is the point: the target can change
+  without a change here.
+- **Links an owner gave us** (sponsors, backers, showcase, community chats) are theirs: only fix
+  them when broken, and say so in the pull request.
 - **Redirects:** otherwise, replace with `finalUrl` when it's the same content at another address:
   moved to another path or a renamed domain, or only `https`, a `www.` host or a trailing slash.
-  Every redirect costs the reader an extra round trip. For links to this site's own paths, that's a path
-  the redirect configuration sends on permanently (301, 308, or a forced `301!`) because the page
-  moved: link to where it moved, even when that's another site. Keep the original's fragment and query parameters
-  the site added on purpose (such as `utm_*` on sponsor links). Don't follow redirects that depend
-  on who asks: a locale or region (`/en-EU`), a sign-in, consent or session page, added tracking
-  parameters (`?gi=`), or a version alias resolved to a fixed version (`@latest`). Leave those.
-- **Sponsor and showcase links** belong to their owners: only fix them when broken, and say so in
-  the pull request.
+  Every redirect costs the reader an extra round trip. For links to this site's own paths, that's a
+  path the redirect configuration sends on permanently (301, 308, or a forced `301!`) because the
+  page moved: link to where it moved, even when that's another site. Keep the original's fragment
+  and the query parameters the site added on purpose (such as `utm_*`). Don't follow redirects that
+  depend on who asks (a locale or region such as `/en-EU`, or a sign-in, consent or session page),
+  or that resolve a version alias to a fixed version (`@latest`). Leave those.
 - **Demo placeholders** (`/inbox`, `/drafts` in a demo's links) are crawled like real links. Turn one
   into a fragment (`#inbox`) when the demo still shows what it's for; leave it when the demo needs a
   real path, such as a router integration, and list it.
@@ -441,8 +428,7 @@ fix single pages only when the cause is local.
 - **Social tags:** complete Open Graph and X card tags from the page's existing title, description
   and image.
 - **Canonical:** duplicates without a canonical get one pointing at the page that should rank.
-- **Structured data:** missing-schema issues are left out of the input on purpose. Don't add
-  structured data to fix another issue either.
+- **Structured data:** don't add any to fix an issue.
 - **Pages without outgoing links:** check whether that's intended (a redirect stub, a utility page)
   before adding links.
 
