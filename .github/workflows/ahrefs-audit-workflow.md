@@ -1,5 +1,5 @@
 ---
-description: Fix the issues Ahrefs Site Audit reports for the calling repository's site, links and content in a pull request each.
+description: Fix the issues Ahrefs Site Audit reports for the calling repository's site, in a pull request per issue category.
 # Reusable only; setup is in the README's "Agentic workflows" section.
 on:
   workflow_call:
@@ -80,7 +80,8 @@ steps:
       package-manager-cache: false
   - name: Install dependencies
     run: pnpm install --frozen-lockfile
-  # Each group of issues has a pull request of its own, which later runs add to while it's open.
+  # Each group of issues (an Ahrefs category) has a pull request of its own, which later runs add to
+  # while it's open.
   # This workflow's pull requests are opened by the App configured in safe-outputs below; looked up
   # here because the agent's gh calls only see content from trusted authors, which excludes that App.
   - name: Find open audit pull requests
@@ -92,9 +93,8 @@ steps:
       # The prompt below titles the pull requests exactly so.
       gh pr list --repo "$GITHUB_REPOSITORY" --state open --author app/code-infra-auditor \
           --limit 100 --json number,title,headRefName \
-        | jq '[.[] | select(.title | test("Fix (links|content and metadata) reported by Ahrefs$"))
-            | { group: (if (.title | test("Fix links")) then "links" else "content" end), number,
-                branch: .headRefName }]' > /tmp/gh-aw/agent/open-prs.json
+        | jq '[.[] | (.title | capture("Fix Ahrefs Site Audit issues: (?<group>.+)$")) as $match
+            | { group: $match.group, number, branch: .headRefName }]' > /tmp/gh-aw/agent/open-prs.json
       echo "Open audit pull requests: $(jq -c 'map("\(.group): #\(.number)")' /tmp/gh-aw/agent/open-prs.json)"
   # Ahrefs is asked for the fields the fixes need only, never traffic: this run's logs may be
   # public. Link targets are re-checked here, as the agent can't reach other sites.
@@ -109,7 +109,8 @@ steps:
       node --input-type=module <<'SCRIPT'
         // Collects the Ahrefs Site Audit issues this repository can fix, with the affected pages.
         // Env: AHREFS_API_KEY, PROJECT_ID, INCLUDE_PATHS, EXCLUDE_PATHS, MAX_ISSUE_TYPES, OUT_FILE.
-        // Issues come in two groups, each fixed in a pull request of its own: `links` and `content`.
+        // Issues are grouped by their Ahrefs category, each group fixed in a pull request of its own; the
+        // link categories share one.
         import { writeFileSync } from 'node:fs';
 
         /** Issues about links. The page to edit is the one linking (`origin`), and the target is re-checked. */
@@ -134,7 +135,9 @@ steps:
         const include = prefixes('INCLUDE_PATHS');
         const exclude = prefixes('EXCLUDE_PATHS');
         const maxIssueTypes = Number(process.env.MAX_ISSUE_TYPES || 10);
-        const groupOf = (issue) => (LINK_ISSUES.has(issue.issue_id) ? 'links' : 'content');
+        /** Ahrefs splits links over three categories; they're fixed together. */
+        const LINK_CATEGORIES = new Set(['Links', 'Redirects', 'External pages']);
+        const groupOf = (issue) => (LINK_CATEGORIES.has(issue.category) ? 'Links' : issue.category);
 
         async function ahrefs(path, params) {
           const url = new URL(`https://api.ahrefs.com/v3/${path}`);
@@ -291,7 +294,6 @@ steps:
             fixable.push({
               group: groupOf(issue),
               name: issue.name,
-              category: issue.category,
               importance: issue.importance,
               ...(linkKind ? { links: linkKind } : {}),
               pages: affected,
@@ -333,8 +335,8 @@ safe-outputs:
   # aren't.
   allowed-domains: [default-safe-outputs, mui.com, '*.mui.com', base-ui.com]
   create-pull-request:
-    # One for links, one for content and metadata, when that group has none open.
-    max: 2
+    # One per group of issues that has none open: the Ahrefs categories, with links in one.
+    max: 6
     title-prefix: '[docs] '
     labels: [docs]
     draft: true
@@ -352,7 +354,7 @@ safe-outputs:
     target: '*'
     required-title-prefix: '[docs] '
     required-labels: [docs]
-    max: 2
+    max: 6
     if-no-changes: ignore
     protected-files:
       policy: blocked
@@ -361,7 +363,7 @@ safe-outputs:
     required-title-prefix: '[docs] '
     required-labels: [docs]
     title: false
-    max: 2
+    max: 6
 ---
 
 # Fix what Ahrefs Site Audit reports
@@ -373,8 +375,9 @@ first; they override anything here.
 ## Input
 
 `/tmp/gh-aw/agent/ahrefs-issues.json`: the site, its health score, and the issue types with pages
-to fix, most important first. Each issue has a `group`: `links` or `content`. `notFetched` lists
-further issue types that didn't fit this run; leave them for later runs.
+to fix, most important first. Each issue has a `group`: its Ahrefs category, or `Links` for the
+three link categories. `notFetched` lists further issue types that didn't fit this run; leave them
+for later runs.
 
 `/tmp/gh-aw/agent/open-prs.json`: this workflow's open pull request per group, with its number and
 branch, which is fetched locally.
@@ -447,10 +450,10 @@ changed and it runs without a full docs build. State exactly what you ran; CI ru
 
 ## Open or update pull requests
 
-One pull request per group, titled exactly so (later runs recognize them by it):
-
-- `Fix links reported by Ahrefs`: every link fix.
-- `Fix content and metadata reported by Ahrefs`: every content fix.
+One pull request per `group`, with every fix for that group, titled exactly
+`Fix Ahrefs Site Audit issues: <group>` (for example `Fix Ahrefs Site Audit issues: Social tags`).
+Later runs recognize the pull requests by that title. A fix that spans groups, such as one template
+change, goes in the pull request of the group it fixes most of; name the other issues it fixes.
 
 **When the group has an open pull request** (`open-prs.json`), work on its branch: `git switch` to
 it, see what it already fixes (`git log` and `git diff` against the default branch), and fix only
