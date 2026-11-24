@@ -1,7 +1,5 @@
 import { $ } from 'execa';
 
-import { hasCommit } from './changelogFiles.mjs';
-
 /**
  * The closest version tag behind a commit. Tags on the commit itself are the release being made, not
  * the one before it.
@@ -16,7 +14,8 @@ export async function findPreviousVersionTag({ cwd, remote, sha }) {
   const $$ = $({ cwd });
   if (remote) {
     // --force to update any existing tags that may have changed to avoid the clobering error.
-    const missing = (await hasCommit(cwd, sha)) ? [] : [sha];
+    const { exitCode } = await $$({ reject: false })`git cat-file -e ${sha}^{commit}`;
+    const missing = exitCode === 0 ? [] : [sha];
     await $$`git fetch --tags --force ${remote} ${missing}`;
   }
   try {

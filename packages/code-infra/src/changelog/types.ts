@@ -510,14 +510,6 @@ export interface ChangelogPackage {
    * Directory relative to the workspace root, with `/` separators. `.` for the root package.
    */
   path: string;
-  /**
-   * Version in the previous release. `null` for a new package or one without a version.
-   */
-  previousVersion: string | null;
-  /**
-   * Whether the version differs from the previous release. `true` for a new package.
-   */
-  versionChanged: boolean;
 }
 
 /**
@@ -537,7 +529,7 @@ export interface ChangelogData {
    */
   changes: ChangelogChange[];
   /**
-   * Named packages of the workspace, sorted by path. Without a workspace, only the root package.
+   * Named packages in the working tree, sorted by path. Without a workspace, only the root package.
    */
   packages: ChangelogPackage[];
 }
@@ -561,8 +553,7 @@ export interface FetchChangelogDataOptions {
    */
   lastRelease?: string;
   /**
-   * Ref of the release. By default, packages are read from the working tree, which includes version
-   * bumps that aren't committed yet. With an explicit ref, from its commit.
+   * Ref of the release.
    * @default 'HEAD'
    */
   release?: string;

@@ -72,19 +72,13 @@ function gitIn(cwd: string): Git {
   return async (...args) => (await execa('git', args, { cwd, env: GIT_ENV })).stdout;
 }
 
-/** Writes files, where `null` removes one. */
 export async function writeFiles(dir: string, files: Files) {
   for (const [file, content] of Object.entries(files)) {
     const target = path.join(dir, file);
-    if (content === null) {
-      // eslint-disable-next-line no-await-in-loop
-      await fs.rm(target);
-    } else {
-      // eslint-disable-next-line no-await-in-loop
-      await fs.mkdir(path.dirname(target), { recursive: true });
-      // eslint-disable-next-line no-await-in-loop
-      await fs.writeFile(target, typeof content === 'string' ? content : JSON.stringify(content));
-    }
+    // eslint-disable-next-line no-await-in-loop
+    await fs.mkdir(path.dirname(target), { recursive: true });
+    // eslint-disable-next-line no-await-in-loop
+    await fs.writeFile(target, typeof content === 'string' ? content : JSON.stringify(content));
   }
 }
 
@@ -193,23 +187,6 @@ export async function createRepository(files: Files = {}): Promise<ChangelogRepo
         },
         headers: page * perPage < commits.length ? { link: `<${next.href}>; rel="next"` } : {},
       };
-    }
-    match = /^git\/trees\/(.+)$/.exec(route);
-    if (match) {
-      const list = await git('ls-tree', '-r', '-t', '-z', match[1]);
-      const tree = list
-        .split('\0')
-        .filter(Boolean)
-        .map((line) => {
-          const [, mode, type, sha, file] = /^(\d+) (\w+) (\w+)\t(.*)$/.exec(line)!;
-          return { path: file, mode, type, sha };
-        });
-      return { status: 200, body: { sha: match[1], tree, truncated: false } };
-    }
-    match = /^git\/blobs\/(.+)$/.exec(route);
-    if (match) {
-      const content = Buffer.from(await git('cat-file', 'blob', match[1])).toString('base64');
-      return { status: 200, body: { content, encoding: 'base64' } };
     }
     return { status: 404, body: { message: 'Not Found' } };
   }

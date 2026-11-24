@@ -47,7 +47,7 @@ describe('release', () => {
       release: { ref: sha, sha },
       version: '1.1.0',
       changes: [{ title: '[button] Fix it' }],
-      packages: [{ name: 'root', versionChanged: true }],
+      packages: [{ name: 'root', version: '1.1.0' }],
     });
     expect(Date.parse(data.date)).toBeGreaterThanOrEqual(before);
     expect(Date.parse(data.date)).toBeLessThanOrEqual(Date.now());
@@ -96,7 +96,7 @@ describe('release', () => {
       previous: { ref: 'v1.0.1' },
       version: '1.0.2',
       changes: [{ title: 'Next patch' }],
-      packages: [{ version: '1.0.2', previousVersion: '1.0.1' }],
+      packages: [{ version: '1.0.2' }],
     });
   });
 
@@ -453,135 +453,32 @@ describe('failures', () => {
 });
 
 describe('packages', () => {
-  const WORKSPACE =
-    'packages:\n  - packages/*\n  - "!packages/excluded"\n  - ./docs/\n  - tools/**\n';
-
   it('describes the members of the workspace', async () => {
     const repository = await createRepository({
-      'pnpm-workspace.yaml': WORKSPACE,
+      'pnpm-workspace.yaml': 'packages:\n  - packages/*\n  - docs\n',
       'packages/b/package.json': { name: 'b', version: '1.0.0' },
-      'packages/a/package.json': { name: '@mui/a', version: '1.0.0' },
-      'packages/a/nested/package.json': { name: 'nested', version: '1.0.0' },
-      'packages/excluded/package.json': { name: 'excluded', version: '1.0.0' },
+      'packages/a/package.json': { name: '@mui/a', version: '1.1.0' },
       'packages/unnamed/package.json': { private: true },
       'packages/unversioned/package.json': { name: 'unversioned' },
       'docs/package.json': { name: 'docs', version: '1.0.0', private: true },
-      'tools/deep/tool/package.json': { name: 'tool', version: '1.0.0' },
-      'tools/node_modules/installed/package.json': { name: 'installed', version: '1.0.0' },
       'fixtures/package.json': { name: 'fixture', version: '1.0.0' },
     });
-    await repository.land('Release', [], {
-      'packages/a/package.json': { name: '@mui/a', version: '1.1.0' },
-    });
-
-    const { packages } = await dataOf(repository);
-
-    const unchanged = { previousVersion: '1.0.0', versionChanged: false };
-    expect(packages).toEqual([
-      { name: 'root', path: '.', version: '1.0.0', private: true, ...unchanged },
-      { name: 'docs', path: 'docs', version: '1.0.0', private: true, ...unchanged },
-      {
-        name: '@mui/a',
-        path: 'packages/a',
-        version: '1.1.0',
-        private: false,
-        previousVersion: '1.0.0',
-        versionChanged: true,
-      },
-      { name: 'b', path: 'packages/b', version: '1.0.0', private: false, ...unchanged },
-      {
-        name: 'unversioned',
-        path: 'packages/unversioned',
-        version: null,
-        private: true,
-        previousVersion: null,
-        versionChanged: false,
-      },
-      { name: 'tool', path: 'tools/deep/tool', version: '1.0.0', private: false, ...unchanged },
-    ]);
-  });
-
-  it('compares versions by name', async () => {
-    const manifest = (name: string, version: string, dependency: string) => ({
-      name,
-      version,
-      dependencies: { dependency },
-    });
-    const repository = await createRepository({
-      'pnpm-workspace.yaml': WORKSPACE,
-      'packages/bumped/package.json': manifest('bumped', '1.0.0', '1'),
-      'packages/edited/package.json': manifest('edited', '1.0.0', '1'),
-      'packages/old/package.json': manifest('moved', '1.0.0', '1'),
-    });
-    await repository.land('Release', [], {
-      'packages/bumped/package.json': manifest('bumped', '1.0.1', '2'),
-      'packages/edited/package.json': manifest('edited', '1.0.0', '2'),
-      'packages/old/package.json': null,
-      'packages/moved/package.json': manifest('moved', '1.0.0', '1'),
-      'packages/new/package.json': manifest('new', '1.0.0', '1'),
-    });
-
-    expect((await dataOf(repository)).packages).toMatchObject([
-      { name: 'root' },
-      { name: 'bumped', previousVersion: '1.0.0', versionChanged: true },
-      { name: 'edited', previousVersion: '1.0.0', versionChanged: false },
-      { name: 'moved', previousVersion: '1.0.0', versionChanged: false },
-      { name: 'new', previousVersion: null, versionChanged: true },
-    ]);
-  });
-
-  async function createNestedRepository() {
-    const repository = await createRepository({
-      'pnpm-workspace.yaml': 'packages:\n  - inner/packages/*\n',
-      'inner/pnpm-workspace.yaml': WORKSPACE,
-      'inner/package.json': { name: 'inner-root', version: '5.0.0' },
-      'inner/packages/a/package.json': { name: 'a', version: '5.0.0' },
-      'packages/a/package.json': { name: 'a', version: '9.0.0' },
-    });
-    await repository.land('Release', [], {
-      'inner/package.json': { name: 'inner-root', version: '5.1.0' },
-      'inner/packages/a/package.json': { name: 'a', version: '5.1.0' },
-    });
-    return repository;
-  }
-
-  const NESTED = {
-    version: '5.1.0',
-    packages: [
-      { name: 'inner-root', path: '.', previousVersion: '5.0.0' },
-      { name: 'a', path: 'packages/a', version: '5.1.0', previousVersion: '5.0.0' },
-    ],
-  };
-
-  it('supports a workspace nested in a larger repository', async () => {
-    const repository = await createNestedRepository();
+    await repository.land('First (#1)', [{ number: 1 }]);
     const { dir } = await repository.clone();
 
-    const data = await fetchChangelogData({
-      cwd: path.join(dir, 'inner'),
+    const { packages, version } = await fetchChangelogData({
+      cwd: path.join(dir, 'packages/a'),
       octokit: repository.octokit,
     });
 
-    expect(data).toMatchObject(NESTED);
-  });
-
-  it('reads refs that are missing locally from GitHub', async () => {
-    const repository = await createNestedRepository();
-    await repository.land('Later', [], {
-      'inner/package.json': { name: 'inner-root', version: '6.0.0' },
-    });
-    const { dir, git } = await repository.clone('--depth=1');
-    const shallow = await git('rev-list', '--all', '--count');
-
-    const data = await fetchChangelogData({
-      cwd: path.join(dir, 'inner'),
-      octokit: repository.octokit,
-      lastRelease: 'v1.0.0',
-      release: await repository.git('rev-parse', 'HEAD~1'),
-    });
-
-    expect(data).toMatchObject(NESTED);
-    expect(await git('rev-list', '--all', '--count')).toBe(shallow);
+    expect(version).toBe('1.0.0');
+    expect(packages).toEqual([
+      { name: 'root', path: '.', version: '1.0.0', private: true },
+      { name: 'docs', path: 'docs', version: '1.0.0', private: true },
+      { name: '@mui/a', path: 'packages/a', version: '1.1.0', private: false },
+      { name: 'b', path: 'packages/b', version: '1.0.0', private: false },
+      { name: 'unversioned', path: 'packages/unversioned', version: null, private: true },
+    ]);
   });
 
   it('only has the root package without a workspace', async () => {
@@ -589,17 +486,10 @@ describe('packages', () => {
       'package.json': { name: 'solo', version: '1.0.0' },
       'examples/package.json': { name: 'example', version: '1.0.0' },
     });
-    await repository.land('Release', [], { 'package.json': { name: 'solo', version: '1.1.0' } });
+    await repository.land('First (#1)', [{ number: 1 }]);
 
     expect((await dataOf(repository)).packages).toEqual([
-      {
-        name: 'solo',
-        path: '.',
-        version: '1.1.0',
-        private: false,
-        previousVersion: '1.0.0',
-        versionChanged: true,
-      },
+      { name: 'solo', path: '.', version: '1.0.0', private: false },
     ]);
   });
 });

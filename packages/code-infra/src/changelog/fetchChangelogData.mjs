@@ -1,11 +1,12 @@
 import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
+import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import * as semver from 'semver';
 
 import { getCurrentGitSha, getRepositoryInfo } from '../utils/git.mjs';
+import { getWorkspacePackages } from '../utils/pnpm.mjs';
 import { createOctokit } from './octokit.mjs';
 import { fetchChangelogChanges } from './changelogChanges.mjs';
-import { comparePackages, readManifests } from './changelogPackages.mjs';
-import { findCheckout, openCommit, openWorkingTree } from './changelogFiles.mjs';
 import { findPreviousVersionTag } from './changelogTags.mjs';
 
 /**
@@ -73,23 +74,10 @@ async function collectData(options, controller) {
     controller,
   });
 
-  // Without a local HEAD or a remote, nothing says that the checkout is one of the repository.
-  const checkout = isLocalHead || remote ? await findCheckout(cwd) : null;
-  const context = { octokit, repository, checkout, signal };
-  const [manifests, previousManifests] = await Promise.all([
-    readManifests(
-      isLocalHead && checkout
-        ? await openWorkingTree(checkout.root)
-        : await openCommit({ ...context, sha: releaseSha }),
-    ),
-    readManifests(await openCommit({ ...context, sha: previousSha })),
-  ]);
-
+  const packages = await readPackages(cwd);
   const taggedVersion = isLocalHead ? null : semver.valid(releaseRef);
   const version =
-    options.version ??
-    taggedVersion ??
-    manifests.find((manifest) => manifest.path === '.')?.version;
+    options.version ?? taggedVersion ?? packages.find((pkg) => pkg.path === '.')?.version;
   if (!version) {
     throw new Error('The root package.json has no version. Pass the `version` of the release.');
   }
@@ -104,8 +92,31 @@ async function collectData(options, controller) {
     version,
     date: new Date(date).toISOString(),
     changes,
-    packages: comparePackages(manifests, previousManifests),
+    packages: packages.flatMap(({ name, ...pkg }) => (name === null ? [] : [{ name, ...pkg }])),
   };
+}
+
+/**
+ * The packages as they are in the working tree, named or not, sorted by path.
+ *
+ * @param {string} cwd
+ */
+async function readPackages(cwd) {
+  const workspaceDir = await findWorkspaceDir(cwd);
+  const root = workspaceDir ?? cwd;
+  const packages = await getWorkspacePackages({ cwd: root });
+  return (
+    packages
+      // Without a workspace, pnpm lists the packages of all subdirectories.
+      .filter((pkg) => workspaceDir || pkg.path === root)
+      .map((pkg) => ({
+        name: pkg.name ?? null,
+        version: pkg.version ?? null,
+        private: pkg.isPrivate,
+        path: path.relative(root, pkg.path).split(path.sep).join('/') || '.',
+      }))
+      .sort((a, b) => (a.path < b.path ? -1 : 1))
+  );
 }
 
 /**
