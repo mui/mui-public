@@ -1,3 +1,5 @@
+import type { Octokit } from '@octokit/rest';
+
 /**
  * Commit details fetched from GitHub including PR information and labels.
  */
@@ -437,4 +439,149 @@ export interface GenerateChangelogResult {
     community: string[];
     all: string[];
   };
+}
+
+export interface GitHubRepository {
+  owner: string;
+  name: string;
+}
+
+export interface ReleaseRef {
+  /**
+   * The ref as given. A local `HEAD` is replaced by its SHA.
+   */
+  ref: string;
+  sha: string;
+}
+
+export interface ReleaseAuthor {
+  /**
+   * `null` for a commit author without a linked GitHub account.
+   */
+  login: string | null;
+  /**
+   * Git author name. Only known for direct commits.
+   */
+  name: string | null;
+  association: 'team' | 'community' | 'first-timer';
+}
+
+/**
+ * A merged pull request, or a commit that landed without one.
+ */
+export interface ReleaseChange {
+  /**
+   * Subject of the commit, without the references that the other fields already carry: the pull
+   * request it belongs to and, for a cherry-pick, the original pull request and its author.
+   */
+  title: string;
+  /**
+   * Full commit message.
+   */
+  message: string;
+  sha: string;
+  /**
+   * Page of the pull request, or of the commit when there is none.
+   */
+  url: string;
+  labels: string[];
+  pullRequest: { number: number; title: string; body: string } | null;
+  /**
+   * `null` when the GitHub account was deleted.
+   */
+  author: ReleaseAuthor | null;
+  /**
+   * When the pull request was opened, or the commit authored. ISO 8601.
+   */
+  createdAt: string | null;
+  /**
+   * When the pull request was merged, or the commit committed. ISO 8601.
+   */
+  mergedAt: string | null;
+}
+
+export interface ReleasePackage {
+  name: string;
+  version: string | null;
+  /**
+   * Whether the package can't be published: marked as private, or without a version.
+   */
+  private: boolean;
+  /**
+   * Directory relative to the workspace root, with `/` separators. `.` for the root package.
+   */
+  path: string;
+  /**
+   * Version in the previous release. `null` for a new package or one without a version.
+   */
+  previousVersion: string | null;
+  /**
+   * Whether the version differs from the previous release. `true` for a new package.
+   */
+  versionChanged: boolean;
+}
+
+/**
+ * What happened in a release, as JSON-serializable data.
+ */
+export interface ReleaseFacts {
+  repository: GitHubRepository;
+  previous: ReleaseRef;
+  release: ReleaseRef;
+  version: string;
+  /**
+   * ISO 8601.
+   */
+  date: string;
+  /**
+   * Oldest first.
+   */
+  changes: ReleaseChange[];
+  /**
+   * Named packages of the workspace, sorted by path. Without a workspace, only the root package.
+   */
+  packages: ReleasePackage[];
+}
+
+export interface FetchReleaseFactsOptions {
+  /**
+   * A directory of the released workspace.
+   * @default process.cwd()
+   */
+  cwd?: string;
+  /**
+   * Repository name. Defaults to the one the checkout's remote points at.
+   */
+  repo?: string;
+  /**
+   * @default 'mui'
+   */
+  org?: string;
+  /**
+   * Ref of the previous release. Defaults to the closest version tag before `release`.
+   */
+  lastRelease?: string;
+  /**
+   * Ref of the release. By default, packages are read from the working tree, which includes version
+   * bumps that aren't committed yet. With an explicit ref, from its commit.
+   * @default 'HEAD'
+   */
+  release?: string;
+  /**
+   * Defaults to the version `release` is a tag of, else the version of the root package.
+   */
+  version?: string;
+  /**
+   * Defaults to the commit date when `release` is a version tag, else now.
+   */
+  date?: Date | string;
+  /**
+   * Include commits that landed without a pull request.
+   * @default false
+   */
+  includeDirectCommits?: boolean;
+  /**
+   * GitHub client. Defaults to one authenticated as the developer running it.
+   */
+  octokit?: Octokit;
 }
