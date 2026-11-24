@@ -1,24 +1,6 @@
-import { retry } from '@octokit/plugin-retry';
-import { throttling } from '@octokit/plugin-throttling';
-import { Octokit } from '@octokit/rest';
 import { mapAsync } from 'es-toolkit/array';
 
-import { persistentAuthStrategy } from '../utils/github.mjs';
-
-const ThrottledOctokit = Octokit.plugin(throttling, retry);
-
-/**
- * Waits out short rate limits. Longer ones fail with the original error.
- *
- * @param {number} retryAfter - Seconds until the request may be retried
- * @param {unknown} options
- * @param {unknown} octokit
- * @param {number} retryCount
- * @returns {boolean}
- */
-function shouldRetryRateLimit(retryAfter, options, octokit, retryCount) {
-  return retryAfter <= 60 && retryCount < 3;
-}
+import { createOctokit } from './octokit.mjs';
 
 /**
  * @typedef {import('@octokit/rest').Octokit} OctokitType
@@ -45,16 +27,7 @@ function shouldRetryRateLimit(retryAfter, options, octokit, retryCount) {
  * @returns {Promise<FetchedCommitDetails[]>}
  */
 export async function fetchCommitsBetweenRefs(opts) {
-  const octokit =
-    'octokit' in opts && opts.octokit
-      ? opts.octokit
-      : new ThrottledOctokit({
-          authStrategy: persistentAuthStrategy,
-          throttle: {
-            onRateLimit: shouldRetryRateLimit,
-            onSecondaryRateLimit: shouldRetryRateLimit,
-          },
-        });
+  const octokit = 'octokit' in opts && opts.octokit ? opts.octokit : createOctokit();
 
   return fetchCommitsRest({
     octokit,
@@ -77,7 +50,7 @@ export async function fetchCommitsBetweenRefs(opts) {
  */
 async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mui', onProgress }) {
   /**
-   * @typedef {Awaited<ReturnType<Octokit['repos']['compareCommits']>>['data']['commits']} Commits
+   * @typedef {Awaited<ReturnType<OctokitType['repos']['compareCommits']>>['data']['commits']} Commits
    */
   /**
    * @type {Commits}

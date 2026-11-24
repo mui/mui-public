@@ -19,3 +19,18 @@ npm install @mui/internal-code-infra
 ## Usage
 
 TODO
+
+## Changelog data
+
+`fetchChangelogData` collects what happened in a release as plain data: the release, its changes and its packages. Turn it into a changelog with code in your own repository:
+
+```js
+import { fetchChangelogData } from '@mui/internal-code-infra/changelog';
+
+const { previous, version, changes } = await fetchChangelogData();
+
+const lines = changes.map((change) => `- ${change.title} (${change.url})`);
+console.log(`## ${version}\n\nChanges since ${previous.ref}:\n\n${lines.join('\n')}`);
+```
+
+Run inside a checkout, every option has a default: the release is `HEAD`, and it starts at the closest version tag behind it. Commits without a pull request are left out unless `includeDirectCommits` is set.
