@@ -1,6 +1,8 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
+import { mapAsync } from 'es-toolkit/array';
+import { $ } from 'execa';
 import * as semver from 'semver';
 
 import { getCurrentGitSha, getRepositoryInfo } from '../utils/git.mjs';
@@ -74,7 +76,7 @@ async function collectData(options, controller) {
     controller,
   });
 
-  const packages = await readPackages(cwd);
+  const packages = await readPackages(cwd, previousSha);
   const taggedVersion = isLocalHead ? null : semver.valid(releaseRef);
   const version =
     options.version ?? taggedVersion ?? packages.find((pkg) => pkg.path === '.')?.version;
@@ -100,23 +102,33 @@ async function collectData(options, controller) {
  * The packages as they are in the working tree, named or not, sorted by path.
  *
  * @param {string} cwd
+ * @param {string} previousSha
  */
-async function readPackages(cwd) {
+async function readPackages(cwd, previousSha) {
   const workspaceDir = await findWorkspaceDir(cwd);
   const root = workspaceDir ?? cwd;
   const packages = await getWorkspacePackages({ cwd: root });
-  return (
-    packages
-      // Without a workspace, pnpm lists the packages of all subdirectories.
-      .filter((pkg) => workspaceDir || pkg.path === root)
-      .map((pkg) => ({
-        name: pkg.name ?? null,
-        version: pkg.version ?? null,
-        private: pkg.isPrivate,
-        path: path.relative(root, pkg.path).split(path.sep).join('/') || '.',
-      }))
-      .sort((a, b) => (a.path < b.path ? -1 : 1))
+  const $$ = $({ cwd: root, reject: false });
+  const { exitCode } = await $$`git cat-file -e ${previousSha}^{commit}`;
+
+  const described = await mapAsync(
+    // Without a workspace, pnpm lists the packages of all subdirectories.
+    packages.filter((pkg) => workspaceDir || pkg.path === root),
+    async (pkg) => {
+      const directory = path.relative(root, pkg.path).split(path.sep).join('/') || '.';
+      const version = pkg.version ?? null;
+      let changed = null;
+      if (exitCode === 0) {
+        const previous =
+          await $$`git show ${previousSha}:./${path.posix.join(directory, 'package.json')}`;
+        changed =
+          previous.exitCode !== 0 || (JSON.parse(previous.stdout).version ?? null) !== version;
+      }
+      return { name: pkg.name ?? null, version, private: pkg.isPrivate, path: directory, changed };
+    },
+    { concurrency: 10 },
   );
+  return described.sort((a, b) => (a.path < b.path ? -1 : 1));
 }
 
 /**

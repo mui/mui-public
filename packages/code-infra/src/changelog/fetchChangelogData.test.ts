@@ -463,7 +463,11 @@ describe('packages', () => {
       'docs/package.json': { name: 'docs', version: '1.0.0', private: true },
       'fixtures/package.json': { name: 'fixture', version: '1.0.0' },
     });
-    await repository.land('First (#1)', [{ number: 1 }]);
+    await repository.land('First (#1)', [{ number: 1 }], {
+      'packages/a/package.json': { name: '@mui/a', version: '1.2.0' },
+      'packages/b/package.json': { name: 'b', version: '1.0.0', dependencies: { c: '1' } },
+      'packages/new/package.json': { name: 'new', version: '1.0.0' },
+    });
     const { dir } = await repository.clone();
 
     const { packages, version } = await fetchChangelogData({
@@ -473,12 +477,33 @@ describe('packages', () => {
 
     expect(version).toBe('1.0.0');
     expect(packages).toEqual([
-      { name: 'root', path: '.', version: '1.0.0', private: true },
-      { name: 'docs', path: 'docs', version: '1.0.0', private: true },
-      { name: '@mui/a', path: 'packages/a', version: '1.1.0', private: false },
-      { name: 'b', path: 'packages/b', version: '1.0.0', private: false },
-      { name: 'unversioned', path: 'packages/unversioned', version: null, private: true },
+      { name: 'root', path: '.', version: '1.0.0', private: true, changed: false },
+      { name: 'docs', path: 'docs', version: '1.0.0', private: true, changed: false },
+      { name: '@mui/a', path: 'packages/a', version: '1.2.0', private: false, changed: true },
+      { name: 'b', path: 'packages/b', version: '1.0.0', private: false, changed: false },
+      { name: 'new', path: 'packages/new', version: '1.0.0', private: false, changed: true },
+      {
+        name: 'unversioned',
+        path: 'packages/unversioned',
+        version: null,
+        private: true,
+        changed: false,
+      },
     ]);
+  });
+
+  it('does not know what changed when the previous release is missing locally', async () => {
+    const repository = await createRepository();
+    await repository.land('First (#1)', [{ number: 1 }]);
+    const { dir } = await repository.clone('--depth=1');
+
+    const { packages } = await fetchChangelogData({
+      cwd: dir,
+      octokit: repository.octokit,
+      lastRelease: 'v1.0.0',
+    });
+
+    expect(packages).toMatchObject([{ name: 'root', changed: null }]);
   });
 
   it('only has the root package without a workspace', async () => {
@@ -489,7 +514,7 @@ describe('packages', () => {
     await repository.land('First (#1)', [{ number: 1 }]);
 
     expect((await dataOf(repository)).packages).toEqual([
-      { name: 'solo', path: '.', version: '1.0.0', private: false },
+      { name: 'solo', path: '.', version: '1.0.0', private: false, changed: false },
     ]);
   });
 });

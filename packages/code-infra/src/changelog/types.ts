@@ -510,6 +510,11 @@ export interface ChangelogPackage {
    * Directory relative to the workspace root, with `/` separators. `.` for the root package.
    */
   path: string;
+  /**
+   * Whether the version differs from the previous release. `true` for a new package, `null` when the
+   * previous release isn't available locally.
+   */
+  changed: boolean | null;
 }
 
 /**
