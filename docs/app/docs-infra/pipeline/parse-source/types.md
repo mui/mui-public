@@ -6,21 +6,12 @@
 
 ### createParseSource
 
-Initializes Starry Night and returns a configured `parseSource` function.
-Only needs to be called once per application; the instance is stored globally
-for reuse across calls.
-
-With no `initialScopes`, loads ALL grammars via the (lazy) `./grammars` barrel
-— the eager `CodeProvider` / Node / build-time behavior, so the heavy TextMate
-JSON is split into its own chunk but fully available. Pass `initialScopes`
-(possibly `[]`) to create a lean instance that registers grammars on demand
-via [`registerGrammars`](#registergrammars) — the `CodeProviderLazy` per-language path.
-
-**Parameters:**
-
-| Parameter      | Type       | Default | Description |
-| :------------- | :--------- | :------ | :---------- |
-| initialScopes? | `string[]` | -       | -           |
+Loads the highlighting engine, which includes every supported language, and
+returns a configured `parseSource` function. Only needs to be called once per
+application; the engine is stored globally for reuse across calls. Client
+code that only needs to warm the engine should call the light facade
+`loadHighlighter` from `./highlighterCache`, so the engine stays out of
+the client bundle until a block needs it.
 
 **Return Value:**
 
@@ -30,9 +21,9 @@ A Promise that resolves to the initialized `parseSource` function
 type ReturnValue = Promise<ParseSource>;
 ```
 
-### getGrammarFromLanguage
+### normalizeLanguage
 
-Gets the grammar scope from a language name.
+Normalizes a language name or alias to a supported language.
 
 **Parameters:**
 
@@ -42,22 +33,22 @@ Gets the grammar scope from a language name.
 
 **Return Value:**
 
-The grammar scope or undefined if not recognized
+The supported language, or undefined if not recognized
 
 ```tsx
-type ReturnValue = string | undefined;
+type ReturnValue = HighlightLanguage | undefined;
 ```
 
 ### parsePlainText
 
 Parses source into a line-guttered HAST **without** syntax highlighting — the
 raw text wrapped in the same `.line`/`.frame` structure `parseSource` produces,
-just no starry-night tokenization. It is a `ParseSource` so it can be dropped
+just no syntax tokenization. It is a `ParseSource` so it can be dropped
 into the loader in place of the highlighting parser.
 
 Used for the deferred (un-highlighted) fallback: the enhancer pipeline needs the
 line/frame structure to compute focus windows and truncation, but the syntax
-colors are exactly the part being deferred — so we skip them. Cheap (no grammar,
+colors are exactly the part being deferred — so we skip them. Cheap (no highlighter,
 no `getInstance`); the frames it produces collapse back to text via `buildRootFallback`.
 
 Takes only `source` (it ignores file name / language since it never highlights) but
@@ -96,41 +87,10 @@ HAST Root node containing highlighted code structure with line gutters
 type ReturnValue = HastRoot;
 ```
 
-### registerAllGrammars
+### resetHighlighter
 
-**Return Value:**
-
-```tsx
-type ReturnValue = Promise<void>;
-```
-
-### registerGrammars
-
-Registers the grammars for the given scopes (and their dependencies) on the
-global Starry Night instance, loading the per-scope chunks on demand.
-Idempotent and deduped. Fails open: a chunk that fails to load leaves its
-scope as plain text rather than rejecting the batch.
-
-This is the heavy implementation (it can create the engine instance). Client
-code should call the light facade `ensureGrammars` from `./grammarCache`
-instead, so the engine stays out of the client bundle until a block needs it.
-
-**Parameters:**
-
-| Parameter | Type       | Default | Description |
-| :-------- | :--------- | :------ | :---------- |
-| scopes    | `string[]` | -       | -           |
-
-**Return Value:**
-
-```tsx
-type ReturnValue = Promise<void>;
-```
-
-### resetStarryNight
-
-Clears the global Starry Night singleton and registration state. Intended for
-tests exercising lazy registration from a known-empty registry.
+Clears the global highlighter singleton. Intended for tests exercising
+loading from a known-empty state.
 
 **Return Value:**
 
@@ -142,22 +102,28 @@ type ReturnValue = void;
 
 ### extensionMap
 
-Light-weight grammar metadata maps. These can be statically imported without
-pulling in the heavy TextMate grammar JSON payloads (which live in
-`./grammars.ts` and should be loaded via dynamic `import('./grammars')` so
-the bundler can code-split them into their own chunk).
+Maps file extensions to the language that highlights them.
 
 ```typescript
-type extensionMap = Record<string, string>;
+type extensionMap = Record<string, HighlightLanguage>;
 ```
 
-### languageToGrammarMap
+### HighlightLanguage
 
-Maps simplified language names back to grammar scope names.
+A language the highlighting engine supports.
+
+```typescript
+type HighlightLanguage =
+  'js' | 'ts' | 'tsx' | 'json' | 'md' | 'mdx' | 'html' | 'css' | 'sh' | 'yaml' | 'diff';
+```
+
+### languageAliasMap
+
+Maps language names and aliases to the language that highlights them.
 Used when `language` prop is provided instead of fileName.
 
 ```typescript
-type languageToGrammarMap = Record<string, string>;
+type languageAliasMap = Record<string, HighlightLanguage>;
 ```
 
 ## External Type Links

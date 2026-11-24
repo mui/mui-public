@@ -1,8 +1,8 @@
 /**
- * Language capabilities derived from a grammar scope or language class.
+ * Language capabilities derived from a highlight language or language class.
  *
- * Shared by both `extendSyntaxTokens` (which receives grammar scopes like
- * `'source.tsx'`) and `enhanceCodeTypes` (which reads `language-*` CSS classes).
+ * Shared by both `extendSyntaxTokens` (which receives highlight languages like
+ * `'tsx'`) and `enhanceCodeTypes` (which reads `language-*` CSS classes).
  */
 export interface LanguageCapabilities {
   /** Whether `type Name` and `const name: Name =` syntax is recognized. */
@@ -22,23 +22,23 @@ const BASE_CAPABILITIES: LanguageCapabilities = {
 };
 
 /**
- * Resolves language capabilities from a starry-night grammar scope string.
+ * Resolves language capabilities from a highlight language.
  *
- * Note: `.jsx` files map to `source.tsx` via the extension map, so there is
- * no separate `source.jsx` scope. MDX is treated as JS+TS+JSX because it
+ * Note: `.jsx` files map to `tsx` via the extension map, so there is
+ * no separate `jsx` language. MDX is treated as JS+TS+JSX because it
  * embeds TypeScript JSX.
  */
-export function getLanguageCapabilitiesFromScope(grammarScope: string): LanguageCapabilities {
-  switch (grammarScope) {
-    case 'source.js':
+export function capabilitiesForLanguage(language: string): LanguageCapabilities {
+  switch (language) {
+    case 'js':
       return { supportsTypes: false, supportsJsx: false, semantics: 'js' };
-    case 'source.ts':
+    case 'ts':
       return { supportsTypes: true, supportsJsx: false, semantics: 'js' };
-    case 'source.tsx':
+    case 'tsx':
       return { supportsTypes: true, supportsJsx: true, semantics: 'js' };
-    case 'source.mdx':
+    case 'mdx':
       return { supportsTypes: true, supportsJsx: true, semantics: 'js' };
-    case 'source.css':
+    case 'css':
       return { supportsTypes: false, supportsJsx: false, semantics: 'css' };
     default:
       return BASE_CAPABILITIES;

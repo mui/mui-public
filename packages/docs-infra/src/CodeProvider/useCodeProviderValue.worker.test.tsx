@@ -1,10 +1,9 @@
 /**
  * @vitest-environment jsdom
  *
- * Lazy, per-language worker creation: `CodeProviderLazy` must NOT spin up the
- * live-editing worker on mount, and `ensureParseSourceWorker(scopes)` must create
- * it on demand, initialized with only those scopes' grammars — then `register`
- * additional scopes onto the same worker.
+ * Lazy worker creation: `CodeProviderLazy` must NOT spin up the live-editing
+ * worker on mount, and `ensureParseSourceWorker()` must create and initialize it
+ * on demand — once, however many blocks ask for it.
  */
 import * as React from 'react';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -13,7 +12,7 @@ import { renderHook, cleanup, waitFor, act } from '@testing-library/react';
 import { CodeProviderLazy } from './CodeProviderLazy';
 import { useCodeContext } from './CodeContext';
 
-type PostedMessage = { type: string; grammars?: Array<{ scopeName: string }> };
+type PostedMessage = { type: string };
 
 /** In-process stand-in for a real module `Worker`. */
 class FakeWorker {
@@ -29,11 +28,9 @@ class FakeWorker {
 
   postMessage(message: PostedMessage): void {
     this.posted.push(message);
-    // Auto-acknowledge init/register so the client's promises resolve.
+    // Auto-acknowledge init so the client's promise resolves.
     if (message.type === 'init') {
       queueMicrotask(() => this.respond({ type: 'init-ack' }));
-    } else if (message.type === 'register') {
-      queueMicrotask(() => this.respond({ type: 'register-ack' }));
     }
   }
 
@@ -88,9 +85,8 @@ function renderProviderContext() {
   });
 }
 
-function initGrammarScopes(worker: FakeWorker): string[] {
-  const init = worker.posted.find((message) => message.type === 'init');
-  return (init?.grammars ?? []).map((grammar) => grammar.scopeName);
+function initMessages(worker: FakeWorker): PostedMessage[] {
+  return worker.posted.filter((message) => message.type === 'init');
 }
 
 describe('CodeProviderLazy live-editing worker', () => {
@@ -99,58 +95,35 @@ describe('CodeProviderLazy live-editing worker', () => {
     expect(FakeWorker.instances).toHaveLength(0);
   });
 
-  it('lazily creates the worker and inits it with only the requested scopes', async () => {
+  it('lazily creates the worker and initializes it', async () => {
     const { result } = renderProviderContext();
 
     act(() => {
-      result.current.ensureParseSourceWorker?.(['source.css']);
+      result.current.ensureParseSourceWorker?.();
     });
 
     await waitFor(() => expect(FakeWorker.instances).toHaveLength(1));
-    await waitFor(() => expect(initGrammarScopes(FakeWorker.instances[0])).toEqual(['source.css']));
+    await waitFor(() => expect(initMessages(FakeWorker.instances[0])).toHaveLength(1));
   });
 
-  it('registers additional scopes onto the existing worker without recreating it', async () => {
+  it('reuses the existing worker on later calls', async () => {
     const { result } = renderProviderContext();
 
     act(() => {
-      result.current.ensureParseSourceWorker?.(['source.css']);
-    });
-    await waitFor(() => expect(FakeWorker.instances).toHaveLength(1));
-    await waitFor(() => expect(initGrammarScopes(FakeWorker.instances[0])).toEqual(['source.css']));
-
-    act(() => {
-      result.current.ensureParseSourceWorker?.(['source.tsx']);
-    });
-
-    const worker = FakeWorker.instances[0];
-    await waitFor(() => {
-      const register = worker.posted.find((message) => message.type === 'register');
-      expect((register?.grammars ?? []).map((grammar) => grammar.scopeName)).toEqual([
-        'source.tsx',
-      ]);
-    });
-    // Still a single worker — no recreation.
-    expect(FakeWorker.instances).toHaveLength(1);
-  });
-
-  it('does nothing when every requested scope was already sent', async () => {
-    const { result } = renderProviderContext();
-
-    act(() => {
-      result.current.ensureParseSourceWorker?.(['source.css']);
+      result.current.ensureParseSourceWorker?.();
     });
     await waitFor(() => expect(FakeWorker.instances).toHaveLength(1));
 
     act(() => {
-      result.current.ensureParseSourceWorker?.(['source.css']);
+      result.current.ensureParseSourceWorker?.();
     });
 
-    const worker = FakeWorker.instances[0];
-    // Give any stray work a tick, then assert no register was posted.
+    // Give any stray work a tick, then assert the worker was neither recreated
+    // nor initialized again.
     await act(async () => {
       await Promise.resolve();
     });
-    expect(worker.posted.some((message) => message.type === 'register')).toBe(false);
+    expect(FakeWorker.instances).toHaveLength(1);
+    expect(initMessages(FakeWorker.instances[0])).toHaveLength(1);
   });
 });

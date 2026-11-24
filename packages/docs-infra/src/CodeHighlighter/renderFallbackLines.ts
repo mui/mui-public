@@ -1,5 +1,5 @@
 import type { ElementContent, Root } from 'hast';
-import { starryNightGutter } from '../pipeline/parseSource/addLineGutters';
+import { addLineGutters } from '../pipeline/parseSource/addLineGutters';
 import { hasClassName, isFrameSpan } from '../pipeline/parseSource/isFrameSpan';
 
 /** Keep line boxes so a multiline fallback is not aggregated into one LCP candidate. */
@@ -9,7 +9,7 @@ export function renderFallbackLines(children: ElementContent[]): ElementContent[
   }
 
   const root: Root = { type: 'root', children };
-  starryNightGutter(root);
+  addLineGutters(root);
 
   const frame = root.children[0];
 

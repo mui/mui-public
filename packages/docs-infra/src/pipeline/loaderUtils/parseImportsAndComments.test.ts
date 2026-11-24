@@ -1332,7 +1332,7 @@ export default function CheckboxBasic() {
         @import url("//cdn.example.com/style.css");
         
         /* Scoped npm package imports */
-        @import "@wooorm/starry-night/style/light" layer(starry-night);
+        @import "@example/syntax-theme/style/dark" layer(syntax-theme);
         @import "@scope/pkg/styles.css";
         
         body { font-family: sans-serif; }
@@ -1387,7 +1387,7 @@ export default function CheckboxBasic() {
             positions: [{ start: 510, end: 552 }],
           },
           '//cdn.example.com/style.css': { names: [], positions: [{ start: 574, end: 603 }] },
-          '@wooorm/starry-night/style/light': {
+          '@example/syntax-theme/style/dark': {
             names: [],
             positions: [{ start: 672, end: 706 }],
           },

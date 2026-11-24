@@ -316,7 +316,7 @@ describe('removePrefixFromHighlightedNodes', () => {
     });
 
     it('should handle real-world TypeScript syntax highlighting structure', () => {
-      // Simulates actual output from starry-night for "type _ = string | number"
+      // Simulates actual highlighted output for "type _ = string | number"
       const children: ElementContent[] = [
         {
           type: 'element',

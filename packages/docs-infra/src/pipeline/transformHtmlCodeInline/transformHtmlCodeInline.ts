@@ -1,14 +1,15 @@
 import type { Root as HastRoot, Element } from 'hast';
 import { visit } from 'unist-util-visit';
-import { getStarryNightInstance } from '../parseSource/parseSource';
-import { getGrammarFromLanguage } from '../parseSource/grammarMaps';
+import { getHighlighter } from '../parseSource/parseSource';
+import { normalizeLanguage } from '../parseSource/languages';
+import type { HighlightLanguage } from '../parseSource/languages';
 import { extendSyntaxTokens } from '../parseSource/extendSyntaxTokens';
-import { getLanguageCapabilitiesFromScope } from '../parseSource/languageCapabilities';
+import { capabilitiesForLanguage } from '../parseSource/languageCapabilities';
 import { getHastTextContent } from '../hastUtils';
 import { removePrefixFromHighlightedNodes } from './removePrefixFromHighlightedNodes';
 import { removeSuffixFromHighlightedNodes } from './removeSuffixFromHighlightedNodes';
 
-function getGrammarScope(node: Element): string | undefined {
+function getInlineLanguage(node: Element): HighlightLanguage | undefined {
   const className = node.properties?.className;
   if (!Array.isArray(className)) {
     return undefined;
@@ -22,7 +23,7 @@ function getGrammarScope(node: Element): string | undefined {
     return undefined;
   }
 
-  return getGrammarFromLanguage(languageClass.replace('language-', ''));
+  return normalizeLanguage(languageClass.replace('language-', ''));
 }
 
 /**
@@ -52,7 +53,7 @@ export default function transformHtmlCodeInline(options: TransformHtmlCodeInline
   const { includePreElements = false } = options;
 
   return async (tree: HastRoot) => {
-    const starryNight = await getStarryNightInstance();
+    const highlighter = await getHighlighter();
 
     visit(tree, 'element', (node: Element, _index, parent) => {
       // Only process code elements (inline code or code blocks without special handling)
@@ -89,22 +90,19 @@ export default function transformHtmlCodeInline(options: TransformHtmlCodeInline
       let sourceToHighlight = highlightingPrefix ? `${highlightingPrefix}${source}` : source;
 
       // Inline JS-family snippets that look like a bare object literal (e.g. `{ height: 400 }`)
-      // are tokenized by starry-night as a block statement with labeled statements, which makes
+      // are tokenized as a block statement with labeled statements, which makes
       // the keys appear as `pl-en` (entity name) tokens rather than property names. Wrap them
       // in `(...)` so the snippet parses as an expression and `extendSyntaxTokens` can split
       // out the keys via `splitObjectKeys`. The wrapping characters are stripped after highlighting.
       let objectWrap = false;
 
       // Skip if no language specified or unsupported type
-      const grammarScope = getGrammarScope(node);
-      if (!grammarScope) {
+      const language = getInlineLanguage(node);
+      if (!language) {
         return;
       }
 
-      if (
-        !highlightingPrefix &&
-        getLanguageCapabilitiesFromScope(grammarScope).semantics === 'js'
-      ) {
+      if (!highlightingPrefix && capabilitiesForLanguage(language).semantics === 'js') {
         const trimmed = sourceToHighlight.trim();
         if (trimmed.length >= 2 && trimmed.startsWith('{') && trimmed.endsWith('}')) {
           sourceToHighlight = `(${sourceToHighlight})`;
@@ -113,8 +111,11 @@ export default function transformHtmlCodeInline(options: TransformHtmlCodeInline
       }
 
       // Apply syntax highlighting
-      const highlighted = starryNight.highlight(sourceToHighlight, grammarScope);
-      extendSyntaxTokens(highlighted, grammarScope);
+      const highlighted = highlighter.highlight(sourceToHighlight, language);
+      if (!highlighted) {
+        return;
+      }
+      extendSyntaxTokens(highlighted, language);
 
       // Replace the code element's children with the highlighted nodes
       if (highlighted.type === 'root' && highlighted.children) {

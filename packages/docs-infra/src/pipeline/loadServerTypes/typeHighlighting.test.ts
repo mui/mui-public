@@ -281,7 +281,7 @@ describe('typeHighlighting', () => {
   y: number;
 }`;
       const result = await formatDetailedTypeAsHast(multilineType);
-      // Line gutters are added via starryNightGutter
+      // Line gutters are added via addLineGutters
       // Check that the structure is correct (pre > code with children)
       const preElement = result.children[0] as Element;
       expect(preElement.tagName).toBe('pre');

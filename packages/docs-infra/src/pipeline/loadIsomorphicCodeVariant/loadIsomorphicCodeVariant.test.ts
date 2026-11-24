@@ -8,7 +8,7 @@ import {
 } from '../../CodeHighlighter/fallbackFormat';
 import { isFrameSpan } from '../parseSource/isFrameSpan';
 import { decodeHastSource } from './decodeHastSource';
-import { starryNightGutter } from '../parseSource/addLineGutters';
+import { addLineGutters } from '../parseSource/addLineGutters';
 import { createEnhanceCodeEmphasis } from '../enhanceCodeEmphasis/enhanceCodeEmphasis';
 import { createLoadIsomorphicCodeSource } from '../loadIsomorphicCodeSource/loadIsomorphicCodeSource';
 import { stringOrHastToString } from '../hastUtils';
@@ -52,7 +52,7 @@ describe('loadIsomorphicCodeVariant', () => {
       const extraSource = '.before {}\n.root { color: red; }\n.after {}';
       const parseSource: ParseSource = (source) => {
         const root: HastRoot = { type: 'root', children: [{ type: 'text', value: source }] };
-        starryNightGutter(root, source.split(/\r?\n|\r/));
+        addLineGutters(root, source.split(/\r?\n|\r/));
         return root;
       };
       const sourceTransformers: SourceTransformers = [
@@ -135,7 +135,7 @@ describe('loadIsomorphicCodeVariant', () => {
       const source = Array.from({ length: 14 }, (_, index) => `line ${index + 1}`).join('\n');
       const parseSource: ParseSource = (value) => {
         const root: HastRoot = { type: 'root', children: [{ type: 'text', value }] };
-        starryNightGutter(root, value.split('\n'));
+        addLineGutters(root, value.split('\n'));
         return root;
       };
 

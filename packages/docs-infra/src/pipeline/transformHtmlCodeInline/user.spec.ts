@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { unified } from 'unified';
 import rehypeParse from 'rehype-parse';
 import rehypeStringify from 'rehype-stringify';
-import { createParseSource, resetStarryNight } from '../parseSource/parseSource';
+import { createParseSource, resetHighlighter } from '../parseSource/parseSource';
 import transformHtmlCodeInline from './transformHtmlCodeInline';
 
 /**
@@ -34,9 +34,9 @@ describe('transformHtmlCodeInline', () => {
   }
 
   describe('inline code highlighting in MDX documentation', () => {
-    it('registers inline grammars when Starry Night was initialized lazily', async () => {
-      resetStarryNight();
-      await createParseSource([]);
+    it('highlights inline code when the highlighter was loaded lazily', async () => {
+      resetHighlighter();
+      await createParseSource();
 
       const output = await processHtml('<code class="language-tsx">const value = 1</code>');
 
@@ -131,7 +131,7 @@ describe('transformHtmlCodeInline', () => {
     });
 
     it('preserves inline code with unsupported language', async () => {
-      // Using a language that isn't in the grammar list
+      // Using a language that isn't supported
       const input = '<code class="language-python">print("hello")</code>';
 
       const output = await processHtml(input);

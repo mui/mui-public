@@ -228,7 +228,7 @@ interface PropertyAccumulator {
 /**
  * Extracts property declarations from a line's HAST children by walking span tokens.
  *
- * Recognizes the patterns produced by Starry Night:
+ * Recognizes the patterns produced by the highlighter:
  * - Regular:      `<pl-v>"name"` → `<pl-k>":"` → type tokens → `";"`
  * - Optional:     `<pl-v>"name"` → `<pl-k>"?:"` → type tokens → `";"`
  * - Quoted:       `<pl-s>"name"` → `<pl-k>":"` or `<pl-k>"?:"` → type tokens
@@ -447,7 +447,7 @@ function collectTypeTokens(
 function getTokenText(node: Element): string {
   const text = getShallowTextContent(node);
   if (isStringLiteralSpan(node)) {
-    // Starry Night strips quotes from pl-s content; restore them
+    // The highlighter strips quotes from pl-s content; restore them
     // Check if the text already has quotes
     if (
       (text.startsWith("'") && text.endsWith("'")) ||

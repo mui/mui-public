@@ -622,7 +622,7 @@ describe('extractTypeProps', () => {
     });
 
     it('should not split template-literal types with embedded pipes', async () => {
-      // Template-literal types are rendered as pl-s spans by Starry Night,
+      // Template-literal types are rendered as pl-s spans by the highlighter,
       // so inner pipes appear inside quoted strings in the extracted type text.
       // This verifies that embedded pipes inside string-typed branches
       // are not mistakenly split during merge/dedupe.

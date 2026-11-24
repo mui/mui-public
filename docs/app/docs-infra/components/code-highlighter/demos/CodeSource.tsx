@@ -1,7 +1,7 @@
 import * as React from 'react';
 import styles from './CodeSource.module.css';
 
-import './syntax.css';
+import '@mui/internal-docs-infra/syntaxTheme.css';
 
 /**
  * Presentational wrapper that applies the frame / line / highlight (emphasis)

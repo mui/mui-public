@@ -100,7 +100,7 @@ function findElementsWithClass(
  * Checks if a HAST tree contains a top-level pipe operator (|) indicating a union type.
  * Top-level means not nested inside parentheses or braces.
  *
- * Starry Night highlights `|` with the `pl-k` (keyword) class.
+ * The highlighter marks `|` with the `pl-k` (keyword) class.
  */
 export function isUnionHast(hast: HastRoot): boolean {
   // Track nesting depth
@@ -155,7 +155,7 @@ export function isUnionHast(hast: HastRoot): boolean {
 /**
  * Checks if a HAST tree represents a function type.
  *
- * Function types contain `=>` which Starry Night highlights with `pl-k` (keyword) class.
+ * Function types contain `=>` which the highlighter marks with the `pl-k` (keyword) class.
  */
 export function isFunctionHast(hast: HastRoot): boolean {
   // Find all keyword elements (pl-k class)

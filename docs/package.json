@@ -27,7 +27,6 @@
     "rehype-slug": "^6.0.0",
     "remark-gfm": "^4.0.1",
     "server-only": "^0.0.1",
-    "vscode-oniguruma": "^2.0.1",
     "web-vitals": "^6.2.3"
   },
   "devDependencies": {
@@ -36,7 +35,6 @@
     "@types/node": "22.20.5",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
-    "@wooorm/starry-night": "3.11.0",
     "serve": "14.2.8",
     "typescript": "7.0.2"
   }
