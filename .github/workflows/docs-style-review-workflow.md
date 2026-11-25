@@ -19,10 +19,6 @@ on:
         description: Most inline suggestions in one review.
         type: number
         default: 15
-      lines_per_comment:
-        description: Added lines per suggestion in the budget; small changes get fewer comments.
-        type: number
-        default: 10
 # The default roles (admin, maintainer, write) are kept: the pull request author must be a
 # maintainer, so outside contributors and bots don't start an agent with access to secrets.
 # A newer push replaces a review still running for the same pull request.
@@ -65,33 +61,43 @@ tools:
 network:
   allowed: [defaults]
 jobs:
-  # Deterministic: which changed files to review, and how many suggestions the change is worth.
-  # Drafts and pull requests without matching files stop here, before the agent.
+  # Deterministic: which lines to review. A line is only
+  # reviewed once: after a review, only lines changed since its commit are, and a line that applies
+  # an earlier suggestion is settled. Drafts and pull requests with nothing new stop here.
   scope:
     needs: [pre_activation]
     if: needs.pre_activation.outputs.activated == 'true' && github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read
+      contents: read
     outputs:
       files: ${{ steps.scope.outputs.files }}
+      lines: ${{ steps.scope.outputs.lines }}
       budget: ${{ steps.scope.outputs.budget }}
     steps:
-      - name: Pick the files to review
+      - name: Pick the lines to review
         id: scope
         env:
           GH_TOKEN: ${{ github.token }}
           NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           INCLUDE: ${{ inputs.include }}
           EXCLUDE: ${{ inputs.exclude }}
           MAX_COMMENTS: ${{ inputs.max_comments }}
-          LINES_PER_COMMENT: ${{ inputs.lines_per_comment }}
         run: |
           set -euo pipefail
-          gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$NUMBER/files" \
-              --jq '.[] | select(.status != "removed") | {filename, additions}' \
-            | python3 -I -c '
-          import json, math, os, re, sys
+          python3 -I -c '
+          import json, os, re, subprocess
+
+          REPO, NUMBER, HEAD = os.environ["GITHUB_REPOSITORY"], os.environ["NUMBER"], os.environ["HEAD_SHA"]
+          BOT = "code-infra-auditor[bot]"
+
+          def api(path, jq):
+              # One JSON value per line, so `jq` must not yield bare strings: `gh` prints them raw.
+              out = subprocess.run(["gh", "api", "--paginate", path, "--jq", jq],
+                                   check=True, capture_output=True, text=True).stdout
+              return [json.loads(line) for line in out.splitlines() if line]
 
           def pattern(glob):
               # `**/` matches any number of directories, `*` and `?` stay within one.
@@ -104,18 +110,58 @@ jobs:
           def patterns(name):
               return [pattern(line.strip()) for line in os.environ[name].splitlines() if line.strip()]
 
+          def added_lines(patch):
+              """The lines a patch adds, by their number in the new file."""
+              lines, number = {}, 0
+              for row in (patch or "").splitlines():
+                  hunk = re.match(r"@@ -\d+(?:,\d+)? \+(\d+)", row)
+                  if hunk:
+                      number = int(hunk.group(1))
+                  elif row.startswith("+"):
+                      lines[number] = row[1:]
+                      number += 1
+                  elif row.startswith(" "):
+                      number += 1
+              return lines
+
           include, exclude = patterns("INCLUDE"), patterns("EXCLUDE")
-          files = [f for f in map(json.loads, sys.stdin)
+          files = {f["filename"]: added_lines(f.get("patch"))
+                   for f in api(f"repos/{REPO}/pulls/{NUMBER}/files", ".[] | select(.status != \"removed\")")
                    if any(p.match(f["filename"]) for p in include)
-                   and not any(p.match(f["filename"]) for p in exclude)]
-          added = sum(f["additions"] for f in files)
-          budget = min(int(os.environ["MAX_COMMENTS"]),
-                       math.ceil(added / int(os.environ["LINES_PER_COMMENT"])))
-          print(f"{len(files)} files, {added} added lines, up to {budget} suggestions")
+                   and not any(p.match(f["filename"]) for p in exclude)}
+
+          # Lines changed since the last review. A commit the compare API no longer has, after a
+          # force push, means everything is reviewed again.
+          reviewed = api(f"repos/{REPO}/pulls/{NUMBER}/reviews",
+                         f".[] | select(.user.login == \"{BOT}\") | .commit_id | tojson")
+          if reviewed and reviewed[-1] == HEAD:
+              files = {}
+          elif reviewed:
+              try:
+                  changed = {f["filename"]: added_lines(f.get("patch")) for f in
+                             api(f"repos/{REPO}/compare/{reviewed[-1]}...{HEAD}", ".files[]")}
+                  files = {path: {n: text for n, text in lines.items() if n in changed.get(path, {})}
+                           for path, lines in files.items()}
+              except subprocess.CalledProcessError:
+                  print(f"The last reviewed commit {reviewed[-1]} is gone; reviewing every added line")
+
+          # A line that reads as an earlier suggestion has it applied.
+          suggested = {line for body in api(f"repos/{REPO}/pulls/{NUMBER}/comments",
+                                             f".[] | select(.user.login == \"{BOT}\") | .body | tojson")
+                       for block in re.findall(r"```suggestion\n(.*?)```", body, re.S)
+                       for line in block.splitlines() if line.strip()}
+          lines = {path: sorted(n for n, text in rows.items() if text.strip() and text not in suggested)
+                   for path, rows in files.items()}
+          lines = {path: numbers for path, numbers in lines.items() if numbers}
+
+          added = sum(map(len, lines.values()))
+          budget = int(os.environ["MAX_COMMENTS"]) if added else 0
+          print(f"{len(lines)} files, {added} lines to review, up to {budget} suggestions")
           with open(os.environ["GITHUB_OUTPUT"], "a") as out:
               out.write(f"budget={budget}\n")
               if budget:
-                  out.write("files=" + json.dumps([f["filename"] for f in files]) + "\n")
+                  out.write("files=" + json.dumps(sorted(lines)) + "\n")
+                  out.write("lines=" + json.dumps(lines) + "\n")
           '
   # The rest of the workflow, the agent's included, only runs when there's something to review.
   activation:
@@ -131,13 +177,15 @@ steps:
       HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
       HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       FILES: ${{ needs.scope.outputs.files }}
+      LINES: ${{ needs.scope.outputs.lines }}
       BUDGET: ${{ needs.scope.outputs.budget }}
     run: |
       set -euo pipefail
       out=/tmp/gh-aw/agent/review
       mkdir -p "$out/files"
       jq -n --argjson number "$NUMBER" --arg sha "$HEAD_SHA" --argjson budget "$BUDGET" \
-        --argjson files "$FILES" '{number: $number, head_sha: $sha, budget: $budget, files: $files}' \
+        --argjson files "$FILES" --argjson lines "$LINES" \
+        '{number: $number, head_sha: $sha, budget: $budget, files: $files, lines: $lines}' \
         > "$out/scope.json"
       jq -r '.[]' <<< "$FILES" | while IFS= read -r path; do
         mkdir -p "$out/files/$(dirname "$path")"
@@ -181,19 +229,22 @@ they point to first; they override anything here.
 
 All in `/tmp/gh-aw/agent/review/`:
 
-- `scope.json`: the pull request `number`, its `head_sha`, the `files` to review, and your `budget`
-  of suggestions.
+- `scope.json`: the pull request `number`, its `head_sha`, the `files` to review, the `lines` of
+  each that are yours to comment on (numbered as in the file), and your `budget` of suggestions.
 - `files/`: those files as they are in the pull request.
-- `patches.json`: per file, the diff of the pull request. Only its added lines (`+`) are yours to
-  comment on, numbered as in the file.
+- `patches.json`: per file, the diff of the pull request, for context.
 - `earlier-comments.json`: your earlier suggestions on this pull request.
+
+Each line is reviewed once. After a review, `lines` only holds what changed since, without the
+lines that apply one of your earlier suggestions: everything else was settled then, whether the
+author took your suggestion or not.
 
 The rest of the repository, on its default branch, is in the working directory: read neighboring
 pages for the terms and conventions they use.
 
 ## What to look for
 
-On the added lines, in this order:
+On your `lines`, in this order:
 
 1. The writing style guide below.
 2. Mistakes: typos, grammar, broken Markdown, a word that says something the author didn't mean.
@@ -212,9 +263,13 @@ adds to the writing style guide, which follows.
 
 ## Suggest
 
+The budget is a ceiling, not a target. Finding nothing is a good outcome: suggest only what a
+reader would trip over, and don't go looking for something to say. Rewording a line that's already
+fine, or one you'd have phrased differently, is not a suggestion.
+
 Post at most `budget` suggestions, the most important first, each with
 `create_pull_request_review_comment`: the file's `path`, the `line` (and `start_line` for several
-lines) of added lines in the patch, and a body of one short sentence saying why, then a suggestion
+lines) within your `lines`, and a body of one short sentence saying why, then a suggestion
 block replacing exactly those lines:
 
 ````markdown
@@ -226,8 +281,8 @@ Material UI is a brand name, written with a non-breaking space.
 ````
 
 Copy the lines exactly and change only what you mean to: keep their indentation, Markdown and
-line breaks, and write a non-breaking space as the character itself. Skip anything
-`earlier-comments.json` already suggests on the same line.
+line breaks, and write a non-breaking space as the character itself. Never repeat or rephrase
+anything `earlier-comments.json` already raised.
 
 Then call `submit_pull_request_review` with event `COMMENT` and a body of one or two sentences:
 what you found overall and, when there was more than your budget, what kind of thing you left out.
