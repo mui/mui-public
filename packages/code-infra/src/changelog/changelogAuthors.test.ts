@@ -60,7 +60,7 @@ describe('Copilot', () => {
     return changes;
   }
 
-  it('credits who asked for the pull request', async () => {
+  it('opens pull requests that are credited to who asked for them', async () => {
     const [change] = await fetchChanges({
       commits: [
         {
@@ -70,7 +70,7 @@ describe('Copilot', () => {
       ],
     });
 
-    expect(change).toMatchObject({ author: REQUESTER, pullRequest: { openedBy: REQUESTER } });
+    expect(change).toMatchObject({ author: REQUESTER, pullRequest: { openedBy: COPILOT } });
     expect(warnings).toEqual([]);
   });
 

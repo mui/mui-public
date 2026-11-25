@@ -180,19 +180,6 @@ function createAuthorResolver({ octokit, repository, signal }) {
       return null;
     }
     const { login, type } = pull.user;
-    if (login === COPILOT) {
-      // It assigns itself and whoever asked for the pull request.
-      const people = (pull.assignees ?? []).filter((assignee) => assignee.type !== 'Bot');
-      return people.length === 1
-        ? {
-            login: people[0].login,
-            name: null,
-            // The association of the pull request is the one of Copilot.
-            association: await getMembership(people[0].login),
-            isBot: false,
-          }
-        : { login, name: null, association: 'community', isBot: false };
-    }
     const isSameRepository =
       pullRepository.owner === repository.owner && pullRepository.repo === repository.repo;
     /** @type {ChangelogAuthor['association']} */
@@ -203,7 +190,27 @@ function createAuthorResolver({ octokit, repository, signal }) {
         : // The association with another repository says nothing about this one.
           await getMembership(login);
     }
-    return { login, name: null, association, isBot: type === 'Bot' };
+    return { login, name: null, association, isBot: isBotAccount(pull.user) };
+  }
+
+  /**
+   * The opener, or the person who asked Copilot for the pull request.
+   *
+   * @param {PullRequest} pull
+   * @param {GitHubRepository} pullRepository
+   * @returns {Promise<ChangelogAuthor | null>}
+   */
+  async function getCredit(pull, pullRepository) {
+    if (pull.user?.login === COPILOT) {
+      // It assigns itself and whoever asked for the pull request.
+      const people = (pull.assignees ?? []).filter((assignee) => assignee.type !== 'Bot');
+      if (people.length === 1) {
+        const { login } = people[0];
+        // The association of the pull request is the one of Copilot.
+        return { login, name: null, association: await getMembership(login), isBot: false };
+      }
+    }
+    return getOpener(pull, pullRepository);
   }
 
   /**
@@ -216,7 +223,7 @@ function createAuthorResolver({ octokit, repository, signal }) {
   async function resolve(pull, pullRepository, chain = []) {
     const isBot = isBotAccount(pull.user);
     const opener = async () => ({
-      author: await getOpener(pull, pullRepository),
+      author: await getCredit(pull, pullRepository),
       isBot,
       references: [],
     });

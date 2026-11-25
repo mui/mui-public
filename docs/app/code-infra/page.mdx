@@ -35,7 +35,7 @@ console.log(`## ${version}\n\nChanges since ${previous.ref}:\n\n${lines.join('\n
 
 Run inside a checkout, every option has a default: the release is `HEAD`, and it starts at the closest version tag behind it. Commits without a pull request are left out unless `includeDirectCommits` is set.
 
-To leave out changes of bots, filter on `change.author?.isBot`. Copilot isn't one: a pull request it opened has the person who asked for it as the author. A cherry-pick that a bot opened has the original author: filter on `change.pullRequest?.openedBy?.isBot` to leave it out too.
+To leave out changes of bots, filter on `change.author?.isBot`. Copilot isn't one: a pull request it opened has the person who asked for it as the author. To leave those out too, filter on `change.pullRequest?.openedBy?.login === 'Copilot'`. A cherry-pick that a bot opened has the original author: filter on `change.pullRequest?.openedBy?.isBot` to leave it out too.
 
 ### Changelog code
 

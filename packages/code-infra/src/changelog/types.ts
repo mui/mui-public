@@ -497,8 +497,8 @@ export interface ChangelogChange {
     title: string;
     body: string;
     /**
-     * Not necessarily the author of the change, for a cherry-pick by a bot. The person who asked
-     * Copilot for the pull request, when it opened it. `null` when the GitHub account was deleted.
+     * Not necessarily the author of the change: a cherry-pick can be opened by a bot, and Copilot
+     * works for a person. `null` when the GitHub account was deleted.
      */
     openedBy: ChangelogAuthor | null;
   } | null;
