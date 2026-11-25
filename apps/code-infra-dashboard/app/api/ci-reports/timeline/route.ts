@@ -41,7 +41,6 @@ export async function GET(request: NextRequest) {
   }
   const { repo, timeline, reportType, limit, cursor } = parsed.data;
 
-  // The same answer for a private repository as for one that doesn't exist.
   const repoConfig = await findViewableRepository(repo);
   if (!repoConfig) {
     return errorResponse('Unknown repository', 404);

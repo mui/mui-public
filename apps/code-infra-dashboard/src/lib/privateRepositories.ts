@@ -1,6 +1,7 @@
 import { Octokit } from '@octokit/rest';
 import { repositories } from '@/constants';
 import type { Repository } from '@/constants';
+import { describeGitHubError } from './auth/describeGitHubError';
 import { readSession } from './auth/session';
 
 /**
@@ -14,7 +15,9 @@ async function canRead(token: string, repo: Repository): Promise<boolean> {
   } catch (error) {
     // GitHub answers 404 for a repository the token can't read.
     if (!(error instanceof Error && 'status' in error && error.status === 404)) {
-      console.warn(`Could not confirm access to ${repo.owner}/${repo.name}:`, error);
+      console.warn(
+        `Could not confirm access to ${repo.owner}/${repo.name}: ${describeGitHubError(error)}`,
+      );
     }
     return false;
   }

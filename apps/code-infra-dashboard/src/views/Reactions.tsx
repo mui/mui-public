@@ -23,6 +23,7 @@ import { useSearchParamsState } from '../hooks/useSearchParamsState';
 import { parseIssueUrl } from '../utils/github';
 import type { IssueReactionTarget } from '../utils/github';
 import { useGitHubQuery } from '../hooks/useGitHubQuery';
+import { useSession } from '../hooks/useSession';
 
 const EXAMPLES = [
   { label: 'mui-design-kits#10', url: 'https://github.com/mui/mui-design-kits/issues/10' },
@@ -175,6 +176,7 @@ function computeMonthlyBuckets(rows: ReactionRow[]): MonthlyBucket[] {
 }
 
 export default function Reactions() {
+  const { session } = useSession();
   const [searchParams, setSearchParams] = useSearchParamsState(
     { url: { defaultValue: '' }, all: { defaultValue: '' } },
     { replace: true },
@@ -231,7 +233,7 @@ export default function Reactions() {
       <Heading level={1}>GitHub reactions</Heading>
       <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2 }}>
         Paste a GitHub issue or pull request URL to list every reaction and the users who left them.
-        Sign in to use private repositories. Examples:{' '}
+        {session?.available ? 'Sign in to use private repositories. ' : null}Examples:{' '}
         {EXAMPLES.map((example, index) => (
           <React.Fragment key={example.url}>
             {index > 0 ? ', ' : null}

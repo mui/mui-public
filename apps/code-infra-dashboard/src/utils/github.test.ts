@@ -1,21 +1,19 @@
+// @vitest-environment jsdom
 import { vi, describe, it, expect, afterEach } from 'vitest';
 import { proxiedOctokit } from './github';
 
 /**
- * Where the stubbed browser tab is: local dev, which differs from api.github.com
- * in scheme, host and port, so each part of the rewrite is checked.
+ * Where the tab is: jsdom's default location, local dev, which differs from
+ * api.github.com in scheme, host and port, so each part of the rewrite is checked.
  */
-const TAB_ORIGIN = 'http://localhost:3000';
+const TAB_ORIGIN = window.location.origin;
 
 afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-/**
- * Stands in for a browser tab on the dashboard: stubs its location and its fetch,
- * recording every URL Octokit ends up requesting.
- */
-function stubBrowser(respond: (url: string) => Response): string[] {
+/** Stubs the network, recording every URL Octokit ends up requesting. */
+function stubFetch(respond: (url: string) => Response): string[] {
   const requested: string[] = [];
   const fakeFetch: typeof fetch = async (input) => {
     const url = String(input);
@@ -23,7 +21,6 @@ function stubBrowser(respond: (url: string) => Response): string[] {
     return respond(url);
   };
   vi.stubGlobal('fetch', fakeFetch);
-  vi.stubGlobal('window', { location: new URL(TAB_ORIGIN) });
   return requested;
 }
 
@@ -31,7 +28,7 @@ describe('proxiedOctokit', () => {
   // GitHub's Link header points the next page at api.github.com. Following it
   // verbatim would send every page after the first around the proxy, anonymously.
   it('sends every page of a paginated request through the proxy', async () => {
-    const requested = stubBrowser((url) =>
+    const requested = stubFetch((url) =>
       new URL(url).searchParams.get('page') === '2'
         ? Response.json([{ id: 2 }])
         : Response.json([{ id: 1 }], {
