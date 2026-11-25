@@ -304,6 +304,202 @@
 			"isValue": false,
 			"isType": true,
 			"isNamespace": false
+		},
+		{
+			"name": "Selection",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Selection",
+					"typeArguments": [
+						{
+							"type": {
+								"name": "Mode",
+								"constraint": {
+									"kind": "union",
+									"types": [
+										{
+											"kind": "literal",
+											"value": "\"multiple\""
+										},
+										{
+											"kind": "literal",
+											"value": "\"single\""
+										}
+									]
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [
+					{
+						"name": "value",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "array",
+									"elementType": {
+										"kind": "intrinsic",
+										"intrinsic": "string"
+									}
+								}
+							]
+						},
+						"optional": false
+					}
+				]
+			},
+			"documentation": {
+				"description": "Both ends of the constraint take one branch, one of its members the other.",
+				"tags": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "SelectionMode",
+			"type": {
+				"kind": "union",
+				"typeName": {
+					"name": "SelectionMode"
+				},
+				"types": [
+					{
+						"kind": "literal",
+						"value": "\"single\""
+					},
+					{
+						"kind": "literal",
+						"value": "\"multiple\""
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "AliasedSelection",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "AliasedSelection",
+					"typeArguments": [
+						{
+							"type": {
+								"name": "Mode",
+								"constraint": {
+									"kind": "union",
+									"typeName": {
+										"name": "SelectionMode"
+									},
+									"types": [
+										{
+											"kind": "literal",
+											"value": "\"single\""
+										},
+										{
+											"kind": "literal",
+											"value": "\"multiple\""
+										}
+									]
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [
+					{
+						"name": "value",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "array",
+									"elementType": {
+										"kind": "intrinsic",
+										"intrinsic": "string"
+									}
+								}
+							]
+						},
+						"optional": false
+					}
+				]
+			},
+			"documentation": {
+				"description": "The same, with the union constraint behind a name.",
+				"tags": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "FlagSelection",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "FlagSelection",
+					"typeArguments": [
+						{
+							"type": {
+								"name": "Multiple",
+								"constraint": {
+									"kind": "intrinsic",
+									"intrinsic": "boolean"
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [
+					{
+						"name": "value",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								{
+									"kind": "array",
+									"elementType": {
+										"kind": "intrinsic",
+										"intrinsic": "string"
+									}
+								}
+							]
+						},
+						"optional": false
+					}
+				]
+			},
+			"documentation": {
+				"description": "The same, with `boolean` as the union constraint.",
+				"tags": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
 		}
 	]
 }

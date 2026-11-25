@@ -1,8 +1,10 @@
+import path from 'node:path';
 import ts from 'typescript';
-import { withTypeName } from '../models';
+import { TypeName, withTypeName } from '../models';
 import type { ExportNode } from '../models';
 import type { ScopedParserContext } from '../parserContext';
 import { createParserContext } from '../parserContextFactory';
+import { getFullName } from './common';
 import { parseExport } from './exportParser';
 import { unwrapParenthesizedTypeNode } from './typeResolvers/typeOperatorTypeNodes';
 
@@ -13,6 +15,8 @@ interface Candidate {
   companionName: string;
   wideProbeName: string;
   narrowProbeName: string;
+  /** Declarations whose generated aliases the candidate's probes go through. */
+  chain: ts.TypeAliasDeclaration[];
 }
 
 /**
@@ -23,6 +27,8 @@ interface Candidate {
 interface Probe {
   name: string;
   declaration: ts.TypeAliasDeclaration;
+  /** This declaration, then each alias it forwards to on the way to the conditional. */
+  chain: ts.TypeAliasDeclaration[];
 }
 
 /**
@@ -30,19 +36,22 @@ interface Probe {
  * their own type parameters. Left generic, TypeScript cannot pick a branch of such a
  * conditional, so it resolves to every branch at once.
  *
- * The condition is checked at both ends of what the tested type parameters accept: their
- * constraint (`unknown` without one), and `never`. When it agrees at both ends, the alias is
- * resolved with the constraints substituted. Untested type parameters stay generic, and the
- * export keeps its name and type parameter list. For a condition that only flips one way as
- * the type argument narrows, such as an `IsAny` guard, the branch holds for every type
- * argument but `any`; an equality check can still differ in between. A condition that
- * distributes over a tested type parameter yields `never` at the `never` end and is left to
- * the type resolvers.
+ * The condition is checked with the tested type parameters set to `never`, and to each
+ * member of their constraint (`unknown` without one), which covers `boolean` and named
+ * unions of literals. When every check picks the same branch, the alias is resolved with the
+ * constraints substituted. Untested type parameters stay generic, and the export keeps its
+ * name and type parameter list. For a condition that only flips one way as the type argument
+ * narrows, such as an `IsAny` guard, the branch holds for every type argument but `any`; an
+ * equality check against a type narrower than a constraint member, such as one literal of
+ * `string`, can still differ. A condition that distributes over a tested type parameter
+ * yields `never` at the `never` end and is left to the type resolvers.
  *
  * TypeScript only instantiates an alias with chosen type arguments when they are written
  * out, so the substitutions are written as aliases next to each declaration, in a second
- * program that reuses the first. Generated aliases that don't type-check are a bug, so they
- * throw.
+ * program that reuses the first. Declarations in `declare global` blocks and ambient modules
+ * are skipped, since an `import()` type can't name them. When a probe still reaches a name
+ * it can't resolve, the exports that depend on it keep the union, and a warning names the
+ * declaration whose generated alias doesn't type-check.
  *
  * @param exportSymbols - Each parsed export, with the symbol it was resolved from.
  * @param context - Context of the program being parsed.
@@ -59,11 +68,15 @@ export function substituteConditionalExports(
   const probes = new Map<ts.TypeAliasDeclaration, Probe | undefined>();
   const candidates = new Map<ts.TypeAliasDeclaration, Candidate>();
 
-  const writeAlias = (declaration: ts.TypeAliasDeclaration, body: string) => {
+  const writeAlias = (
+    declaration: ts.TypeAliasDeclaration,
+    body: string,
+    extraParameters: string[] = [],
+  ) => {
     const name = `__substituted${generatedNames.size}`;
     generatedNames.add(name);
     const aliases = insertions.get(declaration) ?? [];
-    aliases.push(`type ${name}${getTypeParameterList(declaration)} = ${body};`);
+    aliases.push(`type ${name}${getTypeParameterList(declaration, extraParameters)} = ${body};`);
     insertions.set(declaration, aliases);
     return name;
   };
@@ -78,9 +91,13 @@ export function substituteConditionalExports(
       return probes.get(declaration);
     }
     probes.set(declaration, undefined);
+    if (isInAmbientModule(declaration)) {
+      return undefined;
+    }
 
     const body = unwrapParenthesizedTypeNode(declaration.type);
     let condition: string | undefined;
+    let chain = [declaration];
     if (body === conditional) {
       condition = `${conditional.checkType.getText()} extends ${conditional.extendsType.getText()} ? 'T' : 'F'`;
     } else if (ts.isTypeReferenceNode(body) && body.typeArguments) {
@@ -92,13 +109,14 @@ export function substituteConditionalExports(
       if (targetProbe) {
         const typeArguments = body.typeArguments.map((argument) => argument.getText());
         condition = `${getProbeReference(targetProbe, declaration)}<${typeArguments.join(', ')}>`;
+        chain = [declaration, ...targetProbe.chain];
       }
     }
     if (!condition) {
       return undefined;
     }
 
-    const probe: Probe = { name: writeAlias(declaration, condition), declaration };
+    const probe: Probe = { name: writeAlias(declaration, condition), declaration, chain };
     probes.set(declaration, probe);
     return probe;
   };
@@ -130,28 +148,53 @@ export function substituteConditionalExports(
 
     // Tested type parameters get their constraint. Every original type parameter is kept on
     // the generated aliases, so constraints and defaults that refer to one still resolve.
-    const getTypeArguments = (getUntested: (parameter: ts.TypeParameterDeclaration) => string) =>
+    const tested = typeParameters.filter((parameter) => testedParameters.has(parameter));
+    const getConstraint = (parameter: ts.TypeParameterDeclaration) =>
+      parameter.constraint?.getText() ?? 'unknown';
+    const getTypeArguments = (
+      getTested: (parameter: ts.TypeParameterDeclaration) => string,
+      getUntested: (parameter: ts.TypeParameterDeclaration) => string,
+    ) =>
       typeParameters
         .map((parameter) =>
-          testedParameters.has(parameter)
-            ? (parameter.constraint?.getText() ?? 'unknown')
-            : getUntested(parameter),
+          testedParameters.has(parameter) ? getTested(parameter) : getUntested(parameter),
         )
         .join(', ');
+    // A type parameter per tested one, each a naked check type, so the probe distributes over
+    // every member of the constraints the generated arguments pass in. The condition doesn't
+    // involve untested type parameters, so the probes pass `never`, which satisfies any
+    // constraint they have on a substituted one.
+    const getMemberName = (parameter: ts.TypeParameterDeclaration) =>
+      `__Member${tested.indexOf(parameter)}`;
+    const memberProbeName = writeAlias(
+      declaration,
+      tested.reduceRight(
+        (inner, parameter) => `${getMemberName(parameter)} extends unknown ? ${inner} : never`,
+        `[${probe.name}<${getTypeArguments(getMemberName, () => 'never')}>]`,
+      ),
+      // Defaulted, since they follow the declaration's own, which may be optional.
+      tested.map(
+        (parameter) =>
+          `${getMemberName(parameter)} extends ${getConstraint(parameter)} = ${getConstraint(parameter)}`,
+      ),
+    );
+    const parameterNames = typeParameters.map((parameter) => parameter.name.text);
     candidates.set(declaration, {
       declaration,
       exportNodes: [exportNode],
       companionName: writeAlias(
         declaration,
-        `${declaration.name.text}<${getTypeArguments((parameter) => parameter.name.text)}>`,
+        `${declaration.name.text}<${getTypeArguments(getConstraint, (parameter) => parameter.name.text)}>`,
       ),
-      // The condition doesn't involve untested type parameters, so the probes pass `never`,
-      // which satisfies any constraint they have on a substituted one.
-      wideProbeName: writeAlias(declaration, `${probe.name}<${getTypeArguments(() => 'never')}>`),
+      wideProbeName: writeAlias(
+        declaration,
+        `${memberProbeName}<${[...parameterNames, ...tested.map(getConstraint)].join(', ')}>`,
+      ),
       narrowProbeName: writeAlias(
         declaration,
-        `${probe.name}<${typeParameters.map(() => 'never').join(', ')}>`,
+        `[${probe.name}<${typeParameters.map(() => 'never').join(', ')}>]`,
       ),
+      chain: probe.chain,
     });
   }
 
@@ -160,7 +203,7 @@ export function substituteConditionalExports(
     return replacements;
   }
 
-  const companionProgram = createCompanionProgram(program, insertions);
+  const { companionProgram, getFailures } = createCompanionProgram(program, insertions);
   const companionChecker = companionProgram.getTypeChecker();
   const aliasesByName = new Map<string, ts.TypeAliasDeclaration>();
   for (const fileName of new Set(
@@ -176,6 +219,14 @@ export function substituteConditionalExports(
   for (const candidate of candidates.values()) {
     const wide = readProbe(candidate.wideProbeName, aliasesByName, companionChecker);
     const narrow = readProbe(candidate.narrowProbeName, aliasesByName, companionChecker);
+    if (wide === 'error' || narrow === 'error') {
+      const failures = getFailures();
+      const failed = candidate.chain.find((declaration) => failures.has(declaration));
+      if (failed) {
+        reportFailure(candidate.declaration, failed, failures.get(failed)!, context);
+      }
+      continue;
+    }
     if (wide !== narrow || (wide !== 'T' && wide !== 'F')) {
       continue;
     }
@@ -201,8 +252,23 @@ export function substituteConditionalExports(
       throw new Error(`The generated alias ${candidate.companionName} could not be parsed.`);
     }
 
+    // An undecided conditional whose branches stay a union carries no name, so it is named
+    // after the generic alias, with its type parameters as the type arguments.
+    const aliasTypeName = getFullName(
+      checker.getTypeAtLocation(candidate.declaration.name),
+      undefined,
+      context,
+    );
     for (const exportNode of candidate.exportNodes) {
-      const typeName = 'typeName' in exportNode.type ? exportNode.type.typeName : undefined;
+      const exportTypeName = 'typeName' in exportNode.type ? exportNode.type.typeName : undefined;
+      // A namespaced export is renamed after its namespace even without a type to name.
+      const typeName = exportTypeName
+        ? new TypeName(
+            exportTypeName.name,
+            exportTypeName.namespaces,
+            exportTypeName.typeArguments ?? aliasTypeName?.typeArguments,
+          )
+        : aliasTypeName;
       if (typeName) {
         replacements.set(
           exportNode,
@@ -326,11 +392,55 @@ function getTypeAliasDeclaration(
   return target?.declarations?.find(ts.isTypeAliasDeclaration);
 }
 
-function getTypeParameterList(declaration: ts.TypeAliasDeclaration): string {
-  const parameters = declaration.typeParameters ?? [];
-  return parameters.length > 0
-    ? `<${parameters.map((parameter) => parameter.getText()).join(', ')}>`
-    : '';
+function getTypeParameterList(
+  declaration: ts.TypeAliasDeclaration,
+  extraParameters: string[],
+): string {
+  const parameters = [
+    ...(declaration.typeParameters ?? []).map((parameter) => parameter.getText()),
+    ...extraParameters,
+  ];
+  return parameters.length > 0 ? `<${parameters.join(', ')}>` : '';
+}
+
+/**
+ * Whether a declaration sits in a `declare global` block or a `declare module 'name'`
+ * block. Code in another file can't reach those through an `import()` type of their file.
+ *
+ * @param node - Declaration to check.
+ * @returns `true` inside either kind of block.
+ */
+function isInAmbientModule(node: ts.Node): boolean {
+  for (let parent = node.parent; !ts.isSourceFile(parent); parent = parent.parent) {
+    if (
+      ts.isModuleDeclaration(parent) &&
+      (!ts.isIdentifier(parent.name) || parent.flags & ts.NodeFlags.GlobalAugmentation)
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function reportFailure(
+  declaration: ts.TypeAliasDeclaration,
+  failed: ts.TypeAliasDeclaration,
+  diagnosticText: string,
+  context: ScopedParserContext,
+): void {
+  const sourceFile = failed.getSourceFile();
+  const { line, character } = sourceFile.getLineAndCharacterOfPosition(failed.name.getStart());
+  const typeName = declaration.name.text;
+  context.onWarning({
+    code: 'conditional-substitution-failed',
+    message: `Type extraction warning: A type generated to resolve the conditional type "${typeName}" through its constraints doesn't type-check at "${sourceFile.fileName}:${line + 1}:${character + 1}" (next to "${failed.name.text}"): ${diagnosticText} Keeping the union of its branches.`,
+    filePath: sourceFile.fileName,
+    line: line + 1,
+    column: character + 1,
+    parsedSymbolStack: [...context.parsedSymbolStack, typeName],
+    typeName,
+    diagnosticText,
+  });
 }
 
 /**
@@ -373,12 +483,16 @@ function getNamespacePath(node: ts.Node): string[] {
  *
  * @param program - Program to extend.
  * @param insertions - Generated aliases, by the declaration they follow.
- * @returns A program that reuses every unchanged file of `program`.
+ * @returns A program that reuses every unchanged file of `program`, and a function that
+ * reads the first diagnostic of each declaration whose generated aliases don't type-check.
  */
 function createCompanionProgram(
   program: ts.Program,
   insertions: Map<ts.TypeAliasDeclaration, string[]>,
-): ts.Program {
+): {
+  companionProgram: ts.Program;
+  getFailures: () => Map<ts.TypeAliasDeclaration, string>;
+} {
   const declarationsByFile = new Map<ts.SourceFile, ts.TypeAliasDeclaration[]>();
   for (const declaration of insertions.keys()) {
     const sourceFile = declaration.getSourceFile();
@@ -388,9 +502,11 @@ function createCompanionProgram(
     ]);
   }
 
-  const replacedFiles = new Map<string, { text: string; ranges: Array<[number, number]> }>();
+  type Range = { start: number; end: number; declaration: ts.TypeAliasDeclaration };
+  const replacedFiles = new Map<string, Range[]>();
+  const replacedTexts = new Map<string, string>();
   for (const [sourceFile, declarations] of declarationsByFile) {
-    const ranges: Array<[number, number]> = [];
+    const ranges: Range[] = [];
     let text = '';
     let position = 0;
     for (const declaration of declarations.sort((first, second) => first.end - second.end)) {
@@ -402,15 +518,16 @@ function createCompanionProgram(
         .get(declaration)!
         .map((alias) => `${exportKeyword}${alias}`)
         .join('\n');
-      ranges.push([start, text.length]);
+      ranges.push({ start, end: text.length, declaration });
       position = declaration.end;
     }
     text += sourceFile.text.slice(position);
-    replacedFiles.set(sourceFile.fileName, { text, ranges });
+    replacedFiles.set(sourceFile.fileName, ranges);
+    replacedTexts.set(sourceFile.fileName, text);
   }
 
-  // Generated aliases are type-checked even in declaration files. They repeat every type
-  // parameter of the declaration they follow, used or not.
+  // Diagnostics of generated aliases are read even in declaration files. They repeat every
+  // type parameter of the declaration they follow, used or not.
   const options = {
     ...program.getCompilerOptions(),
     skipLibCheck: false,
@@ -419,13 +536,31 @@ function createCompanionProgram(
   };
   const host = ts.createCompilerHost(options, true);
   const getSourceFile = host.getSourceFile.bind(host);
+  const { fileExists, readFile, directoryExists } = ts.sys;
   // Relative names resolve from the original program's directory, not the process's.
   host.getCurrentDirectory = () => program.getCurrentDirectory();
+  // The original program's files may not be on disk, as in an in-memory program. Module
+  // resolution looks for the directory before the file, so both come from the program.
+  const directories = new Set<string>();
+  for (const sourceFile of program.getSourceFiles()) {
+    for (
+      let directory = path.posix.dirname(sourceFile.fileName);
+      !directories.has(directory);
+      directory = path.posix.dirname(directory)
+    ) {
+      directories.add(directory);
+    }
+  }
+  host.fileExists = (fileName) =>
+    program.getSourceFile(fileName) !== undefined || fileExists(fileName);
+  host.readFile = (fileName) => program.getSourceFile(fileName)?.text ?? readFile(fileName);
+  host.directoryExists = (directoryName) =>
+    directories.has(directoryName.replace(/\/+$/, '')) || directoryExists(directoryName);
   // Unchanged files are served from the original program, so the new one reuses them.
   host.getSourceFile = (fileName, languageVersionOrOptions, onError, shouldCreateNewSourceFile) => {
-    const replacedFile = replacedFiles.get(fileName);
-    if (replacedFile) {
-      return ts.createSourceFile(fileName, replacedFile.text, languageVersionOrOptions, true);
+    const replacedText = replacedTexts.get(fileName);
+    if (replacedText !== undefined) {
+      return ts.createSourceFile(fileName, replacedText, languageVersionOrOptions, true);
     }
     return (
       getOriginalSourceFile(program, fileName) ??
@@ -440,26 +575,32 @@ function createCompanionProgram(
     oldProgram: program,
   });
 
-  for (const [fileName, { text, ranges }] of replacedFiles) {
-    const sourceFile = companionProgram.getSourceFile(fileName)!;
-    const diagnostics = [
-      ...companionProgram.getSyntacticDiagnostics(sourceFile),
-      ...companionProgram.getSemanticDiagnostics(sourceFile),
-    ];
-    for (const diagnostic of diagnostics) {
-      const { start } = diagnostic;
-      const range =
-        start !== undefined &&
-        ranges.find(([rangeStart, rangeEnd]) => start >= rangeStart && start < rangeEnd);
-      if (range) {
-        throw new Error(
-          `A type generated to resolve conditional types in ${fileName} doesn't type-check: ${ts.flattenDiagnosticMessageText(diagnostic.messageText, ' ')}\n${text.slice(...range)}`,
-        );
+  // Checking a file checks every statement in it, which costs more than the rest of the
+  // substitution together. So it only happens once a probe shows an error.
+  let failures: Map<ts.TypeAliasDeclaration, string> | undefined;
+  const getFailures = () => {
+    if (failures) {
+      return failures;
+    }
+    failures = new Map();
+    for (const [fileName, ranges] of replacedFiles) {
+      const sourceFile = companionProgram.getSourceFile(fileName)!;
+      const diagnostics = [
+        ...companionProgram.getSyntacticDiagnostics(sourceFile),
+        ...companionProgram.getSemanticDiagnostics(sourceFile),
+      ];
+      for (const { start, messageText } of diagnostics) {
+        const range =
+          start !== undefined && ranges.find((entry) => start >= entry.start && start < entry.end);
+        if (range && !failures.has(range.declaration)) {
+          failures.set(range.declaration, ts.flattenDiagnosticMessageText(messageText, ' '));
+        }
       }
     }
-  }
+    return failures;
+  };
 
-  return companionProgram;
+  return { companionProgram, getFailures };
 }
 
 /**
@@ -512,19 +653,52 @@ function getGeneratedAlias(
  * @param aliasesByName - Generated aliases of the substitution program.
  * @param checker - Checker of the substitution program.
  * @returns `T` or `F`, `never` when a distributive condition had nothing to distribute
- * over, or `undecided` when it is both branches or still generic.
+ * over, `error` when a generated alias it goes through doesn't resolve, or `undecided` when
+ * checks took different branches, or one is both or still generic.
  */
 function readProbe(
   name: string,
   aliasesByName: Map<string, ts.TypeAliasDeclaration>,
   checker: ts.TypeChecker,
-): 'T' | 'F' | 'never' | 'undecided' {
-  const type = checker.getTypeAtLocation(getGeneratedAlias(name, aliasesByName).name);
-  if (type.flags & ts.TypeFlags.Never) {
+): ProbeOutcome {
+  // Each check's result is wrapped in a one-element tuple, so a `never` result isn't absorbed
+  // by the others. Equal tuples from different checks aren't always one type, so the union
+  // is read member by member.
+  const result = checker.getTypeAtLocation(getGeneratedAlias(name, aliasesByName).name);
+  const outcomes = new Set(
+    (result.isUnion() ? result.types : [result]).map((member) => readCheck(member, checker)),
+  );
+  if (outcomes.has('error')) {
+    return 'error';
+  }
+  const [outcome] = outcomes;
+  return outcomes.size === 1 ? outcome! : 'undecided';
+}
+
+type ProbeOutcome = 'T' | 'F' | 'never' | 'error' | 'undecided';
+
+function readCheck(type: ts.Type, checker: ts.TypeChecker): ProbeOutcome {
+  if (
+    !(type.flags & ts.TypeFlags.Object) ||
+    !((type as ts.ObjectType).objectFlags & ts.ObjectFlags.Reference) ||
+    !((type as ts.TypeReference).target.objectFlags & ts.ObjectFlags.Tuple)
+  ) {
+    return 'undecided';
+  }
+  const [element] = checker.getTypeArguments(type as ts.TypeReference);
+  if (!element) {
+    return 'undecided';
+  }
+  if (element.flags & ts.TypeFlags.Never) {
     return 'never';
   }
-  if (type.isStringLiteral() && (type.value === 'T' || type.value === 'F')) {
-    return type.value;
+  // A condition yields `'T'`, `'F'` or both, never `any`. TypeScript resolves a reference it
+  // can't follow to its error type, which carries the `any` flag.
+  if (element.flags & ts.TypeFlags.Any) {
+    return 'error';
+  }
+  if (element.isStringLiteral() && (element.value === 'T' || element.value === 'F')) {
+    return element.value;
   }
   return 'undecided';
 }

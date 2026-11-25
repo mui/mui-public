@@ -177,13 +177,15 @@ parameter, is emitted as the union of its branches.
 
 An exported generic type alias whose condition tests its own type parameters is
 resolved further. The condition is checked with each tested type parameter set
-to its constraint (`unknown` without one) and to `never`. When both pick the
-same branch, the export is that branch with the constraints substituted. It
-keeps its name and type arguments, and untested type parameters stay generic.
-For a condition that only flips one way as the type argument narrows, such as
-an `IsAny` guard, the branch holds for every type argument but `any`. A
-condition that isn't, such as an equality check, can pick the same branch at
-both ends and another one in between:
+to `never` and to each member of its constraint (`unknown` without one), so a
+`boolean` or named union of literals is checked member by member. When every
+check picks the same branch, the export is that branch with the constraints
+substituted. It keeps its name and type arguments, and untested type parameters
+stay generic. For a condition that only flips one way as the type argument
+narrows, such as an `IsAny` guard, the branch holds for every type argument but
+`any`. A condition that isn't, such as an equality check against one literal of
+a `string` constraint, can pick the same branch for every check and another one
+for a type argument in between:
 
 ```typescript
 type IsAny<T> = 0 extends 1 & T ? true : false;
@@ -198,8 +200,12 @@ export type Cell<Row, Columns extends readonly { id: string }[]> =
 Defaults are not used, since a caller can pass any other type argument. Aliases
 that forward their type parameters to such a conditional, also across files, are
 resolved the same way. Distributive conditions (a naked tested type parameter
-on the left), conditionals declared in dependencies, and exports that also
-declare a value are left to the type resolvers.
+on the left), conditionals declared in dependencies, in `declare global` blocks
+or in `declare module 'name'` blocks, and exports that also declare a value are
+left to the type resolvers. When a type generated for the checks doesn't
+type-check, the exports that depend on it are left to the type resolvers too,
+with a `conditional-substitution-failed` warning naming the declaration it was
+generated for.
 
 ## Template Literals
 

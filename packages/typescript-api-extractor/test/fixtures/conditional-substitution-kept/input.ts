@@ -32,3 +32,19 @@ export function Merged(props: { row: string }) {
 
 export type Merged<Row, Columns extends readonly { id: string }[]> =
   IsAny<Columns> extends true ? { row: Row; columnId: any } : { row: Row; columnId: string };
+
+type IsEqual<A, B> = (<G>() => G extends A ? 1 : 2) extends <G>() => G extends B ? 1 : 2 ? true : false;
+
+/** Both ends of the constraint take one branch, one of its members the other. */
+export type Selection<Mode extends 'single' | 'multiple'> =
+  IsEqual<Mode, 'multiple'> extends true ? { value: string[] } : { value: string };
+
+export type SelectionMode = 'single' | 'multiple';
+
+/** The same, with the union constraint behind a name. */
+export type AliasedSelection<Mode extends SelectionMode> =
+  IsEqual<Mode, 'multiple'> extends true ? { value: string[] } : { value: string };
+
+/** The same, with `boolean` as the union constraint. */
+export type FlagSelection<Multiple extends boolean> =
+  IsEqual<Multiple, true> extends true ? { value: string[] } : { value: string };

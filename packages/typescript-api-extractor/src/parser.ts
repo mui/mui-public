@@ -251,7 +251,8 @@ export type TypeOperatorOutputMode = 'resolved' | 'syntaxOnly';
 export type ParserWarning =
   | UnsupportedTypeFallbackWarning
   | MissingEnumDeclarationWarning
-  | MissingDefaultExportSymbolWarning;
+  | MissingDefaultExportSymbolWarning
+  | ConditionalSubstitutionFailedWarning;
 
 /** Source location and symbol context shared by every recoverable parser warning. */
 export interface ParserWarningBase {
@@ -293,4 +294,17 @@ export interface MissingDefaultExportSymbolWarning extends ParserWarningBase {
   code: 'missing-default-export-symbol';
   /** Authored default-export text used to identify the failing declaration. */
   sourceText: string;
+}
+
+/**
+ * Warning emitted when a type generated to resolve a conditional alias through its
+ * constraints doesn't type-check. The export keeps the union of its branches.
+ */
+export interface ConditionalSubstitutionFailedWarning extends ParserWarningBase {
+  /** Stable warning discriminator. */
+  code: 'conditional-substitution-failed';
+  /** Name of the exported alias left unresolved. */
+  typeName: string;
+  /** TypeScript's message for the generated type, reported at the declaration it follows. */
+  diagnosticText: string;
 }

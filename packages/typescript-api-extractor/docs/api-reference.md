@@ -86,7 +86,8 @@ When `onWarning` is omitted, recoverable parser warnings are printed with
 type ParserWarning =
   | UnsupportedTypeFallbackWarning
   | MissingEnumDeclarationWarning
-  | MissingDefaultExportSymbolWarning;
+  | MissingDefaultExportSymbolWarning
+  | ConditionalSubstitutionFailedWarning;
 
 interface ParserWarningBase {
   message: string;
@@ -111,5 +112,11 @@ interface MissingEnumDeclarationWarning extends ParserWarningBase {
 interface MissingDefaultExportSymbolWarning extends ParserWarningBase {
   code: 'missing-default-export-symbol';
   sourceText: string;
+}
+
+interface ConditionalSubstitutionFailedWarning extends ParserWarningBase {
+  code: 'conditional-substitution-failed';
+  typeName: string;
+  diagnosticText: string;
 }
 ```

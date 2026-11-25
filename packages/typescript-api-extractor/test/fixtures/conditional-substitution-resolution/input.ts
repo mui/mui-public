@@ -36,6 +36,18 @@ export namespace DataGrid {
   export type RowCell<Row, Columns extends readonly ColumnData[]> =
     IsAny<Columns> extends true ? { row: Row; columnId: any } : { row: Row; columnId: string };
 
+  /** The branches stay a union, under a namespaced name. */
+  export type ShapeCell<Row, Columns extends readonly ColumnData[]> =
+    IsAny<Columns> extends true ? { loose: any } : { row: Row };
+
   /** Forwards its type parameters to a conditional alias. */
   export type Cell<Row, Columns extends readonly { id: string }[]> = ForwardedCell<Row, Columns>;
 }
+
+/** The branches have different properties, so the undecided conditional stays a union. */
+export type Shape<Columns extends readonly { id: string }[]> =
+  IsAny<Columns> extends true ? { loose: any } : { columnId: Columns[number]['id'] };
+
+/** Every member of a union constraint takes the same branch. */
+export type Either<Value extends readonly string[] | readonly number[]> =
+  IsAny<Value> extends true ? { value: any } : { value: Value };

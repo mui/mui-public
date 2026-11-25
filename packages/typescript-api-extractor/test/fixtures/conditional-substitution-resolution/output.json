@@ -421,6 +421,70 @@
 			"isNamespace": false
 		},
 		{
+			"name": "DataGrid.ShapeCell",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "ShapeCell",
+					"namespaces": ["DataGrid"],
+					"typeArguments": [
+						{
+							"type": {
+								"name": "Row",
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						},
+						{
+							"type": {
+								"name": "Columns",
+								"constraint": {
+									"kind": "array",
+									"elementType": {
+										"kind": "object",
+										"typeName": {
+											"name": "ColumnData",
+											"namespaces": ["DataGrid"]
+										},
+										"properties": [
+											{
+												"name": "id",
+												"type": {
+													"kind": "intrinsic",
+													"intrinsic": "string"
+												},
+												"optional": false
+											}
+										]
+									},
+									"isReadonly": true
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [
+					{
+						"name": "row",
+						"type": {
+							"name": "Row",
+							"kind": "typeParameter"
+						},
+						"optional": false
+					}
+				]
+			},
+			"documentation": {
+				"description": "The branches stay a union, under a namespaced name.",
+				"tags": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
 			"name": "DataGrid.Cell",
 			"type": {
 				"kind": "object",
@@ -482,6 +546,131 @@
 			},
 			"documentation": {
 				"description": "Forwards its type parameters to a conditional alias.",
+				"tags": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Shape",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Shape",
+					"typeArguments": [
+						{
+							"type": {
+								"name": "Columns",
+								"constraint": {
+									"kind": "array",
+									"elementType": {
+										"kind": "object",
+										"properties": [
+											{
+												"name": "id",
+												"type": {
+													"kind": "intrinsic",
+													"intrinsic": "string"
+												},
+												"optional": false
+											}
+										]
+									},
+									"isReadonly": true
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [
+					{
+						"name": "columnId",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					}
+				]
+			},
+			"documentation": {
+				"description": "The branches have different properties, so the undecided conditional stays a union.",
+				"tags": []
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "Either",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "Either",
+					"typeArguments": [
+						{
+							"type": {
+								"name": "Value",
+								"constraint": {
+									"kind": "union",
+									"types": [
+										{
+											"kind": "array",
+											"elementType": {
+												"kind": "intrinsic",
+												"intrinsic": "string"
+											},
+											"isReadonly": true
+										},
+										{
+											"kind": "array",
+											"elementType": {
+												"kind": "intrinsic",
+												"intrinsic": "number"
+											},
+											"isReadonly": true
+										}
+									]
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"properties": [
+					{
+						"name": "value",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "array",
+									"elementType": {
+										"kind": "intrinsic",
+										"intrinsic": "string"
+									},
+									"isReadonly": true
+								},
+								{
+									"kind": "array",
+									"elementType": {
+										"kind": "intrinsic",
+										"intrinsic": "number"
+									},
+									"isReadonly": true
+								}
+							]
+						},
+						"optional": false
+					}
+				]
+			},
+			"documentation": {
+				"description": "Every member of a union constraint takes the same branch.",
 				"tags": []
 			},
 			"isValue": false,
