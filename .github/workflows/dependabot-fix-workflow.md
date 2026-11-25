@@ -123,7 +123,8 @@ safe-outputs:
     # One batch of non-major fixes plus up to two major-version fixes per run.
     max: 3
     title-prefix: '[security] '
-    labels: [dependencies, security]
+    # `auditor` marks the pull requests the auditor shepherd looks after.
+    labels: [dependencies, security, auditor]
     draft: true
     # MUI repositories only allow new branches under listed prefixes; their "Disallow new branches"
     # rulesets exempt this one.
