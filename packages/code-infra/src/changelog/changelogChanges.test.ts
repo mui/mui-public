@@ -51,12 +51,13 @@ describe('changes', () => {
         { message: 'A (#1)', pulls: [{ number: 1, labels: ['docs', 'breaking change'] }] },
         { message: '[breaking change] B (#2)', pulls: [{ number: 2 }] },
         { message: 'C (#3)', pulls: [{ number: 3, labels: ['not a breaking change'] }] },
+        { message: 'D (#4)', pulls: [{ number: 4, labels: ['breaking'] }] },
       ],
     });
 
     const { changes } = await fetchDummyRelease(github);
 
-    expect(changes.map((change) => change.isBreakingChange)).toEqual([true, false, false]);
+    expect(changes.map((change) => change.isBreakingChange)).toEqual([true, false, false, true]);
   });
 
   it('does not mistake issue references for the pull request', async () => {
