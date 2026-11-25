@@ -128,6 +128,8 @@ steps:
           'c64d34be-d0f4-11e7-8ed1-001e67ed4656', // 3XX page receives organic traffic
           'c64d8a57-d0f4-11e7-8ed1-001e67ed4656', // More than three parameters in URL
           '24c2faf0-0fab-40f1-9adf-3a73cdc59ceb', // SERP title changed
+          'd69246c2-225a-11ec-8456-06d2f2f613d8', // Page and SERP titles do not match: search engines' rewrite
+          'c64d7d54-d0f4-11e7-8ed1-001e67ed4656', // Not all pages from hreflang group were crawled: a crawl limit
           // Internal broken links: the repository's own docs link check covers those.
           'c64da643-d0f4-11e7-8ed1-001e67ed4656', // 4XX page
           '6193420a-00b1-11e8-930a-001e67ed4656', // Page has links to broken page
@@ -530,7 +532,8 @@ group, leave its pull request alone.
 **Otherwise**, call `create_pull_request` from a branch off the default branch.
 
 In each body, one section per issue type with what was wrong, the cause, and the change, then what
-was left as is and why. Start with the site's health score from the input. End with the validation
+was left as is and why. Write other sites' URLs as code without the scheme (`owasp.org/…`): links to
+other domains are removed from pull request text. Start with the site's health score from the input. End with the validation
 actually run. Don't add a sign-off or attribution line.
 
 When there's nothing to fix or add, call `noop` with a short reason.
