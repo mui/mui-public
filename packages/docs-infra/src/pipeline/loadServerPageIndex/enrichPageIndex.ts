@@ -45,9 +45,13 @@ export function enrichPageIndex(
     // the same way (collapse-then-split equals split-then-per-element-collapse, since the comma
     // delimiter can't appear inside a value) — otherwise a cache hit diverges from a fresh parse.
     pages: metadata.pages.map((page) => {
-      const { descriptionMarkdown, sections, sectionGroup, ...pageWithoutMarkdown } = page;
+      const { descriptionMarkdown, sections, sectionGroup, displayTitle, ...pageWithoutMarkdown } =
+        page;
       return {
         ...pageWithoutMarkdown,
+        // A list item label edited in the index overrides the page heading, as in
+        // `transformMarkdownMetadata`.
+        title: displayTitle ?? page.title,
         description:
           page.description === undefined ? undefined : collapseInlineWhitespace(page.description),
         keywords: page.keywords?.map(collapseInlineWhitespace),

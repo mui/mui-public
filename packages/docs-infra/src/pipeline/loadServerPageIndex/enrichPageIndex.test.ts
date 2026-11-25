@@ -45,4 +45,19 @@ describe('enrichPageIndex', () => {
     expect(page).not.toHaveProperty('descriptionMarkdown');
     expect(page.sections).toEqual({ usage: { title: 'Usage', children: undefined } });
   });
+
+  it('uses the list item label as the page title when it differs from the heading', () => {
+    const metadata = sampleMetadata();
+    metadata.pages[0].title = 'Button Component';
+    metadata.pages[0].displayTitle = 'Button';
+    const result = enrichPageIndex(metadata, '/root/src/app/components/page.mdx', root);
+    const page = result.pages[0];
+    expect(page.title).toBe('Button');
+    expect(page).not.toHaveProperty('displayTitle');
+  });
+
+  it('keeps the heading as the page title without a list item label', () => {
+    const result = enrichPageIndex(sampleMetadata(), '/root/src/app/components/page.mdx', root);
+    expect(result.pages[0].title).toBe('Button');
+  });
 });
