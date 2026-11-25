@@ -195,7 +195,7 @@ pages for the terms and conventions they use.
 
 On the added lines, in this order:
 
-1. The MUI style rules below.
+1. The MUI writing style below.
 2. Mistakes: typos, grammar, broken Markdown, a word that says something the author didn't mean.
 3. Clarity: a wordy, ambiguous or hard-to-follow sentence, inconsistent terms for the same thing,
    a heading or list that doesn't match its neighbors.
@@ -205,24 +205,10 @@ front matter, demo and API references (`{{"demo": ...}}`), and JSX. Don't commen
 suggest a change only when it fixes something a reader would trip over. Never change what the text
 means.
 
-## MUI style
-
-- **Brand names take a non-breaking space** (U+00A0), so a line never breaks inside one: Material UI, MUI X, Base UI, MUI Base, MUI System, MUI Store, MUI Core, MUI Connect, Pigment CSS. Toolpad
-  is just "Toolpad", not "MUI Toolpad".
-- **Don't name the company** as "MUI" followed by a word other than those products or "MUI
-  organization", "MUI ecosystem", "MUI products" and "MUI team": name the product or the team.
-- **US spelling:** color, behavior, gray, center, license, labeled, modeling, analyze, optimize,
-  and so on.
-- **Names spelled one way:** API, TypeScript, JavaScript, CSS, HTML, npm (even at the start of a
-  sentence), GitHub, Stack Overflow, CSS Modules, Tailwind CSS, VS Code, CodeSandbox, StackBlitz,
-  webpack, ESLint, ES modules, Next.js's App Router and Pages Router, Material Design 3, Heatmap,
-  Treemap, Sparkline chart, Gauge chart, Treemap chart. Write subcomponent and use case.
-- **No Latin abbreviations:** "for example", not "e.g."; "that is", not "i.e.".
-- **Softer, where it reads better:** address the reader as "you", not "we" or "I"; prefer the
-  present tense to "will"; use gender-neutral language; use the Oxford comma.
-
 Changelogs aren't reviewed; the repository's own writing guide, if its instructions point to one,
-adds to these.
+adds to the MUI writing style, which follows.
+
+{{#import ../writing-style.md}}
 
 ## Suggest
 
