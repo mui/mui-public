@@ -484,6 +484,10 @@ export interface ChangelogChange {
    */
   url: string;
   labels: string[];
+  /**
+   * Whether the pull request has the `breaking` or the `breaking change` label.
+   */
+  isBreakingChange: boolean;
   pullRequest: { number: number; title: string; body: string } | null;
   /**
    * `null` when the GitHub account was deleted.
@@ -580,3 +584,24 @@ export interface FetchChangelogDataOptions {
    */
   octokit?: Octokit;
 }
+
+/**
+ * Title of a change, split into its leading `[prefixes]` and the rest.
+ */
+export interface ChangelogTitle {
+  prefixes: string[];
+  text: string;
+}
+
+/**
+ * Authors to credit, once each.
+ */
+export interface ChangelogCredits {
+  all: ChangelogAuthor[];
+  team: ChangelogAuthor[];
+  community: ChangelogAuthor[];
+}
+
+export type MarkdownInline = string | false | null | undefined;
+
+export type MarkdownBlock = MarkdownInline | readonly MarkdownBlock[];

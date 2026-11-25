@@ -32,6 +32,7 @@ describe('changes', () => {
         sha: shaOf(0),
         url: 'https://github.com/mui/test/pull/1',
         labels: ['component: button', 'type: bug'],
+        isBreakingChange: false,
         pullRequest: {
           number: 1,
           title: '[button] Edited after the merge',
@@ -42,6 +43,21 @@ describe('changes', () => {
         mergedAt: '2026-01-01T12:00:00Z',
       },
     ]);
+  });
+
+  it('tells breaking changes by label', async () => {
+    const github = createGitHub({
+      commits: [
+        { message: 'A (#1)', pulls: [{ number: 1, labels: ['docs', 'breaking change'] }] },
+        { message: '[breaking change] B (#2)', pulls: [{ number: 2 }] },
+        { message: 'C (#3)', pulls: [{ number: 3, labels: ['not a breaking change'] }] },
+        { message: 'D (#4)', pulls: [{ number: 4, labels: ['breaking'] }] },
+      ],
+    });
+
+    const { changes } = await fetchDummyRelease(github);
+
+    expect(changes.map((change) => change.isBreakingChange)).toEqual([true, false, false, true]);
   });
 
   it('does not mistake issue references for the pull request', async () => {
@@ -119,6 +135,7 @@ describe('changes', () => {
         sha: shaOf(0),
         url: `https://github.com/mui/test/commit/${shaOf(0)}`,
         labels: [],
+        isBreakingChange: false,
         pullRequest: null,
         author: { login: 'octocat', name: 'Git Author', association: 'community' },
         createdAt: '2026-01-01T00:00:00Z',
