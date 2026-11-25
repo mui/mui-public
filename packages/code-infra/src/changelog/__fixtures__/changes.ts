@@ -15,6 +15,7 @@ export function createChange({ number, author, ...change }: ChangeFixture) {
     sha: String(number ?? 0).padStart(40, '0'),
     url: `https://github.com/mui/test/pull/${number}`,
     labels: [],
+    isBreakingChange: false,
     pullRequest: number === null ? null : { number, title, body: '' },
     author:
       author === null

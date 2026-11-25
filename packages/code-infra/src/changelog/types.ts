@@ -484,6 +484,10 @@ export interface ChangelogChange {
    */
   url: string;
   labels: string[];
+  /**
+   * Whether the pull request has the `breaking change` label.
+   */
+  isBreakingChange: boolean;
   pullRequest: { number: number; title: string; body: string } | null;
   /**
    * `null` when the GitHub account was deleted.

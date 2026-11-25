@@ -34,6 +34,7 @@ const ASSOCIATIONS = {
   NONE: 'first-timer',
 };
 
+const BREAKING_CHANGE_LABEL = 'breaking change';
 const CHERRY_PICK_LABEL = 'cherry-pick';
 const PULL_REFERENCE =
   /(?:https:\/\/github\.com\/(?<urlOwner>[\w.-]+)\/(?<urlRepo>[\w.-]+)\/pull\/|(?:(?<owner>[\w.-]+)\/(?<repo>[\w.-]+))?#)(?<number>\d+)/;
@@ -377,6 +378,7 @@ export async function fetchChangelogChanges({
         sha,
         url: pull.html_url,
         labels: pull.labels.map((label) => label.name),
+        isBreakingChange: pull.labels.some((label) => label.name === BREAKING_CHANGE_LABEL),
         pullRequest: { number: pull.number, title: pull.title, body: pull.body ?? '' },
         author,
         createdAt: pull.created_at,
@@ -393,6 +395,7 @@ export async function fetchChangelogChanges({
       sha,
       url: commit.html_url,
       labels: [],
+      isBreakingChange: false,
       pullRequest: null,
       author: await authors.fromCommit(commit),
       createdAt: commit.commit.author?.date ?? null,
