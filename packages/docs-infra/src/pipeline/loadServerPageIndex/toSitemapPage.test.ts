@@ -36,10 +36,14 @@ describe('toSitemapPage', () => {
     expect(toSitemapPage(samplePage(), null).title).toBe('Button');
   });
 
-  it('strips the markdown AST fields', () => {
-    const page = toSitemapPage(samplePage({ sectionGroup: '(overview)' }), null);
+  it('copies only the sitemap fields', () => {
+    const page = toSitemapPage(
+      samplePage({ sectionGroup: '(overview)', embeddings: [0.1, 0.2] }),
+      null,
+    );
     expect(page).not.toHaveProperty('descriptionMarkdown');
     expect(page).not.toHaveProperty('sectionGroup');
+    expect(page).not.toHaveProperty('embeddings');
     expect(page.sections).toEqual({ usage: { title: 'Usage', children: undefined } });
   });
 
