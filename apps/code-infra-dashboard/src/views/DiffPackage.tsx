@@ -35,6 +35,7 @@ const CODEC_FLAG = {
 const SEARCH_PARAMS_CONFIG = {
   format: CODEC_FLAG,
   removeComments: CODEC_FLAG,
+  normalizeSyntax: CODEC_FLAG,
 };
 
 const DiffContent = React.memo(function DiffContent({
@@ -153,6 +154,19 @@ const DiffContent = React.memo(function DiffContent({
           title="Leave comments out of the formatted code, so differences in comments, license headers and annotations don't show up"
           sx={{ mr: 0, flexShrink: 0 }}
         />
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={options.normalizeSyntax}
+              onChange={(event) => onOptionsChange({ normalizeSyntax: event.target.checked })}
+              size="small"
+            />
+          }
+          disabled={!options.format}
+          label="Normalize syntax"
+          title="Print constructs that build tools spell differently one way, like `void 0` and `undefined`, braces, import order inside braces and where `export` goes"
+          sx={{ mr: 0, flexShrink: 0 }}
+        />
         <CopyButton
           text={copyText}
           disabled={!copyText}
@@ -222,18 +236,22 @@ export default function DiffPackage() {
 
   const package1Spec = searchParams.get('package1');
   const package2Spec = searchParams.get('package2');
-  const [{ format, removeComments }, setParams] = useSearchParamsState(SEARCH_PARAMS_CONFIG, {
-    replace: true,
-  });
+  const [{ format, removeComments, normalizeSyntax }, setParams] = useSearchParamsState(
+    SEARCH_PARAMS_CONFIG,
+    {
+      replace: true,
+    },
+  );
   const options = React.useMemo(
-    () => ({ ignoreWhitespace, format, removeComments }),
-    [ignoreWhitespace, format, removeComments],
+    () => ({ ignoreWhitespace, format, removeComments, normalizeSyntax }),
+    [ignoreWhitespace, format, removeComments, normalizeSyntax],
   );
 
   const diffQuery = usePackageDiff(package1Spec, package2Spec, {
     ...options,
-    // Doesn't apply without formatting, keep it out of the cache key then
+    // These don't apply without formatting, keep them out of the cache key then
     removeComments: format && removeComments,
+    normalizeSyntax: format && normalizeSyntax,
   });
   const loading = diffQuery.isLoading;
   const package1Error = diffQuery.error?.oldError;

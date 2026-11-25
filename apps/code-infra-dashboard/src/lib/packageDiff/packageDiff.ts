@@ -1,6 +1,7 @@
 import * as diff from 'diff';
 import type { Parser, Plugin } from 'prettier';
 import type { FileContent, PackageContents } from '../packageDownload';
+import { normalizeSyntax } from './normalizeSyntax';
 
 export type ChangeType = 'added' | 'removed' | 'modified';
 
@@ -10,6 +11,11 @@ export interface DiffOptions {
   format: boolean;
   /** Leave comments out of the formatted code. Only applies when `format` is set. */
   removeComments: boolean;
+  /**
+   * Print constructs that build tools spell differently, like `void 0` or where `export` goes,
+   * one way. Only applies when `format` is set.
+   */
+  normalizeSyntax: boolean;
 }
 
 export interface DiffBlock {
@@ -39,6 +45,7 @@ function getPrettierParser(path: string): string | null {
   return PRETTIER_PARSERS.find(([pattern]) => pattern.test(path))?.[1] ?? null;
 }
 
+const NORMALIZED_SUFFIX = '-normalized';
 const NO_COMMENTS_SUFFIX = '-no-comments';
 
 interface AstNode {
@@ -59,28 +66,40 @@ function removeComments(node: AstNode) {
   }
 }
 
+type AstTransform = (ast: AstNode, filepath: string | undefined) => void;
+
+const PARSER_VARIANTS: Record<string, AstTransform[]> = {
+  [NO_COMMENTS_SUFFIX]: [removeComments],
+  [NORMALIZED_SUFFIX]: [normalizeSyntax],
+  [`${NORMALIZED_SUFFIX}${NO_COMMENTS_SUFFIX}`]: [normalizeSyntax, removeComments],
+};
+
 /**
- * Adds a `<name>-no-comments` variant of every parser in `plugins`, whose AST has its
- * comments removed, so Prettier prints the code without them.
+ * Adds a variant of every parser in `plugins` for each of `PARSER_VARIANTS`, named
+ * `<name><suffix>`, whose AST is rewritten before Prettier prints it.
  */
-function createNoCommentsPlugin(plugins: Plugin[]): Plugin {
+function createVariantsPlugin(plugins: Plugin[]): Plugin {
   const parsers: Record<string, Parser> = {};
   for (const plugin of plugins) {
     for (const [name, parser] of Object.entries(plugin.parsers ?? {})) {
-      parsers[`${name}${NO_COMMENTS_SUFFIX}`] = {
-        ...parser,
-        parse: async (text, options) => {
-          const ast = await parser.parse(text, options);
-          removeComments(ast);
-          return ast;
-        },
-      };
+      for (const [suffix, transforms] of Object.entries(PARSER_VARIANTS)) {
+        parsers[`${name}${suffix}`] = {
+          ...parser,
+          parse: async (text, options) => {
+            const ast = await parser.parse(text, options);
+            transforms.forEach((transform) => transform(ast, options.filepath));
+            return ast;
+          },
+        };
+      }
     }
   }
   return { parsers };
 }
 
-let prettierPromise: Promise<(source: string, parser: string) => Promise<string>> | null = null;
+let prettierPromise: Promise<
+  (source: string, parser: string, filepath: string) => Promise<string>
+> | null = null;
 
 // Prettier and its parsers are several hundred KB, only load them once formatting is requested.
 function loadPrettier() {
@@ -91,11 +110,11 @@ function loadPrettier() {
     import('prettier/plugins/typescript'),
     import('prettier/plugins/postcss'),
   ]).then(([prettier, ...languagePlugins]) => {
-    const plugins = [...languagePlugins, createNoCommentsPlugin(languagePlugins)];
-    return (source, parser) =>
+    const plugins = [...languagePlugins, createVariantsPlugin(languagePlugins)];
+    return (source, parser, filepath) =>
       // By default Prettier keeps an object expanded when the source had a newline after
       // `{`, which would preserve exactly the style differences this is meant to remove.
-      prettier.format(source, { parser, plugins, objectWrap: 'collapse' });
+      prettier.format(source, { parser, plugins, filepath, objectWrap: 'collapse' });
   });
   return prettierPromise;
 }
@@ -115,7 +134,7 @@ function formatFile(file: FileContent | undefined, parser: string): Promise<stri
   }
   let formatted = fileCache.get(parser);
   if (!formatted) {
-    formatted = loadPrettier().then((format) => format(file.content, parser));
+    formatted = loadPrettier().then((format) => format(file.content, parser, file.path));
     fileCache.set(parser, formatted);
   }
   return formatted;
@@ -212,9 +231,9 @@ export function createPackageDiff(
       let formatError: string | undefined;
       const languageParser = options.format ? getPrettierParser(path) : null;
       if (languageParser) {
-        const parser = options.removeComments
-          ? `${languageParser}${NO_COMMENTS_SUFFIX}`
-          : languageParser;
+        const parser = `${languageParser}${options.normalizeSyntax ? NORMALIZED_SUFFIX : ''}${
+          options.removeComments ? NO_COMMENTS_SUFFIX : ''
+        }`;
         try {
           [oldContent, newContent] = await Promise.all([
             formatFile(oldFile, parser),
