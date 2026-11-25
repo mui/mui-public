@@ -195,7 +195,7 @@ pages for the terms and conventions they use.
 
 On the added lines, in this order:
 
-1. The MUI writing style below.
+1. The writing style guide below.
 2. Mistakes: typos, grammar, broken Markdown, a word that says something the author didn't mean.
 3. Clarity: a wordy, ambiguous or hard-to-follow sentence, inconsistent terms for the same thing,
    a heading or list that doesn't match its neighbors.
@@ -206,7 +206,7 @@ suggest a change only when it fixes something a reader would trip over. Never ch
 means.
 
 Changelogs aren't reviewed; the repository's own writing guide, if its instructions point to one,
-adds to the MUI writing style, which follows.
+adds to the writing style guide, which follows.
 
 {{#import ../writing-style.md}}
 

@@ -1,4 +1,4 @@
-# MUI writing style
+# Writing style
 
 How MUI writes its docs, blog posts and other prose. Each section is one rule: what it asks for, why,
 and where it doesn't apply. It is written for people and for agents alike; an agent reviewing or
