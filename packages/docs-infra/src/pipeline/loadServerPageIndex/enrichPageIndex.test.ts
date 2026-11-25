@@ -55,9 +55,4 @@ describe('enrichPageIndex', () => {
     expect(page.title).toBe('Button');
     expect(page).not.toHaveProperty('displayTitle');
   });
-
-  it('keeps the heading as the page title without a list item label', () => {
-    const result = enrichPageIndex(sampleMetadata(), '/root/src/app/components/page.mdx', root);
-    expect(result.pages[0].title).toBe('Button');
-  });
 });

@@ -196,7 +196,7 @@ export interface SyncPageIndexOptions {
 
   /**
    * Directory for the sha256-validated JSON cache of page indexes. When set, each
-   * index written is also cached at `{cacheDir}/pages-index-v3/{route}.json`, leaving
+   * index written is also saved to the page-index cache in `cacheDir`, leaving
    * it warm for the next cold `loadServerPageIndex` read. When unset, no cache is written.
    */
   cacheDir?: string;

@@ -34,10 +34,9 @@ type ReturnValue = LoadServerPageIndex;
 
 Converts parsed page-index metadata into the `SitemapSectionData` read-model.
 
-Derives `prefix` and `title` from the file path (overriding the markdown H1), strips the
-markdown AST fields (`descriptionMarkdown`, section `titleMarkdown`) to reduce bundle size, and
-normalizes description whitespace exactly as the parser does so the cache (built from in-memory
-metadata) matches a fresh parse of the written markdown.
+Derives `prefix` and `title` from the file path (overriding the markdown H1), normalizes the
+index's description, and converts each page with `toSitemapPage`, so the cache (built from
+in-memory metadata) matches a fresh parse of the written markdown.
 
 Shared by `loadServerPageIndex` (read path) and `syncPageIndex` (cache pre-population on write).
 Normalization is idempotent, so re-applying it on the read path (where descriptions are already
@@ -161,6 +160,31 @@ Recursively removes titleMarkdown fields from a heading hierarchy
 type ReturnValue = Record<string, SitemapSection>;
 ```
 
+### toSitemapPage
+
+Converts one parsed index entry into the `SitemapPage` the sitemap exposes.
+
+Uses the index list label (`displayTitle`) as the title when one is set, strips the markdown AST
+fields (`descriptionMarkdown`, section `titleMarkdown`) to reduce bundle size, and normalizes
+whitespace exactly as the parser does, so a cached entry matches a fresh parse. keywords and
+types are comma-split from a whitespace-collapsed paragraph by the parser, so each element is
+normalized the same way.
+
+Every code path that builds sitemap data from an index must use this, so they all agree.
+
+**Parameters:**
+
+| Parameter | Type             | Default | Description                                                        |
+| :-------- | :--------------- | :------ | :----------------------------------------------------------------- |
+| page      | `PageMetadata`   | -       | The parsed index entry.                                            |
+| section   | `string \| null` | -       | The route-group section title the page is listed under, or `null`. |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = SitemapPage;
+```
+
 ## Additional Types
 
 ### CreateLoadServerPageIndexOptions
@@ -177,7 +201,7 @@ type CreateLoadServerPageIndexOptions = {
   /**
    * Directory for the sha256-validated JSON cache of parsed page indexes.
    *
-   * When set, a read first checks `{cacheDir}/pages-index-v3/{route}.json`; on a hash
+   * When set, a read first checks the page-index cache in `cacheDir`; on a hash
    * match it returns the cached data and skips the markdown parse, and on a miss it
    * parses, writes the cache, and returns. When unset, no cache is read or written.
    */
