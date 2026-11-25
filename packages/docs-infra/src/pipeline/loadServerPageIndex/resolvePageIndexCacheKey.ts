@@ -5,10 +5,11 @@ import { extractPrefixAndTitle } from './extractPrefixAndTitle';
  * grouped indexes added always-present `sections` and per-page `section` fields to the cached
  * read-model, so a pre-existing `pages-index` entry (keyed only by content hash) could otherwise
  * survive a docs-infra upgrade and serve the old shape for an unchanged index file. Bumping the
- * namespace forces a clean miss the first time the new code runs. Bump again on any future
- * breaking change to the cached page-index shape.
+ * namespace forces a clean miss the first time the new code runs. `-v3`: page titles now use the
+ * index list label (`displayTitle`) when one is set. Bump again on any future breaking change to
+ * the cached page-index shape.
  */
-export const PAGE_INDEX_CACHE_NAMESPACE = 'pages-index-v2';
+export const PAGE_INDEX_CACHE_NAMESPACE = 'pages-index-v3';
 
 /**
  * Derives the cache key for a page-index file from its path, reusing the same
