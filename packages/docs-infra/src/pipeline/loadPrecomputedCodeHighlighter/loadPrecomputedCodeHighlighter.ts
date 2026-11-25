@@ -289,7 +289,7 @@ function emitPrecomputeAsset(context: LoaderContext<LoaderOptions>, code: Code):
 const functionName = 'Load Precomputed Code Highlighter';
 
 /**
- * Webpack loader that processes demo files and precomputes variant data.
+ * A webpack loader that processes demo files and precomputes variant data.
  *
  * Finds createDemo calls, loads and processes all variants with syntax highlighting
  * and TypeScript transformation, then injects the precomputed data back into the source.

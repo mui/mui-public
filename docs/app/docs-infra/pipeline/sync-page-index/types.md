@@ -86,7 +86,7 @@ type SyncPageIndexOptions = {
    */
   indexFileName?: string;
   /** Lock options for proper-lockfile */
-  lockOptions?: lockfile.LockOptions;
+  lockOptions?: lockfile$1.LockOptions;
   /**
    * The base directory to stop recursion at (e.g., './app')
    * If not provided, will continue until reaching the root directory

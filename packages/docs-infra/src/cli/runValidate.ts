@@ -6,8 +6,6 @@ import { readdir, rm } from 'node:fs/promises';
 import { availableParallelism } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
-// eslint-disable-next-line n/prefer-node-protocol
-import { fileURLToPath } from 'url';
 import { Worker } from 'node:worker_threads';
 import {
   createPerformanceLogger,
@@ -211,12 +209,9 @@ const runValidate: CommandModule<{}, Args> = {
 
     // === Create worker pool ===
     const workerCount = Math.max(1, availableParallelism() - 1);
-    const currentDir = path.dirname(fileURLToPath(import.meta.url));
-    const workerPath = path.join(currentDir, 'validateWorker.mjs');
-
     const workers: Worker[] = [];
     for (let i = 0; i < workerCount; i += 1) {
-      workers.push(new Worker(workerPath));
+      workers.push(new Worker(new URL('./validateWorker.ts', import.meta.url)));
     }
 
     // Round-robin task distribution with promise tracking
