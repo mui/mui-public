@@ -9,11 +9,11 @@ on:
         type: string
         required: true
       include_paths:
-        description: Space-separated path prefixes of the site this repository builds; all when empty.
+        description: Path prefixes of the site this repository builds (such as `/x/`), separated by whitespace; all when empty.
         type: string
         default: ''
       exclude_paths:
-        description: Space-separated path prefixes of the site other repositories build.
+        description: Path prefixes of the site other repositories build, separated by whitespace.
         type: string
         default: ''
 # One run at a time per repository: a run that starts while another is still publishing would
@@ -90,9 +90,10 @@ steps:
       mkdir -p /tmp/gh-aw/agent
       # The prompt below titles the pull requests exactly so.
       gh pr list --repo "$GITHUB_REPOSITORY" --state open --author app/code-infra-auditor \
-          --limit 100 --json number,title,headRefName \
+          --limit 100 --json number,title,headRefName,body \
         | jq '[.[] | (.title | capture("Fix Ahrefs Site Audit issues: (?<group>.+)$")) as $match
-            | { group: $match.group, number, branch: .headRefName }]' > /tmp/gh-aw/agent/open-prs.json
+            | { group: $match.group, number, branch: .headRefName, body }]' \
+          > /tmp/gh-aw/agent/open-prs.json
       echo "Open audit pull requests: $(jq -c 'map("\(.group): #\(.number)")' /tmp/gh-aw/agent/open-prs.json)"
   # Ahrefs is asked for the fields the fixes need only, never traffic: this run's logs may be
   # public. Link targets are re-checked here, as the agent can't reach other sites.
@@ -109,6 +110,9 @@ steps:
         // Env: AHREFS_API_KEY, PROJECT_ID, INCLUDE_PATHS, EXCLUDE_PATHS, OUT_FILE.
         import { writeFileSync } from 'node:fs';
 
+        // Issues are identified by their Ahrefs Site Audit issue IDs, as `/site-audit/issues` returns
+        // them: the same in every project. The comments give their names.
+
         /** Issues about link targets: the page to edit is the linking one (`origin`); targets are re-checked. */
         const LINK_ISSUES = new Set([
           'c64d89a6-d0f4-11e7-8ed1-001e67ed4656', // External 4XX
@@ -124,6 +128,9 @@ steps:
           'c64d34be-d0f4-11e7-8ed1-001e67ed4656', // 3XX page receives organic traffic
           'c64d8a57-d0f4-11e7-8ed1-001e67ed4656', // More than three parameters in URL
           '24c2faf0-0fab-40f1-9adf-3a73cdc59ceb', // SERP title changed
+          // Internal broken links: the repository's own docs link check covers those.
+          'c64da643-d0f4-11e7-8ed1-001e67ed4656', // 4XX page
+          '6193420a-00b1-11e8-930a-001e67ed4656', // Page has links to broken page
         ]);
         /**
          * Also "… missing … schema": structured data docs pages have nothing real to fill (dates,
@@ -138,7 +145,14 @@ steps:
         const USER_AGENT =
           'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36';
 
-        const prefixes = (name) => (process.env[name] ?? '').split(/\s+/).filter(Boolean);
+        /** Path prefixes, without a trailing slash, matched on whole segments: `/x/` and `/x` both mean `/x`. */
+        const prefixes = (name) =>
+          (process.env[name] ?? '')
+            .split(/\s+/)
+            .filter(Boolean)
+            .map((prefix) => `/${prefix.replace(/^\/+|\/+$/g, '')}`);
+        const isUnder = (pathname, prefix) =>
+          prefix === '/' || pathname === prefix || pathname.startsWith(`${prefix}/`);
         const include = prefixes('INCLUDE_PATHS');
         const exclude = prefixes('EXCLUDE_PATHS');
 
@@ -177,7 +191,9 @@ steps:
           try {
             const response = await fetch(lookup, { signal: AbortSignal.timeout(15_000) });
             const body = await response.json();
-            return body.archived_snapshots?.closest?.available ? body.archived_snapshots.closest.url : null;
+            const closest = body.archived_snapshots?.closest;
+            // The API answers with `http://` URLs, which only redirect to `https://`.
+            return closest?.available ? closest.url.replace(/^http:\/\//, 'https://') : null;
           } catch {
             return null;
           }
@@ -203,19 +219,34 @@ steps:
           return `${origin}${pathname}`;
         };
 
+        const hostOf = (address) => new URL(address).hostname.replace(/^www\./, '');
+
+        /** `finalUrl` without the query parameters the redirect added: the site tagging the visit. */
+        function withoutAddedQuery(url, finalUrl) {
+          const original = new URL(url).searchParams;
+          const final = new URL(finalUrl);
+          for (const name of [...final.searchParams.keys()]) {
+            if (!original.has(name)) {
+              final.searchParams.delete(name);
+            }
+          }
+          return final.href;
+        }
+
         /**
          * What a redirect from `url` to `finalUrl` asks of a link. A link to a site's root is never a
          * redirect to fix: it's the entry point the site chose to send visitors on from. Neither is one that
-         * only adds to the query: that's the site tagging the visit, which a link shouldn't copy. Any other
-         * redirect, `www.` and `https` ones included, costs every visitor an extra round trip.
+         * only adds to the query: that's the site tagging the visit, which a link shouldn't copy. A deep
+         * page that lands on its own site's root is gone. Any other redirect, `www.` and `https` ones
+         * included, costs every visitor an extra round trip.
          */
         async function redirectVerdict(url, finalUrl) {
           const isDeep = new URL(url).pathname !== '/';
-          if (isDeep && new URL(finalUrl).pathname === '/') {
+          if (isDeep && hostOf(finalUrl) === hostOf(url) && new URL(finalUrl).pathname === '/') {
             return { verdict: 'broken', status: 'lands on the site root', archived: await archived(url) };
           }
           if (isDeep && withoutQuery(finalUrl) !== withoutQuery(url)) {
-            return { verdict: 'redirect', finalUrl };
+            return { verdict: 'redirect', finalUrl: withoutAddedQuery(url, finalUrl) };
           }
           return null;
         }
@@ -237,9 +268,14 @@ steps:
           if (result.status === 404 || result.status === 410 || result.error === 'ENOTFOUND') {
             return { verdict: 'broken', status: result.status || result.error, archived: await archived(url) };
           }
-          const status = String(result.status || result.error);
-          inconclusive.set(status, [...(inconclusive.get(status) ?? []), new URL(url).hostname]);
-          return crawledRedirect ? redirectVerdict(url, new URL(crawledRedirect, url).href) : null;
+          const verdict = crawledRedirect
+            ? await redirectVerdict(url, new URL(crawledRedirect, url).href)
+            : null;
+          if (!verdict) {
+            const status = String(result.status || result.error);
+            inconclusive.set(status, [...(inconclusive.get(status) ?? []), new URL(url).hostname]);
+          }
+          return verdict;
         }
 
         const [{ healthscores }, { issues }] = await Promise.all([
@@ -248,15 +284,15 @@ steps:
         ]);
         const project = healthscores[0];
         /** The site's host, from the project's target (`mui.com/`); a crawl also reaches its subdomains. */
-        const siteHost = new URL(`https://${project.target_url}`).hostname.replace(/^www\./, '');
+        const siteHost = hostOf(`https://${project.target_url}`);
 
         /** Whether this repository builds a page of the site. */
         function isOwned(pageUrl) {
           const { hostname, pathname } = new URL(pageUrl);
           return (
             hostname.replace(/^www\./, '') === siteHost &&
-            (include.length === 0 || include.some((prefix) => pathname.startsWith(prefix))) &&
-            !exclude.some((prefix) => pathname.startsWith(prefix))
+            (include.length === 0 || include.some((prefix) => isUnder(pathname, prefix))) &&
+            !exclude.some((prefix) => isUnder(pathname, prefix))
           );
         }
 
@@ -278,6 +314,8 @@ steps:
               project_id: process.env.PROJECT_ID,
               issue_id: issue.issue_id,
               select: LINK_ISSUES.has(issue.issue_id) ? LINK_FIELDS : PAGE_FIELDS,
+              // Site-wide, filtered here by owned paths: a caller owning a small part of a big project may
+              // find its pages past the first 1000 of an issue with more.
               limit: '1000',
             }).then(({ pages }) => pages),
           ),
@@ -359,10 +397,11 @@ safe-outputs:
     protected-files:
       policy: blocked
   # Later runs add to the open pull requests. Only to this workflow's: the agent names the pull
-  # request, and these checks reject any without the title prefix and label it opens them with.
+  # request, and these checks, which don't look at the author, reject any without the exact title
+  # and label it opens them with.
   push-to-pull-request-branch:
     target: '*'
-    required-title-prefix: '[docs] '
+    required-title-prefix: '[docs] Fix Ahrefs Site Audit issues: '
     required-labels: [docs]
     max: 6
     if-no-changes: ignore
@@ -370,7 +409,7 @@ safe-outputs:
       policy: blocked
   update-pull-request:
     target: '*'
-    required-title-prefix: '[docs] '
+    required-title-prefix: '[docs] Fix Ahrefs Site Audit issues: '
     required-labels: [docs]
     title: false
     max: 6
@@ -389,8 +428,9 @@ to fix, most important first. Each issue has a `group`: its Ahrefs category, or 
 three link categories. `notFetched` lists further issue types that didn't fit this run; leave them
 for later runs.
 
-`/tmp/gh-aw/agent/open-prs.json`: this workflow's open pull request per group, with its number and
-branch, which is fetched locally.
+`/tmp/gh-aw/agent/open-prs.json`: this workflow's open pull request per group, with its number,
+branch (fetched locally, without history) and description. These are the only pull requests you
+may push to or update.
 
 - **Link issues** list link targets, each with the page linking to it (`linkedFrom`), already
   re-checked from the runner: `verdict: broken` (gone: not found, the
@@ -406,8 +446,10 @@ live site doesn't have the fixes of open pull requests yet: the source is the tr
 
 A URL of the site maps to the page's source in this repository: its route, the Markdown it renders,
 and the components and templates that render its head. Find it from the routing and the docs data
-before editing. A link appears verbatim in the source; search for it, as the same link is often on
-pages Ahrefs didn't list. Never edit generated files, changelogs or release notes, translations
+before editing. A link to another site appears verbatim in the source; search for it, as the same
+link is often on pages Ahrefs didn't list. A link to this site's own pages is usually root-relative
+(`/material-ui/…`), possibly with a fragment: search for its path, and keep it root-relative.
+Broken links to this site's own pages are left to the repository's own docs link check. Never edit generated files, changelogs or release notes, translations
 kept in sync by tooling, or content another repository builds.
 
 ## Fix links
@@ -427,8 +469,9 @@ kept in sync by tooling, or content another repository builds.
   moved to another path or a renamed domain, or only `https`, a `www.` host or a trailing slash.
   Every redirect costs the reader an extra round trip. For links to this site's own paths, that's a
   path the redirect configuration sends on permanently (301, 308, or a forced `301!`) because the
-  page moved: link to where it moved, even when that's another site. Keep the original's fragment
-  and the query parameters the site added on purpose (such as `utm_*`). Don't follow redirects that
+  page moved: link to where it moved, even when that's another site. Keep the original link's
+  fragment and query parameters (such as `utm_*`); `finalUrl` already leaves out the ones the
+  redirect added. Don't follow redirects that
   depend on who asks (a locale or region such as `/en-EU`, or a sign-in, consent or session page),
   or that resolve a version alias to a fixed version (`@latest`). Leave those.
 - **Demo placeholders** (`/inbox`, `/drafts` in a demo's links) are crawled like real links. Turn one
@@ -441,8 +484,8 @@ Most of these come from a shared template: a page head, a layout, a Markdown fro
 Fix the cause once, where it's rendered, so every affected page is fixed and new pages inherit it;
 fix single pages only when the cause is local.
 
-- **Titles and headings:** a missing or duplicated H1, a title too long or rewritten by search
-  engines. Keep titles meaningful to a reader first, within about 60 characters.
+- **Titles and headings:** a missing or duplicated H1, or a title too long. Keep titles meaningful to
+  a reader first, within about 60 characters.
 - **Social tags:** complete Open Graph and X card tags from the page's existing title, description
   and image.
 - **Canonical:** duplicates without a canonical get one pointing at the page that should rank.
@@ -466,11 +509,12 @@ Later runs recognize the pull requests by that title. A fix that spans groups, s
 change, goes in the pull request of the group it fixes most of; name the other issues it fixes.
 
 **When the group has an open pull request** (`open-prs.json`), work on its branch: `git switch` to
-it, see what it already fixes (`git log` and `git diff` against the default branch), and fix only
-what the input reports that the branch doesn't fix yet. Keep every commit already on the branch,
-including those people added, and never revert or rewrite what they changed. Commit on the branch,
-then call `push_to_pull_request_branch` with its number, and `update_pull_request` with its number
-and a body that describes everything the pull request now fixes. When there's nothing new for the
+it. For each issue the input reports, check the files: fix only what is still wrong both on the
+branch and on the default branch (the crawl may predate either fix). Keep every commit already on
+the branch, including those people added, and never revert or rewrite what they changed. Commit on
+the branch, then call `push_to_pull_request_branch` with its number, and `update_pull_request` with
+its number and the updated description: keep what the current one says, including notes on what
+was left as is and anything a person added, and add the new fixes. When there's nothing new for the
 group, leave its pull request alone.
 
 **Otherwise**, call `create_pull_request` from a branch off the default branch.
