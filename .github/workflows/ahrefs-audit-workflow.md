@@ -199,59 +199,51 @@ steps:
           }
         }
 
-        async function mapLimited(items, limit, fn) {
-          const results = new Array(items.length);
+        /** Runs `fn` over `items`, at most `limit` at a time. */
+        async function forEachLimited(items, limit, fn) {
           let next = 0;
           await Promise.all(
             Array.from({ length: Math.min(limit, items.length) }, async () => {
               while (next < items.length) {
-                const index = next;
+                const item = items[next];
                 next += 1;
-                results[index] = await fn(items[index]);
+                await fn(item);
               }
             }),
           );
-          return results;
         }
-
-        const withoutQuery = (address) => {
-          const { origin, pathname } = new URL(address);
-          return `${origin}${pathname}`;
-        };
 
         const hostOf = (address) => new URL(address).hostname.replace(/^www\./, '');
-
-        /** `finalUrl` without the query parameters the redirect added: the site tagging the visit. */
-        function withoutAddedQuery(url, finalUrl) {
-          const original = new URL(url).searchParams;
-          const final = new URL(finalUrl);
-          for (const name of [...final.searchParams.keys()]) {
-            if (!original.has(name)) {
-              final.searchParams.delete(name);
-            }
-          }
-          return final.href;
-        }
 
         /**
          * What a redirect from `url` to `finalUrl` asks of a link. A link to a site's root is never a
          * redirect to fix: it's the entry point the site chose to send visitors on from. Neither is one that
-         * only adds to the query: that's the site tagging the visit, which a link shouldn't copy. A deep
-         * page that lands on its own site's root is gone. Any other redirect, `www.` and `https` ones
-         * included, costs every visitor an extra round trip.
+         * only adds to the query: that's the site tagging the visit, which a link shouldn't copy, so
+         * `finalUrl` leaves out the query parameters the redirect added. A deep page that lands on its own
+         * site's root is gone. Any other redirect, `www.` and `https` ones included, costs every visitor an
+         * extra round trip.
          */
         async function redirectVerdict(url, finalUrl) {
-          const isDeep = new URL(url).pathname !== '/';
-          if (isDeep && hostOf(finalUrl) === hostOf(url) && new URL(finalUrl).pathname === '/') {
+          const from = new URL(url);
+          const to = new URL(finalUrl);
+          if (from.pathname === '/') {
+            return null;
+          }
+          if (hostOf(to.href) === hostOf(from.href) && to.pathname === '/') {
             return { verdict: 'broken', status: 'lands on the site root', archived: await archived(url) };
           }
-          if (isDeep && withoutQuery(finalUrl) !== withoutQuery(url)) {
-            return { verdict: 'redirect', finalUrl: withoutAddedQuery(url, finalUrl) };
+          if (`${to.origin}${to.pathname}` === `${from.origin}${from.pathname}`) {
+            return null;
           }
-          return null;
+          for (const name of [...to.searchParams.keys()]) {
+            if (!from.searchParams.has(name)) {
+              to.searchParams.delete(name);
+            }
+          }
+          return { verdict: 'redirect', finalUrl: to.href };
         }
 
-        /** Targets left unchecked, by status: a site blocking the runner shows up here. */
+        /** Hosts of the targets left unchecked, by status: a site blocking the runner shows up here. */
         const inconclusive = new Map();
 
         /**
@@ -266,14 +258,18 @@ steps:
             return redirectVerdict(url, result.finalUrl);
           }
           if (result.status === 404 || result.status === 410 || result.error === 'ENOTFOUND') {
-            return { verdict: 'broken', status: result.status || result.error, archived: await archived(url) };
+            return {
+              verdict: 'broken',
+              status: result.status || result.error,
+              archived: await archived(url),
+            };
           }
           const verdict = crawledRedirect
             ? await redirectVerdict(url, new URL(crawledRedirect, url).href)
             : null;
           if (!verdict) {
             const status = String(result.status || result.error);
-            inconclusive.set(status, [...(inconclusive.get(status) ?? []), new URL(url).hostname]);
+            inconclusive.set(status, (inconclusive.get(status) ?? new Set()).add(new URL(url).hostname));
           }
           return verdict;
         }
@@ -288,9 +284,9 @@ steps:
 
         /** Whether this repository builds a page of the site. */
         function isOwned(pageUrl) {
-          const { hostname, pathname } = new URL(pageUrl);
+          const { pathname } = new URL(pageUrl);
           return (
-            hostname.replace(/^www\./, '') === siteHost &&
+            hostOf(pageUrl) === siteHost &&
             (include.length === 0 || include.some((prefix) => isUnder(pathname, prefix))) &&
             !exclude.some((prefix) => isUnder(pathname, prefix))
           );
@@ -332,38 +328,55 @@ steps:
             }
           }
         }
-        const targets = [...linkTargets.keys()];
-        const verdicts = new Map(
-          (
-            await mapLimited(targets, 8, (url) => checkLink(url, linkTargets.get(url).crawledRedirect))
-          ).map((verdict, index) => [targets[index], verdict]),
-        );
+        await forEachLimited([...linkTargets], 8, async ([url, target]) => {
+          const verdict = await checkLink(url, target.crawledRedirect);
+          // Broken links to the site's own pages are the repository's docs link check's job.
+          target.verdict = verdict?.verdict === 'broken' && hostOf(url) === siteHost ? null : verdict;
+        });
 
         const fixable = [];
         for (const [index, issue] of candidates.entries()) {
-          const pages = LINK_ISSUES.has(issue.issue_id)
-            ? [...new Set(pageLists[index].map((page) => page.url))]
-                .filter((url) => verdicts.get(url))
-                .map((url) => ({ url, linkedFrom: linkTargets.get(url).linkedFrom, ...verdicts.get(url) }))
-            : pageLists[index].filter((page) => isOwned(page.url));
-          if (pages.length > 0) {
-            fixable.push({ group: groupOf(issue), name: issue.name, pages });
+          if (LINK_ISSUES.has(issue.issue_id)) {
+            const pages = [...new Set(pageLists[index].map((page) => page.url))]
+              .filter((url) => linkTargets.get(url)?.verdict)
+              .map((url) => ({
+                url,
+                linkedFrom: linkTargets.get(url).linkedFrom,
+                ...linkTargets.get(url).verdict,
+              }));
+            if (pages.length > 0) {
+              fixable.push({ group: groupOf(issue), name: issue.name, pages });
+            }
+          } else {
+            const pages = pageLists[index].filter((page) => isOwned(page.url));
+            if (pages.length > 0) {
+              // Content issues mostly share one cause, such as a template: examples are enough to find it.
+              fixable.push({
+                group: groupOf(issue),
+                name: issue.name,
+                pageCount: pages.length,
+                pages: pages.slice(0, 50),
+              });
+            }
           }
         }
 
-        const result = {
-          site: project.target_url,
-          healthScore: project.health_score,
-          issues: fixable,
-          notFetched: eligible.slice(MAX_ISSUE_TYPES).map((issue) => `${issue.name} (${issue.crawled})`),
-        };
-        writeFileSync(process.env.OUT_FILE, `${JSON.stringify(result, null, 2)}\n`);
-        console.log(
-          `Health score ${result.healthScore}: ${fixable.length} issue types with pages to fix ` +
-            `(${fixable.map((issue) => `${issue.name}: ${issue.pages.length}`).join(', ')})`,
+        writeFileSync(
+          process.env.OUT_FILE,
+          JSON.stringify({ site: project.target_url, healthScore: project.health_score, issues: fixable }),
         );
+        console.log(
+          `Health score ${project.health_score}: ${fixable.length} issue types with pages to fix ` +
+            `(${fixable.map((issue) => `${issue.name}: ${issue.pageCount ?? issue.pages.length}`).join(', ')})`,
+        );
+        const notFetched = eligible.slice(MAX_ISSUE_TYPES);
+        if (notFetched.length > 0) {
+          console.log(
+            `Left for later runs: ${notFetched.map((issue) => `${issue.name} (${issue.crawled})`).join(', ')}`,
+          );
+        }
         for (const [status, hosts] of inconclusive) {
-          console.log(`Inconclusive (${status}), left out: ${[...new Set(hosts)].join(', ')}`);
+          console.log(`Inconclusive (${status}), left out: ${[...hosts].join(', ')}`);
         }
       SCRIPT
   # After collecting, so a bad key or an Ahrefs outage fails the run before the install.
@@ -383,9 +396,10 @@ safe-outputs:
   # aren't. A static list, as gh-aw reads it at compile time: add new sites here.
   allowed-domains: [default-safe-outputs, mui.com, '*.mui.com', base-ui.com]
   create-pull-request:
-    # One per group of issues that has none open: the Ahrefs categories, with links in one.
+    # One per group of issues that has none open: the Ahrefs categories, with links in one. The
+    # agent titles it with the group; later runs recognize the pull requests by the full title.
     max: 6
-    title-prefix: '[docs] '
+    title-prefix: '[docs] Fix Ahrefs Site Audit issues: '
     labels: [docs]
     draft: true
     # MUI repositories only allow new branches under listed prefixes; their "Disallow new branches"
@@ -396,9 +410,9 @@ safe-outputs:
     allowed-files: ['**']
     protected-files:
       policy: blocked
-  # Later runs add to the open pull requests. Only to this workflow's: the agent names the pull
-  # request, and these checks, which don't look at the author, reject any without the exact title
-  # and label it opens them with.
+  # Later runs add to the open pull requests. The agent names the pull request; these checks, which
+  # don't look at the author, reject any without the workflow's exact title and its label, which
+  # only people with triage access can add.
   push-to-pull-request-branch:
     target: '*'
     required-title-prefix: '[docs] Fix Ahrefs Site Audit issues: '
@@ -425,8 +439,7 @@ first; they override anything here.
 
 `/tmp/gh-aw/agent/ahrefs-issues.json`: the site, its health score, and the issue types with pages
 to fix, most important first. Each issue has a `group`: its Ahrefs category, or `Links` for the
-three link categories. `notFetched` lists further issue types that didn't fit this run; leave them
-for later runs.
+three link categories.
 
 `/tmp/gh-aw/agent/open-prs.json`: this workflow's open pull request per group, with its number,
 branch (fetched locally, without history) and description. These are the only pull requests you
@@ -436,8 +449,9 @@ may push to or update.
   re-checked from the runner: `verdict: broken` (gone: not found, the
   host is gone, or a deep page now lands on the site's root) with an `archived` Wayback Machine copy
   when there is one, or `verdict: redirect` with the `finalUrl` it ends at.
-- **Content issues** list the affected pages with their crawled `title`, `h1`, `meta_description`
-  and `canonical`.
+- **Content issues** give the number of affected pages (`pageCount`) and up to 50 of them, with their
+  crawled `title`, `h1`, `meta_description` and `canonical`: examples to find the shared cause by.
+  Links to this site's own pages only come up as redirects.
 
 The page lists are what Ahrefs saw on the last crawl of the live site, possibly days old, and the
 live site doesn't have the fixes of open pull requests yet: the source is the truth.
@@ -448,8 +462,7 @@ A URL of the site maps to the page's source in this repository: its route, the M
 and the components and templates that render its head. Find it from the routing and the docs data
 before editing. A link to another site appears verbatim in the source; search for it, as the same
 link is often on pages Ahrefs didn't list. A link to this site's own pages is usually root-relative
-(`/material-ui/…`), possibly with a fragment: search for its path, and keep it root-relative.
-Broken links to this site's own pages are left to the repository's own docs link check. Never edit generated files, changelogs or release notes, translations
+(`/material-ui/…`), possibly with a fragment: search for its path, and keep it root-relative. Never edit generated files, changelogs or release notes, translations
 kept in sync by tooling, or content another repository builds.
 
 ## Fix links
@@ -474,9 +487,6 @@ kept in sync by tooling, or content another repository builds.
   redirect added. Don't follow redirects that
   depend on who asks (a locale or region such as `/en-EU`, or a sign-in, consent or session page),
   or that resolve a version alias to a fixed version (`@latest`). Leave those.
-- **Demo placeholders** (`/inbox`, `/drafts` in a demo's links) are crawled like real links. Turn one
-  into a fragment (`#inbox`) when the demo still shows what it's for; leave it when the demo needs a
-  real path, such as a router integration, and list it.
 
 ## Fix content and metadata
 
@@ -503,10 +513,10 @@ changed and it runs without a full docs build. State exactly what you ran; CI ru
 
 ## Open or update pull requests
 
-One pull request per `group`, with every fix for that group, titled exactly
-`Fix Ahrefs Site Audit issues: <group>` (for example `Fix Ahrefs Site Audit issues: Social tags`).
-Later runs recognize the pull requests by that title. A fix that spans groups, such as one template
-change, goes in the pull request of the group it fixes most of; name the other issues it fixes.
+One pull request per `group`, with every fix for that group, titled with the group alone (for
+example `Social tags`): the prefix that later runs recognize it by is added for you. A fix that
+spans groups, such as one template change, goes in the pull request of the group it fixes most of;
+name the other issues it fixes.
 
 **When the group has an open pull request** (`open-prs.json`), work on its branch: `git switch` to
 it. For each issue the input reports, check the files: fix only what is still wrong both on the
