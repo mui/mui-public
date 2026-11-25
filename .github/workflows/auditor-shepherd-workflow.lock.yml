@@ -1,5 +1,5 @@
-# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"40e05b92b568c2969cbd416cb105da051c897916a094fbda3567519b830e68be","body_hash":"1c3aff01e342129eb2e81c42a3e086686281ff63fd8f8ae80dd41f3fa363f9e1","compiler_version":"v1.2.2","strict":true,"agent_id":"claude","agent_model":"claude-opus-5-5","engine_versions":{"claude":"2.1.317"}}
-# gh-aw-manifest: {"version":1,"secrets":["CODE_INFRA_AUDITOR_CLIENT_ID","CODE_INFRA_AUDITOR_PRIVATE_KEY","COPILOT_GITHUB_TOKEN","GH_AW_CI_TRIGGER_TOKEN","GH_AW_DEFAULT_OTLP_ENDPOINT","GH_AW_DEFAULT_OTLP_HEADERS","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/create-github-app-token","sha":"64ab729a6294000f5aa4a4bc0b73d1f32bc45510","version":"v3.3.0"},{"repo":"actions/download-artifact","sha":"9000827ccba6bdab643e8b6fd33ac0654aef8333","version":"v8.0.2"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"949feb2413d6458794dcd2491c4babbbce0c15c1","version":"v7.1.0"},{"repo":"actions/upload-artifact","sha":"cf430e030ddbb5b0abf93d22962f4752f3646cd9","version":"v7.0.2"},{"repo":"github/gh-aw-actions/setup","sha":"53d0749e19424a918acd82b4d140264ce48f2f14","version":"v1.2.2"},{"repo":"pnpm/action-setup","sha":"73e46992e05b19abd31f2f3c20e0e7370d762115","version":"v6.1.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.29.11","digest":"sha256:8774a73c351395b41d2ad0af4ddb4689007c67de3cd08bd9f43bb8a0e300690e","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.29.11@sha256:8774a73c351395b41d2ad0af4ddb4689007c67de3cd08bd9f43bb8a0e300690e"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.29.11","digest":"sha256:88d2d0e315a504d93fd4fb8847fd0f6b7f4469f41a6fc6047b3dc9654c56ab2c","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.29.11@sha256:88d2d0e315a504d93fd4fb8847fd0f6b7f4469f41a6fc6047b3dc9654c56ab2c"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.29.11","digest":"sha256:97782bc0d8ff7f80f19ae2fdc5e1668517aa732a6fa077e64b8d3919238496d2","pinned_image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.29.11@sha256:97782bc0d8ff7f80f19ae2fdc5e1668517aa732a6fa077e64b8d3919238496d2"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.29.11","digest":"sha256:861739ecf924dd2db5e5fb652db2ad82aaafd1615623297ddabc8f41a36b2847","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.29.11@sha256:861739ecf924dd2db5e5fb652db2ad82aaafd1615623297ddabc8f41a36b2847"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.5.6","digest":"sha256:342cd624e1f179d91be2de7a146fc4f387092e62e6c8a47506d7932e113d2311","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.5.6@sha256:342cd624e1f179d91be2de7a146fc4f387092e62e6c8a47506d7932e113d2311"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:8735428c2d4e602f90781ba0c571c400e8ff93c7ee1508a75d71f87e34e415cc","pinned_image":"ghcr.io/github/gh-aw-node@sha256:8735428c2d4e602f90781ba0c571c400e8ff93c7ee1508a75d71f87e34e415cc"},{"image":"ghcr.io/github/github-mcp-server:v2.1.0","digest":"sha256:f6056fc10bfffcc8c81a6417a2e9ca12808647e8dd6049642a4feaadee0e0f8a","pinned_image":"ghcr.io/github/github-mcp-server:v2.1.0@sha256:f6056fc10bfffcc8c81a6417a2e9ca12808647e8dd6049642a4feaadee0e0f8a"}],"mcp_servers":[{"name":"safeoutputs","tools":["noop","push_to_pull_request_branch","report_incomplete","report_missing_data","report_missing_tool","update_pull_request"]}],"threat_detection":{"mode":"enabled"},"admission":false,"agent_metadata":{}}
+# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"88739fe1bc550db206c9550411a812f5acd3fbcddb228ae03a6f5d7e0f1b7f8b","body_hash":"f4fcb1b5cc1ff1d1335b365de07531ac4c8a519eefec7c2714f914b4d9b3951f","compiler_version":"v1.2.2","strict":true,"agent_id":"claude","agent_model":"claude-opus-5-5","engine_versions":{"claude":"2.1.317"}}
+# gh-aw-manifest: {"version":1,"secrets":["CODE_INFRA_AUDITOR_CLIENT_ID","CODE_INFRA_AUDITOR_PRIVATE_KEY","COPILOT_GITHUB_TOKEN","GH_AW_CI_TRIGGER_TOKEN","GH_AW_DEFAULT_OTLP_ENDPOINT","GH_AW_DEFAULT_OTLP_HEADERS","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/create-github-app-token","sha":"64ab729a6294000f5aa4a4bc0b73d1f32bc45510","version":"v3.3.0"},{"repo":"actions/download-artifact","sha":"9000827ccba6bdab643e8b6fd33ac0654aef8333","version":"v8.0.2"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"949feb2413d6458794dcd2491c4babbbce0c15c1","version":"v7.1.0"},{"repo":"actions/upload-artifact","sha":"cf430e030ddbb5b0abf93d22962f4752f3646cd9","version":"v7.0.2"},{"repo":"github/gh-aw-actions/setup","sha":"53d0749e19424a918acd82b4d140264ce48f2f14","version":"v1.2.2"},{"repo":"pnpm/action-setup","sha":"73e46992e05b19abd31f2f3c20e0e7370d762115","version":"v6.1.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.29.11","digest":"sha256:8774a73c351395b41d2ad0af4ddb4689007c67de3cd08bd9f43bb8a0e300690e","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.29.11@sha256:8774a73c351395b41d2ad0af4ddb4689007c67de3cd08bd9f43bb8a0e300690e"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.29.11","digest":"sha256:88d2d0e315a504d93fd4fb8847fd0f6b7f4469f41a6fc6047b3dc9654c56ab2c","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.29.11@sha256:88d2d0e315a504d93fd4fb8847fd0f6b7f4469f41a6fc6047b3dc9654c56ab2c"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.29.11","digest":"sha256:97782bc0d8ff7f80f19ae2fdc5e1668517aa732a6fa077e64b8d3919238496d2","pinned_image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.29.11@sha256:97782bc0d8ff7f80f19ae2fdc5e1668517aa732a6fa077e64b8d3919238496d2"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.29.11","digest":"sha256:861739ecf924dd2db5e5fb652db2ad82aaafd1615623297ddabc8f41a36b2847","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.29.11@sha256:861739ecf924dd2db5e5fb652db2ad82aaafd1615623297ddabc8f41a36b2847"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.5.6","digest":"sha256:342cd624e1f179d91be2de7a146fc4f387092e62e6c8a47506d7932e113d2311","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.5.6@sha256:342cd624e1f179d91be2de7a146fc4f387092e62e6c8a47506d7932e113d2311"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:8735428c2d4e602f90781ba0c571c400e8ff93c7ee1508a75d71f87e34e415cc","pinned_image":"ghcr.io/github/gh-aw-node@sha256:8735428c2d4e602f90781ba0c571c400e8ff93c7ee1508a75d71f87e34e415cc"},{"image":"ghcr.io/github/github-mcp-server:v2.1.0","digest":"sha256:f6056fc10bfffcc8c81a6417a2e9ca12808647e8dd6049642a4feaadee0e0f8a","pinned_image":"ghcr.io/github/github-mcp-server:v2.1.0@sha256:f6056fc10bfffcc8c81a6417a2e9ca12808647e8dd6049642a4feaadee0e0f8a"}],"mcp_servers":[{"name":"safeoutputs","tools":["add_comment","noop","push_to_pull_request_branch","report_incomplete","report_missing_data","report_missing_tool"]}],"threat_detection":{"mode":"enabled"},"admission":false,"agent_metadata":{}}
 # This file was automatically generated by gh-aw (v1.2.2). DO NOT EDIT. To debug this workflow, load the skill at https://github.com/github/gh-aw/blob/main/debug.md
 #
 #    ___                   _   _
@@ -71,6 +71,12 @@ on:
         description: Team (slug) to request a review from when a pull request becomes ready.
         type: string
     outputs:
+      comment_id:
+        description: ID of the first added comment
+        value: ${{ jobs.safe_outputs.outputs.comment_id }}
+      comment_url:
+        description: URL of the first added comment
+        value: ${{ jobs.safe_outputs.outputs.comment_url }}
       push_commit_sha:
         description: SHA of the pushed commit
         value: ${{ jobs.safe_outputs.outputs.push_commit_sha }}
@@ -344,7 +350,7 @@ jobs:
             <system>
           GH_AW_PROMPT_CONTENT_0001: |
             <safe-output-tools>
-            Tools: update_pull_request, push_to_pull_request_branch, report_missing_tool, report_missing_data, noop(max:2)
+            Tools: add_comment, push_to_pull_request_branch, report_missing_tool, report_missing_data, noop(max:2)
           GH_AW_PROMPT_CONTENT_0002: |
             </safe-output-tools>
           GH_AW_PROMPT_CONTENT_0003: |+
@@ -400,16 +406,16 @@ jobs:
             ## Input
 
             - `/tmp/gh-aw/agent/failing-pr.json`: the pull request's `number`, `branch` (fetched locally,
-              without history), head commit `sha`, and its failing required checks (`failed`), with their names
-              and links.
+              without history), head commit `sha`, and its failing or cancelled checks (`failed`), with their
+              names, `bucket` and links.
+            - `/tmp/gh-aw/agent/pr.diff`: what the pull request changes.
             - `/tmp/gh-aw/agent/logs/`: the failed log of each failing GitHub Actions check. Other checks, such
               as CircleCI jobs, have no log here: reproduce them.
 
             ## Find the cause
 
             Switch to the branch (`git switch <branch>`) and install its dependencies
-            (`pnpm install --frozen-lockfile`). See what the pull request changes with `git diff` against the
-            default branch's commit (two dots: the branches have no shared history here).
+            (`pnpm install --frozen-lockfile`).
 
             For each failing check, find the command it runs (the CI configuration, such as
             `.circleci/config.yml` or `.github/workflows/`, names it), run it, or its part that covers the
@@ -419,7 +425,7 @@ jobs:
               error on a changed line, a type error, a broken link it introduced, a test of what it changed).
             - **Not caused by it:** the same failure happens on the default branch, it's in code the pull
               request doesn't touch, or it's a flaky or infrastructure failure (timeouts, network, a runner
-              problem) that passes when run again.
+              problem) that passes when run again. A cancelled check is usually this.
 
             ## Fix
 
@@ -434,10 +440,9 @@ jobs:
 
             ## Report
 
-            Call `update_pull_request` with its number and `operation: replace-island`, with a short section
-            on what failed and why, per check, and what you changed or why you changed nothing. When nothing was
-            caused by the pull request, still report, so a person can rerun or look into it, and don't push.
-            Each commit gets one attempt, and a pull request three, so don't wait for a later run to finish.
+            Call `add_comment` with its number: per check, what failed and why, and what you changed or why you
+            changed nothing. When nothing was caused by the pull request, still report, so a person can rerun
+            or look into it, and don't push. Each commit gets one attempt, and a pull request three.
 
             ## Guardrails
 
@@ -779,7 +784,7 @@ jobs:
           FAILING: ${{ needs.shepherd.outputs.failing }}
           GH_TOKEN: ${{ github.token }}
         name: Collect the failing pull request
-        run: "set -euo pipefail\nout=/tmp/gh-aw/agent\nmkdir -p \"$out/logs\"\nprintf '%s\\n' \"$FAILING\" > \"$out/failing-pr.json\"\njq -r '.failed[] | [.name, .url] | @tsv' \"$out/failing-pr.json\" | while IFS=$'\\t' read -r name url; do\n  if [[ \"$url\" =~ /actions/runs/([0-9]+)/job/([0-9]+) ]]; then\n    gh run view \"${BASH_REMATCH[1]}\" --repo \"$GITHUB_REPOSITORY\" --job \"${BASH_REMATCH[2]}\" \\\n        --log-failed 2>/dev/null | tail -n 400 > \"$out/logs/${name//[^A-Za-z0-9._-]/_}.log\" || true\n  fi\ndone\nls \"$out/logs\""
+        run: "set -euo pipefail\nout=/tmp/gh-aw/agent\nmkdir -p \"$out/logs\"\nprintf '%s\\n' \"$FAILING\" > \"$out/failing-pr.json\"\nnumber=$(jq -r .number \"$out/failing-pr.json\")\ngh pr diff \"$number\" --repo \"$GITHUB_REPOSITORY\" > \"$out/pr.diff\"\njq -r '.failed[] | [.name, .url] | @tsv' \"$out/failing-pr.json\" | while IFS=$'\\t' read -r name url; do\n  if [[ \"$url\" =~ /actions/runs/([0-9]+)/job/([0-9]+) ]]; then\n    log=\"$out/logs/${name//[^A-Za-z0-9._-]/_}-${BASH_REMATCH[1]}-${BASH_REMATCH[2]}.log\"\n    gh run view \"${BASH_REMATCH[1]}\" --repo \"$GITHUB_REPOSITORY\" --job \"${BASH_REMATCH[2]}\" \\\n        --log-failed 2>/dev/null | tail -n 400 > \"$log\" || true\n  fi\ndone\nls \"$out/logs\""
 
       - name: Configure Git credentials
         env:
@@ -834,7 +839,7 @@ jobs:
         env:
           GH_AW_FILE_ROOT: "${{ runner.temp }}/gh-aw"
           GH_AW_FILE_CONFIG: "{\"files\":[{\"path\":\"safeoutputs/config.json\",\"content_env\":\"GH_AW_SAFE_OUTPUTS_CONFIG\"}]}"
-          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_report_incomplete_issue\":{},\"noop\":{\"max\":2,\"report-as-issue\":\"false\"},\"push_to_pull_request_branch\":{\"if_no_changes\":\"ignore\",\"max\":1,\"max_patch_size\":4096,\"protect_top_level_dot_folders\":true,\"protected_files\":[\"package.json\",\"bun.lockb\",\"bunfig.toml\",\"deno.json\",\"deno.jsonc\",\"deno.lock\",\"global.json\",\"NuGet.Config\",\"Directory.Packages.props\",\"mix.exs\",\"mix.lock\",\"go.mod\",\"go.sum\",\"stack.yaml\",\"stack.yaml.lock\",\"pom.xml\",\"build.gradle\",\"build.gradle.kts\",\"settings.gradle\",\"settings.gradle.kts\",\"gradle.properties\",\"package-lock.json\",\"yarn.lock\",\"pnpm-lock.yaml\",\"npm-shrinkwrap.json\",\"requirements.txt\",\"Pipfile\",\"Pipfile.lock\",\"pyproject.toml\",\"setup.py\",\"setup.cfg\",\"Gemfile\",\"Gemfile.lock\",\"uv.lock\",\"CODEOWNERS\",\"DESIGN.md\",\"README.md\",\"CONTRIBUTING.md\",\"SECURITY.md\",\"CODE_OF_CONDUCT.md\",\"CLAUDE.md\",\"AGENTS.md\"],\"protected_files_policy\":\"blocked\",\"required_labels\":[\"auditor\"],\"target\":\"*\"},\"report_incomplete\":{},\"report_missing_data\":{},\"report_missing_tool\":{},\"update_pull_request\":{\"allow_body\":true,\"allow_title\":false,\"max\":1,\"required_labels\":[\"auditor\"],\"target\":\"*\",\"update_branch\":false,\"update_branch_stacks\":true}}"
+          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"add_comment\":{\"hide_older_comments\":true,\"max\":1,\"required_labels\":[\"auditor\"],\"target\":\"*\"},\"create_report_incomplete_issue\":{},\"noop\":{\"max\":2,\"report-as-issue\":\"false\"},\"push_to_pull_request_branch\":{\"if_no_changes\":\"ignore\",\"max\":1,\"max_patch_size\":4096,\"protect_top_level_dot_folders\":true,\"protected_files\":[\"bun.lockb\",\"bunfig.toml\",\"deno.json\",\"deno.jsonc\",\"deno.lock\",\"global.json\",\"NuGet.Config\",\"Directory.Packages.props\",\"mix.exs\",\"mix.lock\",\"go.mod\",\"go.sum\",\"stack.yaml\",\"stack.yaml.lock\",\"pom.xml\",\"build.gradle\",\"build.gradle.kts\",\"settings.gradle\",\"settings.gradle.kts\",\"gradle.properties\",\"package-lock.json\",\"yarn.lock\",\"npm-shrinkwrap.json\",\"requirements.txt\",\"Pipfile\",\"Pipfile.lock\",\"pyproject.toml\",\"setup.py\",\"setup.cfg\",\"Gemfile\",\"Gemfile.lock\",\"uv.lock\",\"CODEOWNERS\",\"DESIGN.md\",\"README.md\",\"CONTRIBUTING.md\",\"SECURITY.md\",\"CODE_OF_CONDUCT.md\",\"CLAUDE.md\",\"AGENTS.md\"],\"protected_files_policy\":\"blocked\",\"required_labels\":[\"auditor\"],\"target\":\"*\"},\"report_incomplete\":{},\"report_missing_data\":{},\"report_missing_tool\":{}}"
         with:
           script: |
             const path = require('path');
@@ -848,14 +853,55 @@ jobs:
           GH_AW_TOOLS_META_JSON: |
             {
               "description_suffixes": {
-                "push_to_pull_request_branch": " CONSTRAINTS: Maximum 1 push(es) can be made.",
-                "update_pull_request": " CONSTRAINTS: Maximum 1 pull request(s) can be updated. Target: *. Only PRs with labels [auditor] can be updated."
+                "add_comment": " CONSTRAINTS: Maximum 1 comment(s) can be added. Target: *. Supports reply_to_id for discussion threading.",
+                "push_to_pull_request_branch": " CONSTRAINTS: Maximum 1 push(es) can be made."
               },
               "repo_params": {},
               "dynamic_tools": []
             }
           GH_AW_VALIDATION_JSON: |
             {
+              "add_comment": {
+                "defaultMax": 1,
+                "fields": {
+                  "body": {
+                    "required": true,
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 65000
+                  },
+                  "comment_id": {
+                    "optionalPositiveInteger": true
+                  },
+                  "item_number": {
+                    "issueOrPRNumber": true
+                  },
+                  "pr": {
+                    "issueOrPRNumber": true
+                  },
+                  "pr_number": {
+                    "issueOrPRNumber": true
+                  },
+                  "reply_to_id": {
+                    "type": "string",
+                    "maxLength": 256
+                  },
+                  "repo": {
+                    "type": "string",
+                    "maxLength": 256
+                  },
+                  "target": {
+                    "type": "string",
+                    "enum": [
+                      "status"
+                    ]
+                  },
+                  "temporary_id": {
+                    "type": "string",
+                    "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$"
+                  }
+                }
+              },
               "noop": {
                 "defaultMax": 2,
                 "fields": {
@@ -951,50 +997,6 @@ jobs:
                     "maxLength": 128
                   }
                 }
-              },
-              "update_pull_request": {
-                "defaultMax": 1,
-                "fields": {
-                  "body": {
-                    "type": "string",
-                    "sanitize": true,
-                    "maxLength": 65000
-                  },
-                  "draft": {
-                    "type": "boolean"
-                  },
-                  "operation": {
-                    "type": "string",
-                    "enum": [
-                      "replace",
-                      "append",
-                      "prepend",
-                      "replace-island"
-                    ]
-                  },
-                  "pr": {
-                    "issueOrPRNumber": true
-                  },
-                  "pr_number": {
-                    "issueOrPRNumber": true
-                  },
-                  "pull_request_number": {
-                    "issueOrPRNumber": true
-                  },
-                  "repo": {
-                    "type": "string",
-                    "maxLength": 256
-                  },
-                  "title": {
-                    "type": "string",
-                    "sanitize": true,
-                    "maxLength": 256
-                  },
-                  "update_branch": {
-                    "type": "boolean"
-                  }
-                },
-                "customValidation": "requiresOneOf:title,body,update_branch"
               }
             }
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -1405,7 +1407,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ALLOWED_DOMAINS: "api.npms.io,archive.ubuntu.com,azure.archive.ubuntu.com,bun.sh,cdn.jsdelivr.net,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,esm.sh,get.pnpm.io,googleapis.deno.dev,googlechromelabs.github.io,json-schema.org,json.schemastore.org,jsr.io,keyserver.ubuntu.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,storage.googleapis.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com"
+          GH_AW_ALLOWED_DOMAINS: "*.githubusercontent.com,127.0.0.1,::1,api.npms.io,app.renovatebot.com,appveyor.com,archive.ubuntu.com,azure.archive.ubuntu.com,badgen.net,bun.sh,cdn.jsdelivr.net,circleci.com,codacy.com,codeclimate.com,codecov.io,codeload.github.com,coveralls.io,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deepsource.io,deno.land,docs.github.com,drone.io,esm.sh,get.pnpm.io,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.blog,github.com,github.githubassets.com,googleapis.deno.dev,googlechromelabs.github.io,img.shields.io,json-schema.org,json.schemastore.org,jsr.io,keyserver.ubuntu.com,lfs.github.com,localhost,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,patch-diff.githubusercontent.com,patchdiff.githubusercontent.com,raw.githubusercontent.com,readthedocs.io,readthedocs.org,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,renovatebot.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,semaphoreci.com,shields.io,skimdb.npmjs.com,snyk.io,sonarcloud.io,sonarqube.com,storage.googleapis.com,travis-ci.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
         with:
@@ -1576,6 +1578,7 @@ jobs:
       - activation
       - agent
       - detection
+      - record_attempt
       - safe_outputs
       - shepherd
     if: >
@@ -1599,9 +1602,9 @@ jobs:
       cancel-in-progress: false
       queue: max
     env:
-      GH_AW_JOB_DISPLAY_NAMES: "{\"activation\":\"activation\",\"agent\":\"agent\",\"conclusion\":\"conclusion\",\"detection\":\"detection\",\"pre_activation\":\"pre_activation\",\"safe_outputs\":\"safe_outputs\",\"shepherd\":\"shepherd\"}"
-      GH_AW_JOB_RESULTS: "{\"activation\":{\"result\":\"${{ needs.activation.result }}\"},\"agent\":{\"result\":\"${{ needs.agent.result }}\"},\"detection\":{\"result\":\"${{ needs.detection.result }}\"},\"safe_outputs\":{\"result\":\"${{ needs.safe_outputs.result }}\"},\"shepherd\":{\"result\":\"${{ needs.shepherd.result }}\"}}"
-      GH_AW_JOB_TIMING_ELIGIBLE: "{\"activation\":true,\"agent\":true,\"conclusion\":true,\"detection\":true,\"pre_activation\":true,\"safe_outputs\":true,\"shepherd\":true}"
+      GH_AW_JOB_DISPLAY_NAMES: "{\"activation\":\"activation\",\"agent\":\"agent\",\"conclusion\":\"conclusion\",\"detection\":\"detection\",\"pre_activation\":\"pre_activation\",\"record_attempt\":\"record_attempt\",\"safe_outputs\":\"safe_outputs\",\"shepherd\":\"shepherd\"}"
+      GH_AW_JOB_RESULTS: "{\"activation\":{\"result\":\"${{ needs.activation.result }}\"},\"agent\":{\"result\":\"${{ needs.agent.result }}\"},\"detection\":{\"result\":\"${{ needs.detection.result }}\"},\"record_attempt\":{\"result\":\"${{ needs.record_attempt.result }}\"},\"safe_outputs\":{\"result\":\"${{ needs.safe_outputs.result }}\"},\"shepherd\":{\"result\":\"${{ needs.shepherd.result }}\"}}"
+      GH_AW_JOB_TIMING_ELIGIBLE: "{\"activation\":true,\"agent\":true,\"conclusion\":true,\"detection\":true,\"pre_activation\":true,\"record_attempt\":true,\"safe_outputs\":true,\"shepherd\":true}"
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
     outputs:
       incomplete_count: ${{ steps.report_incomplete.outputs.incomplete_count }}
@@ -2358,6 +2361,41 @@ jobs:
             const { main } = require(path.join(actionsDir, 'check_membership.cjs'));
             await main();
 
+  record_attempt:
+    name: record_attempt
+    needs:
+      - agent
+      - detection
+      - shepherd
+    if: always() && needs.agent.result != 'skipped'
+    runs-on: ubuntu-latest
+    # Permissions for the record_attempt job (workflow permissions default to none).
+    permissions:
+      issues: write # Create or update issues and comments.
+      pull-requests: write # Create or update pull requests and review comments.
+    steps:
+      - name: Configure GH_HOST for enterprise compatibility
+        id: ghes-host-config
+        shell: bash
+        run: | # zizmor: ignore[github-env] - GITHUB_SERVER_URL is set by GitHub Actions, not user input.
+          # Derive GH_HOST from GITHUB_SERVER_URL so the gh CLI targets the correct
+          # GitHub instance (GHES/GHEC). On github.com this is a harmless no-op.
+          GH_HOST="${GITHUB_SERVER_URL#https://}"
+          GH_HOST="${GH_HOST#http://}"
+          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
+      - name: Record the fix attempt
+        run: |
+          set -euo pipefail
+          number=$(jq -r .number <<< "$FAILING")
+          sha=$(jq -r .sha <<< "$FAILING")
+          gh pr comment "$number" --repo "$GITHUB_REPOSITORY" --body "$(printf \
+            'The auditor shepherd [looked into the failing checks](%s) of %s.\n\n<!-- auditor-shepherd: %s -->' \
+            "$RUN_URL" "$sha" "$sha")"
+        env:
+          FAILING: ${{ needs.shepherd.outputs.failing }}
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
   safe_outputs:
     name: safe_outputs
     needs:
@@ -2400,6 +2438,8 @@ jobs:
       app_token_minting_failed: ${{ steps.safe-outputs-app-token.outcome == 'failure' }}
       code_push_failure_count: ${{ steps.process_safe_outputs.outputs.code_push_failure_count }}
       code_push_failure_errors: ${{ steps.process_safe_outputs.outputs.code_push_failure_errors }}
+      comment_id: ${{ steps.process_safe_outputs.outputs.comment_id }}
+      comment_url: ${{ steps.process_safe_outputs.outputs.comment_url }}
       create_discussion_error_count: ${{ steps.process_safe_outputs.outputs.create_discussion_error_count }}
       create_discussion_errors: ${{ steps.process_safe_outputs.outputs.create_discussion_errors }}
       process_safe_outputs_items_applied: ${{ steps.process_safe_outputs.outputs.items_applied }}
@@ -2541,10 +2581,10 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_MENTIONS_GITHUB_TOKEN: ${{ github.token }}
-          GH_AW_ALLOWED_DOMAINS: "api.npms.io,archive.ubuntu.com,azure.archive.ubuntu.com,bun.sh,cdn.jsdelivr.net,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,esm.sh,get.pnpm.io,googleapis.deno.dev,googlechromelabs.github.io,json-schema.org,json.schemastore.org,jsr.io,keyserver.ubuntu.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,storage.googleapis.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com"
+          GH_AW_ALLOWED_DOMAINS: "*.githubusercontent.com,127.0.0.1,::1,api.npms.io,app.renovatebot.com,appveyor.com,archive.ubuntu.com,azure.archive.ubuntu.com,badgen.net,bun.sh,cdn.jsdelivr.net,circleci.com,codacy.com,codeclimate.com,codecov.io,codeload.github.com,coveralls.io,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deepsource.io,deno.land,docs.github.com,drone.io,esm.sh,get.pnpm.io,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.blog,github.com,github.githubassets.com,googleapis.deno.dev,googlechromelabs.github.io,img.shields.io,json-schema.org,json.schemastore.org,jsr.io,keyserver.ubuntu.com,lfs.github.com,localhost,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,patch-diff.githubusercontent.com,patchdiff.githubusercontent.com,raw.githubusercontent.com,readthedocs.io,readthedocs.org,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,renovatebot.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,semaphoreci.com,shields.io,skimdb.npmjs.com,snyk.io,sonarcloud.io,sonarqube.com,storage.googleapis.com,travis-ci.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_report_incomplete_issue\":{},\"noop\":{\"max\":2,\"report-as-issue\":\"false\"},\"push_to_pull_request_branch\":{\"if_no_changes\":\"ignore\",\"max\":1,\"max_patch_size\":4096,\"protect_top_level_dot_folders\":true,\"protected_files\":[\"package.json\",\"bun.lockb\",\"bunfig.toml\",\"deno.json\",\"deno.jsonc\",\"deno.lock\",\"global.json\",\"NuGet.Config\",\"Directory.Packages.props\",\"mix.exs\",\"mix.lock\",\"go.mod\",\"go.sum\",\"stack.yaml\",\"stack.yaml.lock\",\"pom.xml\",\"build.gradle\",\"build.gradle.kts\",\"settings.gradle\",\"settings.gradle.kts\",\"gradle.properties\",\"package-lock.json\",\"yarn.lock\",\"pnpm-lock.yaml\",\"npm-shrinkwrap.json\",\"requirements.txt\",\"Pipfile\",\"Pipfile.lock\",\"pyproject.toml\",\"setup.py\",\"setup.cfg\",\"Gemfile\",\"Gemfile.lock\",\"uv.lock\",\"CODEOWNERS\",\"DESIGN.md\",\"README.md\",\"CONTRIBUTING.md\",\"SECURITY.md\",\"CODE_OF_CONDUCT.md\",\"CLAUDE.md\",\"AGENTS.md\"],\"protected_files_policy\":\"blocked\",\"required_labels\":[\"auditor\"],\"target\":\"*\"},\"report_incomplete\":{},\"report_missing_data\":{},\"report_missing_tool\":{},\"update_pull_request\":{\"allow_body\":true,\"allow_title\":false,\"max\":1,\"required_labels\":[\"auditor\"],\"target\":\"*\",\"update_branch\":false,\"update_branch_stacks\":true}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"hide_older_comments\":true,\"max\":1,\"required_labels\":[\"auditor\"],\"target\":\"*\"},\"create_report_incomplete_issue\":{},\"noop\":{\"max\":2,\"report-as-issue\":\"false\"},\"push_to_pull_request_branch\":{\"if_no_changes\":\"ignore\",\"max\":1,\"max_patch_size\":4096,\"protect_top_level_dot_folders\":true,\"protected_files\":[\"bun.lockb\",\"bunfig.toml\",\"deno.json\",\"deno.jsonc\",\"deno.lock\",\"global.json\",\"NuGet.Config\",\"Directory.Packages.props\",\"mix.exs\",\"mix.lock\",\"go.mod\",\"go.sum\",\"stack.yaml\",\"stack.yaml.lock\",\"pom.xml\",\"build.gradle\",\"build.gradle.kts\",\"settings.gradle\",\"settings.gradle.kts\",\"gradle.properties\",\"package-lock.json\",\"yarn.lock\",\"npm-shrinkwrap.json\",\"requirements.txt\",\"Pipfile\",\"Pipfile.lock\",\"pyproject.toml\",\"setup.py\",\"setup.cfg\",\"Gemfile\",\"Gemfile.lock\",\"uv.lock\",\"CODEOWNERS\",\"DESIGN.md\",\"README.md\",\"CONTRIBUTING.md\",\"SECURITY.md\",\"CODE_OF_CONDUCT.md\",\"CLAUDE.md\",\"AGENTS.md\"],\"protected_files_policy\":\"blocked\",\"required_labels\":[\"auditor\"],\"target\":\"*\"},\"report_incomplete\":{},\"report_missing_data\":{},\"report_missing_tool\":{}}"
           GH_AW_CI_TRIGGER_TOKEN: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
           GITHUB_TOKEN: ${{ steps.safe-outputs-app-token.outputs.token }}
           GH_AW_GITHUB_TOKEN_SOURCE: "app"
@@ -2573,11 +2613,12 @@ jobs:
   shepherd:
     name: shepherd
     needs: pre_activation
+    if: needs.pre_activation.outputs.activated == 'true'
     runs-on: ubuntu-latest
     # Permissions for the shepherd job (workflow permissions default to none).
     permissions:
       checks: read # Read check runs for workflow context.
-      # Marking pull requests ready, requesting reviews, recording fix attempts.
+      # Marking pull requests ready and requesting reviews.
       pull-requests: write
       statuses: read # Read commit statuses for workflow context.
     outputs:
@@ -2597,59 +2638,60 @@ jobs:
         run: |
           set -euo pipefail
           repo="$GITHUB_REPOSITORY"
-          # The checks that gate merging, or all of them where the repository requires none. gh keeps the
-          # latest run of each, and exits non-zero while any fails or is pending.
+          errors=$(mktemp)
+          # Every check of a pull request, the latest run of each. gh exits non-zero while one fails or is
+          # pending; only output that isn't JSON is an error, except before any check has reported.
           checks_of() {
             local checks
-            checks=$(gh pr checks "$1" --repo "$repo" --required --json name,bucket,link 2>/dev/null || true)
-            if ! jq -e 'length > 0' <<< "${checks:-[]}" >/dev/null 2>&1; then
-              checks=$(gh pr checks "$1" --repo "$repo" --json name,bucket,link 2>/dev/null || true)
+            checks=$(gh pr checks "$1" --repo "$repo" --json name,bucket,link 2> "$errors") || true
+            if jq -e 'type == "array"' <<< "$checks" > /dev/null 2>&1; then
+              printf '%s' "$checks"
+            elif grep -q 'no checks reported' "$errors"; then
+              printf '[]'
+            else
+              cat "$errors" >&2
+              return 1
             fi
-            printf '%s' "${checks:-[]}"
           }
           gh pr list --repo "$repo" --state open --author app/code-infra-auditor --label auditor \
-              --limit 100 --json number,isDraft,headRefName,headRefOid,body,createdAt \
-            | jq -c 'sort_by(.createdAt)[]' \
-            | while IFS= read -r pr; do
-                jq -c --argjson checks "$(checks_of "$(jq -r .number <<< "$pr")")" '. + {checks: $checks}' <<< "$pr"
-              done \
+              --limit 100 --json number,isDraft,headRefName,headRefOid,createdAt,comments \
+            | jq -c 'sort_by(.createdAt)[]' > prs.jsonl
+          while IFS= read -r pr; do
+            checks=$(checks_of "$(jq -r .number <<< "$pr")")
+            jq -c --argjson checks "$checks" '. + {checks: $checks}' <<< "$pr"
+          done < prs.jsonl \
             | jq -s '
-                # A failing pull request gets a fix attempt per commit, three at most; the marker records it.
-                def attempts: [(.body // "") | scan("auditor-shepherd: [0-9a-f]{40}")] | length;
-                def attempted: .headRefOid as $sha | (.body // "") | contains("auditor-shepherd: " + $sha);
+                # The record job comments once per fix attempt, naming the commit; three per pull request.
+                def attempted: [.comments[] | select(.author.login == "github-actions")
+                  | .body | scan("auditor-shepherd: ([0-9a-f]{40})") | .[0]];
                 def passing: (.checks | length > 0) and all(.checks[]; .bucket == "pass" or .bucket == "skipping");
-                def failing: any(.checks[]; .bucket == "fail");
-                def fixable: failing and (attempted | not) and attempts < 3;
+                # A cancelled check blocks the pull request like a failing one.
+                def failing: any(.checks[]; .bucket == "fail" or .bucket == "cancel");
+                def tried: .headRefOid as $sha | attempted | index($sha) != null;
+                def fixable: failing and (tried | not) and (attempted | length) < 3;
                 {
                   ready: [.[] | select(.isDraft and passing) | .number],
                   failing: (first(.[] | select(fixable)
                     | {number, branch: .headRefName, sha: .headRefOid,
-                       failed: [.checks[] | select(.bucket == "fail") | {name, url: .link}]}) // null),
+                       failed: [.checks[] | select(.bucket == "fail" or .bucket == "cancel") | {name, bucket, url: .link}]}) // null),
                   log: [.[] | "#\(.number): " + (
                     if passing then (if .isDraft then "checks pass, marking it ready" else "ready, checks pass" end)
                     elif failing then
-                      (if attempted then "checks fail, already attempted at this commit"
-                       elif attempts >= 3 then "checks fail, out of fix attempts"
+                      (if tried then "checks fail, already attempted at this commit"
+                       elif (attempted | length) >= 3 then "checks fail, out of fix attempts"
                        else "checks fail" end)
                     else "checks pending" end)]
                 }' > decisions.json
           jq -r '.log[]' decisions.json
           for number in $(jq -r '.ready[]' decisions.json); do
-            gh pr ready "$number" --repo "$repo"
+            gh pr ready "$number" --repo "$repo" || { echo "::warning::Couldn't mark #$number ready"; continue; }
             # Code owners are requested when a pull request becomes ready; the team may not be requestable
             # with this token, which doesn't fail the run.
             gh pr edit "$number" --repo "$repo" --add-reviewer "mui/$REVIEWER_TEAM" \
               || echo "::warning::Couldn't request a review from mui/$REVIEWER_TEAM on #$number"
           done
           failing=$(jq -c '.failing // empty' decisions.json)
-          if [ -n "$failing" ]; then
-            number=$(jq -r .number <<< "$failing")
-            echo "#$number: handing it to the agent"
-            # Recorded before the agent runs, so a run that fails or times out still counts as an attempt.
-            body=$(gh pr view "$number" --repo "$repo" --json body --jq .body)
-            gh pr edit "$number" --repo "$repo" \
-              --body "$(printf '%s\n\n<!-- auditor-shepherd: %s -->' "$body" "$(jq -r .sha <<< "$failing")")"
-          fi
+          [ -n "$failing" ] && echo "#$(jq -r .number <<< "$failing"): handing it to the agent"
           echo "failing=$failing" >> "$GITHUB_OUTPUT"
         env:
           GH_TOKEN: ${{ github.token }}

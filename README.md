@@ -111,7 +111,7 @@ Repositories call its compiled `ahrefs-audit-workflow.lock.yml` with their Site 
 
 ### Auditor shepherd
 
-The auditors open their pull requests as drafts, labelled `auditor`. The reusable [auditor shepherd](./.github/workflows/auditor-shepherd-workflow.md) looks after them: a plain job marks a draft ready and requests a review once its required checks pass, and when one fails, an agent reproduces the failure, fixes what the pull request's own changes caused, and notes in its description what it found. The agent only runs when there is a failing pull request, once per commit and three times per pull request at most.
+The auditors open their pull requests as drafts, labeled `auditor`. The reusable [auditor shepherd](./.github/workflows/auditor-shepherd-workflow.md) looks after them: a plain job marks a draft ready and requests a review once all its checks pass, and when one fails or is cancelled, an agent reproduces the failure, fixes what the pull request's own changes caused, and reports what it found in a comment. The agent only runs when a pull request fails, once per commit and three times per pull request at most.
 
 Repositories call its compiled `auditor-shepherd-workflow.lock.yml` hourly, like [mui-public does](./.github/workflows/auditor-shepherd.yml), with the team to request reviews from (`reviewer_team`). It needs the same setup as the Dependabot fix workflow and an `auditor` label in the repository. After editing it, recompile it with `gh aw compile auditor-shepherd-workflow`.
 
