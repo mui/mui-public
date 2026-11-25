@@ -130,6 +130,10 @@ steps:
           '24c2faf0-0fab-40f1-9adf-3a73cdc59ceb', // SERP title changed
           'd69246c2-225a-11ec-8456-06d2f2f613d8', // Page and SERP titles do not match: search engines' rewrite
           'c64d7d54-d0f4-11e7-8ed1-001e67ed4656', // Not all pages from hreflang group were crawled: a crawl limit
+          // Restate "Page size exceeds 2 MB crawl limit" for the same pages, at a lower severity.
+          'c64da874-d0f4-11e7-8ed1-001e67ed4656', // HTML file size too large
+          // Expected for pages reached from one index, such as release notes; not a source fix.
+          'c64d863c-d0f4-11e7-8ed1-001e67ed4656', // Page has only one dofollow incoming internal link
           // Internal broken links: the repository's own docs link check covers those.
           'c64da643-d0f4-11e7-8ed1-001e67ed4656', // 4XX page
           '6193420a-00b1-11e8-930a-001e67ed4656', // Page has links to broken page
@@ -488,7 +492,8 @@ kept in sync by tooling, or content another repository builds.
   fragment and query parameters (such as `utm_*`); `finalUrl` already leaves out the ones the
   redirect added. Don't follow redirects that
   depend on who asks (a locale or region such as `/en-EU`, or a sign-in, consent or session page),
-  or that resolve a version alias to a fixed version (`@latest`). Leave those.
+  or that change which version a link points at: an alias resolved to a fixed version (`@latest`),
+  or a version-pinned link sent to the newest (`/v1/` to `/latest/`). Leave those.
 
 ## Fix content and metadata
 
