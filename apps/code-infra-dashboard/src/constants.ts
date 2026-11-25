@@ -21,7 +21,6 @@ export interface Repository {
   description: string;
   packages: string[];
   isPublic: boolean;
-  ossInsightId?: string;
   prComment?: {
     bundleSize?: boolean;
     benchmark?: boolean;
@@ -43,7 +42,6 @@ export const repositories = new Map<string, Repository>(
         displayName: 'MUI Core',
         description: "React components implementing Google's Material Design",
         isPublic: true,
-        ossInsightId: '23083156',
         packages: [
           '@mui/codemod',
           '@mui/core-downloads-tracker',
@@ -82,7 +80,6 @@ export const repositories = new Map<string, Repository>(
         displayName: 'MUI X',
         description: 'Advanced components for complex use cases',
         isPublic: true,
-        ossInsightId: '260240241',
         packages: [
           '@mui/x-charts',
           '@mui/x-charts-premium',
@@ -137,7 +134,6 @@ export const repositories = new Map<string, Repository>(
         displayName: 'Base UI',
         description: 'Unstyled React components and low-level hooks',
         isPublic: true,
-        ossInsightId: '762289766',
         packages: ['@base-ui/react', '@base-ui/utils'],
         prComment: {
           bundleSize: true,
@@ -236,4 +232,11 @@ export const MUI_KPI_REPOS = [
   repositories.get('mui/mui-public')!,
   repositories.get('mui/mui-design-kits')!,
   repositories.get('mui/mui-private')!,
+];
+
+// Repos that get the per-repo KPI cards (open PRs, CI, time to merge, community, ...).
+export const MUI_PER_REPO_KPI_REPOS = [
+  repositories.get('mui/material-ui')!,
+  repositories.get('mui/mui-x')!,
+  repositories.get('mui/base-ui')!,
 ];
