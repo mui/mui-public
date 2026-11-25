@@ -160,33 +160,6 @@ Recursively removes titleMarkdown fields from a heading hierarchy
 type ReturnValue = Record<string, SitemapSection>;
 ```
 
-### toSitemapPage
-
-Converts one parsed index entry into the `SitemapPage` the sitemap exposes.
-
-Uses the index list label (`displayTitle`) as the title when one is set, and normalizes
-whitespace exactly as the parser does, so a cached entry matches a fresh parse. keywords and
-types are comma-split from a whitespace-collapsed paragraph by the parser, so each element is
-normalized the same way.
-
-Copies only the fields `SitemapPage` declares. The rest, such as `embeddings` or the markdown
-AST fields, would only add bundle size.
-
-Every code path that builds sitemap data from an index must use this, so they all agree.
-
-**Parameters:**
-
-| Parameter | Type             | Default | Description                                                        |
-| :-------- | :--------------- | :------ | :----------------------------------------------------------------- |
-| page      | `PageMetadata`   | -       | The parsed index entry.                                            |
-| section   | `string \| null` | -       | The route-group section title the page is listed under, or `null`. |
-
-**Return Value:**
-
-```tsx
-type ReturnValue = SitemapPage;
-```
-
 ## Additional Types
 
 ### CreateLoadServerPageIndexOptions
