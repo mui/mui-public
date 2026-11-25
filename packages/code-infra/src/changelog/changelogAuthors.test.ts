@@ -32,7 +32,7 @@ describe('pull request authors', () => {
 
   it('tells bots, whatever they are called', async () => {
     const github = createGitHub({
-      commits: ['renovate[bot]', 'Copilot', 'octocat'].map((login, index) => ({
+      commits: ['renovate[bot]', 'some-app', 'octocat'].map((login, index) => ({
         message: `Commit ${index}`,
         pulls: [{ number: index, login, isBot: login !== 'octocat' }],
       })),
@@ -47,6 +47,75 @@ describe('pull request authors', () => {
       false,
     ]);
   });
+});
+
+describe('Copilot', () => {
+  const COPILOT = { login: 'Copilot', name: null, association: 'community', isBot: false };
+  const REQUESTER = { login: 'member', name: null, association: 'team', isBot: false };
+
+  async function fetchChanges(fixture: GitHubFixture) {
+    const { changes } = await fetchDummyRelease(
+      createGitHub({ responses: { '/orgs/mui/members/member': { status: 204 } }, ...fixture }),
+    );
+    return changes;
+  }
+
+  it('credits who asked for the pull request', async () => {
+    const [change] = await fetchChanges({
+      commits: [
+        {
+          message: 'Add it',
+          pulls: [{ number: 1, login: 'Copilot', assignees: ['member', 'Copilot'] }],
+        },
+      ],
+    });
+
+    expect(change).toMatchObject({ author: REQUESTER, pullRequest: { openedBy: REQUESTER } });
+    expect(warnings).toEqual([]);
+  });
+
+  it.each([
+    ['nobody else', ['Copilot']],
+    ['several people', ['member', 'octocat', 'Copilot']],
+  ])('is credited, with a warning, when %s is assigned', async (name, assignees) => {
+    const [change] = await fetchChanges({
+      commits: [{ message: 'Add it', pulls: [{ number: 1, login: 'Copilot', assignees }] }],
+    });
+
+    expect(change).toMatchObject({ author: COPILOT, pullRequest: { openedBy: COPILOT } });
+    expect(warnings).toEqual([
+      "#1 is by Copilot, but who it worked for can't be determined. Copilot is credited instead.",
+    ]);
+  });
+
+  it('is the only one that assignees are credited for', async () => {
+    const changes = await fetchChanges({
+      commits: [
+        { message: 'Fix it', pulls: [{ number: 1, login: 'octocat', assignees: ['member'] }] },
+        {
+          message: 'Bump it',
+          pulls: [{ number: 2, login: 'renovate[bot]', assignees: ['member'] }],
+        },
+      ],
+    });
+
+    expect(changes.map((change) => change.author?.login)).toEqual(['octocat', 'renovate[bot]']);
+  });
+
+  it.each(['github-actions[bot]', 'contributor'])(
+    'credits who asked for the original of a cherry-pick by %s',
+    async (login) => {
+      const [change] = await fetchChanges({
+        commits: [
+          { message: 'Add it (#1)', pulls: [{ number: 1, login, body: 'Cherry-pick of #10' }] },
+        ],
+        pulls: [{ number: 10, login: 'Copilot', assignees: ['member', 'Copilot'] }],
+      });
+
+      expect(change.author).toEqual(REQUESTER);
+      expect(change.pullRequest?.openedBy?.login).toBe(login);
+    },
+  );
 });
 
 describe('cherry-pick authors', () => {
@@ -194,6 +263,7 @@ describe('direct commit authors', () => {
         { message: 'Third', login: 'member' },
         { message: 'No account' },
         { message: 'Bot', login: 'renovate[bot]' },
+        { message: 'Copilot', login: 'Copilot' },
       ],
       responses: { '/orgs/mui/members/member': { status: 204 } },
     });
@@ -204,6 +274,7 @@ describe('direct commit authors', () => {
       { login: 'member', association: 'team', isBot: false },
       { login: null, name: 'Git Author', association: 'community', isBot: false },
       { login: 'renovate[bot]', association: 'community', isBot: true },
+      { login: 'Copilot', association: 'community', isBot: false },
     ]);
     expect(requests.filter((path) => path.startsWith('/orgs/'))).toHaveLength(2);
     expect(warnings).toEqual([]);

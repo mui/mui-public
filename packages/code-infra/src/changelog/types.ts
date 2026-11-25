@@ -463,6 +463,9 @@ export interface ChangelogAuthor {
    */
   name: string | null;
   association: 'team' | 'community' | 'first-timer';
+  /**
+   * Whether it is a bot that works on its own. Not for Copilot, which works for a person.
+   */
   isBot: boolean;
 }
 
@@ -494,8 +497,8 @@ export interface ChangelogChange {
     title: string;
     body: string;
     /**
-     * Not necessarily the author of the change, for a cherry-pick by a bot. `null` when the GitHub
-     * account was deleted.
+     * Not necessarily the author of the change, for a cherry-pick by a bot. The person who asked
+     * Copilot for the pull request, when it opened it. `null` when the GitHub account was deleted.
      */
     openedBy: ChangelogAuthor | null;
   } | null;

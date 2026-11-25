@@ -18,6 +18,7 @@ import { getRateLimitRetryTime } from '../utils/github.mjs';
  * @property {string} title
  * @property {string | null} body
  * @property {{ login: string, type: string } | null} user
+ * @property {{ login: string, type: string }[] | null} [assignees]
  * @property {string} author_association
  * @property {{ name?: string }[]} labels
  */
@@ -36,6 +37,7 @@ const ASSOCIATIONS = {
 
 const BREAKING_CHANGE_LABELS = ['breaking', 'breaking change'];
 const CHERRY_PICK_LABEL = 'cherry-pick';
+const COPILOT = 'Copilot';
 const PULL_REFERENCE =
   /(?:https:\/\/github\.com\/(?<urlOwner>[\w.-]+)\/(?<urlRepo>[\w.-]+)\/pull\/|(?:(?<owner>[\w.-]+)\/(?<repo>[\w.-]+))?#)(?<number>\d+)/;
 // Unnamed, so that the pattern can be repeated.
@@ -66,6 +68,15 @@ function getCherryPickReferences(pull, repository) {
       };
     }),
   );
+}
+
+/**
+ * Copilot works for a person, so what it does isn't the routine work of other bots.
+ *
+ * @param {{ login?: string, type?: string } | null} [account]
+ */
+function isBotAccount(account) {
+  return account?.type === 'Bot' && account.login !== COPILOT;
 }
 
 /**
@@ -169,6 +180,19 @@ function createAuthorResolver({ octokit, repository, signal }) {
       return null;
     }
     const { login, type } = pull.user;
+    if (login === COPILOT) {
+      // It assigns itself and whoever asked for the pull request.
+      const people = (pull.assignees ?? []).filter((assignee) => assignee.type !== 'Bot');
+      return people.length === 1
+        ? {
+            login: people[0].login,
+            name: null,
+            // The association of the pull request is the one of Copilot.
+            association: await getMembership(people[0].login),
+            isBot: false,
+          }
+        : { login, name: null, association: 'community', isBot: false };
+    }
     const isSameRepository =
       pullRepository.owner === repository.owner && pullRepository.repo === repository.repo;
     /** @type {ChangelogAuthor['association']} */
@@ -190,7 +214,7 @@ function createAuthorResolver({ octokit, repository, signal }) {
    * `null` when the pull request is a cherry-pick by a bot of which the original author is unknown
    */
   async function resolve(pull, pullRepository, chain = []) {
-    const isBot = pull.user?.type === 'Bot';
+    const isBot = isBotAccount(pull.user);
     const opener = async () => ({
       author: await getOpener(pull, pullRepository),
       isBot,
@@ -227,23 +251,26 @@ function createAuthorResolver({ octokit, repository, signal }) {
   return {
     /**
      * @param {PullRequest} pull
-     */
-    openerOf: (pull) => getOpener(pull, repository),
-    /**
-     * @param {PullRequest} pull
-     * @returns {Promise<{ author: ChangelogAuthor | null, references: string[] }>}
+     * @returns {Promise<{ author: ChangelogAuthor | null, openedBy: ChangelogAuthor | null, references: string[] }>}
      */
     async fromPullRequest(pull) {
+      const openedBy = await getOpener(pull, repository);
       const resolved = await resolve(pull, repository);
-      if (resolved) {
-        return resolved;
+      if (!resolved) {
+        console.warn(
+          `#${pull.number} is a cherry-pick, but its original author can't be determined. ` +
+            `${openedBy?.login} is credited instead.`,
+        );
+        return { author: openedBy, openedBy, references: [] };
       }
-      const author = await getOpener(pull, repository);
-      console.warn(
-        `#${pull.number} is a cherry-pick, but its original author can't be determined. ` +
-          `${author?.login} is credited instead.`,
-      );
-      return { author, references: [] };
+      const { author, references } = resolved;
+      if (author?.login === COPILOT) {
+        console.warn(
+          `#${pull.number} is by ${COPILOT}, but who it worked for can't be determined. ` +
+            `${COPILOT} is credited instead.`,
+        );
+      }
+      return { author, openedBy, references };
     },
     /**
      * @param {Commit} commit
@@ -251,12 +278,14 @@ function createAuthorResolver({ octokit, repository, signal }) {
      */
     async fromCommit(commit) {
       const login = commit.author?.login ?? null;
-      const isBot = commit.author?.type === 'Bot';
       return {
         login,
         name: commit.commit.author?.name ?? null,
-        association: login === null || isBot ? 'community' : await getMembership(login),
-        isBot,
+        association:
+          login === null || commit.author?.type === 'Bot'
+            ? 'community'
+            : await getMembership(login),
+        isBot: isBotAccount(commit.author),
       };
     },
   };
@@ -371,7 +400,7 @@ export async function fetchChangelogChanges({
 
     const pull = await findPullRequest(sha, subject);
     if (pull) {
-      const { author, references } = await authors.fromPullRequest(pull);
+      const { author, openedBy, references } = await authors.fromPullRequest(pull);
       const ownReference = `#${pull.number}`;
       const title = subject.endsWith(`(${ownReference})`) ? subject : pull.title;
       const isCreditedCherryPick = references.length > 0;
@@ -386,7 +415,7 @@ export async function fetchChangelogChanges({
           number: pull.number,
           title: pull.title,
           body: pull.body ?? '',
-          openedBy: await authors.openerOf(pull),
+          openedBy,
         },
         author,
         createdAt: pull.created_at,

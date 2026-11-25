@@ -7,8 +7,10 @@ export interface PullFixture {
   title?: string;
   body?: string;
   login?: string;
-  /** By default, when the login ends in `[bot]`. */
+  /** By default, when the login is the one of a bot. */
   isBot?: boolean;
+  /** Logins. */
+  assignees?: string[];
   association?: string;
   labels?: string[];
   mergedAt?: string | null;
@@ -62,7 +64,7 @@ export function shaOf(index: number) {
   return String(index + 1).padStart(40, '0');
 }
 
-function accountType(login: string, isBot = login.endsWith('[bot]')) {
+function accountType(login: string, isBot = login === 'Copilot' || login.endsWith('[bot]')) {
   return isBot ? 'Bot' : 'User';
 }
 
@@ -73,6 +75,10 @@ function toPull(pull: PullFixture, sha?: string) {
     title: pull.title ?? `Pull request ${pull.number}`,
     body: pull.body ?? null,
     user: { login, type: accountType(login, pull.isBot) },
+    assignees: (pull.assignees ?? []).map((assignee) => ({
+      login: assignee,
+      type: accountType(assignee),
+    })),
     author_association: pull.association ?? 'CONTRIBUTOR',
     labels: (pull.labels ?? []).map((name) => ({ name })),
     html_url: `https://github.com/${pull.repository ?? 'mui/test'}/pull/${pull.number}`,
