@@ -29,6 +29,7 @@ const EXCLUDED_LABELS = [
   'website',
 ];
 const EXCLUDED_CONTRIBUTORS = ['Copilot'];
+const BREAKING_CHANGE = 'breaking change';
 const GENERAL = 'General changes';
 
 /**
@@ -57,7 +58,7 @@ function getHeadings({ labels }) {
  */
 function formatText({ labels, title }) {
   return joinWords(
-    labels.includes('breaking change') && '🚨 **Breaking change:**',
+    labels.includes(BREAKING_CHANGE) && '🚨 **Breaking change:**',
     parseTitle(title).text,
   );
 }
@@ -68,7 +69,12 @@ function formatText({ labels, title }) {
  * @param {(change: ChangelogChange) => string} formatChange
  */
 function formatSections(changes, level, formatChange) {
-  const groups = groupBy(changes, getHeadings);
+  const isBreaking = (/** @type {ChangelogChange} */ change) =>
+    change.labels.includes(BREAKING_CHANGE);
+  const groups = groupBy(
+    [...changes.filter(isBreaking), ...changes.filter((change) => !isBreaking(change))],
+    getHeadings,
+  );
   const components = [...groups.keys()].filter((heading) => heading !== GENERAL).sort();
   return [GENERAL, ...components].map((heading) =>
     section(`${level} ${heading}`, bulletList((groups.get(heading) ?? []).map(formatChange))),

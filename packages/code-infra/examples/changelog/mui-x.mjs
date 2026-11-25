@@ -24,6 +24,7 @@ import {
  */
 
 const EXCLUDED_LABELS = ['dependencies', 'release'];
+const BREAKING_CHANGE = 'breaking change';
 const EXCLUDED_CONTRIBUTORS = ['renovate[bot]', 'code-infra-renovate[bot]', 'github-actions[bot]'];
 // Internal to the products, and not a place in the changelog.
 const IGNORED_LABELS = ['scope: virtualizer'];
@@ -175,18 +176,35 @@ function changeList(changes = []) {
 }
 
 /**
+ * A start for the notes on how to migrate, which are written by hand.
+ *
+ * @param {ChangelogChange[]} changes
+ */
+function formatBreakingChanges(changes) {
+  return section(
+    '#### Breaking changes',
+    bulletList(
+      sortByTitle(changes)
+        .filter((change) => change.labels.includes(BREAKING_CHANGE))
+        .map((change) => `TODO DESCRIBE ${change.title} (${formatReference(change)})`),
+    ),
+  );
+}
+
+/**
  * @param {ChangelogData} data
  * @param {Map<string, ChangelogChange[]>} groups
  * @param {Product} product
  */
 function formatProduct(data, groups, { title, base, plans = [], companions = [], internal }) {
   const tiers = [base, ...plans.map((plan) => `${base}-${plan}`)];
-  const isListed = [...tiers, ...companions].some((name) => groups.has(name));
+  // Once each, also when a companion lists them too.
+  const changes = new Set([...tiers, ...companions].flatMap((name) => groups.get(name) ?? []));
   const versions = new Map(data.packages.map((pkg) => [pkg.name, pkg]));
   // Internal changes, such as a bump of a shared dependency, are released too. It isn't known
   // whether there are any without the previous release.
   const isReleased = versions.has(base) && versions.get(base)?.changed !== false;
-  if (!isListed && (internal || !isReleased)) {
+  if (changes.size === 0 && (internal || !isReleased)) {
     return '';
   }
 
@@ -194,13 +212,14 @@ function formatProduct(data, groups, { title, base, plans = [], companions = [],
     `\`${name}@${versions.get(name)?.version ?? data.version}\``;
   return section(
     `### ${title}`,
+    formatBreakingChanges([...changes]),
     section(`#### ${at(base)}`, changeList(groups.get(base)) || 'Internal changes.'),
     plans.map((plan, index) => {
-      const changes = changeList(groups.get(tiers[index + 1]));
+      const added = changeList(groups.get(tiers[index + 1]));
       return section(
         `#### ${at(tiers[index + 1])} ${PLAN_BADGES[plan]}`,
-        `Same changes as in ${at(tiers[index])}${changes ? ', plus:' : '.'}`,
-        changes,
+        `Same changes as in ${at(tiers[index])}${added ? ', plus:' : '.'}`,
+        added,
       );
     }),
     companions.map((name) => section(`#### ${at(name)}`, changeList(groups.get(name)))),

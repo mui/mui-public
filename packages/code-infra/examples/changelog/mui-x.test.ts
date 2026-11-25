@@ -164,6 +164,41 @@ Same changes as in \`@mui/x-scheduler@9.1.0\`, plus:
 - [chat] Fix it (#1) @octocat`);
   });
 
+  it('has breaking changes above the packages of a product, once each', () => {
+    const labels = ['breaking change'];
+    const sections = formatSections([
+      { number: 1, title: '[charts] Fix it' },
+      { number: 2, title: '[charts-pro] Rename `foo`', labels },
+      { number: 3, title: '[charts] Drop it', body: 'From `@mui/x-charts-vendor`.', labels },
+    ]);
+
+    expect(sections).toBe(`### Charts
+
+#### Breaking changes
+
+- TODO DESCRIBE [charts] Drop it (#3)
+- TODO DESCRIBE [charts-pro] Rename \`foo\` (#2)
+
+#### \`@mui/x-charts@9.1.0\`
+
+- [charts] Drop it (#3) @octocat
+- [charts] Fix it (#1) @octocat
+
+#### \`@mui/x-charts-pro@9.1.0\` ${PRO}
+
+Same changes as in \`@mui/x-charts@9.1.0\`, plus:
+
+- [charts-pro] Rename \`foo\` (#2) @octocat
+
+#### \`@mui/x-charts-premium@9.1.0\` ${PREMIUM}
+
+Same changes as in \`@mui/x-charts-pro@9.1.0\`.
+
+#### \`@mui/x-charts-vendor@9.1.0\`
+
+- [charts] Drop it (#3) @octocat`);
+  });
+
   it('leaves out entries by label, and not the ones of all bots', () => {
     const sections = formatSections([
       { number: 1, title: 'Bump foo', labels: ['dependencies'], author: { login: 'bob' } },

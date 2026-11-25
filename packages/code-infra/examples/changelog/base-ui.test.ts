@@ -16,6 +16,7 @@ const DATA = createData([
   },
   { number: 3, title: '[useRender] Rename it', labels: ['hook: useRender', 'breaking change'] },
   { number: 4, title: '[menu] Add it', labels: ['component: menu'], author: null },
+  { number: 7, title: '[menu] Drop it', labels: ['component: menu', 'breaking change'] },
   { number: 5, title: 'Fix typo', labels: ['docs'], author: { login: 'writer' } },
   { number: 6, title: 'Simplify', author: { login: 'Copilot' } },
 ]);
@@ -35,6 +36,7 @@ _Jan 2, 2026_
 
 ### Menu
 
+- 🚨 **Breaking change:** Drop it (#7) by @octocat
 - Fix \`it\` (#1) by @octocat
 - Add it (#4)
 
@@ -62,6 +64,7 @@ All contributors of this release in alphabetical order: @octocat`);
 
 ## Menu
 
+- 🚨 **Breaking change:** Drop it ([#7](https://github.com/mui/test/pull/7))
 - Fix \`it\` ([#1](https://github.com/mui/test/pull/1))
 - Add it ([#4](https://github.com/mui/test/pull/4))
 
