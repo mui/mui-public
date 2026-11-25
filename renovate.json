@@ -21,6 +21,11 @@
       "matchSourceUrls": ["https://github.com/vercel/next.js", "https://github.com/react/react"],
       "matchDepTypes": ["devDependencies"],
       "rangeStrategy": "bump"
+    },
+    {
+      "groupName": "tsdown",
+      "description": "tsdown >=0.23.5 needs the TypeScript 7.1 API for tsgo declarations, and rolldown must match the version that tsdown uses. Keep the three in one PR, so @typescript/native cannot move to 7.1 without them.",
+      "matchDepNames": ["tsdown", "rolldown", "@typescript/native"]
     }
   ]
 }
