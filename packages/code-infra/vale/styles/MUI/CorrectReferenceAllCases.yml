@@ -5,14 +5,15 @@ level: error
 ignorecase: true # There is only one correct way to spell those, so we want to match inputs regardless of case.
 # swap maps tokens in form of bad: good
 # for more information: https://vale.sh/docs/topics/styles/#substitution
+# Use lookarounds, not edge spaces: in Vale 3.25.1+ an edge space matches a line wrap, and correct text gets an alert.
 swap:
-  ' api': ' API'
-  'typescript ': 'TypeScript '
-  ' ts': ' TypeScript'
+  '(?<=\w\s+)api': API
+  'typescript(?=\s+\w)': TypeScript
+  '(?<=\w\s+)ts': TypeScript
   javascript: JavaScript
-  ' js': ' JavaScript'
-  ' css ': ' CSS '
-  ' html ': ' HTML '
+  '(?<=\w\s+)js': JavaScript
+  '(?<=\w\s+)css(?=\s+\w)': CSS
+  '(?<=\w\s+)html(?=\s+\w)': HTML
   NPM: npm # https://css-tricks.com/start-sentence-npm/
   Github: GitHub
   StackOverflow: Stack Overflow
@@ -31,7 +32,7 @@ swap:
   Material 3: Material Design 3
   VSCode: VS Code
   VS Code: VS Code
-  'Codesandbox ': 'CodeSandbox '
+  'Codesandbox(?=\s+\w)': CodeSandbox
   code sandbox: CodeSandbox
   Stackblitz: StackBlitz
   Webpack: webpack # https://x.com/wSokra/status/855800490713649152
