@@ -5,6 +5,7 @@ import {
   formatAuthor,
   formatDate,
   formatReference,
+  formatSubHeader,
   joinBlocks,
   joinWords,
   section,
@@ -94,5 +95,17 @@ describe('formatDate', () => {
   it('does not depend on the time zone', () => {
     expect(formatDate('2026-11-05T00:30:00.000Z')).toBe('Nov 5, 2026');
     expect(formatDate('2026-11-05T23:30:00.000Z')).toBe('Nov 5, 2026');
+  });
+});
+
+describe('formatSubHeader', () => {
+  it('has the range and the date of a release', () => {
+    expect(
+      formatSubHeader({
+        previous: { ref: 'v1.0.0', sha: 'a'.repeat(40) },
+        release: { ref: 'v1.1.0', sha: 'b'.repeat(40) },
+        date: '2026-11-05T23:30:00.000Z',
+      }),
+    ).toBe('<!-- generated comparing v1.0.0...v1.1.0 -->\n\n_Nov 5, 2026_');
   });
 });

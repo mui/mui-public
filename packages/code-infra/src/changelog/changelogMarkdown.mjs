@@ -1,6 +1,7 @@
 /**
  * @typedef {import('./types.ts').ChangelogAuthor} ChangelogAuthor
  * @typedef {import('./types.ts').ChangelogChange} ChangelogChange
+ * @typedef {import('./types.ts').ChangelogData} ChangelogData
  * @typedef {import('./types.ts').MarkdownBlock} MarkdownBlock
  * @typedef {import('./types.ts').MarkdownInline} MarkdownInline
  */
@@ -92,4 +93,18 @@ export function formatAuthor(author) {
  */
 export function formatDate(date) {
   return DATE_FORMAT.format(new Date(date));
+}
+
+/**
+ * What is below the heading of a release: a comment with the range it was generated from, and its
+ * date.
+ *
+ * @param {Pick<ChangelogData, 'previous' | 'release' | 'date'>} data
+ * @returns {string}
+ */
+export function formatSubHeader({ previous, release, date }) {
+  return joinBlocks(
+    `<!-- generated comparing ${previous.ref}...${release.ref} -->`,
+    `_${formatDate(date)}_`,
+  );
 }

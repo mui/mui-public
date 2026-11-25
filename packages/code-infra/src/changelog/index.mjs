@@ -30,6 +30,7 @@ export {
   formatAuthor,
   formatDate,
   formatReference,
+  formatSubHeader,
   joinBlocks,
   joinWords,
   section,

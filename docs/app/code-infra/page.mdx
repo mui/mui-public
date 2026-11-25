@@ -44,8 +44,8 @@ import {
   bulletList,
   creditAuthors,
   formatAuthor,
-  formatDate,
   formatReference,
+  formatSubHeader,
   groupBy,
   joinBlocks,
   joinWords,
@@ -68,7 +68,7 @@ export function formatChangelog(data) {
 
   return joinBlocks(
     `## ${data.version}`,
-    `_${formatDate(data.date)}_`,
+    formatSubHeader(data),
     [...groups].map(([name, group]) =>
       section(
         `### ${name}`,
@@ -110,4 +110,5 @@ The data is serializable: save it to format a release again, or to test the code
 | `joinBlocks(...blocks)`, `section(heading, ...)`  | Join blocks with a blank line in between. Empty blocks, and sections with nothing in them, are left out.                |
 | `bulletList(items)`, `joinWords(...parts)`        | Join the items of a list, and the parts of a line. Empty ones are left out.                                             |
 | `formatReference(change)`, `formatAuthor(author)` | Format the pull request or commit of a change, and its author. An author without a GitHub account is mentioned by name. |
+| `formatSubHeader(data)`                           | Formats what is below the heading of a release: a comment with the range it was generated from, and its date.           |
 | `formatDate(date)`                                | Formats the date of a release.                                                                                          |
