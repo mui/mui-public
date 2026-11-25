@@ -2,8 +2,7 @@
  * @typedef {import('./types.ts').ChangelogTitle} ChangelogTitle
  */
 
-// A bracket followed by a parenthesis is a link.
-const PREFIX = /^\[([^[\]]+)\](?!\()\s*/;
+const PREFIX = /^\[([^[\]]+)\]\s*/;
 
 /**
  * Splits the leading `[prefixes]` off a title.

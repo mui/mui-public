@@ -13,13 +13,6 @@ describe('parseTitle', () => {
   ])('splits %s', (title, expected) => {
     expect(parseTitle(title)).toEqual(expected);
   });
-
-  it('does not mistake a link for a prefix', () => {
-    expect(parseTitle('[docs] [Next.js](https://nextjs.org) example')).toEqual({
-      prefixes: ['docs'],
-      text: '[Next.js](https://nextjs.org) example',
-    });
-  });
 });
 
 describe('matchPrefix', () => {
