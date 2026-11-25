@@ -202,7 +202,7 @@ steps:
 safe-outputs:
   # The jobs that publish the outputs use the Code Infra - Auditor App. Its credentials are secrets
   # of a `code-infra-auditor` environment in the repository the workflow runs against, restricted to
-  # the default branch, which is what `pull_request_target` runs on for pull requests to it.
+  # the default branch, which `pull_request_target` always runs on, whatever the base branch.
   environment:
     name: code-infra-auditor
     deployment: false
