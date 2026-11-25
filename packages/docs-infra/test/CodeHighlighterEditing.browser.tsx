@@ -6,6 +6,8 @@ import { CodeProviderLazy } from '../src/CodeProvider/CodeProviderLazy';
 import { CodeControllerContext } from '../src/CodeControllerContext';
 import { createParseSource } from '../src/pipeline/parseSource/parseSource';
 import { useCode } from '../src/useCode';
+import { useDemoController } from '../src/useDemoController';
+import { useCodeHighlighterContext } from '../src/CodeHighlighter/CodeHighlighterContext';
 import { enhanceCodeEmphasis } from '../src/pipeline/enhanceCodeEmphasis';
 import { applyEnhancer } from '../src/pipeline/loadIsomorphicCodeVariant/runSourceEnhancers';
 import { transformSource } from '../src/pipeline/loadIsomorphicCodeVariant/transformSource';
@@ -22,6 +24,62 @@ const JS_SOURCE = 'export const value = 1;';
 
 let code: Code;
 let transformCode: Code;
+let previewCode: Code;
+let bundledMounts = 0;
+
+const COUNTER_SOURCE = `import * as React from 'react';
+export default function Counter() {
+  const [count, setCount] = React.useState(0);
+  return <button type="button" onClick={() => setCount((value) => value + 1)}>Count {count}</button>;
+}`;
+
+function Counter() {
+  const [count, setCount] = React.useState(0);
+
+  React.useEffect(() => {
+    bundledMounts += 1;
+  }, []);
+
+  return (
+    <button type="button" onClick={() => setCount((value) => value + 1)}>
+      Count {count}
+    </button>
+  );
+}
+
+function LiveSource(props: ContentProps<{}>) {
+  const demo = useCode(props);
+  const context = useCodeHighlighterContext();
+
+  return (
+    <React.Fragment>
+      {context.components?.[demo.selectedVariant]}
+      <section aria-label="Source">{demo.selectedFile}</section>
+    </React.Fragment>
+  );
+}
+
+function LiveDemo() {
+  const controller = useDemoController();
+
+  return (
+    <CodeProviderLazy>
+      <output>{controller.components ? 'Live build ready' : 'No live build'}</output>
+      <CodeControllerContext.Provider value={controller}>
+        <CodeHighlighter
+          precompute={previewCode}
+          components={{ TypeScript: <Counter /> }}
+          initialVariant="TypeScript"
+          highlightAfter="init"
+          enhanceAfter="init"
+          initialExpanded
+          editActivation="interaction"
+          Content={LiveSource}
+        />
+      </CodeControllerContext.Provider>
+    </CodeProviderLazy>
+  );
+}
 
 function Source(props: ContentProps<{}>) {
   const demo = useCode(props);
@@ -91,6 +149,13 @@ describe('CodeHighlighter editing source switches', () => {
       },
     };
 
+    previewCode = {
+      TypeScript: {
+        fileName: MAIN_FILE,
+        source: await highlight(COUNTER_SOURCE, MAIN_FILE),
+      },
+    };
+
     const transforms = await transformSource(TS_SOURCE, MAIN_FILE, [
       {
         extensions: ['tsx'],
@@ -113,9 +178,35 @@ describe('CodeHighlighter editing source switches', () => {
   beforeEach(() => {
     window.history.replaceState(null, '', window.location.pathname);
     window.localStorage.clear();
+    bundledMounts = 0;
   });
 
   afterEach(cleanup);
+
+  it('preserves the bundled preview until an edit and stays live after undo', async () => {
+    render(<LiveDemo />);
+
+    const preview = screen.getByRole('button', { name: 'Count 0' });
+
+    await userEvent.click(preview);
+    await userEvent.click(screen.getByRole('region', { name: 'Source' }).querySelector('pre')!);
+
+    const editor = await screen.findByRole('textbox');
+
+    await userEvent.click(editor);
+    await screen.findByText('Live build ready');
+    expect(screen.getByRole('button', { name: 'Count 1' })).toBe(preview);
+
+    await userEvent.fill(editor, COUNTER_SOURCE.replace('Count ', 'Edited '));
+    await screen.findByRole('button', { name: 'Edited 0' });
+
+    const mountsBeforeUndo = bundledMounts;
+
+    await userEvent.fill(editor, COUNTER_SOURCE);
+    await userEvent.click(await screen.findByRole('button', { name: 'Count 0' }));
+    await screen.findByRole('button', { name: 'Count 1' });
+    expect(bundledMounts).toBe(mountsBeforeUndo);
+  });
 
   it.each(['Helper', 'JavaScript'])(
     'keeps %s highlighted after activating another editor',
