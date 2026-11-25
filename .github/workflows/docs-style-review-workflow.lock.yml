@@ -1,5 +1,5 @@
-# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"75346aea29911a1596bc92d6bf85bcab43e4e121e866d6b5de266ce182e66130","body_hash":"c52a812bbcedd5c7b72e85a411dbed69219c89272e87d1eae76ba162983c810e","compiler_version":"v1.2.2","strict":true,"agent_id":"claude","agent_model":"claude-sonnet-5-5","engine_versions":{"claude":"2.1.317"}}
-# gh-aw-manifest: {"version":1,"secrets":["CODE_INFRA_AUDITOR_CLIENT_ID","CODE_INFRA_AUDITOR_PRIVATE_KEY","COPILOT_GITHUB_TOKEN","GH_AW_DEFAULT_OTLP_ENDPOINT","GH_AW_DEFAULT_OTLP_HEADERS","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/create-github-app-token","sha":"64ab729a6294000f5aa4a4bc0b73d1f32bc45510","version":"v3.3.0"},{"repo":"actions/download-artifact","sha":"9000827ccba6bdab643e8b6fd33ac0654aef8333","version":"v8.0.2"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"949feb2413d6458794dcd2491c4babbbce0c15c1","version":"v7.1.0"},{"repo":"actions/upload-artifact","sha":"cf430e030ddbb5b0abf93d22962f4752f3646cd9","version":"v7.0.2"},{"repo":"github/gh-aw-actions/setup","sha":"53d0749e19424a918acd82b4d140264ce48f2f14","version":"v1.2.2"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.29.11","digest":"sha256:8774a73c351395b41d2ad0af4ddb4689007c67de3cd08bd9f43bb8a0e300690e","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.29.11@sha256:8774a73c351395b41d2ad0af4ddb4689007c67de3cd08bd9f43bb8a0e300690e"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.29.11","digest":"sha256:88d2d0e315a504d93fd4fb8847fd0f6b7f4469f41a6fc6047b3dc9654c56ab2c","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.29.11@sha256:88d2d0e315a504d93fd4fb8847fd0f6b7f4469f41a6fc6047b3dc9654c56ab2c"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.29.11","digest":"sha256:97782bc0d8ff7f80f19ae2fdc5e1668517aa732a6fa077e64b8d3919238496d2","pinned_image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.29.11@sha256:97782bc0d8ff7f80f19ae2fdc5e1668517aa732a6fa077e64b8d3919238496d2"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.29.11","digest":"sha256:861739ecf924dd2db5e5fb652db2ad82aaafd1615623297ddabc8f41a36b2847","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.29.11@sha256:861739ecf924dd2db5e5fb652db2ad82aaafd1615623297ddabc8f41a36b2847"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.5.6","digest":"sha256:342cd624e1f179d91be2de7a146fc4f387092e62e6c8a47506d7932e113d2311","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.5.6@sha256:342cd624e1f179d91be2de7a146fc4f387092e62e6c8a47506d7932e113d2311"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:8735428c2d4e602f90781ba0c571c400e8ff93c7ee1508a75d71f87e34e415cc","pinned_image":"ghcr.io/github/gh-aw-node@sha256:8735428c2d4e602f90781ba0c571c400e8ff93c7ee1508a75d71f87e34e415cc"},{"image":"ghcr.io/github/github-mcp-server:v2.1.0","digest":"sha256:f6056fc10bfffcc8c81a6417a2e9ca12808647e8dd6049642a4feaadee0e0f8a","pinned_image":"ghcr.io/github/github-mcp-server:v2.1.0@sha256:f6056fc10bfffcc8c81a6417a2e9ca12808647e8dd6049642a4feaadee0e0f8a"}],"mcp_servers":[{"name":"safeoutputs","tools":["create_pull_request_review_comment","noop","report_incomplete","report_missing_data","report_missing_tool","submit_pull_request_review"]}],"threat_detection":{"mode":"enabled"},"admission":false,"agent_metadata":{}}
+# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"8f0e8550fa44fa993c54374cda066dacb3c597b12feb65570eba8d422210e800","body_hash":"09b16129c4a53febe39f993694f01ccce33d71b2e8f03c1ef41742d1d5a9fd90","compiler_version":"v1.2.2","strict":true,"agent_id":"claude","agent_model":"claude-sonnet-5-5","engine_versions":{"claude":"2.1.317"}}
+# gh-aw-manifest: {"version":1,"secrets":["CODE_INFRA_AUDITOR_CLIENT_ID","CODE_INFRA_AUDITOR_PRIVATE_KEY","COPILOT_GITHUB_TOKEN","GH_AW_DEFAULT_OTLP_ENDPOINT","GH_AW_DEFAULT_OTLP_HEADERS","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache/save","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/create-github-app-token","sha":"64ab729a6294000f5aa4a4bc0b73d1f32bc45510","version":"v3.3.0"},{"repo":"actions/download-artifact","sha":"9000827ccba6bdab643e8b6fd33ac0654aef8333","version":"v8.0.2"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"949feb2413d6458794dcd2491c4babbbce0c15c1","version":"v7.1.0"},{"repo":"actions/upload-artifact","sha":"cf430e030ddbb5b0abf93d22962f4752f3646cd9","version":"v7.0.2"},{"repo":"github/gh-aw-actions/setup","sha":"53d0749e19424a918acd82b4d140264ce48f2f14","version":"v1.2.2"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.29.11","digest":"sha256:8774a73c351395b41d2ad0af4ddb4689007c67de3cd08bd9f43bb8a0e300690e","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.29.11@sha256:8774a73c351395b41d2ad0af4ddb4689007c67de3cd08bd9f43bb8a0e300690e"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.29.11","digest":"sha256:88d2d0e315a504d93fd4fb8847fd0f6b7f4469f41a6fc6047b3dc9654c56ab2c","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.29.11@sha256:88d2d0e315a504d93fd4fb8847fd0f6b7f4469f41a6fc6047b3dc9654c56ab2c"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.29.11","digest":"sha256:97782bc0d8ff7f80f19ae2fdc5e1668517aa732a6fa077e64b8d3919238496d2","pinned_image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.29.11@sha256:97782bc0d8ff7f80f19ae2fdc5e1668517aa732a6fa077e64b8d3919238496d2"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.29.11","digest":"sha256:861739ecf924dd2db5e5fb652db2ad82aaafd1615623297ddabc8f41a36b2847","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.29.11@sha256:861739ecf924dd2db5e5fb652db2ad82aaafd1615623297ddabc8f41a36b2847"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.5.6","digest":"sha256:342cd624e1f179d91be2de7a146fc4f387092e62e6c8a47506d7932e113d2311","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.5.6@sha256:342cd624e1f179d91be2de7a146fc4f387092e62e6c8a47506d7932e113d2311"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:8735428c2d4e602f90781ba0c571c400e8ff93c7ee1508a75d71f87e34e415cc","pinned_image":"ghcr.io/github/gh-aw-node@sha256:8735428c2d4e602f90781ba0c571c400e8ff93c7ee1508a75d71f87e34e415cc"},{"image":"ghcr.io/github/github-mcp-server:v2.1.0","digest":"sha256:f6056fc10bfffcc8c81a6417a2e9ca12808647e8dd6049642a4feaadee0e0f8a","pinned_image":"ghcr.io/github/github-mcp-server:v2.1.0@sha256:f6056fc10bfffcc8c81a6417a2e9ca12808647e8dd6049642a4feaadee0e0f8a"}],"mcp_servers":[{"name":"safeoutputs","tools":["create_pull_request_review_comment","noop","report_incomplete","report_missing_data","report_missing_tool","submit_pull_request_review"]}],"threat_detection":{"mode":"enabled"},"admission":false,"agent_metadata":{}}
 # This file was automatically generated by gh-aw (v1.2.2). DO NOT EDIT. To debug this workflow, load the skill at https://github.com/github/gh-aw/blob/main/debug.md
 #
 #    ___                   _   _
@@ -23,7 +23,7 @@
 #
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
-# Review the hand-written Markdown a pull request changes for style, and suggest fixes inline.
+# Review the hand-written Markdown that pull requests change for style, and suggest fixes inline.
 #
 # Resolved workflow manifest:
 #   Includes:
@@ -42,6 +42,7 @@
 #   - GITHUB_TOKEN
 #
 # Custom actions used:
+#   - actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
 #   - actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 #   - actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
 #   - actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -80,6 +81,10 @@ on:
         default: 15
         description: Most inline suggestions in one review.
         type: number
+      pull_request:
+        default: 0
+        description: Pull request to review, whoever wrote it. Without one, the run polls.
+        type: number
     secrets:
       CODE_INFRA_AUDITOR_CLIENT_ID:
         required: false
@@ -100,8 +105,8 @@ on:
 permissions: {}
 
 concurrency:
-  cancel-in-progress: true
-  group: docs-style-review-${{ github.repository }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+  group: docs-style-review-${{ github.repository }}
 
 run-name: "Review the style of a pull request's docs"
 
@@ -395,7 +400,7 @@ jobs:
           GH_AW_PROMPT_CONTENT_0005: |+
             # Review the style of a pull request's docs
 
-            A maintainer's pull request in this repository (`__GH_AW_GITHUB_REPOSITORY__`) changes hand-written
+            A pull request in this repository (`__GH_AW_GITHUB_REPOSITORY__`) changes hand-written
             Markdown. Review the lines it adds or changes for style, and suggest fixes the author can apply in
             one click. Read the repository's own instructions (`AGENTS.md`/`CLAUDE.md`) and any writing guide
             they point to first; they override anything here.
@@ -598,14 +603,14 @@ jobs:
         with:
           github-token: no-authentication
           script: |
-            const promptEnvironment = new Set(["GH_AW_ACTIONS_DIR","GH_AW_ENGINE_ID","GH_AW_EXPR_76DF9333","GH_AW_EXPR_77C1A4D2","GH_AW_EXPR_7C248226","GH_AW_EXPR_C19C384F","GH_AW_GITHUB_ACTOR","GH_AW_GITHUB_REPOSITORY","GH_AW_GITHUB_RUN_ID","GH_AW_GITHUB_WORKSPACE","GH_AW_INPUTS_MAX_COMMENTS","GH_AW_MCP_CLI_SERVERS_LIST","GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED","GH_AW_NEEDS_SCOPE_OUTPUTS_BUDGET","GH_AW_NEEDS_SCOPE_OUTPUTS_FILES","GH_AW_NEEDS_SCOPE_OUTPUTS_LINES","GH_AW_PROMPT","GH_AW_SKILL_DIR","GH_AW_SKILL_EXT","GH_AW_SUB_AGENT_DIR","GH_AW_SUB_AGENT_EXT","GITHUB_ACTION","GITHUB_ACTOR","GITHUB_API_URL","GITHUB_EVENT_NAME","GITHUB_EVENT_PATH","GITHUB_GRAPHQL_URL","GITHUB_JOB","GITHUB_OUTPUT","GITHUB_REF","GITHUB_REPOSITORY","GITHUB_RUN_ATTEMPT","GITHUB_RUN_ID","GITHUB_RUN_NUMBER","GITHUB_SERVER_URL","GITHUB_SHA","GITHUB_STEP_SUMMARY","GITHUB_WORKFLOW","GITHUB_WORKSPACE","PATH","RUNNER_ARCH","RUNNER_OS","RUNNER_TEMP"]);
+            const promptEnvironment = new Set(["GH_AW_ACTIONS_DIR","GH_AW_ENGINE_ID","GH_AW_EXPR_76DF9333","GH_AW_EXPR_77C1A4D2","GH_AW_EXPR_7C248226","GH_AW_EXPR_C19C384F","GH_AW_GITHUB_ACTOR","GH_AW_GITHUB_REPOSITORY","GH_AW_GITHUB_RUN_ID","GH_AW_GITHUB_WORKSPACE","GH_AW_INPUTS_MAX_COMMENTS","GH_AW_MCP_CLI_SERVERS_LIST","GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED","GH_AW_NEEDS_SCOPE_OUTPUTS_BUDGET","GH_AW_NEEDS_SCOPE_OUTPUTS_FILES","GH_AW_NEEDS_SCOPE_OUTPUTS_HEAD_REPO","GH_AW_NEEDS_SCOPE_OUTPUTS_HEAD_SHA","GH_AW_NEEDS_SCOPE_OUTPUTS_LINES","GH_AW_NEEDS_SCOPE_OUTPUTS_NUMBER","GH_AW_PROMPT","GH_AW_SKILL_DIR","GH_AW_SKILL_EXT","GH_AW_SUB_AGENT_DIR","GH_AW_SUB_AGENT_EXT","GITHUB_ACTION","GITHUB_ACTOR","GITHUB_API_URL","GITHUB_EVENT_NAME","GITHUB_EVENT_PATH","GITHUB_GRAPHQL_URL","GITHUB_JOB","GITHUB_OUTPUT","GITHUB_REF","GITHUB_REPOSITORY","GITHUB_RUN_ATTEMPT","GITHUB_RUN_ID","GITHUB_RUN_NUMBER","GITHUB_SERVER_URL","GITHUB_SHA","GITHUB_STEP_SUMMARY","GITHUB_WORKFLOW","GITHUB_WORKSPACE","PATH","RUNNER_ARCH","RUNNER_OS","RUNNER_TEMP"]);
             for (const name of Object.keys(process.env)) {
               if (!promptEnvironment.has(name)) delete process.env[name];
             }
             global.core = core;
             global.context = context;
             const { main } = require(process.env.GH_AW_ACTIONS_DIR + '/interpolate_prompt.cjs');
-            await main({ authorExpressions: {"github.repository":"GH_AW_GITHUB_REPOSITORY","needs.pre_activation.outputs.activated":"GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED","needs.scope.outputs.budget":"GH_AW_NEEDS_SCOPE_OUTPUTS_BUDGET","needs.scope.outputs.files":"GH_AW_NEEDS_SCOPE_OUTPUTS_FILES","needs.scope.outputs.lines":"GH_AW_NEEDS_SCOPE_OUTPUTS_LINES"} });
+            await main({ authorExpressions: {"github.repository":"GH_AW_GITHUB_REPOSITORY","needs.pre_activation.outputs.activated":"GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED","needs.scope.outputs.budget":"GH_AW_NEEDS_SCOPE_OUTPUTS_BUDGET","needs.scope.outputs.files":"GH_AW_NEEDS_SCOPE_OUTPUTS_FILES","needs.scope.outputs.head_repo":"GH_AW_NEEDS_SCOPE_OUTPUTS_HEAD_REPO","needs.scope.outputs.head_sha":"GH_AW_NEEDS_SCOPE_OUTPUTS_HEAD_SHA","needs.scope.outputs.lines":"GH_AW_NEEDS_SCOPE_OUTPUTS_LINES","needs.scope.outputs.number":"GH_AW_NEEDS_SCOPE_OUTPUTS_NUMBER"} });
         env:
           GH_AW_ACTIONS_DIR: ${{ runner.temp }}/gh-aw/actions
           GH_AW_ENGINE_ID: claude
@@ -622,7 +627,10 @@ jobs:
           GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: ${{ needs.pre_activation.outputs.activated }}
           GH_AW_NEEDS_SCOPE_OUTPUTS_BUDGET: ${{ needs.scope.outputs.budget }}
           GH_AW_NEEDS_SCOPE_OUTPUTS_FILES: ${{ needs.scope.outputs.files }}
+          GH_AW_NEEDS_SCOPE_OUTPUTS_HEAD_REPO: ${{ needs.scope.outputs.head_repo }}
+          GH_AW_NEEDS_SCOPE_OUTPUTS_HEAD_SHA: ${{ needs.scope.outputs.head_sha }}
           GH_AW_NEEDS_SCOPE_OUTPUTS_LINES: ${{ needs.scope.outputs.lines }}
+          GH_AW_NEEDS_SCOPE_OUTPUTS_NUMBER: ${{ needs.scope.outputs.number }}
           GH_AW_OTLP_ENDPOINTS: ""
           GH_AW_OTLP_IF_MISSING: ""
           GH_AW_OTLP_LOGS_ENABLED: ""
@@ -642,7 +650,7 @@ jobs:
         with:
           github-token: no-authentication
           script: |
-            const promptEnvironment = new Set(["GH_AW_ACTIONS_DIR","GH_AW_EXPR_76DF9333","GH_AW_EXPR_77C1A4D2","GH_AW_EXPR_7C248226","GH_AW_EXPR_C19C384F","GH_AW_GITHUB_ACTOR","GH_AW_GITHUB_REPOSITORY","GH_AW_GITHUB_RUN_ID","GH_AW_GITHUB_WORKSPACE","GH_AW_INPUTS_MAX_COMMENTS","GH_AW_MCP_CLI_SERVERS_LIST","GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED","GH_AW_NEEDS_SCOPE_OUTPUTS_BUDGET","GH_AW_NEEDS_SCOPE_OUTPUTS_FILES","GH_AW_NEEDS_SCOPE_OUTPUTS_LINES","GH_AW_PROMPT","GITHUB_ACTION","GITHUB_ACTOR","GITHUB_API_URL","GITHUB_EVENT_NAME","GITHUB_EVENT_PATH","GITHUB_GRAPHQL_URL","GITHUB_JOB","GITHUB_OUTPUT","GITHUB_REF","GITHUB_REPOSITORY","GITHUB_RUN_ATTEMPT","GITHUB_RUN_ID","GITHUB_RUN_NUMBER","GITHUB_SERVER_URL","GITHUB_SHA","GITHUB_STEP_SUMMARY","GITHUB_WORKFLOW","GITHUB_WORKSPACE","PATH","RUNNER_ARCH","RUNNER_OS","RUNNER_TEMP"]);
+            const promptEnvironment = new Set(["GH_AW_ACTIONS_DIR","GH_AW_EXPR_76DF9333","GH_AW_EXPR_77C1A4D2","GH_AW_EXPR_7C248226","GH_AW_EXPR_C19C384F","GH_AW_GITHUB_ACTOR","GH_AW_GITHUB_REPOSITORY","GH_AW_GITHUB_RUN_ID","GH_AW_GITHUB_WORKSPACE","GH_AW_INPUTS_MAX_COMMENTS","GH_AW_MCP_CLI_SERVERS_LIST","GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED","GH_AW_NEEDS_SCOPE_OUTPUTS_BUDGET","GH_AW_NEEDS_SCOPE_OUTPUTS_FILES","GH_AW_NEEDS_SCOPE_OUTPUTS_HEAD_REPO","GH_AW_NEEDS_SCOPE_OUTPUTS_HEAD_SHA","GH_AW_NEEDS_SCOPE_OUTPUTS_LINES","GH_AW_NEEDS_SCOPE_OUTPUTS_NUMBER","GH_AW_PROMPT","GITHUB_ACTION","GITHUB_ACTOR","GITHUB_API_URL","GITHUB_EVENT_NAME","GITHUB_EVENT_PATH","GITHUB_GRAPHQL_URL","GITHUB_JOB","GITHUB_OUTPUT","GITHUB_REF","GITHUB_REPOSITORY","GITHUB_RUN_ATTEMPT","GITHUB_RUN_ID","GITHUB_RUN_NUMBER","GITHUB_SERVER_URL","GITHUB_SHA","GITHUB_STEP_SUMMARY","GITHUB_WORKFLOW","GITHUB_WORKSPACE","PATH","RUNNER_ARCH","RUNNER_OS","RUNNER_TEMP"]);
             for (const name of Object.keys(process.env)) {
               if (!promptEnvironment.has(name)) delete process.env[name];
             }
@@ -668,7 +676,10 @@ jobs:
                 GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED,
                 GH_AW_NEEDS_SCOPE_OUTPUTS_BUDGET: process.env.GH_AW_NEEDS_SCOPE_OUTPUTS_BUDGET,
                 GH_AW_NEEDS_SCOPE_OUTPUTS_FILES: process.env.GH_AW_NEEDS_SCOPE_OUTPUTS_FILES,
-                GH_AW_NEEDS_SCOPE_OUTPUTS_LINES: process.env.GH_AW_NEEDS_SCOPE_OUTPUTS_LINES
+                GH_AW_NEEDS_SCOPE_OUTPUTS_HEAD_REPO: process.env.GH_AW_NEEDS_SCOPE_OUTPUTS_HEAD_REPO,
+                GH_AW_NEEDS_SCOPE_OUTPUTS_HEAD_SHA: process.env.GH_AW_NEEDS_SCOPE_OUTPUTS_HEAD_SHA,
+                GH_AW_NEEDS_SCOPE_OUTPUTS_LINES: process.env.GH_AW_NEEDS_SCOPE_OUTPUTS_LINES,
+                GH_AW_NEEDS_SCOPE_OUTPUTS_NUMBER: process.env.GH_AW_NEEDS_SCOPE_OUTPUTS_NUMBER
               }
             });
         env:
@@ -686,7 +697,10 @@ jobs:
           GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: ${{ needs.pre_activation.outputs.activated }}
           GH_AW_NEEDS_SCOPE_OUTPUTS_BUDGET: ${{ needs.scope.outputs.budget }}
           GH_AW_NEEDS_SCOPE_OUTPUTS_FILES: ${{ needs.scope.outputs.files }}
+          GH_AW_NEEDS_SCOPE_OUTPUTS_HEAD_REPO: ${{ needs.scope.outputs.head_repo }}
+          GH_AW_NEEDS_SCOPE_OUTPUTS_HEAD_SHA: ${{ needs.scope.outputs.head_sha }}
           GH_AW_NEEDS_SCOPE_OUTPUTS_LINES: ${{ needs.scope.outputs.lines }}
+          GH_AW_NEEDS_SCOPE_OUTPUTS_NUMBER: ${{ needs.scope.outputs.number }}
           GH_AW_OTLP_ENDPOINTS: ""
           GH_AW_OTLP_IF_MISSING: ""
           GH_AW_OTLP_LOGS_ENABLED: ""
@@ -789,9 +803,6 @@ jobs:
       issues: read
       pull-requests: read # Read pull requests and review comments for workflow context.
     cache-mode: read
-    concurrency:
-      group: "gh-aw-claude-docs-style-review-workflow"
-      queue: max
     timeout-minutes: 60
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
@@ -894,10 +905,10 @@ jobs:
           BUDGET: ${{ needs.scope.outputs.budget }}
           FILES: ${{ needs.scope.outputs.files }}
           GH_TOKEN: ${{ github.token }}
-          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REPO: ${{ needs.scope.outputs.head_repo }}
+          HEAD_SHA: ${{ needs.scope.outputs.head_sha }}
           LINES: ${{ needs.scope.outputs.lines }}
-          NUMBER: ${{ github.event.pull_request.number }}
+          NUMBER: ${{ needs.scope.outputs.number }}
         name: Collect the changes
         run: "set -euo pipefail\nout=/tmp/gh-aw/agent/review\nmkdir -p \"$out/files\"\njq -n --argjson number \"$NUMBER\" --arg sha \"$HEAD_SHA\" --argjson budget \"$BUDGET\" \\\n  --argjson files \"$FILES\" --argjson lines \"$LINES\" \\\n  '{number: $number, head_sha: $sha, budget: $budget, files: $files, lines: $lines}' \\\n  > \"$out/scope.json\"\njq -r '.[]' <<< \"$FILES\" | while IFS= read -r path; do\n  mkdir -p \"$out/files/$(dirname \"$path\")\"\n  gh api \"repos/$HEAD_REPO/contents/$path?ref=$HEAD_SHA\" -H 'Accept: application/vnd.github.raw' \\\n    > \"$out/files/$path\"\ndone\ngh api --paginate \"repos/$GITHUB_REPOSITORY/pulls/$NUMBER/files\" --jq '.[] | {path: .filename, patch}' \\\n  | jq -s --argjson files \"$FILES\" 'map(select(.path as $path | $files | index($path)))' \\\n  > \"$out/patches.json\"\ngh api --paginate \"repos/$GITHUB_REPOSITORY/pulls/$NUMBER/comments\" \\\n    --jq '.[] | select(.user.login == \"code-infra-auditor[bot]\") | {path, line, body}' \\\n  | jq -s . > \"$out/earlier-comments.json\"\nfind \"$out\" -type f | sed \"s#^$out/##\" | sort"
 
@@ -954,7 +965,7 @@ jobs:
         env:
           GH_AW_FILE_ROOT: "${{ runner.temp }}/gh-aw"
           GH_AW_FILE_CONFIG: "{\"files\":[{\"path\":\"safeoutputs/config.json\",\"content_env\":\"GH_AW_SAFE_OUTPUTS_CONFIG\"}]}"
-          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_pull_request_review_comment\":{\"max\":\"${GH_AW_INPUT_MAX_COMMENTS}\",\"side\":\"RIGHT\"},\"create_report_incomplete_issue\":{},\"noop\":{\"max\":2,\"report-as-issue\":\"false\"},\"report_incomplete\":{},\"report_missing_data\":{},\"report_missing_tool\":{},\"submit_pull_request_review\":{\"allowed_events\":[\"COMMENT\"],\"max\":1}}"
+          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_pull_request_review_comment\":{\"max\":\"${GH_AW_INPUT_MAX_COMMENTS}\",\"side\":\"RIGHT\",\"target\":\"*\"},\"create_report_incomplete_issue\":{},\"noop\":{\"max\":2,\"report-as-issue\":\"false\"},\"report_incomplete\":{},\"report_missing_data\":{},\"report_missing_tool\":{},\"submit_pull_request_review\":{\"allowed_events\":[\"COMMENT\"],\"max\":1,\"target\":\"*\"}}"
           GH_AW_INPUT_MAX_COMMENTS: ${{ inputs.max_comments }}
         with:
           script: |
@@ -970,7 +981,7 @@ jobs:
             {
               "description_suffixes": {
                 "create_pull_request_review_comment": " CONSTRAINTS: Comments will be on the RIGHT side of the diff.",
-                "submit_pull_request_review": " CONSTRAINTS: Maximum 1 review(s) can be submitted."
+                "submit_pull_request_review": " CONSTRAINTS: Maximum 1 review(s) can be submitted. Target: *."
               },
               "repo_params": {},
               "dynamic_tools": [],
@@ -1707,6 +1718,7 @@ jobs:
       - activation
       - agent
       - detection
+      - record_review
       - safe_outputs
       - scope
     if: >
@@ -1729,9 +1741,9 @@ jobs:
       cancel-in-progress: false
       queue: max
     env:
-      GH_AW_JOB_DISPLAY_NAMES: "{\"activation\":\"activation\",\"agent\":\"agent\",\"conclusion\":\"conclusion\",\"detection\":\"detection\",\"pre_activation\":\"pre_activation\",\"safe_outputs\":\"safe_outputs\",\"scope\":\"scope\"}"
-      GH_AW_JOB_RESULTS: "{\"activation\":{\"result\":\"${{ needs.activation.result }}\"},\"agent\":{\"result\":\"${{ needs.agent.result }}\"},\"detection\":{\"result\":\"${{ needs.detection.result }}\"},\"safe_outputs\":{\"result\":\"${{ needs.safe_outputs.result }}\"},\"scope\":{\"result\":\"${{ needs.scope.result }}\"}}"
-      GH_AW_JOB_TIMING_ELIGIBLE: "{\"activation\":true,\"agent\":true,\"conclusion\":true,\"detection\":true,\"pre_activation\":true,\"safe_outputs\":true,\"scope\":true}"
+      GH_AW_JOB_DISPLAY_NAMES: "{\"activation\":\"activation\",\"agent\":\"agent\",\"conclusion\":\"conclusion\",\"detection\":\"detection\",\"pre_activation\":\"pre_activation\",\"record_review\":\"record_review\",\"safe_outputs\":\"safe_outputs\",\"scope\":\"scope\"}"
+      GH_AW_JOB_RESULTS: "{\"activation\":{\"result\":\"${{ needs.activation.result }}\"},\"agent\":{\"result\":\"${{ needs.agent.result }}\"},\"detection\":{\"result\":\"${{ needs.detection.result }}\"},\"record_review\":{\"result\":\"${{ needs.record_review.result }}\"},\"safe_outputs\":{\"result\":\"${{ needs.safe_outputs.result }}\"},\"scope\":{\"result\":\"${{ needs.scope.result }}\"}}"
+      GH_AW_JOB_TIMING_ELIGIBLE: "{\"activation\":true,\"agent\":true,\"conclusion\":true,\"detection\":true,\"pre_activation\":true,\"record_review\":true,\"safe_outputs\":true,\"scope\":true}"
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
     outputs:
       incomplete_count: ${{ steps.report_incomplete.outputs.incomplete_count }}
@@ -2209,7 +2221,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           WORKFLOW_NAME: "Review the style of a pull request's docs"
-          WORKFLOW_DESCRIPTION: "Review the hand-written Markdown a pull request changes for style, and suggest fixes inline."
+          WORKFLOW_DESCRIPTION: "Review the hand-written Markdown that pull requests change for style, and suggest fixes inline."
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
           GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
           GH_AW_DETECTION_SKIP_PROMPT_SUMMARY: "true"
@@ -2285,7 +2297,7 @@ jobs:
           RUNNER_TEMP: ${{ runner.temp }}
           TRACEPARENT: ${{ env.GITHUB_AW_OTEL_TRACE_ID != '' && env.GITHUB_AW_OTEL_PARENT_SPAN_ID != '' && format('00-{0}-{1}-01', env.GITHUB_AW_OTEL_TRACE_ID, env.GITHUB_AW_OTEL_PARENT_SPAN_ID) || '' }}
           WORKFLOW_NAME: "Review the style of a pull request's docs"
-          WORKFLOW_DESCRIPTION: "Review the hand-written Markdown a pull request changes for style, and suggest fixes inline."
+          WORKFLOW_DESCRIPTION: "Review the hand-written Markdown that pull requests change for style, and suggest fixes inline."
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
           GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         run: |
@@ -2485,6 +2497,36 @@ jobs:
             const { main } = require(path.join(actionsDir, 'check_membership.cjs'));
             await main();
 
+  record_review:
+    name: record_review
+    needs:
+      - detection
+      - safe_outputs
+      - scope
+    if: "${{ needs.detection.result == 'success' && needs.detection.outputs.detection_success == 'true' && (needs.safe_outputs.result == 'success') }}"
+    runs-on: ubuntu-latest
+    # Permissions for the record_review job (workflow permissions default to none).
+    permissions: {}
+    steps:
+      - name: Configure GH_HOST for enterprise compatibility
+        id: ghes-host-config
+        shell: bash
+        run: | # zizmor: ignore[github-env] - GITHUB_SERVER_URL is set by GitHub Actions, not user input.
+          # Derive GH_HOST from GITHUB_SERVER_URL so the gh CLI targets the correct
+          # GitHub instance (GHES/GHEC). On github.com this is a harmless no-op.
+          GH_HOST="${GITHUB_SERVER_URL#https://}"
+          GH_HOST="${GH_HOST#http://}"
+          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
+      - name: Write the marker
+        run: "printf '%s\\n' \"$HEAD_SHA\" > reviewed-commit"
+        env:
+          HEAD_SHA: ${{ needs.scope.outputs.head_sha }}
+      - name: Save it as the review's cache entry
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          key: docs-style-review-pr-${{ needs.scope.outputs.number }}-${{ needs.scope.outputs.head_sha }}
+          path: reviewed-commit
+
   safe_outputs:
     name: safe_outputs
     needs:
@@ -2620,7 +2662,7 @@ jobs:
           GH_AW_ALLOWED_DOMAINS: "archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_pull_request_review_comment\":{\"max\":\"${{ inputs.max_comments }}\",\"side\":\"RIGHT\"},\"create_report_incomplete_issue\":{},\"noop\":{\"max\":2,\"report-as-issue\":\"false\"},\"report_incomplete\":{},\"report_missing_data\":{},\"report_missing_tool\":{},\"submit_pull_request_review\":{\"allowed_events\":[\"COMMENT\"],\"max\":1}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_pull_request_review_comment\":{\"max\":\"${{ inputs.max_comments }}\",\"side\":\"RIGHT\",\"target\":\"*\"},\"create_report_incomplete_issue\":{},\"noop\":{\"max\":2,\"report-as-issue\":\"false\"},\"report_incomplete\":{},\"report_missing_data\":{},\"report_missing_tool\":{},\"submit_pull_request_review\":{\"allowed_events\":[\"COMMENT\"],\"max\":1,\"target\":\"*\"}}"
           GH_AW_GITHUB_TOKEN_SOURCE: "app"
         with:
           github-token: ${{ steps.safe-outputs-app-token.outputs.token }}
@@ -2647,16 +2689,21 @@ jobs:
   scope:
     name: scope
     needs: pre_activation
-    if: needs.pre_activation.outputs.activated == 'true' && github.event.pull_request.draft == false
+    if: needs.pre_activation.outputs.activated == 'true'
     runs-on: ubuntu-latest
     # Permissions for the scope job (workflow permissions default to none).
     permissions:
+      # The cache entries that record reviews without suggestions.
+      actions: read
       contents: read
       pull-requests: read # Read pull requests and review comments for workflow context.
     outputs:
       budget: "${{ steps.scope.outputs.budget }}"
       files: "${{ steps.scope.outputs.files }}"
+      head_repo: "${{ steps.scope.outputs.head_repo }}"
+      head_sha: "${{ steps.scope.outputs.head_sha }}"
       lines: "${{ steps.scope.outputs.lines }}"
+      number: "${{ steps.scope.outputs.number }}"
     steps:
       - name: Configure GH_HOST for enterprise compatibility
         id: ghes-host-config
@@ -2667,21 +2714,30 @@ jobs:
           GH_HOST="${GITHUB_SERVER_URL#https://}"
           GH_HOST="${GH_HOST#http://}"
           echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
-      - name: Pick the lines to review
+      - name: Pick the pull request and lines to review
         id: scope
         run: |
-          set -euo pipefail
-          python3 -I -c '
+          python3 -I - <<'PY'
           import json, os, re, subprocess
 
-          REPO, NUMBER, HEAD = os.environ["GITHUB_REPOSITORY"], os.environ["NUMBER"], os.environ["HEAD_SHA"]
-          BOT = "code-infra-auditor[bot]"
+          REPO = os.environ["GITHUB_REPOSITORY"]
+          REQUESTED = int(os.environ.get("PULL_REQUEST") or 0)
+          BOT = "code-infra-auditor"
+          MARKER = "docs-style-review-pr-"
+          # Pull requests to look at in one poll, most recently updated first.
+          MAX_CANDIDATES = 20
+          FIELDS = "number,isDraft,headRefOid,updatedAt,author,files,reviews,headRepository"
+
+
+          def run(*args):
+              return subprocess.run(args, check=True, capture_output=True, text=True).stdout
+
 
           def api(path, jq):
               # One JSON value per line, so `jq` must not yield bare strings: `gh` prints them raw.
-              out = subprocess.run(["gh", "api", "--paginate", path, "--jq", jq],
-                                   check=True, capture_output=True, text=True).stdout
+              out = run("gh", "api", "--paginate", path, "--jq", jq)
               return [json.loads(line) for line in out.splitlines() if line]
+
 
           def pattern(glob):
               # `**/` matches any number of directories, `*` and `?` stay within one.
@@ -2691,8 +2747,17 @@ jobs:
                   for part in re.split(r"(\*\*/|\*\*|\*|\?)", glob))
               return re.compile(out + r"\Z")
 
+
           def patterns(name):
               return [pattern(line.strip()) for line in os.environ[name].splitlines() if line.strip()]
+
+
+          INCLUDE, EXCLUDE = patterns("INCLUDE"), patterns("EXCLUDE")
+
+
+          def reviewed(path):
+              return any(p.match(path) for p in INCLUDE) and not any(p.match(path) for p in EXCLUDE)
+
 
           def added_lines(patch):
               """The lines a patch adds, by their number in the new file."""
@@ -2708,49 +2773,99 @@ jobs:
                       number += 1
               return lines
 
-          include, exclude = patterns("INCLUDE"), patterns("EXCLUDE")
-          files = {f["filename"]: added_lines(f.get("patch"))
-                   for f in api(f"repos/{REPO}/pulls/{NUMBER}/files", ".[] | select(.status != \"removed\")")
-                   if any(p.match(f["filename"]) for p in include)
-                   and not any(p.match(f["filename"]) for p in exclude)}
 
-          # Lines changed since the last review. A commit the compare API no longer has, after a
-          # force push, means everything is reviewed again.
-          reviewed = api(f"repos/{REPO}/pulls/{NUMBER}/reviews",
-                         f".[] | select(.user.login == \"{BOT}\") | .commit_id | tojson")
-          if reviewed and reviewed[-1] == HEAD:
-              files = {}
-          elif reviewed:
+          # The commit each pull request was last reviewed at: its latest review by the bot, or, newer, a
+          # run that found nothing to suggest, which leaves only a cache entry named after the commit.
+          markers = {}
+          for entry in sorted(json.loads(run("gh", "cache", "list", "--repo", REPO, "--key", MARKER,
+                                             "--limit", "1000", "--json", "key,createdAt")),
+                              key=lambda entry: entry["createdAt"]):
+              number, _, sha = entry["key"][len(MARKER):].partition("-")
+              markers[int(number)] = (entry["createdAt"], sha)
+
+
+          def last_reviewed(pr):
+              times = [(review["submittedAt"], review["commit"]["oid"]) for review in pr["reviews"]
+                       if review["author"]["login"] in (BOT, f"{BOT}[bot]") and review.get("commit")]
+              if pr["number"] in markers:
+                  times.append(markers[pr["number"]])
+              return max(times)[1] if times else None
+
+
+          def writes(login):
+              """Whether the author has write access, as only maintainers' pull requests are polled."""
               try:
-                  changed = {f["filename"]: added_lines(f.get("patch")) for f in
-                             api(f"repos/{REPO}/compare/{reviewed[-1]}...{HEAD}", ".files[]")}
-                  files = {path: {n: text for n, text in lines.items() if n in changed.get(path, {})}
-                           for path, lines in files.items()}
+                  permission = json.loads(run("gh", "api", f"repos/{REPO}/collaborators/{login}/permission"))
               except subprocess.CalledProcessError:
-                  print(f"The last reviewed commit {reviewed[-1]} is gone; reviewing every added line")
+                  return False
+              return permission["permission"] in ("admin", "write")
 
-          # A line that reads as an earlier suggestion has it applied.
-          suggested = {line for body in api(f"repos/{REPO}/pulls/{NUMBER}/comments",
-                                             f".[] | select(.user.login == \"{BOT}\") | .body | tojson")
-                       for block in re.findall(r"```suggestion\n(.*?)```", body, re.S)
-                       for line in block.splitlines() if line.strip()}
-          lines = {path: sorted(n for n, text in rows.items() if text.strip() and text not in suggested)
-                   for path, rows in files.items()}
-          lines = {path: numbers for path, numbers in lines.items() if numbers}
 
-          added = sum(map(len, lines.values()))
-          budget = int(os.environ["MAX_COMMENTS"]) if added else 0
-          print(f"{len(lines)} files, {added} lines to review, up to {budget} suggestions")
+          def lines_to_review(pr):
+              number, head, since = pr["number"], pr["headRefOid"], last_reviewed(pr)
+              if since == head:
+                  return {}
+              files = {f["filename"]: added_lines(f.get("patch"))
+                       for f in api(f"repos/{REPO}/pulls/{number}/files", ".[] | select(.status != \"removed\")")
+                       if reviewed(f["filename"])}
+              # Lines changed since the last review. A commit the compare API no longer has, after a force
+              # push, means everything is reviewed again.
+              if since:
+                  try:
+                      changed = {f["filename"]: added_lines(f.get("patch")) for f in
+                                 api(f"repos/{REPO}/compare/{since}...{head}", ".files[]")}
+                      files = {path: {n: text for n, text in lines.items() if n in changed.get(path, {})}
+                               for path, lines in files.items()}
+                  except subprocess.CalledProcessError:
+                      print(f"#{number}: the last reviewed commit {since} is gone; reviewing every added line")
+              # A line that reads as an earlier suggestion has it applied.
+              suggested = {line for body in api(f"repos/{REPO}/pulls/{number}/comments",
+                                                 f".[] | select(.user.login == \"{BOT}[bot]\") | .body | tojson")
+                           for block in re.findall(r"```suggestion\n(.*?)```", body, re.S)
+                           for line in block.splitlines() if line.strip()}
+              lines = {path: sorted(n for n, text in rows.items() if text.strip() and text not in suggested)
+                       for path, rows in files.items()}
+              return {path: numbers for path, numbers in lines.items() if numbers}
+
+
+          if REQUESTED:
+              # Asked for by hand: this pull request, whoever wrote it and whether it's a draft or not.
+              candidates = [json.loads(run("gh", "pr", "view", str(REQUESTED), "--repo", REPO, "--json", FIELDS))]
+          else:
+              prs = json.loads(run("gh", "pr", "list", "--repo", REPO, "--state", "open", "--limit", "300",
+                                   "--json", FIELDS))
+              candidates = sorted((pr for pr in prs
+                                   if not pr["isDraft"] and not pr["author"].get("is_bot")
+                                   and any(reviewed(f["path"]) for f in pr["files"])
+                                   and last_reviewed(pr) != pr["headRefOid"]),
+                                  key=lambda pr: pr["updatedAt"], reverse=True)[:MAX_CANDIDATES]
+
+          picked = None
+          for pr in candidates:
+              if not pr.get("headRepository"):
+                  print(f"#{pr['number']}: its head repository is gone")
+              elif not REQUESTED and not writes(pr["author"]["login"]):
+                  print(f"#{pr['number']}: by {pr['author']['login']}, without write access")
+              else:
+                  lines = lines_to_review(pr)
+                  added = sum(map(len, lines.values()))
+                  print(f"#{pr['number']}: {len(lines)} files, {added} lines to review")
+                  if lines:
+                      picked = pr, lines
+                      break
+
           with open(os.environ["GITHUB_OUTPUT"], "a") as out:
-              out.write(f"budget={budget}\n")
-              if budget:
-                  out.write("files=" + json.dumps(sorted(lines)) + "\n")
-                  out.write("lines=" + json.dumps(lines) + "\n")
-          '
+              if picked:
+                  pr, lines = picked
+                  print(f"Reviewing #{pr['number']}, up to {os.environ['MAX_COMMENTS']} suggestions")
+                  out.write(f"number={pr['number']}\nhead_sha={pr['headRefOid']}\n"
+                            f"head_repo={pr['headRepository']['nameWithOwner']}\n"
+                            f"budget={os.environ['MAX_COMMENTS']}\n"
+                            f"files={json.dumps(sorted(lines))}\nlines={json.dumps(lines)}\n")
+          PY
         env:
           EXCLUDE: ${{ inputs.exclude }}
           GH_TOKEN: ${{ github.token }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           INCLUDE: ${{ inputs.include }}
           MAX_COMMENTS: ${{ inputs.max_comments }}
-          NUMBER: ${{ github.event.pull_request.number }}
+          PULL_REQUEST: ${{ inputs.pull_request }}
