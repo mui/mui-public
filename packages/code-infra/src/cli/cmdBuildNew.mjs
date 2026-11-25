@@ -384,6 +384,9 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       root: SOURCE_DIR,
       outDir,
       clean: true,
+      // The default `'dce-only'` inlines single-use constants, but Next.js font loaders must stay
+      // assigned to one.
+      minify: false,
       format: Object.fromEntries(
         bundles.map((bundle) => [FORMATS[bundle], { target: getTarget(cwd, bundle) }]),
       ),
@@ -427,6 +430,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       deps: { neverBundle: true },
       outputOptions: {
         exports: 'named',
+        strict: true,
         // Returning the id itself would print relative externals unresolved; `undefined` keeps
         // Rolldown's own path for them.
         paths: /** @type {(id: string) => string} */ (

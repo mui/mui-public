@@ -99,7 +99,7 @@ need explicit exports. The output keeps `export * as` and `import * as` namespac
 turns into `<name>_exports` objects in unbundled builds. A namespace stays an object when Rolldown
 inlines its constants into it, when the module reads it itself, or, in JavaScript, when it is
 imported next to a default import or by a quoted name. The output is validated with publint, as in
-`code-infra build`. With
+`code-infra build`. The output isn't minified, and CJS files start with `"use strict"`. With
 `--cjsCopy`, imported `.cjs` sources are emitted unchanged and imported as-is, as in
 `code-infra build`, and the local modules they `require` are built at the paths they name; the build
 fails when no bundle outputs a module at that path. `--cjsCopy` is deprecated: only
