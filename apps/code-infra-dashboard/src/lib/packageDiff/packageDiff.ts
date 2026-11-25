@@ -1,7 +1,7 @@
 import * as diff from 'diff';
 import type { Parser, Plugin } from 'prettier';
 import type { FileContent, PackageContents } from '../packageDownload';
-import { normalizeSyntax } from './normalizeSyntax';
+import { getMultilineValueRanges, normalizeSyntax } from './normalizeSyntax';
 
 export type ChangeType = 'added' | 'removed' | 'modified';
 
@@ -62,6 +62,28 @@ function removeComments(node: AstNode) {
   }
 }
 
+// `keep` holds the spans where a blank line is part of a value, sorted by start
+function removeBlankLines(code: string, keep: [number, number][]): string {
+  let offset = 0;
+  let next = 0;
+  return code
+    .split('\n')
+    .filter((line) => {
+      const lineStart = offset;
+      offset += line.length + 1;
+      if (line.trim() !== '' || offset > code.length) {
+        return true;
+      }
+      while (next < keep.length && keep[next][1] <= lineStart) {
+        next += 1;
+      }
+      return next < keep.length && keep[next][0] < lineStart;
+    })
+    .join('\n');
+}
+
+const BLANK_LINE = /\n[ \t]*\n/;
+
 /**
  * Adds a `<name>-normalized` variant of every parser in `plugins`, whose AST has its syntax
  * normalized and its comments removed before Prettier prints it.
@@ -72,6 +94,20 @@ function createNormalizedPlugin(plugins: Plugin[]): Plugin {
     for (const [name, parser] of Object.entries(plugin.parsers ?? {})) {
       parsers[`${name}${NORMALIZED_SUFFIX}`] = {
         ...parser,
+        // Prettier keeps a blank line wherever the input had one, and a blank line between
+        // object properties keeps the object expanded, so they go before formatting
+        preprocess: async (text, options) => {
+          const source = parser.preprocess ? await parser.preprocess(text, options) : text;
+          if (!BLANK_LINE.test(source)) {
+            return source;
+          }
+          const keep =
+            parser.astFormat === 'estree'
+              ? getMultilineValueRanges(await parser.parse(source, options))
+              : // JSON and CSS strings can't span lines
+                [];
+          return removeBlankLines(source, keep);
+        },
         parse: async (text, options) => {
           const ast = await parser.parse(text, options);
           normalizeSyntax(ast, options.filepath);
@@ -83,52 +119,6 @@ function createNormalizedPlugin(plugins: Plugin[]): Plugin {
   }
   return { parsers };
 }
-
-// Spans of the code where a blank line is part of a value, not formatting
-function getMultilineValueRanges(node: unknown, ranges: [number, number][] = []) {
-  if (typeof node !== 'object' || node === null) {
-    return ranges;
-  }
-  if (Array.isArray(node)) {
-    node.forEach((child) => getMultilineValueRanges(child, ranges));
-    return ranges;
-  }
-  const { type, start, end, range } = node as {
-    type?: string;
-    start?: number;
-    end?: number;
-    range?: [number, number];
-  };
-  if (type === 'TemplateLiteral' || type === 'JSXText') {
-    const span = range ?? [start ?? 0, end ?? 0];
-    ranges.push(span);
-    return ranges;
-  }
-  for (const [key, value] of Object.entries(node)) {
-    if (key !== 'loc' && key !== 'range' && key !== 'tokens' && key !== 'comments') {
-      getMultilineValueRanges(value, ranges);
-    }
-  }
-  return ranges;
-}
-
-function removeBlankLines(code: string, keep: [number, number][]): string {
-  let offset = 0;
-  return code
-    .split('\n')
-    .filter((line) => {
-      const lineStart = offset;
-      offset += line.length + 1;
-      return (
-        line.trim() !== '' ||
-        keep.some(([start, end]) => lineStart > start && lineStart < end) ||
-        offset > code.length
-      );
-    })
-    .join('\n');
-}
-
-const JAVASCRIPT_PARSERS = new Set(['babel', 'typescript']);
 
 let prettierPromise: Promise<
   (source: string, parser: string, filepath: string) => Promise<string>
@@ -145,51 +135,26 @@ function loadPrettier() {
   ]).then(([prettier, ...modules]) => {
     const languagePlugins: Plugin[] = modules;
     const plugins = [...languagePlugins, createNormalizedPlugin(languagePlugins)];
-    const languageParsers: Record<string, Parser> = Object.assign(
-      {},
-      ...languagePlugins.map((plugin) => plugin.parsers ?? {}),
-    );
-    return async (source, parser, filepath) => {
-      let code = source;
-      if (parser.endsWith(NORMALIZED_SUFFIX)) {
-        // Prettier keeps a blank line wherever the input had one, and a blank line between
-        // object properties keeps the object expanded, so they go before formatting
-        const languageParser = parser.slice(0, -NORMALIZED_SUFFIX.length);
-        const keep = JAVASCRIPT_PARSERS.has(languageParser)
-          ? getMultilineValueRanges(
-              await languageParsers[languageParser].parse(source, {
-                filepath,
-              } as Parameters<Parser['parse']>[1]),
-            )
-          : // JSON and CSS strings can't span lines
-            [];
-        code = removeBlankLines(source, keep);
-      }
+    return (source, parser, filepath) =>
       // By default Prettier keeps an object expanded when the source had a newline after
       // `{`, which would preserve exactly the style differences this is meant to remove.
-      return prettier.format(code, { parser, plugins, filepath, objectWrap: 'collapse' });
-    };
+      prettier.format(source, { parser, plugins, filepath, objectWrap: 'collapse' });
   });
   return prettierPromise;
 }
 
-// Keyed by file identity and parser, so diffing the same downloaded package again with
-// other options doesn't format its files a second time.
-const formattedCache = new WeakMap<FileContent, Map<string, Promise<string>>>();
+// Keyed by file identity, so diffing the same downloaded package again with other options
+// doesn't format its files a second time. The parser follows from the file's path.
+const formattedCache = new WeakMap<FileContent, Promise<string>>();
 
 function formatFile(file: FileContent | undefined, parser: string): Promise<string> {
   if (!file) {
     return Promise.resolve('');
   }
-  let fileCache = formattedCache.get(file);
-  if (!fileCache) {
-    fileCache = new Map();
-    formattedCache.set(file, fileCache);
-  }
-  let formatted = fileCache.get(parser);
+  let formatted = formattedCache.get(file);
   if (!formatted) {
     formatted = loadPrettier().then((format) => format(file.content, parser, file.path));
-    fileCache.set(parser, formatted);
+    formattedCache.set(file, formatted);
   }
   return formatted;
 }

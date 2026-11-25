@@ -241,16 +241,14 @@ export default function DiffPackage() {
     router.replace(`${pathname}?${params.toString()}`);
   });
 
-  const onOptionsChange = useEventCallback(
-    ({ ignoreWhitespace: newIgnoreWhitespace, ...params }: Partial<DiffOptions>) => {
-      if (newIgnoreWhitespace !== undefined) {
-        setIgnoreWhitespace(newIgnoreWhitespace);
-      }
-      if (Object.keys(params).length > 0) {
-        setParams(params);
-      }
-    },
-  );
+  const onOptionsChange = useEventCallback((change: Partial<DiffOptions>) => {
+    if (change.ignoreWhitespace !== undefined) {
+      setIgnoreWhitespace(change.ignoreWhitespace);
+    }
+    if (change.normalizeSyntax !== undefined) {
+      setParams({ normalizeSyntax: change.normalizeSyntax });
+    }
+  });
 
   return (
     <Box sx={{ mt: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>

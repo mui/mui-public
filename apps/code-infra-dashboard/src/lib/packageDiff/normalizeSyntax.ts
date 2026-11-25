@@ -10,15 +10,22 @@ interface Node {
 
 const POSITION_KEYS = ['start', 'end', 'range', 'loc'];
 
+// Properties that hold no child nodes of the code
+const SKIPPED_KEYS = new Set([...POSITION_KEYS, 'comments', 'tokens', 'extra']);
+
+function copyPosition(to: Node, from: Node) {
+  for (const key of POSITION_KEYS) {
+    if (key in from) {
+      to[key] = from[key];
+    }
+  }
+}
+
 // Prettier reads node positions to place comments and keep blank lines, so nodes created here
 // take over the position of the node they stand in for.
 function create(type: string, from: Node, props: Record<string, unknown>): Node {
   const node: Node = { type, ...props };
-  for (const key of POSITION_KEYS) {
-    if (key in from) {
-      node[key] = from[key];
-    }
-  }
+  copyPosition(node, from);
   return node;
 }
 
@@ -61,7 +68,7 @@ function getName(node: unknown): string {
   return String(node.type === 'Identifier' ? node.name : node.value);
 }
 
-function wrapInBlock(statement: unknown): unknown {
+function wrapInBlock<T>(statement: T): T | Node {
   if (!isNode(statement) || statement.type === 'BlockStatement') {
     return statement;
   }
@@ -93,8 +100,9 @@ function negate(expression: Node): Node {
 }
 
 function toStatementBlock(expression: Node): Node {
-  const statement = normalizeNode(create('ExpressionStatement', expression, { expression }), false);
-  return create('BlockStatement', expression, { body: [statement], directives: [] });
+  return wrapInBlock(
+    normalizeNode(create('ExpressionStatement', expression, { expression }), false),
+  );
 }
 
 // Build tools turn `if (a) b();` into `a && b();` or `a ? b() : void 0;`. As statements, the
@@ -104,41 +112,41 @@ function toIfStatement(statement: Node): Node {
   if (!isNode(expression)) {
     return statement;
   }
+  // `a && b` is `a ? b : undefined` and `a || b` is `a ? undefined : b`
+  let test: Node;
+  let consequent: Node | undefined;
+  let alternate: Node | undefined;
   if (
     expression.type === 'LogicalExpression' &&
     (expression.operator === '&&' || expression.operator === '||')
   ) {
-    const left = expression.left as Node;
-    return create('IfStatement', statement, {
-      test: expression.operator === '&&' ? left : negate(left),
-      consequent: toStatementBlock(expression.right as Node),
-      alternate: null,
-    });
-  }
-  if (expression.type === 'ConditionalExpression') {
-    const consequent = expression.consequent as Node;
-    const alternate = expression.alternate as Node;
+    test = expression.left as Node;
+    const right = expression.right as Node;
+    [consequent, alternate] =
+      expression.operator === '&&' ? [right, undefined] : [undefined, right];
+  } else if (expression.type === 'ConditionalExpression') {
+    test = expression.test as Node;
+    consequent = expression.consequent as Node;
+    alternate = expression.alternate as Node;
     if (isIdentifier(alternate, 'undefined')) {
-      return create('IfStatement', statement, {
-        test: expression.test,
-        consequent: toStatementBlock(consequent),
-        alternate: null,
-      });
+      alternate = undefined;
+    } else if (isIdentifier(consequent, 'undefined')) {
+      consequent = undefined;
     }
-    if (isIdentifier(consequent, 'undefined')) {
-      return create('IfStatement', statement, {
-        test: negate(expression.test as Node),
-        consequent: toStatementBlock(alternate),
-        alternate: null,
-      });
-    }
-    return create('IfStatement', statement, {
-      test: expression.test,
-      consequent: toStatementBlock(consequent),
-      alternate: toStatementBlock(alternate),
-    });
+  } else {
+    return statement;
   }
-  return statement;
+  if (!consequent) {
+    // Only the alternate does something, which is an `if` on the negated test
+    test = negate(test);
+    consequent = alternate as Node;
+    alternate = undefined;
+  }
+  return create('IfStatement', statement, {
+    test,
+    consequent: toStatementBlock(consequent),
+    alternate: alternate ? toStatementBlock(alternate) : null,
+  });
 }
 
 // A `return;` at the end of a function body does nothing
@@ -264,7 +272,7 @@ function normalizeNode(node: Node, isDeclarationFile: boolean): Node {
 
 function visit(node: Node, isDeclarationFile: boolean): Node {
   for (const [key, value] of Object.entries(node)) {
-    if (POSITION_KEYS.includes(key) || key === 'comments' || key === 'tokens' || key === 'extra') {
+    if (SKIPPED_KEYS.has(key)) {
       continue;
     }
     if (Array.isArray(value)) {
@@ -344,7 +352,7 @@ function walk(
   visitor(node, parent, key, inAmbientModule);
   const ambient = inAmbientModule || isAmbientModule(node);
   for (const [childKey, value] of Object.entries(node)) {
-    if (POSITION_KEYS.includes(childKey) || childKey === 'extra' || childKey === 'comments') {
+    if (SKIPPED_KEYS.has(childKey)) {
       continue;
     }
     if (Array.isArray(value)) {
@@ -353,6 +361,26 @@ function walk(
       walk(value, visitor, node, childKey, ambient);
     }
   }
+}
+
+/**
+ * The spans of a JavaScript or TypeScript AST where a blank line is part of a value, not
+ * formatting: template literals and JSX text. Sorted by start.
+ */
+export function getMultilineValueRanges(ast: unknown): [number, number][] {
+  const ranges: [number, number][] = [];
+  if (isNode(ast)) {
+    walk(ast, (node) => {
+      if (node.type === 'TemplateLiteral' || node.type === 'JSXText') {
+        ranges.push(
+          Array.isArray(node.range)
+            ? (node.range as [number, number])
+            : [node.start as number, node.end as number],
+        );
+      }
+    });
+  }
+  return ranges.sort(([startA], [startB]) => startA - startB);
 }
 
 function getPatternNames(pattern: unknown): string[] {
@@ -416,16 +444,16 @@ function getCanonicalName(name: string): string {
 /**
  * Renames module-level bindings to their canonical name. Every binding and reference with the
  * old name in the file is renamed, so the code means the same as long as the new name isn't
- * used in the file already.
+ * used in the file already. Returns how often each name is referenced, after renaming.
  */
-function renameBindings(program: Node) {
-  const used = new Set<string>();
+function renameBindings(program: Node): Map<string, number> {
+  const references = new Map<string, number>();
   const blocked = new Set<string>();
   walk(program, (node, parent, key, inAmbientModule) => {
     if (node.type === 'JSXIdentifier') {
       blocked.add(node.name as string);
     } else if (node.type === 'Identifier' && !isNameOnly(parent, key)) {
-      used.add(node.name as string);
+      references.set(node.name as string, (references.get(node.name as string) ?? 0) + 1);
       if (inAmbientModule) {
         // Renaming here would change what a `declare module` block augments
         blocked.add(node.name as string);
@@ -441,12 +469,16 @@ function renameBindings(program: Node) {
   }
   const renames = new Map<string, string>();
   for (const [target, names] of targets) {
-    if (names.length === 1 && !used.has(target)) {
+    if (names.length === 1 && !references.has(target)) {
       renames.set(names[0], target);
     }
   }
   if (renames.size === 0) {
-    return;
+    return references;
+  }
+  for (const [name, target] of renames) {
+    references.set(target, references.get(name) ?? 0);
+    references.delete(name);
   }
   walk(program, (node, parent, key) => {
     // `{ a }` and `{ a = 1 }` name a property as well as a binding. The property keeps its name,
@@ -483,23 +515,10 @@ function renameBindings(program: Node) {
     }
     const outside = node.type === 'ImportSpecifier' ? node.imported : node.exported;
     if (isNode(outside) && isNode(node.local) && getName(outside) === getName(node.local)) {
-      for (const key of POSITION_KEYS) {
-        if (key in outside) {
-          node.local[key] = outside[key];
-        }
-      }
+      copyPosition(node.local, outside);
     }
   });
-}
-
-function countReferences(program: Node): Map<string, number> {
-  const counts = new Map<string, number>();
-  walk(program, (node, parent, key) => {
-    if (node.type === 'Identifier' && !isNameOnly(parent, key)) {
-      counts.set(node.name as string, (counts.get(node.name as string) ?? 0) + 1);
-    }
-  });
-  return counts;
+  return references;
 }
 
 /**
@@ -507,13 +526,15 @@ function countReferences(program: Node): Map<string, number> {
  * changes, and a variable only the export uses is `export default <its value>`. Babel keeps the
  * `export default <value>` of the source, bundlers assign it to a variable first.
  */
-function normalizeDefaultExport(program: Node) {
+function normalizeDefaultExport(program: Node, references: Map<string, number>) {
   const body = program.body as Node[];
   const constants = new Set<string>();
   for (const statement of body) {
-    if (statement.type === 'VariableDeclaration' && statement.kind === 'const') {
-      getDeclaredNames(statement).forEach((name) => constants.add(name));
-    } else if (statement.type === 'FunctionDeclaration' || statement.type === 'ClassDeclaration') {
+    if (
+      (statement.type === 'VariableDeclaration' && statement.kind === 'const') ||
+      statement.type === 'FunctionDeclaration' ||
+      statement.type === 'ClassDeclaration'
+    ) {
       getDeclaredNames(statement).forEach((name) => constants.add(name));
     }
   }
@@ -555,7 +576,8 @@ function normalizeDefaultExport(program: Node) {
     }
   }
 
-  const references = countReferences(program);
+  // Moving `export default a` into the export list keeps the same identifier node, the counts
+  // still hold
   for (const list of body) {
     if (list.type !== 'ExportNamedDeclaration' || list.declaration || list.source) {
       continue;
@@ -719,9 +741,9 @@ export function normalizeSyntax(ast: unknown, filepath: string | undefined) {
     }
   }
   hoistExports(program, isDeclarationFile);
-  renameBindings(program);
+  const references = renameBindings(program);
   if (!isDeclarationFile) {
-    normalizeDefaultExport(program);
+    normalizeDefaultExport(program, references);
   }
   visit(program, isDeclarationFile);
 }

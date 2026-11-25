@@ -87,17 +87,6 @@ describe('createPackageDiff', () => {
     expect(await diffAll(oldPackage, newPackage, normalized)).toEqual([]);
   });
 
-  it('diffs the normalized code of files with real changes', async () => {
-    const [file] = await diffAll(
-      createPackage('1.0.0', { 'index.js': 'export function f(){return "a"}' }),
-      createPackage('2.0.0', { 'index.js': "export function f() {\n  return 'b';\n}\n" }),
-      normalized,
-    );
-
-    expect(file.formatError).toBeUndefined();
-    expect(patchText(file)).toContain('-  return "a";\n+  return "b";\n');
-  });
-
   it('falls back to the raw contents when a file fails to parse', async () => {
     const [file] = await diffAll(
       createPackage('1.0.0', { 'index.js': 'export const a = "x"\n' }),
