@@ -109,6 +109,12 @@ The reusable [Ahrefs audit workflow](./.github/workflows/ahrefs-audit-workflow.m
 
 Repositories call its compiled `ahrefs-audit-workflow.lock.yml` with their Site Audit `project_id` and the site paths they build (`include_paths`, `exclude_paths`). It needs the same setup as the Dependabot fix workflow, plus an `AHREFS_API_KEY` secret in the `code-infra-auditor` environment, which the caller passes along. Each run costs about 550 Ahrefs API units. After editing it, recompile it with `gh aw compile ahrefs-audit-workflow`.
 
+### Docs style review
+
+The reusable [docs style review workflow](./.github/workflows/docs-style-review-workflow.md) reviews the hand-written Markdown a pull request changes, and posts one-click suggestions inline as a comment review, which never blocks merging. It applies the repository's Vale rules (the MUI ones from the `@mui/internal-code-infra` version it depends on), and what Vale can't judge: typos, grammar and unclear sentences. A plain job before the agent picks the files (`include`, `exclude`) and sets the budget of suggestions: one per `lines_per_comment` added lines (10), at most `max_comments` (15). Drafts, and pull requests by authors without write access, bots included, aren't reviewed.
+
+Repositories call its compiled `docs-style-review-workflow.lock.yml` on `pull_request_target` for pull requests to the default branch, so pull requests from forks get reviews too: the pull request's files are read through the API and never checked out. It needs the same setup as the Dependabot fix workflow, except the ruleset exemption, with the Anthropic federation rule also accepting the OIDC subject of `pull_request_target` runs. After editing it, recompile it with `gh aw compile docs-style-review-workflow`.
+
 ## Versioning
 
 Steps:
