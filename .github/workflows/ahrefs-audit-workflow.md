@@ -400,7 +400,8 @@ safe-outputs:
     # agent titles it with the group; later runs recognize the pull requests by the full title.
     max: 6
     title-prefix: '[docs] Fix Ahrefs Site Audit issues: '
-    labels: [docs]
+    # `auditor` marks the pull requests the auditor shepherd looks after.
+    labels: [docs, auditor]
     draft: true
     # MUI repositories only allow new branches under listed prefixes; their "Disallow new branches"
     # rulesets exempt this one.

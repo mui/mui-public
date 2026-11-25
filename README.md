@@ -109,6 +109,12 @@ The reusable [Ahrefs audit workflow](./.github/workflows/ahrefs-audit-workflow.m
 
 Repositories call its compiled `ahrefs-audit-workflow.lock.yml` with their Site Audit `project_id` and the site paths they build (`include_paths`, `exclude_paths`). It needs the same setup as the Dependabot fix workflow, plus an `AHREFS_API_KEY` secret in the `code-infra-auditor` environment, which the caller passes along. Each run costs about 550 Ahrefs API units. After editing it, recompile it with `gh aw compile ahrefs-audit-workflow`.
 
+### Auditor shepherd
+
+The auditors open their pull requests as drafts, labelled `auditor`. The reusable [auditor shepherd](./.github/workflows/auditor-shepherd-workflow.md) looks after them: a plain job marks a draft ready and requests a review once all its checks pass, and when a pull request's checks fail, an agent reproduces the failure, fixes what the pull request's own changes caused, and notes in its description what it found. The agent only runs when there is a failing pull request, and tries each commit once.
+
+Repositories call its compiled `auditor-shepherd-workflow.lock.yml` hourly, like [mui-public does](./.github/workflows/auditor-shepherd.yml), with the team to request reviews from (`reviewer_team`). It needs the same setup as the Dependabot fix workflow and an `auditor` label in the repository. After editing it, recompile it with `gh aw compile auditor-shepherd-workflow`.
+
 ## Versioning
 
 Steps:
