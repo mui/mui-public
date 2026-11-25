@@ -164,11 +164,13 @@ type ReturnValue = Record<string, SitemapSection>;
 
 Converts one parsed index entry into the `SitemapPage` the sitemap exposes.
 
-Uses the index list label (`displayTitle`) as the title when one is set, strips the markdown AST
-fields (`descriptionMarkdown`, section `titleMarkdown`) to reduce bundle size, and normalizes
+Uses the index list label (`displayTitle`) as the title when one is set, and normalizes
 whitespace exactly as the parser does, so a cached entry matches a fresh parse. keywords and
 types are comma-split from a whitespace-collapsed paragraph by the parser, so each element is
 normalized the same way.
+
+Copies only the fields `SitemapPage` declares. The rest, such as `embeddings` or the markdown
+AST fields, would only add bundle size.
 
 Every code path that builds sitemap data from an index must use this, so they all agree.
 
