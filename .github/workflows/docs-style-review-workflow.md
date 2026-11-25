@@ -123,9 +123,8 @@ jobs:
     if: needs.scope.outputs.files != ''
 steps:
   # The pull request's files are read from its head commit through the API, as data: nothing from
-  # it runs here. The repository's Vale configuration and the MUI rules (from the
-  # @mui/internal-code-infra version it depends on) are the style to apply.
-  - name: Collect the changes and the style rules
+  # it runs here.
+  - name: Collect the changes
     env:
       GH_TOKEN: ${{ github.token }}
       NUMBER: ${{ github.event.pull_request.number }}
@@ -136,7 +135,7 @@ steps:
     run: |
       set -euo pipefail
       out=/tmp/gh-aw/agent/review
-      mkdir -p "$out/files" "$out/style"
+      mkdir -p "$out/files"
       jq -n --argjson number "$NUMBER" --arg sha "$HEAD_SHA" --argjson budget "$BUDGET" \
         --argjson files "$FILES" '{number: $number, head_sha: $sha, budget: $budget, files: $files}' \
         > "$out/scope.json"
@@ -151,16 +150,6 @@ steps:
       gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$NUMBER/comments" \
           --jq '.[] | select(.user.login == "code-infra-auditor[bot]") | {path, line, body}' \
         | jq -s . > "$out/earlier-comments.json"
-      if [ -f .vale.ini ]; then cp .vale.ini "$out/style/"; fi
-      if [ -d .github/styles ]; then cp -R .github/styles/. "$out/style/"; fi
-      spec=$(jq -r '(.devDependencies + .dependencies)["@mui/internal-code-infra"] // empty' package.json)
-      if [ -d packages/code-infra/vale/styles ]; then
-        cp -R packages/code-infra/vale/styles/. "$out/style/"
-      elif [ -n "$spec" ]; then
-        tarball=$(cd "$RUNNER_TEMP" && npm pack "@mui/internal-code-infra@$spec" --silent)
-        tar -xzf "$RUNNER_TEMP/$tarball" -C "$RUNNER_TEMP" package/vale/styles
-        cp -R "$RUNNER_TEMP/package/vale/styles/." "$out/style/"
-      fi
       find "$out" -type f | sed "s#^$out/##" | sort
 safe-outputs:
   # The jobs that publish the outputs use the Code Infra - Auditor App. Its credentials are secrets
@@ -197,9 +186,6 @@ All in `/tmp/gh-aw/agent/review/`:
 - `files/`: those files as they are in the pull request.
 - `patches.json`: per file, the diff of the pull request. Only its added lines (`+`) are yours to
   comment on, numbered as in the file.
-- `style/`: the repository's Vale configuration (`.vale.ini`) and rules (`*.yml`). `.vale.ini`
-  says which rules apply to which files, with what exceptions; the rules list the substitutions
-  and patterns to enforce.
 - `earlier-comments.json`: your earlier suggestions on this pull request.
 
 The rest of the repository, on its default branch, is in the working directory: read neighboring
@@ -209,16 +195,34 @@ pages for the terms and conventions they use.
 
 On the added lines, in this order:
 
-1. What the Vale rules flag: brand names written with a non-breaking space (U+00A0), US spelling,
-   the substitutions and words the rules list, and the Google rules `.vale.ini` enables.
+1. The MUI style rules below.
 2. Mistakes: typos, grammar, broken Markdown, a word that says something the author didn't mean.
 3. Clarity: a wordy, ambiguous or hard-to-follow sentence, inconsistent terms for the same thing,
    a heading or list that doesn't match its neighbors.
 
 Leave alone code blocks and inline code, component and prop names, links and their targets,
-front matter, demo and API references (`{{"demo": ...}}`), and what Vale's configuration ignores.
-Don't comment on taste: suggest a change only when it fixes something a reader would trip over.
-Never change what the text means.
+front matter, demo and API references (`{{"demo": ...}}`), and JSX. Don't comment on taste:
+suggest a change only when it fixes something a reader would trip over. Never change what the text
+means.
+
+## MUI style
+
+- **Brand names take a non-breaking space** (U+00A0), so a line never breaks inside one: Material UI, MUI X, Base UI, MUI Base, MUI System, MUI Store, MUI Core, MUI Connect, Pigment CSS. Toolpad
+  is just "Toolpad", not "MUI Toolpad".
+- **Don't name the company** as "MUI" followed by a word other than those products or "MUI
+  organization", "MUI ecosystem", "MUI products" and "MUI team": name the product or the team.
+- **US spelling:** color, behavior, gray, center, license, labeled, modeling, analyze, optimize,
+  and so on.
+- **Names spelled one way:** API, TypeScript, JavaScript, CSS, HTML, npm (even at the start of a
+  sentence), GitHub, Stack Overflow, CSS Modules, Tailwind CSS, VS Code, CodeSandbox, StackBlitz,
+  webpack, ESLint, ES modules, Next.js's App Router and Pages Router, Material Design 3, Heatmap,
+  Treemap, Sparkline chart, Gauge chart, Treemap chart. Write subcomponent and use case.
+- **No Latin abbreviations:** "for example", not "e.g."; "that is", not "i.e.".
+- **Softer, where it reads better:** address the reader as "you", not "we" or "I"; prefer the
+  present tense to "will"; use gender-neutral language; use the Oxford comma.
+
+Changelogs aren't reviewed; the repository's own writing guide, if its instructions point to one,
+adds to these.
 
 ## Suggest
 
@@ -228,7 +232,7 @@ lines) of added lines in the patch, and a body of one short sentence saying why,
 block replacing exactly those lines:
 
 ````markdown
-Material UI is a brand name, written with a non-breaking space.
+Material UI is a brand name, written with a non-breaking space.
 
 ```suggestion
 <the lines as they should read, in full>
