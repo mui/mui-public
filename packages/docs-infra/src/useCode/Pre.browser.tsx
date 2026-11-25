@@ -88,6 +88,124 @@ describe('Pre editor - browser', () => {
     cleanup();
   });
 
+  it('initializes a visible idle editor without moving focus and preserves the first clicked caret', async () => {
+    const source = Array.from(
+      { length: 40 },
+      (_, index) => `const value_${index} = ${index};`,
+    ).join('\n');
+
+    const { container } = render(
+      <div style={{ font: `13px/${LINE_HEIGHT}px monospace` }}>
+        <button type="button">Keep focus</button>
+        <div data-testid="scroller" style={{ height: 120, overflow: 'auto' }}>
+          <Pre fileName="App.ts" setSource={() => {}} editActivation="idle">
+            {source}
+          </Pre>
+        </div>
+        <div style={{ position: 'absolute', top: 10000 }}>
+          <Pre fileName="Offscreen.ts" setSource={() => {}} editActivation="idle">
+            {source}
+          </Pre>
+        </div>
+        <Pre fileName="Readonly.ts" editable={false} editActivation="idle">
+          {source}
+        </Pre>
+        <div hidden>
+          <Pre fileName="Hidden.ts" setSource={() => {}} editActivation="idle">
+            {source}
+          </Pre>
+        </div>
+      </div>,
+    );
+
+    const focusTarget = screen.getByRole('button', { name: 'Keep focus' });
+
+    await userEvent.click(focusTarget);
+    expect(container.querySelector('textarea')).toBeNull();
+
+    const textarea = await screen.findByRole(
+      'textbox',
+      { name: 'Edit App.ts' },
+      { timeout: 10000 },
+    );
+
+    expect(document.activeElement).toBe(focusTarget);
+    expect(container.querySelectorAll('textarea')).toHaveLength(1);
+
+    const scroller = screen.getByTestId('scroller');
+    scroller.scrollTop = LINE_HEIGHT * 20;
+    const scrollTop = scroller.scrollTop;
+    const pageScroll = window.scrollY;
+
+    await userEvent.click(textarea, { position: { x: 60, y: scrollTop + LINE_HEIGHT } });
+
+    expect(document.activeElement).toBe(textarea);
+    expect((textarea as HTMLTextAreaElement).selectionStart).toBeGreaterThan(
+      source.indexOf('value_19'),
+    );
+    expect(scroller.scrollTop).toBe(scrollTop);
+    expect(window.scrollY).toBe(pageScroll);
+  });
+
+  it('cancels initialization when the source is hidden and resumes on reopening', async () => {
+    function ToggleSource() {
+      const [visible, setVisible] = React.useState(true);
+      const [activations, setActivations] = React.useState(0);
+
+      return (
+        <React.Fragment>
+          <button type="button" onClick={() => setVisible((value) => !value)}>
+            Toggle code
+          </button>
+          <output>Activations: {activations}</output>
+          <div hidden={!visible}>
+            <Pre
+              fileName="App.ts"
+              setSource={() => {}}
+              editActivation="idle"
+              onActivate={() => setActivations((value) => value + 1)}
+            >
+              {'const value = 1;'}
+            </Pre>
+          </div>
+        </React.Fragment>
+      );
+    }
+
+    const { container } = render(<ToggleSource />);
+
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+
+    try {
+      await userEvent.click(screen.getByRole('button', { name: 'Toggle code' }));
+      await vi.advanceTimersByTimeAsync(2000);
+
+      expect(container.querySelector('textarea')).toBeNull();
+      expect(screen.getByText('Activations: 0')).not.toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+
+    await userEvent.click(screen.getByRole('button', { name: 'Toggle code' }));
+    await screen.findByRole('textbox', {}, { timeout: 10000 });
+
+    expect(screen.getByText('Activations: 1')).not.toBeNull();
+  });
+
+  it('keeps interaction activation available before idle initialization', async () => {
+    render(
+      <Pre fileName="App.ts" setSource={() => {}} editActivation="idle">
+        {'const value = 1;'}
+      </Pre>,
+    );
+
+    await userEvent.click(screen.getByRole('group', { name: 'Editable code' }));
+
+    const textarea = await screen.findByRole('textbox');
+
+    await waitFor(() => expect(document.activeElement).toBe(textarea));
+  });
+
   it('uses the wrapper as one Tab stop, Enter to engage, and Escape to exit', async () => {
     render(
       <Pre fileName="App.tsx" setSource={() => {}}>

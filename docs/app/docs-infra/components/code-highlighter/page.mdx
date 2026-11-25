@@ -531,3 +531,15 @@ export const metadata =
   /** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */ ({
     keywords: ['syntax highlighting', 'code block', 'demo', 'precompute', 'variants', 'fallback'],
   });
+
+## Preparing editors during idle
+
+Set `editActivation="idle"` on an editable code block to initialize its editor before the reader clicks it.
+Visible blocks wait until the page has loaded and input has stopped for 1.5 seconds, then initialize during browser idle time.
+If idle callbacks are starved, initialization runs after another five seconds without input.
+Initialization does not focus the editor.
+Hidden and offscreen blocks stay deferred.
+
+Clicking before initialization still loads the editor on demand.
+Without `IntersectionObserver`, this mode falls back to interaction activation.
+Use `editActivation="interaction"` to keep all editing work deferred until interaction.

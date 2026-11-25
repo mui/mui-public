@@ -59,7 +59,7 @@ function LiveSource(props: ContentProps<{}>) {
   );
 }
 
-function LiveDemo() {
+function LiveDemo({ activation = 'interaction' }: { activation?: 'interaction' | 'idle' }) {
   const controller = useDemoController();
 
   return (
@@ -73,7 +73,7 @@ function LiveDemo() {
           highlightAfter="init"
           enhanceAfter="init"
           initialExpanded
-          editActivation="interaction"
+          editActivation={activation}
           Content={LiveSource}
         />
       </CodeControllerContext.Provider>
@@ -206,6 +206,25 @@ describe('CodeHighlighter editing source switches', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Count 0' }));
     await screen.findByRole('button', { name: 'Count 1' });
     expect(bundledMounts).toBe(mountsBeforeUndo);
+  });
+
+  it('initializes an idle editor and runner without remounting or focusing the demo', async () => {
+    render(<LiveDemo activation="idle" />);
+
+    const preview = screen.getByRole('button', { name: 'Count 0' });
+
+    await userEvent.click(preview);
+    expect(screen.queryByRole('textbox')).toBeNull();
+
+    const editor = await screen.findByRole('textbox', {}, { timeout: 10000 });
+
+    await screen.findByText('Live build ready');
+    expect(screen.getByRole('button', { name: 'Count 1' })).toBe(preview);
+    expect(bundledMounts).toBe(1);
+    expect(document.activeElement).not.toBe(editor);
+
+    await userEvent.fill(editor, COUNTER_SOURCE.replace('Count ', 'Edited '));
+    await screen.findByRole('button', { name: 'Edited 0' });
   });
 
   it.each(['Helper', 'JavaScript'])(

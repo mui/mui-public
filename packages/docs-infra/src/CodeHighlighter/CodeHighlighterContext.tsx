@@ -71,10 +71,10 @@ export interface CodeHighlighterContextType {
   /**
    * Echo of the `editActivation` prop on the surrounding `CodeHighlighter` /
    * `CodeHighlighterClient`. `useCode` reads it from here and threads it down to
-   * `Pre` (which defers the textarea load when `'interaction'`), so the strategy can be configured at
-   * the `CodeHighlighter` / demo level rather than inside the content subtree.
+   * `Pre`, which handles interaction and visible-idle activation. Configure the
+   * strategy at the `CodeHighlighter` / demo level.
    */
-  editActivation?: 'eager' | 'interaction';
+  editActivation?: 'eager' | 'interaction' | 'idle';
   /**
    * Callback `useCode` threads down to the editor's `onActivate`, fired once
    * when the block first engages for editing. `CodeHighlighterClient` supplies it

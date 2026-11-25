@@ -593,15 +593,20 @@ export interface CodeLoadingProps {
    * When the textarea editor loads for an editable block:
    *   - `'eager'` (default): load it as soon as the block is editable, and let
    *     `CodeHighlighter` speculatively preload it on first render.
-   *   - `'interaction'`: defer the load until the reader hovers, focuses, or
-   *     clicks the code, and suppress the speculative preload — so a block the
-   *     reader never engages does not fetch the editor chunk at all.
+   *   - `'interaction'`: defer the load until the reader clicks the code or
+   *     presses Enter on its wrapper. Blocks the reader never engages do not
+   *     fetch the editor chunk.
+   *
+   *   - `'idle'`: initialize visible editors after page load and 1.5 seconds
+   *     without input, during browser idle time. Interaction still activates
+   *     the editor immediately. Hidden and offscreen blocks stay deferred.
+   *     Starved idle callbacks run after another five seconds without input.
    *
    * Only meaningful for editable blocks (a `CodeControllerContext` exposing
    * `setCode`); ignored otherwise.
    * @default 'eager'
    */
-  editActivation?: 'eager' | 'interaction';
+  editActivation?: 'eager' | 'interaction' | 'idle';
   /** Raw code string for simple use cases */
   children?: string;
   /**

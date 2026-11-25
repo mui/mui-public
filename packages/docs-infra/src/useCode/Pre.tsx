@@ -20,6 +20,7 @@ import { getSourceLineCounts } from './sourceLineCounts';
 import type { SourceLineCounts } from './sourceLineCounts';
 import { subscribeToggleNudge } from './subscribeToggleNudge';
 import { CodeEditorLazy } from './CodeEditorLazy';
+import { useIdleEditor } from './useIdleEditor';
 
 const hastChildrenCache = new WeakMap<ElementContent[], React.ReactNode>();
 const fallbackHastCache = new WeakMap<ElementContent[], React.ReactNode>();
@@ -125,10 +126,11 @@ export function Pre({
   /**
    * Controls when the textarea editor loads for an editable block: `'eager'`
    * (default) loads it as soon as the block is editable; `'interaction'` defers
-   * the load until the user hovers/focuses/clicks the `<pre>`. Ignored when the
-   * block is not editable.
+   * the load until the reader clicks the code or presses Enter on its wrapper. Ignored when the
+   * block is not editable. `'idle'` initializes visible blocks during idle
+   * time after page load and a quiet input interval, or on interaction.
    */
-  editActivation?: 'eager' | 'interaction';
+  editActivation?: 'eager' | 'interaction' | 'idle';
   /**
    * Fired once when the block first engages for editing. `CodeHighlighter` uses
    * it to warm the live-editing runtime, grammars, and worker.
@@ -569,7 +571,7 @@ export function Pre({
 
   const isEditable = Boolean(setSource) && editable;
   const [editorRequested, setEditorRequested] = React.useState(
-    () => editActivation !== 'interaction',
+    () => (editActivation ?? 'eager') === 'eager',
   );
   const fullSource = React.useMemo(
     () =>
@@ -645,6 +647,17 @@ export function Pre({
       onActivate?.();
     }
   }, [onActivate]);
+
+  const initializeEditor = React.useCallback(() => {
+    handleEditorActivate();
+    React.startTransition(() => setEditorRequested(true));
+  }, [handleEditorActivate]);
+
+  useIdleEditor(
+    wrapperRef,
+    initializeEditor,
+    isEditable && !editorRequested && editActivation === 'idle' ? 'idle' : 'disabled',
+  );
 
   const requestEditorFocus = React.useCallback(() => {
     setPromptVisible(false);

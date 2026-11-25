@@ -79,10 +79,10 @@ interface UseFileNavigationProps {
   /**
    * Forwarded to `<Pre>`: when the textarea editor loads for an
    * editable block. `'eager'` (default) loads on mount; `'interaction'` defers
-   * until the user hovers/focuses/clicks. Sourced from the `editActivation`
+   * until interaction or visible idle time. Sourced from the `editActivation`
    * prop on `CodeHighlighter` (via `CodeHighlighterContext`).
    */
-  editActivation?: 'eager' | 'interaction';
+  editActivation?: 'eager' | 'interaction' | 'idle';
   /** Forwarded to `<Pre>`: fired once when the block engages for editing. */
   onActivate?: () => void;
   /** Forwarded to `<Pre>`: expands focused source from textarea boundary navigation. */

@@ -44,7 +44,7 @@ function renderCold() {
 }
 
 describe('useSourceEditing lazy engine (cold cache)', () => {
-  function renderEditable(editActivation?: 'eager' | 'interaction') {
+  function renderEditable(editActivation?: 'eager' | 'interaction' | 'idle') {
     const setCode = vi.fn();
     const context: CodeHighlighterContextType = { code: {}, setCode, editActivation };
     const view = renderHook(() =>
@@ -58,22 +58,25 @@ describe('useSourceEditing lazy engine (cold cache)', () => {
     return { ...view, setCode };
   }
 
-  it('loads the interaction engine only when editing activates', async () => {
-    const { result, setCode } = renderEditable('interaction');
-    await vi.dynamicImportSettled();
-    expect(peekSourceEditingEngine()).toBeUndefined();
-    expect(setCode).not.toHaveBeenCalled();
+  it.each(['interaction', 'idle'] as const)(
+    'loads the %s engine only when editing activates',
+    async (mode) => {
+      const { result, setCode } = renderEditable(mode);
+      await vi.dynamicImportSettled();
+      expect(peekSourceEditingEngine()).toBeUndefined();
+      expect(setCode).not.toHaveBeenCalled();
 
-    act(() => result.current.activate?.());
-    await waitFor(() => expect(setCode).toHaveBeenCalledTimes(1));
-    expect(peekSourceEditingEngine()).toBeDefined();
+      act(() => result.current.activate?.());
+      await waitFor(() => expect(setCode).toHaveBeenCalledTimes(1));
+      expect(peekSourceEditingEngine()).toBeDefined();
 
-    act(() => result.current.setSource?.('new'));
-    expect(setCode).toHaveBeenCalledTimes(2);
-    const seeded = setCode.mock.calls[0][0](null);
-    const edited = setCode.mock.calls[1][0](seeded);
-    expect(edited.Default.source).toBe('new');
-  });
+      act(() => result.current.setSource?.('new'));
+      expect(setCode).toHaveBeenCalledTimes(2);
+      const seeded = setCode.mock.calls[0][0](null);
+      const edited = setCode.mock.calls[1][0](seeded);
+      expect(edited.Default.source).toBe('new');
+    },
+  );
 
   it('warms the engine on mount by default', async () => {
     renderEditable();
