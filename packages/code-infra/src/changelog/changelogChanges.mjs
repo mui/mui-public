@@ -179,7 +179,7 @@ function createAuthorResolver({ octokit, repository, signal }) {
         : // The association with another repository says nothing about this one.
           await getMembership(login);
     }
-    return { login, name: null, association };
+    return { login, name: null, association, isBot: type === 'Bot' };
   }
 
   /**
@@ -227,6 +227,10 @@ function createAuthorResolver({ octokit, repository, signal }) {
   return {
     /**
      * @param {PullRequest} pull
+     */
+    openerOf: (pull) => getOpener(pull, repository),
+    /**
+     * @param {PullRequest} pull
      * @returns {Promise<{ author: ChangelogAuthor | null, references: string[] }>}
      */
     async fromPullRequest(pull) {
@@ -247,13 +251,12 @@ function createAuthorResolver({ octokit, repository, signal }) {
      */
     async fromCommit(commit) {
       const login = commit.author?.login ?? null;
+      const isBot = commit.author?.type === 'Bot';
       return {
         login,
         name: commit.commit.author?.name ?? null,
-        association:
-          login === null || commit.author?.type === 'Bot'
-            ? 'community'
-            : await getMembership(login),
+        association: login === null || isBot ? 'community' : await getMembership(login),
+        isBot,
       };
     },
   };
@@ -379,7 +382,12 @@ export async function fetchChangelogChanges({
         url: pull.html_url,
         labels: pull.labels.map((label) => label.name),
         isBreakingChange: pull.labels.some((label) => BREAKING_CHANGE_LABELS.includes(label.name)),
-        pullRequest: { number: pull.number, title: pull.title, body: pull.body ?? '' },
+        pullRequest: {
+          number: pull.number,
+          title: pull.title,
+          body: pull.body ?? '',
+          openedBy: await authors.openerOf(pull),
+        },
         author,
         createdAt: pull.created_at,
         mergedAt: pull.merged_at,

@@ -463,6 +463,7 @@ export interface ChangelogAuthor {
    */
   name: string | null;
   association: 'team' | 'community' | 'first-timer';
+  isBot: boolean;
 }
 
 /**
@@ -488,7 +489,16 @@ export interface ChangelogChange {
    * Whether the pull request has the `breaking` or the `breaking change` label.
    */
   isBreakingChange: boolean;
-  pullRequest: { number: number; title: string; body: string } | null;
+  pullRequest: {
+    number: number;
+    title: string;
+    body: string;
+    /**
+     * Not necessarily the author of the change, for a cherry-pick by a bot. `null` when the GitHub
+     * account was deleted.
+     */
+    openedBy: ChangelogAuthor | null;
+  } | null;
   /**
    * `null` when the GitHub account was deleted.
    */

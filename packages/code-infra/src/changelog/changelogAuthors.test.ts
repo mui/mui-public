@@ -29,12 +29,30 @@ describe('pull request authors', () => {
       'first-timer',
     ]);
   });
+
+  it('tells bots, whatever they are called', async () => {
+    const github = createGitHub({
+      commits: ['renovate[bot]', 'Copilot', 'octocat'].map((login, index) => ({
+        message: `Commit ${index}`,
+        pulls: [{ number: index, login, isBot: login !== 'octocat' }],
+      })),
+    });
+
+    const { changes } = await fetchDummyRelease(github);
+
+    expect(changes.map((change) => change.author?.isBot)).toEqual([true, true, false]);
+    expect(changes.map((change) => change.pullRequest?.openedBy?.isBot)).toEqual([
+      true,
+      true,
+      false,
+    ]);
+  });
 });
 
 describe('cherry-pick authors', () => {
   const ORIGINAL: PullFixture = { number: 10, login: 'octocat' };
-  const BOT = { login: 'github-actions[bot]', name: null, association: 'community' };
-  const OCTOCAT = { login: 'octocat', name: null, association: 'community' };
+  const BOT = { login: 'github-actions[bot]', name: null, association: 'community', isBot: true };
+  const OCTOCAT = { login: 'octocat', name: null, association: 'community', isBot: false };
 
   async function changeOf(pull: Partial<PullFixture>, pulls: PullFixture[] = [ORIGINAL]) {
     const github = createGitHub({
@@ -56,7 +74,11 @@ describe('cherry-pick authors', () => {
       labels: ['cherry-pick'],
     });
 
-    expect(change).toMatchObject({ title: 'Fix it (#9)', author: OCTOCAT });
+    expect(change).toMatchObject({
+      title: 'Fix it (#9)',
+      author: OCTOCAT,
+      pullRequest: { openedBy: BOT },
+    });
     expect(warnings).toEqual([]);
   });
 
@@ -113,7 +135,7 @@ describe('cherry-pick authors', () => {
 
   describe('opened by a person', () => {
     const PERSON: Partial<PullFixture> = { login: 'maintainer', association: 'MEMBER' };
-    const MAINTAINER = { login: 'maintainer', name: null, association: 'team' };
+    const MAINTAINER = { login: 'maintainer', name: null, association: 'team', isBot: false };
 
     it('credits the original author', async () => {
       const change = await changeOf({
@@ -171,15 +193,17 @@ describe('direct commit authors', () => {
         { message: 'Second', login: 'outsider' },
         { message: 'Third', login: 'member' },
         { message: 'No account' },
+        { message: 'Bot', login: 'renovate[bot]' },
       ],
       responses: { '/orgs/mui/members/member': { status: 204 } },
     });
 
     expect(authors).toMatchObject([
-      { login: 'member', association: 'team' },
-      { login: 'outsider', association: 'community' },
-      { login: 'member', association: 'team' },
-      { login: null, name: 'Git Author', association: 'community' },
+      { login: 'member', association: 'team', isBot: false },
+      { login: 'outsider', association: 'community', isBot: false },
+      { login: 'member', association: 'team', isBot: false },
+      { login: null, name: 'Git Author', association: 'community', isBot: false },
+      { login: 'renovate[bot]', association: 'community', isBot: true },
     ]);
     expect(requests.filter((path) => path.startsWith('/orgs/'))).toHaveLength(2);
     expect(warnings).toEqual([]);

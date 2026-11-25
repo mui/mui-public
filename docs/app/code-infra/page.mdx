@@ -35,6 +35,8 @@ console.log(`## ${version}\n\nChanges since ${previous.ref}:\n\n${lines.join('\n
 
 Run inside a checkout, every option has a default: the release is `HEAD`, and it starts at the closest version tag behind it. Commits without a pull request are left out unless `includeDirectCommits` is set.
 
+To leave out changes of bots, filter on `change.author?.isBot`. A cherry-pick that a bot opened has the original author: filter on `change.pullRequest?.openedBy?.isBot` to leave it out too.
+
 ### Changelog code
 
 A repository formats its changelog with its own code, made of the pieces below. Keep it a function of the data:
