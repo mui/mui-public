@@ -18,8 +18,8 @@ jobs:
       checks: read
       contents: write # push fixes to the auditor branches
       id-token: write # Anthropic WIF
-      issues: write # failure reports
-      pull-requests: write # mark ready, request reviews, update descriptions
+      issues: write # comments, and gh-aw's failure reports
+      pull-requests: write # mark ready, request reviews, fix attempt comments
       statuses: read
     uses: ./.github/workflows/auditor-shepherd-workflow.lock.yml
     with:

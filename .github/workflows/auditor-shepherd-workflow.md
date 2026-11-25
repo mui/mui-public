@@ -8,17 +8,23 @@ on:
         description: Team (slug) to request a review from when a pull request becomes ready.
         type: string
         default: infra
+      max_attempts:
+        description: Fix attempts per pull request before it's left to a person.
+        type: number
+        default: 3
+  # Hours without an open auditor pull request stop at this search.
+  skip-if-no-match: 'is:pr is:open label:auditor author:app/code-infra-auditor'
 # One run at a time per repository, so two runs never work on the same pull request.
 concurrency:
   group: auditor-shepherd-${{ github.repository }}
   cancel-in-progress: false
 permissions:
   contents: read
-  issues: read
+  # The pull request's diff and its GitHub Actions failure logs.
   pull-requests: read
   actions: read
-  checks: read
-  statuses: read
+  # The agent's default GitHub toolset.
+  issues: read
   # Mints the GitHub OIDC token exchanged for a Claude token (engine.auth below).
   id-token: write
 engine:
@@ -67,12 +73,15 @@ jobs:
       pull-requests: write
     outputs:
       failing: ${{ steps.scan.outputs.failing }}
+      number: ${{ steps.scan.outputs.number }}
+      sha: ${{ steps.scan.outputs.sha }}
     steps:
       - name: Mark passing pull requests ready, pick a failing one
         id: scan
         env:
           GH_TOKEN: ${{ github.token }}
           REVIEWER_TEAM: ${{ inputs.reviewer_team }}
+          MAX_ATTEMPTS: ${{ inputs.max_attempts }}
         run: |
           set -euo pipefail
           repo="$GITHUB_REPOSITORY"
@@ -93,33 +102,42 @@ jobs:
           }
           gh pr list --repo "$repo" --state open --author app/code-infra-auditor --label auditor \
               --limit 100 --json number,isDraft,headRefName,headRefOid,createdAt,comments \
-            | jq -c 'sort_by(.createdAt)[]' > prs.jsonl
-          while IFS= read -r pr; do
-            checks=$(checks_of "$(jq -r .number <<< "$pr")")
-            jq -c --argjson checks "$checks" '. + {checks: $checks}' <<< "$pr"
-          done < prs.jsonl \
-            | jq -s '
-                # The record job comments once per fix attempt, naming the commit; three per pull request.
+            | jq -c 'sort_by(.createdAt)[]' \
+            | while IFS= read -r pr; do
+                checks=$(checks_of "$(jq -r .number <<< "$pr")")
+                jq -c --argjson checks "$checks" '. + {checks: $checks}' <<< "$pr"
+              done \
+            | jq -s --argjson max "$MAX_ATTEMPTS" '
+                # A cancelled check blocks the pull request like a failing one.
+                def blocking: .bucket == "fail" or .bucket == "cancel";
+                # The record job comments once per fix attempt, naming the commit.
                 def attempted: [.comments[] | select(.author.login == "github-actions")
                   | .body | scan("auditor-shepherd: ([0-9a-f]{40})") | .[0]];
-                def passing: (.checks | length > 0) and all(.checks[]; .bucket == "pass" or .bucket == "skipping");
-                # A cancelled check blocks the pull request like a failing one.
-                def failing: any(.checks[]; .bucket == "fail" or .bucket == "cancel");
-                def tried: .headRefOid as $sha | attempted | index($sha) != null;
-                def fixable: failing and (tried | not) and (attempted | length) < 3;
+                def status:
+                  if (.checks | length > 0) and all(.checks[]; .bucket == "pass" or .bucket == "skipping") then
+                    (if .isDraft then "passing draft" else "passing" end)
+                  elif any(.checks[]; blocking) then
+                    (.headRefOid as $sha
+                      | if attempted | index($sha) != null then "tried"
+                        elif (attempted | length) >= $max then "exhausted"
+                        else "fixable" end)
+                  else "pending" end;
                 {
-                  ready: [.[] | select(.isDraft and passing) | .number],
-                  failing: (first(.[] | select(fixable)
-                    | {number, branch: .headRefName, sha: .headRefOid,
-                       failed: [.checks[] | select(.bucket == "fail" or .bucket == "cancel") | {name, bucket, url: .link}]}) // null),
-                  log: [.[] | "#\(.number): " + (
-                    if passing then (if .isDraft then "checks pass, marking it ready" else "ready, checks pass" end)
-                    elif failing then
-                      (if tried then "checks fail, already attempted at this commit"
-                       elif (attempted | length) >= 3 then "checks fail, out of fix attempts"
-                       else "checks fail" end)
-                    else "checks pending" end)]
-                }' > decisions.json
+                  "passing draft": "checks pass, marking it ready",
+                  passing: "ready, checks pass",
+                  tried: "checks fail, already attempted at this commit",
+                  exhausted: "checks fail, out of fix attempts",
+                  fixable: "checks fail",
+                  pending: "checks pending"
+                } as $messages
+                | map(. + {status: status})
+                | {
+                    ready: [.[] | select(.status == "passing draft") | .number],
+                    failing: (first(.[] | select(.status == "fixable")
+                      | {number, branch: .headRefName, sha: .headRefOid,
+                         failed: [.checks[] | select(blocking) | {name, bucket, url: .link}]}) // null),
+                    log: [.[] | "#\(.number): \($messages[.status])"]
+                  }' > decisions.json
           jq -r '.log[]' decisions.json
           for number in $(jq -r '.ready[]' decisions.json); do
             gh pr ready "$number" --repo "$repo" || { echo "::warning::Couldn't mark #$number ready"; continue; }
@@ -129,7 +147,10 @@ jobs:
               || echo "::warning::Couldn't request a review from mui/$REVIEWER_TEAM on #$number"
           done
           failing=$(jq -c '.failing // empty' decisions.json)
-          [ -n "$failing" ] && echo "#$(jq -r .number <<< "$failing"): handing it to the agent"
+          if [ -n "$failing" ]; then
+            echo "#$(jq -r .number <<< "$failing"): handing it to the agent"
+            jq -r '"number=\(.number)\nsha=\(.sha)"' <<< "$failing" >> "$GITHUB_OUTPUT"
+          fi
           echo "failing=$failing" >> "$GITHUB_OUTPUT"
   # The rest of the workflow, the agent's included, only runs for a failing pull request.
   activation:
@@ -137,7 +158,7 @@ jobs:
     if: needs.shepherd.outputs.failing != ''
   # Records the attempt once the agent ran, whatever its outcome, so a run skipped before it (by
   # the daily AI credit limit, for one) leaves the commit to a later run. A comment, as auditors
-  # rewrite their pull requests' descriptions.
+  # rewrite their pull requests' descriptions; earlier ones are hidden as outdated.
   record_attempt:
     needs: [shepherd, agent, detection]
     detection-gate: status-only
@@ -151,15 +172,22 @@ jobs:
       - name: Record the fix attempt
         env:
           GH_TOKEN: ${{ github.token }}
-          FAILING: ${{ needs.shepherd.outputs.failing }}
+          NUMBER: ${{ needs.shepherd.outputs.number }}
+          SHA: ${{ needs.shepherd.outputs.sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
-          number=$(jq -r .number <<< "$FAILING")
-          sha=$(jq -r .sha <<< "$FAILING")
-          gh pr comment "$number" --repo "$GITHUB_REPOSITORY" --body "$(printf \
+          gh pr view "$NUMBER" --repo "$GITHUB_REPOSITORY" --json comments --jq '.comments[]
+              | select(.author.login == "github-actions" and (.body | contains("auditor-shepherd: "))
+                and (.isMinimized | not)) | .id' \
+            | while IFS= read -r id; do
+                gh api graphql -f id="$id" -f query='mutation($id: ID!) {
+                  minimizeComment(input: {subjectId: $id, classifier: OUTDATED}) { clientMutationId } }' \
+                  > /dev/null
+              done
+          gh pr comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --body "$(printf \
             'The auditor shepherd [looked into the failing checks](%s) of %s.\n\n<!-- auditor-shepherd: %s -->' \
-            "$RUN_URL" "$sha" "$sha")"
+            "$RUN_URL" "$SHA" "$SHA")"
 steps:
   - name: Set up pnpm
     uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
@@ -174,8 +202,8 @@ steps:
       # The agent runs pnpm in this job; don't let it modify dependency caches that later
       # workflows might restore.
       package-manager-cache: false
-  # The agent can't reach the CI provider; failure logs of GitHub Actions checks are fetched here.
-  # Others (CircleCI) are reproduced by the agent. The pull request's own diff comes from GitHub: the
+  # Failure logs of GitHub Actions checks are fetched here, so the agent doesn't spend turns on them;
+  # CircleCI's it can't reach, and reproduces. The pull request's own diff comes from GitHub: the
   # depth-1 branches don't share history.
   - name: Collect the failing pull request
     env:
@@ -276,7 +304,7 @@ already on the branch.
 
 Call `add_comment` with its number: per check, what failed and why, and what you changed or why you
 changed nothing. When nothing was caused by the pull request, still report, so a person can rerun
-or look into it, and don't push. Each commit gets one attempt, and a pull request three.
+or look into it, and don't push.
 
 ## Guardrails
 
