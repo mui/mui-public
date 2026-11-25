@@ -27,7 +27,8 @@ async function diffAll(
   return results.filter((result) => result !== null);
 }
 
-const ignoreWhitespace = false;
+const raw: DiffOptions = { ignoreWhitespace: false, normalizeSyntax: false };
+const normalized: DiffOptions = { ignoreWhitespace: false, normalizeSyntax: true };
 
 describe('createPackageDiff', () => {
   it('lists added, removed and modified files sorted by path', async () => {
@@ -50,12 +51,7 @@ describe('createPackageDiff', () => {
     // Listed right away, before any file is diffed
     expect(createPackageDiff(oldPackage, newPackage).files).toEqual(expectedFiles);
 
-    const files = await diffAll(oldPackage, newPackage, {
-      ignoreWhitespace,
-      format: false,
-      removeComments: false,
-      normalizeSyntax: false,
-    });
+    const files = await diffAll(oldPackage, newPackage, raw);
     expect(files.map(({ path, changeType }) => ({ path, changeType }))).toEqual(expectedFiles);
     expect(files[1].blocks).toEqual([
       { text: '--- b.js\tpkg@1.0.0\n+++ b.js\tpkg@2.0.0\n', className: 'diff-preamble' },
@@ -66,7 +62,7 @@ describe('createPackageDiff', () => {
     ]);
   });
 
-  it('drops files that only differ in formatting when formatting', async () => {
+  it('drops files that only differ in formatting', async () => {
     const oldPackage = createPackage('1.0.0', {
       'index.js': 'export const a = "x"\n',
       'index.d.ts': 'export declare const a: string\n',
@@ -80,33 +76,22 @@ describe('createPackageDiff', () => {
       'styles.css': 'a {\n  color: red;\n}\n',
     });
 
-    const raw = await diffAll(oldPackage, newPackage, {
-      ignoreWhitespace,
-      format: false,
-      removeComments: false,
-      normalizeSyntax: false,
-    });
-    expect(raw.map((file) => file.path)).toEqual([
+    const rawFiles = await diffAll(oldPackage, newPackage, raw);
+    expect(rawFiles.map((file) => file.path)).toEqual([
       'index.d.ts',
       'index.js',
       'package.json',
       'styles.css',
     ]);
 
-    const formatted = await diffAll(oldPackage, newPackage, {
-      ignoreWhitespace,
-      format: true,
-      removeComments: false,
-      normalizeSyntax: false,
-    });
-    expect(formatted).toEqual([]);
+    expect(await diffAll(oldPackage, newPackage, normalized)).toEqual([]);
   });
 
-  it('diffs the formatted code of files with real changes', async () => {
+  it('diffs the normalized code of files with real changes', async () => {
     const [file] = await diffAll(
       createPackage('1.0.0', { 'index.js': 'export function f(){return "a"}' }),
       createPackage('2.0.0', { 'index.js': "export function f() {\n  return 'b';\n}\n" }),
-      { ignoreWhitespace, format: true, removeComments: false, normalizeSyntax: false },
+      normalized,
     );
 
     expect(file.formatError).toBeUndefined();
@@ -117,7 +102,7 @@ describe('createPackageDiff', () => {
     const [file] = await diffAll(
       createPackage('1.0.0', { 'index.js': 'export const a = "x"\n' }),
       createPackage('2.0.0', { 'index.js': 'export const = ;\n' }),
-      { ignoreWhitespace, format: true, removeComments: false, normalizeSyntax: false },
+      normalized,
     );
 
     expect(file.formatError).toEqual(expect.any(String));
@@ -128,14 +113,14 @@ describe('createPackageDiff', () => {
     const [file] = await diffAll(
       createPackage('1.0.0', { 'index.js.map': '{"version":3}' }),
       createPackage('2.0.0', { 'index.js.map': '{ "version": 3 }' }),
-      { ignoreWhitespace, format: true, removeComments: false, normalizeSyntax: false },
+      normalized,
     );
 
     expect(file.path).toBe('index.js.map');
     expect(file.formatError).toBeUndefined();
   });
 
-  it('drops files that only differ in comments when removing comments', async () => {
+  it('drops files that only differ in comments', async () => {
     const oldPackage = createPackage('1.0.0', {
       'index.js': '/** @license MIT */\nexport const a = /*#__PURE__*/ f(); // trailing\n',
       'index.d.ts': '/**\n * Docs.\n */\nexport declare const a: string;\n',
@@ -149,47 +134,28 @@ describe('createPackageDiff', () => {
       'styles.css': '/* header */\na {\n  /* inner */\n  color: red;\n}\n',
     });
 
-    const withComments = await diffAll(oldPackage, newPackage, {
-      ignoreWhitespace,
-      format: true,
-      removeComments: false,
-      normalizeSyntax: false,
-    });
-    expect(withComments.map((file) => file.path)).toEqual([
+    const rawFiles = await diffAll(oldPackage, newPackage, raw);
+    expect(rawFiles.map((file) => file.path)).toEqual([
       'index.d.ts',
       'index.js',
       'styles.css',
       'tsconfig.json',
     ]);
 
-    const withoutComments = await diffAll(oldPackage, newPackage, {
-      ignoreWhitespace,
-      format: true,
-      removeComments: true,
-      normalizeSyntax: false,
-    });
-    expect(withoutComments).toEqual([]);
+    expect(await diffAll(oldPackage, newPackage, normalized)).toEqual([]);
   });
 
-  it('keeps comment syntax inside strings when removing comments', async () => {
+  it('keeps comment syntax inside strings', async () => {
     const [file] = await diffAll(
       createPackage('1.0.0', { 'index.js': 'const a = "/* x */"; // c\n' }),
       createPackage('2.0.0', { 'index.js': 'const a = "// y";\n' }),
-      { ignoreWhitespace, format: true, removeComments: true, normalizeSyntax: false },
+      normalized,
     );
 
     expect(patchText(file)).toContain(`-const a = "/* x */";\n+const a = "// y";\n`);
   });
 
   describe('normalizing syntax', () => {
-    const formatOnly = {
-      ignoreWhitespace,
-      format: true,
-      removeComments: false,
-      normalizeSyntax: false,
-    };
-    const normalized = { ...formatOnly, normalizeSyntax: true };
-
     it.each([
       {
         name: '`void 0` and `undefined`',
@@ -261,8 +227,7 @@ describe('createPackageDiff', () => {
       const oldPackage = createPackage('1.0.0', { [path]: old });
       const newPackage = createPackage('2.0.0', { [path]: newSource });
 
-      // Formatting alone keeps them apart
-      expect(await diffAll(oldPackage, newPackage, formatOnly)).toHaveLength(1);
+      expect(await diffAll(oldPackage, newPackage, raw)).toHaveLength(1);
       expect(await diffAll(oldPackage, newPackage, normalized)).toEqual([]);
     });
 
@@ -333,16 +298,6 @@ describe('createPackageDiff', () => {
 
       expect(files).toHaveLength(1);
       expect(files[0].formatError).toBeUndefined();
-    });
-
-    it('combines with removing comments', async () => {
-      const files = await diffAll(
-        createPackage('1.0.0', { 'index.js': '/** Docs. */\nexport const a = void 0;\n' }),
-        createPackage('2.0.0', { 'index.js': 'const a = undefined;\nexport { a };\n' }),
-        { ...normalized, removeComments: true },
-      );
-
-      expect(files).toEqual([]);
     });
   });
 });

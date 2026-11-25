@@ -7,13 +7,10 @@ export type ChangeType = 'added' | 'removed' | 'modified';
 
 export interface DiffOptions {
   ignoreWhitespace: boolean;
-  /** Run both sides through Prettier so differences in build tool output style disappear. */
-  format: boolean;
-  /** Leave comments out of the formatted code. Only applies when `format` is set. */
-  removeComments: boolean;
   /**
-   * Print constructs that build tools spell differently, like `void 0` or where `export` goes,
-   * one way. Only applies when `format` is set.
+   * Run both sides through Prettier without comments, and print constructs that build tools
+   * spell differently, like `void 0` or where `export` goes, one way. What's left are the
+   * differences in what the code does.
    */
   normalizeSyntax: boolean;
 }
@@ -30,7 +27,7 @@ export interface ChangedFile {
 
 export interface FileDiffResult extends ChangedFile {
   blocks: DiffBlock[];
-  /** Set when formatting was requested but failed; the diff then shows the raw contents. */
+  /** Set when normalizing was requested but failed; the diff then shows the raw contents. */
   formatError?: string;
 }
 
@@ -46,7 +43,6 @@ function getPrettierParser(path: string): string | null {
 }
 
 const NORMALIZED_SUFFIX = '-normalized';
-const NO_COMMENTS_SUFFIX = '-no-comments';
 
 interface AstNode {
   type?: string;
@@ -66,32 +62,23 @@ function removeComments(node: AstNode) {
   }
 }
 
-type AstTransform = (ast: AstNode, filepath: string | undefined) => void;
-
-const PARSER_VARIANTS: Record<string, AstTransform[]> = {
-  [NO_COMMENTS_SUFFIX]: [removeComments],
-  [NORMALIZED_SUFFIX]: [normalizeSyntax],
-  [`${NORMALIZED_SUFFIX}${NO_COMMENTS_SUFFIX}`]: [normalizeSyntax, removeComments],
-};
-
 /**
- * Adds a variant of every parser in `plugins` for each of `PARSER_VARIANTS`, named
- * `<name><suffix>`, whose AST is rewritten before Prettier prints it.
+ * Adds a `<name>-normalized` variant of every parser in `plugins`, whose AST has its syntax
+ * normalized and its comments removed before Prettier prints it.
  */
-function createVariantsPlugin(plugins: Plugin[]): Plugin {
+function createNormalizedPlugin(plugins: Plugin[]): Plugin {
   const parsers: Record<string, Parser> = {};
   for (const plugin of plugins) {
     for (const [name, parser] of Object.entries(plugin.parsers ?? {})) {
-      for (const [suffix, transforms] of Object.entries(PARSER_VARIANTS)) {
-        parsers[`${name}${suffix}`] = {
-          ...parser,
-          parse: async (text, options) => {
-            const ast = await parser.parse(text, options);
-            transforms.forEach((transform) => transform(ast, options.filepath));
-            return ast;
-          },
-        };
-      }
+      parsers[`${name}${NORMALIZED_SUFFIX}`] = {
+        ...parser,
+        parse: async (text, options) => {
+          const ast = await parser.parse(text, options);
+          normalizeSyntax(ast, options.filepath);
+          removeComments(ast);
+          return ast;
+        },
+      };
     }
   }
   return { parsers };
@@ -101,7 +88,7 @@ let prettierPromise: Promise<
   (source: string, parser: string, filepath: string) => Promise<string>
 > | null = null;
 
-// Prettier and its parsers are several hundred KB, only load them once formatting is requested.
+// Prettier and its parsers are several hundred KB, only load them once normalizing is requested.
 function loadPrettier() {
   prettierPromise ??= Promise.all([
     import('prettier/standalone'),
@@ -110,7 +97,7 @@ function loadPrettier() {
     import('prettier/plugins/typescript'),
     import('prettier/plugins/postcss'),
   ]).then(([prettier, ...languagePlugins]) => {
-    const plugins = [...languagePlugins, createVariantsPlugin(languagePlugins)];
+    const plugins = [...languagePlugins, createNormalizedPlugin(languagePlugins)];
     return (source, parser, filepath) =>
       // By default Prettier keeps an object expanded when the source had a newline after
       // `{`, which would preserve exactly the style differences this is meant to remove.
@@ -229,11 +216,9 @@ export function createPackageDiff(
       let newContent = newFile?.content ?? '';
 
       let formatError: string | undefined;
-      const languageParser = options.format ? getPrettierParser(path) : null;
+      const languageParser = options.normalizeSyntax ? getPrettierParser(path) : null;
       if (languageParser) {
-        const parser = `${languageParser}${options.normalizeSyntax ? NORMALIZED_SUFFIX : ''}${
-          options.removeComments ? NO_COMMENTS_SUFFIX : ''
-        }`;
+        const parser = `${languageParser}${NORMALIZED_SUFFIX}`;
         try {
           [oldContent, newContent] = await Promise.all([
             formatFile(oldFile, parser),

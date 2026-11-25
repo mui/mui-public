@@ -33,8 +33,6 @@ const CODEC_FLAG = {
 };
 
 const SEARCH_PARAMS_CONFIG = {
-  format: CODEC_FLAG,
-  removeComments: CODEC_FLAG,
   normalizeSyntax: CODEC_FLAG,
 };
 
@@ -132,39 +130,13 @@ const DiffContent = React.memo(function DiffContent({
         <FormControlLabel
           control={
             <Checkbox
-              checked={options.format}
-              onChange={(event) => onOptionsChange({ format: event.target.checked })}
-              size="small"
-            />
-          }
-          label="Format code"
-          title="Format JavaScript, TypeScript, JSON and CSS with Prettier before diffing, so differences in build tool output style don't show up"
-          sx={{ mr: 0, flexShrink: 0 }}
-        />
-        <FormControlLabel
-          control={
-            <Checkbox
-              checked={options.removeComments}
-              onChange={(event) => onOptionsChange({ removeComments: event.target.checked })}
-              size="small"
-            />
-          }
-          disabled={!options.format}
-          label="Remove comments"
-          title="Leave comments out of the formatted code, so differences in comments, license headers and annotations don't show up"
-          sx={{ mr: 0, flexShrink: 0 }}
-        />
-        <FormControlLabel
-          control={
-            <Checkbox
               checked={options.normalizeSyntax}
               onChange={(event) => onOptionsChange({ normalizeSyntax: event.target.checked })}
               size="small"
             />
           }
-          disabled={!options.format}
           label="Normalize syntax"
-          title="Print constructs that build tools spell differently one way, like `void 0` and `undefined`, braces, import order inside braces and where `export` goes"
+          title="Format JavaScript, TypeScript, JSON and CSS with Prettier, leave out comments, and print constructs that build tools spell differently one way, like `void 0` and `undefined` or where `export` goes"
           sx={{ mr: 0, flexShrink: 0 }}
         />
         <CopyButton
@@ -236,23 +208,15 @@ export default function DiffPackage() {
 
   const package1Spec = searchParams.get('package1');
   const package2Spec = searchParams.get('package2');
-  const [{ format, removeComments, normalizeSyntax }, setParams] = useSearchParamsState(
-    SEARCH_PARAMS_CONFIG,
-    {
-      replace: true,
-    },
-  );
+  const [{ normalizeSyntax }, setParams] = useSearchParamsState(SEARCH_PARAMS_CONFIG, {
+    replace: true,
+  });
   const options = React.useMemo(
-    () => ({ ignoreWhitespace, format, removeComments, normalizeSyntax }),
-    [ignoreWhitespace, format, removeComments, normalizeSyntax],
+    () => ({ ignoreWhitespace, normalizeSyntax }),
+    [ignoreWhitespace, normalizeSyntax],
   );
 
-  const diffQuery = usePackageDiff(package1Spec, package2Spec, {
-    ...options,
-    // These don't apply without formatting, keep them out of the cache key then
-    removeComments: format && removeComments,
-    normalizeSyntax: format && normalizeSyntax,
-  });
+  const diffQuery = usePackageDiff(package1Spec, package2Spec, options);
   const loading = diffQuery.isLoading;
   const package1Error = diffQuery.error?.oldError;
   const package2Error = diffQuery.error?.newError;
