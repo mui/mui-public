@@ -21,6 +21,11 @@
       "matchSourceUrls": ["https://github.com/vercel/next.js", "https://github.com/react/react"],
       "matchDepTypes": ["devDependencies"],
       "rangeStrategy": "bump"
+    },
+    {
+      "groupName": "tsdown",
+      "description": "tsdown >=0.23.5 needs the TypeScript 7.1 API for tsgo. Its 7.0 fallback needs `typescript` to be 7.0, and here it is TypeScript 6. rolldown must match tsdown, and @typescript/native joins so that its 7.1 bump lands in the same PR. That PR fails until build-new uses `tsgo.moduleUrl`, so it stays open as the reminder.",
+      "matchDepNames": ["tsdown", "rolldown", "@typescript/native"]
     }
   ]
 }
