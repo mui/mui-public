@@ -84,6 +84,52 @@ function createNormalizedPlugin(plugins: Plugin[]): Plugin {
   return { parsers };
 }
 
+// Spans of the code where a blank line is part of a value, not formatting
+function getMultilineValueRanges(node: unknown, ranges: [number, number][] = []) {
+  if (typeof node !== 'object' || node === null) {
+    return ranges;
+  }
+  if (Array.isArray(node)) {
+    node.forEach((child) => getMultilineValueRanges(child, ranges));
+    return ranges;
+  }
+  const { type, start, end, range } = node as {
+    type?: string;
+    start?: number;
+    end?: number;
+    range?: [number, number];
+  };
+  if (type === 'TemplateLiteral' || type === 'JSXText') {
+    const span = range ?? [start ?? 0, end ?? 0];
+    ranges.push(span);
+    return ranges;
+  }
+  for (const [key, value] of Object.entries(node)) {
+    if (key !== 'loc' && key !== 'range' && key !== 'tokens' && key !== 'comments') {
+      getMultilineValueRanges(value, ranges);
+    }
+  }
+  return ranges;
+}
+
+function removeBlankLines(code: string, keep: [number, number][]): string {
+  let offset = 0;
+  return code
+    .split('\n')
+    .filter((line) => {
+      const lineStart = offset;
+      offset += line.length + 1;
+      return (
+        line.trim() !== '' ||
+        keep.some(([start, end]) => lineStart > start && lineStart < end) ||
+        offset > code.length
+      );
+    })
+    .join('\n');
+}
+
+const JAVASCRIPT_PARSERS = new Set(['babel', 'typescript']);
+
 let prettierPromise: Promise<
   (source: string, parser: string, filepath: string) => Promise<string>
 > | null = null;
@@ -96,12 +142,33 @@ function loadPrettier() {
     import('prettier/plugins/estree'),
     import('prettier/plugins/typescript'),
     import('prettier/plugins/postcss'),
-  ]).then(([prettier, ...languagePlugins]) => {
+  ]).then(([prettier, ...modules]) => {
+    const languagePlugins: Plugin[] = modules;
     const plugins = [...languagePlugins, createNormalizedPlugin(languagePlugins)];
-    return (source, parser, filepath) =>
+    const languageParsers: Record<string, Parser> = Object.assign(
+      {},
+      ...languagePlugins.map((plugin) => plugin.parsers ?? {}),
+    );
+    return async (source, parser, filepath) => {
+      let code = source;
+      if (parser.endsWith(NORMALIZED_SUFFIX)) {
+        // Prettier keeps a blank line wherever the input had one, and a blank line between
+        // object properties keeps the object expanded, so they go before formatting
+        const languageParser = parser.slice(0, -NORMALIZED_SUFFIX.length);
+        const keep = JAVASCRIPT_PARSERS.has(languageParser)
+          ? getMultilineValueRanges(
+              await languageParsers[languageParser].parse(source, {
+                filepath,
+              } as Parameters<Parser['parse']>[1]),
+            )
+          : // JSON and CSS strings can't span lines
+            [];
+        code = removeBlankLines(source, keep);
+      }
       // By default Prettier keeps an object expanded when the source had a newline after
       // `{`, which would preserve exactly the style differences this is meant to remove.
-      prettier.format(source, { parser, plugins, filepath, objectWrap: 'collapse' });
+      return prettier.format(code, { parser, plugins, filepath, objectWrap: 'collapse' });
+    };
   });
   return prettierPromise;
 }

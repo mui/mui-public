@@ -218,6 +218,54 @@ describe('createPackageDiff', () => {
         new: "import { A } from './a';\ndeclare function f(a: A): void;\ninterface B {}\nexport { A, B, f };\n",
       },
       {
+        name: '`&&`, `||` and `?:` statements and `if`',
+        path: 'index.js',
+        old: 'if (a) b();\nif (!c) d();\nif (e) f();\nif (g) h();\nelse i();\n',
+        new: 'a && b();\nc || d();\ne ? f() : void 0;\ng ? h() : i();\n',
+      },
+      {
+        name: 'a `return` at the end of a function',
+        path: 'index.js',
+        old: 'function f() {\n  g();\n  return;\n}\nconst h = () => {\n  return;\n};\n',
+        new: 'function f() {\n  g();\n}\nconst h = () => {};\n',
+      },
+      {
+        name: 'the names build tools give to imports',
+        path: 'index.js',
+        old: "import { jsx as _jsx } from 'react/jsx-runtime';\nimport capitalize_default from './capitalize.mjs';\nimport * as React$1 from 'react';\n_jsx('a', { b: capitalize_default('c'), d: React$1.version });\n",
+        new: "import { jsx } from 'react/jsx-runtime';\nimport capitalize from './capitalize.mjs';\nimport * as React from 'react';\njsx('a', { b: capitalize('c'), d: React.version });\n",
+      },
+      {
+        name: 'renamed bindings used as shorthand properties and exports',
+        path: 'index.js',
+        old: "import { a as _a } from 'x';\nf({ _a });\nconst { b: _b = 1 } = g;\nexport { _b as b };\n",
+        new: "import { a } from 'x';\nf({ _a: a });\nconst { b = 1 } = g;\nexport { b };\n",
+      },
+      {
+        name: 'renamed declarations in declaration files',
+        path: 'index.d.ts',
+        old: 'interface Theme$1 {\n  a: string;\n}\nexport { Theme$1 as Theme };\n',
+        new: 'interface Theme {\n  a: string;\n}\nexport { Theme };\n',
+      },
+      {
+        name: 'blank lines',
+        path: 'index.js',
+        old: 'a();\n\nb();\nconst c = {\n  d: 1,\n\n  e: 2,\n};\n',
+        new: 'a();\nb();\nconst c = { d: 1, e: 2 };\n',
+      },
+      {
+        name: 'default exports through a variable',
+        path: 'index.js',
+        old: 'export default f(1);\nexport const a = 2;\n',
+        new: 'var Button_default = f(1);\nconst a = 2;\nexport { a, Button_default as default };\n',
+      },
+      {
+        name: '`export default` of a constant',
+        path: 'index.js',
+        old: 'function g() {}\nexport default g;\n',
+        new: 'function g() {}\nexport { g as default };\n',
+      },
+      {
         name: 'exports in TypeScript',
         path: 'index.ts',
         old: 'export const a: number = 1;\nexport type B = string;\n',
@@ -282,6 +330,26 @@ describe('createPackageDiff', () => {
         name: 'renamed exports',
         old: 'const a = 1;\nexport { a as b };\n',
         new: 'export const b = 1;\n',
+      },
+      {
+        name: 'shorthand property names',
+        old: "import { a as _a } from 'x';\nf({ _a });\n",
+        new: "import { a } from 'x';\nf({ a });\n",
+      },
+      {
+        name: 'blank lines inside template literals',
+        old: 'const a = `x\n\ny`;\n',
+        new: 'const a = `x\ny`;\n',
+      },
+      {
+        name: 'names that are taken',
+        old: "import { jsx as _jsx } from 'x';\nconst jsx = 1;\n_jsx(jsx);\n",
+        new: "import { jsx } from 'x';\nconst _jsx = 1;\njsx(_jsx);\n",
+      },
+      {
+        name: 'default exports of variables that change',
+        old: 'let a = 1;\nexport default a;\na = 2;\n',
+        new: 'let a = 1;\nexport { a as default };\na = 2;\n',
       },
       {
         name: 'type exports outside declaration files',
