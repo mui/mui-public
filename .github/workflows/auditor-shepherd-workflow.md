@@ -55,14 +55,14 @@ network:
   allowed: [defaults, node]
 jobs:
   # Deterministic, every run: auditor pull requests whose checks all pass are marked ready, and one
-  # whose checks failed is handed to the agent, which only runs when there is one.
+  # whose checks failed is handed to the agent.
   shepherd:
+    needs: [pre_activation]
     runs-on: ubuntu-latest
     permissions:
-      contents: read
       checks: read
       statuses: read
-      # Marking pull requests ready and requesting reviews.
+      # Marking pull requests ready, requesting reviews, recording fix attempts.
       pull-requests: write
     outputs:
       failing: ${{ steps.scan.outputs.failing }}
@@ -74,50 +74,63 @@ jobs:
           REVIEWER_TEAM: ${{ inputs.reviewer_team }}
         run: |
           set -euo pipefail
-          # Every check by name with a normalized state: PASS, FAIL or WAIT. Cancelled runs are
-          # usually superseded by a newer one, so they wait too.
-          gh pr list --repo "$GITHUB_REPOSITORY" --state open --author app/code-infra-auditor \
-              --label auditor --limit 100 \
-              --json number,isDraft,headRefName,headRefOid,body,createdAt,statusCheckRollup \
-            | jq -c 'sort_by(.createdAt)[] | {
-                number, isDraft, branch: .headRefName, sha: .headRefOid,
-                attempted: (.headRefOid as $sha | (.body // "") | contains("auditor-shepherd: " + $sha)),
-                checks: [.statusCheckRollup[] | {
-                  name: (.name // .context),
-                  url: (.detailsUrl // .targetUrl),
-                  state: (((.conclusion // .state // "") | ascii_upcase) as $result
-                    | if (.status // "COMPLETED") != "COMPLETED" then "WAIT"
-                      elif ($result | IN("SUCCESS", "NEUTRAL", "SKIPPED")) then "PASS"
-                      elif ($result | IN("FAILURE", "ERROR", "TIMED_OUT", "ACTION_REQUIRED", "STARTUP_FAILURE")) then "FAIL"
-                      else "WAIT" end)
-                }]
-              }' > prs.jsonl
-          failing=''
-          while IFS= read -r pr; do
-            number=$(jq -r .number <<< "$pr")
-            states=$(jq -r '[.checks[].state] | unique | join(",")' <<< "$pr")
-            if [ "$(jq -r .isDraft <<< "$pr")" = true ] && [ -n "$states" ] && [ "$states" = PASS ]; then
-              echo "#$number: checks pass, marking it ready"
-              gh pr ready "$number" --repo "$GITHUB_REPOSITORY"
-              # Code owners are requested when a pull request becomes ready; the team may not be
-              # requestable with this token, which doesn't fail the run.
-              gh pr edit "$number" --repo "$GITHUB_REPOSITORY" --add-reviewer "mui/$REVIEWER_TEAM" \
-                || echo "::warning::Couldn't request a review from mui/$REVIEWER_TEAM on #$number"
-            elif [[ ",$states," == *,FAIL,* ]]; then
-              if [ "$(jq -r .attempted <<< "$pr")" = true ]; then
-                echo "#$number: checks fail, already attempted at this commit"
-              elif [ -z "$failing" ]; then
-                echo "#$number: checks fail, handing it to the agent"
-                failing=$(jq -c '{number, branch, sha, failed: [.checks[] | select(.state == "FAIL") | {name, url}]}' <<< "$pr")
-              else
-                echo "#$number: checks fail, waiting for a later run"
-              fi
-            else
-              echo "#$number: checks pending ($states)"
+          repo="$GITHUB_REPOSITORY"
+          # The checks that gate merging, or all of them where the repository requires none. gh keeps the
+          # latest run of each, and exits non-zero while any fails or is pending.
+          checks_of() {
+            local checks
+            checks=$(gh pr checks "$1" --repo "$repo" --required --json name,bucket,link 2>/dev/null || true)
+            if ! jq -e 'length > 0' <<< "${checks:-[]}" >/dev/null 2>&1; then
+              checks=$(gh pr checks "$1" --repo "$repo" --json name,bucket,link 2>/dev/null || true)
             fi
-          done < prs.jsonl
+            printf '%s' "${checks:-[]}"
+          }
+          gh pr list --repo "$repo" --state open --author app/code-infra-auditor --label auditor \
+              --limit 100 --json number,isDraft,headRefName,headRefOid,body,createdAt \
+            | jq -c 'sort_by(.createdAt)[]' \
+            | while IFS= read -r pr; do
+                jq -c --argjson checks "$(checks_of "$(jq -r .number <<< "$pr")")" '. + {checks: $checks}' <<< "$pr"
+              done \
+            | jq -s '
+                # A failing pull request gets a fix attempt per commit, three at most; the marker records it.
+                def attempts: [(.body // "") | scan("auditor-shepherd: [0-9a-f]{40}")] | length;
+                def attempted: .headRefOid as $sha | (.body // "") | contains("auditor-shepherd: " + $sha);
+                def passing: (.checks | length > 0) and all(.checks[]; .bucket == "pass" or .bucket == "skipping");
+                def failing: any(.checks[]; .bucket == "fail");
+                def fixable: failing and (attempted | not) and attempts < 3;
+                {
+                  ready: [.[] | select(.isDraft and passing) | .number],
+                  failing: (first(.[] | select(fixable)
+                    | {number, branch: .headRefName, sha: .headRefOid,
+                       failed: [.checks[] | select(.bucket == "fail") | {name, url: .link}]}) // null),
+                  log: [.[] | "#\(.number): " + (
+                    if passing then (if .isDraft then "checks pass, marking it ready" else "ready, checks pass" end)
+                    elif failing then
+                      (if attempted then "checks fail, already attempted at this commit"
+                       elif attempts >= 3 then "checks fail, out of fix attempts"
+                       else "checks fail" end)
+                    else "checks pending" end)]
+                }' > decisions.json
+          jq -r '.log[]' decisions.json
+          for number in $(jq -r '.ready[]' decisions.json); do
+            gh pr ready "$number" --repo "$repo"
+            # Code owners are requested when a pull request becomes ready; the team may not be requestable
+            # with this token, which doesn't fail the run.
+            gh pr edit "$number" --repo "$repo" --add-reviewer "mui/$REVIEWER_TEAM" \
+              || echo "::warning::Couldn't request a review from mui/$REVIEWER_TEAM on #$number"
+          done
+          failing=$(jq -c '.failing // empty' decisions.json)
+          if [ -n "$failing" ]; then
+            number=$(jq -r .number <<< "$failing")
+            echo "#$number: handing it to the agent"
+            # Recorded before the agent runs, so a run that fails or times out still counts as an attempt.
+            body=$(gh pr view "$number" --repo "$repo" --json body --jq .body)
+            gh pr edit "$number" --repo "$repo" \
+              --body "$(printf '%s\n\n<!-- auditor-shepherd: %s -->' "$body" "$(jq -r .sha <<< "$failing")")"
+          fi
           echo "failing=$failing" >> "$GITHUB_OUTPUT"
-  agent:
+  # The rest of the workflow, the agent's included, only runs for a failing pull request.
+  activation:
     needs: [shepherd]
     if: needs.shepherd.outputs.failing != ''
 steps:
@@ -188,7 +201,8 @@ repository's own instructions (`AGENTS.md`/`CLAUDE.md`) first; they override any
 ## Input
 
 - `/tmp/gh-aw/agent/failing-pr.json`: the pull request's `number`, `branch` (fetched locally,
-  without history), head commit `sha`, and its `failed` checks with their names and links.
+  without history), head commit `sha`, and its failing required checks (`failed`), with their names
+  and links.
 - `/tmp/gh-aw/agent/logs/`: the failed log of each failing GitHub Actions check. Other checks, such
   as CircleCI jobs, have no log here: reproduce them.
 
@@ -221,14 +235,10 @@ already on the branch.
 
 ## Report
 
-Call `update_pull_request` with its number and `operation: replace-island`, with a short section:
-
-- What failed and why, per check, and what you changed or why you changed nothing.
-- On its last line, exactly `auditor-shepherd: <sha>`, with the head commit `sha` from the input.
-  Later runs skip a commit they find there, so this never loops on the same failure.
-
-When nothing was caused by the pull request, still report, so a person can rerun or look into it,
-and don't push.
+Call `update_pull_request` with its number and `operation: replace-island`, with a short section
+on what failed and why, per check, and what you changed or why you changed nothing. When nothing was
+caused by the pull request, still report, so a person can rerun or look into it, and don't push.
+Each commit gets one attempt, and a pull request three, so don't wait for a later run to finish.
 
 ## Guardrails
 
