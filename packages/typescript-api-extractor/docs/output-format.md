@@ -81,6 +81,14 @@ external declarations that `includeExternalTypes` excludes. The field is omitted
 when `properties` lists every property, so an empty object without it, such as
 `{}` or an `Omit` that removes every key, has no properties.
 
+## Documentation Tags
+
+`documentation.tags` lists the JSDoc block tags other than `@default`, `@param`,
+and the visibility tags. Each `value` is the tag text as written, with inline
+`{@link ...}` tags kept in their source form: `@see https://example.com` yields
+`https://example.com`, and `@see {@link https://example.com|Docs}` yields
+`{@link https://example.com|Docs}`.
+
 ## Type Operators
 
 Authored `keyof` expressions are represented without expanding away their syntax:

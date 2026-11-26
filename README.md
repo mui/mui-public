@@ -84,9 +84,30 @@ To enable the skills for everyone who works in a repo, use `--scope project`, wh
 
 Use [mui-renovate-triage](./skills/mui-renovate-triage/SKILL.md) to fetch a deterministic snapshot of open Renovate PRs and review them one at a time. For each PR, it shows a summary and link, asks whether to merge or continue when CI passes, and runs mui-renovate-fix when CI fails. Follow-up requests continue through the original snapshot without a persistent queue. Request read-only review to skip fixes.
 
-Use [mui-renovate-fix](./skills/mui-renovate-fix/SKILL.md) when you want to implement a dependency-related fix or migration identified during triage, such as an API adaptation, peer dependency mismatch, or reproducible failure caused by an update. It prefers a source-only draft PR when the fix works with both dependency versions. Otherwise, it updates a single-dependency Renovate PR or extracts the culprit bump and adaptation from a grouped PR into a new draft PR. You can also invoke it directly with a Renovate PR URL; it diagnoses the issue first.
+Use [mui-renovate-fix](./skills/mui-renovate-fix/SKILL.md) when you want to implement a dependency-related fix or migration identified during triage, such as an API adaptation, peer dependency mismatch, or reproducible failure caused by an update. It picks the best adaptation first, then opens a source-only draft PR when that fix works with both dependency versions. Otherwise, it updates a single-dependency Renovate PR or extracts the culprit bump and adaptation from a grouped PR into a new draft PR. You can also invoke it directly with a Renovate PR URL; it diagnoses the issue first.
 
 For example, ask the agent to "Use mui-renovate-triage to review the open Renovate PRs", then respond with "merge" or "continue" as it presents each passing PR. Visual approval alone, external-service failures, and unrelated flaky tests do not call for a dependency fix.
+
+## Agentic workflows
+
+### Dependabot alerts
+
+The reusable [Dependabot fix workflow](./.github/workflows/dependabot-fix-workflow.md) (GitHub Agentic Workflows) clears the open Dependabot security alerts that dependency-update tooling leaves open, typically vulnerable transitive dependencies. Per package, an agent picks the least invasive fix the dependency policy allows. It batches the fixes within current major versions into one PR and gives each major-version fix its own, and reports in an issue the alerts that need a decision. Alerts that are deliberately left unfixed should be dismissed, so it stops proposing them.
+
+Repositories call its compiled `dependabot-fix-workflow.lock.yml` on their own schedule, like [mui-public does daily](./.github/workflows/dependabot-fix.yml), and it runs against the calling repository. Each repository running it needs:
+
+- The four `ANTHROPIC_*` repository variables the Claude workflows use, with the Anthropic federation rule accepting the repository's default-branch OIDC subject.
+- The [Code Infra - Auditor](https://github.com/apps/code-infra-auditor) GitHub App installed.
+- A `code-infra-auditor` environment, restricted to the default branch, with the App's `CODE_INFRA_AUDITOR_CLIENT_ID` and `CODE_INFRA_AUDITOR_PRIVATE_KEY` as environment secrets. The caller passes both under `secrets:`: a reusable workflow gets no secret the caller doesn't pass.
+- An exemption for `refs/heads/code-infra-auditor/*` in any ruleset that restricts branch creation.
+
+After editing the workflow, recompile it with `gh aw compile dependabot-fix-workflow`.
+
+### Ahrefs Site Audit
+
+The reusable [Ahrefs audit workflow](./.github/workflows/ahrefs-audit-workflow.md) fixes what the Ahrefs Site Audit crawl of a repository's site reports. A step before the agent reads the crawl's issues with the Ahrefs API, keeps the pages the repository builds, and re-checks link targets; the agent then fixes the source, typically a shared template. It opens a pull request per Ahrefs issue category (links, redirects and external pages together), and later runs add their fixes to those while they're open.
+
+Repositories call its compiled `ahrefs-audit-workflow.lock.yml` with their Site Audit `project_id` and the site paths they build (`include_paths`, `exclude_paths`). It needs the same setup as the Dependabot fix workflow, plus an `AHREFS_API_KEY` secret in the `code-infra-auditor` environment, which the caller passes along. Each run costs about 550 Ahrefs API units. After editing it, recompile it with `gh aw compile ahrefs-audit-workflow`.
 
 ## Versioning
 

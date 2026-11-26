@@ -42,10 +42,7 @@ type EnhancedClassProperty = {
   descriptionText?: string;
   /** Plain text version of example for markdown generation */
   exampleText?: string;
-  /**
-   * Plain text version of
-   * @see for markdown generation
-   */
+  /** Plain text version of `@see` references for markdown generation */
   seeText?: string;
   /** Whether this is a static property */
   isStatic?: boolean;
@@ -233,10 +230,7 @@ type EnhancedParameter = {
   descriptionText?: string;
   /** Plain text version of example for markdown generation */
   exampleText?: string;
-  /**
-   * Plain text version of
-   * @see for markdown generation
-   */
+  /** Plain text version of `@see` references for markdown generation */
   seeText?: string;
   /** Parameter name */
   name: string;
@@ -274,10 +268,7 @@ type EnhancedProperty = {
   descriptionText?: string;
   /** Plain text version of example for markdown generation */
   exampleText?: string;
-  /**
-   * Plain text version of
-   * @see for markdown generation
-   */
+  /** Plain text version of `@see` references for markdown generation */
   seeText?: string;
   /** Full type signature. Rendered by the `TypePre` component configured in `createTypes()`. */
   type: React.ReactNode;

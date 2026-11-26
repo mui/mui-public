@@ -9,6 +9,9 @@ import {
   within,
   // eslint-disable-next-line import/extensions
 } from '@testing-library/react/pure.js';
+// A namespace import reads `renderHook` safely when the installed version does not export it.
+// eslint-disable-next-line import/extensions
+import * as rtl from '@testing-library/react/pure.js';
 import type {
   RenderResult,
   Screen,
@@ -119,6 +122,18 @@ interface DataAttributes {
   [key: `data-${string}`]: string;
 }
 
+// @testing-library/react 12 (React 17) ignores `reactStrictMode`.
+// Like v16, put StrictMode outside the wrapper.
+function withStrictMode(Wrapper: React.JSXElementConstructor<{ children: React.ReactNode }>) {
+  return function StrictModeWrapper({ children }: { children?: React.ReactNode }) {
+    return (
+      <React.StrictMode>
+        <Wrapper>{children}</Wrapper>
+      </React.StrictMode>
+    );
+  };
+}
+
 function render(
   element: React.ReactElement<DataAttributes>,
   configuration: ClientRenderConfiguration,
@@ -129,7 +144,7 @@ function render(
     container,
     hydrate,
     queries: { ...queries, ...customQueries },
-    wrapper,
+    wrapper: reactStrictMode && reactMajor < 18 ? withStrictMode(wrapper) : wrapper,
     reactStrictMode,
   });
   const result: MuiRenderResult = {
@@ -567,10 +582,50 @@ export function fireTouchChangedEvent(
   target.getBoundingClientRect = originalGetBoundingClientRect;
 }
 
+let pendingReact17ActFlush: Promise<void> | undefined;
+
+/**
+ * Gives React 17 the `act()` behavior of React 18: React 17 drops the value of the callback,
+ * warns when the callback returns a value, and warns when a sync call is awaited.
+ */
+function actReact17<T>(callback: () => void | T | Promise<T>): PromiseLike<void | T> {
+  let value: void | T;
+  let isAsync = false;
+  const thenable = rtlAct(() => {
+    const result = callback();
+    if (result != null && typeof (result as PromiseLike<T>).then === 'function') {
+      isAsync = true;
+      return Promise.resolve(result).then((resolved) => {
+        value = resolved;
+      });
+    }
+    value = result as void | T;
+    return undefined;
+  });
+
+  if (isAsync) {
+    // The `then()` of the React 17 thenable returns nothing, so wrap it in a promise.
+    return new Promise((resolve, reject) => {
+      thenable.then(() => resolve(value), reject);
+    });
+  }
+  // React 18 flushes again when a sync result is awaited, to pick up work queued by microtasks.
+  // React 17's sync thenable only warns. Start an async act scope on demand and share it when
+  // several completed sync calls are awaited together, so their flushes don't overlap.
+  return {
+    then(onFulfilled, onRejected) {
+      pendingReact17ActFlush ??= Promise.resolve(rtlAct(async () => {})).finally(() => {
+        pendingReact17ActFlush = undefined;
+      });
+      return pendingReact17ActFlush.then(() => value).then(onFulfilled, onRejected);
+    },
+  };
+}
+
 function act<T>(callback: () => T | Promise<T>): Promise<T>;
 function act(callback: () => void): void;
 function act<T>(callback: () => void | T | Promise<T>) {
-  return rtlAct(callback);
+  return reactMajor < 18 ? actReact17(callback) : rtlAct(callback);
 }
 
 function createBodyBoundQueries() {
@@ -586,10 +641,44 @@ const bodyBoundQueries =
       })
     : createBodyBoundQueries();
 
+// @testing-library/react 12 (React 17) has no `renderHook`. This follows the v13 implementation.
+const renderHookFallback: typeof rtl.renderHook = (renderCallback, options = {}) => {
+  const {
+    initialProps,
+    wrapper = React.Fragment,
+    reactStrictMode = rtl.getConfig().reactStrictMode,
+    ...renderOptions
+  } = options;
+  const result = React.createRef() as { current: ReturnType<typeof renderCallback> };
+
+  function TestComponent({ renderCallbackProps }: { renderCallbackProps: typeof initialProps }) {
+    const pendingResult = renderCallback(renderCallbackProps!);
+
+    React.useEffect(() => {
+      result.current = pendingResult;
+    });
+
+    return null;
+  }
+
+  const { rerender: baseRerender, unmount } = testingLibraryRender(
+    <TestComponent renderCallbackProps={initialProps} />,
+    { ...renderOptions, wrapper: reactStrictMode ? withStrictMode(wrapper) : wrapper },
+  );
+
+  function rerender(rerenderCallbackProps?: typeof initialProps) {
+    baseRerender(<TestComponent renderCallbackProps={rerenderCallbackProps} />);
+  }
+
+  return { result, rerender, unmount };
+};
+
+export const renderHook: typeof rtl.renderHook =
+  reactMajor < 18 ? renderHookFallback : rtl.renderHook;
+
 export {
   configure,
   render,
-  renderHook,
   waitFor,
   within,
   cleanup,

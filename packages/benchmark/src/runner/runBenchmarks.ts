@@ -3,6 +3,7 @@
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
+import { stripVTControlCharacters } from 'node:util';
 import chalk from 'chalk';
 import { chromium } from '@playwright/test';
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
@@ -19,6 +20,19 @@ import { runInterleaved } from './runInterleaved';
 import { buildRefPages, restoreWorkspace } from './buildPages';
 import { printRunReport } from './printReport';
 import { buildsDirOf, prepareOutputDir, resultsPathOf } from './outputDir';
+
+/**
+ * The line of a build error that says what failed, for the report: the bundler leads with a count
+ * ("Build failed with 1 error:") and follows the cause with a colored code frame.
+ */
+function buildErrorSummary(error: unknown): string {
+  const message = stripVTControlCharacters(error instanceof Error ? error.message : String(error));
+  const lines = message
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line !== '' && !/^Build failed with \d+ errors?:$/.test(line));
+  return lines[0] ?? message;
+}
 
 /** Fewer logical CPUs than this starve V8's background compilers. */
 const MIN_CPUS = 3;
@@ -148,14 +162,20 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
   }
 
   try {
-    // Pack both sides at once: each builds in its own checkout, and nothing is measured yet.
+    // Pack both sides at once, each in its own checkout, while nothing is measured yet. Only their
+    // builds take turns.
     const packing = await Promise.allSettled(
       refs.map(async (ref) => {
         if (ref.variant === 'current') {
-          return packWorkingTree({ repoRoot, outRoot: path.join(packedDir, 'current'), buildCmd });
+          return packWorkingTree({
+            repoRoot,
+            outRoot: path.join(packedDir, 'current'),
+            buildCmd,
+            signal,
+          });
         }
         // packRef caches a ref's tarballs by SHA; a hit skips the checkout, install, and build.
-        return packRef({ repoRoot, ref: ref.sha, outRoot: packedDir, buildCmd });
+        return packRef({ repoRoot, ref: ref.sha, outRoot: packedDir, buildCmd, signal });
       }),
     );
     // Settled both before failing: one side's failure must not cut the other's cleanup short, or a
@@ -170,30 +190,55 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
     // Then build one set of pages per ref, each against its own packed build so both sides of a
     // comparison resolve the library identically. One at a time: a build pins the repository's own
     // workspace file.
+    let buildFailure: string | undefined;
     for (const [index, ref] of refs.entries()) {
       signal?.throwIfAborted();
-      // eslint-disable-next-line no-await-in-loop
-      await buildRefPages({
-        harnessDir,
-        repoRoot,
-        ref,
-        packages: packedByRef[index],
-        outputDir,
-        outDir: path.join(buildsDir, ref.variant),
-      });
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        await buildRefPages({
+          harnessDir,
+          repoRoot,
+          ref,
+          packages: packedByRef[index],
+          outputDir,
+          outDir: path.join(buildsDir, ref.variant),
+          benchFiles,
+        });
+      } catch (error) {
+        signal?.throwIfAborted();
+        // Typically a benchmark file importing an API the ref doesn't have. Reported rather than
+        // thrown, so the report, and the pull request comment, say why nothing was measured.
+        console.error(error);
+        buildFailure = `The pages don't build against ${refLabel(ref)}: ${buildErrorSummary(error)}`;
+        break;
+      }
     }
 
     const tracesDir = path.join(outputDir, 'traces');
-    const results = await runInterleaved({
-      signal,
-      buildsDir,
-      benchFiles,
-      benchRefs: refs,
-      launchArgs,
-      testNamePattern: namePattern,
-      sampling,
-      ...(profile && { profile: { tracesDir } }),
-    });
+    const results =
+      buildFailure === undefined
+        ? await runInterleaved({
+            signal,
+            buildsDir,
+            benchFiles,
+            benchRefs: refs,
+            launchArgs,
+            testNamePattern: namePattern,
+            sampling,
+            ...(profile && { profile: { tracesDir } }),
+          })
+        : {
+            // Each selected file fails as one benchmark: its cases are listed from its built page.
+            benchmarks: benchFiles.map((benchFile) => ({
+              name: benchFile.file,
+              file: benchFile.file,
+              kind: 'baseline' as const,
+              variants: refs.map((ref) => ref.variant),
+              error: buildFailure,
+            })),
+            metrics: {},
+            browserVersion: '(not launched)',
+          };
 
     const { commitSha, branch } = await getCiMetadata();
     const report: BenchmarkRunReport = {

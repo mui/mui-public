@@ -170,6 +170,20 @@ function ReadOnlyPreview() {
 }
 
 describe('Pre', () => {
+  it.each(['string', 'hast'] as const)(
+    'keeps line boxes before highlighting %s sources',
+    (kind) => {
+      const text = 'const first = 1;\n\nconst last = 2;\n';
+      const source = kind === 'string' ? text : parseSource(text, FILE_NAME);
+      const { container } = render(<Pre fileName={FILE_NAME}>{source}</Pre>);
+
+      // eslint-disable-next-line testing-library/no-container -- source line boundaries determine paint grouping.
+      const lines = container.querySelectorAll('.frame[data-lined] > .line');
+      expect(lines).toHaveLength(3);
+      expect(container.textContent).toBe(text);
+    },
+  );
+
   // Tests share module-level state (the per-test mock hooks above and
   // `<Pre>`'s own module-level toggle subscriber registry). Reset
   // everything between tests so a future test that throws synchronously

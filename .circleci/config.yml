@@ -13,7 +13,7 @@ default-job: &default-job
   working_directory: /tmp/mui
   executor:
     name: code-infra/mui-node
-    node-version: '22.23.4'
+    node-version: '22.23.5'
   resource_class: medium
 
 default-context: &default-context
@@ -88,6 +88,15 @@ jobs:
       - run:
           name: 'Run tests'
           command: pnpm test
+  test_utils_react_17:
+    <<: *default-job
+    steps:
+      - checkout
+      - code-infra/install-deps:
+          react-version: '17.0.2'
+      - run:
+          name: Run test-utils with React 17
+          command: pnpm -F @mui/internal-test-utils exec vitest --run
   test_package:
     <<: *default-job
     steps:
@@ -96,13 +105,16 @@ jobs:
       - run:
           name: Build packages
           command: pnpm release:build
+      - run:
+          name: Validate built types
+          command: pnpm code-infra validate-built-types
       - code-infra/upload-size-snapshot
 
   test_benchmark:
     <<: *default-job
     executor:
       name: code-infra/mui-node-browser
-      playwright-img-version: 'v1.64.1-noble'
+      playwright-img-version: 'v1.65.1-noble'
     # 2 vCPUs starve V8's background compilers, which makes the same code's speed vary from sample to
     # sample; see the benchmark package's README.
     resource_class: medium+
@@ -145,7 +157,7 @@ jobs:
     <<: *default-job
     executor:
       name: code-infra/mui-node-browser
-      playwright-img-version: 'v1.64.1-noble'
+      playwright-img-version: 'v1.65.1-noble'
     resource_class: medium+
     steps:
       - checkout
@@ -172,7 +184,7 @@ jobs:
     <<: *default-job
     executor:
       name: code-infra/mui-node-browser
-      playwright-img-version: 'v1.64.1-noble'
+      playwright-img-version: 'v1.65.1-noble'
     # `medium` (4 GB) intermittently OOM-kills the Playwright server when
     # all three browsers (chromium/firefox/webkit) are driving tests at
     # once. `medium+` (6 GB) gives enough headroom without paying for
@@ -204,6 +216,8 @@ workflows:
       - test_static:
           <<: *default-context
       - test_unit:
+          <<: *default-context
+      - test_utils_react_17:
           <<: *default-context
       - test_package:
           <<: *default-context

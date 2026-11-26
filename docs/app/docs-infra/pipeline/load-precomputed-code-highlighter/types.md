@@ -6,6 +6,16 @@
 
 ### default
 
+A webpack loader that processes demo files and precomputes variant data.
+
+Finds createDemo calls, loads and processes all variants with syntax highlighting
+and TypeScript transformation, then injects the precomputed data back into the source.
+
+Supports single component syntax: createDemo(import.meta.url, Component)
+And object syntax: createDemo(import.meta.url, { Component1, Component2 })
+
+Automatically skips processing if skipPrecompute: true is set.
+
 **Parameters:**
 
 | Parameter | Type     | Default | Description |
@@ -17,3 +27,9 @@
 ```tsx
 type ReturnValue = Promise<void>;
 ```
+
+## External Type Links
+
+Maps `Type`: `URL` — the docs of a built-in type the page references.
+
+- `Promise`: <https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Promise>

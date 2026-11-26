@@ -395,6 +395,16 @@ type PathContext = PathContextWithUrl | PathContextWithoutUrl;
 
 ## External Types
 
+### SourceEnhancer
+
+```typescript
+type SourceEnhancer = (
+  root: { data?: unknown | undefined },
+  comments: {} | undefined,
+  fileName: string,
+) => { data?: unknown | undefined } | Promise;
+```
+
 ### ParseSource
 
 ```typescript
@@ -405,12 +415,8 @@ type ParseSource = (
 ) => { data?: unknown | undefined };
 ```
 
-### SourceEnhancer
+## External Type Links
 
-```typescript
-type SourceEnhancer = (
-  root: { data?: unknown | undefined },
-  comments: {} | undefined,
-  fileName: string,
-) => { data?: unknown | undefined } | Promise;
-```
+Maps `Type`: `URL` — the docs of a built-in type the page references.
+
+- `Promise`: <https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Promise>

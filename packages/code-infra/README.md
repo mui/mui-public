@@ -77,3 +77,32 @@ After following these steps, the `Publish` workflow can be invoked again.
 ## Agent skills
 
 The agent skills previously shipped with this package now live at the repository root. See [Install instructions](../../README.md#agent-skills).
+
+## Upcoming tsdown builds
+
+`code-infra build-new` is experimental. It compiles the `src` modules behind the package's
+`exports`, `imports` and `bin`, plus every module they import, to the `publishConfig.directory` with
+tsdown, keeping every package import external. Modules loaded with
+`new URL('./file', import.meta.url)`, such as workers, are built too, and the URL points at their
+output. It copies files with tsdown's `copy` option using the same `--copy` rules as
+`code-infra build`. It writes the same `package.json` as `code-infra build` (the deprecated
+`--no-expand` keeps `exports`/`imports` patterns). Every JavaScript file starts with the package's
+license header. Oxc strips types, compiles JSX and lowers syntax for the `stable` (ESM) and `node`
+(CJS) browserslist environments, and `MUI_VERSION` variables are inlined. Babel runs the workspace
+`babel.config.js` with `getBaseConfig` reduced to the MUI plugins Oxc lacks: display names, React
+pure annotations, prop-types removal and clsx optimization, plus the React compiler with
+`--enableReactCompiler`. Babel helpers, and the helpers Oxc's lowering needs, are imported from the
+`@babel/runtime` version the package depends on; the build fails when the output imports them
+without that dependency. Declarations come from tsdown's `dts` with the workspace TypeScript 7 `tsc`
+and the package's `tsconfig.build.json` (`--no-buildTypes` skips them); hand-written `.d.ts` files
+need explicit exports. The output keeps `export * as` and `import * as` namespaces, which Rolldown
+turns into `<name>_exports` objects in unbundled builds. A namespace stays an object when Rolldown
+inlines its constants into it, when the module reads it itself, or, in JavaScript, when it is
+imported next to a default import or by a quoted name. The output is validated with publint, as in
+`code-infra build`. The output isn't minified, and CJS files start with `"use strict"`. With
+`--cjsCopy`, imported `.cjs` sources are emitted unchanged and imported as-is, as in
+`code-infra build`, and the local modules they `require` are built at the paths they name; the build
+fails when no bundle outputs a module at that path. `--cjsCopy` is deprecated: only
+`@mui/material-nextjs` needs it, until `next` has an `exports` map
+([vercel/next.js#77200](https://github.com/vercel/next.js/issues/77200)). Continue using
+`code-infra build` for package builds.

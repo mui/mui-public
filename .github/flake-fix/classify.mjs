@@ -37,7 +37,13 @@ export function classify(timeline, fingerprints) {
     const greens = [...runs.keys()].filter((index) => runs[index].result === 'PASS');
     const evidence = (position) => {
       const run = runs[position];
-      return { time: run.time, pipeline: run.pipeline, commit: run.commit, url: run.url };
+      return {
+        time: run.time,
+        pipeline: run.pipeline,
+        sha: run.sha,
+        commit: run.commit,
+        url: run.url,
+      };
     };
 
     // Group each failed run's position under its fingerprint in one newest-first pass, so the first
@@ -55,6 +61,9 @@ export function classify(timeline, fingerprints) {
     for (const [fingerprint, { group, positions }] of byFingerprint) {
       const newestFailure = positions[0];
       const oldestFailure = positions.at(-1);
+      // The newest pass before the first failure: `git log <lastPass.sha>..<firstSeen.sha>` is the
+      // range that started it. null when the window holds no earlier pass.
+      const lastPass = greens.find((green) => green > oldestFailure);
 
       let klass;
       if (group.external) {
@@ -78,6 +87,7 @@ export function classify(timeline, fingerprints) {
         // Everything but a clean recovery or an outside service is worth attempting a fix.
         fixable: klass !== 'FIXED' && klass !== 'EXTERNAL',
         failureCount: positions.length,
+        lastPass: lastPass === undefined ? null : evidence(lastPass),
         firstSeen: evidence(oldestFailure),
         lastSeen: { ...evidence(newestFailure), log: runs[newestFailure].log },
       });

@@ -323,11 +323,11 @@ Indicates whether the argument provided is a built-in Error instance or not.
 
 **Parameters:**
 
-| Parameter   | Type                                                              | Default | Description |
-| :---------- | :---------------------------------------------------------------- | :------ | :---------- |
-| hastOrJson  | `HastNodes \| { hastJson: string } \| { hastCompressed: string }` | -       | -           |
-| components? | `Partial<Components>`                                             | -       | -           |
-| fallback?   | `FallbackNode[]`                                                  | -       | -           |
+| Parameter   | Type                                                          | Default | Description |
+| :---------- | :------------------------------------------------------------ | :------ | :---------- |
+| hastOrJson  | `Nodes \| { hastJson: string } \| { hastCompressed: string }` | -       | -           |
+| components? | `Partial<Components>`                                         | -       | -           |
+| fallback?   | `FallbackNode[]`                                              | -       | -           |
 
 **Return Value:**
 
@@ -341,7 +341,7 @@ type ReturnValue = React.ReactNode;
 
 | Parameter   | Type                  | Default | Description |
 | :---------- | :-------------------- | :------ | :---------- |
-| hast        | `HastNodes`           | -       | -           |
+| hast        | `Nodes`               | -       | -           |
 | components? | `Partial<Components>` | -       | -           |
 
 **Return Value:**
@@ -354,12 +354,12 @@ type ReturnValue = React.ReactNode;
 
 **Parameters:**
 
-| Parameter    | Type                                                                        | Default | Description |
-| :----------- | :-------------------------------------------------------------------------- | :------ | :---------- |
-| source       | `string \| HastNodes \| { hastJson: string } \| { hastCompressed: string }` | -       | -           |
-| highlighted? | `boolean`                                                                   | -       | -           |
-| components?  | `Partial<Components>`                                                       | -       | -           |
-| fallback?    | `FallbackNode[]`                                                            | -       | -           |
+| Parameter    | Type                                                                    | Default | Description |
+| :----------- | :---------------------------------------------------------------------- | :------ | :---------- |
+| source       | `string \| Nodes \| { hastJson: string } \| { hastCompressed: string }` | -       | -           |
+| highlighted? | `boolean`                                                               | -       | -           |
+| components?  | `Partial<Components>`                                                   | -       | -           |
+| fallback?    | `FallbackNode[]`                                                        | -       | -           |
 
 **Return Value:**
 
@@ -371,10 +371,10 @@ type ReturnValue = React.ReactNode;
 
 **Parameters:**
 
-| Parameter | Type                                                                        | Default | Description |
-| :-------- | :-------------------------------------------------------------------------- | :------ | :---------- |
-| source    | `string \| HastNodes \| { hastJson: string } \| { hastCompressed: string }` | -       | -           |
-| fallback? | `FallbackNode[]`                                                            | -       | -           |
+| Parameter | Type                                                                    | Default | Description |
+| :-------- | :---------------------------------------------------------------------- | :------ | :---------- |
+| source    | `string \| Nodes \| { hastJson: string } \| { hastCompressed: string }` | -       | -           |
+| fallback? | `FallbackNode[]`                                                        | -       | -           |
 
 **Return Value:**
 
@@ -447,3 +447,9 @@ Any content beyond this limit is ignored by the compressor.
 ```typescript
 type MAX_DICTIONARY_SIZE = number;
 ```
+
+## External Type Links
+
+Maps `Type`: `URL` — the docs of a built-in type the page references.
+
+- `Promise`: <https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Promise>

@@ -30,4 +30,33 @@ describe('getBaseConfig', () => {
 
     expect(code).toContain('identity');
   });
+
+  it('keeps only the plugins Oxc has no equivalent for in oxc mode', () => {
+    const config = getBaseConfig({
+      bundle: 'esm',
+      outExtension: null,
+      runtimeVersion: '^8.0.0',
+      compiler: 'oxc',
+    });
+    const code = transformSync(
+      [
+        "import * as React from 'react';",
+        'export const Context = React.createContext(null);',
+        'export const element = <div />;',
+        'export const url = import.meta.url;',
+      ].join('\n'),
+      {
+        ...config,
+        babelrc: false,
+        configFile: false,
+        filename: 'x.js',
+        parserOpts: { plugins: ['jsx'] },
+      },
+    )?.code;
+
+    expect(code).toContain('/*#__PURE__*/React.createContext');
+    expect(code).toContain('Context.displayName = "Context"');
+    expect(code).toContain('<div />');
+    expect(code).toContain('import.meta.url');
+  });
 });

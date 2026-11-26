@@ -5,6 +5,7 @@ import { escapeHtml } from '../utils/html';
 import { discoverBenchFiles, writeBenchPages } from './benchFiles';
 import type { BenchFile } from './benchFiles';
 import { buildsDirOf, prepareOutputDir } from './outputDir';
+import { reactProfilingConfig, resolveReactProfiling } from '../reactProfiling';
 
 /**
  * Vite plugin for a benchmark harness.
@@ -29,6 +30,25 @@ export interface BenchmarkPluginOptions {
    * is run from.
    */
   harnessDir?: string;
+  /**
+   * Whether the pages run React's profiling build. `true` (the default) reports render durations
+   * but slows down every component render; `false` runs the production build users ship, which
+   * reports no render durations. Also settable via `BENCHMARK_REACT_PROFILING`.
+   */
+  reactProfiling?: boolean;
+}
+
+declare module 'vite' {
+  interface UserConfig {
+    /** What the `benchmark` CLI asks of a build of the harness's pages. */
+    benchmark?: {
+      /**
+       * Build only these benchmark files' pages (posix, relative to `src`): the files the run
+       * selected. A page the run doesn't measure isn't built, so it can't fail the build.
+       */
+      files?: string[];
+    };
+  }
 }
 
 /**
@@ -95,6 +115,7 @@ ${items}
 export function benchmarkPlugin(options: BenchmarkPluginOptions = {}): Plugin {
   const harnessDir = options.harnessDir ?? process.cwd();
   const srcDir = path.join(harnessDir, 'src');
+  const reactConfig = reactProfilingConfig(resolveReactProfiling(options.reactProfiling));
   let benchFiles: BenchFile[] = [];
 
   return {
@@ -142,7 +163,8 @@ export function benchmarkPlugin(options: BenchmarkPluginOptions = {}): Plugin {
       const base = {
         root: srcDir,
         appType: 'mpa' as const,
-        resolve: { dedupe: ['react', 'react-dom'] },
+        resolve: { dedupe: ['react', 'react-dom'], alias: reactConfig.alias },
+        define: reactConfig.define,
       };
 
       if (env.command !== 'build') {
@@ -152,6 +174,17 @@ export function benchmarkPlugin(options: BenchmarkPluginOptions = {}): Plugin {
       // A plain `vite build` into the output directory marks it ignored, as the `benchmark` CLI does.
       if (!userConfig.build?.outDir) {
         await prepareOutputDir(harnessDir);
+      }
+
+      const selected = userConfig.benchmark?.files;
+      if (selected) {
+        const unknown = selected.filter(
+          (file) => !benchFiles.some((benchFile) => benchFile.file === file),
+        );
+        if (unknown.length > 0) {
+          throw new Error(`No benchmark file ${unknown.join(', ')} under ${srcDir}.`);
+        }
+        benchFiles = benchFiles.filter((benchFile) => selected.includes(benchFile.file));
       }
 
       const input = Object.fromEntries(

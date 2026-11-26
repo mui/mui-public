@@ -1,3 +1,7 @@
+import type { Octokit } from '@octokit/rest';
+// eslint-disable-next-line import/extensions
+import type { RepoInfo } from '../utils/git.mjs';
+
 /**
  * Commit details fetched from GitHub including PR information and labels.
  */
@@ -438,3 +442,186 @@ export interface GenerateChangelogResult {
     all: string[];
   };
 }
+
+export type GitHubRepository = Pick<RepoInfo, 'owner' | 'repo'>;
+
+export interface ReleaseRef {
+  /**
+   * The ref as given. A local `HEAD` is replaced by its SHA.
+   */
+  ref: string;
+  sha: string;
+}
+
+export interface ChangelogAuthor {
+  /**
+   * `null` for a commit author without a linked GitHub account.
+   */
+  login: string | null;
+  /**
+   * Git author name. Only known for direct commits.
+   */
+  name: string | null;
+  association: 'team' | 'community' | 'first-timer';
+  /**
+   * Whether it is a bot that works on its own. Not for Copilot, which works for a person.
+   */
+  isBot: boolean;
+}
+
+/**
+ * A merged pull request, or a commit that landed without one.
+ */
+export interface ChangelogChange {
+  /**
+   * Subject of the commit, without the references that the other fields already carry: the pull
+   * request it belongs to and, for a cherry-pick, the original pull request and its author.
+   */
+  title: string;
+  /**
+   * Full commit message.
+   */
+  message: string;
+  sha: string;
+  /**
+   * Page of the pull request, or of the commit when there is none.
+   */
+  url: string;
+  labels: string[];
+  /**
+   * Whether the pull request has the `breaking` or the `breaking change` label.
+   */
+  isBreakingChange: boolean;
+  pullRequest: {
+    number: number;
+    title: string;
+    body: string;
+    /**
+     * Not necessarily the author of the change: a cherry-pick can be opened by a bot, and Copilot
+     * works for a person. `null` when the GitHub account was deleted.
+     */
+    openedBy: ChangelogAuthor | null;
+  } | null;
+  /**
+   * `null` when the GitHub account was deleted.
+   */
+  author: ChangelogAuthor | null;
+  /**
+   * When the pull request was opened, or the commit authored. ISO 8601.
+   */
+  createdAt: string | null;
+  /**
+   * When the pull request was merged, or the commit committed. ISO 8601.
+   */
+  mergedAt: string | null;
+}
+
+export interface ChangelogPackage {
+  name: string;
+  version: string | null;
+  /**
+   * Whether the package can't be published: marked as private, or without a version.
+   */
+  private: boolean;
+  /**
+   * Directory relative to the workspace root, with `/` separators. `.` for the root package.
+   */
+  path: string;
+  /**
+   * Whether the version differs from the previous release. `true` for a new package, `null` when the
+   * previous release isn't available locally.
+   */
+  changed: boolean | null;
+}
+
+/**
+ * What happened in a release, as JSON-serializable data.
+ */
+export interface ChangelogData {
+  repository: GitHubRepository;
+  previous: ReleaseRef;
+  release: ReleaseRef;
+  version: string;
+  /**
+   * ISO 8601.
+   */
+  date: string;
+  /**
+   * Oldest first.
+   */
+  changes: ChangelogChange[];
+  /**
+   * Named packages in the working tree, sorted by path. Without a workspace, only the root package.
+   */
+  packages: ChangelogPackage[];
+}
+
+export interface FetchChangelogDataOptions {
+  /**
+   * A directory of the released workspace.
+   * @default process.cwd()
+   */
+  cwd?: string;
+  /**
+   * Repository name. Defaults to the one the checkout's remote points at.
+   */
+  repo?: string;
+  /**
+   * @default 'mui'
+   */
+  org?: string;
+  /**
+   * Ref of the previous release. Defaults to the closest version tag before `release`.
+   */
+  lastRelease?: string;
+  /**
+   * Ref of the release.
+   * @default 'HEAD'
+   */
+  release?: string;
+  /**
+   * Defaults to the version `release` is a tag of, else the version of the root package.
+   */
+  version?: string;
+  /**
+   * Defaults to the commit date when `release` is a version tag, else now.
+   */
+  date?: Date | string;
+  /**
+   * Include commits that landed without a pull request.
+   * @default false
+   */
+  includeDirectCommits?: boolean;
+  /**
+   * Bots whose changes are left out, as `app/<slug>` like in GitHub search, or as their login, such
+   * as `renovate[bot]`. A change is left out when its author or the opener of its pull request is
+   * one of them. Pass `[]` to keep all.
+   * @default ['app/renovate', 'app/code-infra-renovate']
+   */
+  excludeBots?: string[];
+  /**
+   * GitHub client. Defaults to one authenticated as the developer running it.
+   */
+  octokit?: Octokit;
+}
+
+/**
+ * Title of a change, split into its leading `[prefixes]` and the rest.
+ */
+export interface ChangelogTitle {
+  prefixes: string[];
+  text: string;
+}
+
+/**
+ * Authors to credit, once each.
+ */
+export interface ChangelogCredits {
+  all: ChangelogAuthor[];
+  team: ChangelogAuthor[];
+  community: ChangelogAuthor[];
+}
+
+export type MarkdownInline = string | false | null | undefined;
+
+export type MarkdownBlock = MarkdownInline | readonly MarkdownBlock[];

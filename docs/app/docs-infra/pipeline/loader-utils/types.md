@@ -650,3 +650,11 @@ Extension priority for value imports - standard priority with .d.ts last
 ```typescript
 type VALUE_IMPORT_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mdx', '.d.ts'];
 ```
+
+## External Type Links
+
+Maps `Type`: `URL` — the docs of a built-in type the page references.
+
+- `Map`: <https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Map>
+- `Promise`: <https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Promise>
+- `Set`: <https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Set>

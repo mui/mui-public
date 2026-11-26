@@ -1,12 +1,16 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["github>mui/mui-public//renovate/experimental"],
+  "extends": ["github>mui/mui-public//renovate/default"],
   "schedule": "* 5-9 * * 7",
   "lockFileMaintenance": {
-    "description": "Match the schedule above. Lock file maintenance defaults to its own Monday window, which would open the group PR a second time outside the weekly one.",
-    "schedule": "* 5-9 * * 7"
+    "schedule": "* 0-4 3 * *"
   },
   "packageRules": [
+    {
+      "description": "gh-aw generates these lock files and pins their actions itself. Bump the actions in the .md sources and gh-aw itself by hand, then recompile with `gh aw compile`.",
+      "matchFileNames": [".github/workflows/*.lock.yml"],
+      "enabled": false
+    },
     {
       "description": "This repository loads its own orb from master on purpose, so never pin it to a digest.",
       "matchDepNames": ["code-infra-orb"],
@@ -17,6 +21,21 @@
       "matchSourceUrls": ["https://github.com/vercel/next.js", "https://github.com/react/react"],
       "matchDepTypes": ["devDependencies"],
       "rangeStrategy": "bump"
+    },
+    {
+      "groupName": "tsdown",
+      "description": "tsdown >=0.23.5 needs the TypeScript 7.1 API for tsgo. Its 7.0 fallback needs `typescript` to be 7.0, and here it is TypeScript 6. rolldown must match tsdown, and @typescript/native joins so that its 7.1 bump lands in the same PR. That PR fails until build-new uses `tsgo.moduleUrl`, so it stays open as the reminder.",
+      "matchDepNames": ["tsdown", "rolldown", "@typescript/native"]
+    },
+    {
+      "description": "The extractor needs the TypeScript 7.1 API (`typescript/sync`). Skip 7.0.x, so that the first 7.x PR opens when 7.1.0 is released.",
+      "matchFileNames": ["packages/typescript-api-extractor/package.json"],
+      "matchDepTypes": ["peerDependencies"],
+      "matchPackageNames": ["typescript"],
+      "allowedVersions": "<7.0.0 || >=7.1.0",
+      "prBodyNotes": [
+        "Do not merge as is. First port the extractor to `typescript/sync`: https://github.com/mui/mui-public/issues/2129"
+      ]
     }
   ]
 }

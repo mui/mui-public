@@ -121,6 +121,24 @@ To resolve these custom HAST elements to React components, you must include the 
 
 See [`useType`](../../hooks/use-type/page.mdx) for how to build an interactive `TypeRef` component.
 
+### externalLinks Option
+
+Types documented elsewhere, such as `HTMLElement` on MDN, can be linked with `externalLinks`, a map from a type name to its URL. It is consulted for JavaScript and TypeScript code after `linkMap`, so types documented on the page keep their page links:
+
+```typescript
+const processor = unified()
+  .use(rehypeParse, { fragment: true })
+  .use(enhanceCodeTypes, {
+    linkMap,
+    externalLinks: { HTMLElement: 'https://developer.mozilla.org/docs/Web/API/HTMLElement' },
+  })
+  .use(rehypeStringify);
+```
+
+Only the type name is linked. Unlike `linkMap` entries, external links never act as owners for property or parameter links, so in `const el: HTMLElement = { hidden: true }` the `hidden` property stays unlinked. A name the code declares, such as `Theme` in `interface Theme {}` or `const Theme = …`, or a name bound in scope refers to local code and stays unlinked too.
+
+The types factory fills `externalLinks` in from the [External Type Links](../load-server-types-text/page.mdx#embedded-metadata) section of `types.md`.
+
 ---
 
 ## Transformation Examples

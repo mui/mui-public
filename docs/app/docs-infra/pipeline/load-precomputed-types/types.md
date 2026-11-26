@@ -6,6 +6,16 @@
 
 ### default
 
+A webpack loader that processes types and precomputes meta.
+
+Finds createTypesMeta calls, loads and processes all component types,
+then injects the precomputed type meta back into the source.
+
+Supports single component syntax: createTypesMeta(import.meta.url, Component)
+And object syntax: createTypesMeta(import.meta.url, { Component1, Component2 })
+
+Automatically skips processing if skipPrecompute: true is set.
+
 **Parameters:**
 
 | Parameter | Type     | Default | Description |
@@ -80,3 +90,9 @@ type LoaderOptions = {
   cacheDir?: string;
 };
 ```
+
+## External Type Links
+
+Maps `Type`: `URL` — the docs of a built-in type the page references.
+
+- `Promise`: <https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Promise>

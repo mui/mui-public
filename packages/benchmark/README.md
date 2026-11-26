@@ -16,7 +16,7 @@ uploads one version or the other; the dashboard reads each by its version.
 - Measures React component render durations using `React.Profiler`
 - Captures paint metrics via the [Element Timing API](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceElementTiming)
 - Runs in a real Chromium browser via Playwright
-- Uses React's profiling build for accurate production-like measurements
+- Uses React's profiling build to report render durations, or its production build (`reactProfiling: false`) to measure what users ship
 - IQR-based outlier removal for stable results
 - Configurable warmup and measurement runs
 - JSON results output
@@ -319,6 +319,15 @@ export default createBenchmarkVitestConfig({
 - `launchArgs` — additional browser launch arguments
 - `profile` — run an interactive profiling session in a headed browser with DevTools instead of measuring (see [Profiling in DevTools](#profiling-in-devtools)). Also settable via `BENCHMARK_PROFILE=true`.
 - `viewport` — `{ width, height }` browser viewport (and window size in profile mode), applied to both modes. Defaults to `1920x1080`. Also settable via `BENCHMARK_VIEWPORT` (for example, `2560x1440`).
+- `reactProfiling` — whether to run React's profiling build, `true` by default (see [Choosing the React build](#choosing-the-react-build)). Also settable via `BENCHMARK_REACT_PROFILING=false`.
+
+#### Choosing the React build
+
+React only reports render durations from its profiling build, so that is the default: `react-dom/client` is aliased to `react-dom/profiling`. That build also adds a few microseconds to every component render. It slows down code that renders through React and not code that draws outside it (canvas or imperative DOM), so it skews a comparison between the two.
+
+Set `reactProfiling: false` (or `BENCHMARK_REACT_PROFILING=false`) to run the build users ship. React render durations are then not reported, `bench:paint` and custom metrics are, and a case whose recording captures no renders no longer fails. Compare results only with results from the same build. `benchmarkPlugin()` takes the same option for the `benchmark` CLI.
+
+A case whose only metric is React render duration records nothing under the production build, and fails. That is a case that starts with `reactRecordingPaused` and resumes recording after its paint, for example to time the renders of a scroll. Keep such cases on the profiling build, or have them record a metric of their own.
 
 To override standard Vitest options (for example, `include`, `testTimeout`, `headless`), use `mergeConfig`:
 
@@ -557,10 +566,15 @@ change — which commit moved a number reads off the chart rather than out of a 
 
 ### Building and installing each side
 
-Both sides are built the same way: packed to tarballs, in parallel, and installed the way a consumer
-gets them, so neither resolves the library through a workspace link. The benchmark files themselves
-stay on the current branch and only the built library changes between refs — so a commit whose public
-API differs from today's benchmarks will fail that ref's build, with the error surfaced.
+Both sides are built the same way: packed to tarballs and installed the way a consumer gets them, so
+neither resolves the library through a workspace link. Their builds take turns, so two don't outgrow
+a CI machine's memory. The benchmark files themselves stay on the current branch and only the built
+library changes between refs — so a commit whose public
+API differs from today's benchmarks will fail that ref's build, with the error surfaced. Only the
+pages of the files the run selected are built, so that takes a change to an API those files import.
+To keep a pull request's run working through one, keep the old API for a commit, or accept the failed
+run. A run whose pages don't build still writes its report, with every selected file failed and the
+build error as the reason, so the pull request comment says why.
 
 Packed builds are cached by commit SHA under `.benchmark/packed/`, so repeating a comparison against
 the same commit skips the rebuild; the working tree is never cached. In CI, cache that directory

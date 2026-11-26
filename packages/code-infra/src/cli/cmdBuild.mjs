@@ -7,14 +7,9 @@ import { sep as posixSep } from 'node:path/posix';
 import * as semver from 'semver';
 import { mapAsync } from 'es-toolkit/array';
 
-import {
-  createPackageBin,
-  createPackageExports,
-  createPackageImports,
-  getOutExtension,
-  validateEnginesNode,
-  validatePkgJson,
-} from '../utils/build.mjs';
+import { getOutExtension, validateEnginesNode, validatePkgJson } from '../utils/build.mjs';
+import { getPublishedPkgJson } from '../utils/getPublishedPkgJson.mjs';
+import { validateWithPublint } from '../utils/publint.mjs';
 import { readPnpmConfig } from '../utils/pnpm.mjs';
 
 /**
@@ -78,87 +73,6 @@ ${content}`,
     { encoding: 'utf8' },
   );
   console.log(`License added to ${file}`);
-}
-
-/**
- * @param {Object} param0
- * @param {import('./packageJson').PackageJson} param0.packageJson - The package.json content.
- * @param {import('../utils/build.mjs').BundleType[]} param0.bundles
- * @param {string} param0.outputDir
- * @param {string} param0.cwd
- * @param {boolean} param0.addTypes - Whether to add type declarations for the package.
- * @param {boolean} [param0.expand] - Whether to enumerate glob patterns into concrete entries.
- * @param {'module' | 'commonjs'} param0.packageType - The package.json type field.
- */
-async function writePackageJson({
-  packageJson,
-  bundles,
-  outputDir,
-  cwd,
-  addTypes = false,
-  expand = true,
-  packageType,
-}) {
-  delete packageJson.scripts;
-  delete packageJson.publishConfig?.directory;
-  delete packageJson.devDependencies;
-
-  const resolvedPackageType = packageType || packageJson.type || 'commonjs';
-  packageJson.type = resolvedPackageType;
-
-  const originalExports = packageJson.exports;
-  delete packageJson.exports;
-  const originalImports = packageJson.imports;
-  delete packageJson.imports;
-  const originalBin = packageJson.bin;
-  delete packageJson.bin;
-
-  const [{ exports: packageExports, main, types }, packageImports] = await Promise.all([
-    createPackageExports(originalExports, {
-      bundles,
-      outputDir,
-      cwd,
-      addTypes,
-      expand,
-      packageType: resolvedPackageType,
-    }),
-    originalImports
-      ? createPackageImports(originalImports, {
-          bundles,
-          cwd,
-          outputDir,
-          addTypes,
-          expand,
-          packageType: resolvedPackageType,
-        })
-      : Promise.resolve(undefined),
-  ]);
-
-  packageJson.exports = packageExports;
-  if (packageImports) {
-    packageJson.imports = packageImports;
-  }
-  if (main) {
-    packageJson.main = main;
-  }
-  if (types) {
-    packageJson.types = types;
-  }
-
-  const bin = await createPackageBin(originalBin, {
-    bundles,
-    cwd,
-    packageType: resolvedPackageType,
-  });
-  if (bin) {
-    packageJson.bin = bin;
-  }
-
-  await fs.writeFile(
-    path.join(outputDir, 'package.json'),
-    JSON.stringify(packageJson, null, 2),
-    'utf-8',
-  );
 }
 
 export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
@@ -382,7 +296,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       return;
     }
 
-    await writePackageJson({
+    const publishedPkgJson = await getPublishedPkgJson({
       cwd,
       packageJson,
       bundles,
@@ -391,6 +305,11 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       expand: args.expand,
       packageType,
     });
+    await fs.writeFile(
+      path.join(buildDir, 'package.json'),
+      JSON.stringify(publishedPkgJson, null, 2),
+      'utf-8',
+    );
 
     await copyHandler({
       cwd,
@@ -404,41 +323,6 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     }
   },
 });
-
-/**
- * Lints the output directory with publint. Errors fail the build, warnings are only reported.
- * @param {string} buildDir - The build directory to validate.
- * @returns {Promise<void>}
- */
-async function validateWithPublint(buildDir) {
-  const [{ publint }, { formatMessage }] = await Promise.all([
-    import('publint'),
-    import('publint/utils'),
-  ]);
-  // Everything in the output directory is published, so there is nothing to pack.
-  const result = await publint({ pkgDir: buildDir, pack: false, level: 'warning' });
-  const { pkg } = result;
-  // TODO: remove this filter and bump publint to >=0.3.25, which ships the fix from
-  // https://github.com/publint/publint/pull/265 (publint checks `browser` values
-  // that point at another package as local files).
-  const messages = result.messages.filter((message) => {
-    if (message.code !== 'FILE_DOES_NOT_EXIST' || message.path[0] !== 'browser') {
-      return true;
-    }
-    const value = message.path.length === 2 ? pkg.browser?.[message.path[1]] : undefined;
-    return typeof value !== 'string' || value.startsWith('.');
-  });
-
-  for (const message of messages) {
-    const log = message.type === 'error' ? console.error : console.warn;
-    log(`publint ${message.type}: ${formatMessage(message, pkg)}`);
-  }
-
-  const errorCount = messages.filter((message) => message.type === 'error').length;
-  if (errorCount > 0) {
-    throw new Error(`publint found ${errorCount} error(s) in "${buildDir}".`);
-  }
-}
 
 /**
  * @param {Object} param0

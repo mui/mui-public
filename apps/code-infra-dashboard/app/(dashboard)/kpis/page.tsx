@@ -6,7 +6,7 @@ import Grid from '@mui/material/Grid';
 import Heading from '@/components/Heading';
 import KpiCard from '@/components/KpiCard';
 import LinkCardActionArea from '@/components/LinkCardActionArea';
-import { kpiRegistry, toKpiInfo } from '@/lib/kpis';
+import { kpiRegistry, toKpiInfo, fetchKpi } from '@/lib/kpis';
 import type { KpiConfig } from '@/lib/kpis';
 
 export const revalidate = 3600; // 1 hour ISR
@@ -16,7 +16,7 @@ export const metadata = { title: 'KPIs dashboard' };
 // Async component that fetches data for a single KPI
 
 async function KpiCardAsync({ kpi }: { kpi: KpiConfig<any[]> }) {
-  const result = await kpi.fetch(...(kpi.fetchParams ?? []));
+  const result = await fetchKpi(kpi);
   return <KpiCard kpi={toKpiInfo(kpi)} result={result} />;
 }
 

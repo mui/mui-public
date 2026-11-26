@@ -46,6 +46,8 @@ import { CoordinatedContentContext } from '../CoordinatedLazy/CoordinatedContent
 import { requestIdle } from '../useCoordinated/scheduleTasks';
 import { scheduleDeferredPrecompute } from './scheduleDeferredPrecompute';
 import * as Errors from './errors';
+import { ContentFrameProvider } from './useContentFrame';
+import { hasSourceChanges } from './hasSourceChanges';
 
 const DEBUG = false; // Set to true for debugging purposes
 
@@ -807,7 +809,7 @@ function useControlledCodeParsing({
   useDemandSourceParser(loadSourceParser, Boolean(code) && grammarsReady && !parseSource);
 
   // Parse the controlled code separately (no need to check readyForContent)
-  const parsedControlledCode = React.useMemo(() => {
+  const controlledSnapshot = React.useMemo(() => {
     if (!code || !grammarsReady) {
       return undefined;
     }
@@ -836,7 +838,7 @@ function useControlledCodeParsing({
       return undefined;
     }
 
-    return parseControlledCode(code, parseSource, preParsedCache);
+    return { code: parseControlledCode(code, parseSource, preParsedCache), input: code };
   }, [
     code,
     grammarsReady,
@@ -848,7 +850,10 @@ function useControlledCodeParsing({
     preParsedCache,
   ]);
 
-  return { parsedControlledCode };
+  return {
+    parsedControlledCode: controlledSnapshot?.code,
+    controlledCode: controlledSnapshot?.input,
+  };
 }
 
 function useGlobalsCodeMerging({
@@ -1621,7 +1626,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     refreshAllVariants();
   }, [preParsedCache, refreshAllVariants]);
 
-  const { parsedControlledCode } = useControlledCodeParsing({
+  const { parsedControlledCode, controlledCode: parsedControlledInput } = useControlledCodeParsing({
     code: controlled?.code,
     grammarScopes: editableGrammarScopes,
     forceClient: props.forceClient,
@@ -1629,8 +1634,27 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     preParsedCache,
   });
 
-  // Determine the final overlaid code (controlled takes precedence)
-  const overlaidCode = parsedControlledCode || transformedCode || codeWithGlobals;
+  const controlledTransformInput = React.useMemo(() => {
+    if (!parsedControlledCode || availableTransforms.length === 0) {
+      return undefined;
+    }
+
+    // Delta conversion mutates HAST; the shared parse cache must remain unchanged.
+    return structuredClone(parsedControlledCode);
+  }, [parsedControlledCode, availableTransforms.length]);
+
+  const {
+    transformedCode: transformedControlledCode,
+    waitingForTransformedCode: waitingForControlledTransforms,
+  } = useCodeTransforms({
+    parsedCode: controlledTransformInput,
+    variantName,
+  });
+
+  const controlledOverlayReady = !waitingForControlledTransforms;
+
+  const overlaidCode =
+    transformedControlledCode || parsedControlledCode || transformedCode || codeWithGlobals;
 
   // For fallback context, use the processed code or fall back to non-controlled code
   const codeForFallback =
@@ -1691,6 +1715,46 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   // build-time render as the runner's `fallback` prop — so a live preview that throws on its
   // FIRST render, before any successful one (e.g. a render-error first edit, where the
   // baseline never got to paint), shows the original instead of blanking.
+  const controllerCode = controlled?.code;
+
+  // Undo must not replace a live preview with a newly mounted bundled preview.
+  const [liveVariants, setLiveVariants] = React.useState<ReadonlySet<string>>(() => new Set());
+
+  const editedVariants = React.useMemo(() => {
+    if (!controllerCode) {
+      return new Set<string>();
+    }
+
+    const variants = new Set(liveVariants);
+
+    for (const [variant, source] of Object.entries(controllerCode)) {
+      if (!source || variants.has(variant)) {
+        continue;
+      }
+
+      const initial = codeWithGlobals?.[variant];
+
+      if (!initial || typeof initial === 'string' || initial.source == null) {
+        continue;
+      }
+
+      const fallbacks = {
+        ...hoistedFallbackHasts[variant],
+        ...deriveFallbacksFromCode(codeForFallback, variant),
+      };
+
+      if (hasSourceChanges({ [variant]: source }, { [variant]: initial }, variant, fallbacks)) {
+        variants.add(variant);
+      }
+    }
+
+    return variants;
+  }, [controllerCode, liveVariants, codeWithGlobals, hoistedFallbackHasts, codeForFallback]);
+
+  if (editedVariants.size !== liveVariants.size) {
+    setLiveVariants(editedVariants);
+  }
+
   const bridgedComponents = React.useMemo(() => {
     const live = controlled?.components;
     if (!live) {
@@ -1699,6 +1763,14 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     const merged: Record<string, React.ReactNode> = { ...(props.components || {}) };
     for (const variant of Object.keys(live)) {
       const buildTime = props.components?.[variant];
+      const initial = codeWithGlobals?.[variant];
+      const initialSource = typeof initial === 'object' ? initial?.source : undefined;
+      const hasSource = initialSource != null && controllerCode?.[variant] != null;
+
+      if (buildTime !== undefined && hasSource && !editedVariants.has(variant)) {
+        continue;
+      }
+
       const liveNode = injectFallback(live[variant], buildTime);
       merged[variant] = (
         <React.Suspense key={variant} fallback={buildTime ?? null}>
@@ -1707,11 +1779,12 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       );
     }
     return merged;
-  }, [controlled?.components, props.components]);
+  }, [controlled?.components, controllerCode, props.components, codeWithGlobals, editedVariants]);
 
   const context: CodeHighlighterContextType = React.useMemo(
     () => ({
       code: overlaidCode, // Use processed/transformed code
+      controlledCode: controlledOverlayReady ? parsedControlledInput : undefined,
       initialCode: codeWithGlobals,
       setCode: controlled?.setCode,
       selection: controlled?.selection || selection,
@@ -1731,6 +1804,8 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     }),
     [
       overlaidCode,
+      parsedControlledInput,
+      controlledOverlayReady,
       codeWithGlobals,
       controlled?.setCode,
       selection,
@@ -1770,7 +1845,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   const fallbackNode = (
     <CoordinatedFallbackContext.Provider value={coordinatedFallbackContext}>
       <CodeHighlighterFallbackContext.Provider value={fallbackContext}>
-        {props.fallback}
+        <ContentFrameProvider framed={false}>{props.fallback}</ContentFrameProvider>
       </CodeHighlighterFallbackContext.Provider>
     </CoordinatedFallbackContext.Provider>
   );
@@ -1787,10 +1862,38 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   const contentNode = (
     <CodeHighlighterContext.Provider value={context}>
       <CoordinatedContentContext.Provider value={contentContext}>
-        {contentChildren}
+        <ContentFrameProvider framed={false}>{contentChildren}</ContentFrameProvider>
       </CoordinatedContentContext.Provider>
     </CodeHighlighterContext.Provider>
   );
+
+  // Changing provider ancestry here remounts stateful previews.
+  if (props.frame) {
+    // A Server Component frame reaches the client as its rendered output, so cloning
+    // it would overwrite the preview it placed in its own children.
+    if (typeof props.frame.type === 'string' || props.frame.type === React.Fragment) {
+      throw new Errors.ErrorCodeHighlighterClientServerContentFrame();
+    }
+    return (
+      <CodeHighlighterContext.Provider value={context}>
+        <CoordinatedFallbackContext.Provider
+          value={showFallback ? coordinatedFallbackContext : undefined}
+        >
+          <CodeHighlighterFallbackContext.Provider value={fallbackContext}>
+            <CoordinatedContentContext.Provider value={contentContext}>
+              {React.cloneElement(
+                props.frame,
+                { component: bridgedComponents?.[variantName] },
+                <ContentFrameProvider framed>
+                  {showFallback ? props.fallback : contentChildren}
+                </ContentFrameProvider>,
+              )}
+            </CoordinatedContentContext.Provider>
+          </CodeHighlighterFallbackContext.Provider>
+        </CoordinatedFallbackContext.Provider>
+      </CodeHighlighterContext.Provider>
+    );
+  }
 
   // Show the fallback OR the content (swap on data-readiness). The content loads
   // its own chunk after the swap, covered by the fallback it inherits via context.

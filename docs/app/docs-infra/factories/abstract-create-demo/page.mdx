@@ -13,6 +13,61 @@ Demo factories created with `abstractCreateDemo` automatically integrate with:
 - **[`useCode`](../../hooks/use-code/page.mdx)**: For code-only interfaces
 - **[`loadPrecomputedCodeHighlighter`](../../pipeline/load-precomputed-code-highlighter/page.mdx)**: For optimized loading
 
+### Keep the preview mounted
+
+Set `DemoContentFrame` alongside `DemoContentLoading` when loading and interactive
+content share a stateful preview. The frame receives the initial loading props and
+`children`, which changes from loading chrome to interactive chrome. Keep the preview
+in the frame; in the loading and content components, call `useContentFrame()` and skip
+the preview when `framed` is `true`.
+
+The frame must be a Client Component, like `DemoContentLoading`. It is used only when
+`DemoContentLoading` prepares an initial loading fallback; without one, including
+`skipFallback`, content renders directly and the frame is ignored.
+
+```tsx
+'use client';
+
+function DemoFrame({ component, children }: ContentFrameProps<{}>) {
+  return (
+    <section>
+      {component}
+      {children}
+    </section>
+  );
+}
+
+function DemoContentLoading(props: ContentLoadingProps<{}>) {
+  const fallback = useCodeFallback(props);
+  const { framed } = useContentFrame();
+  return (
+    <div>
+      {!framed && props.component}
+      {fallback.code}
+    </div>
+  );
+}
+
+const createDemo = createDemoFactory({
+  DemoContent,
+  DemoContentLoading,
+  DemoContentFrame: DemoFrame,
+});
+```
+
+Import `useCodeFallback` and `useContentFrame` from `@mui/internal-docs-infra/CodeHighlighter`,
+and `ContentFrameProps` and `ContentLoadingProps` from
+`@mui/internal-docs-infra/CodeHighlighter/types`. `DemoContent` follows the same pattern.
+`framed` applies only to the `CodeHighlighter` that owns the frame; a nested
+`CodeHighlighter` without one reports `false`.
+The frame stays under the code and demo controller contexts. Its component identity remains
+stable while source data and lazy content load on the client. `component` follows the
+selected variant and its live preview; the other props keep their initial values. Use a
+consumer-owned context to publish interactive toolbar and reset state to the frame.
+
+With `highlightAfter: 'stream'`, the frame first renders inside the streamed
+placeholder and mounts again when the server finishes loading the source.
+
 ## Factory Function Requirements
 
 At the fundamental level, the [`loadPrecomputedCodeHighlighter`](../../pipeline/load-precomputed-code-highlighter/page.mdx) function expects factory functions with these signatures:

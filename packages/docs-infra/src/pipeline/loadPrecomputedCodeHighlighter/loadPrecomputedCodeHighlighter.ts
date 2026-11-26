@@ -2,6 +2,8 @@
 // eslint-disable-next-line n/prefer-node-protocol
 import path from 'path';
 // eslint-disable-next-line n/prefer-node-protocol
+import { createHash } from 'crypto';
+// eslint-disable-next-line n/prefer-node-protocol
 import { fileURLToPath, pathToFileURL } from 'url';
 
 import type { LoaderContext } from 'webpack';
@@ -28,6 +30,81 @@ import { createLoadServerCodeSource } from '../loadServerCodeSource';
 import { getFileNameFromUrl, IGNORE_COMMENT_PREFIXES } from '../loaderUtils';
 import { createPerformanceLogger, logPerformance, performanceMeasure } from './performanceLogger';
 import { fallbackToHast } from '../../CodeHighlighter/fallbackFormat';
+
+type DeferredOutput = { source: string; dependencies: string[] };
+
+// Compilation identity prevents reuse across compilers and watch rebuilds.
+const deferredCaches = new WeakMap<object, Map<string, DeferredOutput>>();
+
+/** Rejects options whose behavior would be lost in a JSON cache key. */
+function isSerializable(value: unknown, ancestors = new Set<object>()): boolean {
+  if (value === null || typeof value === 'string' || typeof value === 'boolean') {
+    return true;
+  }
+  if (typeof value === 'number') {
+    return Number.isFinite(value);
+  }
+  if (
+    typeof value !== 'object' ||
+    ancestors.has(value) ||
+    Object.getOwnPropertySymbols(value).length
+  ) {
+    return false;
+  }
+
+  const prototype = Object.getPrototypeOf(value);
+  if (!Array.isArray(value) && prototype !== Object.prototype && prototype !== null) {
+    return false;
+  }
+
+  ancestors.add(value);
+  const supported = Object.entries(Object.getOwnPropertyDescriptors(value)).every(
+    ([name, descriptor]) => {
+      if (Array.isArray(value) && name === 'length') {
+        return true;
+      }
+      return (
+        descriptor.enumerable &&
+        'value' in descriptor &&
+        // JSON drops undefined properties, matching how the loader treats absent options.
+        // Arrays serialize undefined as null, so elements still have to be serializable.
+        ((descriptor.value === undefined && !Array.isArray(value)) ||
+          isSerializable(descriptor.value, ancestors))
+      );
+    },
+  );
+  ancestors.delete(value);
+  return supported;
+}
+
+/** Shares completed source only when webpack provides a compilation boundary. */
+function getDeferredCache(
+  context: LoaderContext<LoaderOptions>,
+  source: string,
+  options: LoaderOptions,
+) {
+  const { _compilation: compilation } = context;
+
+  if (options.deferPrecompute !== true || !compilation || !isSerializable(options)) {
+    return undefined;
+  }
+
+  let entries = deferredCaches.get(compilation);
+  if (!entries) {
+    entries = new Map();
+    deferredCaches.set(compilation, entries);
+  }
+  return { entries, key: JSON.stringify([context.resourcePath, source, options]) };
+}
+
+/** Both the shell and deferred module must invalidate when imported source changes. */
+function registerDependencies(context: LoaderContext<LoaderOptions>, dependencies: string[]) {
+  dependencies.forEach((dependency) => {
+    context.addDependency(
+      dependency.startsWith('file://') ? fileURLToPath(dependency) : dependency,
+    );
+  });
+}
 
 /**
  * Extracts a string array from structured options data.
@@ -123,8 +200,13 @@ export type LoaderOptions = {
    * enable it when the rendered demos need both TS and JS sources.
    */
   transformTypescriptToJavascript?: boolean;
-  /** Split complete highlighted source into a per-demo async chunk. */
-  deferPrecompute?: boolean;
+  /**
+   * Defer complete highlighted source until it is needed.
+   * `true` uses an async module. `'asset'` emits content-hashed JSON instead,
+   * reducing webpack's chunk map. Asset mode requires a browser webpack compiler;
+   * keep `true` for server compilers and Turbopack.
+   */
+  deferPrecompute?: boolean | 'asset';
 };
 
 function createFallbackSource({
@@ -174,10 +256,40 @@ export function createPrecomputeShell(code: Code): Code {
   );
 }
 
+/** Emits metadata outside webpack's asynchronous module graph. */
+function emitPrecomputeAsset(context: LoaderContext<LoaderOptions>, code: Code): string {
+  const contents = JSON.stringify(code);
+  const hash = createHash('sha256').update(contents).digest('hex');
+  const filename = `static/media/docs-precompute.${hash}.json`;
+  context.emitFile(filename, contents);
+
+  return `(() => {
+    let pending;
+    return () => {
+      if (pending) {
+        return pending;
+      }
+      pending = (async () => {
+        try {
+          const response = await fetch(__webpack_public_path__ + ${JSON.stringify(filename)});
+          if (!response.ok) {
+            throw new Error('Failed to load demo source: HTTP ' + response.status);
+          }
+          return await response.json();
+        } catch (error) {
+          pending = undefined;
+          throw error;
+        }
+      })();
+      return pending;
+    };
+  })()`;
+}
+
 const functionName = 'Load Precomputed Code Highlighter';
 
 /**
- * Webpack loader that processes demo files and precomputes variant data.
+ * A webpack loader that processes demo files and precomputes variant data.
  *
  * Finds createDemo calls, loads and processes all variants with syntax highlighting
  * and TypeScript transformation, then injects the precomputed data back into the source.
@@ -195,6 +307,15 @@ export async function loadPrecomputedCodeHighlighter(
   this.cacheable();
 
   const options = this.getOptions();
+  const isDeferredRequest = this.resourceQuery === '?mui-deferred-precompute';
+  const deferredCache = getDeferredCache(this, source, options);
+  const cached = isDeferredRequest ? deferredCache?.entries.get(deferredCache.key) : undefined;
+  if (cached) {
+    registerDependencies(this, cached.dependencies);
+    callback(null, cached.source);
+    return;
+  }
+
   const performanceNotableMs = options.performance?.notableMs ?? 100;
   const performanceShowWrapperMeasures = options.performance?.showWrapperMeasures ?? false;
 
@@ -390,9 +511,19 @@ export async function loadPrecomputedCodeHighlighter(
     );
 
     const deferredRequest = `./${path.basename(this.resourcePath)}?mui-deferred-precompute`;
-    const isDeferredRequest = this.resourceQuery === '?mui-deferred-precompute';
+    const deferredSource =
+      isDeferredRequest || deferredCache
+        ? `export default ${JSON.stringify(variantData)};`
+        : undefined;
+    registerDependencies(this, allDependencies);
+    if (deferredCache && deferredSource) {
+      deferredCache.entries.set(deferredCache.key, {
+        source: deferredSource,
+        dependencies: allDependencies,
+      });
+    }
     if (isDeferredRequest) {
-      callback(null, `export default ${JSON.stringify(variantData)};`);
+      callback(null, deferredSource);
       return;
     }
 
@@ -404,9 +535,12 @@ export async function loadPrecomputedCodeHighlighter(
       options.deferPrecompute
         ? {
             additionalOptions: {
-              loadPrecompute: `() => import(${JSON.stringify(
-                deferredRequest,
-              )}).then((module) => module.default)`,
+              loadPrecompute:
+                options.deferPrecompute === 'asset'
+                  ? emitPrecomputeAsset(this, variantData)
+                  : `() => import(${JSON.stringify(
+                      deferredRequest,
+                    )}).then((module) => module.default)`,
             },
           }
         : undefined,
@@ -417,13 +551,6 @@ export async function loadPrecomputedCodeHighlighter(
       { mark: 'Replaced Precompute', measure: 'Precompute Replacement' },
       [functionName, relativePath],
     );
-
-    // Add all dependencies to webpack's watch list
-    allDependencies.forEach((dep) => {
-      // Convert file:// URLs to proper file system paths for webpack's dependency tracking
-      // Using fileURLToPath handles Windows drive letters correctly (e.g., file:///C:/... → C:\...)
-      this.addDependency(dep.startsWith('file://') ? fileURLToPath(dep) : dep);
-    });
 
     // log any pending performance entries before completing
     observer

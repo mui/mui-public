@@ -143,7 +143,8 @@ export async function POST(request: NextRequest) {
       : null,
   ]);
 
-  const trailer = `<hr>\n\nCheck out the [code infra dashboard](${DASHBOARD_ORIGIN}/repository/${prRepo}/prs/${pr.number}) for more information about this PR.`;
+  const dashboardUrl = new URL(`/repository/${prRepo}/prs/${pr.number}`, DASHBOARD_ORIGIN);
+  const trailer = `<hr>\n\nCheck out the [code infra dashboard](${dashboardUrl}) for more information about this PR.`;
 
   const commentBody = [deployPreviewReport, bundleSizeReport, benchmarkReportResult]
     .filter((report): report is ReportResult => report !== null)

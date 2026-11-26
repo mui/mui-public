@@ -67,6 +67,9 @@ type ComponentTypeMeta = {
 
 ### DescriptionReplacement
 
+A pattern/replacement pair for transforming description text.
+The pattern is compiled into a RegExp internally.
+
 ```typescript
 type DescriptionReplacement = {
   /** Regex pattern string to match in descriptions */
@@ -79,6 +82,8 @@ type DescriptionReplacement = {
 ```
 
 ### FormatInlineTypeOptions
+
+Options for formatting inline types as HAST.
 
 ```typescript
 type FormatInlineTypeOptions = {
@@ -106,6 +111,8 @@ type FormatInlineTypeOptions = {
 
 ### FormattedEnumMember
 
+Formatted enum member metadata.
+
 ```typescript
 type FormattedEnumMember = {
   /** Description of the enum member as parsed markdown HAST */
@@ -121,6 +128,11 @@ type FormattedEnumMember = {
 ```
 
 ### FormattedParameter
+
+Formatted parameter metadata for functions and hooks.
+
+Type highlighting is deferred to the loadServerTypes stage via
+highlightTypesMeta() after highlightTypes().
 
 ```typescript
 type FormattedParameter = {
@@ -140,17 +152,19 @@ type FormattedParameter = {
   example?: Root;
   /** Plain text version of example for markdown generation */
   exampleText?: string;
-  /** @see as parsed markdown HAST */
+  /** `@see` references as parsed markdown HAST */
   see?: Root;
-  /**
-   * Plain text version of
-   * @see for markdown generation
-   */
+  /** Plain text version of `@see` references for markdown generation */
   seeText?: string;
 };
 ```
 
 ### FormattedProperty
+
+Formatted property metadata with plain text types and parsed markdown descriptions.
+
+Type highlighting (type → HAST, shortType, detailedType) is deferred to
+the loadServerTypes stage via highlightTypesMeta() after highlightTypes().
 
 ```typescript
 type FormattedProperty = {
@@ -168,12 +182,9 @@ type FormattedProperty = {
   example?: Root;
   /** Plain text version of example for markdown generation */
   exampleText?: string;
-  /** @see as parsed markdown HAST */
+  /** `@see` references as parsed markdown HAST */
   see?: Root;
-  /**
-   * Plain text version of
-   * @see for markdown generation
-   */
+  /** Plain text version of `@see` references for markdown generation */
   seeText?: string;
 };
 ```
@@ -298,6 +309,11 @@ type LoadServerTypesMetaResult = {
    * Map from type name to its definition string.
    */
   externalTypes: Record<string, string>;
+  /**
+   * Links for the built-in types in the formatted output, keyed by the name they are printed
+   * as, such as `HTMLElement` to its MDN page.
+   */
+  externalTypeLinks: Record<string, string>;
   /** Resource name derived from the types path */
   resourceName: string;
   /** Export data where each export has a main type and related additional types */
@@ -363,6 +379,8 @@ type RawTypeMeta = {
 
 ### ReExportInfo
 
+Information about a re-exported type.
+
 ```typescript
 type ReExportInfo = {
   /** Display name of the component (e.g., "Trigger" from "Accordion.Trigger") */
@@ -390,3 +408,9 @@ type TypesMeta = (
   aliases?: string[];
 };
 ```
+
+## External Type Links
+
+Maps `Type`: `URL` — the docs of a built-in type the page references.
+
+- `Promise`: <https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Promise>

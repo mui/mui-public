@@ -86,7 +86,7 @@ export type LoaderOptions = {
 const functionName = 'Load Precomputed Types';
 
 /**
- * Webpack loader that processes types and precomputes meta.
+ * A webpack loader that processes types and precomputes meta.
  *
  * Finds createTypesMeta calls, loads and processes all component types,
  * then injects the precomputed type meta back into the source.
@@ -212,6 +212,7 @@ export async function loadPrecomputedTypes(
       variantTypeNames: result.variantTypeNames,
       singleComponentName,
       anchorMap: result.anchorMap,
+      externalTypeLinks: result.externalTypeLinks,
     };
 
     // Replace the component reference with an empty object to avoid importing actual component code.

@@ -31,7 +31,7 @@ export type SyncPageIndexBaseOptions = {
   errorIfOutOfDate?: boolean;
   /**
    * Directory for the sha256-validated JSON cache of page indexes. When set, each
-   * index written is also cached at `{cacheDir}/pages-index-v2/{route}.json`, leaving it
+   * index written is also saved to the page-index cache in `cacheDir`, leaving it
    * warm for the next cold `loadServerPageIndex` read.
    * @default undefined (disabled)
    */

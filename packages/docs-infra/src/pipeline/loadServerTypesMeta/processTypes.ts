@@ -8,6 +8,7 @@ import { createOptimizedProgram } from './createOptimizedProgram';
 import { augmentComponentsWithInheritedProps } from './inheritedExternalProps';
 import type { InheritedExternalPropsConfig } from './inheritedExternalProps';
 import { findConstantNamespaces, foldConstantNamespaces } from './constantGroups';
+import { dropTypeOnlyDuplicates } from './dropTypeOnlyDuplicates';
 import { PARSER_OPTIONS } from './constants';
 import { extractJSDocText, isJSDocNodeArray } from './extractJSDocText';
 import { PerformanceTracker } from './performanceTracking';
@@ -381,7 +382,10 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
           // Modules of constants exported as a namespace (`export * as ButtonDataAttributes`)
           // arrive flattened into one export per member; document each as a single group.
           const constantNamespaces = findConstantNamespaces(entrypoint, program);
-          const exports = foldConstantNamespaces(parsed.exports, constantNamespaces);
+          const exports = foldConstantNamespaces(
+            dropTypeOnlyDuplicates(parsed.exports),
+            constantNamespaces,
+          );
 
           // Re-add configured props that the parser dropped because they are
           // inherited from an externally declared type in node_modules

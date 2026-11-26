@@ -26,7 +26,7 @@ import { replacePrecomputeValue } from '../parseCreateFactoryCall/replacePrecomp
 export type LoaderOptions = {};
 
 /**
- * Webpack loader that processes demo client files and precomputes externals.
+ * A webpack loader that processes demo client files and precomputes externals.
  *
  * Finds createDemoClient calls and injects all required externals as imports
  * at the top of the file, then passes them to the function as precompute.externals.
