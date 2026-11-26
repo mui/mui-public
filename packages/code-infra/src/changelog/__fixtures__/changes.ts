@@ -16,11 +16,17 @@ export function createChange({ number, author, ...change }: ChangeFixture) {
     url: `https://github.com/mui/test/pull/${number}`,
     labels: [],
     isBreakingChange: false,
-    pullRequest: number === null ? null : { number, title, body: '' },
+    pullRequest: number === null ? null : { number, title, body: '', openedBy: null },
     author:
       author === null
         ? null
-        : { login: 'octocat', name: null, association: 'community' as const, ...author },
+        : {
+            login: 'octocat',
+            name: null,
+            association: 'community' as const,
+            isBot: false,
+            ...author,
+          },
     createdAt: '2026-01-01T10:00:00Z',
     mergedAt: '2026-01-01T12:00:00Z',
     ...change,

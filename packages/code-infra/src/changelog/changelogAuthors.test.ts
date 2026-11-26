@@ -29,12 +29,99 @@ describe('pull request authors', () => {
       'first-timer',
     ]);
   });
+
+  it('tells bots, whatever they are called', async () => {
+    const github = createGitHub({
+      commits: ['renovate[bot]', 'some-app', 'octocat'].map((login, index) => ({
+        message: `Commit ${index}`,
+        pulls: [{ number: index, login, isBot: login !== 'octocat' }],
+      })),
+    });
+
+    const { changes } = await fetchDummyRelease(github);
+
+    expect(changes.map((change) => change.author?.isBot)).toEqual([true, true, false]);
+    expect(changes.map((change) => change.pullRequest?.openedBy?.isBot)).toEqual([
+      true,
+      true,
+      false,
+    ]);
+  });
+});
+
+describe('Copilot', () => {
+  const COPILOT = { login: 'Copilot', name: null, association: 'community', isBot: false };
+  const REQUESTER = { login: 'member', name: null, association: 'team', isBot: false };
+
+  async function fetchChanges(fixture: GitHubFixture) {
+    const { changes } = await fetchDummyRelease(
+      createGitHub({ responses: { '/orgs/mui/members/member': { status: 204 } }, ...fixture }),
+    );
+    return changes;
+  }
+
+  it('opens pull requests that are credited to who asked for them', async () => {
+    const [change] = await fetchChanges({
+      commits: [
+        {
+          message: 'Add it',
+          pulls: [{ number: 1, login: 'Copilot', assignees: ['member', 'Copilot'] }],
+        },
+      ],
+    });
+
+    expect(change).toMatchObject({ author: REQUESTER, pullRequest: { openedBy: COPILOT } });
+    expect(warnings).toEqual([]);
+  });
+
+  it.each([
+    ['nobody else', ['Copilot']],
+    ['several people', ['member', 'octocat', 'Copilot']],
+  ])('is credited, with a warning, when %s is assigned', async (name, assignees) => {
+    const [change] = await fetchChanges({
+      commits: [{ message: 'Add it', pulls: [{ number: 1, login: 'Copilot', assignees }] }],
+    });
+
+    expect(change).toMatchObject({ author: COPILOT, pullRequest: { openedBy: COPILOT } });
+    expect(warnings).toEqual([
+      "#1 is by Copilot, but who it worked for can't be determined. Copilot is credited instead.",
+    ]);
+  });
+
+  it('is the only one that assignees are credited for', async () => {
+    const changes = await fetchChanges({
+      commits: [
+        { message: 'Fix it', pulls: [{ number: 1, login: 'octocat', assignees: ['member'] }] },
+        {
+          message: 'Bump it',
+          pulls: [{ number: 2, login: 'renovate[bot]', assignees: ['member'] }],
+        },
+      ],
+    });
+
+    expect(changes.map((change) => change.author?.login)).toEqual(['octocat', 'renovate[bot]']);
+  });
+
+  it.each(['github-actions[bot]', 'contributor'])(
+    'credits who asked for the original of a cherry-pick by %s',
+    async (login) => {
+      const [change] = await fetchChanges({
+        commits: [
+          { message: 'Add it (#1)', pulls: [{ number: 1, login, body: 'Cherry-pick of #10' }] },
+        ],
+        pulls: [{ number: 10, login: 'Copilot', assignees: ['member', 'Copilot'] }],
+      });
+
+      expect(change.author).toEqual(REQUESTER);
+      expect(change.pullRequest?.openedBy?.login).toBe(login);
+    },
+  );
 });
 
 describe('cherry-pick authors', () => {
   const ORIGINAL: PullFixture = { number: 10, login: 'octocat' };
-  const BOT = { login: 'github-actions[bot]', name: null, association: 'community' };
-  const OCTOCAT = { login: 'octocat', name: null, association: 'community' };
+  const BOT = { login: 'github-actions[bot]', name: null, association: 'community', isBot: true };
+  const OCTOCAT = { login: 'octocat', name: null, association: 'community', isBot: false };
 
   async function changeOf(pull: Partial<PullFixture>, pulls: PullFixture[] = [ORIGINAL]) {
     const github = createGitHub({
@@ -56,7 +143,11 @@ describe('cherry-pick authors', () => {
       labels: ['cherry-pick'],
     });
 
-    expect(change).toMatchObject({ title: 'Fix it (#9)', author: OCTOCAT });
+    expect(change).toMatchObject({
+      title: 'Fix it (#9)',
+      author: OCTOCAT,
+      pullRequest: { openedBy: BOT },
+    });
     expect(warnings).toEqual([]);
   });
 
@@ -113,7 +204,7 @@ describe('cherry-pick authors', () => {
 
   describe('opened by a person', () => {
     const PERSON: Partial<PullFixture> = { login: 'maintainer', association: 'MEMBER' };
-    const MAINTAINER = { login: 'maintainer', name: null, association: 'team' };
+    const MAINTAINER = { login: 'maintainer', name: null, association: 'team', isBot: false };
 
     it('credits the original author', async () => {
       const change = await changeOf({
@@ -171,15 +262,19 @@ describe('direct commit authors', () => {
         { message: 'Second', login: 'outsider' },
         { message: 'Third', login: 'member' },
         { message: 'No account' },
+        { message: 'Bot', login: 'renovate[bot]' },
+        { message: 'Copilot', login: 'Copilot' },
       ],
       responses: { '/orgs/mui/members/member': { status: 204 } },
     });
 
     expect(authors).toMatchObject([
-      { login: 'member', association: 'team' },
-      { login: 'outsider', association: 'community' },
-      { login: 'member', association: 'team' },
-      { login: null, name: 'Git Author', association: 'community' },
+      { login: 'member', association: 'team', isBot: false },
+      { login: 'outsider', association: 'community', isBot: false },
+      { login: 'member', association: 'team', isBot: false },
+      { login: null, name: 'Git Author', association: 'community', isBot: false },
+      { login: 'renovate[bot]', association: 'community', isBot: true },
+      { login: 'Copilot', association: 'community', isBot: false },
     ]);
     expect(requests.filter((path) => path.startsWith('/orgs/'))).toHaveLength(2);
     expect(warnings).toEqual([]);
@@ -207,6 +302,59 @@ describe('direct commit authors', () => {
     expect(authors).toMatchObject([{ association: 'community' }, { association: 'community' }]);
     expect(warnings).toEqual([
       expect.stringMatching(/^The token can't read the private members of mui\./),
+    ]);
+  });
+});
+
+describe('excluded bots', () => {
+  const github = () =>
+    createGitHub({
+      commits: [
+        { message: 'Bump it', pulls: [{ number: 1, login: 'renovate[bot]' }] },
+        {
+          message: 'Bump it on v1',
+          pulls: [{ number: 2, login: 'github-actions[bot]', body: 'Cherry-pick of #10' }],
+        },
+        { message: 'Fix it', pulls: [{ number: 3, login: 'octocat' }] },
+        {
+          message: 'Fix it on v1',
+          pulls: [{ number: 4, login: 'backport[bot]', body: 'Cherry-pick of #11' }],
+        },
+        { message: 'Lock it', login: 'code-infra-renovate[bot]' },
+        { message: 'Tidy it', login: 'octocat' },
+      ],
+      pulls: [
+        { number: 10, login: 'code-infra-renovate[bot]' },
+        { number: 11, login: 'octocat' },
+      ],
+    });
+
+  async function fetchTitles(excludeBots?: string[]) {
+    const { changes } = await fetchDummyRelease(github(), {
+      includeDirectCommits: true,
+      excludeBots,
+    });
+    return changes.map((change) => change.title);
+  }
+
+  it('are Renovate by default', async () => {
+    expect(await fetchTitles(undefined)).toEqual(['Pull request 3', 'Pull request 4', 'Tidy it']);
+  });
+
+  it('leave out what they authored or opened', async () => {
+    expect(await fetchTitles(['app/renovate', 'code-infra-renovate[bot]', 'app/backport'])).toEqual(
+      ['Pull request 3', 'Tidy it'],
+    );
+  });
+
+  it('are only bots', async () => {
+    expect(await fetchTitles(['octocat'])).toEqual([
+      'Pull request 1',
+      'Pull request 2',
+      'Pull request 3',
+      'Pull request 4',
+      'Lock it',
+      'Tidy it',
     ]);
   });
 });

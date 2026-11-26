@@ -7,6 +7,10 @@ export interface PullFixture {
   title?: string;
   body?: string;
   login?: string;
+  /** By default, when the login is the one of a bot. */
+  isBot?: boolean;
+  /** Logins. */
+  assignees?: string[];
   association?: string;
   labels?: string[];
   mergedAt?: string | null;
@@ -60,13 +64,21 @@ export function shaOf(index: number) {
   return String(index + 1).padStart(40, '0');
 }
 
+function accountType(login: string, isBot = login === 'Copilot' || login.endsWith('[bot]')) {
+  return isBot ? 'Bot' : 'User';
+}
+
 function toPull(pull: PullFixture, sha?: string) {
   const login = pull.login ?? 'contributor';
   return {
     number: pull.number,
     title: pull.title ?? `Pull request ${pull.number}`,
     body: pull.body ?? null,
-    user: { login, type: login.endsWith('[bot]') ? 'Bot' : 'User' },
+    user: { login, type: accountType(login, pull.isBot) },
+    assignees: (pull.assignees ?? []).map((assignee) => ({
+      login: assignee,
+      type: accountType(assignee),
+    })),
     author_association: pull.association ?? 'CONTRIBUTOR',
     labels: (pull.labels ?? []).map((name) => ({ name })),
     html_url: `https://github.com/${pull.repository ?? 'mui/test'}/pull/${pull.number}`,
@@ -118,7 +130,7 @@ export function createGitHub(fixture: GitHubFixture = {}): DummyGitHub {
           commits: commits.slice((page - 1) * perPage, page * perPage).map(({ sha, ...entry }) => ({
             sha,
             html_url: `https://github.com/mui/test/commit/${sha}`,
-            author: entry.login ? { login: entry.login, type: 'User' } : null,
+            author: entry.login ? { login: entry.login, type: accountType(entry.login) } : null,
             commit: {
               message: entry.message,
               author: { name: 'Git Author', date: '2026-01-01T00:00:00Z' },

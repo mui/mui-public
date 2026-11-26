@@ -35,6 +35,8 @@ console.log(`## ${version}\n\nChanges since ${previous.ref}:\n\n${lines.join('\n
 
 Run inside a checkout, every option has a default: the release is `HEAD`, and it starts at the closest version tag behind it. Commits without a pull request are left out unless `includeDirectCommits` is set.
 
+Changes of Renovate are left out: a change is left out when one of the apps in `excludeBots`, by default `['app/renovate', 'app/code-infra-renovate']`, authored it or opened its pull request. Bots are named as in GitHub search, such as `app/renovate`, or by login, such as `renovate[bot]`. `[]` keeps them all. To leave out changes of all bots, filter on `change.author?.isBot`. Copilot isn't one: a pull request it opened has the person who asked for it as the author. To leave those out too, filter on `change.pullRequest?.openedBy?.login === 'Copilot'`. A cherry-pick that a bot opened has the original author: filter on `change.pullRequest?.openedBy?.isBot` to leave it out too.
+
 ### Changelog code
 
 A repository formats its changelog with its own code, made of the pieces below. Keep it a function of the data:

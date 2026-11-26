@@ -463,6 +463,10 @@ export interface ChangelogAuthor {
    */
   name: string | null;
   association: 'team' | 'community' | 'first-timer';
+  /**
+   * Whether it is a bot that works on its own. Not for Copilot, which works for a person.
+   */
+  isBot: boolean;
 }
 
 /**
@@ -488,7 +492,16 @@ export interface ChangelogChange {
    * Whether the pull request has the `breaking` or the `breaking change` label.
    */
   isBreakingChange: boolean;
-  pullRequest: { number: number; title: string; body: string } | null;
+  pullRequest: {
+    number: number;
+    title: string;
+    body: string;
+    /**
+     * Not necessarily the author of the change: a cherry-pick can be opened by a bot, and Copilot
+     * works for a person. `null` when the GitHub account was deleted.
+     */
+    openedBy: ChangelogAuthor | null;
+  } | null;
   /**
    * `null` when the GitHub account was deleted.
    */
@@ -579,6 +592,13 @@ export interface FetchChangelogDataOptions {
    * @default false
    */
   includeDirectCommits?: boolean;
+  /**
+   * Bots whose changes are left out, as `app/<slug>` like in GitHub search, or as their login, such
+   * as `renovate[bot]`. A change is left out when its author or the opener of its pull request is
+   * one of them. Pass `[]` to keep all.
+   * @default ['app/renovate', 'app/code-infra-renovate']
+   */
+  excludeBots?: string[];
   /**
    * GitHub client. Defaults to one authenticated as the developer running it.
    */
