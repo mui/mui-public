@@ -73,7 +73,7 @@ async function collectData(options, controller) {
     previousSha,
     releaseSha,
     includeDirectCommits: options.includeDirectCommits ?? false,
-    excludeBots: options.excludeBots ?? [],
+    excludeBots: options.excludeBots ?? ['app/renovate', 'app/code-infra-renovate'],
     controller,
   });
 

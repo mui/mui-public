@@ -321,7 +321,7 @@ function stripTrailingReferences(title, references, stripCredits) {
  * @param {string} options.previousSha
  * @param {string} options.releaseSha
  * @param {boolean} options.includeDirectCommits
- * @param {string[]} options.excludeBots - Logins whose changes are left out
+ * @param {string[]} options.excludeBots - Apps whose changes are left out, as `app/<slug>`
  * @param {AbortController} options.controller - Aborted when a request fails
  * @returns {Promise<ChangelogChange[]>}
  */
@@ -335,9 +335,18 @@ export async function fetchChangelogChanges({
   controller,
 }) {
   const { signal } = controller;
-  const excluded = new Set(excludeBots);
-  const isExcluded = (/** @type {{ login?: string | null } | null | undefined} */ account) =>
-    account?.login != null && excluded.has(account.login);
+  const excluded = new Set(
+    excludeBots.map((app) => {
+      const [, slug] = /^app\/([\w-]+)$/.exec(app) ?? [];
+      if (!slug) {
+        throw new Error(`\`excludeBots\` takes apps as \`app/<slug>\`, not \`${app}\`.`);
+      }
+      return `${slug}[bot]`;
+    }),
+  );
+  const isExcludedAccount = (
+    /** @type {{ login?: string, type?: string } | null | undefined} */ account,
+  ) => account?.type === 'Bot' && excluded.has(account.login ?? '');
   const location = { ...repository, request: { signal } };
   const authors = createAuthorResolver({ octokit, repository, signal });
 
@@ -412,11 +421,11 @@ export async function fetchChangelogChanges({
 
     const pull = await findPullRequest(sha, subject);
     if (pull) {
-      if (isExcluded(pull.user)) {
+      if (isExcludedAccount(pull.user)) {
         return null;
       }
       const { author, openedBy, references } = await authors.fromPullRequest(pull);
-      if (isExcluded(author)) {
+      if (author?.isBot && excluded.has(author.login ?? '')) {
         return null;
       }
       const ownReference = `#${pull.number}`;
@@ -441,7 +450,7 @@ export async function fetchChangelogChanges({
       };
     }
 
-    if (!includeDirectCommits || isExcluded(commit.author)) {
+    if (!includeDirectCommits || isExcludedAccount(commit.author)) {
       return null;
     }
     return {

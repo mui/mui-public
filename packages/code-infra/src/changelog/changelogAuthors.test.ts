@@ -307,8 +307,8 @@ describe('direct commit authors', () => {
 });
 
 describe('excluded bots', () => {
-  it('leave out what they authored or opened', async () => {
-    const github = createGitHub({
+  const github = () =>
+    createGitHub({
       commits: [
         { message: 'Bump it', pulls: [{ number: 1, login: 'renovate[bot]' }] },
         {
@@ -320,20 +320,37 @@ describe('excluded bots', () => {
           message: 'Fix it on v1',
           pulls: [{ number: 4, login: 'backport[bot]', body: 'Cherry-pick of #11' }],
         },
-        { message: 'Lock it', login: 'renovate[bot]' },
+        { message: 'Lock it', login: 'code-infra-renovate[bot]' },
         { message: 'Tidy it', login: 'octocat' },
       ],
       pulls: [
-        { number: 10, login: 'renovate[bot]' },
+        { number: 10, login: 'code-infra-renovate[bot]' },
         { number: 11, login: 'octocat' },
       ],
     });
 
-    const { changes } = await fetchDummyRelease(github, {
+  async function fetchTitles(excludeBots?: string[]) {
+    const { changes } = await fetchDummyRelease(github(), {
       includeDirectCommits: true,
-      excludeBots: ['renovate[bot]', 'backport[bot]'],
+      excludeBots,
     });
+    return changes.map((change) => change.title);
+  }
 
-    expect(changes.map((change) => change.title)).toEqual(['Pull request 3', 'Tidy it']);
+  it('are Renovate by default', async () => {
+    expect(await fetchTitles(undefined)).toEqual(['Pull request 3', 'Pull request 4', 'Tidy it']);
+  });
+
+  it('leave out the apps that authored or opened a change', async () => {
+    expect(await fetchTitles(['app/renovate', 'app/code-infra-renovate', 'app/backport'])).toEqual([
+      'Pull request 3',
+      'Tidy it',
+    ]);
+  });
+
+  it('are apps', async () => {
+    await expect(fetchTitles(['renovate[bot]'])).rejects.toThrow(
+      '`excludeBots` takes apps as `app/<slug>`, not `renovate[bot]`.',
+    );
   });
 });

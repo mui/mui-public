@@ -21,6 +21,8 @@ export async function fetchDummyRelease(
     repo: 'test',
     lastRelease: 'v1.0.0',
     release: 'v1.1.0',
+    // Tests use Renovate as their bot.
+    excludeBots: [],
     ...options,
   });
 }
