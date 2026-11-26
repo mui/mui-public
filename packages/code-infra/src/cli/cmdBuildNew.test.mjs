@@ -18,7 +18,7 @@ async function buildPackage(sources) {
       name: '@acme/pkg',
       version: '1.0.0',
       type: 'module',
-      exports: { '.': './src/index.js' },
+      exports: { '.': './src/index.ts' },
       publishConfig: { directory: 'build' },
     }),
     ...Object.fromEntries(
@@ -42,23 +42,28 @@ async function buildPackage(sources) {
 }
 
 describe('build-new', () => {
-  it('keeps single-use constants assigned, as Next.js font loaders require', async () => {
+  it('keeps every Next.js font loader call assigned to a const', async () => {
+    // Mirrors `nextFonts` in `@mui/internal-core-docs`. Next.js rejects a font loader call that
+    // isn't assigned to a const, and `minify: 'dce-only'` inlines single-use ones like `deferred`.
     const outDir = await buildPackage({
-      'src/index.js': [
+      'src/index.ts': [
+        "import { Inter } from 'next/font/google';",
         "import localFont from 'next/font/local';",
-        "const deferred = localFont({ src: './font.woff2' });",
-        'export const fonts = [deferred];',
+        "export const inter = Inter({ subsets: ['latin'] });",
+        "export const regular = localFont({ src: './fonts/Regular.woff2' });",
+        "const deferred = localFont({ src: './fonts/Bold.woff2', preload: false });",
+        'export const fonts = [regular, deferred, inter];',
       ].join('\n'),
     });
 
     const esm = await fs.readFile(path.join(outDir, 'index.js'), 'utf8');
-    expect(esm).toMatch(/const deferred = localFont\(/);
-    expect(esm).toMatch(/const fonts = \[deferred\]/);
+    const calls = [...esm.matchAll(/^(.*)\b(?:localFont|Inter)\(/gm)].map(([, before]) => before);
+    expect(calls).toEqual(['const inter = ', 'const regular = ', 'const deferred = ']);
   }, 60_000);
 
   it('starts CJS files with "use strict" before other directives', async () => {
     const outDir = await buildPackage({
-      'src/index.js': ["'use client';", 'export const value = 1;'].join('\n'),
+      'src/index.ts': ["'use client';", 'export const value = 1;'].join('\n'),
     });
 
     const cjs = await fs.readFile(path.join(outDir, 'index.cjs'), 'utf8');
