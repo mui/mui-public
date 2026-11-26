@@ -46,7 +46,7 @@ export function useVisitorScope() {
   return {
     login,
     ready: !isPending,
-    scope: (queryKey: readonly unknown[]): QueryKey => [login ?? 'anonymous', ...queryKey],
+    scope: (queryKey: readonly unknown[]): QueryKey => [login ?? null, ...queryKey],
   };
 }
 

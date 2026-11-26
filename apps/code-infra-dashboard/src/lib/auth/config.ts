@@ -10,6 +10,9 @@ export const OAUTH_STATE_MAX_AGE_SECONDS = 10 * 60;
 
 export const GITHUB_AUTHORIZE_URL = 'https://github.com/login/oauth/authorize';
 
+/** For every auth response: they carry the visitor's identity or set their cookies. */
+export const NO_STORE = { 'Cache-Control': 'no-store' } as const;
+
 /** Shared by the session and OAuth state cookies. */
 export const BASE_COOKIE_OPTIONS = {
   httpOnly: true,

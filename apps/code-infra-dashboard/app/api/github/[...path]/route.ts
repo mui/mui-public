@@ -66,14 +66,14 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pat
     );
   }
 
-  const session = await readSession();
-  if (!session) {
-    return NextResponse.json({ message: 'Not signed in to GitHub.' }, { status: 401 });
-  }
-
   const { path } = await context.params;
   if (path.some((segment) => segment === '..' || segment === '.')) {
     return NextResponse.json({ message: 'Invalid path.' }, { status: 400 });
+  }
+
+  const session = await readSession();
+  if (!session) {
+    return NextResponse.json({ message: 'Not signed in to GitHub.' }, { status: 401 });
   }
 
   // Assigned through the pathname setter, which can't change the host: resolving

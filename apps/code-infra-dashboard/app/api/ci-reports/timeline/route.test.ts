@@ -28,4 +28,13 @@ describe('GET /api/ci-reports/timeline', () => {
     expect(await response.json()).toEqual({ error: 'Unknown repository' });
     expect(response.headers.get('cache-control')).toBe('no-store');
   });
+
+  it("answers a repository the dashboard doesn't know the same way", async () => {
+    stubUnconfiguredDeploy();
+
+    const response = await GET(timelineRequest('mui/not-a-dashboard-repository'));
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ error: 'Unknown repository' });
+  });
 });

@@ -5,6 +5,7 @@ import { exchangeWebFlowCode } from '@octokit/oauth-methods';
 import { Octokit } from '@octokit/rest';
 import {
   OAUTH_STATE_COOKIE,
+  NO_STORE,
   OAUTH_STATE_COOKIE_PATH,
   REDIRECT_URI,
   getOAuthClient,
@@ -86,10 +87,12 @@ export async function GET(request: NextRequest) {
   const state = request.nextUrl.searchParams.get('state');
   const expectedState = stored.get('state');
   if (!state || !expectedState || !matchesState(state, expectedState)) {
-    return NextResponse.redirect(resolveReturnTo(null));
+    return NextResponse.redirect(resolveReturnTo(null), { headers: NO_STORE });
   }
 
-  const response = NextResponse.redirect(resolveReturnTo(stored.get('returnTo')));
+  const response = NextResponse.redirect(resolveReturnTo(stored.get('returnTo')), {
+    headers: NO_STORE,
+  });
   response.cookies.delete({ name: OAUTH_STATE_COOKIE, path: OAUTH_STATE_COOKIE_PATH });
   if (!code) {
     return response;

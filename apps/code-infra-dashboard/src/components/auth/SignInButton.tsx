@@ -57,7 +57,15 @@ export default function SignInButton() {
           <Avatar src={session.avatarUrl} alt={session.login} sx={{ width: 24, height: 24 }} />
         </IconButton>
       </Tooltip>
-      <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
+      <Menu
+        anchorEl={anchorEl}
+        // The button it was opened from is gone if the session changed while it was open.
+        open={Boolean(anchorEl?.isConnected)}
+        onClose={() => {
+          setAnchorEl(null);
+          setSignOutFailed(false);
+        }}
+      >
         <MenuItem
           onClick={async () => {
             setSignOutFailed(false);

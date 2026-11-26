@@ -6,6 +6,7 @@ import {
   OAUTH_STATE_COOKIE,
   OAUTH_STATE_COOKIE_PATH,
   OAUTH_STATE_MAX_AGE_SECONDS,
+  NO_STORE,
   REDIRECT_URI,
   getOAuthClient,
 } from '@/lib/auth/config';
@@ -29,7 +30,7 @@ export async function GET(request: NextRequest) {
   authorizeUrl.searchParams.set('redirect_uri', REDIRECT_URI);
   authorizeUrl.searchParams.set('state', state);
 
-  const response = NextResponse.redirect(authorizeUrl);
+  const response = NextResponse.redirect(authorizeUrl, { headers: NO_STORE });
 
   // The return path is stored as given: the callback resolves it, and has to
   // treat whatever arrives in this cookie as untrusted regardless.

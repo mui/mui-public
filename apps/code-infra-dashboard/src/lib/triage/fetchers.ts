@@ -8,6 +8,7 @@ import {
   LABEL_ON_HOLD,
   LABEL_DOCS_FEEDBACK,
 } from '../../constants';
+import { describeGitHubError } from '../auth/describeGitHubError';
 import { getOctokit } from '../github';
 
 const PUBLIC_REPOS = MUI_KPI_REPOS.filter((r) => r.isPublic);
@@ -96,6 +97,23 @@ interface GqlPrRepo {
 
 const FILTER_OUT_LABELS = [LABEL_PR_OUT_OF_DATE, LABEL_PR_NEEDS_REVISION];
 
+/**
+ * The private repositories a visitor may read aren't necessarily ones the server's token can.
+ * GitHub then answers with the readable repositories' data plus an error for each other one, which
+ * Octokit throws: keep the data, the missing repositories just have no rows.
+ */
+async function graphqlAllowingMissingRepos<T>(query: string): Promise<T> {
+  try {
+    return await getOctokit().graphql<T>(query);
+  } catch (error) {
+    if (error instanceof Error && 'data' in error && error.data) {
+      console.warn(`Triage: some repositories are unreadable: ${describeGitHubError(error)}`);
+      return error.data as T;
+    }
+    throw error;
+  }
+}
+
 function repoAlias(name: string): string {
   return name.replace(/-/g, '_');
 }
@@ -114,7 +132,7 @@ export async function fetchPrsWithoutLabels(repos: Repository[]): Promise<Triage
   const query = `{ ${repoQueries} }`;
 
   const [result, mergedData] = await Promise.all([
-    getOctokit().graphql<Record<string, GqlPrRepo>>(query),
+    graphqlAllowingMissingRepos<Record<string, GqlPrRepo | null>>(query),
     getOctokit().rest.search.issuesAndPullRequests({
       q: `is:pull-request no:label is:merged ${allRepoFilter}`,
       sort: 'updated',
@@ -122,7 +140,7 @@ export async function fetchPrsWithoutLabels(repos: Repository[]): Promise<Triage
     }),
   ]);
 
-  const allPrs = Object.values(result).flatMap((repo) => repo.pullRequests.nodes);
+  const allPrs = Object.values(result).flatMap((repo) => repo?.pullRequests.nodes ?? []);
 
   const openPrs = allPrs
     .filter((pr) => !pr.isDraft)
