@@ -1,4 +1,4 @@
-import { QueryCache, QueryClient } from '@tanstack/react-query';
+import { QueryCache, QueryClient, hashKey } from '@tanstack/react-query';
 import { sessionQueryOptions } from '../hooks/useSession';
 
 /**
@@ -18,3 +18,37 @@ export const queryClient: QueryClient = new QueryClient({
     },
   }),
 });
+
+/**
+ * Tabs share the session cookie but each keeps its own copy of the session, so a
+ * tab whose session read finds someone else signed in (or no one) tells the
+ * others, which read theirs again. Without it, a tab left open after signing out
+ * elsewhere keeps its signed-in view, private data included, until its copy goes
+ * stale. A tab's first read always announces itself: it may be the page a sign-in
+ * just landed on.
+ */
+if (typeof window !== 'undefined' && typeof BroadcastChannel !== 'undefined') {
+  const sessionChannel = new BroadcastChannel('dashboard-session');
+  const sessionHash = hashKey(sessionQueryOptions.queryKey);
+  let announcedLogin: string | null | undefined;
+
+  sessionChannel.addEventListener('message', () => {
+    queryClient.invalidateQueries({ queryKey: sessionQueryOptions.queryKey });
+  });
+
+  queryClient.getQueryCache().subscribe((event) => {
+    if (
+      event.type !== 'updated' ||
+      event.action.type !== 'success' ||
+      event.query.queryHash !== sessionHash
+    ) {
+      return;
+    }
+    const session = queryClient.getQueryData(sessionQueryOptions.queryKey);
+    const login = session?.signedIn ? (session.login ?? null) : null;
+    if (login !== announcedLogin) {
+      announcedLogin = login;
+      sessionChannel.postMessage(null);
+    }
+  });
+}

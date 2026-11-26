@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { vi, describe, it, expect, afterEach } from 'vitest';
 import { Octokit } from '@octokit/rest';
 import { sessionQueryOptions } from '../hooks/useSession';
@@ -51,5 +52,49 @@ describe('queryClient', () => {
     await runFailingQuery(octokitAnswering(404));
 
     expect(queryClient.getQueryState(sessionQueryOptions.queryKey)?.isInvalidated).toBe(false);
+  });
+});
+
+describe('queryClient across tabs', () => {
+  /** Another tab of the dashboard, listening on the same channel. */
+  function otherTab() {
+    const channel = new BroadcastChannel('dashboard-session');
+    const messages: unknown[] = [];
+    channel.addEventListener('message', (event) => messages.push(event.data));
+    return { channel, messages };
+  }
+
+  async function readSession(session: object) {
+    vi.stubGlobal('fetch', async () => Response.json(session));
+    await queryClient.fetchQuery({ ...sessionQueryOptions, staleTime: 0 });
+    // BroadcastChannel delivers on a later task.
+    await new Promise((resolve) => {
+      setTimeout(resolve, 20);
+    });
+  }
+
+  it('tells the other tabs when the session changes, and only then', async () => {
+    const tab = otherTab();
+
+    // A login no earlier test used, so the first read is a change.
+    await readSession({ available: true, signedIn: true, login: 'hubot' });
+    await readSession({ available: true, signedIn: true, login: 'hubot' });
+    await readSession({ available: true, signedIn: false });
+
+    expect(tab.messages).toHaveLength(2);
+    tab.channel.close();
+  });
+
+  it('reads the session again when another tab announces a change', async () => {
+    const tab = otherTab();
+    seedSignedInSession();
+
+    tab.channel.postMessage(null);
+    await new Promise((resolve) => {
+      setTimeout(resolve, 20);
+    });
+
+    expect(queryClient.getQueryState(sessionQueryOptions.queryKey)?.isInvalidated).toBe(true);
+    tab.channel.close();
   });
 });

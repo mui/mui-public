@@ -62,10 +62,14 @@ async function exchangeCodeForSession(
 }
 
 /**
- * Every outcome sends the user back to where they started and clears the state
- * cookie. Only a matching state and a successful code exchange also sign them in;
- * cancelling on GitHub's consent screen, a reloaded or forged callback, or a
- * failed exchange all leave them as they were.
+ * Every outcome sends the user back to where they started. Only a matching state
+ * and a successful code exchange also sign them in; cancelling on GitHub's consent
+ * screen, a reloaded or forged callback, or a failed exchange all leave them as
+ * they were.
+ *
+ * The state cookie is only cleared once its state is used: a sign-in started in a
+ * second tab replaces the cookie, and the first tab's callback then mismatches. If
+ * that cleared it, the second tab's sign-in would fail too.
  */
 export async function GET(request: NextRequest) {
   const client = getOAuthClient();
@@ -79,7 +83,6 @@ export async function GET(request: NextRequest) {
   const stored = new URLSearchParams(request.cookies.get(OAUTH_STATE_COOKIE)?.value);
 
   const response = NextResponse.redirect(resolveReturnTo(stored.get('returnTo')));
-  response.cookies.delete({ name: OAUTH_STATE_COOKIE, path: OAUTH_STATE_COOKIE_PATH });
 
   const code = request.nextUrl.searchParams.get('code');
   const state = request.nextUrl.searchParams.get('state');
@@ -88,6 +91,7 @@ export async function GET(request: NextRequest) {
     return response;
   }
 
+  response.cookies.delete({ name: OAUTH_STATE_COOKIE, path: OAUTH_STATE_COOKIE_PATH });
   const signedIn = await exchangeCodeForSession(client, code);
   if (signedIn) {
     await writeSession(signedIn.session, signedIn.tokenExpiresAt);

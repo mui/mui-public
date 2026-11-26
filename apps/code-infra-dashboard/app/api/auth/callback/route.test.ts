@@ -61,4 +61,22 @@ describe('GET /api/auth/callback', () => {
 
     expect(await returnFromGitHub(returnTo)).toBe(dashboardRoot);
   });
+
+  // A sign-in started in a second tab replaces the state cookie, so the first tab
+  // returns with a state that no longer matches. Clearing the cookie then would make
+  // the second tab's sign-in fail as well.
+  it('keeps the state cookie for the sign-in it belongs to on a mismatch', async () => {
+    stubConfiguredDeploy();
+    const stored = new URLSearchParams({ state: 'second-tab-state' });
+    const url = new URL('/api/auth/callback', DASHBOARD_ORIGIN);
+    url.searchParams.set('code', 'a-code');
+    url.searchParams.set('state', 'first-tab-state');
+    const request = new NextRequest(url, {
+      headers: { cookie: `mui_dashboard_oauth_state=${encodeURIComponent(stored.toString())}` },
+    });
+
+    const response = await GET(request);
+
+    expect(response.headers.get('set-cookie')).toBe(null);
+  });
 });
