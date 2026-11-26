@@ -384,7 +384,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       root: SOURCE_DIR,
       outDir,
       clean: true,
-      // Minification is the consumer's concern; even the default `'dce-only'` rewrites code.
+      // Minification is the consumer's concern.
       minify: false,
       format: Object.fromEntries(
         bundles.map((bundle) => [FORMATS[bundle], { target: getTarget(cwd, bundle) }]),
