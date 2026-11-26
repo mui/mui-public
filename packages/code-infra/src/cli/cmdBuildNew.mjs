@@ -384,8 +384,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       root: SOURCE_DIR,
       outDir,
       clean: true,
-      // The default `'dce-only'` inlines single-use constants, but Next.js font loaders must stay
-      // assigned to one.
+      // Minification is the consumer's concern; even the default `'dce-only'` rewrites code.
       minify: false,
       format: Object.fromEntries(
         bundles.map((bundle) => [FORMATS[bundle], { target: getTarget(cwd, bundle) }]),
