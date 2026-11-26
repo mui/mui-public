@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type * as tae from '@mui/internal-typescript-api-extractor';
 import { formatType, prettyFormatType } from './formatType';
-import { formatProperties, formatDetailedType } from './format';
 import { parseTestSources } from './parseTestSources';
 import { isObjectType } from './typeGuards';
 import type { ExternalTypesCollector } from './externalTypes';
@@ -13,7 +12,7 @@ describe('formatType', () => {
       intrinsic: 'string',
     } as any;
 
-    expect(formatType(stringType, { exportNames: [], typeNameMap: {} })).toBe('string');
+    expect(formatType(stringType, { exportNames: [] })).toBe('string');
   });
 
   it('should format literal types', () => {
@@ -22,7 +21,7 @@ describe('formatType', () => {
       value: '"test"',
     } as any;
 
-    expect(formatType(literalType, { exportNames: [], typeNameMap: {} })).toBe("'test'");
+    expect(formatType(literalType, { exportNames: [] })).toBe("'test'");
   });
 
   it('should format array types', () => {
@@ -34,7 +33,7 @@ describe('formatType', () => {
       } as any,
     } as any;
 
-    expect(formatType(arrayType, { exportNames: [], typeNameMap: {} })).toBe('string[]');
+    expect(formatType(arrayType, { exportNames: [] })).toBe('string[]');
   });
 
   it('should format array types with complex elements', () => {
@@ -49,7 +48,7 @@ describe('formatType', () => {
       } as any,
     } as any;
 
-    expect(formatType(arrayType, { exportNames: [], typeNameMap: {} })).toBe('(string | number)[]');
+    expect(formatType(arrayType, { exportNames: [] })).toBe('(string | number)[]');
   });
 
   it('should format union types', () => {
@@ -61,7 +60,7 @@ describe('formatType', () => {
       ],
     } as any;
 
-    expect(formatType(unionType, { exportNames: [], typeNameMap: {} })).toBe('string | number');
+    expect(formatType(unionType, { exportNames: [] })).toBe('string | number');
   });
 
   it('should use typeName for named union types instead of expanding', () => {
@@ -76,7 +75,7 @@ describe('formatType', () => {
     } as any;
 
     // Should return the type alias name, not the expanded union
-    expect(formatType(unionType, { exportNames: [], typeNameMap: {} })).toBe('StoreAtMode');
+    expect(formatType(unionType, { exportNames: [] })).toBe('StoreAtMode');
   });
 
   it('should use typeName for named intersection types instead of expanding', () => {
@@ -100,9 +99,7 @@ describe('formatType', () => {
     } as any;
 
     // Should return the type alias name, not the expanded intersection
-    expect(formatType(intersectionType, { exportNames: [], typeNameMap: {} })).toBe(
-      'CombinedProps',
-    );
+    expect(formatType(intersectionType, { exportNames: [] })).toBe('CombinedProps');
   });
 
   it('should remove undefined from union types when requested', () => {
@@ -114,10 +111,8 @@ describe('formatType', () => {
       ],
     } as any;
 
-    expect(formatType(unionType, { removeUndefined: true, exportNames: [], typeNameMap: {} })).toBe(
-      'string',
-    );
-    expect(formatType(unionType, { exportNames: [], typeNameMap: {} })).toBe('string | undefined');
+    expect(formatType(unionType, { removeUndefined: true, exportNames: [] })).toBe('string');
+    expect(formatType(unionType, { exportNames: [] })).toBe('string | undefined');
   });
 
   it('should format intersection types', () => {
@@ -147,9 +142,7 @@ describe('formatType', () => {
       ],
     } as any;
 
-    expect(formatType(intersectionType, { exportNames: [], typeNameMap: {} })).toBe(
-      '{ a: string; b: number }',
-    );
+    expect(formatType(intersectionType, { exportNames: [] })).toBe('{ a: string; b: number }');
   });
 
   it('should format object types when expanded', () => {
@@ -169,7 +162,7 @@ describe('formatType', () => {
       ],
     } as any;
 
-    expect(formatType(objectType, { expandObjects: true, exportNames: [], typeNameMap: {} })).toBe(
+    expect(formatType(objectType, { expandObjects: true, exportNames: [] })).toBe(
       '{ name: string; age?: number }',
     );
   });
@@ -184,7 +177,7 @@ describe('formatType', () => {
       },
     } as any;
 
-    expect(formatType(objectType, { expandObjects: true, exportNames: [], typeNameMap: {} })).toBe(
+    expect(formatType(objectType, { expandObjects: true, exportNames: [] })).toBe(
       '{ [key: string]: number }',
     );
   });
@@ -200,7 +193,7 @@ describe('formatType', () => {
       },
     } as any;
 
-    expect(formatType(objectType, { expandObjects: true, exportNames: [], typeNameMap: {} })).toBe(
+    expect(formatType(objectType, { expandObjects: true, exportNames: [] })).toBe(
       '{ [fileName: string]: string }',
     );
   });
@@ -222,7 +215,7 @@ describe('formatType', () => {
       },
     } as any;
 
-    expect(formatType(objectType, { expandObjects: true, exportNames: [], typeNameMap: {} })).toBe(
+    expect(formatType(objectType, { expandObjects: true, exportNames: [] })).toBe(
       '{ [customKey: string]: boolean; name: string }',
     );
   });
@@ -238,7 +231,7 @@ describe('formatType', () => {
       },
     } as any;
 
-    expect(formatType(objectType, { expandObjects: true, exportNames: [], typeNameMap: {} })).toBe(
+    expect(formatType(objectType, { expandObjects: true, exportNames: [] })).toBe(
       '{ [index: number]: string }',
     );
   });
@@ -252,7 +245,7 @@ describe('formatType', () => {
       ],
     } as any;
 
-    expect(formatType(tupleType, { exportNames: [], typeNameMap: {} })).toBe('[string, number]');
+    expect(formatType(tupleType, { exportNames: [] })).toBe('[string, number]');
   });
 
   it('should respect @type JSDoc tag', () => {
@@ -268,9 +261,7 @@ describe('formatType', () => {
       } as any,
     ];
 
-    expect(formatType(type, { jsdocTags: tags, exportNames: [], typeNameMap: {} })).toBe(
-      'CustomType',
-    );
+    expect(formatType(type, { jsdocTags: tags, exportNames: [] })).toBe('CustomType');
   });
 
   it('should order union members with any, null, undefined at the end', () => {
@@ -285,7 +276,7 @@ describe('formatType', () => {
       ],
     } as any;
 
-    const result = formatType(unionType, { exportNames: [], typeNameMap: {} });
+    const result = formatType(unionType, { exportNames: [] });
     const parts = result.split(' | ');
 
     // Check that any, null, undefined are at the end
@@ -302,7 +293,7 @@ describe('formatType', () => {
       defaultValue: undefined,
     } as any;
 
-    expect(formatType(typeParam, { exportNames: [], typeNameMap: {} })).toBe('string');
+    expect(formatType(typeParam, { exportNames: [] })).toBe('string');
   });
 
   it('should preserve type parameter names when preserveTypeParameters is true', () => {
@@ -316,7 +307,6 @@ describe('formatType', () => {
     expect(
       formatType(typeParam, {
         exportNames: [],
-        typeNameMap: {},
         preserveTypeParameters: true,
       }),
     ).toBe('T');
@@ -331,7 +321,7 @@ describe('formatType', () => {
     } as any;
 
     // Without constraint, always returns name regardless of flag
-    expect(formatType(typeParam, { exportNames: [], typeNameMap: {} })).toBe('T');
+    expect(formatType(typeParam, { exportNames: [] })).toBe('T');
   });
 
   it('should preserve type parameter in intersection types when preserveTypeParameters is true', () => {
@@ -363,7 +353,6 @@ describe('formatType', () => {
     const result = formatType(intersectionType, {
       expandObjects: true,
       exportNames: [],
-      typeNameMap: {},
       preserveTypeParameters: true,
     });
     expect(result).toContain('T');
@@ -401,7 +390,6 @@ describe('formatType', () => {
     const result = formatType(intersectionType, {
       expandObjects: true,
       exportNames: [],
-      typeNameMap: {},
     });
     expect(result).not.toContain('T');
     expect(result).toContain('value');
@@ -424,7 +412,6 @@ describe('formatType', () => {
     const result = formatType(typeParam, {
       expandObjects: true,
       exportNames: [],
-      typeNameMap: {},
       selfName: 'FormValues',
       preserveTypeParameters: true,
     });
@@ -463,7 +450,6 @@ describe('formatType', () => {
     return formatType(property.type, {
       removeUndefined: property.optional,
       exportNames: [],
-      typeNameMap: {},
       ...options,
     });
   }
@@ -471,7 +457,7 @@ describe('formatType', () => {
   /** Formats the parsed type alias itself. */
   function formatAlias(source: string, parserOptions?: tae.ParserOptions): string {
     const [exportNode] = parseTestSources({ 'types.ts': source }, { lib: LIB, parserOptions });
-    return formatType(exportNode.type, { exportNames: [], typeNameMap: {} });
+    return formatType(exportNode.type, { exportNames: [] });
   }
 
   describe('type operator formatting', () => {
@@ -645,9 +631,9 @@ describe('formatType', () => {
         ],
       } as any;
 
-      expect(
-        formatType(functionType, { expandObjects: true, exportNames: [], typeNameMap: {} }),
-      ).toBe('((value: string, count: number) => void)');
+      expect(formatType(functionType, { expandObjects: true, exportNames: [] })).toBe(
+        '((value: string, count: number) => void)',
+      );
     });
 
     it('should use ?: syntax for optional parameters at the end', () => {
@@ -672,9 +658,9 @@ describe('formatType', () => {
         ],
       } as any;
 
-      expect(
-        formatType(functionType, { expandObjects: true, exportNames: [], typeNameMap: {} }),
-      ).toBe('((value: string, options?: object) => void)');
+      expect(formatType(functionType, { expandObjects: true, exportNames: [] })).toBe(
+        '((value: string, options?: object) => void)',
+      );
     });
 
     it('should use ?: syntax for parameters with | undefined when all following params are optional', () => {
@@ -705,9 +691,9 @@ describe('formatType', () => {
         ],
       } as any;
 
-      expect(
-        formatType(functionType, { expandObjects: true, exportNames: [], typeNameMap: {} }),
-      ).toBe('((value: string, options?: object) => void)');
+      expect(formatType(functionType, { expandObjects: true, exportNames: [] })).toBe(
+        '((value: string, options?: object) => void)',
+      );
     });
 
     it('should NOT use ?: syntax when optional param comes before required param', () => {
@@ -739,9 +725,9 @@ describe('formatType', () => {
       } as any;
 
       // Should keep | undefined since the next param is required
-      expect(
-        formatType(functionType, { expandObjects: true, exportNames: [], typeNameMap: {} }),
-      ).toBe('((options: object | undefined, value: string) => void)');
+      expect(formatType(functionType, { expandObjects: true, exportNames: [] })).toBe(
+        '((options: object | undefined, value: string) => void)',
+      );
     });
 
     it('should use ?: syntax for multiple optional parameters at the end', () => {
@@ -780,7 +766,6 @@ describe('formatType', () => {
       const result = formatType(functionType, {
         expandObjects: true,
         exportNames: [],
-        typeNameMap: {},
       });
       // Both optional params should use ?: syntax
       expect(result).toContain('options?: object');
@@ -809,9 +794,9 @@ describe('formatType', () => {
         ],
       } as any;
 
-      expect(
-        formatType(functionType, { expandObjects: true, exportNames: [], typeNameMap: {} }),
-      ).toBe('((a?: string, b?: number) => void)');
+      expect(formatType(functionType, { expandObjects: true, exportNames: [] })).toBe(
+        '((a?: string, b?: number) => void)',
+      );
     });
 
     it('should strip undefined from type when using ?: syntax', () => {
@@ -840,7 +825,6 @@ describe('formatType', () => {
       const result = formatType(functionType, {
         expandObjects: true,
         exportNames: [],
-        typeNameMap: {},
       });
       // Should be options?: object, not options?: undefined | object
       expect(result).toBe('((options?: object) => void)');
@@ -874,12 +858,12 @@ describe('formatType', () => {
       } as any;
 
       // With expandObjects=false, show the type name
-      expect(formatType(functionType, { exportNames: [], typeNameMap: {} })).toBe('OffsetFunction');
+      expect(formatType(functionType, { exportNames: [] })).toBe('OffsetFunction');
 
       // With expandObjects=true, expand the signature
-      expect(
-        formatType(functionType, { expandObjects: true, exportNames: [], typeNameMap: {} }),
-      ).toBe('((data: { side: string; align: string }) => number)');
+      expect(formatType(functionType, { expandObjects: true, exportNames: [] })).toBe(
+        '((data: { side: string; align: string }) => number)',
+      );
     });
 
     it('should expand anonymous function types (no typeName)', () => {
@@ -902,9 +886,7 @@ describe('formatType', () => {
       } as any;
 
       // Anonymous functions should always be expanded
-      expect(formatType(functionType, { exportNames: [], typeNameMap: {} })).toBe(
-        '((event: object) => void)',
-      );
+      expect(formatType(functionType, { exportNames: [] })).toBe('((event: object) => void)');
     });
 
     it('should use type alias name for function types with namespaces', () => {
@@ -927,9 +909,7 @@ describe('formatType', () => {
       } as any;
 
       // Has namespaces, so show as React.RefCallback
-      expect(formatType(functionType, { exportNames: [], typeNameMap: {} })).toBe(
-        'React.RefCallback',
-      );
+      expect(formatType(functionType, { exportNames: [] })).toBe('React.RefCallback');
     });
   });
 });
@@ -941,7 +921,7 @@ describe('prettyFormatType', () => {
       intrinsic: 'string',
     } as any;
 
-    const result = await prettyFormatType(type, { exportNames: [], typeNameMap: {} });
+    const result = await prettyFormatType(type, { exportNames: [] });
     expect(result).toBe('string;');
   });
 
@@ -965,7 +945,6 @@ describe('prettyFormatType', () => {
     const result = await prettyFormatType(type, {
       expandObjects: true,
       exportNames: [],
-      typeNameMap: {},
     });
 
     // Should be formatted on multiple lines
@@ -990,681 +969,11 @@ describe('prettyFormatType', () => {
     const result = await prettyFormatType(type, {
       expandObjects: true,
       exportNames: [],
-      typeNameMap: {},
     });
 
     // Should include formatted properties
     expect(result).toContain('prop');
     expect(result).toContain('string');
-  });
-});
-
-describe('typeNameMap transformations', () => {
-  it('should transform flat type names to dotted names in formatType', () => {
-    const externalType: tae.ExternalTypeNode = {
-      kind: 'external',
-      typeName: {
-        importedFrom: undefined,
-        namespaces: [],
-        name: 'MenuBackdropState',
-      },
-    } as any;
-
-    const typeNameMap = {
-      MenuBackdropState: 'Menu.BackdropState',
-    };
-
-    const result = formatType(externalType, { exportNames: [], typeNameMap });
-
-    expect(result).toBe('Menu.BackdropState');
-  });
-
-  it('should transform flat type names with type arguments', () => {
-    const externalType: tae.ExternalTypeNode = {
-      kind: 'external',
-      typeName: {
-        importedFrom: undefined,
-        namespaces: [],
-        name: 'MenuBackdropState',
-      },
-    } as any;
-
-    const typeNameMap = {
-      MenuBackdropState: 'Menu.BackdropState',
-    };
-
-    // Simulate a type with generic arguments
-    const typeWithArgs = { ...externalType, typeName: { ...externalType.typeName } };
-    const result = formatType(typeWithArgs, { exportNames: [], typeNameMap });
-
-    expect(result).toBe('Menu.BackdropState');
-  });
-
-  it('should transform namespace references in formatType', () => {
-    const externalType: tae.ExternalTypeNode = {
-      kind: 'external',
-      typeName: {
-        importedFrom: undefined,
-        namespaces: ['MenuRoot'],
-        name: 'State',
-      },
-    } as any;
-
-    const typeNameMap = {
-      MenuRoot: 'Menu.Root',
-    };
-
-    const result = formatType(externalType, { exportNames: [], typeNameMap });
-
-    expect(result).toBe('Menu.Root.State');
-  });
-
-  it('should leave unmapped types unchanged', () => {
-    const externalType: tae.ExternalTypeNode = {
-      kind: 'external',
-      typeName: {
-        importedFrom: undefined,
-        namespaces: [],
-        name: 'UnmappedType',
-      },
-    } as any;
-
-    const typeNameMap = {
-      MenuBackdropState: 'Menu.BackdropState',
-    };
-
-    const result = formatType(externalType, { exportNames: [], typeNameMap });
-
-    expect(result).toBe('UnmappedType');
-  });
-
-  it('should transform property types in formatProperties', async () => {
-    const props: tae.PropertyNode[] = [
-      {
-        name: 'state',
-        type: {
-          kind: 'external',
-          typeName: {
-            importedFrom: undefined,
-            namespaces: [],
-            name: 'MenuBackdropState',
-          },
-        } as any,
-        optional: false,
-        documentation: {
-          description: 'The backdrop state',
-        } as any,
-      } as any,
-    ];
-
-    const typeNameMap = {
-      MenuBackdropState: 'Menu.BackdropState',
-    };
-
-    const result = await formatProperties(props, { exportNames: [], typeNameMap });
-
-    expect(result.state).toBeDefined();
-    // The typeText field contains the transformed type name as plain text
-    expect(result.state.typeText).toBe('Menu.BackdropState');
-  });
-
-  it('should transform types in formatDetailedType', () => {
-    const externalType: tae.ExternalTypeNode = {
-      kind: 'external',
-      typeName: {
-        importedFrom: undefined,
-        namespaces: [],
-        name: 'MenuBackdropState',
-      },
-    } as any;
-
-    const typeNameMap = {
-      MenuBackdropState: 'Menu.BackdropState',
-    };
-
-    const result = formatDetailedType(externalType, {
-      allExports: [],
-      exportNames: [],
-      typeNameMap,
-    });
-
-    // formatDetailedType returns a string with the transformed type name
-    expect(result).toBe('Menu.BackdropState');
-  });
-
-  it('should handle empty typeNameMap', () => {
-    const externalType: tae.ExternalTypeNode = {
-      kind: 'external',
-      typeName: {
-        importedFrom: undefined,
-        namespaces: [],
-        name: 'SomeType',
-      },
-    } as any;
-
-    const result = formatType(externalType, { exportNames: [], typeNameMap: {} });
-
-    expect(result).toBe('SomeType');
-  });
-
-  it('should transform multiple namespace levels', () => {
-    const externalType: tae.ExternalTypeNode = {
-      kind: 'external',
-      typeName: {
-        importedFrom: undefined,
-        namespaces: ['MenuRoot', 'Actions'],
-        name: 'Handler',
-      },
-    } as any;
-
-    const typeNameMap = {
-      MenuRoot: 'Menu.Root',
-    };
-
-    const result = formatType(externalType, { exportNames: [], typeNameMap });
-
-    expect(result).toBe('Menu.Root.Actions.Handler');
-  });
-
-  describe('object union merging', () => {
-    function createObjectMember(
-      properties: Array<{
-        name: string;
-        type: tae.AnyType;
-        optional?: boolean;
-        documentation?: tae.Documentation;
-      }>,
-    ): tae.ObjectNode {
-      return {
-        kind: 'object',
-        properties: properties.map((p) => ({
-          name: p.name,
-          type: p.type,
-          optional: p.optional ?? false,
-          documentation: p.documentation,
-        })),
-      } as any;
-    }
-
-    const stringType = { kind: 'intrinsic', intrinsic: 'string' } as tae.IntrinsicNode;
-    const numberType = { kind: 'intrinsic', intrinsic: 'number' } as tae.IntrinsicNode;
-    const booleanType = { kind: 'intrinsic', intrinsic: 'boolean' } as tae.IntrinsicNode;
-    const voidType = { kind: 'intrinsic', intrinsic: 'void' } as tae.IntrinsicNode;
-
-    it('should extract common properties from object union members', () => {
-      const unionType: tae.UnionNode = {
-        kind: 'union',
-        types: [
-          createObjectMember([
-            { name: 'reason', type: { kind: 'literal', value: "'a'" } as any },
-            { name: 'shared', type: stringType },
-            { name: 'count', type: numberType },
-          ]),
-          createObjectMember([
-            { name: 'reason', type: { kind: 'literal', value: "'b'" } as any },
-            { name: 'shared', type: stringType },
-            { name: 'count', type: numberType },
-          ]),
-        ],
-      } as any;
-
-      const result = formatType(unionType, { exportNames: [], typeNameMap: {} });
-
-      expect(result).toBe(
-        "({ reason: 'a' } | { reason: 'b' }) & { shared: string; count: number }",
-      );
-    });
-
-    it('should not merge when there is only one common property', () => {
-      const unionType: tae.UnionNode = {
-        kind: 'union',
-        types: [
-          createObjectMember([
-            { name: 'reason', type: { kind: 'literal', value: "'a'" } as any },
-            { name: 'shared', type: stringType },
-          ]),
-          createObjectMember([
-            { name: 'reason', type: { kind: 'literal', value: "'b'" } as any },
-            { name: 'shared', type: stringType },
-          ]),
-        ],
-      } as any;
-
-      const result = formatType(unionType, { exportNames: [], typeNameMap: {} });
-
-      // Only 1 common property, should not merge
-      expect(result).toBe("{ reason: 'a'; shared: string } | { reason: 'b'; shared: string }");
-    });
-
-    it('should not merge when union members are not all objects', () => {
-      const unionType: tae.UnionNode = {
-        kind: 'union',
-        types: [
-          createObjectMember([
-            { name: 'a', type: stringType },
-            { name: 'b', type: numberType },
-          ]),
-          stringType,
-        ],
-      } as any;
-
-      const result = formatType(unionType, { exportNames: [], typeNameMap: {} });
-
-      expect(result).toBe('{ a: string; b: number } | string');
-    });
-
-    it('should not merge when properties have different types across members', () => {
-      const unionType: tae.UnionNode = {
-        kind: 'union',
-        types: [
-          createObjectMember([
-            { name: 'reason', type: { kind: 'literal', value: "'a'" } as any },
-            { name: 'shared', type: stringType },
-            { name: 'value', type: numberType },
-          ]),
-          createObjectMember([
-            { name: 'reason', type: { kind: 'literal', value: "'b'" } as any },
-            { name: 'shared', type: numberType },
-            { name: 'value', type: numberType },
-          ]),
-        ],
-      } as any;
-
-      const result = formatType(unionType, { exportNames: [], typeNameMap: {} });
-
-      // 'shared' has different types (string vs number), only 'value' is common (1 prop, below threshold)
-      expect(result).toBe(
-        "{ reason: 'a'; shared: string; value: number } | { reason: 'b'; shared: number; value: number }",
-      );
-    });
-
-    it('should not merge when properties differ in optionality', () => {
-      const unionType: tae.UnionNode = {
-        kind: 'union',
-        types: [
-          createObjectMember([
-            { name: 'reason', type: { kind: 'literal', value: "'a'" } as any },
-            { name: 'shared', type: stringType, optional: false },
-            { name: 'count', type: numberType },
-          ]),
-          createObjectMember([
-            { name: 'reason', type: { kind: 'literal', value: "'b'" } as any },
-            { name: 'shared', type: stringType, optional: true },
-            { name: 'count', type: numberType },
-          ]),
-        ],
-      } as any;
-
-      const result = formatType(unionType, { exportNames: [], typeNameMap: {} });
-
-      // 'shared' differs in optionality, only 'count' is common (1 prop, below threshold)
-      expect(result).toBe(
-        "{ reason: 'a'; shared: string; count: number } | { reason: 'b'; shared?: string; count: number }",
-      );
-    });
-
-    it('should handle many members with many common properties (discriminated union)', () => {
-      const unionType: tae.UnionNode = {
-        kind: 'union',
-        types: [
-          createObjectMember([
-            { name: 'reason', type: { kind: 'literal', value: "'trigger-press'" } as any },
-            { name: 'event', type: stringType },
-            {
-              name: 'cancel',
-              type: {
-                kind: 'function',
-                callSignatures: [{ parameters: [], returnValueType: voidType }],
-              } as any,
-            },
-            { name: 'isCanceled', type: booleanType },
-            { name: 'trigger', type: stringType },
-          ]),
-          createObjectMember([
-            { name: 'reason', type: { kind: 'literal', value: "'escape-key'" } as any },
-            { name: 'event', type: numberType },
-            {
-              name: 'cancel',
-              type: {
-                kind: 'function',
-                callSignatures: [{ parameters: [], returnValueType: voidType }],
-              } as any,
-            },
-            { name: 'isCanceled', type: booleanType },
-            { name: 'trigger', type: stringType },
-          ]),
-          createObjectMember([
-            { name: 'reason', type: { kind: 'literal', value: "'close-press'" } as any },
-            { name: 'event', type: booleanType },
-            {
-              name: 'cancel',
-              type: {
-                kind: 'function',
-                callSignatures: [{ parameters: [], returnValueType: voidType }],
-              } as any,
-            },
-            { name: 'isCanceled', type: booleanType },
-            { name: 'trigger', type: stringType },
-          ]),
-        ],
-      } as any;
-
-      const result = formatType(unionType, { exportNames: [], typeNameMap: {} });
-
-      // cancel, isCanceled, trigger are common (3 props)
-      // reason, event are unique per member
-      expect(result).toBe(
-        "({ reason: 'trigger-press'; event: string } | { reason: 'escape-key'; event: number } | { reason: 'close-press'; event: boolean }) & { cancel: (() => void); isCanceled: boolean; trigger: string }",
-      );
-    });
-
-    it('should deduplicate identical unique-property members', () => {
-      const unionType: tae.UnionNode = {
-        kind: 'union',
-        types: [
-          createObjectMember([
-            { name: 'reason', type: { kind: 'literal', value: "'a'" } as any },
-            { name: 'shared1', type: stringType },
-            { name: 'shared2', type: numberType },
-          ]),
-          createObjectMember([
-            { name: 'reason', type: { kind: 'literal', value: "'b'" } as any },
-            { name: 'shared1', type: stringType },
-            { name: 'shared2', type: numberType },
-          ]),
-          createObjectMember([
-            { name: 'reason', type: { kind: 'literal', value: "'a'" } as any },
-            { name: 'shared1', type: stringType },
-            { name: 'shared2', type: numberType },
-          ]),
-        ],
-      } as any;
-
-      const result = formatType(unionType, { exportNames: [], typeNameMap: {} });
-
-      // Third member is identical to first after extraction, should be deduplicated
-      expect(result).toBe(
-        "({ reason: 'a' } | { reason: 'b' }) & { shared1: string; shared2: number }",
-      );
-    });
-
-    it('should preserve optional markers on common properties', () => {
-      const unionType: tae.UnionNode = {
-        kind: 'union',
-        types: [
-          createObjectMember([
-            { name: 'reason', type: { kind: 'literal', value: "'a'" } as any },
-            { name: 'shared', type: stringType, optional: true },
-            { name: 'count', type: numberType, optional: true },
-          ]),
-          createObjectMember([
-            { name: 'reason', type: { kind: 'literal', value: "'b'" } as any },
-            { name: 'shared', type: stringType, optional: true },
-            { name: 'count', type: numberType, optional: true },
-          ]),
-        ],
-      } as any;
-
-      const result = formatType(unionType, { exportNames: [], typeNameMap: {} });
-
-      expect(result).toBe(
-        "({ reason: 'a' } | { reason: 'b' }) & { shared?: string; count?: number }",
-      );
-    });
-
-    it('should not merge when a property is missing from one member', () => {
-      const unionType: tae.UnionNode = {
-        kind: 'union',
-        types: [
-          createObjectMember([
-            { name: 'reason', type: { kind: 'literal', value: "'a'" } as any },
-            { name: 'shared', type: stringType },
-            { name: 'extra', type: numberType },
-          ]),
-          createObjectMember([
-            { name: 'reason', type: { kind: 'literal', value: "'b'" } as any },
-            { name: 'shared', type: stringType },
-          ]),
-        ],
-      } as any;
-
-      const result = formatType(unionType, { exportNames: [], typeNameMap: {} });
-
-      // 'extra' only in first member, 'shared' is the only common (1 prop, below threshold)
-      expect(result).toBe(
-        "{ reason: 'a'; shared: string; extra: number } | { reason: 'b'; shared: string }",
-      );
-    });
-
-    it('should merge when union members are intersections of objects', () => {
-      // Simulates: (BaseUIChangeEventDetail<R> & { preventUnmountOnClose(): void }) | ...
-      // Each member is an intersection of two objects, not a flat object
-      const unionType: tae.UnionNode = {
-        kind: 'union',
-        types: [
-          {
-            kind: 'intersection',
-            types: [
-              createObjectMember([
-                { name: 'reason', type: { kind: 'literal', value: "'trigger-press'" } as any },
-                { name: 'event', type: stringType },
-                {
-                  name: 'cancel',
-                  type: {
-                    kind: 'function',
-                    callSignatures: [{ parameters: [], returnValueType: voidType }],
-                  } as any,
-                },
-                { name: 'isCanceled', type: booleanType },
-              ]),
-              createObjectMember([
-                {
-                  name: 'preventUnmountOnClose',
-                  type: {
-                    kind: 'function',
-                    callSignatures: [{ parameters: [], returnValueType: voidType }],
-                  } as any,
-                },
-              ]),
-            ],
-          },
-          {
-            kind: 'intersection',
-            types: [
-              createObjectMember([
-                { name: 'reason', type: { kind: 'literal', value: "'escape-key'" } as any },
-                { name: 'event', type: numberType },
-                {
-                  name: 'cancel',
-                  type: {
-                    kind: 'function',
-                    callSignatures: [{ parameters: [], returnValueType: voidType }],
-                  } as any,
-                },
-                { name: 'isCanceled', type: booleanType },
-              ]),
-              createObjectMember([
-                {
-                  name: 'preventUnmountOnClose',
-                  type: {
-                    kind: 'function',
-                    callSignatures: [{ parameters: [], returnValueType: voidType }],
-                  } as any,
-                },
-              ]),
-            ],
-          },
-          {
-            kind: 'intersection',
-            types: [
-              createObjectMember([
-                { name: 'reason', type: { kind: 'literal', value: "'close-press'" } as any },
-                { name: 'event', type: booleanType },
-                {
-                  name: 'cancel',
-                  type: {
-                    kind: 'function',
-                    callSignatures: [{ parameters: [], returnValueType: voidType }],
-                  } as any,
-                },
-                { name: 'isCanceled', type: booleanType },
-              ]),
-              createObjectMember([
-                {
-                  name: 'preventUnmountOnClose',
-                  type: {
-                    kind: 'function',
-                    callSignatures: [{ parameters: [], returnValueType: voidType }],
-                  } as any,
-                },
-              ]),
-            ],
-          },
-        ],
-      } as any;
-
-      const result = formatType(unionType, { exportNames: [], typeNameMap: {} });
-
-      // cancel, isCanceled, preventUnmountOnClose are common (3 props)
-      // reason, event are unique per member
-      expect(result).toBe(
-        "({ reason: 'trigger-press'; event: string } | { reason: 'escape-key'; event: number } | { reason: 'close-press'; event: boolean }) & { cancel: (() => void); isCanceled: boolean; preventUnmountOnClose: (() => void) }",
-      );
-    });
-
-    it('should merge when union has mixed object and intersection-of-objects members', () => {
-      const unionType: tae.UnionNode = {
-        kind: 'union',
-        types: [
-          // Plain object member
-          createObjectMember([
-            { name: 'reason', type: { kind: 'literal', value: "'a'" } as any },
-            { name: 'event', type: stringType },
-            {
-              name: 'cancel',
-              type: {
-                kind: 'function',
-                callSignatures: [{ parameters: [], returnValueType: voidType }],
-              } as any,
-            },
-            { name: 'isCanceled', type: booleanType },
-          ]),
-          // Intersection-of-objects member
-          {
-            kind: 'intersection',
-            types: [
-              createObjectMember([
-                { name: 'reason', type: { kind: 'literal', value: "'b'" } as any },
-                { name: 'event', type: numberType },
-                {
-                  name: 'cancel',
-                  type: {
-                    kind: 'function',
-                    callSignatures: [{ parameters: [], returnValueType: voidType }],
-                  } as any,
-                },
-              ]),
-              createObjectMember([{ name: 'isCanceled', type: booleanType }]),
-            ],
-          },
-        ],
-      } as any;
-
-      const result = formatType(unionType, { exportNames: [], typeNameMap: {} });
-
-      // cancel, isCanceled are common (2 props); reason, event are unique
-      expect(result).toBe(
-        "({ reason: 'a'; event: string } | { reason: 'b'; event: number }) & { cancel: (() => void); isCanceled: boolean }",
-      );
-    });
-
-    it('should include JSDoc comments on common properties when withPropertyComments is set', () => {
-      const unionType: tae.UnionNode = {
-        kind: 'union',
-        types: [
-          createObjectMember([
-            { name: 'reason', type: { kind: 'literal', value: "'a'" } as any },
-            {
-              name: 'cancel',
-              type: {
-                kind: 'function',
-                callSignatures: [{ parameters: [], returnValueType: voidType }],
-              } as any,
-              documentation: { description: 'Cancels the event.' } as any,
-            },
-            {
-              name: 'isCanceled',
-              type: booleanType,
-              documentation: { description: 'Whether the event was canceled.' } as any,
-            },
-          ]),
-          createObjectMember([
-            { name: 'reason', type: { kind: 'literal', value: "'b'" } as any },
-            {
-              name: 'cancel',
-              type: {
-                kind: 'function',
-                callSignatures: [{ parameters: [], returnValueType: voidType }],
-              } as any,
-              documentation: { description: 'Cancels the event.' } as any,
-            },
-            {
-              name: 'isCanceled',
-              type: booleanType,
-              documentation: { description: 'Whether the event was canceled.' } as any,
-            },
-          ]),
-        ],
-      } as any;
-
-      const result = formatType(unionType, {
-        exportNames: [],
-        typeNameMap: {},
-        withPropertyComments: true,
-      });
-
-      // Common section should contain JSDoc comments
-      expect(result).toContain('/** Cancels the event. */');
-      expect(result).toContain('/** Whether the event was canceled. */');
-      // The intersection structure should still be present
-      expect(result).toContain('&');
-      expect(result).toContain("reason: 'a'");
-      expect(result).toContain("reason: 'b'");
-    });
-
-    it('should not merge when union members are named object types', () => {
-      const unionType: tae.UnionNode = {
-        kind: 'union',
-        types: [
-          {
-            kind: 'object',
-            typeName: { name: 'ProcessedParameter' },
-            properties: [
-              { name: 'name', type: stringType, optional: false },
-              { name: 'type', type: stringType, optional: false },
-              { name: 'optional', type: booleanType, optional: true },
-            ],
-          } as any,
-          {
-            kind: 'object',
-            typeName: { name: 'ProcessedProperty' },
-            properties: [
-              { name: 'name', type: stringType, optional: false },
-              { name: 'type', type: stringType, optional: false },
-              { name: 'required', type: booleanType, optional: true },
-            ],
-          } as any,
-        ],
-      } as any;
-
-      const result = formatType(unionType, {
-        exportNames: ['ProcessedParameter', 'ProcessedProperty'],
-        typeNameMap: {},
-      });
-
-      // Should keep named type references, NOT expand and merge
-      expect(result).toBe('ProcessedParameter | ProcessedProperty');
-    });
   });
 });
 
@@ -1692,7 +1001,6 @@ describe('external type sources', () => {
       formatType(property.type, {
         removeUndefined: property.optional,
         exportNames: exports.map((exportNode) => exportNode.name),
-        typeNameMap: {},
         externalTypesCollector: collector,
       });
     }

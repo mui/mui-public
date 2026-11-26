@@ -82,7 +82,7 @@ export type Keys = Outer['nested'];
 
   expect(keys.type.kind).toBe('typeOperator');
   expect(keys.type.operator).toBe('keyof');
-  expect(keys.type.type.typeName).toEqual({ name: 'Source' });
+  expect(keys.type.type.typeName).toMatchObject({ name: 'Source' });
 });
 
 it('finds keyof through an indexed access on a substituted type parameter', () => {

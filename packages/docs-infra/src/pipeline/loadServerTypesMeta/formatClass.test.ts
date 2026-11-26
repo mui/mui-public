@@ -24,7 +24,6 @@ describe('formatClass', () => {
             description: 'A useful class\n\nDocumentation: https://example.com',
           },
         } as any,
-        {},
         defaultRewriteContext,
         {
           descriptionReplacements: [
@@ -68,7 +67,6 @@ describe('formatClass', () => {
             methods: [],
           },
         } as any,
-        {},
         defaultRewriteContext,
         {
           descriptionReplacements: [
@@ -105,7 +103,6 @@ describe('formatClass', () => {
             ],
           },
         } as any,
-        {},
         defaultRewriteContext,
         {
           descriptionReplacements: [

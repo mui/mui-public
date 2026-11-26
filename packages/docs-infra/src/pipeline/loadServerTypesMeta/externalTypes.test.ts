@@ -36,7 +36,6 @@ describe('external types collection via formatType', () => {
     const collector = createCollector();
     const result = formatType(orientationType, {
       exportNames: [],
-      typeNameMap: {},
       externalTypesCollector: collector,
     });
 
@@ -61,7 +60,6 @@ describe('external types collection via formatType', () => {
     const collector = createCollector();
     formatType(storeAtModeType, {
       exportNames: [],
-      typeNameMap: {},
       externalTypesCollector: collector,
     });
 
@@ -85,7 +83,6 @@ describe('external types collection via formatType', () => {
     const collector = createCollector();
     formatType(unnamedUnion, {
       exportNames: [],
-      typeNameMap: {},
       externalTypesCollector: collector,
     });
 
@@ -107,7 +104,6 @@ describe('external types collection via formatType', () => {
     // because not all members are literals/simple intrinsics
     const result = formatType(complexUnion, {
       exportNames: [],
-      typeNameMap: {},
       externalTypesCollector: collector,
     });
 
@@ -129,7 +125,6 @@ describe('external types collection via formatType', () => {
     const collector = createCollector(allExports);
     formatType(stateType, {
       exportNames: [],
-      typeNameMap: {},
       externalTypesCollector: collector,
     });
 
@@ -158,10 +153,9 @@ describe('external types collection via formatType', () => {
     const collector = createCollector([], /^Orientation$/);
     formatType(orientationType, {
       exportNames: [],
-      typeNameMap: {},
       externalTypesCollector: collector,
     });
-    formatType(sideType, { exportNames: [], typeNameMap: {}, externalTypesCollector: collector });
+    formatType(sideType, { exportNames: [], externalTypesCollector: collector });
 
     expect(collector.collected.size).toBe(1);
     expect(collector.collected.has('Orientation')).toBe(true);
@@ -178,7 +172,6 @@ describe('external types collection via formatType', () => {
     const collector = createCollector();
     formatType(reactType, {
       exportNames: [],
-      typeNameMap: {},
       externalTypesCollector: collector,
     });
 
@@ -198,12 +191,10 @@ describe('external types collection via formatType', () => {
     const collector = createCollector();
     formatType(orientationType, {
       exportNames: [],
-      typeNameMap: {},
       externalTypesCollector: collector,
     });
     formatType(orientationType, {
       exportNames: [],
-      typeNameMap: {},
       externalTypesCollector: collector,
     });
 
@@ -224,7 +215,6 @@ describe('external types collection via formatType', () => {
     const collector = createCollector();
     formatType(mixedUnion, {
       exportNames: [],
-      typeNameMap: {},
       externalTypesCollector: collector,
     });
 
@@ -256,7 +246,6 @@ describe('external types collection via formatType', () => {
       const collector = createCollector();
       const result = formatType(functionType, {
         exportNames: [],
-        typeNameMap: {},
         externalTypesCollector: collector,
       });
 
@@ -291,7 +280,6 @@ describe('external types collection via formatType', () => {
       const collector = createCollector();
       formatType(functionType, {
         exportNames: [],
-        typeNameMap: {},
         externalTypesCollector: collector,
       });
 
@@ -324,7 +312,6 @@ describe('external types collection via formatType', () => {
       const collector = createCollector();
       formatType(objectType, {
         exportNames: [],
-        typeNameMap: {},
         externalTypesCollector: collector,
       });
 
@@ -350,7 +337,6 @@ describe('external types collection via formatType', () => {
       const collector = createCollector();
       const result = formatType(arrayType, {
         exportNames: [],
-        typeNameMap: {},
         externalTypesCollector: collector,
       });
 
@@ -392,7 +378,6 @@ describe('external types collection via formatType', () => {
       const collector = createCollector();
       formatType(intersectionType, {
         exportNames: [],
-        typeNameMap: {},
         externalTypesCollector: collector,
       });
 
@@ -418,7 +403,6 @@ describe('external types collection via formatType', () => {
       const collector = createCollector();
       formatType(tupleType, {
         exportNames: [],
-        typeNameMap: {},
         externalTypesCollector: collector,
       });
 
@@ -459,7 +443,6 @@ describe('external types collection via formatType', () => {
       const collector = createCollector();
       formatType(outerObjectType, {
         exportNames: [],
-        typeNameMap: {},
         externalTypesCollector: collector,
       });
 
@@ -515,7 +498,6 @@ describe('external types collection via formatType', () => {
       const collector = createCollector();
       formatType(callbackType, {
         exportNames: [],
-        typeNameMap: {},
         externalTypesCollector: collector,
       });
 
@@ -550,7 +532,6 @@ describe('external types collection via formatType', () => {
       const collector = createCollector();
       formatType(nullableOrientationType, {
         exportNames: [],
-        typeNameMap: {},
         externalTypesCollector: collector,
       });
 
@@ -598,7 +579,6 @@ describe('external types collection via formatType', () => {
       const collector = createCollector();
       const result = formatType(offsetFunctionType, {
         exportNames: [],
-        typeNameMap: {},
         externalTypesCollector: collector,
       });
 
@@ -637,7 +617,6 @@ describe('external types collection via formatType', () => {
       const collector = createCollector();
       formatType(anonymousFunctionType, {
         exportNames: [],
-        typeNameMap: {},
         externalTypesCollector: collector,
       });
 
@@ -672,7 +651,7 @@ describe('external types collection via formatType', () => {
     ];
 
     const collector = createCollector();
-    await formatProperties(props, { exportNames: [], typeNameMap: {}, externalTypes: collector });
+    await formatProperties(props, { exportNames: [], externalTypes: collector });
 
     expect(collector.collected.size).toBe(2);
     expect(collector.collected.has('Orientation')).toBe(true);
@@ -716,7 +695,6 @@ describe('external types collection via formatType', () => {
       const collector = createCollector();
       formatType(property.type, {
         exportNames: [],
-        typeNameMap: {},
         externalTypesCollector: collector,
       });
       return collector;
@@ -770,7 +748,6 @@ describe('external types collection via formatType', () => {
       const collector = createCollector(exports);
       formatType(props.type.properties[0].type, {
         exportNames: [],
-        typeNameMap: {},
         externalTypesCollector: collector,
       });
       return collector;

@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "union",
 				"typeName": {
-					"name": "Fn"
+					"name": "Fn",
+					"declarationId": "88effc9eb9e67773"
 				},
 				"types": [
 					{
@@ -19,7 +20,8 @@
 									"constraint": {
 										"kind": "object",
 										"typeName": {
-											"name": "Foo"
+											"name": "Foo",
+											"declarationId": "4b720af168267230"
 										},
 										"properties": [
 											{
@@ -40,7 +42,8 @@
 										"constraint": {
 											"kind": "object",
 											"typeName": {
-												"name": "Foo"
+												"name": "Foo",
+												"declarationId": "4b720af168267230"
 											},
 											"properties": [
 												{
@@ -69,7 +72,8 @@
 									"constraint": {
 										"kind": "object",
 										"typeName": {
-											"name": "Bar"
+											"name": "Bar",
+											"declarationId": "fececdebad2d1174"
 										},
 										"properties": [
 											{
@@ -90,7 +94,8 @@
 										"constraint": {
 											"kind": "object",
 											"typeName": {
-												"name": "Bar"
+												"name": "Bar",
+												"declarationId": "fececdebad2d1174"
 											},
 											"properties": [
 												{
@@ -113,7 +118,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "88effc9eb9e67773",
+			"declaredName": "Fn"
 		}
 	]
 }

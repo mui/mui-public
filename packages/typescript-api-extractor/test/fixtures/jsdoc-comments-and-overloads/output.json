@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "component",
 				"typeName": {
-					"name": "TestComponent"
+					"name": "TestComponent",
+					"declarationId": "8eb6abc02bc05cd0"
 				},
 				"props": [
 					{
@@ -61,14 +62,17 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "8eb6abc02bc05cd0",
+			"declaredName": "TestComponent"
 		},
 		{
 			"name": "testFunction",
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "testFunction"
+					"name": "testFunction",
+					"declarationId": "5fd679d30703c630"
 				},
 				"callSignatures": [
 					{
@@ -175,7 +179,9 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "5fd679d30703c630",
+			"declaredName": "testFunction"
 		}
 	],
 	"imports": ["react"]

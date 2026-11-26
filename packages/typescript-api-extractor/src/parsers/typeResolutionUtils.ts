@@ -9,7 +9,9 @@ import {
   UnionNode,
 } from '../models';
 import type { AnyType } from '../models';
-import { TypeName } from '../models/typeName';
+import type { ScopedParserContext } from '../parserContext';
+import type { TypeName } from '../models/typeName';
+import { createTypeName } from './common';
 import { isSemanticallyReadonlyArray, isSemanticallyReadonlyTuple } from './typeContainerUtils';
 
 /**
@@ -105,8 +107,9 @@ export function getKeyofTypeForOperand(
 export function createShallowType(
   type: ts.Type,
   typeName: TypeName | undefined,
-  checker: ts.TypeChecker,
+  context: ScopedParserContext,
 ): AnyType {
+  const { checker } = context;
   if (type.isUnion()) {
     return new UnionNode(typeName, []);
   }
@@ -118,7 +121,13 @@ export function createShallowType(
   if (checker.isArrayType(type)) {
     return new ArrayNode(
       type.aliasSymbol?.name
-        ? new TypeName(type.aliasSymbol.name, typeName?.namespaces, typeName?.typeArguments)
+        ? createTypeName(
+            type.aliasSymbol,
+            context,
+            type.aliasSymbol.name,
+            typeName?.namespaces,
+            typeName?.typeArguments,
+          )
         : undefined,
       new IntrinsicNode('any'),
       isSemanticallyReadonlyArray(type) ? true : undefined,

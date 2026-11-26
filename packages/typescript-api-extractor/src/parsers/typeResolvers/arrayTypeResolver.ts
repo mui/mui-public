@@ -1,7 +1,7 @@
 import ts from 'typescript';
 import { ArrayNode } from '../../models';
 import type { AnyType } from '../../models';
-import { TypeName } from '../../models/typeName';
+import { createTypeName } from '../common';
 import { getBuiltInArrayReferenceName, isSemanticallyReadonlyArray } from '../typeContainerUtils';
 import type { TypeResolutionRequest, TypeResolutionSession } from '../typeResolutionTypes';
 import {
@@ -35,7 +35,13 @@ export function resolveArrayType(
   const arrayType: ts.Type = checker.getElementTypeOfArrayType(type);
   return new ArrayNode(
     type.aliasSymbol?.name
-      ? new TypeName(type.aliasSymbol?.name, typeName?.namespaces, typeName?.typeArguments)
+      ? createTypeName(
+          type.aliasSymbol,
+          session.context,
+          type.aliasSymbol.name,
+          typeName?.namespaces,
+          typeName?.typeArguments,
+        )
       : undefined,
     session.resolve(
       arrayType,

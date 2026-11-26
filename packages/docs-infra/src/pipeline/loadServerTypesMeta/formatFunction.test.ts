@@ -116,7 +116,7 @@ describe('formatFunction', () => {
         documentation: { description: 'Does something useful' },
       });
 
-      const result = await formatFunctionData(func, {}, defaultRewriteContext);
+      const result = await formatFunctionData(func, defaultRewriteContext);
 
       expect(result.name).toBe('doSomething');
       expect(result.description).toMatchObject({
@@ -150,7 +150,7 @@ describe('formatFunction', () => {
         },
       });
 
-      const result = await formatFunctionData(func, {}, defaultRewriteContext, {
+      const result = await formatFunctionData(func, defaultRewriteContext, {
         descriptionReplacements: [
           { pattern: '\\n\\nDocumentation:.*$', replacement: '', flags: 'm' },
         ],
@@ -235,7 +235,7 @@ describe('formatFunction', () => {
         },
       });
 
-      const result = await formatFunctionData(func, {}, defaultRewriteContext);
+      const result = await formatFunctionData(func, defaultRewriteContext);
 
       expect(result.name).toBe('mergeProps');
       expect(result.parameters!.find((p) => p.name === 'a')!).toBeDefined();
@@ -281,7 +281,7 @@ describe('formatFunction', () => {
         },
       });
 
-      const result = await formatFunctionData(func, {}, defaultRewriteContext);
+      const result = await formatFunctionData(func, defaultRewriteContext);
 
       expect(result.returnValue).toBe('string');
       expect(result.returnValueDescriptionText).toBe('The string value.');
@@ -316,7 +316,7 @@ describe('formatFunction', () => {
         },
       });
 
-      const result = await formatFunctionData(func, {}, defaultRewriteContext);
+      const result = await formatFunctionData(func, defaultRewriteContext);
 
       expect(result.returnValue).toBe('((event: Event) => void)');
     });
@@ -368,7 +368,7 @@ describe('formatFunction', () => {
         },
       });
 
-      const result = await formatFunctionData(func, {}, defaultRewriteContext);
+      const result = await formatFunctionData(func, defaultRewriteContext);
 
       // Should return the type reference, not expand into properties table
       expect(result.returnValue).toBe('Dialog.DialogHandle<Payload>');
@@ -391,7 +391,7 @@ describe('formatFunction', () => {
         },
       });
 
-      const result = await formatFunctionData(func, {}, defaultRewriteContext);
+      const result = await formatFunctionData(func, defaultRewriteContext);
 
       expect(result.returnValue).toBe('void');
       expect(result.returnValueDescription).toBeUndefined();
@@ -420,7 +420,7 @@ describe('formatFunction', () => {
         },
       });
 
-      const result = await formatFunctionData(func, {}, defaultRewriteContext);
+      const result = await formatFunctionData(func, defaultRewriteContext);
 
       expect(result.parameters!.find((p) => p.name === 'options')!).toBeDefined();
       // Optional params have | undefined appended for HAST highlighting
@@ -540,7 +540,7 @@ describe('formatFunction', () => {
         },
       });
 
-      const result = await formatFunctionData(func, {}, defaultRewriteContext);
+      const result = await formatFunctionData(func, defaultRewriteContext);
 
       // a and b should NOT be optional (they appear in all overloads)
       expect(result.parameters!.find((p) => p.name === 'a')!.optional).toBeUndefined();
@@ -605,7 +605,7 @@ describe('formatFunction', () => {
         },
       });
 
-      const result = await formatFunctionData(func, {}, defaultRewriteContext);
+      const result = await formatFunctionData(func, defaultRewriteContext);
 
       expect(result.name).toBe('createState');
       // Return value should be an object with properties, not a string

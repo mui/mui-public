@@ -60,7 +60,6 @@ export interface FormatComponentOptions {
  */
 export async function formatComponentData(
   component: tae.ExportNode & { type: tae.ComponentNode },
-  typeNameMap: Record<string, string>,
   rewriteContext: TypeRewriteContext,
   options: FormatComponentOptions = {},
 ): Promise<ComponentTypeMeta> {
@@ -83,7 +82,6 @@ export async function formatComponentData(
     props: sortObjectByKeys(
       await formatProperties(component.type.props, {
         exportNames,
-        typeNameMap,
         isComponentContext: true,
         formatting,
         externalTypes,

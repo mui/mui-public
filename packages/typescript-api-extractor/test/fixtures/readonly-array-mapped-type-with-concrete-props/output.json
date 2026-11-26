@@ -64,7 +64,8 @@
 							},
 							"equalToDefault": false
 						}
-					]
+					],
+					"declarationId": "578f7c356d856563"
 				},
 				"elementType": {
 					"kind": "intersection",
@@ -123,7 +124,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "578f7c356d856563",
+			"declaredName": "Data"
 		}
 	]
 }

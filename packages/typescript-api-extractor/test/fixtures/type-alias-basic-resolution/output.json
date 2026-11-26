@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "acceptsAliases"
+					"name": "acceptsAliases",
+					"declarationId": "572a7635cb9b0200"
 				},
 				"callSignatures": [
 					{
@@ -15,7 +16,8 @@
 								"type": {
 									"kind": "union",
 									"typeName": {
-										"name": "Alias"
+										"name": "Alias",
+										"declarationId": "6d3d5e4b4feffa44"
 									},
 									"types": [
 										{
@@ -51,7 +53,8 @@
 												},
 												"equalToDefault": false
 											}
-										]
+										],
+										"declarationId": "5f33bd0cdb9ec901"
 									},
 									"properties": [],
 									"indexSignature": {
@@ -69,7 +72,8 @@
 								"type": {
 									"kind": "object",
 									"typeName": {
-										"name": "AliasToGeneric"
+										"name": "AliasToGeneric",
+										"declarationId": "ab83918861da0b11"
 									},
 									"properties": []
 								},
@@ -80,7 +84,8 @@
 								"type": {
 									"kind": "intrinsic",
 									"typeName": {
-										"name": "AliasedAny"
+										"name": "AliasedAny",
+										"declarationId": "cf7ac34e84aa03ba"
 									},
 									"intrinsic": "any"
 								},
@@ -91,7 +96,8 @@
 								"type": {
 									"kind": "intrinsic",
 									"typeName": {
-										"name": "AliasedUnknown"
+										"name": "AliasedUnknown",
+										"declarationId": "d584ac7cb1071924"
 									},
 									"intrinsic": "unknown"
 								},
@@ -102,13 +108,15 @@
 								"type": {
 									"kind": "union",
 									"typeName": {
-										"name": "Alias"
+										"name": "Alias",
+										"declarationId": "6d3d5e4b4feffa44"
 									},
 									"types": [
 										{
 											"kind": "union",
 											"typeName": {
-												"name": "Alias"
+												"name": "Alias",
+												"declarationId": "6d3d5e4b4feffa44"
 											},
 											"types": [
 												{
@@ -153,7 +161,8 @@
 														},
 														"equalToDefault": false
 													}
-												]
+												],
+												"declarationId": "5f33bd0cdb9ec901"
 											},
 											"properties": [],
 											"indexSignature": {
@@ -177,13 +186,15 @@
 								"type": {
 									"kind": "union",
 									"typeName": {
-										"name": "AliasToGeneric"
+										"name": "AliasToGeneric",
+										"declarationId": "ab83918861da0b11"
 									},
 									"types": [
 										{
 											"kind": "object",
 											"typeName": {
-												"name": "AliasToGeneric"
+												"name": "AliasToGeneric",
+												"declarationId": "ab83918861da0b11"
 											},
 											"properties": []
 										},
@@ -200,7 +211,8 @@
 								"type": {
 									"kind": "intrinsic",
 									"typeName": {
-										"name": "AliasedAny"
+										"name": "AliasedAny",
+										"declarationId": "cf7ac34e84aa03ba"
 									},
 									"intrinsic": "any"
 								},
@@ -211,7 +223,8 @@
 								"type": {
 									"kind": "intrinsic",
 									"typeName": {
-										"name": "AliasedUnknown"
+										"name": "AliasedUnknown",
+										"declarationId": "d584ac7cb1071924"
 									},
 									"intrinsic": "unknown"
 								},
@@ -225,7 +238,8 @@
 										{
 											"kind": "intrinsic",
 											"typeName": {
-												"name": "AliasedAny"
+												"name": "AliasedAny",
+												"declarationId": "cf7ac34e84aa03ba"
 											},
 											"intrinsic": "any"
 										},
@@ -248,14 +262,17 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "572a7635cb9b0200",
+			"declaredName": "acceptsAliases"
 		},
 		{
 			"name": "AliasContainer",
 			"type": {
 				"kind": "object",
 				"typeName": {
-					"name": "AliasContainer"
+					"name": "AliasContainer",
+					"declarationId": "1fa7aba56df5c3d2"
 				},
 				"properties": [
 					{
@@ -263,7 +280,8 @@
 						"type": {
 							"kind": "union",
 							"typeName": {
-								"name": "Alias"
+								"name": "Alias",
+								"declarationId": "6d3d5e4b4feffa44"
 							},
 							"types": [
 								{
@@ -299,7 +317,8 @@
 										},
 										"equalToDefault": false
 									}
-								]
+								],
+								"declarationId": "5f33bd0cdb9ec901"
 							},
 							"properties": [],
 							"indexSignature": {
@@ -317,7 +336,8 @@
 						"type": {
 							"kind": "object",
 							"typeName": {
-								"name": "AliasToGeneric"
+								"name": "AliasToGeneric",
+								"declarationId": "ab83918861da0b11"
 							},
 							"properties": []
 						},
@@ -328,7 +348,8 @@
 						"type": {
 							"kind": "intrinsic",
 							"typeName": {
-								"name": "AliasedAny"
+								"name": "AliasedAny",
+								"declarationId": "cf7ac34e84aa03ba"
 							},
 							"intrinsic": "any"
 						},
@@ -339,7 +360,8 @@
 						"type": {
 							"kind": "intrinsic",
 							"typeName": {
-								"name": "AliasedUnknown"
+								"name": "AliasedUnknown",
+								"declarationId": "d584ac7cb1071924"
 							},
 							"intrinsic": "unknown"
 						},
@@ -350,13 +372,15 @@
 						"type": {
 							"kind": "union",
 							"typeName": {
-								"name": "Alias"
+								"name": "Alias",
+								"declarationId": "6d3d5e4b4feffa44"
 							},
 							"types": [
 								{
 									"kind": "union",
 									"typeName": {
-										"name": "Alias"
+										"name": "Alias",
+										"declarationId": "6d3d5e4b4feffa44"
 									},
 									"types": [
 										{
@@ -401,7 +425,8 @@
 												},
 												"equalToDefault": false
 											}
-										]
+										],
+										"declarationId": "5f33bd0cdb9ec901"
 									},
 									"properties": [],
 									"indexSignature": {
@@ -425,13 +450,15 @@
 						"type": {
 							"kind": "union",
 							"typeName": {
-								"name": "AliasToGeneric"
+								"name": "AliasToGeneric",
+								"declarationId": "ab83918861da0b11"
 							},
 							"types": [
 								{
 									"kind": "object",
 									"typeName": {
-										"name": "AliasToGeneric"
+										"name": "AliasToGeneric",
+										"declarationId": "ab83918861da0b11"
 									},
 									"properties": []
 								},
@@ -448,7 +475,8 @@
 						"type": {
 							"kind": "intrinsic",
 							"typeName": {
-								"name": "AliasedAny"
+								"name": "AliasedAny",
+								"declarationId": "cf7ac34e84aa03ba"
 							},
 							"intrinsic": "any"
 						},
@@ -459,7 +487,8 @@
 						"type": {
 							"kind": "intrinsic",
 							"typeName": {
-								"name": "AliasedUnknown"
+								"name": "AliasedUnknown",
+								"declarationId": "d584ac7cb1071924"
 							},
 							"intrinsic": "unknown"
 						},
@@ -469,7 +498,9 @@
 			},
 			"isValue": false,
 			"isType": true,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "1fa7aba56df5c3d2",
+			"declaredName": "AliasContainer"
 		}
 	]
 }

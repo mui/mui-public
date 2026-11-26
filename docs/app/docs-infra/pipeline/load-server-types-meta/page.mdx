@@ -65,8 +65,9 @@ const result = await loadServerTypesMeta({
 
 // Which type names originated from each variant
 result.variantTypeNames; // { Checkbox: ['Root', 'Root.Props', ...], Button: ['Root', ...] }
-// Per-variant typeNameMaps (flat name → dotted name)
-result.variantTypeNameMaps;
+// The other names a type is exported under, and an opaque id of the declaration it documents
+result.exports.Root.type.aliases; // ['CheckboxRoot']
+result.exports.Root.type.declarationId;
 ```
 
 ### Filtering Descriptions

@@ -6,7 +6,8 @@
 			"type": {
 				"kind": "function",
 				"typeName": {
-					"name": "acceptsGenericAlias"
+					"name": "acceptsGenericAlias",
+					"declarationId": "58ed8d85e8b1b335"
 				},
 				"callSignatures": [
 					{
@@ -21,7 +22,8 @@
 												"type": {
 													"kind": "union",
 													"typeName": {
-														"name": "MyUnion"
+														"name": "MyUnion",
+														"declarationId": "bf4c83d9a567b11b"
 													},
 													"types": [
 														{
@@ -36,7 +38,8 @@
 												},
 												"equalToDefault": false
 											}
-										]
+										],
+										"declarationId": "56a53709592ec9cf"
 									},
 									"properties": [
 										{
@@ -44,7 +47,8 @@
 											"type": {
 												"kind": "union",
 												"typeName": {
-													"name": "MyUnion"
+													"name": "MyUnion",
+													"declarationId": "bf4c83d9a567b11b"
 												},
 												"types": [
 													{
@@ -74,7 +78,9 @@
 			},
 			"isValue": true,
 			"isType": false,
-			"isNamespace": false
+			"isNamespace": false,
+			"declarationId": "58ed8d85e8b1b335",
+			"declaredName": "acceptsGenericAlias"
 		}
 	]
 }

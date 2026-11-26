@@ -154,7 +154,6 @@ describe('format', () => {
       const result = formatDetailedType(externalType, {
         allExports: exportNodes,
         exportNames: [],
-        typeNameMap: {},
       });
       expect(result).toBe('{ prop: string }');
     });
@@ -170,7 +169,6 @@ describe('format', () => {
       const result = formatDetailedType(externalType, {
         allExports: exportNodes,
         exportNames: ['CircularType'],
-        typeNameMap: {},
       });
       expect(result).toBe('CircularType');
     });
@@ -190,7 +188,6 @@ describe('format', () => {
       // When selfName matches typeName, should expand the union instead of using the alias
       const result = formatType(unionType, {
         exportNames: [],
-        typeNameMap: {},
         selfName: 'BaseContentLoadingProps',
       });
       expect(result).toBe('string | number');
@@ -198,7 +195,6 @@ describe('format', () => {
       // When selfName doesn't match, should use the alias
       const resultWithDifferentSelf = formatType(unionType, {
         exportNames: [],
-        typeNameMap: {},
         selfName: 'OtherType',
       });
       expect(resultWithDifferentSelf).toBe('BaseContentLoadingProps');
@@ -208,13 +204,13 @@ describe('format', () => {
       // This tests the specific bug fix where a type like:
       //   type AccordionRootChangeEventReason = Accordion.Root.ChangeEventReason
       // was being generated because only the simple name was checked, not the qualified name.
-      // The typeNameMap transforms AccordionRootChangeEventReason → Accordion.Root.ChangeEventReason
+      // A reference to an export carries its documented name, Accordion.Root.ChangeEventReason,
       // so when selfName is "Accordion.Root.ChangeEventReason", we need to expand the type.
       const unionType: tae.UnionNode = {
         kind: 'union',
         typeName: {
-          name: 'AccordionRootChangeEventReason',
-          namespaces: [],
+          name: 'ChangeEventReason',
+          namespaces: ['Accordion', 'Root'],
         } as any,
         types: [
           { kind: 'literal', value: 'trigger-press' } as any,
@@ -222,15 +218,10 @@ describe('format', () => {
         ],
       } as any;
 
-      const typeNameMap = {
-        AccordionRootChangeEventReason: 'Accordion.Root.ChangeEventReason',
-      };
-
       // When selfName is the dotted form (Accordion.Root.ChangeEventReason),
       // the type should be expanded because the qualifiedName would match selfName
       const result = formatType(unionType, {
         exportNames: [],
-        typeNameMap,
         selfName: 'Accordion.Root.ChangeEventReason', // selfName is the dotted form
       });
       // Should expand to the union members, not use the alias
@@ -240,7 +231,6 @@ describe('format', () => {
       // When selfName is different, should use the qualified alias
       const resultNonSelf = formatType(unionType, {
         exportNames: [],
-        typeNameMap,
         selfName: 'OtherType',
       });
       expect(resultNonSelf).toBe('Accordion.Root.ChangeEventReason');
@@ -251,8 +241,8 @@ describe('format', () => {
       const intersectionType: tae.IntersectionNode = {
         kind: 'intersection',
         typeName: {
-          name: 'AccordionItemState',
-          namespaces: [],
+          name: 'State',
+          namespaces: ['Accordion', 'Item'],
         } as any,
         types: [
           {
@@ -266,14 +256,9 @@ describe('format', () => {
         ],
       } as any;
 
-      const typeNameMap = {
-        AccordionItemState: 'Accordion.Item.State',
-      };
-
       // When selfName matches the qualified name, should expand
       const result = formatType(intersectionType, {
         exportNames: [],
-        typeNameMap,
         selfName: 'Accordion.Item.State',
       });
       // Should expand to the intersection, not use the alias
@@ -283,7 +268,6 @@ describe('format', () => {
       // When selfName is different, should use the qualified alias
       const resultNonSelf = formatType(intersectionType, {
         exportNames: [],
-        typeNameMap,
         selfName: 'OtherType',
       });
       expect(resultNonSelf).toBe('Accordion.Item.State');
@@ -298,8 +282,8 @@ describe('format', () => {
       const unionType: tae.UnionNode = {
         kind: 'union',
         typeName: {
-          name: 'TabsRootChangeEventDetails',
-          namespaces: [],
+          name: 'ChangeEventDetails',
+          namespaces: ['Tabs', 'Root'],
           typeArguments: [
             {
               type: { kind: 'literal', value: "'none'" } as any,
@@ -327,14 +311,9 @@ describe('format', () => {
         ],
       } as any;
 
-      const typeNameMap = {
-        TabsRootChangeEventDetails: 'Tabs.Root.ChangeEventDetails',
-      };
-
       // When selfName matches the base qualifiedName (without type args), should expand
       const result = formatType(unionType, {
         exportNames: [],
-        typeNameMap,
         selfName: 'Tabs.Root.ChangeEventDetails', // selfName without type args
       });
       // Should expand to the object type, not use the alias with type args
@@ -343,7 +322,6 @@ describe('format', () => {
       // When selfName is different, should use the qualified alias with type args
       const resultNonSelf = formatType(unionType, {
         exportNames: [],
-        typeNameMap,
         selfName: 'OtherType',
       });
       // Should include the type arguments in the output
@@ -369,7 +347,7 @@ describe('format', () => {
         ],
       } as any;
 
-      const result = formatType(intersectionWithEmptyObject, { exportNames: [], typeNameMap: {} });
+      const result = formatType(intersectionWithEmptyObject, { exportNames: [] });
       // Should strip the empty object, leaving just the non-empty part
       expect(result).toBe("{ reason: 'none' }");
     });
@@ -383,7 +361,7 @@ describe('format', () => {
         ],
       } as any;
 
-      const result = formatType(allEmptyIntersection, { exportNames: [], typeNameMap: {} });
+      const result = formatType(allEmptyIntersection, { exportNames: [] });
       expect(result).toBe('{}');
     });
 
@@ -416,7 +394,6 @@ describe('format', () => {
       const result = formatDetailedType(unionType, {
         allExports: exportNodes,
         exportNames: [],
-        typeNameMap: {},
       });
       expect(result).toBe('string | number');
     });
@@ -461,7 +438,6 @@ describe('format', () => {
       const result = formatDetailedType(intersectionType, {
         allExports: exportNodes,
         exportNames: [],
-        typeNameMap: {},
       });
       expect(result).toBe('{ a: string } & { b: number }');
     });
@@ -475,7 +451,6 @@ describe('format', () => {
       const result = formatDetailedType(externalType, {
         allExports: [],
         exportNames: [],
-        typeNameMap: {},
       });
       expect(result).toBe(
         '{ top?: number; right?: number; bottom?: number; left?: number } | number',
@@ -511,7 +486,7 @@ describe('format', () => {
         } as any,
       ];
 
-      const result = await formatParameters(params, { exportNames: [], typeNameMap: {} });
+      const result = await formatParameters(params, { exportNames: [] });
 
       // Parameter type is now plain text (HAST generation deferred to highlightTypesMeta)
       expect(result[0].typeText).toBe('string');
@@ -581,7 +556,7 @@ describe('format', () => {
         } as any,
       ];
 
-      const result = await formatParameters(params, { exportNames: [], typeNameMap: {} });
+      const result = await formatParameters(params, { exportNames: [] });
 
       // Unfenced example text gets wrapped in ```tsx fences, producing a code block
       expect(result[0].example).toMatchObject({
@@ -617,7 +592,7 @@ describe('format', () => {
         } as any,
       ];
 
-      const result = await formatParameters(params, { exportNames: [], typeNameMap: {} });
+      const result = await formatParameters(params, { exportNames: [] });
 
       // Already-fenced example should remain as-is with the original language
       expect(result[0].example).toMatchObject({
@@ -654,7 +629,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, { exportNames: [], typeNameMap: {} });
+        const result = await formatProperties(props, { exportNames: [] });
 
         expect(result.title).toBeDefined();
         expect(result.title.required).toBe(true);
@@ -705,7 +680,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, { exportNames: [], typeNameMap: {} });
+        const result = await formatProperties(props, { exportNames: [] });
 
         // formatProperties now only returns typeText (plain string)
         expect(result.onClick.typeText).toBeDefined();
@@ -736,7 +711,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, { exportNames: [], typeNameMap: {} });
+        const result = await formatProperties(props, { exportNames: [] });
 
         // formatProperties now only returns typeText (plain string)
         expect(result.className.typeText).toBeDefined();
@@ -755,7 +730,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, { exportNames: [], typeNameMap: {} });
+        const result = await formatProperties(props, { exportNames: [] });
 
         expect(result.title.typeText).toBe('string');
       });
@@ -770,7 +745,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, { exportNames: [], typeNameMap: {} });
+        const result = await formatProperties(props, { exportNames: [] });
 
         // These fields are now generated by highlightTypesMeta, not formatProperties
         expect((result.disabled as any).type).toBeUndefined();
@@ -807,7 +782,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, { exportNames: [], typeNameMap: {} });
+        const result = await formatProperties(props, { exportNames: [] });
 
         // typeText has | undefined appended for optional props (for HAST highlighting)
         // formatType strips it, but we add it back before returning
@@ -834,7 +809,6 @@ describe('format', () => {
 
         const result = await formatProperties(props, {
           exportNames: [],
-          typeNameMap: {},
           isComponentContext: true,
         });
 
@@ -853,7 +827,7 @@ describe('format', () => {
         ];
 
         // No allExports means not in component context
-        const result = await formatProperties(props, { exportNames: [], typeNameMap: {} });
+        const result = await formatProperties(props, { exportNames: [] });
 
         expect(result.ref).toBeDefined();
       });
@@ -878,7 +852,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, { exportNames: [], typeNameMap: {} });
+        const result = await formatProperties(props, { exportNames: [] });
 
         expect(result.internalProp).toBeUndefined();
         expect(result.publicProp).toBeDefined();
@@ -894,7 +868,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, { exportNames: [], typeNameMap: {} });
+        const result = await formatProperties(props, { exportNames: [] });
 
         // Props without documentation should be included (no @ignore tag)
         expect(result.noDocs).toBeDefined();
@@ -915,7 +889,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, { exportNames: [], typeNameMap: {} });
+        const result = await formatProperties(props, { exportNames: [] });
 
         // Verify HAST structure (filter out whitespace text nodes)
         expect(result.value.description).toBeDefined();
@@ -980,7 +954,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, { exportNames: [], typeNameMap: {} });
+        const result = await formatProperties(props, { exportNames: [] });
 
         // Verify example HAST structure (raw structure, transformation happens in highlightTypes)
         expect(result.value.example).toBeDefined();
@@ -1022,7 +996,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, { exportNames: [], typeNameMap: {} });
+        const result = await formatProperties(props, { exportNames: [] });
 
         // Unfenced example text gets wrapped in ```tsx fences
         expect(result.value.example).toBeDefined();
@@ -1054,7 +1028,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, { exportNames: [], typeNameMap: {} });
+        const result = await formatProperties(props, { exportNames: [] });
 
         // Without documentation, both fields should be undefined
         expect(result.value.description).toBeUndefined();
@@ -1073,7 +1047,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, { exportNames: [], typeNameMap: {} });
+        const result = await formatProperties(props, { exportNames: [] });
 
         // Verify exact HAST structure with all inline formatting
         expect(result.content.description).toMatchObject({
@@ -1126,7 +1100,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, { exportNames: [], typeNameMap: {} });
+        const result = await formatProperties(props, { exportNames: [] });
 
         // remark-typography converts "hello" to "hello" (smart quotes)
         // Also adds non-breaking space before "value"
@@ -1154,7 +1128,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, { exportNames: [], typeNameMap: {} });
+        const result = await formatProperties(props, { exportNames: [] });
 
         // remark-typography converts ' to ' (right single quotation mark)
         expect(result.value.description).toMatchObject({
@@ -1181,7 +1155,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, { exportNames: [], typeNameMap: {} });
+        const result = await formatProperties(props, { exportNames: [] });
 
         // remark-typography converts ... to … (ellipsis)
         expect(result.value.description).toMatchObject({
@@ -1208,7 +1182,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, { exportNames: [], typeNameMap: {} });
+        const result = await formatProperties(props, { exportNames: [] });
 
         // remark-typography adds non-breaking space before "input"
         expect(result.value.description).toMatchObject({
@@ -1235,7 +1209,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, { exportNames: [], typeNameMap: {} });
+        const result = await formatProperties(props, { exportNames: [] });
 
         // Code inside fenced blocks should preserve straight quotes
         expect(result.value.description).toMatchObject({
@@ -1269,7 +1243,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, { exportNames: [], typeNameMap: {} });
+        const result = await formatProperties(props, { exportNames: [] });
 
         // Content inside inline code should preserve straight quotes
         expect(result.value.description).toMatchObject({
@@ -1311,7 +1285,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, { exportNames: [], typeNameMap: {} });
+        const result = await formatProperties(props, { exportNames: [] });
 
         // Verify exact HAST structure with link
         expect(result.docs.description).toMatchObject({
@@ -1350,7 +1324,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, { exportNames: [], typeNameMap: {} });
+        const result = await formatProperties(props, { exportNames: [] });
 
         // Verify HAST structure (filter whitespace nodes)
         expect(result.options.description).toBeDefined();
@@ -1420,7 +1394,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, { exportNames: [], typeNameMap: {} });
+        const result = await formatProperties(props, { exportNames: [] });
 
         // Verify description HAST contains raw code block (transformation happens in highlightTypes)
         expect(result.value.description).toBeDefined();
@@ -1453,7 +1427,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, { exportNames: [], typeNameMap: {} });
+        const result = await formatProperties(props, { exportNames: [] });
 
         // Verify typeText field contains plain string (HAST generation is in highlightTypesMeta)
         // Optional props have | undefined appended
@@ -1474,7 +1448,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, { exportNames: [], typeNameMap: {} });
+        const result = await formatProperties(props, { exportNames: [] });
 
         // Code block should have raw structure (transformation happens in highlightTypes)
         expect(result.example.description).toBeDefined();
@@ -1505,7 +1479,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, { exportNames: [], typeNameMap: {} });
+        const result = await formatProperties(props, { exportNames: [] });
 
         expect(result.variant.defaultText).toBe("'primary' | 'secondary' | 'tertiary'");
       });
@@ -1522,7 +1496,7 @@ describe('format', () => {
           } as any,
         ];
 
-        const result = await formatProperties(props, { exportNames: [], typeNameMap: {} });
+        const result = await formatProperties(props, { exportNames: [] });
 
         expect(result.size.defaultText).toBe("'medium'");
       });
@@ -1614,7 +1588,7 @@ describe('format', () => {
         } as any,
       ];
 
-      const result = await formatProperties(props, { exportNames: [], typeNameMap: {} });
+      const result = await formatProperties(props, { exportNames: [] });
 
       expect(result.variant.seeText).toBe('- See [Docs](https://external.example/path)');
       expect(result.variant.see).toBeDefined();
@@ -1637,7 +1611,7 @@ describe('format', () => {
         } as any,
       ];
 
-      const result = await formatProperties(props, { exportNames: [], typeNameMap: {} });
+      const result = await formatProperties(props, { exportNames: [] });
 
       expect(result.variant.seeText).toBe(
         '- See [Docs](https://external.example/path)\n- See [other.external.example](https://other.external.example/path)',
@@ -1656,7 +1630,7 @@ describe('format', () => {
         } as any,
       ];
 
-      const result = await formatProperties(props, { exportNames: [], typeNameMap: {} });
+      const result = await formatProperties(props, { exportNames: [] });
 
       expect(result.variant.seeText).toBeUndefined();
       expect(result.variant.see).toBeUndefined();
@@ -1677,7 +1651,7 @@ describe('format', () => {
         } as any,
       ];
 
-      const result = await formatParameters(params, { exportNames: [], typeNameMap: {} });
+      const result = await formatParameters(params, { exportNames: [] });
 
       expect(result[0].seeText).toBe('- See [External docs](https://external.example/path)');
       expect(result[0].see).toBeDefined();
@@ -1696,7 +1670,7 @@ describe('format', () => {
         } as any,
       ];
 
-      const result = await formatParameters(params, { exportNames: [], typeNameMap: {} });
+      const result = await formatParameters(params, { exportNames: [] });
 
       expect(result[0].seeText).toBeUndefined();
       expect(result[0].see).toBeUndefined();
