@@ -1,0 +1,1882 @@
+{
+	"name": "test/fixtures/generic-alias-union-constraint-expansion/input",
+	"exports": [
+		{
+			"name": "AxisConfig",
+			"type": {
+				"kind": "intersection",
+				"typeName": {
+					"name": "AxisConfig",
+					"typeArguments": [
+						{
+							"type": {
+								"name": "S",
+								"constraint": {
+									"kind": "union",
+									"typeName": {
+										"name": "ScaleName"
+									},
+									"types": [
+										{
+											"kind": "literal",
+											"value": "\"band\""
+										},
+										{
+											"kind": "literal",
+											"value": "\"linear\""
+										}
+									]
+								},
+								"defaultValue": {
+									"kind": "union",
+									"typeName": {
+										"name": "ScaleName"
+									},
+									"types": [
+										{
+											"kind": "literal",
+											"value": "\"band\""
+										},
+										{
+											"kind": "literal",
+											"value": "\"linear\""
+										}
+									]
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						},
+						{
+							"type": {
+								"name": "AxisProps",
+								"constraint": {
+									"kind": "union",
+									"types": [
+										{
+											"kind": "object",
+											"typeName": {
+												"name": "XAxisProps"
+											},
+											"properties": [
+												{
+													"name": "axis",
+													"type": {
+														"kind": "literal",
+														"value": "\"x\""
+													},
+													"optional": false
+												},
+												{
+													"name": "tickHeight",
+													"type": {
+														"kind": "union",
+														"types": [
+															{
+																"kind": "intrinsic",
+																"intrinsic": "number"
+															},
+															{
+																"kind": "intrinsic",
+																"intrinsic": "undefined"
+															}
+														]
+													},
+													"optional": true
+												}
+											]
+										},
+										{
+											"kind": "object",
+											"typeName": {
+												"name": "YAxisProps"
+											},
+											"properties": [
+												{
+													"name": "axis",
+													"type": {
+														"kind": "literal",
+														"value": "\"y\""
+													},
+													"optional": false
+												},
+												{
+													"name": "tickWidth",
+													"type": {
+														"kind": "union",
+														"types": [
+															{
+																"kind": "intrinsic",
+																"intrinsic": "number"
+															},
+															{
+																"kind": "intrinsic",
+																"intrinsic": "undefined"
+															}
+														]
+													},
+													"optional": true
+												}
+											]
+										}
+									]
+								},
+								"defaultValue": {
+									"kind": "union",
+									"types": [
+										{
+											"kind": "object",
+											"typeName": {
+												"name": "XAxisProps"
+											},
+											"properties": [
+												{
+													"name": "axis",
+													"type": {
+														"kind": "literal",
+														"value": "\"x\""
+													},
+													"optional": false
+												},
+												{
+													"name": "tickHeight",
+													"type": {
+														"kind": "union",
+														"types": [
+															{
+																"kind": "intrinsic",
+																"intrinsic": "number"
+															},
+															{
+																"kind": "intrinsic",
+																"intrinsic": "undefined"
+															}
+														]
+													},
+													"optional": true
+												}
+											]
+										},
+										{
+											"kind": "object",
+											"typeName": {
+												"name": "YAxisProps"
+											},
+											"properties": [
+												{
+													"name": "axis",
+													"type": {
+														"kind": "literal",
+														"value": "\"y\""
+													},
+													"optional": false
+												},
+												{
+													"name": "tickWidth",
+													"type": {
+														"kind": "union",
+														"types": [
+															{
+																"kind": "intrinsic",
+																"intrinsic": "number"
+															},
+															{
+																"kind": "intrinsic",
+																"intrinsic": "undefined"
+															}
+														]
+													},
+													"optional": true
+												}
+											]
+										}
+									]
+								},
+								"kind": "typeParameter"
+							},
+							"equalToDefault": false
+						}
+					]
+				},
+				"types": [
+					{
+						"kind": "object",
+						"properties": [
+							{
+								"name": "id",
+								"type": {
+									"kind": "intrinsic",
+									"intrinsic": "string"
+								},
+								"optional": false
+							}
+						]
+					},
+					{
+						"kind": "object",
+						"properties": [
+							{
+								"name": "scaleType",
+								"type": {
+									"kind": "union",
+									"types": [
+										{
+											"kind": "literal",
+											"value": "\"band\""
+										},
+										{
+											"kind": "literal",
+											"value": "\"linear\""
+										}
+									]
+								},
+								"optional": false
+							}
+						]
+					},
+					{
+						"kind": "union",
+						"types": [
+							{
+								"kind": "object",
+								"properties": [
+									{
+										"name": "tickLabelMinGap",
+										"type": {
+											"kind": "union",
+											"types": [
+												{
+													"kind": "intrinsic",
+													"intrinsic": "number"
+												},
+												{
+													"kind": "intrinsic",
+													"intrinsic": "undefined"
+												}
+											]
+										},
+										"optional": true
+									}
+								]
+							},
+							{
+								"kind": "object",
+								"properties": []
+							}
+						]
+					},
+					{
+						"name": "AxisProps",
+						"constraint": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "object",
+									"typeName": {
+										"name": "XAxisProps"
+									},
+									"properties": [
+										{
+											"name": "axis",
+											"type": {
+												"kind": "literal",
+												"value": "\"x\""
+											},
+											"optional": false
+										},
+										{
+											"name": "tickHeight",
+											"type": {
+												"kind": "union",
+												"types": [
+													{
+														"kind": "intrinsic",
+														"intrinsic": "number"
+													},
+													{
+														"kind": "intrinsic",
+														"intrinsic": "undefined"
+													}
+												]
+											},
+											"optional": true
+										}
+									]
+								},
+								{
+									"kind": "object",
+									"typeName": {
+										"name": "YAxisProps"
+									},
+									"properties": [
+										{
+											"name": "axis",
+											"type": {
+												"kind": "literal",
+												"value": "\"y\""
+											},
+											"optional": false
+										},
+										{
+											"name": "tickWidth",
+											"type": {
+												"kind": "union",
+												"types": [
+													{
+														"kind": "intrinsic",
+														"intrinsic": "number"
+													},
+													{
+														"kind": "intrinsic",
+														"intrinsic": "undefined"
+													}
+												]
+											},
+											"optional": true
+										}
+									]
+								}
+							]
+						},
+						"defaultValue": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "object",
+									"typeName": {
+										"name": "XAxisProps"
+									},
+									"properties": [
+										{
+											"name": "axis",
+											"type": {
+												"kind": "literal",
+												"value": "\"x\""
+											},
+											"optional": false
+										},
+										{
+											"name": "tickHeight",
+											"type": {
+												"kind": "union",
+												"types": [
+													{
+														"kind": "intrinsic",
+														"intrinsic": "number"
+													},
+													{
+														"kind": "intrinsic",
+														"intrinsic": "undefined"
+													}
+												]
+											},
+											"optional": true
+										}
+									]
+								},
+								{
+									"kind": "object",
+									"typeName": {
+										"name": "YAxisProps"
+									},
+									"properties": [
+										{
+											"name": "axis",
+											"type": {
+												"kind": "literal",
+												"value": "\"y\""
+											},
+											"optional": false
+										},
+										{
+											"name": "tickWidth",
+											"type": {
+												"kind": "union",
+												"types": [
+													{
+														"kind": "intrinsic",
+														"intrinsic": "number"
+													},
+													{
+														"kind": "intrinsic",
+														"intrinsic": "undefined"
+													}
+												]
+											},
+											"optional": true
+										}
+									]
+								}
+							]
+						},
+						"kind": "typeParameter"
+					}
+				],
+				"properties": [
+					{
+						"name": "id",
+						"type": {
+							"kind": "intrinsic",
+							"intrinsic": "string"
+						},
+						"optional": false
+					},
+					{
+						"name": "scaleType",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "literal",
+									"value": "\"band\""
+								},
+								{
+									"kind": "literal",
+									"value": "\"linear\""
+								}
+							]
+						},
+						"optional": false
+					},
+					{
+						"name": "axis",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "literal",
+									"value": "\"x\""
+								},
+								{
+									"kind": "literal",
+									"value": "\"y\""
+								}
+							]
+						},
+						"optional": false
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		},
+		{
+			"name": "ChartProps",
+			"type": {
+				"kind": "object",
+				"typeName": {
+					"name": "ChartProps"
+				},
+				"properties": [
+					{
+						"name": "xAxis",
+						"type": {
+							"kind": "union",
+							"types": [
+								{
+									"kind": "array",
+									"elementType": {
+										"kind": "union",
+										"typeName": {
+											"name": "AxisConfig",
+											"typeArguments": [
+												{
+													"type": {
+														"kind": "union",
+														"typeName": {
+															"name": "ScaleName"
+														},
+														"types": [
+															{
+																"kind": "literal",
+																"value": "\"band\""
+															},
+															{
+																"kind": "literal",
+																"value": "\"linear\""
+															}
+														]
+													},
+													"equalToDefault": true
+												},
+												{
+													"type": {
+														"kind": "union",
+														"types": [
+															{
+																"kind": "object",
+																"typeName": {
+																	"name": "XAxisProps"
+																},
+																"properties": [
+																	{
+																		"name": "axis",
+																		"type": {
+																			"kind": "literal",
+																			"value": "\"x\""
+																		},
+																		"optional": false
+																	},
+																	{
+																		"name": "tickHeight",
+																		"type": {
+																			"kind": "union",
+																			"types": [
+																				{
+																					"kind": "intrinsic",
+																					"intrinsic": "number"
+																				},
+																				{
+																					"kind": "intrinsic",
+																					"intrinsic": "undefined"
+																				}
+																			]
+																		},
+																		"optional": true
+																	}
+																]
+															},
+															{
+																"kind": "object",
+																"typeName": {
+																	"name": "YAxisProps"
+																},
+																"properties": [
+																	{
+																		"name": "axis",
+																		"type": {
+																			"kind": "literal",
+																			"value": "\"y\""
+																		},
+																		"optional": false
+																	},
+																	{
+																		"name": "tickWidth",
+																		"type": {
+																			"kind": "union",
+																			"types": [
+																				{
+																					"kind": "intrinsic",
+																					"intrinsic": "number"
+																				},
+																				{
+																					"kind": "intrinsic",
+																					"intrinsic": "undefined"
+																				}
+																			]
+																		},
+																		"optional": true
+																	}
+																]
+															}
+														]
+													},
+													"equalToDefault": true
+												}
+											]
+										},
+										"types": [
+											{
+												"kind": "intersection",
+												"types": [
+													{
+														"kind": "object",
+														"properties": [
+															{
+																"name": "id",
+																"type": {
+																	"kind": "intrinsic",
+																	"intrinsic": "string"
+																},
+																"optional": false
+															}
+														]
+													},
+													{
+														"kind": "object",
+														"properties": [
+															{
+																"name": "scaleType",
+																"type": {
+																	"kind": "literal",
+																	"value": "\"band\""
+																},
+																"optional": false
+															},
+															{
+																"name": "categoryGapRatio",
+																"type": {
+																	"kind": "union",
+																	"types": [
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "number"
+																		},
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "undefined"
+																		}
+																	]
+																},
+																"optional": true
+															}
+														]
+													},
+													{
+														"kind": "object",
+														"typeName": {
+															"name": "XAxisProps"
+														},
+														"properties": [
+															{
+																"name": "axis",
+																"type": {
+																	"kind": "literal",
+																	"value": "\"x\""
+																},
+																"optional": false
+															},
+															{
+																"name": "tickHeight",
+																"type": {
+																	"kind": "union",
+																	"types": [
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "number"
+																		},
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "undefined"
+																		}
+																	]
+																},
+																"optional": true
+															}
+														]
+													}
+												],
+												"properties": [
+													{
+														"name": "id",
+														"type": {
+															"kind": "intrinsic",
+															"intrinsic": "string"
+														},
+														"optional": false
+													},
+													{
+														"name": "scaleType",
+														"type": {
+															"kind": "literal",
+															"value": "\"band\""
+														},
+														"optional": false
+													},
+													{
+														"name": "categoryGapRatio",
+														"type": {
+															"kind": "union",
+															"types": [
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "number"
+																},
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "undefined"
+																}
+															]
+														},
+														"optional": true
+													},
+													{
+														"name": "axis",
+														"type": {
+															"kind": "literal",
+															"value": "\"x\""
+														},
+														"optional": false
+													},
+													{
+														"name": "tickHeight",
+														"type": {
+															"kind": "union",
+															"types": [
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "number"
+																},
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "undefined"
+																}
+															]
+														},
+														"optional": true
+													}
+												]
+											},
+											{
+												"kind": "intersection",
+												"types": [
+													{
+														"kind": "object",
+														"properties": [
+															{
+																"name": "id",
+																"type": {
+																	"kind": "intrinsic",
+																	"intrinsic": "string"
+																},
+																"optional": false
+															}
+														]
+													},
+													{
+														"kind": "object",
+														"properties": [
+															{
+																"name": "scaleType",
+																"type": {
+																	"kind": "literal",
+																	"value": "\"band\""
+																},
+																"optional": false
+															},
+															{
+																"name": "categoryGapRatio",
+																"type": {
+																	"kind": "union",
+																	"types": [
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "number"
+																		},
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "undefined"
+																		}
+																	]
+																},
+																"optional": true
+															}
+														]
+													},
+													{
+														"kind": "object",
+														"typeName": {
+															"name": "YAxisProps"
+														},
+														"properties": [
+															{
+																"name": "axis",
+																"type": {
+																	"kind": "literal",
+																	"value": "\"y\""
+																},
+																"optional": false
+															},
+															{
+																"name": "tickWidth",
+																"type": {
+																	"kind": "union",
+																	"types": [
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "number"
+																		},
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "undefined"
+																		}
+																	]
+																},
+																"optional": true
+															}
+														]
+													}
+												],
+												"properties": [
+													{
+														"name": "id",
+														"type": {
+															"kind": "intrinsic",
+															"intrinsic": "string"
+														},
+														"optional": false
+													},
+													{
+														"name": "scaleType",
+														"type": {
+															"kind": "literal",
+															"value": "\"band\""
+														},
+														"optional": false
+													},
+													{
+														"name": "categoryGapRatio",
+														"type": {
+															"kind": "union",
+															"types": [
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "number"
+																},
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "undefined"
+																}
+															]
+														},
+														"optional": true
+													},
+													{
+														"name": "axis",
+														"type": {
+															"kind": "literal",
+															"value": "\"y\""
+														},
+														"optional": false
+													},
+													{
+														"name": "tickWidth",
+														"type": {
+															"kind": "union",
+															"types": [
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "number"
+																},
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "undefined"
+																}
+															]
+														},
+														"optional": true
+													}
+												]
+											},
+											{
+												"kind": "intersection",
+												"types": [
+													{
+														"kind": "object",
+														"properties": [
+															{
+																"name": "id",
+																"type": {
+																	"kind": "intrinsic",
+																	"intrinsic": "string"
+																},
+																"optional": false
+															}
+														]
+													},
+													{
+														"kind": "object",
+														"properties": [
+															{
+																"name": "scaleType",
+																"type": {
+																	"kind": "literal",
+																	"value": "\"band\""
+																},
+																"optional": false
+															},
+															{
+																"name": "categoryGapRatio",
+																"type": {
+																	"kind": "union",
+																	"types": [
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "number"
+																		},
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "undefined"
+																		}
+																	]
+																},
+																"optional": true
+															}
+														]
+													},
+													{
+														"kind": "object",
+														"properties": [
+															{
+																"name": "tickLabelMinGap",
+																"type": {
+																	"kind": "union",
+																	"types": [
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "number"
+																		},
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "undefined"
+																		}
+																	]
+																},
+																"optional": true
+															}
+														]
+													},
+													{
+														"kind": "object",
+														"typeName": {
+															"name": "XAxisProps"
+														},
+														"properties": [
+															{
+																"name": "axis",
+																"type": {
+																	"kind": "literal",
+																	"value": "\"x\""
+																},
+																"optional": false
+															},
+															{
+																"name": "tickHeight",
+																"type": {
+																	"kind": "union",
+																	"types": [
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "number"
+																		},
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "undefined"
+																		}
+																	]
+																},
+																"optional": true
+															}
+														]
+													}
+												],
+												"properties": [
+													{
+														"name": "id",
+														"type": {
+															"kind": "intrinsic",
+															"intrinsic": "string"
+														},
+														"optional": false
+													},
+													{
+														"name": "scaleType",
+														"type": {
+															"kind": "literal",
+															"value": "\"band\""
+														},
+														"optional": false
+													},
+													{
+														"name": "categoryGapRatio",
+														"type": {
+															"kind": "union",
+															"types": [
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "number"
+																},
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "undefined"
+																}
+															]
+														},
+														"optional": true
+													},
+													{
+														"name": "tickLabelMinGap",
+														"type": {
+															"kind": "union",
+															"types": [
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "number"
+																},
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "undefined"
+																}
+															]
+														},
+														"optional": true
+													},
+													{
+														"name": "axis",
+														"type": {
+															"kind": "literal",
+															"value": "\"x\""
+														},
+														"optional": false
+													},
+													{
+														"name": "tickHeight",
+														"type": {
+															"kind": "union",
+															"types": [
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "number"
+																},
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "undefined"
+																}
+															]
+														},
+														"optional": true
+													}
+												]
+											},
+											{
+												"kind": "intersection",
+												"types": [
+													{
+														"kind": "object",
+														"properties": [
+															{
+																"name": "id",
+																"type": {
+																	"kind": "intrinsic",
+																	"intrinsic": "string"
+																},
+																"optional": false
+															}
+														]
+													},
+													{
+														"kind": "object",
+														"properties": [
+															{
+																"name": "scaleType",
+																"type": {
+																	"kind": "literal",
+																	"value": "\"band\""
+																},
+																"optional": false
+															},
+															{
+																"name": "categoryGapRatio",
+																"type": {
+																	"kind": "union",
+																	"types": [
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "number"
+																		},
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "undefined"
+																		}
+																	]
+																},
+																"optional": true
+															}
+														]
+													},
+													{
+														"kind": "object",
+														"properties": [
+															{
+																"name": "tickLabelMinGap",
+																"type": {
+																	"kind": "union",
+																	"types": [
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "number"
+																		},
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "undefined"
+																		}
+																	]
+																},
+																"optional": true
+															}
+														]
+													},
+													{
+														"kind": "object",
+														"typeName": {
+															"name": "YAxisProps"
+														},
+														"properties": [
+															{
+																"name": "axis",
+																"type": {
+																	"kind": "literal",
+																	"value": "\"y\""
+																},
+																"optional": false
+															},
+															{
+																"name": "tickWidth",
+																"type": {
+																	"kind": "union",
+																	"types": [
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "number"
+																		},
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "undefined"
+																		}
+																	]
+																},
+																"optional": true
+															}
+														]
+													}
+												],
+												"properties": [
+													{
+														"name": "id",
+														"type": {
+															"kind": "intrinsic",
+															"intrinsic": "string"
+														},
+														"optional": false
+													},
+													{
+														"name": "scaleType",
+														"type": {
+															"kind": "literal",
+															"value": "\"band\""
+														},
+														"optional": false
+													},
+													{
+														"name": "categoryGapRatio",
+														"type": {
+															"kind": "union",
+															"types": [
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "number"
+																},
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "undefined"
+																}
+															]
+														},
+														"optional": true
+													},
+													{
+														"name": "tickLabelMinGap",
+														"type": {
+															"kind": "union",
+															"types": [
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "number"
+																},
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "undefined"
+																}
+															]
+														},
+														"optional": true
+													},
+													{
+														"name": "axis",
+														"type": {
+															"kind": "literal",
+															"value": "\"y\""
+														},
+														"optional": false
+													},
+													{
+														"name": "tickWidth",
+														"type": {
+															"kind": "union",
+															"types": [
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "number"
+																},
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "undefined"
+																}
+															]
+														},
+														"optional": true
+													}
+												]
+											},
+											{
+												"kind": "intersection",
+												"types": [
+													{
+														"kind": "object",
+														"properties": [
+															{
+																"name": "id",
+																"type": {
+																	"kind": "intrinsic",
+																	"intrinsic": "string"
+																},
+																"optional": false
+															}
+														]
+													},
+													{
+														"kind": "object",
+														"properties": [
+															{
+																"name": "scaleType",
+																"type": {
+																	"kind": "literal",
+																	"value": "\"linear\""
+																},
+																"optional": false
+															},
+															{
+																"name": "min",
+																"type": {
+																	"kind": "union",
+																	"types": [
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "number"
+																		},
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "undefined"
+																		}
+																	]
+																},
+																"optional": true
+															}
+														]
+													},
+													{
+														"kind": "object",
+														"typeName": {
+															"name": "XAxisProps"
+														},
+														"properties": [
+															{
+																"name": "axis",
+																"type": {
+																	"kind": "literal",
+																	"value": "\"x\""
+																},
+																"optional": false
+															},
+															{
+																"name": "tickHeight",
+																"type": {
+																	"kind": "union",
+																	"types": [
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "number"
+																		},
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "undefined"
+																		}
+																	]
+																},
+																"optional": true
+															}
+														]
+													}
+												],
+												"properties": [
+													{
+														"name": "id",
+														"type": {
+															"kind": "intrinsic",
+															"intrinsic": "string"
+														},
+														"optional": false
+													},
+													{
+														"name": "scaleType",
+														"type": {
+															"kind": "literal",
+															"value": "\"linear\""
+														},
+														"optional": false
+													},
+													{
+														"name": "min",
+														"type": {
+															"kind": "union",
+															"types": [
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "number"
+																},
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "undefined"
+																}
+															]
+														},
+														"optional": true
+													},
+													{
+														"name": "axis",
+														"type": {
+															"kind": "literal",
+															"value": "\"x\""
+														},
+														"optional": false
+													},
+													{
+														"name": "tickHeight",
+														"type": {
+															"kind": "union",
+															"types": [
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "number"
+																},
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "undefined"
+																}
+															]
+														},
+														"optional": true
+													}
+												]
+											},
+											{
+												"kind": "intersection",
+												"types": [
+													{
+														"kind": "object",
+														"properties": [
+															{
+																"name": "id",
+																"type": {
+																	"kind": "intrinsic",
+																	"intrinsic": "string"
+																},
+																"optional": false
+															}
+														]
+													},
+													{
+														"kind": "object",
+														"properties": [
+															{
+																"name": "scaleType",
+																"type": {
+																	"kind": "literal",
+																	"value": "\"linear\""
+																},
+																"optional": false
+															},
+															{
+																"name": "min",
+																"type": {
+																	"kind": "union",
+																	"types": [
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "number"
+																		},
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "undefined"
+																		}
+																	]
+																},
+																"optional": true
+															}
+														]
+													},
+													{
+														"kind": "object",
+														"typeName": {
+															"name": "YAxisProps"
+														},
+														"properties": [
+															{
+																"name": "axis",
+																"type": {
+																	"kind": "literal",
+																	"value": "\"y\""
+																},
+																"optional": false
+															},
+															{
+																"name": "tickWidth",
+																"type": {
+																	"kind": "union",
+																	"types": [
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "number"
+																		},
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "undefined"
+																		}
+																	]
+																},
+																"optional": true
+															}
+														]
+													}
+												],
+												"properties": [
+													{
+														"name": "id",
+														"type": {
+															"kind": "intrinsic",
+															"intrinsic": "string"
+														},
+														"optional": false
+													},
+													{
+														"name": "scaleType",
+														"type": {
+															"kind": "literal",
+															"value": "\"linear\""
+														},
+														"optional": false
+													},
+													{
+														"name": "min",
+														"type": {
+															"kind": "union",
+															"types": [
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "number"
+																},
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "undefined"
+																}
+															]
+														},
+														"optional": true
+													},
+													{
+														"name": "axis",
+														"type": {
+															"kind": "literal",
+															"value": "\"y\""
+														},
+														"optional": false
+													},
+													{
+														"name": "tickWidth",
+														"type": {
+															"kind": "union",
+															"types": [
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "number"
+																},
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "undefined"
+																}
+															]
+														},
+														"optional": true
+													}
+												]
+											},
+											{
+												"kind": "intersection",
+												"types": [
+													{
+														"kind": "object",
+														"properties": [
+															{
+																"name": "id",
+																"type": {
+																	"kind": "intrinsic",
+																	"intrinsic": "string"
+																},
+																"optional": false
+															}
+														]
+													},
+													{
+														"kind": "object",
+														"properties": [
+															{
+																"name": "scaleType",
+																"type": {
+																	"kind": "literal",
+																	"value": "\"linear\""
+																},
+																"optional": false
+															},
+															{
+																"name": "min",
+																"type": {
+																	"kind": "union",
+																	"types": [
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "number"
+																		},
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "undefined"
+																		}
+																	]
+																},
+																"optional": true
+															}
+														]
+													},
+													{
+														"kind": "object",
+														"properties": [
+															{
+																"name": "tickLabelMinGap",
+																"type": {
+																	"kind": "union",
+																	"types": [
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "number"
+																		},
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "undefined"
+																		}
+																	]
+																},
+																"optional": true
+															}
+														]
+													},
+													{
+														"kind": "object",
+														"typeName": {
+															"name": "XAxisProps"
+														},
+														"properties": [
+															{
+																"name": "axis",
+																"type": {
+																	"kind": "literal",
+																	"value": "\"x\""
+																},
+																"optional": false
+															},
+															{
+																"name": "tickHeight",
+																"type": {
+																	"kind": "union",
+																	"types": [
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "number"
+																		},
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "undefined"
+																		}
+																	]
+																},
+																"optional": true
+															}
+														]
+													}
+												],
+												"properties": [
+													{
+														"name": "id",
+														"type": {
+															"kind": "intrinsic",
+															"intrinsic": "string"
+														},
+														"optional": false
+													},
+													{
+														"name": "scaleType",
+														"type": {
+															"kind": "literal",
+															"value": "\"linear\""
+														},
+														"optional": false
+													},
+													{
+														"name": "min",
+														"type": {
+															"kind": "union",
+															"types": [
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "number"
+																},
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "undefined"
+																}
+															]
+														},
+														"optional": true
+													},
+													{
+														"name": "tickLabelMinGap",
+														"type": {
+															"kind": "union",
+															"types": [
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "number"
+																},
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "undefined"
+																}
+															]
+														},
+														"optional": true
+													},
+													{
+														"name": "axis",
+														"type": {
+															"kind": "literal",
+															"value": "\"x\""
+														},
+														"optional": false
+													},
+													{
+														"name": "tickHeight",
+														"type": {
+															"kind": "union",
+															"types": [
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "number"
+																},
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "undefined"
+																}
+															]
+														},
+														"optional": true
+													}
+												]
+											},
+											{
+												"kind": "intersection",
+												"types": [
+													{
+														"kind": "object",
+														"properties": [
+															{
+																"name": "id",
+																"type": {
+																	"kind": "intrinsic",
+																	"intrinsic": "string"
+																},
+																"optional": false
+															}
+														]
+													},
+													{
+														"kind": "object",
+														"properties": [
+															{
+																"name": "scaleType",
+																"type": {
+																	"kind": "literal",
+																	"value": "\"linear\""
+																},
+																"optional": false
+															},
+															{
+																"name": "min",
+																"type": {
+																	"kind": "union",
+																	"types": [
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "number"
+																		},
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "undefined"
+																		}
+																	]
+																},
+																"optional": true
+															}
+														]
+													},
+													{
+														"kind": "object",
+														"properties": [
+															{
+																"name": "tickLabelMinGap",
+																"type": {
+																	"kind": "union",
+																	"types": [
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "number"
+																		},
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "undefined"
+																		}
+																	]
+																},
+																"optional": true
+															}
+														]
+													},
+													{
+														"kind": "object",
+														"typeName": {
+															"name": "YAxisProps"
+														},
+														"properties": [
+															{
+																"name": "axis",
+																"type": {
+																	"kind": "literal",
+																	"value": "\"y\""
+																},
+																"optional": false
+															},
+															{
+																"name": "tickWidth",
+																"type": {
+																	"kind": "union",
+																	"types": [
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "number"
+																		},
+																		{
+																			"kind": "intrinsic",
+																			"intrinsic": "undefined"
+																		}
+																	]
+																},
+																"optional": true
+															}
+														]
+													}
+												],
+												"properties": [
+													{
+														"name": "id",
+														"type": {
+															"kind": "intrinsic",
+															"intrinsic": "string"
+														},
+														"optional": false
+													},
+													{
+														"name": "scaleType",
+														"type": {
+															"kind": "literal",
+															"value": "\"linear\""
+														},
+														"optional": false
+													},
+													{
+														"name": "min",
+														"type": {
+															"kind": "union",
+															"types": [
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "number"
+																},
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "undefined"
+																}
+															]
+														},
+														"optional": true
+													},
+													{
+														"name": "tickLabelMinGap",
+														"type": {
+															"kind": "union",
+															"types": [
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "number"
+																},
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "undefined"
+																}
+															]
+														},
+														"optional": true
+													},
+													{
+														"name": "axis",
+														"type": {
+															"kind": "literal",
+															"value": "\"y\""
+														},
+														"optional": false
+													},
+													{
+														"name": "tickWidth",
+														"type": {
+															"kind": "union",
+															"types": [
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "number"
+																},
+																{
+																	"kind": "intrinsic",
+																	"intrinsic": "undefined"
+																}
+															]
+														},
+														"optional": true
+													}
+												]
+											}
+										]
+									}
+								},
+								{
+									"kind": "intrinsic",
+									"intrinsic": "undefined"
+								}
+							]
+						},
+						"optional": true
+					}
+				]
+			},
+			"isValue": false,
+			"isType": true,
+			"isNamespace": false
+		}
+	]
+}
