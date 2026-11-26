@@ -153,6 +153,16 @@ have erased their source syntax. For example, `ReturnType`, `Parameters`,
 `Awaited`, `ConstructorParameters`, `ThisParameterType`, and user-authored
 conditional `infer` selectors can expose only their reduced semantic result.
 
+## Generic Indexed Access
+
+An indexed access whose index is still a type parameter, such as `Config[S]`
+with `S extends 'band' | 'linear'`, is output as its base constraint, the union
+`Config['band'] | Config['linear']`. Each member keeps its own properties,
+including those the other members don't have. This applies when the indexed
+object type is declared in the project; a dependency's lookups, such as React's
+`JSX.IntrinsicElements[T]`, stay one object with the properties every member
+shares.
+
 ## Template Literals
 
 Template literal types keep their literal text and resolve each placeholder like

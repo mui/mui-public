@@ -11,6 +11,7 @@ import { resolveObjectLikeType } from './objectTypeResolver';
 import {
   resolveConditionalType,
   resolveExtractUtilityType,
+  resolveGenericIndexedAccessType,
   resolveIndexLikeType,
   resolveTypeParameterType,
 } from './specialTypeResolvers';
@@ -40,6 +41,7 @@ export const typeResolvers: TypeResolver[] = [
   { name: 'array', replaysAuthoredSyntax: true, resolve: resolveArrayType },
   { name: 'intrinsic', resolve: resolveIntrinsicType },
   { name: 'enum', resolve: resolveEnumLikeType },
+  { name: 'generic-indexed-access', resolve: resolveGenericIndexedAccessType },
   { name: 'union', resolve: resolveUnionTypeNode },
   { name: 'intersection', resolve: resolveIntersectionType },
   { name: 'tuple', replaysAuthoredSyntax: true, resolve: resolveTupleType },

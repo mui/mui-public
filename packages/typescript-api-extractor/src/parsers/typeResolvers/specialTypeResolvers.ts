@@ -260,6 +260,52 @@ export function resolveIndexLikeType(
 }
 
 /**
+ * Resolves an indexed access whose index is still generic, such as `Config[S]` for
+ * `S extends 'band' | 'linear'`, through its base constraint `Config['band' | 'linear']`.
+ *
+ * The object resolver would otherwise read it through the checker's apparent type, which
+ * only keeps the properties every constraint member shares, so a property that exists on
+ * one member alone, like `Config['band']['categoryGapRatio']`, disappears.
+ *
+ * Only an object type written in the project is expanded: a dependency's lookups, such as
+ * React's `JSX.IntrinsicElements[T]`, would become unions over every member they index.
+ */
+export function resolveGenericIndexedAccessType(
+  { type }: TypeResolutionRequest,
+  session: TypeResolutionSession,
+): AnyType | undefined {
+  if (
+    !hasExactFlag(type, ts.TypeFlags.IndexedAccess) ||
+    !isDeclaredInProject((type as ts.IndexedAccessType).objectType, session.context.program)
+  ) {
+    return undefined;
+  }
+
+  const baseConstraint = session.context.checker.getBaseConstraintOfType(type);
+  // Only a union of members gains anything: a single member is what the object resolver
+  // reads anyway.
+  if (!baseConstraint?.isUnion()) {
+    return undefined;
+  }
+  return session.resolve(baseConstraint, undefined);
+}
+
+function isDeclaredInProject(type: ts.Type, program: ts.Program): boolean {
+  const declarations = (type.aliasSymbol ?? type.getSymbol())?.declarations;
+  return (
+    declarations !== undefined &&
+    declarations.length > 0 &&
+    declarations.every((declaration) => {
+      const sourceFile = declaration.getSourceFile();
+      return (
+        !program.isSourceFileFromExternalLibrary(sourceFile) &&
+        !program.isSourceFileDefaultLibrary(sourceFile)
+      );
+    })
+  );
+}
+
+/**
  * Resolves a checker-internal SubstitutionType (a base type narrowed under a
  * constraint while TypeScript evaluates conditional/infer types) by probing its
  * base type and then its constraint, since the substitution has no model form.
