@@ -16,11 +16,7 @@ import type { CodeContext as CodeContextValue } from '../CodeProvider/CodeContex
 import { useSpeculativeEditingPreload } from './useSpeculativeEditingPreload';
 
 function setup(
-  props: {
-    enabled: boolean;
-    editActivation?: 'eager' | 'interaction' | 'idle';
-    activated?: boolean;
-  },
+  props: { enabled: boolean; editActivation?: 'eager' | 'interaction'; activated?: boolean },
   loaders: Partial<CodeContextValue>,
 ) {
   function Speculative() {
@@ -47,9 +43,9 @@ describe('useSpeculativeEditingPreload', () => {
     expect(codeEditorLoader).not.toHaveBeenCalled();
   });
 
-  it.each(['interaction', 'idle'] as const)('waits for activation in %s mode', (editActivation) => {
+  it("waits for activation when editActivation is 'interaction'", () => {
     const codeEditorLoader = vi.fn(async () => ({}) as never);
-    setup({ enabled: true, editActivation, activated: false }, { codeEditorLoader });
+    setup({ enabled: true, editActivation: 'interaction', activated: false }, { codeEditorLoader });
     expect(codeEditorLoader).not.toHaveBeenCalled();
   });
 

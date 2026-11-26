@@ -356,7 +356,7 @@ export function useSourceEditing({
       peekSourceEditingEngine() ||
       !contextSetCode ||
       disabled ||
-      (context?.editActivation ?? 'eager') !== 'eager'
+      context?.editActivation === 'interaction'
     ) {
       return;
     }

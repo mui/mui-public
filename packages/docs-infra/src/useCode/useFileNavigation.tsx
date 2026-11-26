@@ -79,10 +79,11 @@ interface UseFileNavigationProps {
   /**
    * Forwarded to `<Pre>`: when the textarea editor loads for an
    * editable block. `'eager'` (default) loads on mount; `'interaction'` defers
-   * until interaction or visible idle time. Sourced from the `editActivation`
+   * until interaction. Sourced from the `editActivation`
    * prop on `CodeHighlighter` (via `CodeHighlighterContext`).
    */
-  editActivation?: 'eager' | 'interaction' | 'idle';
+  editActivation?: 'eager' | 'interaction';
+  prepareRequested?: boolean;
   /** Forwarded to `<Pre>`: fired once when the block engages for editing. */
   onActivate?: () => void;
   /** Forwarded to `<Pre>`: expands focused source from textarea boundary navigation. */
@@ -180,6 +181,7 @@ export function useFileNavigation({
   preClassName,
   setSource,
   editActivation,
+  prepareRequested,
   onActivate,
   onBoundary,
   editable,
@@ -740,6 +742,7 @@ export function useFileNavigation({
           language={language}
           setSource={setSource}
           editActivation={editActivation}
+          prepareRequested={prepareRequested}
           onActivate={onActivate}
           onBoundary={onBoundary}
           editable={editable}
@@ -762,6 +765,7 @@ export function useFileNavigation({
     preClassName,
     setSource,
     editActivation,
+    prepareRequested,
     onActivate,
     onBoundary,
     editable,
@@ -850,6 +854,7 @@ export function useFileNavigation({
             language={getLanguageFromFileName(f.name)}
             setSource={setSource}
             editActivation={editActivation}
+            prepareRequested={prepareRequested}
             onActivate={onActivate}
             onBoundary={onBoundary}
             editable={editable}
@@ -881,6 +886,7 @@ export function useFileNavigation({
             language={selectedVariant.language}
             setSource={setSource}
             editActivation={editActivation}
+            prepareRequested={prepareRequested}
             onActivate={onActivate}
             onBoundary={onBoundary}
             editable={editable}
@@ -927,6 +933,7 @@ export function useFileNavigation({
               language={language ?? getLanguageFromFileName(fileName)}
               setSource={setSource}
               editActivation={editActivation}
+              prepareRequested={prepareRequested}
               onActivate={onActivate}
               onBoundary={onBoundary}
               editable={editable}
@@ -958,6 +965,7 @@ export function useFileNavigation({
     resolvedFallbacks,
     setSource,
     editActivation,
+    prepareRequested,
     onActivate,
     onBoundary,
     editable,

@@ -20,7 +20,6 @@ import { getSourceLineCounts } from './sourceLineCounts';
 import type { SourceLineCounts } from './sourceLineCounts';
 import { subscribeToggleNudge } from './subscribeToggleNudge';
 import { CodeEditorLazy } from './CodeEditorLazy';
-import { useIdleEditor } from './useIdleEditor';
 
 const hastChildrenCache = new WeakMap<ElementContent[], React.ReactNode>();
 const fallbackHastCache = new WeakMap<ElementContent[], React.ReactNode>();
@@ -86,6 +85,7 @@ export function Pre({
   expanded = false,
   collapseToEmpty = false,
   editActivation,
+  prepareRequested = false,
   onActivate,
   onBoundary,
   editable = true,
@@ -127,10 +127,10 @@ export function Pre({
    * Controls when the textarea editor loads for an editable block: `'eager'`
    * (default) loads it as soon as the block is editable; `'interaction'` defers
    * the load until the reader clicks the code or presses Enter on its wrapper. Ignored when the
-   * block is not editable. `'idle'` initializes visible blocks during idle
-   * time after page load and a quiet input interval, or on interaction.
+   * block is not editable.
    */
-  editActivation?: 'eager' | 'interaction' | 'idle';
+  editActivation?: 'eager' | 'interaction';
+  prepareRequested?: boolean;
   /**
    * Fired once when the block first engages for editing. `CodeHighlighter` uses
    * it to warm the live-editing runtime, grammars, and worker.
@@ -570,9 +570,13 @@ export function Pre({
   const sourceFocusedLines = collapseToEmpty ? 0 : rawFocusedLines;
 
   const isEditable = Boolean(setSource) && editable;
-  const [editorRequested, setEditorRequested] = React.useState(
-    () => (editActivation ?? 'eager') === 'eager',
+
+  const [interactionRequested, setEditorRequested] = React.useState(
+    () => editActivation !== 'interaction',
   );
+
+  const editorRequested = interactionRequested || prepareRequested;
+
   const fullSource = React.useMemo(
     () =>
       isEditable && editorRequested
@@ -648,16 +652,11 @@ export function Pre({
     }
   }, [onActivate]);
 
-  const initializeEditor = React.useCallback(() => {
-    handleEditorActivate();
-    React.startTransition(() => setEditorRequested(true));
-  }, [handleEditorActivate]);
-
-  useIdleEditor(
-    wrapperRef,
-    initializeEditor,
-    isEditable && !editorRequested && editActivation === 'idle' ? 'idle' : 'disabled',
-  );
+  React.useEffect(() => {
+    if (prepareRequested && isEditable) {
+      handleEditorActivate();
+    }
+  }, [prepareRequested, isEditable, handleEditorActivate]);
 
   const requestEditorFocus = React.useCallback(() => {
     setPromptVisible(false);

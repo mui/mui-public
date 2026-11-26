@@ -1301,7 +1301,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     !!speculativeCode &&
     (Boolean(props.forceClient) ||
       !hasAllVariants(variants, speculativeCode, true) ||
-      ((editActivation ?? 'eager') === 'eager' && Boolean(controlled?.setCode)));
+      ((editActivation ?? 'eager') !== 'interaction' && Boolean(controlled?.setCode)));
   useSpeculativeGrammarPreload({ scopes: speculativeGrammarScopes, enabled: willClientHighlight });
 
   // ── Fallback hoisting ──

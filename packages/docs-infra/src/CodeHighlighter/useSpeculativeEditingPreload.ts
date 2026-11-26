@@ -21,8 +21,6 @@ import { preloadCodeEditor } from '../useCode/codeEditorCache';
  *   `CodeHighlighter` flips `activated`. This is the single moment that kicks off
  *   every editing dependency, rather than each loading on its own trigger.
  *
- * - `'idle'`: waits for a visible `Pre` to activate during idle time or input.
- *
  * A read-only block sets `enabled = false` and warms nothing.
  */
 export function useSpeculativeEditingPreload({
@@ -32,8 +30,8 @@ export function useSpeculativeEditingPreload({
   scopes,
 }: {
   enabled: boolean;
-  editActivation?: 'eager' | 'interaction' | 'idle';
-  /** Whether a deferred block has activated (ignored when `'eager'`). */
+  editActivation?: 'eager' | 'interaction';
+  /** Whether an `'interaction'` block has engaged yet (ignored when `'eager'`). */
   activated?: boolean;
   /**
    * Grammar scopes the editable block uses, so its grammars (main thread) and the
@@ -43,8 +41,8 @@ export function useSpeculativeEditingPreload({
 }): void {
   const { codeEditorLoader, ensureParseSourceWorker } = useCodeContext();
 
-  // Deferred modes warm only after activation.
-  const shouldWarm = enabled && ((editActivation ?? 'eager') === 'eager' || activated);
+  // In `'interaction'` mode, wait for engagement; otherwise warm on mount.
+  const shouldWarm = enabled && ((editActivation ?? 'eager') !== 'interaction' || activated);
 
   React.useEffect(() => {
     // Best-effort head start; swallow rejections (the real consumers surface any

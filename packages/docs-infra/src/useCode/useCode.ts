@@ -143,6 +143,12 @@ export interface UseCodeResult<T extends {} = {}> {
    */
   setEditable?: (editable: boolean) => void;
   /**
+   * Initialize the selected editor and editing runtime without moving focus.
+   * Loading is asynchronous. Does nothing while editing is disabled.
+   * The host decides when to call this, for example after visible source is idle.
+   */
+  prepareEditor: () => void;
+  /**
    * Replace the source of the currently selected file (or `fileName` when
    * provided) in the controlled code. Internal hooks may pass additional
    * arguments (caret position, pre-parsed HAST) that are not part of the
@@ -387,6 +393,15 @@ export function useCode<T extends {} = {}>(
     [expand, rawSetExpanded],
   );
 
+  const [prepareRequested, setPrepareRequested] = React.useState(false);
+  const canPrepare = uiState.editable && Boolean(sourceEditing.setSource);
+
+  const prepareEditor = React.useCallback(() => {
+    if (canPrepare) {
+      React.startTransition(() => setPrepareRequested(true));
+    }
+  }, [canPrepare]);
+
   const sourceEditingActivate = sourceEditing.activate;
   const onEditingActivated = context?.onEditingActivated;
   const activateEditing = React.useCallback(() => {
@@ -422,6 +437,7 @@ export function useCode<T extends {} = {}>(
     preClassName,
     setSource: sourceEditing.setSource,
     editActivation: context?.editActivation,
+    prepareRequested,
     onActivate: activateEditing,
     onBoundary: expand,
     editable: uiState.editable,
@@ -503,6 +519,7 @@ export function useCode<T extends {} = {}>(
     hasControlledEdits,
     editable: uiState.editable,
     setEditable: canToggleEditing ? uiState.setEditable : undefined,
+    prepareEditor,
     setSource: sourceEditing.setSource,
     reset: sourceEditing.reset,
     refresh: context?.refresh,

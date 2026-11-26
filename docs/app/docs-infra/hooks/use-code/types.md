@@ -181,6 +181,12 @@ type UseCodeResult<T extends {} = {}> = {
    */
   setEditable?: (editable: boolean) => void;
   /**
+   * Initialize the selected editor and editing runtime without moving focus.
+   * Loading is asynchronous. Does nothing while editing is disabled.
+   * The host decides when to call this, for example after visible source is idle.
+   */
+  prepareEditor: () => void;
+  /**
    * Replace the source of the currently selected file (or `fileName` when
    * provided) in the controlled code. Internal hooks may pass additional
    * arguments (caret position, pre-parsed HAST) that are not part of the
