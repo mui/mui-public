@@ -593,6 +593,12 @@ export interface FetchChangelogDataOptions {
    */
   includeDirectCommits?: boolean;
   /**
+   * Logins of bots whose changes are left out, such as `['renovate[bot]']`. A change is left out
+   * when its author or the opener of its pull request is one of them.
+   * @default []
+   */
+  excludeBots?: string[];
+  /**
    * GitHub client. Defaults to one authenticated as the developer running it.
    */
   octokit?: Octokit;

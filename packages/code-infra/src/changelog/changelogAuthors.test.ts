@@ -305,3 +305,35 @@ describe('direct commit authors', () => {
     ]);
   });
 });
+
+describe('excluded bots', () => {
+  it('leave out what they authored or opened', async () => {
+    const github = createGitHub({
+      commits: [
+        { message: 'Bump it', pulls: [{ number: 1, login: 'renovate[bot]' }] },
+        {
+          message: 'Bump it on v1',
+          pulls: [{ number: 2, login: 'github-actions[bot]', body: 'Cherry-pick of #10' }],
+        },
+        { message: 'Fix it', pulls: [{ number: 3, login: 'octocat' }] },
+        {
+          message: 'Fix it on v1',
+          pulls: [{ number: 4, login: 'backport[bot]', body: 'Cherry-pick of #11' }],
+        },
+        { message: 'Lock it', login: 'renovate[bot]' },
+        { message: 'Tidy it', login: 'octocat' },
+      ],
+      pulls: [
+        { number: 10, login: 'renovate[bot]' },
+        { number: 11, login: 'octocat' },
+      ],
+    });
+
+    const { changes } = await fetchDummyRelease(github, {
+      includeDirectCommits: true,
+      excludeBots: ['renovate[bot]', 'backport[bot]'],
+    });
+
+    expect(changes.map((change) => change.title)).toEqual(['Pull request 3', 'Tidy it']);
+  });
+});

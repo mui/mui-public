@@ -321,6 +321,7 @@ function stripTrailingReferences(title, references, stripCredits) {
  * @param {string} options.previousSha
  * @param {string} options.releaseSha
  * @param {boolean} options.includeDirectCommits
+ * @param {string[]} options.excludeBots - Logins whose changes are left out
  * @param {AbortController} options.controller - Aborted when a request fails
  * @returns {Promise<ChangelogChange[]>}
  */
@@ -330,9 +331,13 @@ export async function fetchChangelogChanges({
   previousSha,
   releaseSha,
   includeDirectCommits,
+  excludeBots,
   controller,
 }) {
   const { signal } = controller;
+  const excluded = new Set(excludeBots);
+  const isExcluded = (/** @type {{ login?: string | null } | null | undefined} */ account) =>
+    account?.login != null && excluded.has(account.login);
   const location = { ...repository, request: { signal } };
   const authors = createAuthorResolver({ octokit, repository, signal });
 
@@ -407,7 +412,13 @@ export async function fetchChangelogChanges({
 
     const pull = await findPullRequest(sha, subject);
     if (pull) {
+      if (isExcluded(pull.user)) {
+        return null;
+      }
       const { author, openedBy, references } = await authors.fromPullRequest(pull);
+      if (isExcluded(author)) {
+        return null;
+      }
       const ownReference = `#${pull.number}`;
       const title = subject.endsWith(`(${ownReference})`) ? subject : pull.title;
       const isCreditedCherryPick = references.length > 0;
@@ -430,7 +441,7 @@ export async function fetchChangelogChanges({
       };
     }
 
-    if (!includeDirectCommits) {
+    if (!includeDirectCommits || isExcluded(commit.author)) {
       return null;
     }
     return {
