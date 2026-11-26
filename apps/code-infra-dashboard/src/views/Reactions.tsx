@@ -203,7 +203,6 @@ export default function Reactions() {
     queryFn: (octokit) => fetchReactions(octokit, target!, unbounded),
     enabled: Boolean(target),
     staleTime: 60 * 1000,
-    retry: false,
   });
 
   const handleSubmit = (event: React.FormEvent) => {

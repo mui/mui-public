@@ -67,7 +67,6 @@ export function useCompareCommits(
           })) || [],
       };
     },
-    retry: 1,
     enabled: Boolean(repo && baseRef && headSha),
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });

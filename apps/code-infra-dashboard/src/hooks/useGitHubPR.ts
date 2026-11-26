@@ -48,7 +48,6 @@ export function useGitHubPR(repo: string, prNumber?: number): UseGitHubPR {
       });
       return prInfo;
     },
-    retry: 1,
     enabled: Boolean(repo && prNumber),
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });

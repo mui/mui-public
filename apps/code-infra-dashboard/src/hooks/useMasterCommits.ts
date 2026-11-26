@@ -120,7 +120,6 @@ export function useMasterCommits(
         }
         return undefined;
       }, []),
-      retry: 1,
       enabled: Boolean(repo),
       staleTime: 5 * 60 * 1000,
     });

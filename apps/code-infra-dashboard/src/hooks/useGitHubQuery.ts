@@ -13,14 +13,23 @@ import { anonymousOctokit, proxiedOctokit } from '../utils/github';
 import { useSession } from './useSession';
 
 /**
- * Every GitHub query goes through here, so none can forget the two rules below.
+ * Every GitHub query goes through here, so none can forget the rules below.
  *
  * - The key is scoped to the visitor, so results never cross a sign-in or sign-out.
  * - Queries wait until the session is known: until then a signed-in visitor would
  *   query GitHub anonymously first, spending the 60/hour budget that signing in
  *   exists to avoid. They report that wait as loading, so views show their
  *   loading state rather than an empty one.
+ * - A failure is retried once, unless GitHub refused the request (a 4xx other than
+ *   429): asking again gets the same answer, and a 401 only reaches the query
+ *   client's sign-out handling after the retry.
  */
+function retryOnce(failureCount: number, error: Error): boolean {
+  const status = 'status' in error && typeof error.status === 'number' ? error.status : undefined;
+  const refused = status !== undefined && status >= 400 && status < 500 && status !== 429;
+  return !refused && failureCount < 1;
+}
+
 function useGitHubClient() {
   const { session, isPending } = useSession();
   const login = session?.signedIn ? session.login : undefined;
@@ -44,7 +53,7 @@ export interface GitHubQueryResult<TData> {
 
 type GitHubQueryOptions<TData> = Omit<
   UseQueryOptions<TData, Error, TData, QueryKey>,
-  'queryKey' | 'queryFn' | 'enabled'
+  'queryKey' | 'queryFn' | 'enabled' | 'retry'
 > & {
   queryKey: readonly unknown[];
   queryFn: (octokit: Octokit) => Promise<TData>;
@@ -63,6 +72,7 @@ export function useGitHubQuery<TData>({
     queryKey: scope(queryKey),
     queryFn: () => queryFn(octokit),
     enabled: ready && enabled,
+    retry: retryOnce,
   });
 
   return {
@@ -83,7 +93,7 @@ export interface GitHubInfiniteQueryResult<TPage, TPageParam> extends GitHubQuer
 
 type GitHubInfiniteQueryOptions<TPage, TPageParam> = Omit<
   UseInfiniteQueryOptions<TPage, Error, InfiniteData<TPage, TPageParam>, QueryKey, TPageParam>,
-  'queryKey' | 'queryFn' | 'enabled'
+  'queryKey' | 'queryFn' | 'enabled' | 'retry'
 > & {
   queryKey: readonly unknown[];
   /** Gets the whole context: its `pageParam` only resolves where the page type is concrete. */
@@ -106,6 +116,7 @@ export function useGitHubInfiniteQuery<TPage, TPageParam>({
     queryKey: scope(queryKey),
     queryFn: (context: QueryFunctionContext<QueryKey, TPageParam>) => queryFn(octokit, context),
     enabled: ready && enabled,
+    retry: retryOnce,
   });
 
   return {

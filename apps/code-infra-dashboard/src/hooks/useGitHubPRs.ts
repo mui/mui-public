@@ -43,7 +43,6 @@ export function useGitHubPRs(repo: string, initialLimit: number = 5): UseGitHubP
         }
         return lastPageParam + 1;
       },
-      retry: 1,
       enabled: Boolean(repo),
       staleTime: 5 * 60 * 1000, // Cache for 5 minutes
     });
