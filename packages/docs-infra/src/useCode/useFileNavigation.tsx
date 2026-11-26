@@ -626,6 +626,15 @@ export function useFileNavigation({
     [transformedFiles, selectedFileOriginalName],
   );
 
+  // Apply source enhancers to the selected file
+  const { enhancedSource, isEnhancing } = useSourceEnhancing({
+    source: selectedFile,
+    fileName: selectedFileName,
+    comments: selectedFileComments,
+    sourceEnhancers,
+    fallback: selectedFileFallback,
+  });
+
   const selectedFileLineCounts = React.useMemo(() => {
     if (!selectedVariant || !selectedFileOriginalName) {
       return null;
@@ -637,11 +646,32 @@ export function useFileNavigation({
           : selectedVariant.extraFiles?.[selectedFileOriginalName];
       const originalSource = typeof originalFile === 'string' ? originalFile : originalFile?.source;
       if (selectedTransformedFile.source !== originalSource) {
-        return getSourceLineCounts(selectedTransformedFile.source, selectedFileFallback);
+        const counts = getSourceLineCounts(
+          enhancedSource ?? selectedTransformedFile.source,
+          selectedFileFallback,
+        );
+
+        if (
+          !hasControlledEdits &&
+          typeof originalFile !== 'string' &&
+          originalFile?.focusedLines === 0 &&
+          originalFile.collapsible
+        ) {
+          return { ...counts, focusedLines: 0, collapsible: true };
+        }
+
+        return counts;
       }
     }
     return getVariantFileLineCounts(selectedVariant, selectedFileOriginalName);
-  }, [selectedTransformedFile, selectedFileFallback, selectedFileOriginalName, selectedVariant]);
+  }, [
+    selectedTransformedFile,
+    selectedFileFallback,
+    selectedFileOriginalName,
+    selectedVariant,
+    enhancedSource,
+    hasControlledEdits,
+  ]);
 
   const selectedFileSourceProjection = React.useMemo(() => {
     // The variant carries the LIVE projection: `setSource` recomputes it on
@@ -669,15 +699,6 @@ export function useFileNavigation({
     return liveProjection;
   }, [selectedTransformedFile, selectedVariant, selectedFileOriginalName, hasControlledEdits]);
   const selectedFileHasFocusProjection = selectedFileSourceProjection !== undefined;
-
-  // Apply source enhancers to the selected file
-  const { enhancedSource, isEnhancing } = useSourceEnhancing({
-    source: selectedFile,
-    fileName: selectedFileName,
-    comments: selectedFileComments,
-    sourceEnhancers,
-    fallback: selectedFileFallback,
-  });
 
   const selectedFileComponent = React.useMemo(() => {
     if (!selectedVariant) {

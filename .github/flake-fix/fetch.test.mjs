@@ -71,6 +71,31 @@ function scenarioModel(scenario) {
       logs: { 70: 'MISSING_EXPORT "StyleSheetManager"', 71: 'MISSING_EXPORT "StyleSheetManager"' },
     };
   }
+  if (scenario === 'long-log') {
+    // A test runner names the failing test once, then prints a stack far longer than the excerpt.
+    const stack = Array.from(
+      { length: 200 },
+      (_, frame) =>
+        `    at frame${frame} (/tmp/repo/node_modules/.pnpm/react-dom/cjs/react-dom.js:${frame}:7)`,
+    ).join('\n');
+    return {
+      pipelines: [
+        makePipeline('pipe-1', 100, iso(0), '', [
+          makeWorkflow('wf-1', 'nightly', 'failed', iso(0), [makeJob(7, 'unit', 'failed')]),
+        ]),
+      ],
+      logs: {
+        7: [
+          ' ✓ src/Other.test.js (3 tests)',
+          '       × should fire event callbacks 22ms',
+          ' \x1b[41m FAIL \x1b[49m src/Button.test.js > <Button /> > should fire event callbacks',
+          'Error: Expected test not to call console.error().',
+          stack,
+          ' Test Files  1 failed | 474 passed',
+        ].join('\n'),
+      },
+    };
+  }
   // 'failing': one red run, one failed job.
   return {
     pipelines: [
@@ -109,7 +134,7 @@ function fakeCircleCI(scenario, failOn) {
           id: pipeline.id,
           number: pipeline.number,
           created_at: pipeline.createdAt,
-          vcs: { commit: { subject: pipeline.subject } },
+          vcs: { revision: `sha-${pipeline.id}`, commit: { subject: pipeline.subject } },
         })),
       });
       return;
@@ -141,9 +166,27 @@ function fakeCircleCI(scenario, failOn) {
       json({
         steps: hasLog
           ? [
+              { name: 'Spin up environment', actions: [{ status: 'success' }] },
+              {
+                name: 'Install js dependencies',
+                actions: [
+                  {
+                    status: 'success',
+                    bash_command:
+                      'pnpm install\npnpm code-infra set-version-overrides --pkg react@^18.0.0',
+                  },
+                ],
+              },
               {
                 name: 'run tests',
-                actions: [{ failed: true, status: 'failed', output_url: outputUrl }],
+                actions: [
+                  {
+                    failed: true,
+                    status: 'failed',
+                    output_url: outputUrl,
+                    bash_command: 'pnpm test:node --no-isolate',
+                  },
+                ],
               },
             ]
           : [],
@@ -211,7 +254,7 @@ async function runFetch(scenario, failOn) {
 }
 
 describe('fetch', () => {
-  it('writes a per-job file with header and log tail when a job fails', async () => {
+  it('writes a per-job file with header and log when a job fails', async () => {
     const { code, dataDir, classify } = await runFetch('failing');
     expect(code).toBe(0);
     expect(classify).toBe('classify=true');
@@ -221,6 +264,40 @@ describe('fetch', () => {
     expect(content).toMatch(/STATUS=failed/);
     expect(content).toMatch(/FAIL: expected 1 to equal 2/);
     expect(content).not.toContain('\x1b[');
+    expect(content).toMatch(/^SHA=sha-pipe-1$/m);
+  });
+
+  it('lists the job commands in order, so the agent can replay the job', async () => {
+    const { dataDir } = await runFetch('failing');
+    const content = fs.readFileSync(path.join(dataDir, 'jobs', '0000.txt'), 'utf8');
+    const commands = content.slice(
+      content.indexOf('### Job commands'),
+      content.indexOf('### run tests\n'),
+    );
+    expect(commands).toBe(
+      [
+        '### Job commands, in order',
+        '## Install js dependencies',
+        'pnpm install',
+        'pnpm code-infra set-version-overrides --pkg react@^18.0.0',
+        '',
+        '## run tests',
+        'pnpm test:node --no-isolate',
+        '',
+        '',
+      ].join('\n'),
+    );
+  });
+
+  it('keeps the whole log, so the line naming the failing test survives a long stack', async () => {
+    const { dataDir } = await runFetch('long-log');
+    const content = fs.readFileSync(path.join(dataDir, 'jobs', '0000.txt'), 'utf8');
+    expect(content).toContain(
+      ' FAIL  src/Button.test.js > <Button /> > should fire event callbacks',
+    );
+    expect(content).not.toContain('\x1b[');
+    // The log comes last, so the file's tail is the failing step's tail.
+    expect(content.endsWith(' Test Files  1 failed | 474 passed')).toBe(true);
   });
 
   it('builds a timeline.json that shows passes, in time order, with log pointers to the failures', async () => {
@@ -234,6 +311,8 @@ describe('fetch', () => {
     // point is that the PASS is present, newest first, alongside the failures.
     expect(unit.runs.map((run) => run.result)).toEqual(['PASS', 'FAIL', 'FAIL']);
     expect(unit.runs.map((run) => run.pipeline)).toEqual([102, 101, 100]);
+    // Every run carries its commit SHA, passes included, so a failure's trigger range is known.
+    expect(unit.runs.map((run) => run.sha)).toEqual(['sha-pipe-3', 'sha-pipe-2', 'sha-pipe-1']);
     expect(unit.runs[0].log).toBe(null);
     expect(unit.runs[1].log).toBe('jobs/0000.txt');
     expect(unit.runs[2].log).toBe('jobs/0001.txt');

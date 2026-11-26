@@ -19,7 +19,12 @@ import { parseArgs, stripVTControlCharacters } from 'node:util';
 const API = process.env.CIRCLECI_API_BASE || 'https://circleci.com/api/v2';
 const API_V1 = process.env.CIRCLECI_API_V1_BASE || 'https://circleci.com/api/v1.1';
 const APP = process.env.CIRCLECI_APP_BASE || 'https://app.circleci.com';
-const LOG_TAIL_BYTES = 4096;
+// A failed step's log is kept whole, so the agent can grep around its fingerprint for context such
+// as the failing test's name, which a test runner prints once before a long stack. Capped at its
+// tail so one runaway log can't bloat the artifact.
+const LOG_MAX_BYTES = 2_000_000;
+// A step command is a CircleCI-rendered script; cap it so one huge script can't crowd the file.
+const COMMAND_MAX = 2000;
 const CONCURRENCY = 16;
 // Job files are named 0000.txt, 0001.txt, …; the set is capped well under 10000, so four digits
 // always suffice.
@@ -209,6 +214,7 @@ function writeTimeline(outDir, { slug, branch, window, jobRuns, failingJobs, fil
         result: run.result, // PASS | FAIL | SKIP (skipped / did not run — no signal)
         time: run.createdAt,
         pipeline: run.pipelineNumber,
+        sha: run.sha,
         commit: oneLineSubject(run.subject),
         url: run.url,
         // The log for this FAIL run, or null when it is a PASS/SKIP or a failure past the log cap.
@@ -279,6 +285,7 @@ async function main() {
         status: workflow.status,
         pipelineNumber: pipeline.number,
         createdAt: workflow.created_at,
+        sha: pipeline.vcs?.revision ?? '',
         subject,
         url: `${APP}/pipelines/${vcs}/${org}/${repo}/${pipeline.number}/workflows/${workflow.id}`,
       });
@@ -351,11 +358,22 @@ async function main() {
         token,
       });
       const steps = [];
+      // Every step's script, in order: the install, any version overrides, the failing command.
+      // Replaying them is how the agent reproduces the job.
+      const commands = [];
       let timedOut = false;
       for (const step of data.steps ?? []) {
         for (const action of step.actions ?? []) {
           if (action.status === 'timedout') {
             timedOut = true;
+          }
+          const command = action.bash_command;
+          if (command) {
+            const shown =
+              command.length > COMMAND_MAX
+                ? `${command.slice(0, COMMAND_MAX).trimEnd()}\n[… command truncated]`
+                : command.trimEnd();
+            commands.push(`## ${step.name}\n${shown}`);
           }
           if (
             (action.failed || action.status === 'failed' || action.status === 'timedout') &&
@@ -365,7 +383,7 @@ async function main() {
           }
         }
       }
-      return [job.jobNumber, { steps, timedOut }];
+      return [job.jobNumber, { steps, commands, timedOut }];
     }),
   );
 
@@ -393,23 +411,27 @@ async function main() {
       const joined = JSON.parse(raw)
         .map((entry) => entry.message ?? '')
         .join('');
-      // Tail-truncate at fetch, not at read: whole logs would hold hundreds of MB alive across
-      // a bad week, and only the tail is ever classified.
+      // Cap at fetch, not at read: whole logs would hold hundreds of MB alive across a bad week.
       logTexts.set(
         `${task.jobNumber}:${task.stepIndex}`,
-        tailBytes(stripVTControlCharacters(joined), LOG_TAIL_BYTES),
+        tailBytes(stripVTControlCharacters(joined), LOG_MAX_BYTES),
       );
     },
     24,
   );
 
   // One file per failed run, newest first, self-describing under grep. The timeline points here.
+  // The logs go last, so the file's tail is the failing step's tail.
   fs.mkdirSync(path.join(outDir, 'jobs'), { recursive: true });
   const fileByJobNumber = new Map();
   logged.forEach((job, jobIndex) => {
     const relativePath = path.join('jobs', `${String(jobIndex).padStart(PAD_WIDTH, '0')}.txt`);
     fileByJobNumber.set(job.jobNumber, relativePath);
     const detail = stepsByJob.get(job.jobNumber);
+    const commands =
+      detail.commands.length > 0
+        ? `### Job commands, in order\n${detail.commands.join('\n\n')}\n\n`
+        : '';
     const body = detail.steps
       .map(
         (step, stepIndex) =>
@@ -425,11 +447,12 @@ async function main() {
       `STATUS=${job.jobStatus}`,
       `TIMED_OUT=${detail.timedOut}`,
       `TIME=${job.createdAt}`,
+      `SHA=${job.sha}`,
       `COMMIT=${oneLineSubject(job.subject)}`,
       '',
       '',
     ].join('\n');
-    fs.writeFileSync(path.join(outDir, relativePath), header + body);
+    fs.writeFileSync(path.join(outDir, relativePath), header + commands + body);
   });
 
   writeTimeline(outDir, {

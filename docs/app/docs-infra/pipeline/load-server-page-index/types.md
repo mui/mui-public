@@ -34,10 +34,9 @@ type ReturnValue = LoadServerPageIndex;
 
 Converts parsed page-index metadata into the `SitemapSectionData` read-model.
 
-Derives `prefix` and `title` from the file path (overriding the markdown H1), strips the
-markdown AST fields (`descriptionMarkdown`, section `titleMarkdown`) to reduce bundle size, and
-normalizes description whitespace exactly as the parser does so the cache (built from in-memory
-metadata) matches a fresh parse of the written markdown.
+Derives `prefix` and `title` from the file path (overriding the markdown H1), normalizes the
+index's description, and converts each page with `toSitemapPage`, so the cache (built from
+in-memory metadata) matches a fresh parse of the written markdown.
 
 Shared by `loadServerPageIndex` (read path) and `syncPageIndex` (cache pre-population on write).
 Normalization is idempotent, so re-applying it on the read path (where descriptions are already
@@ -177,7 +176,7 @@ type CreateLoadServerPageIndexOptions = {
   /**
    * Directory for the sha256-validated JSON cache of parsed page indexes.
    *
-   * When set, a read first checks `{cacheDir}/pages-index-v2/{route}.json`; on a hash
+   * When set, a read first checks the page-index cache in `cacheDir`; on a hash
    * match it returns the cached data and skips the markdown parse, and on a miss it
    * parses, writes the cache, and returns. When unset, no cache is read or written.
    */

@@ -49,6 +49,10 @@ network:
 steps:
   - name: Set up pnpm
     uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+    with:
+      # The agent's sandbox mounts the tool cache but not the home directory, where pnpm goes by
+      # default. The PATH entry the action adds carries over into the sandbox.
+      dest: ${{ runner.tool_cache }}/pnpm
   - name: Set up Node.js
     uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
     with:

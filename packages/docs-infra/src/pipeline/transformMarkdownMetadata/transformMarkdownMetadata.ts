@@ -6,8 +6,9 @@ import { dirname } from 'node:path';
 import { syncPageIndex, indexRelativePagePath } from '../syncPageIndex';
 import { markdownToMetadata, createPageSectionResolver } from '../syncPageIndex/metadataToMarkdown';
 import { isRouteGroup, stripRouteGroupSegments } from '../loaderUtils/stripRouteGroups';
+import { toSitemapPage } from '../loadServerPageIndex/toSitemapPage';
 import type { PageMetadata } from '../syncPageIndex/metadataToMarkdown';
-import type { SitemapSectionData, SitemapPage } from '../../createSitemap/types';
+import type { SitemapSectionData } from '../../createSitemap/types';
 import type {
   TransformMarkdownMetadataOptions,
   HeadingHierarchy,
@@ -851,24 +852,11 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
             // Always present ([] when flat) so consumers never branch on absence.
             sections: pagesMetadata.sections ?? [],
             detailsSectionTitle: pagesMetadata.detailsSectionTitle,
-            pages: pagesMetadata.pages.map((page): SitemapPage => ({
-              title: page.displayTitle ?? page.title,
-              slug: page.slug,
-              path: page.path,
-              description: page.description,
-              keywords: page.keywords,
-              sections: page.sections,
-              parts: page.parts,
-              exports: page.exports,
-              tags: page.tags,
-              skipDetailSection: page.skipDetailSection,
-              audience: page.audience,
-              index: page.index,
+            pages: pagesMetadata.pages.map((page) =>
               // Always present (`null` when the page has no section) so consumers never
               // branch on absence.
-              section: resolveSection(page.path, page.sectionGroup) ?? null,
-              image: page.image,
-            })),
+              toSitemapPage(page, resolveSection(page.path, page.sectionGroup) ?? null),
+            ),
           };
 
           // Find and update the wrapper component in the AST

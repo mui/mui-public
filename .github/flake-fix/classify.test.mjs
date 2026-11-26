@@ -11,6 +11,7 @@ const fail = (pipeline, log) => ({
   result: 'FAIL',
   time: `t${pipeline}`,
   pipeline,
+  sha: `s${pipeline}`,
   commit: `c${pipeline}`,
   url: `u${pipeline}`,
   log,
@@ -19,6 +20,7 @@ const pass = (pipeline) => ({
   result: 'PASS',
   time: `t${pipeline}`,
   pipeline,
+  sha: `s${pipeline}`,
   commit: `c${pipeline}`,
   url: `u${pipeline}`,
   log: null,
@@ -52,6 +54,28 @@ describe('classify', () => {
     ];
     expect(classOf(runs, fingerprintsOf(['jobs/0000.txt', 'jobs/0001.txt', 'jobs/0002.txt']))).toBe(
       'STRUCTURAL',
+    );
+  });
+
+  it('names the commit range that started a streak: the newest pass before its first failure', () => {
+    const runs = [
+      fail(105, 'jobs/0000.txt'),
+      fail(104, 'jobs/0001.txt'),
+      pass(103),
+      pass(102),
+      fail(101, 'jobs/0002.txt'),
+    ];
+    const verdict = classify(timelineOf(runs), fingerprintsOf(['jobs/0000.txt', 'jobs/0001.txt']))
+      .verdicts[0];
+    expect(verdict.lastPass.sha).toBe('s103');
+    expect(verdict.firstSeen.sha).toBe('s104');
+    expect(verdict.lastSeen.sha).toBe('s105');
+  });
+
+  it('has no lastPass when the window holds no pass before the first failure', () => {
+    const runs = [pass(103), fail(102, 'jobs/0000.txt')];
+    expect(classify(timelineOf(runs), fingerprintsOf(['jobs/0000.txt'])).verdicts[0].lastPass).toBe(
+      null,
     );
   });
 
