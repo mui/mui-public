@@ -1,6 +1,7 @@
 import { vi, describe, it, expect, afterEach } from 'vitest';
 import { NextRequest } from 'next/server';
 import { DASHBOARD_ORIGIN } from '@/constants';
+import { stubUnconfiguredDeploy } from '@/lib/auth/testEnv';
 import { GET } from './route';
 
 afterEach(() => {
@@ -19,10 +20,7 @@ describe('GET /api/ci-reports/timeline', () => {
   // The commits it lists are what a private repository's report URLs need, so signed out, a
   // private repository is answered like one that doesn't exist, before the bucket is read.
   it('treats a private repository as unknown when signed out', async () => {
-    vi.stubEnv('DASHBOARD_ORIGIN', undefined);
-    vi.stubEnv('GITHUB_OAUTH_CLIENT_ID', undefined);
-    vi.stubEnv('GITHUB_OAUTH_CLIENT_SECRET', undefined);
-    vi.stubEnv('SESSION_SECRET', undefined);
+    stubUnconfiguredDeploy();
 
     const response = await GET(timelineRequest('mui/base-ui-charts'));
 

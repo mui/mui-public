@@ -19,7 +19,6 @@ import Skeleton from '@mui/material/Skeleton';
 import Heading from '../components/Heading';
 import GitHubPRReference from '../components/GitHubPRReference';
 import ErrorDisplay from '../components/ErrorDisplay';
-import PrivateRepositoryGate from '../components/PrivateRepositoryGate';
 import { useGitHubPR } from '../hooks/useGitHubPR';
 import { useCompareCommits } from '../hooks/useCompareCommits';
 import { repositories } from '../constants';
@@ -52,13 +51,15 @@ function InfoChip({ label, value, color = 'primary', loading = false }: InfoChip
   );
 }
 
-interface PRDetailsProps {
-  owner: string;
-  repo: string;
-  prNumber: number;
-}
+export default function RepositoryPR() {
+  const params = useParams<{ owner: string; repo: string; prNumber: string }>();
+  if (!params.owner || !params.repo || !params.prNumber) {
+    throw new Error('Missing required path parameters');
+  }
 
-function PRDetails({ owner, repo, prNumber }: PRDetailsProps) {
+  const owner = params.owner;
+  const repo = params.repo;
+  const prNumber = parseInt(params.prNumber, 10);
   const fullRepo = `${owner}/${repo}`;
 
   // Find repository packages
@@ -193,18 +194,5 @@ function PRDetails({ owner, repo, prNumber }: PRDetailsProps) {
         </Box>
       )}
     </Box>
-  );
-}
-
-export default function RepositoryPR() {
-  const params = useParams<{ owner: string; repo: string; prNumber: string }>();
-  if (!params.owner || !params.repo || !params.prNumber) {
-    throw new Error('Missing required path parameters');
-  }
-
-  return (
-    <PrivateRepositoryGate repo={`${params.owner}/${params.repo}`}>
-      <PRDetails owner={params.owner} repo={params.repo} prNumber={parseInt(params.prNumber, 10)} />
-    </PrivateRepositoryGate>
   );
 }

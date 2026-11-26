@@ -3,6 +3,7 @@ import { repositories } from '@/constants';
 import type { Repository } from '@/constants';
 import { describeGitHubError } from './auth/describeGitHubError';
 import { readSession } from './auth/session';
+import { httpStatus } from '../utils/http';
 
 /**
  * GitHub decides who sees a private repository: whoever its API lets read it with their token.
@@ -14,7 +15,7 @@ async function canRead(token: string, repo: Repository): Promise<boolean> {
     return true;
   } catch (error) {
     // GitHub answers 404 for a repository the token can't read.
-    if (!(error instanceof Error && 'status' in error && error.status === 404)) {
+    if (httpStatus(error) !== 404) {
       console.warn(
         `Could not confirm access to ${repo.owner}/${repo.name}: ${describeGitHubError(error)}`,
       );
@@ -24,21 +25,16 @@ async function canRead(token: string, repo: Repository): Promise<boolean> {
 }
 
 /**
- * The private repositories among `candidates` that the visitor may see: none when signed out,
- * else those GitHub lets them read. Server only.
+ * The `candidates` the visitor may see: every public one, plus the private ones GitHub lets them
+ * read (none when signed out). Server only.
  */
-export async function listViewablePrivateRepositories(
-  candidates: Repository[],
-): Promise<Repository[]> {
+export async function listViewableRepositories(candidates: Repository[]): Promise<Repository[]> {
   const privateRepositories = candidates.filter((repo) => !repo.isPublic);
   const session = privateRepositories.length > 0 ? await readSession() : null;
-  if (!session) {
-    return [];
-  }
-  const readable = await Promise.all(
-    privateRepositories.map((repo) => canRead(session.token, repo)),
-  );
-  return privateRepositories.filter((repo, index) => readable[index]);
+  const readable = session
+    ? await Promise.all(privateRepositories.map((repo) => canRead(session.token, repo)))
+    : [];
+  return candidates.filter((repo) => repo.isPublic || readable[privateRepositories.indexOf(repo)]);
 }
 
 /**
@@ -48,9 +44,5 @@ export async function listViewablePrivateRepositories(
  */
 export async function findViewableRepository(fullName: string): Promise<Repository | undefined> {
   const repo = repositories.get(fullName);
-  if (!repo || repo.isPublic) {
-    return repo;
-  }
-  const [viewable] = await listViewablePrivateRepositories([repo]);
-  return viewable;
+  return repo && (await listViewableRepositories([repo]))[0];
 }

@@ -8,6 +8,7 @@ import Link from '@mui/material/Link';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import SpeedIcon from '@mui/icons-material/Speed';
 import Heading from '../components/Heading';
+import PrivateRepositoryGate from '../components/PrivateRepositoryGate';
 
 interface NavLinkProps {
   to: string;
@@ -85,7 +86,7 @@ export default function RepositoryLayout({ children }: RepositoryLayoutProps) {
         </Box>
       </Box>
 
-      {children}
+      <PrivateRepositoryGate repo={`${owner}/${repo}`}>{children}</PrivateRepositoryGate>
     </Box>
   );
 }

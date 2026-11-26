@@ -5,7 +5,6 @@ import { useParams } from 'next/navigation';
 import Link from '@mui/material/Link';
 import Heading from '../components/Heading';
 import DailyBundleSizeChart from '../components/DailyBundleSizeChart';
-import PrivateRepositoryGate from '../components/PrivateRepositoryGate';
 
 export default function RepositoryCharts() {
   const params = useParams<{ owner: string; repo: string }>();
@@ -26,9 +25,7 @@ export default function RepositoryCharts() {
         </Link>
       </Heading>
 
-      <PrivateRepositoryGate repo={fullRepo}>
-        <DailyBundleSizeChart repo={fullRepo} />
-      </PrivateRepositoryGate>
+      <DailyBundleSizeChart repo={fullRepo} />
     </React.Fragment>
   );
 }

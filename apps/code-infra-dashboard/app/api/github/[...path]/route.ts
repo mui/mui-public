@@ -2,10 +2,9 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { isCrossOriginRequest } from '@/lib/auth/config';
 import { clearSession, readSession } from '@/lib/auth/session';
+import { GITHUB_API_ORIGIN, GITHUB_PROXY_PATH } from '@/utils/github';
 
-const GITHUB_API_ORIGIN = 'https://api.github.com';
 const USER_AGENT = 'mui-code-infra-dashboard';
-const PROXY_PATH = '/api/github';
 
 /**
  * `if-none-match` and `if-modified-since` are the point of this list: a
@@ -123,7 +122,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pat
     responseHeaders.set(
       'location',
       target.origin === GITHUB_API_ORIGIN
-        ? `${PROXY_PATH}${target.pathname}${target.search}`
+        ? `${GITHUB_PROXY_PATH}${target.pathname}${target.search}`
         : target.href,
     );
   }

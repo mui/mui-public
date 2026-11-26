@@ -6,7 +6,6 @@ import Link from '@mui/material/Link';
 import Heading from '../components/Heading';
 import DailyBenchmarkChart from '../components/DailyBenchmarkChart';
 import BenchmarkRunHistory from '../components/BenchmarkRunHistory';
-import PrivateRepositoryGate from '../components/PrivateRepositoryGate';
 
 export default function RepositoryBenchmarks() {
   const params = useParams<{ owner: string; repo: string }>();
@@ -27,10 +26,8 @@ export default function RepositoryBenchmarks() {
         </Link>
       </Heading>
 
-      <PrivateRepositoryGate repo={fullRepo}>
-        <DailyBenchmarkChart repo={fullRepo} />
-        <BenchmarkRunHistory repo={fullRepo} />
-      </PrivateRepositoryGate>
+      <DailyBenchmarkChart repo={fullRepo} />
+      <BenchmarkRunHistory repo={fullRepo} />
     </React.Fragment>
   );
 }

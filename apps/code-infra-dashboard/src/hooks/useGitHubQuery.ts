@@ -10,6 +10,7 @@ import type {
 } from '@tanstack/react-query';
 import type { Octokit } from '@octokit/rest';
 import { anonymousOctokit, proxiedOctokit } from '../utils/github';
+import { httpStatus } from '../utils/http';
 import { useSession } from './useSession';
 
 /**
@@ -25,7 +26,7 @@ import { useSession } from './useSession';
  *   client's sign-out handling after the retry.
  */
 function retryOnce(failureCount: number, error: Error): boolean {
-  const status = 'status' in error && typeof error.status === 'number' ? error.status : undefined;
+  const status = httpStatus(error);
   const refused = status !== undefined && status >= 400 && status < 500 && status !== 429;
   return !refused && failureCount < 1;
 }

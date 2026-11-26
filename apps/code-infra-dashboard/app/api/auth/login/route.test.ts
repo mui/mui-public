@@ -1,18 +1,12 @@
 import { vi, describe, it, expect, afterEach } from 'vitest';
 import { NextRequest } from 'next/server';
 import { DASHBOARD_ORIGIN } from '@/constants';
+import { stubConfiguredDeploy, stubUnconfiguredDeploy } from '@/lib/auth/testEnv';
 import { GET } from './route';
 
 afterEach(() => {
   vi.unstubAllEnvs();
 });
-
-function stubConfiguredDeploy() {
-  vi.stubEnv('GITHUB_OAUTH_CLIENT_ID', 'client-id');
-  vi.stubEnv('GITHUB_OAUTH_CLIENT_SECRET', 'client-secret');
-  vi.stubEnv('SESSION_SECRET', 'a-session-secret-of-thirty-two-chars');
-  vi.stubEnv('DASHBOARD_ORIGIN', DASHBOARD_ORIGIN);
-}
 
 function loginRequest(returnTo: string): NextRequest {
   const url = new URL('/api/auth/login', DASHBOARD_ORIGIN);
@@ -49,10 +43,7 @@ describe('GET /api/auth/login', () => {
   });
 
   it('is unavailable without sign-in configured', async () => {
-    vi.stubEnv('DASHBOARD_ORIGIN', undefined);
-    vi.stubEnv('GITHUB_OAUTH_CLIENT_ID', undefined);
-    vi.stubEnv('GITHUB_OAUTH_CLIENT_SECRET', undefined);
-    vi.stubEnv('SESSION_SECRET', undefined);
+    stubUnconfiguredDeploy();
 
     const response = await GET(loginRequest('/'));
 

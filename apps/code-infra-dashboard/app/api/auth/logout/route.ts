@@ -10,8 +10,9 @@ import { clearSession, readSession } from '@/lib/auth/session';
  * that another site's auto-submitting form can't either.
  *
  * The token is revoked, not just forgotten: a copy of the cookie would otherwise
- * keep working until it expires, and a non-expiring token never stops working. Only this one token is revoked, so other
- * clients the user signed into with the same GitHub App keep theirs.
+ * keep working until it expires, and a non-expiring token never stops working.
+ * Only this one token is revoked, so other clients the user signed into with the
+ * same GitHub App keep theirs.
  */
 export async function POST(request: NextRequest) {
   if (isCrossOriginRequest(request.headers)) {

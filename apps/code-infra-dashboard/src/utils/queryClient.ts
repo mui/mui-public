@@ -1,5 +1,6 @@
 import { QueryCache, QueryClient, hashKey } from '@tanstack/react-query';
 import { sessionQueryOptions } from '../hooks/useSession';
+import { httpStatus } from './http';
 
 /**
  * The app's query cache. Every proxied GitHub request runs inside a query, and
@@ -10,7 +11,7 @@ import { sessionQueryOptions } from '../hooks/useSession';
 export const queryClient: QueryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (error) => {
-      if (error instanceof Error && 'status' in error && error.status === 401) {
+      if (httpStatus(error) === 401) {
         // Restarts any read already in flight: it may have left before the proxy
         // cleared the cookie, and would report the session as still signed in.
         queryClient.invalidateQueries({ queryKey: sessionQueryOptions.queryKey });

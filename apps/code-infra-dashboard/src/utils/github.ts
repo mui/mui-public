@@ -7,8 +7,9 @@ import { Octokit } from '@octokit/rest';
  */
 export const anonymousOctokit: Octokit = new Octokit({});
 
-const GITHUB_API_ORIGIN = 'https://api.github.com';
-const GITHUB_PROXY_PATH = '/api/github';
+export const GITHUB_API_ORIGIN = 'https://api.github.com';
+/** Where the dashboard serves its GitHub proxy, `app/api/github/[...path]`. */
+export const GITHUB_PROXY_PATH = '/api/github';
 
 /**
  * Redirects every request into the proxy at the transport level rather than via

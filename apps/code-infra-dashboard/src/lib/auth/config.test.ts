@@ -1,17 +1,10 @@
 import { vi, describe, it, expect, afterEach } from 'vitest';
-import { DASHBOARD_ORIGIN } from '@/constants';
+import { stubConfiguredDeploy } from '@/lib/auth/testEnv';
 import { getOAuthClient } from './config';
 
 afterEach(() => {
   vi.unstubAllEnvs();
 });
-
-function stubConfiguredDeploy() {
-  vi.stubEnv('GITHUB_OAUTH_CLIENT_ID', 'client-id');
-  vi.stubEnv('GITHUB_OAUTH_CLIENT_SECRET', 'client-secret');
-  vi.stubEnv('SESSION_SECRET', 'a-session-secret-of-thirty-two-chars');
-  vi.stubEnv('DASHBOARD_ORIGIN', DASHBOARD_ORIGIN);
-}
 
 describe('getOAuthClient', () => {
   it('returns the configured credentials', () => {

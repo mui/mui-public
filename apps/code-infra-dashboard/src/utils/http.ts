@@ -12,3 +12,10 @@ export async function fetchJson<T = unknown>(
   }
   return response.json();
 }
+
+/** The HTTP status a failed request's error carries, as Octokit's errors do. */
+export function httpStatus(error: unknown): number | undefined {
+  return error instanceof Error && 'status' in error && typeof error.status === 'number'
+    ? error.status
+    : undefined;
+}

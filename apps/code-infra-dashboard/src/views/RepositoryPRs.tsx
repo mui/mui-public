@@ -5,7 +5,6 @@ import { useParams } from 'next/navigation';
 import Link from '@mui/material/Link';
 import Heading from '../components/Heading';
 import PRList from '../components/PRList';
-import PrivateRepositoryGate from '../components/PrivateRepositoryGate';
 
 export default function RepositoryPRs() {
   const params = useParams<{ owner: string; repo: string }>();
@@ -25,9 +24,7 @@ export default function RepositoryPRs() {
         </Link>
       </Heading>
 
-      <PrivateRepositoryGate repo={`${owner}/${repo}`}>
-        <PRList owner={owner} repo={repo} />
-      </PrivateRepositoryGate>
+      <PRList owner={owner} repo={repo} />
     </React.Fragment>
   );
 }
