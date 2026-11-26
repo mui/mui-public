@@ -85,16 +85,11 @@ export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get('code');
   const state = request.nextUrl.searchParams.get('state');
   const expectedState = stored.get('state');
-  const ownAttempt = Boolean(state && expectedState && matchesState(state, expectedState));
-
-  // On a mismatch the return path in the cookie is the other sign-in's.
-  const response = NextResponse.redirect(
-    resolveReturnTo(ownAttempt ? stored.get('returnTo') : null),
-  );
-  if (!ownAttempt) {
-    return response;
+  if (!state || !expectedState || !matchesState(state, expectedState)) {
+    return NextResponse.redirect(resolveReturnTo(null));
   }
 
+  const response = NextResponse.redirect(resolveReturnTo(stored.get('returnTo')));
   response.cookies.delete({ name: OAUTH_STATE_COOKIE, path: OAUTH_STATE_COOKIE_PATH });
   if (!code) {
     return response;

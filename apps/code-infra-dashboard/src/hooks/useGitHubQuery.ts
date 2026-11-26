@@ -11,12 +11,13 @@ import type {
 import type { Octokit } from '@octokit/rest';
 import { anonymousOctokit, proxiedOctokit } from '../utils/github';
 import { httpStatus } from '../utils/http';
-import { useSession } from './useSession';
+import { useVisitorScope } from './useSession';
 
 /*
  * Every GitHub query goes through this module, so none can forget the rules below.
  *
- * - The key is scoped to the visitor, so results never cross a sign-in or sign-out.
+ * - The key is scoped to the visitor (`useVisitorScope`), so results never cross a
+ *   sign-in or sign-out.
  * - Queries wait until the session is known: until then a signed-in visitor would
  *   query GitHub anonymously first, spending the 60/hour budget that signing in
  *   exists to avoid. They report that wait as loading, so views show their
@@ -33,16 +34,11 @@ function retryOnce(failureCount: number, error: Error): boolean {
 }
 
 function useGitHubClient() {
-  const { session, isPending } = useSession();
-  const login = session?.signedIn ? session.login : undefined;
+  const { login, ready, scope } = useVisitorScope();
   return {
     octokit: login ? proxiedOctokit : anonymousOctokit,
-    ready: !isPending,
-    scope: (queryKey: readonly unknown[]): QueryKey => [
-      'github',
-      login ?? 'anonymous',
-      ...queryKey,
-    ],
+    ready,
+    scope: (queryKey: readonly unknown[]): QueryKey => ['github', ...scope(queryKey)],
   };
 }
 

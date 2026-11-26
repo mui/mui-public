@@ -1,6 +1,7 @@
 'use client';
 
 import { queryOptions, useQuery } from '@tanstack/react-query';
+import type { QueryKey } from '@tanstack/react-query';
 import { fetchJson } from '../utils/http';
 
 export interface SessionResponse {
@@ -32,6 +33,21 @@ export function useSession(): UseSession {
   });
 
   return { session: data ?? null, isPending };
+}
+
+/**
+ * For queries whose answer depends on who is signed in. `scope` puts the visitor in
+ * the key, so results never cross a sign-in or sign-out, and `ready` holds the query
+ * until the session is known.
+ */
+export function useVisitorScope() {
+  const { session, isPending } = useSession();
+  const login = session?.signedIn ? session.login : undefined;
+  return {
+    login,
+    ready: !isPending,
+    scope: (queryKey: readonly unknown[]): QueryKey => [login ?? 'anonymous', ...queryKey],
+  };
 }
 
 export function signIn(): void {
