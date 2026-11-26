@@ -593,8 +593,9 @@ export interface FetchChangelogDataOptions {
    */
   includeDirectCommits?: boolean;
   /**
-   * GitHub Apps whose changes are left out, as `app/<slug>` like in GitHub search. A change is left
-   * out when its author or the opener of its pull request is one of them. Pass `[]` to keep all.
+   * Bots whose changes are left out, as `app/<slug>` like in GitHub search, or as their login, such
+   * as `renovate[bot]`. A change is left out when its author or the opener of its pull request is
+   * one of them. Pass `[]` to keep all.
    * @default ['app/renovate', 'app/code-infra-renovate']
    */
   excludeBots?: string[];

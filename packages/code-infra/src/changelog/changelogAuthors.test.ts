@@ -341,16 +341,20 @@ describe('excluded bots', () => {
     expect(await fetchTitles(undefined)).toEqual(['Pull request 3', 'Pull request 4', 'Tidy it']);
   });
 
-  it('leave out the apps that authored or opened a change', async () => {
-    expect(await fetchTitles(['app/renovate', 'app/code-infra-renovate', 'app/backport'])).toEqual([
-      'Pull request 3',
-      'Tidy it',
-    ]);
+  it('leave out what they authored or opened', async () => {
+    expect(await fetchTitles(['app/renovate', 'code-infra-renovate[bot]', 'app/backport'])).toEqual(
+      ['Pull request 3', 'Tidy it'],
+    );
   });
 
-  it('are apps', async () => {
-    await expect(fetchTitles(['renovate[bot]'])).rejects.toThrow(
-      '`excludeBots` takes apps as `app/<slug>`, not `renovate[bot]`.',
-    );
+  it('are only bots', async () => {
+    expect(await fetchTitles(['octocat'])).toEqual([
+      'Pull request 1',
+      'Pull request 2',
+      'Pull request 3',
+      'Pull request 4',
+      'Lock it',
+      'Tidy it',
+    ]);
   });
 });

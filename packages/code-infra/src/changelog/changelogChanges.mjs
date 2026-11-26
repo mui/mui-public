@@ -321,7 +321,7 @@ function stripTrailingReferences(title, references, stripCredits) {
  * @param {string} options.previousSha
  * @param {string} options.releaseSha
  * @param {boolean} options.includeDirectCommits
- * @param {string[]} options.excludeBots - Apps whose changes are left out, as `app/<slug>`
+ * @param {string[]} options.excludeBots - Bots whose changes are left out, as `app/<slug>` or login
  * @param {AbortController} options.controller - Aborted when a request fails
  * @returns {Promise<ChangelogChange[]>}
  */
@@ -336,13 +336,7 @@ export async function fetchChangelogChanges({
 }) {
   const { signal } = controller;
   const excluded = new Set(
-    excludeBots.map((app) => {
-      const [, slug] = /^app\/([\w-]+)$/.exec(app) ?? [];
-      if (!slug) {
-        throw new Error(`\`excludeBots\` takes apps as \`app/<slug>\`, not \`${app}\`.`);
-      }
-      return `${slug}[bot]`;
-    }),
+    excludeBots.map((bot) => (bot.startsWith('app/') ? `${bot.slice('app/'.length)}[bot]` : bot)),
   );
   const isExcludedAccount = (
     /** @type {{ login?: string, type?: string } | null | undefined} */ account,
