@@ -3,11 +3,10 @@
 import * as React from 'react';
 import { useParams } from 'next/navigation';
 import Link from '@mui/material/Link';
-import Alert from '@mui/material/Alert';
 import Heading from '../components/Heading';
 import DailyBenchmarkChart from '../components/DailyBenchmarkChart';
 import BenchmarkRunHistory from '../components/BenchmarkRunHistory';
-import { repositories } from '../constants';
+import PrivateRepositoryGate from '../components/PrivateRepositoryGate';
 
 export default function RepositoryBenchmarks() {
   const params = useParams<{ owner: string; repo: string }>();
@@ -18,7 +17,6 @@ export default function RepositoryBenchmarks() {
   const owner = params.owner;
   const repo = params.repo;
   const fullRepo = `${owner}/${repo}`;
-  const repoConfig = repositories.get(fullRepo);
 
   return (
     <React.Fragment>
@@ -29,17 +27,10 @@ export default function RepositoryBenchmarks() {
         </Link>
       </Heading>
 
-      {repoConfig?.isPublic === false ? (
-        <Alert severity="info">
-          This is a private repository. Benchmark data is not available through the public GitHub
-          API.
-        </Alert>
-      ) : (
-        <React.Fragment>
-          <DailyBenchmarkChart repo={fullRepo} />
-          <BenchmarkRunHistory repo={fullRepo} />
-        </React.Fragment>
-      )}
+      <PrivateRepositoryGate repo={fullRepo}>
+        <DailyBenchmarkChart repo={fullRepo} />
+        <BenchmarkRunHistory repo={fullRepo} />
+      </PrivateRepositoryGate>
     </React.Fragment>
   );
 }

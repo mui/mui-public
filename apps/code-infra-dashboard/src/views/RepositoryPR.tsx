@@ -16,10 +16,10 @@ import GitHubIcon from '@mui/icons-material/GitHub';
 import SpeedIcon from '@mui/icons-material/Speed';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import Skeleton from '@mui/material/Skeleton';
-import Alert from '@mui/material/Alert';
 import Heading from '../components/Heading';
 import GitHubPRReference from '../components/GitHubPRReference';
 import ErrorDisplay from '../components/ErrorDisplay';
+import PrivateRepositoryGate from '../components/PrivateRepositoryGate';
 import { useGitHubPR } from '../hooks/useGitHubPR';
 import { useCompareCommits } from '../hooks/useCompareCommits';
 import { repositories } from '../constants';
@@ -52,21 +52,17 @@ function InfoChip({ label, value, color = 'primary', loading = false }: InfoChip
   );
 }
 
-export default function RepositoryPR() {
-  const params = useParams<{ owner: string; repo: string; prNumber: string }>();
-  if (!params.owner || !params.repo || !params.prNumber) {
-    throw new Error('Missing required path parameters');
-  }
+interface PRDetailsProps {
+  owner: string;
+  repo: string;
+  prNumber: number;
+}
 
-  const owner = params.owner;
-  const repo = params.repo;
-  const prNumber = parseInt(params.prNumber, 10);
+function PRDetails({ owner, repo, prNumber }: PRDetailsProps) {
   const fullRepo = `${owner}/${repo}`;
 
   // Find repository packages
-  const repository = repositories.get(fullRepo);
-  const packages = repository?.packages || [];
-  const isPublic = repository?.isPublic !== false;
+  const packages = repositories.get(fullRepo)?.packages || [];
 
   const { prInfo, isLoading: isPrLoading, error: prError } = useGitHubPR(fullRepo, prNumber);
   const {
@@ -75,15 +71,6 @@ export default function RepositoryPR() {
     error: mergeBaseError,
   } = useCompareCommits(fullRepo, prInfo?.base.ref, prInfo?.head.sha);
   const mergeBase = compareInfo?.mergeBase || null;
-
-  if (!isPublic) {
-    return (
-      <Alert severity="info">
-        This is a private repository. Pull request data is not available through the public GitHub
-        API.
-      </Alert>
-    );
-  }
 
   return (
     <Box>
@@ -206,5 +193,18 @@ export default function RepositoryPR() {
         </Box>
       )}
     </Box>
+  );
+}
+
+export default function RepositoryPR() {
+  const params = useParams<{ owner: string; repo: string; prNumber: string }>();
+  if (!params.owner || !params.repo || !params.prNumber) {
+    throw new Error('Missing required path parameters');
+  }
+
+  return (
+    <PrivateRepositoryGate repo={`${params.owner}/${params.repo}`}>
+      <PRDetails owner={params.owner} repo={params.repo} prNumber={parseInt(params.prNumber, 10)} />
+    </PrivateRepositoryGate>
   );
 }
