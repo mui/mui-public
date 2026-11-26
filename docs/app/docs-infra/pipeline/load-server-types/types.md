@@ -68,10 +68,7 @@ type HighlightedClassProperty = {
   descriptionText?: string;
   /** Plain text version of example for markdown generation */
   exampleText?: string;
-  /**
-   * Plain text version of
-   * @see for markdown generation
-   */
+  /** Plain text version of `@see` references for markdown generation */
   seeText?: string;
 };
 ```
@@ -227,10 +224,7 @@ type HighlightedParameter = {
   descriptionText?: string;
   /** Plain text version of example for markdown generation */
   exampleText?: string;
-  /**
-   * Plain text version of
-   * @see for markdown generation
-   */
+  /** Plain text version of `@see` references for markdown generation */
   seeText?: string;
   /** Parameter name */
   name: string;
@@ -267,10 +261,7 @@ type HighlightedProperty = {
   descriptionText?: string;
   /** Plain text version of example for markdown generation */
   exampleText?: string;
-  /**
-   * Plain text version of
-   * @see for markdown generation
-   */
+  /** Plain text version of `@see` references for markdown generation */
   seeText?: string;
 };
 ```

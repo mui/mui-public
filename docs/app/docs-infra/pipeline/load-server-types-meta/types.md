@@ -152,12 +152,9 @@ type FormattedParameter = {
   example?: Root;
   /** Plain text version of example for markdown generation */
   exampleText?: string;
-  /** @see as parsed markdown HAST */
+  /** `@see` references as parsed markdown HAST */
   see?: Root;
-  /**
-   * Plain text version of
-   * @see for markdown generation
-   */
+  /** Plain text version of `@see` references for markdown generation */
   seeText?: string;
 };
 ```
@@ -185,12 +182,9 @@ type FormattedProperty = {
   example?: Root;
   /** Plain text version of example for markdown generation */
   exampleText?: string;
-  /** @see as parsed markdown HAST */
+  /** `@see` references as parsed markdown HAST */
   see?: Root;
-  /**
-   * Plain text version of
-   * @see for markdown generation
-   */
+  /** Plain text version of `@see` references for markdown generation */
   seeText?: string;
 };
 ```
