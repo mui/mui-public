@@ -321,7 +321,7 @@ function stripTrailingReferences(title, references, stripCredits) {
  * @param {string} options.previousSha
  * @param {string} options.releaseSha
  * @param {boolean} options.includeDirectCommits
- * @param {string[]} options.excludeBots - Bots whose changes are left out, as `app/<slug>` or login
+ * @param {string[]} [options.excludeBots] - Bots whose changes are left out, as `app/<slug>` or login
  * @param {AbortController} options.controller - Aborted when a request fails
  * @returns {Promise<ChangelogChange[]>}
  */
@@ -331,7 +331,7 @@ export async function fetchChangelogChanges({
   previousSha,
   releaseSha,
   includeDirectCommits,
-  excludeBots,
+  excludeBots = ['app/renovate', 'app/code-infra-renovate'],
   controller,
 }) {
   const { signal } = controller;
