@@ -13,8 +13,8 @@ import { anonymousOctokit, proxiedOctokit } from '../utils/github';
 import { httpStatus } from '../utils/http';
 import { useSession } from './useSession';
 
-/**
- * Every GitHub query goes through here, so none can forget the rules below.
+/*
+ * Every GitHub query goes through this module, so none can forget the rules below.
  *
  * - The key is scoped to the visitor, so results never cross a sign-in or sign-out.
  * - Queries wait until the session is known: until then a signed-in visitor would
@@ -25,6 +25,7 @@ import { useSession } from './useSession';
  *   429): asking again gets the same answer, and a 401 only reaches the query
  *   client's sign-out handling after the retry.
  */
+
 function retryOnce(failureCount: number, error: Error): boolean {
   const status = httpStatus(error);
   const refused = status !== undefined && status >= 400 && status < 500 && status !== 429;

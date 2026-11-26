@@ -56,9 +56,6 @@ describe('GET /api/auth/callback', () => {
     expect(await returnFromGitHub(returnTo)).toBe(dashboardRoot);
   });
 
-  // A sign-in started in a second tab replaces the state cookie, so the first tab
-  // returns with a state that no longer matches. Clearing the cookie then would make
-  // the second tab's sign-in fail as well.
   it('keeps the state cookie for the sign-in it belongs to on a mismatch', async () => {
     stubConfiguredDeploy();
     const stored = new URLSearchParams({ state: 'second-tab-state' });
