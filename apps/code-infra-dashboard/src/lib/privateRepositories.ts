@@ -28,7 +28,7 @@ async function canRead(token: string, repo: Repository): Promise<boolean> {
  * else those GitHub lets them read. Server only.
  */
 export async function listViewablePrivateRepositories(
-  candidates: Repository[] = [...repositories.values()],
+  candidates: Repository[],
 ): Promise<Repository[]> {
   const privateRepositories = candidates.filter((repo) => !repo.isPublic);
   const session = privateRepositories.length > 0 ? await readSession() : null;
