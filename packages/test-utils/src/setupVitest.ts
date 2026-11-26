@@ -2,7 +2,7 @@ import failOnConsole from 'vitest-fail-on-console';
 import * as chai from 'chai';
 import './chaiTypes';
 // eslint-disable-next-line import/extensions
-import { cleanup, act } from '@testing-library/react/pure.js';
+import { cleanup, act, configure as configureRtl } from '@testing-library/react/pure.js';
 import { afterEach, beforeEach, vi } from 'vitest';
 import type { TestContext } from 'vitest';
 import chaiDom from 'chai-dom';
@@ -108,6 +108,20 @@ export default function setupVitest({
   isInitialized = true;
 
   configure(config);
+
+  if (reactMajor < 18) {
+    // RTL 12 runs `waitFor()` in `act()`, which does not return while effects are pending.
+    // Use the RTL 16 behavior: wait outside of `act()`, then drain one macrotask.
+    configureRtl({
+      asyncWrapper: async (cb) => {
+        const result = await cb();
+        await new Promise((resolve) => {
+          setTimeout(resolve, 0);
+        });
+        return result;
+      },
+    });
+  }
 
   chai.use(chaiPlugin);
 
