@@ -56,9 +56,16 @@ describe('queryClient', () => {
 });
 
 describe('queryClient across tabs', () => {
+  const openChannels: BroadcastChannel[] = [];
+
+  afterEach(() => {
+    openChannels.splice(0).forEach((channel) => channel.close());
+  });
+
   /** Another tab of the dashboard, listening on the same channel. */
   function otherTab() {
     const channel = new BroadcastChannel('dashboard-session');
+    openChannels.push(channel);
     const messages: unknown[] = [];
     channel.addEventListener('message', (event) => messages.push(event.data));
     return { channel, messages };
@@ -74,15 +81,14 @@ describe('queryClient across tabs', () => {
   }
 
   it('tells the other tabs when the session changes, and only then', async () => {
+    await readSession({ available: true, signedIn: true, login: 'hubot' });
     const tab = otherTab();
 
-    // A login no earlier test used, so the first read is a change.
     await readSession({ available: true, signedIn: true, login: 'hubot' });
-    await readSession({ available: true, signedIn: true, login: 'hubot' });
-    await readSession({ available: true, signedIn: false });
+    expect(tab.messages).toHaveLength(0);
 
-    expect(tab.messages).toHaveLength(2);
-    tab.channel.close();
+    await readSession({ available: true, signedIn: false });
+    expect(tab.messages).toHaveLength(1);
   });
 
   it('reads the session again when another tab announces a change', async () => {
@@ -95,6 +101,5 @@ describe('queryClient across tabs', () => {
     });
 
     expect(queryClient.getQueryState(sessionQueryOptions.queryKey)?.isInvalidated).toBe(true);
-    tab.channel.close();
   });
 });

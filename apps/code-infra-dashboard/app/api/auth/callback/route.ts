@@ -62,8 +62,9 @@ async function exchangeCodeForSession(
 }
 
 /**
- * Every outcome sends the user back to where they started. Only a matching state
- * and a successful code exchange also sign them in; cancelling on GitHub's consent
+ * A callback carrying this browser's state sends the user back to where they
+ * started; any other lands on the dashboard root. Only a matching state and a
+ * successful code exchange also sign them in; cancelling on GitHub's consent
  * screen, a reloaded or forged callback, or a failed exchange all leave them as
  * they were.
  *
@@ -81,17 +82,23 @@ export async function GET(request: NextRequest) {
   }
 
   const stored = new URLSearchParams(request.cookies.get(OAUTH_STATE_COOKIE)?.value);
-
-  const response = NextResponse.redirect(resolveReturnTo(stored.get('returnTo')));
-
   const code = request.nextUrl.searchParams.get('code');
   const state = request.nextUrl.searchParams.get('state');
   const expectedState = stored.get('state');
-  if (!code || !state || !expectedState || !matchesState(state, expectedState)) {
+  const ownAttempt = Boolean(state && expectedState && matchesState(state, expectedState));
+
+  // On a mismatch the return path in the cookie is the other sign-in's.
+  const response = NextResponse.redirect(
+    resolveReturnTo(ownAttempt ? stored.get('returnTo') : null),
+  );
+  if (!ownAttempt) {
     return response;
   }
 
   response.cookies.delete({ name: OAUTH_STATE_COOKIE, path: OAUTH_STATE_COOKIE_PATH });
+  if (!code) {
+    return response;
+  }
   const signedIn = await exchangeCodeForSession(client, code);
   if (signedIn) {
     await writeSession(signedIn.session, signedIn.tokenExpiresAt);

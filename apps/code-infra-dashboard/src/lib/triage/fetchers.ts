@@ -107,9 +107,9 @@ export async function fetchPrsWithoutLabels(repos: Repository[]): Promise<Triage
         nodes { number url title state isDraft createdAt repository { name } labels(first: 10) { nodes { name } } }
       }`;
 
-  const repoQueries = PUBLIC_REPOS.map(
-    (r) => `${repoAlias(r.name)}: repository(owner: "mui", name: "${r.name}") { ${prFields} }`,
-  ).join('\n    ');
+  const repoQueries = repos
+    .map((r) => `${repoAlias(r.name)}: repository(owner: "mui", name: "${r.name}") { ${prFields} }`)
+    .join('\n    ');
 
   const query = `{ ${repoQueries} }`;
 

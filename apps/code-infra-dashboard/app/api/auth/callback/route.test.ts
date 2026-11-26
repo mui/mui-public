@@ -56,9 +56,9 @@ describe('GET /api/auth/callback', () => {
     expect(await returnFromGitHub(returnTo)).toBe(dashboardRoot);
   });
 
-  it('keeps the state cookie for the sign-in it belongs to on a mismatch', async () => {
+  it("leaves another sign-in's state cookie and return path alone", async () => {
     stubConfiguredDeploy();
-    const stored = new URLSearchParams({ state: 'second-tab-state' });
+    const stored = new URLSearchParams({ state: 'second-tab-state', returnTo: '/reactions' });
     const url = new URL('/api/auth/callback', DASHBOARD_ORIGIN);
     url.searchParams.set('code', 'a-code');
     url.searchParams.set('state', 'first-tab-state');
@@ -69,5 +69,6 @@ describe('GET /api/auth/callback', () => {
     const response = await GET(request);
 
     expect(response.headers.get('set-cookie')).toBe(null);
+    expect(response.headers.get('location')).toBe(dashboardRoot);
   });
 });
