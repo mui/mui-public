@@ -98,7 +98,7 @@ export interface CodeContext {
    * up the worker. Called by `CodeHighlighter` on the editable signal with the
    * block's scopes. No-op during SSR or where `Worker` is unavailable.
    */
-  ensureParseSourceWorker?: (scopes: string[]) => Promise<void>;
+  ensureParseSourceWorker?: (scopes: string[]) => Promise<ParseSourceAsync | void>;
 
   // Lazy accessors for the heaviest functions (dynamic-import-backed, deduped).
   /** Lazily loads the fallback-code loader (transitively pulls the variant loader). */

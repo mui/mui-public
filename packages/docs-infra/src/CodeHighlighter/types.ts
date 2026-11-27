@@ -54,6 +54,10 @@ export interface EditableSourceProjection {
   indentation?: string;
 }
 
+type SourceWindow =
+  | Pick<EditableSourceProjection, 'source' | 'indentation'>
+  | { length: number; indentation?: string };
+
 export type Transforms = Record<
   string,
   {
@@ -160,6 +164,8 @@ export type VariantCode = CodeMeta & {
   source?: VariantSource;
   /** Contiguous source shown by the collapsed editor. */
   sourceProjection?: EditableSourceProjection;
+  /** Editable window supplied by a deferred precompute shell. */
+  sourceWindow?: SourceWindow;
   /**
    * Compact fallback (highlighting spans removed) for the main source.
    * Converted from HAST via `hastToFallback` for smaller RSC payloads.
@@ -313,6 +319,8 @@ export type ContentLoadingFile = {
 };
 
 export type ContentLoadingVariant = {
+  /** Contiguous editable text of the initially displayed collapsed file. */
+  sourceWindow?: SourceWindow;
   fileNames?: string[];
   source?: FallbackNode[];
   /** Loading metadata for the main `source` file. See {@link ContentLoadingFile}. */
@@ -366,6 +374,8 @@ export type ContentLoadingProps<T extends {}> = BaseContentLoadingProps &
      * block will start expanded.
      */
     initialExpanded?: boolean;
+    /** Whether editing starts disabled in the live view. */
+    initialDisabled?: boolean;
     // `totalLines` / `focusedLines` for the displayed (main) file are inherited from
     // `ContentLoadingVariant`; extra files carry theirs in `extraSource[file]`, and
     // each `extraVariants` entry carries its own set. A `ContentLoading` mirrors them

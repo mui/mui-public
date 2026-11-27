@@ -78,7 +78,7 @@ export function prepareInitialSource<T extends {}>(
   } = props;
 
   const contentPropsFlags = props.contentProps as
-    { collapseToEmpty?: boolean; initialExpanded?: boolean } | undefined;
+    { collapseToEmpty?: boolean; initialExpanded?: boolean; initialDisabled?: boolean } | undefined;
   const collapseToEmpty =
     props.collapseToEmpty !== undefined
       ? props.collapseToEmpty
@@ -87,6 +87,8 @@ export function prepareInitialSource<T extends {}>(
     props.initialExpanded !== undefined
       ? props.initialExpanded
       : contentPropsFlags?.initialExpanded;
+
+  const initialDisabled = props.initialDisabled ?? contentPropsFlags?.initialDisabled;
   const collapseToEmptyEnabled = collapseToEmpty === true;
   const initialExpandedEnabled = initialExpanded === true;
 
@@ -331,6 +333,24 @@ export function prepareInitialSource<T extends {}>(
   // Only include components (plural) if we're also including extraVariants
   const components = fallbackProps.extraVariants ? props.components : undefined;
 
+  const selected = code?.[initialVariant];
+
+  const file =
+    selected &&
+    typeof selected === 'object' &&
+    (!initialFilename || selected.fileName === initialFilename)
+      ? selected
+      : undefined;
+
+  const projection = file?.sourceProjection;
+
+  const sourceWindow =
+    file?.sourceWindow ??
+    (projection && {
+      source: projection.source,
+      indentation: projection.indentation,
+    });
+
   const contentProps = {
     ...props.contentProps,
     ...fallbackProps,
@@ -351,7 +371,18 @@ export function prepareInitialSource<T extends {}>(
     // Render-time default-expanded: the loading placeholder can render expanded
     // so it doesn't flash collapsed before hydration.
     ...(initialExpanded !== undefined ? { initialExpanded } : undefined),
+    ...(initialDisabled !== undefined ? { initialDisabled } : undefined),
   } as ContentLoadingProps<T>;
+
+  if (
+    sourceWindow &&
+    !initialDisabled &&
+    fallbackProps.focusedLines !== 0 &&
+    !collapseToEmptyEnabled &&
+    !initialExpandedEnabled
+  ) {
+    contentProps.sourceWindow = sourceWindow;
+  }
 
   const fallback = <ContentLoading {...contentProps} />;
 

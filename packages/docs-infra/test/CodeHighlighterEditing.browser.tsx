@@ -54,9 +54,6 @@ function LiveSource(props: ContentProps<{}>) {
   return (
     <React.Fragment>
       {context.components?.[demo.selectedVariant]}
-      <button type="button" onClick={() => demo.prepareEditor()}>
-        Prepare editor
-      </button>
       <section aria-label="Source">{demo.selectedFile}</section>
     </React.Fragment>
   );
@@ -198,8 +195,6 @@ describe('CodeHighlighter editing source switches', () => {
 
     await userEvent.click(editor);
     await screen.findByText('Live build ready');
-    await userEvent.click(screen.getByRole('button', { name: 'Prepare editor' }));
-    expect(screen.getByRole('textbox')).toBe(editor);
     expect(screen.getByRole('button', { name: 'Count 1' })).toBe(preview);
 
     await userEvent.fill(editor, COUNTER_SOURCE.replace('Count ', 'Edited '));
@@ -211,28 +206,6 @@ describe('CodeHighlighter editing source switches', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Count 0' }));
     await screen.findByRole('button', { name: 'Count 1' });
     expect(bundledMounts).toBe(mountsBeforeUndo);
-  });
-
-  it('prepares the editor and runner without remounting or focusing the demo', async () => {
-    render(<LiveDemo />);
-
-    const preview = screen.getByRole('button', { name: 'Count 0' });
-
-    await userEvent.click(preview);
-    expect(screen.queryByRole('textbox')).toBeNull();
-
-    await userEvent.click(screen.getByRole('button', { name: 'Prepare editor' }));
-    const editor = await screen.findByRole('textbox', {}, { timeout: 10000 });
-
-    await screen.findByText('Live build ready');
-    await userEvent.click(screen.getByRole('button', { name: 'Prepare editor' }));
-    expect(screen.getByRole('textbox')).toBe(editor);
-    expect(screen.getByRole('button', { name: 'Count 1' })).toBe(preview);
-    expect(bundledMounts).toBe(1);
-    expect(document.activeElement).not.toBe(editor);
-
-    await userEvent.fill(editor, COUNTER_SOURCE.replace('Count ', 'Edited '));
-    await screen.findByRole('button', { name: 'Edited 0' });
   });
 
   it.each(['Helper', 'JavaScript'])(

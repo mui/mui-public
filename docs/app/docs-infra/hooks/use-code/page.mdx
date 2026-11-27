@@ -45,20 +45,26 @@ Starting to edit a live demo switches it to the live preview immediately, even b
 first change. It stays on the live preview until the demo unmounts; resetting the source
 does not switch back to the bundled component.
 
-### Preparing an editor
+### Render a native input on the server
 
-With `editActivation="interaction"`, call `prepareEditor()` from `useCode` or `useDemo`
-to initialize the selected editor and its editing runtime before a click:
+Pass `{ SourceComponent: NativeCodeSource }` to both `useCodeFallback` and
+`useCode` or `useDemo`. Render the returned element in the same slot of a
+persistent content frame.
 
 ```tsx
-const code = useCode(props);
-return <button onClick={code.prepareEditor}>Prepare editor</button>;
+import { useCodeFallback } from '@mui/internal-docs-infra/CodeHighlighter';
+import { NativeCodeSource } from '@mui/internal-docs-infra/NativeCodeSource';
+
+function SourceSlot({ loadingProps, live }) {
+  const loading = useCodeFallback(loadingProps, { SourceComponent: NativeCodeSource });
+  return <section>{live?.selectedFile ?? loading.selectedFile}</section>;
+}
 ```
 
-Preparation loads asynchronously without moving focus or changing source.
-Repeated calls are safe. Calls while editing is disabled do nothing.
-The host owns visibility checks, idle timing, and cancellation.
-`preloadCodeEditor()` only fetches the editor module; it does not initialize an editor.
+The loading view provides a read-only textarea with the displayed source. When live
+bindings arrive, the same textarea accepts input. Precomputed colors remain visible
+until the reader edits the text. Only import the native renderer for hosts that need
+an input on first paint.
 
 ### Selected file metadata
 

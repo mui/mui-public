@@ -21,6 +21,7 @@
     "./CodeHighlighter/types": "./src/CodeHighlighter/types.ts",
     "./CodeHighlighter/errors": "./src/CodeHighlighter/errors.ts",
     "./CodeProvider": "./src/CodeProvider/index.ts",
+    "./NativeCodeSource": "./src/NativeCodeSource/index.ts",
     "./CoordinatedLazy": "./src/CoordinatedLazy/index.ts",
     "./CoordinatedLazy/types": "./src/CoordinatedLazy/types.ts",
     "./createDemoData": "./src/createDemoData/index.ts",
