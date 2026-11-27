@@ -13,19 +13,15 @@ const POSITION_KEYS = ['start', 'end', 'range', 'loc'];
 // Properties that hold no child nodes of the code
 const SKIPPED_KEYS = new Set([...POSITION_KEYS, 'comments', 'tokens', 'extra']);
 
-function copyPosition(to: Node, from: Node) {
-  for (const key of POSITION_KEYS) {
-    if (key in from) {
-      to[key] = from[key];
-    }
-  }
-}
-
 // Prettier reads node positions to place comments and keep blank lines, so nodes created here
 // take over the position of the node they stand in for.
 function create(type: string, from: Node, props: Record<string, unknown>): Node {
   const node: Node = { type, ...props };
-  copyPosition(node, from);
+  for (const key of POSITION_KEYS) {
+    if (key in from) {
+      node[key] = from[key];
+    }
+  }
   return node;
 }
 
@@ -112,18 +108,17 @@ function toIfStatement(statement: Node): Node {
   if (!isNode(expression)) {
     return statement;
   }
-  // `a && b` is `a ? b : undefined` and `a || b` is `a ? undefined : b`
   let test: Node;
-  let consequent: Node | undefined;
+  let consequent: Node;
   let alternate: Node | undefined;
   if (
     expression.type === 'LogicalExpression' &&
     (expression.operator === '&&' || expression.operator === '||')
   ) {
-    test = expression.left as Node;
-    const right = expression.right as Node;
-    [consequent, alternate] =
-      expression.operator === '&&' ? [right, undefined] : [undefined, right];
+    // `a && b` runs `b` when `a` is truthy, `a || b` when it's falsy
+    const left = expression.left as Node;
+    test = expression.operator === '&&' ? left : negate(left);
+    consequent = expression.right as Node;
   } else if (expression.type === 'ConditionalExpression') {
     test = expression.test as Node;
     consequent = expression.consequent as Node;
@@ -131,16 +126,13 @@ function toIfStatement(statement: Node): Node {
     if (isIdentifier(alternate, 'undefined')) {
       alternate = undefined;
     } else if (isIdentifier(consequent, 'undefined')) {
-      consequent = undefined;
+      // Only the alternate does something, which is an `if` on the negated test
+      test = negate(test);
+      consequent = alternate;
+      alternate = undefined;
     }
   } else {
     return statement;
-  }
-  if (!consequent) {
-    // Only the alternate does something, which is an `if` on the negated test
-    test = negate(test);
-    consequent = alternate as Node;
-    alternate = undefined;
   }
   return create('IfStatement', statement, {
     test,
@@ -241,47 +233,26 @@ function normalizeNode(node: Node, isDeclarationFile: boolean): Node {
       }
       return node;
     case 'ImportDeclaration':
-      sortSpecifiers(node);
-      if (isDeclarationFile) {
-        // In declaration files `import type` and `import` mean the same thing
-        node.importKind = 'value';
-        for (const specifier of node.specifiers as Node[]) {
-          if (specifier.importKind) {
-            specifier.importKind = 'value';
-          }
-        }
-      }
-      return node;
-    case 'ExportNamedDeclaration':
-      if (node.specifiers) {
+    case 'ExportNamedDeclaration': {
+      const specifiers = (node.specifiers as Node[] | undefined) ?? [];
+      if (specifiers.length > 0) {
         sortSpecifiers(node);
       }
       if (isDeclarationFile) {
-        node.exportKind = 'value';
-        for (const specifier of (node.specifiers as Node[] | undefined) ?? []) {
-          if (specifier.exportKind) {
-            specifier.exportKind = 'value';
+        // In declaration files `import type` and `import` mean the same thing, as do the exports
+        const kind = node.type === 'ImportDeclaration' ? 'importKind' : 'exportKind';
+        node[kind] = 'value';
+        for (const specifier of node.specifiers as Node[]) {
+          if (specifier[kind]) {
+            specifier[kind] = 'value';
           }
         }
       }
       return node;
+    }
     default:
       return node;
   }
-}
-
-function visit(node: Node, isDeclarationFile: boolean): Node {
-  for (const [key, value] of Object.entries(node)) {
-    if (SKIPPED_KEYS.has(key)) {
-      continue;
-    }
-    if (Array.isArray(value)) {
-      node[key] = value.map((child) => (isNode(child) ? visit(child, isDeclarationFile) : child));
-    } else if (isNode(value)) {
-      node[key] = visit(value, isDeclarationFile);
-    }
-  }
-  return normalizeNode(node, isDeclarationFile);
 }
 
 // Identifiers that aren't bindings or references: property names, labels and the names
@@ -312,7 +283,7 @@ function isNameOnly(parent: Node | null, key: string): boolean {
     case 'ImportSpecifier':
       return key === 'imported';
     case 'ExportSpecifier':
-      return key === 'exported' || (key === 'local' && Boolean(parent.isReexport));
+      return key === 'exported';
     case 'ExportNamespaceSpecifier':
     case 'ExportAllDeclaration':
       return key === 'exported';
@@ -340,7 +311,11 @@ function isAmbientModule(node: Node): boolean {
   );
 }
 
-type Visitor = (node: Node, parent: Node | null, key: string, inAmbientModule: boolean) => void;
+interface Visitor {
+  enter?: (node: Node, parent: Node | null, key: string, inAmbientModule: boolean) => void;
+  /** Called after the node's children, may return a node to put in its place. */
+  exit?: (node: Node) => Node | void;
+}
 
 function walk(
   node: Node,
@@ -348,19 +323,27 @@ function walk(
   parent: Node | null = null,
   key = '',
   inAmbientModule = false,
-) {
-  visitor(node, parent, key, inAmbientModule);
+): Node {
+  visitor.enter?.(node, parent, key, inAmbientModule);
   const ambient = inAmbientModule || isAmbientModule(node);
   for (const [childKey, value] of Object.entries(node)) {
-    if (SKIPPED_KEYS.has(childKey)) {
+    // `export { a } from 'x'` names what another module exports, its specifiers hold no
+    // bindings of this one
+    if (
+      SKIPPED_KEYS.has(childKey) ||
+      (childKey === 'specifiers' && node.type === 'ExportNamedDeclaration' && node.source)
+    ) {
       continue;
     }
     if (Array.isArray(value)) {
-      value.forEach((child) => isNode(child) && walk(child, visitor, node, childKey, ambient));
+      node[childKey] = value.map((child) =>
+        isNode(child) ? walk(child, visitor, node, childKey, ambient) : child,
+      );
     } else if (isNode(value)) {
-      walk(value, visitor, node, childKey, ambient);
+      node[childKey] = walk(value, visitor, node, childKey, ambient);
     }
   }
+  return visitor.exit?.(node) ?? node;
 }
 
 /**
@@ -370,14 +353,16 @@ function walk(
 export function getMultilineValueRanges(ast: unknown): [number, number][] {
   const ranges: [number, number][] = [];
   if (isNode(ast)) {
-    walk(ast, (node) => {
-      if (node.type === 'TemplateLiteral' || node.type === 'JSXText') {
-        ranges.push(
-          Array.isArray(node.range)
-            ? (node.range as [number, number])
-            : [node.start as number, node.end as number],
-        );
-      }
+    walk(ast, {
+      enter(node) {
+        if (node.type === 'TemplateLiteral' || node.type === 'JSXText') {
+          ranges.push(
+            Array.isArray(node.range)
+              ? (node.range as [number, number])
+              : [node.start as number, node.end as number],
+          );
+        }
+      },
     });
   }
   return ranges.sort(([startA], [startB]) => startA - startB);
@@ -449,16 +434,18 @@ function getCanonicalName(name: string): string {
 function renameBindings(program: Node): Map<string, number> {
   const references = new Map<string, number>();
   const blocked = new Set<string>();
-  walk(program, (node, parent, key, inAmbientModule) => {
-    if (node.type === 'JSXIdentifier') {
-      blocked.add(node.name as string);
-    } else if (node.type === 'Identifier' && !isNameOnly(parent, key)) {
-      references.set(node.name as string, (references.get(node.name as string) ?? 0) + 1);
-      if (inAmbientModule) {
-        // Renaming here would change what a `declare module` block augments
+  walk(program, {
+    enter(node, parent, key, inAmbientModule) {
+      if (node.type === 'JSXIdentifier') {
         blocked.add(node.name as string);
+      } else if (node.type === 'Identifier' && !isNameOnly(parent, key)) {
+        references.set(node.name as string, (references.get(node.name as string) ?? 0) + 1);
+        if (inAmbientModule) {
+          // Renaming here would change what a `declare module` block augments
+          blocked.add(node.name as string);
+        }
       }
-    }
+    },
   });
   const targets = new Map<string, string[]>();
   for (const name of getModuleBindings(program)) {
@@ -480,43 +467,41 @@ function renameBindings(program: Node): Map<string, number> {
     references.set(target, references.get(name) ?? 0);
     references.delete(name);
   }
-  walk(program, (node, parent, key) => {
-    // `{ a }` and `{ a = 1 }` name a property as well as a binding. The property keeps its name,
-    // which may share the identifier node with the binding.
-    if (
-      (node.type === 'ObjectProperty' || node.type === 'Property') &&
-      node.shorthand &&
-      isIdentifier(node.key) &&
-      renames.has(node.key.name as string)
-    ) {
-      node.key = { ...node.key };
-      node.shorthand = false;
-      return;
-    }
-    if (node.type !== 'Identifier' || isNameOnly(parent, key) || !parent) {
-      return;
-    }
-    const target = renames.get(node.name as string);
-    if (!target) {
-      return;
-    }
-    // Specifiers can share the identifier node between the local and the outside name
-    if (parent.type === 'ExportSpecifier' && parent.exported === node) {
-      parent.exported = { ...node };
-    } else if (parent.type === 'ImportSpecifier' && parent.imported === node) {
-      parent.imported = { ...node };
-    }
-    node.name = target;
-  });
-  // Prettier prints `{ a as a }` unless both names are the same node in the source
-  walk(program, (node) => {
-    if (node.type !== 'ImportSpecifier' && node.type !== 'ExportSpecifier') {
-      return;
-    }
-    const outside = node.type === 'ImportSpecifier' ? node.imported : node.exported;
-    if (isNode(outside) && isNode(node.local) && getName(outside) === getName(node.local)) {
-      copyPosition(node.local, outside);
-    }
+  walk(program, {
+    enter(node, parent, key) {
+      // `{ a }` and `{ a = 1 }` name a property as well as a binding. The property keeps its
+      // name, which may share the identifier node with the binding.
+      if (
+        (node.type === 'ObjectProperty' || node.type === 'Property') &&
+        node.shorthand &&
+        isIdentifier(node.key) &&
+        renames.has(node.key.name as string)
+      ) {
+        node.key = { ...node.key };
+        node.shorthand = false;
+        return;
+      }
+      // Specifiers can share the identifier node between the local and the outside name, and
+      // Prettier prints `{ a }` instead of `{ a as a }` only when both are the same node
+      if (
+        (node.type === 'ImportSpecifier' || node.type === 'ExportSpecifier') &&
+        isIdentifier(node.local)
+      ) {
+        const target = renames.get(node.local.name as string);
+        const outside = node.type === 'ImportSpecifier' ? node.imported : node.exported;
+        if (target && isNode(outside)) {
+          node.local = getName(outside) === target ? outside : { ...node.local, name: target };
+        }
+        return;
+      }
+      if (node.type !== 'Identifier' || isNameOnly(parent, key) || !parent) {
+        return;
+      }
+      const target = renames.get(node.name as string);
+      if (target) {
+        node.name = target;
+      }
+    },
   });
   return references;
 }
@@ -548,11 +533,7 @@ function normalizeDefaultExport(program: Node, references: Map<string, number>) 
     const statement = body[index];
     const local = statement.declaration as Node;
     body.splice(index, 1);
-    const specifier = create('ExportSpecifier', statement, {
-      local,
-      exported: create('Identifier', local, { name: 'default' }),
-      exportKind: 'value',
-    });
+    const specifier = createExportSpecifier(statement, local, 'default');
     const list = body.find(
       (candidate) =>
         candidate.type === 'ExportNamedDeclaration' &&
@@ -564,15 +545,7 @@ function normalizeDefaultExport(program: Node, references: Map<string, number>) 
       list.specifiers = [...(list.specifiers as Node[]), specifier];
       sortSpecifiers(list);
     } else {
-      body.push(
-        create('ExportNamedDeclaration', statement, {
-          declaration: null,
-          specifiers: [specifier],
-          source: null,
-          exportKind: 'value',
-          attributes: [],
-        }),
-      );
+      body.push(createExportList(statement, [specifier]));
     }
   }
 
@@ -619,6 +592,24 @@ function normalizeDefaultExport(program: Node, references: Map<string, number>) 
   }
 }
 
+function createExportSpecifier(from: Node, local: Node, exported: string): Node {
+  return create('ExportSpecifier', from, {
+    local,
+    exported: create('Identifier', from, { name: exported }),
+    exportKind: 'value',
+  });
+}
+
+function createExportList(from: Node, specifiers: Node[]): Node {
+  return create('ExportNamedDeclaration', from, {
+    declaration: null,
+    specifiers,
+    source: null,
+    exportKind: 'value',
+    attributes: [],
+  });
+}
+
 // `var X = class X {}` and `var X = class {}` are what bundlers make of `class X {}`.
 function toClassDeclaration(statement: Node): Node {
   if (statement.type !== 'VariableDeclaration') {
@@ -655,10 +646,8 @@ function hoistExports(program: Node, isDeclarationFile: boolean) {
   const body = program.body as Node[];
   const exportedNames = new Set<string>();
   const statements: Node[] = [];
-  let last: Node | undefined;
   for (const original of body) {
     const statement = toClassDeclaration(original);
-    last = original;
     if (
       statement.type !== 'ExportNamedDeclaration' ||
       statement.source ||
@@ -697,53 +686,57 @@ function hoistExports(program: Node, isDeclarationFile: boolean) {
     specifiers.forEach((specifier) => exportedNames.add(getName(specifier.local)));
   }
   program.body = statements;
-  if (exportedNames.size === 0 || !last) {
+  if (exportedNames.size === 0) {
     return;
   }
-  const end = positionAfter(last);
-  const specifiers = [...exportedNames].sort().map((name) =>
-    create('ExportSpecifier', end, {
-      local: create('Identifier', end, { name }),
-      exported: create('Identifier', end, { name }),
-      exportKind: 'value',
-    }),
-  );
-  statements.push(
-    create('ExportNamedDeclaration', end, {
-      declaration: null,
-      specifiers,
-      source: null,
-      exportKind: 'value',
-      attributes: [],
-    }),
-  );
+  const end = positionAfter(body[body.length - 1]);
+  const specifiers = [...exportedNames]
+    .sort()
+    .map((name) => createExportSpecifier(end, create('Identifier', end, { name }), name));
+  statements.push(createExportList(end, specifiers));
+}
+
+// Prettier prints the comments it finds in `ast.comments` (JavaScript, TypeScript, JSON),
+// PostCSS keeps them as nodes in the tree instead.
+function removeComments(node: { type?: string; comments?: unknown[]; nodes?: unknown[] }) {
+  if (node.comments) {
+    node.comments = [];
+  }
+  if (node.nodes) {
+    node.nodes = node.nodes.filter((child) => !isNode(child) || child.type !== 'css-comment');
+    node.nodes.forEach((child) => isNode(child) && removeComments(child));
+  }
 }
 
 /**
- * Normalizes a JavaScript or TypeScript AST parsed by Prettier in place. Other ASTs are left
- * alone.
+ * Whether `code` may hold a template literal or JSX text, the only places a blank line is part
+ * of a value. JSON and CSS strings can't span lines.
+ */
+export function mayHaveMultilineValues(code: string, filepath: string): boolean {
+  if (!/\.[cm]?[jt]sx?$/.test(filepath)) {
+    return false;
+  }
+  return code.includes('`') || (/\.([cm]?jsx?|tsx)$/.test(filepath) && code.includes('<'));
+}
+
+/**
+ * Leaves the comments out of an AST parsed by Prettier and, for JavaScript and TypeScript,
+ * normalizes its syntax. Works in place.
  */
 export function normalizeSyntax(ast: unknown, filepath: string | undefined) {
   if (!isNode(ast)) {
     return;
   }
+  removeComments(ast);
   const program = ast.type === 'File' ? ast.program : ast;
   if (!isNode(program) || program.type !== 'Program') {
     return;
   }
   const isDeclarationFile = /\.d\.[cm]?ts$/.test(filepath ?? '');
-  for (const statement of program.body as Node[]) {
-    // `export { a } from 'x'` names what another module exports, not a local binding
-    if (statement.type === 'ExportNamedDeclaration' && statement.source) {
-      for (const specifier of statement.specifiers as Node[]) {
-        specifier.isReexport = true;
-      }
-    }
-  }
   hoistExports(program, isDeclarationFile);
   const references = renameBindings(program);
   if (!isDeclarationFile) {
     normalizeDefaultExport(program, references);
   }
-  visit(program, isDeclarationFile);
+  walk(program, { exit: (node) => normalizeNode(node, isDeclarationFile) });
 }

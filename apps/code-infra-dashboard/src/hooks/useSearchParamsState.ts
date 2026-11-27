@@ -18,6 +18,14 @@ export interface ParamConfig<T> {
 }
 
 /**
+ * Codec for boolean flags, present as `1` when set.
+ */
+export const CODEC_BOOLEAN = {
+  serialize: (value: boolean): string => (value ? '1' : ''),
+  deserialize: (value: string): boolean => value === '1',
+};
+
+/**
  * Codec for number values.
  */
 export const CODEC_NUMBER = {

@@ -9,7 +9,8 @@ import CheckIcon from '@mui/icons-material/Check';
 import type { SxProps, Theme } from '@mui/material/styles';
 
 interface CopyButtonProps {
-  text: string;
+  /** The text, or a function building it when it's expensive to make up front. */
+  text: string | (() => string);
   /** Tooltip shown before copying. */
   title?: string;
   disabled?: boolean;
@@ -25,7 +26,7 @@ export default function CopyButton({
   const [copied, setCopied] = React.useState(false);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(text).then(() => {
+    navigator.clipboard.writeText(typeof text === 'function' ? text() : text).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });

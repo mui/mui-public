@@ -1,7 +1,11 @@
 import * as diff from 'diff';
 import type { Parser, Plugin } from 'prettier';
 import type { FileContent, PackageContents } from '../packageDownload';
-import { getMultilineValueRanges, normalizeSyntax } from './normalizeSyntax';
+import {
+  getMultilineValueRanges,
+  mayHaveMultilineValues,
+  normalizeSyntax,
+} from './normalizeSyntax';
 
 export type ChangeType = 'added' | 'removed' | 'modified';
 
@@ -42,26 +46,6 @@ function getPrettierParser(path: string): string | null {
   return PRETTIER_PARSERS.find(([pattern]) => pattern.test(path))?.[1] ?? null;
 }
 
-const NORMALIZED_SUFFIX = '-normalized';
-
-interface AstNode {
-  type?: string;
-  comments?: unknown[];
-  nodes?: AstNode[];
-}
-
-// Prettier prints the comments it finds in `ast.comments` (JavaScript, TypeScript, JSON),
-// PostCSS keeps them as nodes in the tree instead.
-function removeComments(node: AstNode) {
-  if (node.comments) {
-    node.comments = [];
-  }
-  if (node.nodes) {
-    node.nodes = node.nodes.filter((child) => child.type !== 'css-comment');
-    node.nodes.forEach(removeComments);
-  }
-}
-
 // `keep` holds the spans where a blank line is part of a value, sorted by start
 function removeBlankLines(code: string, keep: [number, number][]): string {
   let offset = 0;
@@ -85,37 +69,36 @@ function removeBlankLines(code: string, keep: [number, number][]): string {
 const BLANK_LINE = /\n[ \t]*\n/;
 
 /**
- * Adds a `<name>-normalized` variant of every parser in `plugins`, whose AST has its syntax
- * normalized and its comments removed before Prettier prints it.
+ * Replaces the parsers in `PRETTIER_PARSERS` with ones whose AST has its syntax normalized and
+ * its comments removed before Prettier prints it. Prettier only runs for normalizing.
  */
 function createNormalizedPlugin(plugins: Plugin[]): Plugin {
   const parsers: Record<string, Parser> = {};
-  for (const plugin of plugins) {
-    for (const [name, parser] of Object.entries(plugin.parsers ?? {})) {
-      parsers[`${name}${NORMALIZED_SUFFIX}`] = {
-        ...parser,
-        // Prettier keeps a blank line wherever the input had one, and a blank line between
-        // object properties keeps the object expanded, so they go before formatting
-        preprocess: async (text, options) => {
-          const source = parser.preprocess ? await parser.preprocess(text, options) : text;
-          if (!BLANK_LINE.test(source)) {
-            return source;
-          }
-          const keep =
-            parser.astFormat === 'estree'
-              ? getMultilineValueRanges(await parser.parse(source, options))
-              : // JSON and CSS strings can't span lines
-                [];
-          return removeBlankLines(source, keep);
-        },
-        parse: async (text, options) => {
-          const ast = await parser.parse(text, options);
-          normalizeSyntax(ast, options.filepath);
-          removeComments(ast);
-          return ast;
-        },
-      };
+  for (const [, name] of PRETTIER_PARSERS) {
+    const parser = plugins.find((plugin) => plugin.parsers?.[name])?.parsers?.[name];
+    if (!parser) {
+      throw new Error(`Prettier has no "${name}" parser`);
     }
+    parsers[name] = {
+      ...parser,
+      // Prettier keeps a blank line wherever the input had one, and a blank line between
+      // object properties keeps the object expanded, so they go before formatting
+      preprocess: async (text, options) => {
+        const source = parser.preprocess ? await parser.preprocess(text, options) : text;
+        if (!BLANK_LINE.test(source)) {
+          return source;
+        }
+        const keep = mayHaveMultilineValues(source, options.filepath ?? '')
+          ? getMultilineValueRanges(await parser.parse(source, options))
+          : [];
+        return removeBlankLines(source, keep);
+      },
+      parse: async (text, options) => {
+        const ast = await parser.parse(text, options);
+        normalizeSyntax(ast, options.filepath);
+        return ast;
+      },
+    };
   }
   return { parsers };
 }
@@ -125,6 +108,7 @@ let prettierPromise: Promise<
 > | null = null;
 
 // Prettier and its parsers are several hundred KB, only load them once normalizing is requested.
+// The normalized parsers come last, Prettier takes a parser from the last plugin that has it.
 function loadPrettier() {
   prettierPromise ??= Promise.all([
     import('prettier/standalone'),
@@ -202,7 +186,11 @@ function createDiffBlocks(
   return blocks;
 }
 
-export interface PackageDiff {
+export function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+interface PackageDiff {
   /** The files whose raw contents differ, sorted by path. Cheap, available right away. */
   files: ChangedFile[];
   /**
@@ -248,9 +236,8 @@ export function createPackageDiff(
       let newContent = newFile?.content ?? '';
 
       let formatError: string | undefined;
-      const languageParser = options.normalizeSyntax ? getPrettierParser(path) : null;
-      if (languageParser) {
-        const parser = `${languageParser}${NORMALIZED_SUFFIX}`;
+      const parser = options.normalizeSyntax ? getPrettierParser(path) : null;
+      if (parser) {
         try {
           [oldContent, newContent] = await Promise.all([
             formatFile(oldFile, parser),
@@ -258,7 +245,7 @@ export function createPackageDiff(
           ]);
         } catch (error) {
           // Both sides keep their raw contents, a half formatted diff is useless
-          formatError = error instanceof Error ? error.message : String(error);
+          formatError = getErrorMessage(error);
         }
         if (oldContent === newContent) {
           return null;

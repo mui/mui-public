@@ -13,7 +13,7 @@ export interface PackageContents {
   files: FileContent[];
 }
 
-export interface ResolvedPackage {
+interface ResolvedPackage {
   downloadUrl: string;
   name: string;
   version: string;
@@ -27,7 +27,7 @@ function isUrl(str: string): boolean {
   }
 }
 
-export async function resolvePackageDownloadUrl(packageSpec: string): Promise<ResolvedPackage> {
+async function resolvePackageDownloadUrl(packageSpec: string): Promise<ResolvedPackage> {
   // Case 1: Direct URL
   if (isUrl(packageSpec)) {
     return {
@@ -107,7 +107,7 @@ export async function resolvePackageDownloadUrl(packageSpec: string): Promise<Re
   };
 }
 
-export async function extractTarGz(buffer: ArrayBuffer): Promise<FileContent[]> {
+async function extractTarGz(buffer: ArrayBuffer): Promise<FileContent[]> {
   const uint8Array = new Uint8Array(buffer);
   const decompressed = pako.ungzip(uint8Array);
 

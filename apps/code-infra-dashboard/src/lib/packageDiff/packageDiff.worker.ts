@@ -2,7 +2,7 @@
 // blocks that get rendered are posted back, file by file as they finish.
 import { downloadAndExtractPackage } from '../packageDownload';
 import type { PackageContents } from '../packageDownload';
-import { createPackageDiff } from './packageDiff';
+import { createPackageDiff, getErrorMessage } from './packageDiff';
 import type { FileDiffResult } from './packageDiff';
 import type { PackageDiffFailure, PackageDiffRequest, PackageDiffResponse } from './protocol';
 
@@ -19,10 +19,6 @@ function getPackage(spec: string): Promise<PackageContents> {
     packages.set(spec, pkg);
   }
   return pkg;
-}
-
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }
 
 // How often to post finished files, so the page isn't re-rendered for every small file

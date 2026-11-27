@@ -18,7 +18,7 @@ import { escapeHtmlId, scrollToHash } from '../utils/dom';
 import Heading from '../components/Heading';
 import FileDiff from '../components/FileDiff';
 import FileExplorer from '../components/FileExplorer';
-import { useSearchParamsState } from '../hooks/useSearchParamsState';
+import { CODEC_BOOLEAN, useSearchParamsState } from '../hooks/useSearchParamsState';
 import CopyButton from '../components/CopyButton';
 import type { ChangedFile, DiffOptions } from '../lib/packageDiff/packageDiff';
 import { usePackageDiff } from '../lib/packageDiff/usePackageDiff';
@@ -26,14 +26,8 @@ import type { PackageDiffState } from '../lib/packageDiff/usePackageDiff';
 
 const EMPTY_FILES: ChangedFile[] = [];
 
-const CODEC_FLAG = {
-  defaultValue: false,
-  serialize: (value: boolean) => (value ? '1' : ''),
-  deserialize: (value: string) => value === '1',
-};
-
 const SEARCH_PARAMS_CONFIG = {
-  normalizeSyntax: CODEC_FLAG,
+  normalizeSyntax: { defaultValue: false, ...CODEC_BOOLEAN },
 };
 
 const DiffContent = React.memo(function DiffContent({
@@ -79,21 +73,18 @@ const DiffContent = React.memo(function DiffContent({
     }
   }, [files, results]);
 
-  const copyText = React.useMemo(
-    () =>
-      streaming || !results
-        ? ''
-        : filteredFiles
-            .map(
-              ({ path }) =>
-                results
-                  .get(path)
-                  ?.blocks.map((block) => block.text)
-                  .join('') ?? '',
-            )
-            .join(''),
-    [streaming, filteredFiles, results],
-  );
+  // Several MB for a large package, only built when copying
+  const getCopyText = () =>
+    filteredFiles
+      .map(
+        ({ path }) =>
+          results
+            ?.get(path)
+            ?.blocks.map((block) => block.text)
+            .join('') ?? '',
+      )
+      .join('');
+  const canCopy = !streaming && Boolean(results) && filteredFiles.length > 0;
 
   const progress = diff?.total ? (diff.results.size / diff.total) * 100 : 0;
 
@@ -140,8 +131,8 @@ const DiffContent = React.memo(function DiffContent({
           sx={{ mr: 0, flexShrink: 0 }}
         />
         <CopyButton
-          text={copyText}
-          disabled={!copyText}
+          text={getCopyText}
+          disabled={!canCopy}
           title={streaming ? 'Copy diff (available once all files are diffed)' : 'Copy diff'}
         />
       </Box>
