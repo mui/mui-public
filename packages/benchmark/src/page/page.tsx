@@ -168,11 +168,32 @@ function benchmarkTrackDetail(color: 'primary' | 'tertiary') {
   return { devtools: { dataType: 'track-entry', track: 'Benchmark', color } };
 }
 
-const send: CdpSend = (method, params) => {
+/**
+ * Resolves in a task of its own. A message rather than a timer, which nested timers would clamp to
+ * 4ms.
+ */
+function nextTask(): Promise<void> {
+  return new Promise((resolve) => {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = () => {
+      channel.port1.close();
+      resolve();
+    };
+    channel.port2.postMessage(null);
+  });
+}
+
+const send: CdpSend = async (method, params) => {
   if (!window.benchmarkCdp) {
     throw new Error('No CDP bridge: the runner must expose `benchmarkCdp` on this page.');
   }
-  return window.benchmarkCdp(method, params);
+  const result = await window.benchmarkCdp(method, params);
+  // The runner delivers the result through a DevTools command, so the code that awaits it would
+  // otherwise run inside that command. Chromium bills it to `DevToolsCommandDuration` rather than to
+  // the page, and main-thread task time, which leaves that out, would miss whatever a benchmark does
+  // right after an awaited call.
+  await nextTask();
+  return result;
 };
 const cdp: BenchmarkCdp = { send };
 

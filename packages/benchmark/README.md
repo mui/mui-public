@@ -126,6 +126,12 @@ benchmark(
 A setting a case changes this way, such as CPU throttling, stays on the tab for later samples and for
 the other cases sampled in it, those of a `compare()` too: a case that changes one sets it every time.
 
+Every `cdp.send()` resolves in a task of its own. The runner delivers a result through a DevTools
+command, and Chromium bills code that runs inside one to `DevToolsCommandDuration` rather than to the
+page, so main-thread task time (`TaskDuration` less `DevToolsCommandDuration`) would otherwise miss
+whatever a case does right after an awaited call. `test/benchmark/src/accounting` checks this on every
+run.
+
 ### Scoping which renders are measured
 
 By default a benchmark records every React render and paint, from the mount through the whole interaction. To measure only part of an interaction — or to exclude the mount — pause and resume recording from the interaction callback:
