@@ -10,20 +10,18 @@ const ENV_VALUES: Record<string, boolean> = { true: true, '1': true, false: fals
 
 /**
  * The option when given, then `BENCHMARK_CPU_WARMUP`, then on for macOS on Apple Silicon only: the
- * hardware the slowdown was measured on.
+ * hardware the slowdown was measured on. The architecture is the Node process's, so an x64 Node
+ * running under Rosetta on Apple Silicon turns it off: set `BENCHMARK_CPU_WARMUP=1` there.
  */
-export function resolveCpuWarmup(
-  option?: boolean,
-  { platform, arch }: { platform: string; arch: string } = process,
-): boolean {
+export function resolveCpuWarmup(option?: boolean): boolean {
   if (option !== undefined) {
     return option;
   }
   const value = process.env.BENCHMARK_CPU_WARMUP;
   if (value === undefined || value === '') {
-    return platform === 'darwin' && arch === 'arm64';
+    return process.platform === 'darwin' && process.arch === 'arm64';
   }
-  if (!(value in ENV_VALUES)) {
+  if (!Object.hasOwn(ENV_VALUES, value)) {
     throw new Error(
       `Unknown BENCHMARK_CPU_WARMUP value "${value}". Samples would warm up the CPU, or not, without ` +
         'anybody asking. Set it to one of: true, false, 1, 0.',

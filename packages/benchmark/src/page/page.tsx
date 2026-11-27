@@ -2,7 +2,8 @@ import { collectGarbage } from '../gc';
 import type { BenchmarkCdp, CdpSend } from '../cdp';
 import { seriesName, setMetricRecorder } from '../metricCore';
 import { ScalarMetric } from '../ScalarMetric';
-import { isCpuWarmupEnabled, takeWarmupMs, warmUpCpu } from './warmUpCpu';
+import { isCpuWarmupEnabled, takeLongestWarmupMs, warmUpCpu } from './warmUpCpu';
+import { discardOpenWindow } from './mainThread';
 import { getSampling } from '../sampling';
 import type { SamplingOptions } from '../sampling';
 import type { MetricDefinition } from '../types';
@@ -170,17 +171,36 @@ function benchmarkTrackDetail(color: 'primary' | 'tertiary') {
   return { devtools: { dataType: 'track-entry', track: 'Benchmark', color } };
 }
 
-const send: CdpSend = (method, params) => {
+/**
+ * Resolves in a task of its own. A message rather than a timer, which nested timers would clamp to
+ * 4ms.
+ */
+function nextTask(): Promise<void> {
+  return new Promise((resolve) => {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = () => resolve();
+    channel.port2.postMessage(null);
+  });
+}
+
+const send: CdpSend = async (method, params) => {
   if (!window.benchmarkCdp) {
     throw new Error('No CDP bridge: the runner must expose `benchmarkCdp` on this page.');
   }
-  return window.benchmarkCdp(method, params);
+  const result = await window.benchmarkCdp(method, params);
+  // The runner delivers the result through a DevTools command, so the code that awaits it would
+  // otherwise run inside that command. Chromium bills it to `DevToolsCommandDuration` rather than to
+  // the page, and main-thread task time, which leaves that out, would miss whatever a benchmark does
+  // right after an awaited call.
+  await nextTask();
+  return result;
 };
 const cdp: BenchmarkCdp = { send };
 
 /**
- * How long a sample's CPU warm-ups spun, to tell after the fact which samples started on an idled
- * core. Informational, and recorded after the case's own metrics so a `compare()` never ranks by it.
+ * How long a sample's longest CPU warm-up spun, to tell after the fact which samples started on an
+ * idled core: close to 300ms means the CPU never got warm. Informational, and recorded after the
+ * case's own metrics so a `compare()` never ranks by it.
  */
 const warmupMetric = new ScalarMetric({
   name: 'cpu:warmup',
@@ -196,11 +216,13 @@ async function sample(name: string): Promise<Record<string, number>> {
   performance.clearMeasures();
   const collectStart = performance.now();
   await collectGarbage();
+  const collectEnd = performance.now();
 
   const values = new Map<string, number>();
   sampleValues = values;
   let recorded = 0;
-  takeWarmupMs();
+  let forgottenWindow: string | undefined;
+  takeLongestWarmupMs();
   // Right before the case runs, after the collection: a case that times from its start, such as a
   // React mount, starts on a warm core.
   warmUpCpu();
@@ -209,17 +231,26 @@ async function sample(name: string): Promise<Record<string, number>> {
     await run({ cdp });
     recorded = values.size;
     if (isCpuWarmupEnabled()) {
-      warmupMetric.record(takeWarmupMs());
+      warmupMetric.record(takeLongestWarmupMs());
     }
   } finally {
     sampleValues = null;
-    // The collection and the run as spans of a trace, written after the run so that only reading
-    // the clock happens between the two.
+    // Closed on a failed run too, so that the next sample doesn't inherit it.
+    forgottenWindow = discardOpenWindow();
+    // The collection, the warm-up and the run as spans of a trace, written after the run so that
+    // only reading the clock happens between them.
     performance.measure('collect', {
       start: collectStart,
-      end: runStart,
+      end: collectEnd,
       detail: benchmarkTrackDetail('tertiary'),
     });
+    if (isCpuWarmupEnabled()) {
+      performance.measure('warm-up', {
+        start: collectEnd,
+        end: runStart,
+        detail: benchmarkTrackDetail('tertiary'),
+      });
+    }
     performance.measure('run', {
       start: runStart,
       end: performance.now(),
@@ -227,6 +258,12 @@ async function sample(name: string): Promise<Record<string, number>> {
     });
   }
 
+  if (forgottenWindow !== undefined) {
+    throw new Error(
+      `Benchmark "${name}" left a mainThreadTime() window open: call mainThreadTimeEnd() before ` +
+        `the sample ends. The window started at:\n${forgottenWindow}`,
+    );
+  }
   if (recorded === 0) {
     const hint =
       process.env.BENCHMARK_REACT_PROFILING === 'false'

@@ -1,5 +1,4 @@
 import { Metric } from './metricCore';
-import { warmUpCpu } from './page/warmUpCpu';
 import type { MetricKind } from './types';
 
 /**
@@ -19,10 +18,7 @@ export class ScalarMetric extends Metric {
 
   private readonly pending = new Map<string, number>();
 
-  /**
-   * Starts a timer. Pass a `label` to time a sub-series; it maps to `record`'s `id`. When the pages
-   * warm the CPU up, the warm-up runs first, so the timer starts on a warm core.
-   */
+  /** Starts a timer. Pass a `label` to time a sub-series; it maps to `record`'s `id`. */
   time(label?: string): void {
     const key = label ?? '';
     if (this.pending.has(key)) {
@@ -30,7 +26,6 @@ export class ScalarMetric extends Metric {
         `${this.name}.time(${label ? `"${label}"` : ''}) was called while a timer is already running for that label.`,
       );
     }
-    warmUpCpu();
     this.pending.set(key, performance.now());
   }
 

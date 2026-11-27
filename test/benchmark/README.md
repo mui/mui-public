@@ -7,12 +7,13 @@ real to drive. For real benchmarks, see `base-ui-mosaic` and `base-ui-charts`.
 
 ## What it covers
 
-| Benchmark file                | Covers                                                                    |
-| :---------------------------- | :------------------------------------------------------------------------ |
-| `workload/workload.bench.tsx` | The ordinary regression shape: current vs baseline, two sizes of workload |
-| `list/list.bench.tsx`         | A mount, and a trusted scroll gesture with a custom metric around it      |
-| `lists/lists.bench.tsx`       | Two `compare()`s of two list implementations, one per scenario            |
-| `libs/sort/sort.bench.tsx`    | `compare()` of three sorts, standing in for competitor libraries          |
+| Benchmark file                    | Covers                                                                        |
+| :-------------------------------- | :---------------------------------------------------------------------------- |
+| `workload/workload.bench.tsx`     | The ordinary regression shape: current vs baseline, two sizes of workload     |
+| `list/list.bench.tsx`             | A mount, and a trusted scroll gesture with a custom metric around it          |
+| `lists/lists.bench.tsx`           | Two `compare()`s of two list implementations, one per scenario                |
+| `libs/sort/sort.bench.tsx`        | `compare()` of three sorts, standing in for competitor libraries              |
+| `accounting/accounting.bench.tsx` | Self-checks of the main-thread window, which fail the run when it mismeasures |
 
 `workload` and `list` import `@mui/internal-test-utils` and put its value on screen. That is the
 load-bearing part: every ref — the working tree included — resolves it from a packed tarball, so both sides of a comparison consume the library the way a consumer does. If that
@@ -22,6 +23,13 @@ The `compare()` files cover the other axis, where nothing is compared across com
 are built from the same commit and differ only in how they render or sort. A difference there is
 genuinely `worse` yet must never be reported as a regression, because both sides came from the same
 build.
+
+`accounting` is a test rather than a benchmark. Its cases measure work of a known size with
+`mainThreadTime()` / `mainThreadTimeEnd()` and throw when the measurement is wrong, which fails the
+run and so the pull request's benchmark job. It lives here because only a real run has the runner's
+DevTools Protocol bridge, which is where that measurement can go wrong: code resumed after an awaited
+`context.cdp.send()` used to run inside a DevTools command and go uncounted, so 50ms of work read as
+0.4ms. The file says what each case guards.
 
 ## Running
 

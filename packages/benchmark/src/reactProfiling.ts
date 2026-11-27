@@ -18,7 +18,7 @@ export function resolveReactProfiling(option?: boolean): boolean {
   if (value === undefined || value === '') {
     return true;
   }
-  if (!(value in ENV_VALUES)) {
+  if (!Object.hasOwn(ENV_VALUES, value)) {
     throw new Error(
       `Unknown BENCHMARK_REACT_PROFILING value "${value}". Benchmarks would run a React build ` +
         'nobody asked for. Set it to one of: true, false, 1, 0.',

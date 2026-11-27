@@ -1,6 +1,10 @@
 // The CPU warm-up the harness runs before what it times; see `cpuWarmup.ts` for why. Only the
-// harness calls it, right where its timing starts, so that the spinning can never land inside a
-// measurement.
+// harness calls it, right where its timing starts (before a case's `run`, and in `mainThreadTime()`
+// after its wait for an idle thread), so that the spinning can never land inside a measurement.
+//
+// It assumes the CPU runs at one speed for a whole file: a case that throttles the CPU through the
+// DevTools Protocol (`Emulation.setCPUThrottlingRate`) makes warm chunks look cold, and the warm-up
+// then spins to its cap every time. Run such cases without the warm-up.
 
 /** How long a chunk of the fixed work takes on a warm CPU: long enough for the coarse page timer. */
 const CHUNK_MS = 5;
@@ -14,19 +18,25 @@ const TOLERANCE = 0.02;
 const TIMER_RESOLUTION_MS = 0.1;
 /** The longest a warm-up spins before giving up on reaching warm speed. */
 const CAP_MS = 300;
+/** Untimed runs of the chunk on a fresh page, so that it is compiled before it is timed. */
+const JIT_RUNS = 20;
 
 const enabled = process.env.BENCHMARK_CPU_WARMUP === 'true';
 
 // Kept in a module variable so the work has an effect the engine can't optimize away.
 let sink = 0;
 
-function timeChunk(iterations: number): number {
-  const start = performance.now();
+function runChunk(iterations: number): void {
   let value = sink;
   for (let i = 0; i < iterations; i += 1) {
     value = (value * 1103515245 + 12345) % 2147483647;
   }
   sink = value;
+}
+
+function timeChunk(iterations: number): number {
+  const start = performance.now();
+  runChunk(iterations);
   return performance.now() - start;
 }
 
@@ -37,6 +47,7 @@ interface Calibration {
   threshold: number;
 }
 
+/** This page's calibration, kept until the page goes even when a warm-up gives up on it. */
 let calibration: Calibration | null = null;
 
 /**
@@ -49,7 +60,12 @@ const STORAGE_KEY = 'mui-benchmark:cpu-warmup';
 function loadCalibration(): Calibration | null {
   try {
     const stored = JSON.parse(sessionStorage.getItem(STORAGE_KEY) ?? 'null');
-    return stored && stored.iterations > 0 && stored.threshold > 0 ? stored : null;
+    return stored &&
+      Number.isFinite(stored.iterations) &&
+      stored.iterations > 0 &&
+      stored.threshold > 0
+      ? stored
+      : null;
   } catch {
     // Storage unavailable or unreadable: calibrate anew.
     return null;
@@ -86,8 +102,12 @@ function calibrate(): Calibration {
   while (performance.now() - start < SPIN_UP_MS) {
     fastest = Math.min(fastest, timeChunk(iterations));
   }
-  // The chunk was sized on a CPU that may have been slow: resize it to take `CHUNK_MS` warm.
-  iterations = Math.max(1, Math.round((iterations * CHUNK_MS) / fastest));
+  // The chunk was sized on a CPU that may have been slow, and in a slower tier of the engine:
+  // resize it to take `CHUNK_MS` warm. The coarse timer can read a fast chunk as 0.
+  iterations = Math.max(
+    1,
+    Math.round((iterations * CHUNK_MS) / Math.max(fastest, TIMER_RESOLUTION_MS)),
+  );
   const chunks = Array.from({ length: CALIBRATION_CHUNKS }, () => timeChunk(iterations)).sort(
     (left, right) => left - right,
   );
@@ -96,8 +116,8 @@ function calibrate(): Calibration {
   return { iterations, threshold };
 }
 
-/** How long the warm-ups of the running sample spun, past calibrating. */
-let warmupMs = 0;
+/** The longest warm-up of the running sample, past calibrating. */
+let longestWarmupMs = 0;
 
 /**
  * Spins the CPU until a chunk of fixed work runs as fast as on a warm CPU, or for at most `CAP_MS`.
@@ -109,20 +129,25 @@ export function warmUpCpu(): void {
     return;
   }
   if (!calibration) {
+    // A fresh page runs the chunk in a slow tier of the engine until it is compiled, which would
+    // look like a cold CPU.
+    for (let i = 0; i < JIT_RUNS; i += 1) {
+      runChunk(1000);
+    }
     calibration = loadCalibration() ?? calibrate();
     storeCalibration(calibration);
   }
   const start = performance.now();
   while (timeChunk(calibration.iterations) > calibration.threshold) {
     if (performance.now() - start >= CAP_MS) {
-      // Never warm enough: the CPU's warm speed has dropped, from heat or load. The next page
+      // Never warm enough: the CPU's warm speed has dropped, from heat or load. This page keeps its
+      // calibration, so that later warm-ups here don't recalibrate inside a sample; the next page
       // calibrates anew.
-      calibration = null;
       storeCalibration(null);
       break;
     }
   }
-  warmupMs += performance.now() - start;
+  longestWarmupMs = Math.max(longestWarmupMs, performance.now() - start);
 }
 
 /** Whether the pages warm the CPU up at all. */
@@ -130,9 +155,9 @@ export function isCpuWarmupEnabled(): boolean {
   return enabled;
 }
 
-/** How long the warm-ups spun since the last call, which starts the count again. */
-export function takeWarmupMs(): number {
-  const taken = warmupMs;
-  warmupMs = 0;
+/** The longest warm-up since the last call, which starts the count again. */
+export function takeLongestWarmupMs(): number {
+  const taken = longestWarmupMs;
+  longestWarmupMs = 0;
   return taken;
 }
