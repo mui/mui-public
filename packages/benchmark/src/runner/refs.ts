@@ -33,6 +33,12 @@ function committishOf(token: string | undefined): string {
   return token;
 }
 
+/**
+ * The baseline token that leaves the baseline out: a run of `compare()`s only measures the working
+ * tree, so building another revision would be wasted. `git:none` still names a revision.
+ */
+const NO_BASELINE = 'none';
+
 /** Resolves the baseline to the commit behind it, so a run stays interpretable after the fact. */
 export async function resolveBaselineRef(
   token: string | undefined,
@@ -41,4 +47,18 @@ export async function resolveBaselineRef(
   const committish = committishOf(token);
   const sha = await resolveCommit(repoRoot, committish);
   return { variant: 'baseline', sha, requested: committish };
+}
+
+/**
+ * The builds a run measures, the working tree first: it is the reference every comparison is
+ * judged from. Without a baseline, that is all there is.
+ */
+export async function resolveRunRefs(
+  token: string | undefined,
+  repoRoot: string,
+): Promise<ResolvedRef[]> {
+  if (token === NO_BASELINE) {
+    return [WORKTREE_REF];
+  }
+  return [WORKTREE_REF, await resolveBaselineRef(token, repoRoot)];
 }

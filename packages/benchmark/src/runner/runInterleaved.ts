@@ -452,6 +452,14 @@ async function planBenchFile(
         variants,
         ...(alarms ? { alarms } : {}),
       };
+      if (variants.length < 2) {
+        return {
+          entry,
+          error:
+            `"${caseName}" is measured against a baseline, but the run has none: put it in a ` +
+            'compare(), or give the run a --baseline.',
+        };
+      }
       const missing = others.findIndex(
         (listing) => !listing.cases.some((benchCase) => benchCase.name === caseName),
       );

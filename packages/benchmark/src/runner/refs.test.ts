@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { execa } from 'execa';
 import { makeTempDir } from '../utils/testUtils';
-import { resolveBaselineRef } from './refs';
+import { resolveBaselineRef, resolveRunRefs } from './refs';
 
 /**
  * A repository with three commits on `main`, the first of them carrying an annotated tag.
@@ -98,6 +98,34 @@ describe('resolveBaselineRef', () => {
     // rather than as a grammar this code would have to keep in step with git's.
     await expect(() => resolveBaselineRef('no-such-thing', repoRoot)).rejects.toThrow(
       /Could not resolve git ref "no-such-thing"/,
+    );
+  });
+});
+
+describe('resolveRunRefs', () => {
+  it('measures the working tree against the baseline, the working tree first', async () => {
+    const { repoRoot, shas } = await makeRepo();
+
+    const refs = await resolveRunRefs(shas[0], repoRoot);
+
+    expect(refs.map((ref) => ref.variant)).toEqual(['current', 'baseline']);
+    expect(refs[1].sha).toBe(shas[0]);
+  });
+
+  it('measures only the working tree with no baseline', async () => {
+    const { repoRoot } = await makeRepo();
+
+    const refs = await resolveRunRefs('none', repoRoot);
+
+    expect(refs.map((ref) => ref.variant)).toEqual(['current']);
+  });
+
+  it('takes git:none as a revision called none', async () => {
+    const { repoRoot } = await makeRepo();
+
+    // The scheme is how to name a branch or tag that happens to be called `none`.
+    await expect(() => resolveRunRefs('git:none', repoRoot)).rejects.toThrow(
+      /Could not resolve git ref "none"/,
     );
   });
 });

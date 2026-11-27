@@ -35,6 +35,17 @@ function benchmarkOf(name: string): RunBenchmark {
   };
 }
 
+/** A `compare()` of the given cases, the first of them the reference. */
+function compareOf(samples: Record<string, Record<string, number[]>>): RunBenchmark {
+  return {
+    name: 'libs',
+    file: 'libs.bench.tsx',
+    kind: 'compare',
+    variants: Object.keys(samples),
+    samples,
+  };
+}
+
 describe('benchmarkTable', () => {
   it('puts the baseline before the current build, so a row reads old to new', () => {
     const [analysis] = analyzeRun(reportOf([benchmarkOf('a')]));
@@ -49,25 +60,62 @@ describe('benchmarkTable', () => {
     expect(rows[0].cells.slice(1, 3)).toEqual(['2', '2.5']);
   });
 
-  it('keeps the reference first for compared cases', () => {
+  it('ranks compared cases on the first metric, best first', () => {
     const [analysis] = analyzeRun(
       reportOf([
-        {
-          name: 'libs',
-          file: 'libs.bench.tsx',
-          kind: 'compare',
-          variants: ['ours', 'theirs'],
-          samples: { ours: { render: [1, 1] }, theirs: { render: [2, 2] } },
-        },
+        compareOf({
+          ours: { render: [2, 2.2, 1.8, 2] },
+          fast: { render: [1, 1.1, 0.9, 1] },
+          slow: { render: [4, 4.4, 3.6, 4] },
+        }),
+      ]),
+    );
+    const { columns, rows } = benchmarkTable(analysis);
+
+    expect(columns.map((column) => column.header)).toEqual([
+      'Case',
+      'render (ranked)',
+      '× best',
+      'vs next',
+    ]);
+    expect(rows.map((row) => row.cells.slice(0, 3))).toEqual([
+      ['fast', '1', '1.00×'],
+      ['ours (reference)', '2', '2.00×'],
+      ['slow', '4', '4.00×'],
+    ]);
+    expect(rows[0].cells[3]).toBe('');
+    expect(rows[1].cells[3]).toMatch(/^\+.* vs fast$/);
+  });
+
+  it('calls a gap it cannot tell from zero a tie', () => {
+    const [analysis] = analyzeRun(
+      reportOf([compareOf({ ours: { render: [1, 3, 1, 3] }, theirs: { render: [3, 1, 3, 1] } })]),
+    );
+
+    expect(benchmarkTable(analysis).rows[1].cells.at(-1)).toBe('tie with ours');
+  });
+
+  it('ranks the highest first when higher is better', () => {
+    const report = reportOf([
+      compareOf({ ours: { render: [1, 1.1, 0.9, 1] }, theirs: { render: [2, 2.2, 1.8, 2] } }),
+    ]);
+    report.metrics.render = { kind: 'scalar', alarm: { direction: 'higherIsBetter' } };
+    const [analysis] = analyzeRun(report);
+
+    expect(benchmarkTable(analysis).rows.map((row) => row.cells.slice(0, 3))).toEqual([
+      ['theirs', '2', '1.00×'],
+      ['ours (reference)', '1', '2.00×'],
+    ]);
+  });
+
+  it('takes no ratio of a best case that measured 0', () => {
+    const [analysis] = analyzeRun(
+      reportOf([
+        compareOf({ ours: { render: [1, 1.1, 0.9, 1] }, theirs: { render: [0, 0, 0, 0] } }),
       ]),
     );
 
-    expect(benchmarkTable(analysis).columns.map((column) => column.header)).toEqual([
-      'Metric',
-      'ours',
-      'theirs',
-      'theirs vs ours',
-    ]);
+    expect(benchmarkTable(analysis).rows.map((row) => row.cells[2])).toEqual(['—', '—']);
   });
 
   it('shows an unchanged comparison without an interval', () => {

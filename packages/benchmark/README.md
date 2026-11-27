@@ -430,6 +430,11 @@ Every page load runs the whole benchmark file, so a static import reaches every 
 only one case needs inside that case, before the part it times: it then loads where that case runs
 only.
 
+A `compare()` reports a ranking on its first metric: the cases best first, each with its medians, how
+many times the best case's median it is, and how it compares with the case ranked just above it — as
+a paired interval, or `tie` where the two can't be told apart. The reference is marked, not ranked
+first. Record the metric to rank by first.
+
 ### How it measures
 
 The plugin generates a page per benchmark file under `src/__bench__/`. A benchmark file that imports
@@ -563,6 +568,11 @@ Which commit a branch should actually be compared against is `code-infra baselin
 feature branch the fork point, on the base branch the previous commit. On master, then, every commit
 is measured against its parent, and the history the dashboard draws is each commit's own paired
 change — which commit moved a number reads off the chart rather than out of a noisy trend.
+
+`--baseline none` builds no baseline, for a harness of `compare()`s: those only measure the working
+tree, so a second build would go unused. The working tree is still packed and installed like a
+consumer's, so the compared cases run against the built library. A case outside a `compare()` fails
+in such a run, as it has nothing to be measured against. `git:none` names a revision called `none`.
 
 ### Building and installing each side
 

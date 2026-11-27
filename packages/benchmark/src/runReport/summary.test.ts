@@ -60,4 +60,28 @@ describe('summarizeRun', () => {
     expect(chart).toMatchObject({ name: 'Chart zoom', error: 'Render failed', metrics: [] });
     expect(JSON.stringify(summary)).not.toContain('"samples"');
   });
+
+  it("ranks a compare()'s cases", () => {
+    const summary = summarizeRun({
+      ...report,
+      benchmarks: [
+        {
+          name: 'Libraries',
+          file: 'libs.bench.tsx',
+          kind: 'compare',
+          variants: ['ours', 'theirs'],
+          samples: { ours: { render: [2, 2.2, 1.8, 2] }, theirs: { render: [1, 1.1, 0.9, 1] } },
+        },
+      ],
+    });
+
+    expect(summary.benchmarks[0].ranking).toMatchObject({
+      metric: 'render',
+      cases: [
+        { variant: 'theirs', median: 1, ratio: 1, tie: false },
+        { variant: 'ours', median: 2, ratio: 2, tie: false, relativeToNext: expect.any(Object) },
+      ],
+    });
+    expect(summary.benchmarks[0].ranking?.cases[0]).not.toHaveProperty('relativeToNext');
+  });
 });
