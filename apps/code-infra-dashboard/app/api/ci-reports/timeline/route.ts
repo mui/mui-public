@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server';
 import { unstable_cache } from 'next/cache';
 import { S3ServiceException } from '@aws-sdk/client-s3';
 import { z } from 'zod/v4';
-import { repositories } from '@/constants';
+import { findViewableRepository } from '@/lib/privateRepositories';
 import { listKeys } from '@/lib/ciReports/s3';
 import { reportTypeSchema } from '@/lib/ciReports/schemas';
 import { isTimeline, parseTimelineKeys, timelinePrefix } from '@/lib/ciReports/timeline';
@@ -12,8 +12,7 @@ import { isTimeline, parseTimelineKeys, timelinePrefix } from '@/lib/ciReports/t
 const STALE_SECONDS = 300;
 
 const querySchema = z.object({
-  // The dashboard's repositories only, so a request can't make up prefixes to list.
-  repo: z.string().refine((repo) => repositories.has(repo), 'Unknown repository'),
+  repo: z.string().min(1),
   timeline: z.string().refine(isTimeline, 'Not a timeline: a tracked branch or @<name>'),
   reportType: reportTypeSchema,
   /** Commits to list. */
@@ -30,14 +29,22 @@ function errorResponse(error: string, status: number) {
   return NextResponse.json({ error }, { status, headers: { 'Cache-Control': 'no-store' } });
 }
 
-// Lists a timeline's uploads, newest first: which commits have the report. Public, like the
-// reports themselves; the browser can't list the bucket on its own.
+// Lists a timeline's uploads, newest first: which commits have the report. The browser can't list
+// the bucket on its own, and the commits are what a report's URL needs, so a private repository's
+// are only listed for visitors GitHub lets read it.
 export async function GET(request: NextRequest) {
   const parsed = querySchema.safeParse(Object.fromEntries(request.nextUrl.searchParams));
   if (!parsed.success) {
     return errorResponse(parsed.error.issues.map((issue) => issue.message).join('; '), 400);
   }
   const { repo, timeline, reportType, limit, cursor } = parsed.data;
+
+  // The dashboard's repositories only, so a request can't make up prefixes to list. A private one
+  // the visitor can't read gets the same answer as one that doesn't exist.
+  const repoConfig = await findViewableRepository(repo);
+  if (!repoConfig) {
+    return errorResponse('Unknown repository', 404);
+  }
 
   const prefix = timelinePrefix(repo, timeline, reportType);
   let listing;
@@ -53,6 +60,14 @@ export async function GET(request: NextRequest) {
   }
   return NextResponse.json(
     { entries: parseTimelineKeys(prefix, listing.keys), cursor: listing.next ?? null },
-    { headers: { 'Cache-Control': `public, max-age=${STALE_SECONDS}` } },
+    {
+      headers: {
+        // A private repository's answer depends on who asks: no shared cache may keep it, and the
+        // browser checks back each time, so a sign-out takes effect.
+        'Cache-Control': repoConfig.isPublic
+          ? `public, max-age=${STALE_SECONDS}`
+          : 'private, no-cache',
+      },
+    },
   );
 }

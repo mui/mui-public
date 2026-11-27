@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import { useQuery } from '@tanstack/react-query';
 import Alert from '@mui/material/Alert';
 import NextLink from 'next/link';
 import Box from '@mui/material/Box';
@@ -17,11 +16,14 @@ import {
 } from '@mui/x-data-grid-premium';
 import type { GridColDef } from '@mui/x-data-grid-premium';
 import { LineChart } from '@mui/x-charts-pro/LineChart';
+import type { Octokit } from '@octokit/rest';
 import Heading from '../components/Heading';
 import ErrorDisplay from '../components/ErrorDisplay';
 import { useSearchParamsState } from '../hooks/useSearchParamsState';
-import { octokit, parseIssueUrl } from '../utils/github';
+import { parseIssueUrl } from '../utils/github';
 import type { IssueReactionTarget } from '../utils/github';
+import { useGitHubQuery } from '../hooks/useGitHubQuery';
+import { useSession } from '../hooks/useSession';
 
 const EXAMPLES = [
   { label: 'mui-design-kits#10', url: 'https://github.com/mui/mui-design-kits/issues/10' },
@@ -73,6 +75,7 @@ const MAX_PAGES = 3;
 const PAGE_SIZE = 100;
 
 async function fetchReactions(
+  octokit: Octokit,
   target: IssueReactionTarget,
   unbounded: boolean,
 ): Promise<ReactionsResult> {
@@ -173,6 +176,7 @@ function computeMonthlyBuckets(rows: ReactionRow[]): MonthlyBucket[] {
 }
 
 export default function Reactions() {
+  const { session } = useSession();
   const [searchParams, setSearchParams] = useSearchParamsState(
     { url: { defaultValue: '' }, all: { defaultValue: '' } },
     { replace: true },
@@ -194,12 +198,11 @@ export default function Reactions() {
   );
   const parseError = Boolean(searchParams.url) && target === null;
 
-  const query = useQuery({
+  const query = useGitHubQuery({
     queryKey: ['reactions', target ? targetKey(target) : null, unbounded],
-    queryFn: () => fetchReactions(target!, unbounded),
+    queryFn: (octokit) => fetchReactions(octokit, target!, unbounded),
     enabled: Boolean(target),
     staleTime: 60 * 1000,
-    retry: false,
   });
 
   const handleSubmit = (event: React.FormEvent) => {
@@ -228,8 +231,9 @@ export default function Reactions() {
     >
       <Heading level={1}>GitHub reactions</Heading>
       <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2 }}>
-        Paste a public GitHub issue or pull request URL to list every reaction and the users who
-        left them. Only public repositories are supported. Examples:{' '}
+        Paste a GitHub issue or pull request URL to list every reaction and the users who left them.{' '}
+        {session?.available && !session.signedIn ? 'Sign in to use private repositories. ' : null}
+        Examples:{' '}
         {EXAMPLES.map((example, index) => (
           <React.Fragment key={example.url}>
             {index > 0 ? ', ' : null}

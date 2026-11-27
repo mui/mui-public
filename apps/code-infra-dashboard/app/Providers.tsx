@@ -2,13 +2,14 @@
 
 import * as React from 'react';
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import * as colors from '@mui/material/colors';
 import CssBaseline from '@mui/material/CssBaseline';
 import { LocalizationProvider } from '@mui/x-date-pickers-pro/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers-pro/AdapterDayjs';
 import { LicenseInfo } from '@mui/x-license';
+import { queryClient } from '../src/utils/queryClient';
 
 declare module '@mui/material/styles' {
   interface CssThemeVariables {
@@ -121,8 +122,6 @@ const theme = createTheme({
   },
   spacing: 4,
 });
-
-const queryClient = new QueryClient();
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (

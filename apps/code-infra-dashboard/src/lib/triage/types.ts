@@ -1,4 +1,5 @@
 import type { GridColDef, GridSortModel } from '@mui/x-data-grid-premium';
+import type { Repository } from '../../constants';
 
 export type TriageView =
   | 'issues-without-labels'
@@ -26,5 +27,6 @@ export interface TriageViewConfig {
   notionUrl?: string;
   columns: GridColDef<TriageRow>[];
   initialSortModel?: GridSortModel;
-  fetch: () => Promise<TriageRow[]>;
+  /** Gets the repositories the visitor may see, private ones included, for the views that search them all. */
+  fetch: (repos: Repository[]) => Promise<TriageRow[]>;
 }

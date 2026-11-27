@@ -8,6 +8,7 @@ import MuiLink from '@mui/material/Link';
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
 import ColorSchemeSelector from '../../src/components/ColorSchemeSelector';
+import SignInButton from '../../src/components/auth/SignInButton';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -25,7 +26,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             Code infra dashboard
           </Typography>
         </MuiLink>
-        <ColorSchemeSelector />
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <SignInButton />
+          <ColorSchemeSelector />
+        </Box>
       </Box>
       <React.Suspense
         fallback={
