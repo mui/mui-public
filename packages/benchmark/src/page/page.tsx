@@ -1,6 +1,8 @@
 import { collectGarbage } from '../gc';
 import type { BenchmarkCdp, CdpSend } from '../cdp';
 import { seriesName, setMetricRecorder } from '../metricCore';
+import { ScalarMetric } from '../ScalarMetric';
+import { isCpuWarmupEnabled, takeWarmupMs, warmUpCpu } from './warmUpCpu';
 import { getSampling } from '../sampling';
 import type { SamplingOptions } from '../sampling';
 import type { MetricDefinition } from '../types';
@@ -176,6 +178,15 @@ const send: CdpSend = (method, params) => {
 };
 const cdp: BenchmarkCdp = { send };
 
+/**
+ * How long a sample's CPU warm-ups spun, to tell after the fact which samples started on an idled
+ * core. Informational, and recorded after the case's own metrics so a `compare()` never ranks by it.
+ */
+const warmupMetric = new ScalarMetric({
+  name: 'cpu:warmup',
+  format: { style: 'unit', unit: 'millisecond', maximumFractionDigits: 2 },
+});
+
 async function sample(name: string): Promise<Record<string, number>> {
   const run = cases.get(name)?.run;
   if (!run) {
@@ -188,9 +199,18 @@ async function sample(name: string): Promise<Record<string, number>> {
 
   const values = new Map<string, number>();
   sampleValues = values;
+  let recorded = 0;
+  takeWarmupMs();
+  // Right before the case runs, after the collection: a case that times from its start, such as a
+  // React mount, starts on a warm core.
+  warmUpCpu();
   const runStart = performance.now();
   try {
     await run({ cdp });
+    recorded = values.size;
+    if (isCpuWarmupEnabled()) {
+      warmupMetric.record(takeWarmupMs());
+    }
   } finally {
     sampleValues = null;
     // The collection and the run as spans of a trace, written after the run so that only reading
@@ -207,7 +227,7 @@ async function sample(name: string): Promise<Record<string, number>> {
     });
   }
 
-  if (values.size === 0) {
+  if (recorded === 0) {
     const hint =
       process.env.BENCHMARK_REACT_PROFILING === 'false'
         ? "React's production build reports no render durations, so a case that only measures " +

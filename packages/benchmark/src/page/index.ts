@@ -9,6 +9,7 @@ export type {
   BenchmarkRun,
   BenchPage,
 } from './page';
+export { measureMainThreadTask } from './mainThreadTask';
 export { reactBenchmark } from './reactBenchmark';
 export type { ReactBenchmarkOptions } from './reactBenchmark';
 export type { SamplingOptions } from '../sampling';

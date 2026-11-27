@@ -464,6 +464,45 @@ Run it with at least 3 logical CPUs (vCPUs in CI); it warns with fewer. On 2, V8
 compilers are starved, so how fast the same code runs depends on how its compilation happened to go,
 which costs the results precision.
 
+#### Warming the CPU up
+
+Apple Silicon runs its cores about half as fast after they have idled for ~200ms, and a sample starts
+after a pause: the garbage collection before it, or a wait for an idle main thread. Short work that
+starts right away, such as a mount, would then run on a slow core, and how much that costs depends on
+the shape of the work rather than on its amount. So on macOS on Apple Silicon, the harness warms the
+CPU up right before what it times: it spins a fixed chunk of work until the chunk runs as fast as on a
+warm CPU, which takes a chunk or two when the CPU is warm already, and at most 300ms. What warm means
+is measured once per file. The warm-up runs before a case's `run`, inside
+[`measureMainThreadTask()`](#measuring-main-thread-task-time) after its wait, and in
+`ScalarMetric.time()` before the timer starts: never inside what is timed, which is why it is not for
+a benchmark to call. Each sample records how long its warm-ups spun as `cpu:warmup`, which never
+alarms; values near 300ms mean the CPU never got warm.
+
+Set `cpuWarmup` on `benchmarkPlugin()`, or `BENCHMARK_CPU_WARMUP`, to force it on or off elsewhere:
+`BENCHMARK_CPU_WARMUP=1` to find out whether another machine needs it, `0` to measure without it.
+Compare results only with results run the same way. The Vitest harness never warms up.
+
+#### Measuring main-thread task time
+
+`measureMainThreadTask(context, interaction)` from `@mui/internal-benchmark/page` returns the
+main-thread task time an interaction costs, in milliseconds: everything the thread runs from the
+interaction's start until the thread falls idle again, trailing work included, read from Chromium's
+activity counters. It waits for an idle thread first, so earlier work such as the mount isn't billed.
+It counts the work of code that draws outside React as well, which render durations don't see, so it
+compares any two implementations of an interaction. It records nothing itself:
+
+```tsx
+const interactionTask = new ScalarMetric({ name: 'task:interaction', alarm: {} });
+
+reactBenchmark(
+  'zoom',
+  () => <Chart />,
+  async (context) => {
+    interactionTask.record(await measureMainThreadTask(context, () => zoom(context)));
+  },
+);
+```
+
 ### Sampling
 
 How many rounds a benchmark is measured for adapts to its results, the way tachometer's
@@ -624,5 +663,6 @@ built-in one rather than replacing it, which would drop the `--expose-gc` the fo
 - `ElementTiming` — invisible marker component for paint timing (renders a `<span>` tracked by the Element Timing API)
 - `ScalarMetric` — record a continuous custom measurement (with a `console.time`-style timing helper)
 - `DiscreteMetric` — record a discrete custom count
+- `measureMainThreadTask` (`@mui/internal-benchmark/page`) — the main-thread task time an interaction costs (see [Measuring main-thread task time](#measuring-main-thread-task-time))
 - `createBenchmarkVitestConfig` — create a Vitest config with browser benchmarking defaults
 - `BenchmarkReporter` — Vitest reporter that collects and outputs benchmark results

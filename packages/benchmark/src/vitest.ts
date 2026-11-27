@@ -3,6 +3,7 @@ import { playwright } from '@vitest/browser-playwright';
 import type { ViteUserConfig } from 'vitest/config';
 import { BENCHMARK_LAUNCH_ARGS, BENCHMARK_VIEWPORT, withLaunchArgs } from './launchArgs';
 import { reactProfilingConfig, resolveReactProfiling } from './reactProfiling';
+import { cpuWarmupConfig } from './cpuWarmup';
 
 export interface CreateBenchmarkVitestConfigOptions {
   /**
@@ -98,6 +99,9 @@ export function createBenchmarkVitestConfig(
       'process.env.NODE_ENV': '"production"',
       'process.env.BENCHMARK_PROFILE': JSON.stringify(profile ? 'true' : ''),
       ...reactConfig.define,
+      // The CPU warm-up is the `benchmark` CLI's: this harness keeps measuring as it did, so the
+      // numbers of the suites still on it stay comparable with their history.
+      ...cpuWarmupConfig(false).define,
     },
     resolve: {
       dedupe: ['react', 'react-dom'],
