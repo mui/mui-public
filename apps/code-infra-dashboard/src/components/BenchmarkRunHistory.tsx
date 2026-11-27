@@ -75,7 +75,7 @@ export default function BenchmarkRunHistory({ repo }: BenchmarkRunHistoryProps) 
     () =>
       commits.flatMap(({ timestamp, commit }): CommitPoint[] => {
         const upload = reports[commit.sha];
-        // Version 1 reports are `DailyBenchmarkChart`'s.
+        // Version 1 reports came from the retired Vitest reporter and aren't drawn.
         if (!upload || !isBenchmarkRunUpload(upload)) {
           return [];
         }
@@ -137,9 +137,12 @@ export default function BenchmarkRunHistory({ repo }: BenchmarkRunHistoryProps) 
 
   const [selectedSha, setSelectedSha] = React.useState<string | null>(null);
 
-  // A repository still on version 1 reports has nothing to draw here.
   if (!error && !isLoading && !reportsLoading && points.length === 0) {
-    return null;
+    return (
+      <Typography color="text.secondary" sx={{ mt: 3 }}>
+        No benchmark runs found for this repository.
+      </Typography>
+    );
   }
 
   return (
