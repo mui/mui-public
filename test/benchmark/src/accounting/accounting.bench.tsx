@@ -63,8 +63,6 @@ async function measureBusy(context: BenchmarkContext, before: () => Promise<void
   taskTime.record(taskMs);
 }
 
-// Code that resumes after an awaited DevTools Protocol call can run inside the command that delivered
-// the result, whose time the measurement leaves out.
 benchmark(
   'Self-check · work right after mainThreadTime()',
   (context) => measureBusy(context, async () => {}),
@@ -88,18 +86,18 @@ benchmark(
   'Self-check · a second window is rejected',
   async (context) => {
     await mainThreadTime(context);
-    let rejected = 0;
+    let rejected = false;
     try {
       await mainThreadTime(context);
     } catch {
-      rejected = 1;
+      rejected = true;
     } finally {
       await mainThreadTimeEnd(context);
     }
     if (!rejected) {
       throw new Error('A second mainThreadTime() was accepted while a window was open.');
     }
-    overlapRejected.record(rejected);
+    overlapRejected.record(1);
   },
   SMOKE_SAMPLING,
 );

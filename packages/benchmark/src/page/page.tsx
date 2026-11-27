@@ -1,9 +1,10 @@
 import { collectGarbage } from '../gc';
 import type { BenchmarkCdp, CdpSend } from '../cdp';
-import { seriesName, setMetricRecorder } from '../metricCore';
+import { MILLISECONDS, seriesName, setMetricRecorder } from '../metricCore';
 import { ScalarMetric } from '../ScalarMetric';
-import { isCpuWarmupEnabled, takeLongestWarmupMs, warmUpCpu } from './warmUpCpu';
+import { takeLongestWarmupMs, warmUpCpu } from './warmUpCpu';
 import { discardOpenWindow } from './mainThread';
+import { benchmarkTrackDetail } from './trace';
 import { getSampling } from '../sampling';
 import type { SamplingOptions } from '../sampling';
 import type { MetricDefinition } from '../types';
@@ -164,21 +165,16 @@ declare global {
 }
 
 /**
- * Puts a sample's spans on a "Benchmark" track of their own in a DevTools trace, through the
- * Performance panel's extensibility API; elsewhere, the `detail` is just data.
- */
-function benchmarkTrackDetail(color: 'primary' | 'tertiary') {
-  return { devtools: { dataType: 'track-entry', track: 'Benchmark', color } };
-}
-
-/**
  * Resolves in a task of its own. A message rather than a timer, which nested timers would clamp to
  * 4ms.
  */
 function nextTask(): Promise<void> {
   return new Promise((resolve) => {
     const channel = new MessageChannel();
-    channel.port1.onmessage = () => resolve();
+    channel.port1.onmessage = () => {
+      channel.port1.close();
+      resolve();
+    };
     channel.port2.postMessage(null);
   });
 }
@@ -198,14 +194,10 @@ const send: CdpSend = async (method, params) => {
 const cdp: BenchmarkCdp = { send };
 
 /**
- * How long a sample's longest CPU warm-up spun, to tell after the fact which samples started on an
- * idled core: close to 300ms means the CPU never got warm. Informational, and recorded after the
- * case's own metrics so a `compare()` never ranks by it.
+ * A sample's longest CPU warm-up. Informational, and recorded after the case's own metrics so a
+ * `compare()` never ranks by it.
  */
-const warmupMetric = new ScalarMetric({
-  name: 'cpu:warmup',
-  format: { style: 'unit', unit: 'millisecond', maximumFractionDigits: 2 },
-});
+const warmupMetric = new ScalarMetric({ name: 'cpu:warmup', format: MILLISECONDS });
 
 async function sample(name: string): Promise<Record<string, number>> {
   const run = cases.get(name)?.run;
@@ -230,27 +222,21 @@ async function sample(name: string): Promise<Record<string, number>> {
   try {
     await run({ cdp });
     recorded = values.size;
-    if (isCpuWarmupEnabled()) {
-      warmupMetric.record(takeLongestWarmupMs());
+    const longestWarmupMs = takeLongestWarmupMs();
+    if (longestWarmupMs !== undefined) {
+      warmupMetric.record(longestWarmupMs);
     }
   } finally {
     sampleValues = null;
     // Closed on a failed run too, so that the next sample doesn't inherit it.
     forgottenWindow = discardOpenWindow();
-    // The collection, the warm-up and the run as spans of a trace, written after the run so that
-    // only reading the clock happens between them.
+    // The collection and the run as spans of a trace, written after the run so that only reading
+    // the clock happens between them. Each warm-up writes its own.
     performance.measure('collect', {
       start: collectStart,
       end: collectEnd,
       detail: benchmarkTrackDetail('tertiary'),
     });
-    if (isCpuWarmupEnabled()) {
-      performance.measure('warm-up', {
-        start: collectEnd,
-        end: runStart,
-        detail: benchmarkTrackDetail('tertiary'),
-      });
-    }
     performance.measure('run', {
       start: runStart,
       end: performance.now(),

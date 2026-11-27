@@ -71,9 +71,10 @@ const TASK_EPSILON_MS = 0.5;
  * Resolves once the main thread's activity counters stop advancing for `IDLE_FOR_MS`. It waits out
  * trailing work that a paint or frame signal would miss: passive effects, deferred draws. Throws when
  * the thread never goes quiet, such as under an endless animation: a measurement taken then would
- * count unrelated work, or miss trailing work still running.
+ * count unrelated work, or miss trailing work still running. Resolves with its last reading, taken
+ * on the idle thread.
  */
-async function waitForMainThreadIdle(cdp: BenchmarkCdp): Promise<void> {
+async function waitForMainThreadIdle(cdp: BenchmarkCdp): Promise<Counters> {
   const start = performance.now();
   let previous = await readCounters(cdp);
   let stableSince = performance.now();
@@ -98,7 +99,7 @@ async function waitForMainThreadIdle(cdp: BenchmarkCdp): Promise<void> {
       lastActivity = activity;
       stableSince = performance.now();
     } else if (performance.now() - stableSince >= IDLE_FOR_MS) {
-      return;
+      return current;
     }
   }
   throw new Error(
@@ -121,7 +122,7 @@ export interface MainThreadMeasurement {
 }
 
 /** The window `mainThreadTime()` opened, until `mainThreadTimeEnd()` closes it. */
-let openWindow: { counters: Counters; start: number; openedAt: string | undefined } | null = null;
+let openWindow: { counters: Counters; start: number; openedAt: string } | null = null;
 
 /**
  * Starts measuring what the main thread does, until `mainThreadTimeEnd()`. Waits for an idle thread
@@ -138,9 +139,9 @@ export async function mainThreadTime({ cdp }: { cdp: BenchmarkCdp }): Promise<vo
         `mainThreadTimeEnd() first. The open window started at:\n${openWindow.openedAt}`,
     );
   }
-  const openedAt = new Error().stack?.split('\n').slice(2).join('\n');
+  const openedAt = new Error().stack?.split('\n').slice(2).join('\n') ?? '(unknown)';
   await waitForMainThreadIdle(cdp);
-  // Before the first reading: the spinning ends the task the reading is taken after.
+  // A reading of its own, after the warm-up: the spinning ends the task the reading is taken after.
   warmUpCpu();
   const counters = await readCounters(cdp);
   openWindow = { counters, start: performance.now(), openedAt };
@@ -163,8 +164,7 @@ export async function mainThreadTimeEnd({
   }
   const wallMs = performance.now() - window.start;
   openWindow = null;
-  await waitForMainThreadIdle(cdp);
-  const after = await readCounters(cdp);
+  const after = await waitForMainThreadIdle(cdp);
   const before = window.counters;
   return {
     taskMs: after.taskMs - before.taskMs,
@@ -186,5 +186,5 @@ export function discardOpenWindow(): string | undefined {
   }
   const { openedAt } = openWindow;
   openWindow = null;
-  return openedAt ?? '(unknown)';
+  return openedAt;
 }

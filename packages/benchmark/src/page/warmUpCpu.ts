@@ -1,10 +1,8 @@
-// The CPU warm-up the harness runs before what it times; see `cpuWarmup.ts` for why. Only the
-// harness calls it, right where its timing starts (before a case's `run`, and in `mainThreadTime()`
-// after its wait for an idle thread), so that the spinning can never land inside a measurement.
-//
-// It assumes the CPU runs at one speed for a whole file: a case that throttles the CPU through the
-// DevTools Protocol (`Emulation.setCPUThrottlingRate`) makes warm chunks look cold, and the warm-up
-// then spins to its cap every time. Run such cases without the warm-up.
+// The CPU warm-up the harness runs before what it times; "Warming the CPU up" in the README says why,
+// and what it doesn't cover. Only the harness calls it, right where its timing starts (before a
+// case's `run`, and in `mainThreadTime()` after its wait for an idle thread), so that the spinning
+// can never land inside a measurement.
+import { benchmarkTrackDetail } from './trace';
 
 /** How long a chunk of the fixed work takes on a warm CPU: long enough for the coarse page timer. */
 const CHUNK_MS = 5;
@@ -72,15 +70,20 @@ function loadCalibration(): Calibration | null {
   }
 }
 
-function storeCalibration(value: Calibration | null): void {
+// Storage unavailable: the next page calibrates anew, which costs time, not correctness.
+function storeCalibration(value: Calibration): void {
   try {
-    if (value) {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(value));
-    } else {
-      sessionStorage.removeItem(STORAGE_KEY);
-    }
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(value));
   } catch {
-    // Storage unavailable: the next page calibrates anew, which costs time, not correctness.
+    // See above.
+  }
+}
+
+function forgetCalibration(): void {
+  try {
+    sessionStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // See above.
   }
 }
 
@@ -134,8 +137,11 @@ export function warmUpCpu(): void {
     for (let i = 0; i < JIT_RUNS; i += 1) {
       runChunk(1000);
     }
-    calibration = loadCalibration() ?? calibrate();
-    storeCalibration(calibration);
+    calibration = loadCalibration();
+    if (!calibration) {
+      calibration = calibrate();
+      storeCalibration(calibration);
+    }
   }
   const start = performance.now();
   while (timeChunk(calibration.iterations) > calibration.threshold) {
@@ -143,20 +149,23 @@ export function warmUpCpu(): void {
       // Never warm enough: the CPU's warm speed has dropped, from heat or load. This page keeps its
       // calibration, so that later warm-ups here don't recalibrate inside a sample; the next page
       // calibrates anew.
-      storeCalibration(null);
+      forgetCalibration();
       break;
     }
   }
-  longestWarmupMs = Math.max(longestWarmupMs, performance.now() - start);
+  const end = performance.now();
+  longestWarmupMs = Math.max(longestWarmupMs, end - start);
+  performance.measure('warm-up', { start, end, detail: benchmarkTrackDetail('tertiary') });
 }
 
-/** Whether the pages warm the CPU up at all. */
-export function isCpuWarmupEnabled(): boolean {
-  return enabled;
-}
-
-/** The longest warm-up since the last call, which starts the count again. */
-export function takeLongestWarmupMs(): number {
+/**
+ * The longest warm-up since the last call, which starts the count again; `undefined` when the pages
+ * don't warm up.
+ */
+export function takeLongestWarmupMs(): number | undefined {
+  if (!enabled) {
+    return undefined;
+  }
   const taken = longestWarmupMs;
   longestWarmupMs = 0;
   return taken;

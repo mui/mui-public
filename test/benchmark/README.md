@@ -27,9 +27,8 @@ build.
 `accounting` is a test rather than a benchmark. Its cases measure work of a known size with
 `mainThreadTime()` / `mainThreadTimeEnd()` and throw when the measurement is wrong, which fails the
 run and so the pull request's benchmark job. It lives here because only a real run has the runner's
-DevTools Protocol bridge, which is where that measurement can go wrong: code resumed after an awaited
-`context.cdp.send()` used to run inside a DevTools command and go uncounted, so 50ms of work read as
-0.4ms. The file says what each case guards.
+DevTools Protocol bridge, which is where that measurement can go wrong. The file says what each case
+guards, and what a failure means.
 
 ## Running
 
