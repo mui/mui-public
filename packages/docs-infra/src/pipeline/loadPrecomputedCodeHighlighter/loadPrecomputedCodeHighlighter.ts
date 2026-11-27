@@ -29,7 +29,11 @@ import { replacePrecomputeValue } from '../parseCreateFactoryCall/replacePrecomp
 import { createLoadServerCodeSource } from '../loadServerCodeSource';
 import { getFileNameFromUrl, IGNORE_COMMENT_PREFIXES } from '../loaderUtils';
 import { createPerformanceLogger, logPerformance, performanceMeasure } from './performanceLogger';
-import { fallbackToHast } from '../../CodeHighlighter/fallbackFormat';
+import {
+  collapsedVisibleFallback,
+  fallbackToHast,
+  fallbackToText,
+} from '../../CodeHighlighter/fallbackFormat';
 
 type DeferredOutput = { source: string; dependencies: string[] };
 
@@ -220,6 +224,19 @@ function createFallbackSource({
   return source;
 }
 
+function getSourceWindow(variant: VariantCode): VariantCode['sourceWindow'] {
+  if (!variant.sourceProjection || variant.focusedLines === 0) {
+    return undefined;
+  }
+
+  const { source, indentation } = variant.sourceProjection;
+  const rendered = fallbackToText(collapsedVisibleFallback(variant.fallback ?? []));
+
+  return rendered.startsWith(source)
+    ? { length: source.length, indentation }
+    : { source, indentation };
+}
+
 export function createPrecomputeShell(code: Code): Code {
   return Object.fromEntries(
     Object.entries(code).map(([variantName, variant]) => {
@@ -248,6 +265,7 @@ export function createPrecomputeShell(code: Code): Code {
         variantName,
         {
           ...shell,
+          sourceWindow: getSourceWindow(variant),
           source: createFallbackSource(variant),
           ...(shellExtraFiles ? { extraFiles: shellExtraFiles } : undefined),
         },

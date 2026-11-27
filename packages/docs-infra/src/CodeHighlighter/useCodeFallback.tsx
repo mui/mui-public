@@ -1,8 +1,9 @@
 'use client';
 
 import * as React from 'react';
+import type { CodeSourceProps } from '../useCode/Pre';
 import type { ContentLoadingVariant, Fallbacks, HastRoot } from './types';
-import { fallbackToHast } from './fallbackFormat';
+import { collapsedVisibleFallback, fallbackToHast, fallbackToText } from './fallbackFormat';
 import { restoreFallbackLines } from './renderFallbackLines';
 import { resolveCollapsedFrameType } from '../pipeline/parseSource/frameVisibility';
 import { isFrameSpan } from '../pipeline/parseSource/isFrameSpan';
@@ -47,6 +48,8 @@ export interface UseCodeFallbackFile {
 }
 
 export interface UseCodeFallbackResult {
+  /** Selected source using the same renderer and key as the live view. */
+  selectedFile?: React.ReactElement<CodeSourceProps>;
   source?: HastRoot;
   fileNames?: string[];
   extraSource?: Record<string, UseCodeFallbackFile>;
@@ -98,6 +101,8 @@ export interface UseCodeFallbackVariantResult {
 interface UseCodeFallbackProps extends ContentLoadingVariant {
   initialVariant?: string;
   initialFilename?: string;
+  initialExpanded?: boolean;
+  initialDisabled?: boolean;
   extraVariants?: Record<string, ContentLoadingVariant>;
   fallbackCollapsed?: boolean;
   collapseToEmpty?: boolean;
@@ -166,7 +171,10 @@ function convertVariantSource(
  * }
  * ```
  */
-export function useCodeFallback(props?: UseCodeFallbackProps): UseCodeFallbackResult {
+export function useCodeFallback(
+  props?: UseCodeFallbackProps,
+  options?: { SourceComponent?: React.ComponentType<CodeSourceProps>; expanded?: boolean },
+): UseCodeFallbackResult {
   const ctx = React.useContext(CodeHighlighterFallbackContext);
   const { setFallbackHasts, onHookCalled, canLoadContent } = ctx || {};
   const variantName = props?.initialVariant;
@@ -294,12 +302,57 @@ export function useCodeFallback(props?: UseCodeFallbackProps): UseCodeFallbackRe
     [converted, language, fileNames],
   );
 
+  const Source = options?.SourceComponent;
+  const sourceWindow = props?.sourceWindow;
+
+  const projection = React.useMemo(() => {
+    if (!Source || !sourceWindow || !source || props?.initialDisabled) {
+      return undefined;
+    }
+
+    const text =
+      'source' in sourceWindow
+        ? sourceWindow.source
+        : fallbackToText(collapsedVisibleFallback(source)).slice(0, sourceWindow.length);
+
+    return { source: text, indentation: sourceWindow.indentation, start: 0, end: text.length };
+  }, [Source, sourceWindow, source, props?.initialDisabled]);
+
   if (!props) {
     return {};
   }
 
+  let selectedFile: React.ReactElement<CodeSourceProps> | undefined;
+
+  if (Source && converted.source) {
+    selectedFile = (
+      <Source
+        key={mainFile}
+        fileName={mainFile}
+        language={language}
+        expanded={options?.expanded ?? props.initialExpanded}
+        loading
+        editable={!props.initialDisabled}
+        shouldHighlight
+        fallbackLineCounts={
+          totalLines === undefined
+            ? undefined
+            : {
+                totalLines,
+                focusedLines: focusedLines ?? totalLines,
+                collapsible: collapsible ?? false,
+              }
+        }
+        sourceProjection={projection}
+      >
+        {converted.source}
+      </Source>
+    );
+  }
+
   return {
     ...converted,
+    selectedFile,
     extraVariants: resolvedExtraVariants,
     collapsed: props.fallbackCollapsed,
     code,

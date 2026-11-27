@@ -7,6 +7,7 @@ import { useControlledCode } from '../CodeControllerContext';
 import { extractNameAndSlugFromUrl } from '../pipeline/loaderUtils';
 import { useVariantSelection } from './useVariantSelection';
 import { useTransformManagement } from './useTransformManagement';
+import type { CodeSourceProps } from './Pre';
 import { useFileNavigation } from './useFileNavigation';
 import { useUIState } from './useUIState';
 import { useCopyFunctionality } from './useCopyFunctionality';
@@ -18,6 +19,8 @@ import { hasSourceChanges } from '../CodeHighlighter/hasSourceChanges';
 export type ActionSource = 'current' | 'initial';
 
 export type UseCodeOpts = {
+  /** Renderer shared with the loading view to preserve the selected source element. */
+  SourceComponent?: React.ComponentType<CodeSourceProps>;
   preClassName?: string;
   copy?: UseCopierOpts;
   githubUrlPrefix?: string;
@@ -411,6 +414,7 @@ export function useCode<T extends {} = {}>(
   // Sub-hook: File Navigation
   const fileNavigation = useFileNavigation({
     hasControlledEdits,
+    SourceComponent: opts?.SourceComponent,
     selectedVariant: renderedVariant,
     transformedFiles: transformManagement.transformedFiles,
     selectedTransform: transformManagement.selectedTransform,

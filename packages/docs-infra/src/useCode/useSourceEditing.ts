@@ -89,12 +89,6 @@ export function useSourceEditing({
   disabled,
 }: UseSourceEditingProps): UseSourceEditingResult {
   const contextSetCode = context?.setCode;
-  // Monotonic token bumped by every `setSource`/`reset`. A cold first edit defers
-  // its commit until the engine chunk resolves; if a later edit or a `reset`
-  // happens before then, the stale deferred commit must NOT run (it would re-apply
-  // a superseded edit and, after a reset, reverse it). The deferred callback
-  // captures the token at schedule time and bails if it changed.
-  const editTokenRef = React.useRef(0);
   const resetTokenRef = React.useRef(0);
   const hasEditedRef = React.useRef(false);
   const activatedRef = React.useRef(false);
@@ -142,9 +136,6 @@ export function useSourceEditing({
         return;
       }
 
-      // Mark this edit as the latest; a deferred (cold) commit checks this.
-      editTokenRef.current += 1;
-      const editToken = editTokenRef.current;
       const resetToken = resetTokenRef.current;
       const isFirstEdit = !hasEditedRef.current;
 
@@ -301,7 +292,10 @@ export function useSourceEditing({
               // (possibly broken) edit, then swaps to it (see `useVariantBuilds`).
               newCode[selectedVariantKey] = {
                 ...editedVariant,
-                original: { source: variant.source, extraFiles: variant.extraFiles },
+                original: variant.original ?? {
+                  source: variant.source,
+                  extraFiles: variant.extraFiles,
+                },
               };
             } else if (editedVariant.original) {
               // Subsequent edit: the baseline already rendered — drop `original` so
@@ -322,23 +316,21 @@ export function useSourceEditing({
         contextSetCode(applyEdit);
       };
 
-      // Apply synchronously from the warm cache (the common case — the warm
-      // effect below loads the engine as soon as the block is editable). On a
-      // cold first edit, defer this one update until the chunk resolves; later
-      // edits are synchronous.
       const warmEngine = peekSourceEditingEngine();
       if (warmEngine) {
         applyUpdate(warmEngine);
-      } else {
-        Promise.resolve(loadSourceEditingEngine())
-          .then((loaded) => {
-            // Bail if a later edit or a reset superseded this one while loading.
-            if (editTokenRef.current === editToken && resetTokenRef.current === resetToken) {
-              applyUpdate(loaded);
-            }
-          })
-          .catch(() => {});
+
+        return;
       }
+
+      // Each caret position is relative to the preceding edit. Replay them in order.
+      Promise.resolve(loadSourceEditingEngine())
+        .then((loaded) => {
+          if (resetTokenRef.current === resetToken) {
+            applyUpdate(loaded);
+          }
+        })
+        .catch(() => {});
     },
     [
       contextSetCode,
@@ -371,7 +363,6 @@ export function useSourceEditing({
       return;
     }
     // Supersede any pending cold edit so it can't re-apply after this reset.
-    editTokenRef.current += 1;
     resetTokenRef.current += 1;
     hasEditedRef.current = false;
     // Evict any pre-parsed HAST so the original re-parses fresh on the next render

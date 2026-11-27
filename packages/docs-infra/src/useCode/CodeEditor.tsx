@@ -3,6 +3,7 @@
 import * as React from 'react';
 import EditorImport from 'react-simple-code-editor';
 import type { EditableSourceProjection, HastRoot } from '../CodeHighlighter/types';
+import { ensureGrammars } from '../pipeline/parseSource/grammarCache';
 import { useGrammarsReady } from '../CodeHighlighter/useGrammarsReady';
 import { useCodeContext, useDemandSourceParser } from '../CodeProvider/CodeContext';
 import { hastToJsx } from '../pipeline/hastUtils';
@@ -18,8 +19,15 @@ function resolveEditor(editor: EditorComponent | { default: EditorComponent }): 
 
 const Editor = resolveEditor(EditorImport);
 
+type EditorSource = string | (() => string);
+
+function readSource(source: EditorSource) {
+  return typeof source === 'string' ? source : source();
+}
+
 export interface CodeEditorProps {
-  source: string;
+  source: EditorSource;
+  sourceHighlight?: React.ReactNode;
   sourceProjection?: EditableSourceProjection;
   expanded?: boolean;
   fileName?: string;
@@ -27,7 +35,7 @@ export interface CodeEditorProps {
   language?: string;
   className?: string;
   fallback?: React.ReactNode;
-  setSource: SetSource;
+  setSource?: SetSource;
   onActivate?: () => void;
   onBoundary?: () => void;
   onExit?: () => void;
@@ -35,12 +43,12 @@ export interface CodeEditorProps {
 }
 
 function getEditorValue(
-  source: string,
+  source: EditorSource,
   sourceProjection: EditableSourceProjection | undefined,
   expanded: boolean,
 ): string {
   if (expanded || !sourceProjection) {
-    return source;
+    return readSource(source);
   }
   const indentationLength = sourceProjection.indentation?.length ?? 0;
   return stripLeadingPerLine(sourceProjection.source, indentationLength, indentationLength);
@@ -102,6 +110,7 @@ function validateProjection(
 export function CodeEditor({
   source,
   sourceProjection,
+  sourceHighlight,
   expanded = false,
   fileName,
   displayFileName,
@@ -114,20 +123,37 @@ export function CodeEditor({
   onExit,
   onReady,
 }: CodeEditorProps) {
-  const { ensureParseSourceWorker, loadSourceParser, parseSource, parseSourceAsync } =
-    useCodeContext();
+  const parser = useCodeContext();
+  const { ensureParseSourceWorker, loadSourceParser, parseSource, parseSourceAsync } = parser;
+  const parserRef = React.useRef(parser);
+  React.useLayoutEffect(() => {
+    parserRef.current = parser;
+  }, [parser]);
+  const precomputed = sourceHighlight !== undefined;
+
+  const [edit, setEdit] = React.useState<{
+    value: string;
+    file: string;
+    language: string | undefined;
+    expanded: boolean;
+  } | null>(null);
   const parseFileName = displayFileName ?? fileName ?? 'code.txt';
   const grammarScope = resolveGrammarScope(parseFileName, language);
   const grammarScopes = React.useMemo(() => (grammarScope ? [grammarScope] : []), [grammarScope]);
-  const grammarsReady = useGrammarsReady(grammarScopes, Boolean(loadSourceParser));
-  useDemandSourceParser(loadSourceParser, !parseSource);
+  const grammarsReady = useGrammarsReady(grammarScopes, !precomputed && Boolean(loadSourceParser));
+  useDemandSourceParser(loadSourceParser, !precomputed && !parseSource);
   const editableProjection = React.useMemo(
-    () => validateProjection(source, sourceProjection),
+    () =>
+      typeof source === 'string' ? validateProjection(source, sourceProjection) : sourceProjection,
     [source, sourceProjection],
   );
-  const [value, setValue] = React.useState(() =>
-    getEditorValue(source, editableProjection, expanded),
+
+  const sourceValue = React.useMemo(
+    () => getEditorValue(source, editableProjection, expanded),
+    [source, editableProjection, expanded],
   );
+
+  const [value, setValue] = React.useState(sourceValue);
   const deferredValue = React.useDeferredValue(value);
   const [highlighted, setHighlighted] = React.useState<{
     source: string;
@@ -140,16 +166,22 @@ export function CodeEditor({
     [highlighted],
   );
   const rootRef = React.useRef<HTMLDivElement>(null);
-  const prefixRef = React.useRef(
-    editableProjection ? source.slice(0, editableProjection.start) : '',
-  );
-  const suffixRef = React.useRef(editableProjection ? source.slice(editableProjection.end) : '');
+  const editorRef = React.useRef<React.ComponentRef<typeof Editor>>(null);
+  const inputId = React.useId();
+
+  const original = React.useRef<{
+    source: EditorSource;
+    projection?: EditableSourceProjection;
+    text?: string;
+  }>({ source, projection: editableProjection });
   const lastEmittedSourceRef = React.useRef<string | null>(null);
+  const projected = !expanded && Boolean(editableProjection);
+
   const previousIdentityRef = React.useRef({
     fileName,
-    displayFileName,
-    expanded,
-    sourceProjection: editableProjection,
+    parseFileName,
+    projected,
+    value: sourceValue,
   });
 
   React.useLayoutEffect(() => {
@@ -162,31 +194,41 @@ export function CodeEditor({
     onReady?.(textarea);
   }, [fileName, onReady]);
 
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
     const previous = previousIdentityRef.current;
-    const identityChanged =
-      previous.fileName !== fileName ||
-      previous.displayFileName !== displayFileName ||
-      previous.expanded !== expanded ||
-      previous.sourceProjection !== editableProjection;
-    previousIdentityRef.current = {
-      fileName,
-      displayFileName,
-      expanded,
-      sourceProjection: editableProjection,
-    };
 
-    if (!identityChanged && source === lastEmittedSourceRef.current) {
-      return;
+    const scopeChanged =
+      previous.fileName !== fileName ||
+      previous.parseFileName !== parseFileName ||
+      previous.projected !== projected;
+
+    previousIdentityRef.current = { fileName, parseFileName, projected, value: sourceValue };
+    original.current = { source, projection: editableProjection };
+
+    if (scopeChanged && editorRef.current) {
+      const textarea = rootRef.current?.querySelector('textarea');
+      const selectionStart = Math.min(textarea?.selectionStart ?? 0, sourceValue.length);
+      const selectionEnd = Math.min(textarea?.selectionEnd ?? selectionStart, sourceValue.length);
+
+      // A projected undo record would replace the entire file after expanding.
+      editorRef.current.session = {
+        history: {
+          stack: [{ value: sourceValue, selectionStart, selectionEnd, timestamp: 0 }],
+          offset: 0,
+        },
+      };
     }
 
-    prefixRef.current = editableProjection ? source.slice(0, editableProjection.start) : '';
-    suffixRef.current = editableProjection ? source.slice(editableProjection.end) : '';
-    setValue(getEditorValue(source, editableProjection, expanded));
-  }, [source, editableProjection, expanded, fileName, displayFileName]);
+    if (
+      scopeChanged ||
+      (previous.value !== sourceValue && source !== lastEmittedSourceRef.current)
+    ) {
+      setValue(sourceValue);
+    }
+  }, [source, sourceValue, editableProjection, projected, fileName, parseFileName]);
 
   React.useEffect(() => {
-    if ((!parseSourceAsync && !parseSource) || !grammarsReady) {
+    if (precomputed || (!parseSourceAsync && !parseSource) || !grammarsReady) {
       return undefined;
     }
 
@@ -221,6 +263,7 @@ export function CodeEditor({
     void highlight();
     return () => abortController.abort();
   }, [
+    precomputed,
     deferredValue,
     parseFileName,
     language,
@@ -231,15 +274,80 @@ export function CodeEditor({
     parseSourceAsync,
   ]);
 
+  React.useEffect(() => {
+    if (
+      !edit ||
+      edit.file !== parseFileName ||
+      edit.language !== language ||
+      edit.expanded !== expanded
+    ) {
+      return undefined;
+    }
+
+    const controller = new AbortController();
+
+    const highlightEdit = async () => {
+      const runtime = parserRef.current;
+      const scopes = grammarScope ? [grammarScope] : [];
+
+      const worker =
+        (scopes.length ? await runtime.ensureParseSourceWorker?.(scopes) : undefined) ??
+        runtime.parseSourceAsync;
+
+      if (controller.signal.aborted) {
+        return;
+      }
+
+      let hast;
+
+      if (worker) {
+        hast = await worker(edit.value, parseFileName, language, controller.signal);
+      } else {
+        if (runtime.loadSourceParser && scopes.length) {
+          await ensureGrammars(scopes);
+        }
+
+        const parse = runtime.parseSource ?? (await runtime.loadSourceParser?.());
+
+        if (!parse || controller.signal.aborted) {
+          return;
+        }
+
+        hast = parse(edit.value, parseFileName, language);
+      }
+
+      if (!controller.signal.aborted) {
+        React.startTransition(() =>
+          setHighlighted({ source: edit.value, fileName: parseFileName, language, hast }),
+        );
+      }
+    };
+
+    void highlightEdit().catch(() => {});
+
+    return () => controller.abort();
+  }, [edit, parseFileName, grammarScope, language, expanded]);
+
   const handleValueChange = React.useCallback(
     (nextValue: string) => {
+      if (!setSource) {
+        return;
+      }
       setValue(nextValue);
+
+      if (precomputed) {
+        onActivate?.();
+        setEdit({ value: nextValue, file: parseFileName, language, expanded });
+      }
       const indentation = !expanded ? editableProjection?.indentation : undefined;
       const canonicalValue = restoreProjectionIndentation(nextValue, indentation);
+      const initial = original.current;
+      const projected = !expanded && initial.projection;
+      const complete = projected ? (initial.text ??= readSource(initial.source)) : '';
+      const prefix = projected ? complete.slice(0, projected.start) : '';
+      const suffix = projected ? complete.slice(projected.end) : '';
       const nextSource =
-        !expanded && editableProjection
-          ? `${prefixRef.current}${canonicalValue}${suffixRef.current}`
-          : canonicalValue;
+        !expanded && editableProjection ? `${prefix}${canonicalValue}${suffix}` : canonicalValue;
       lastEmittedSourceRef.current = nextSource;
 
       const textarea = rootRef.current?.querySelector('textarea');
@@ -257,7 +365,7 @@ export function CodeEditor({
       );
       const sourcePosition =
         !expanded && editableProjection
-          ? prefixRef.current.length + canonicalSelectionStart
+          ? prefix.length + canonicalSelectionStart
           : canonicalSelectionStart;
       const caretLine = getCaretLine(nextSource, sourcePosition);
       React.startTransition(() => {
@@ -281,7 +389,16 @@ export function CodeEditor({
         );
       });
     },
-    [expanded, editableProjection, setSource, fileName],
+    [
+      expanded,
+      editableProjection,
+      setSource,
+      fileName,
+      precomputed,
+      onActivate,
+      parseFileName,
+      language,
+    ],
   );
 
   const handleKeyDown = React.useCallback(
@@ -321,24 +438,39 @@ export function CodeEditor({
 
   const parserPending = !parseSource && Boolean(loadSourceParser);
   const grammarPending = Boolean(parseSource && grammarScope && !grammarsReady);
-  if (fallback && (parserPending || grammarPending)) {
+
+  if (!precomputed && fallback && (parserPending || grammarPending)) {
     return fallback;
   }
 
   return (
     <div ref={rootRef} className="editable-code-editor">
       <Editor
+        ref={editorRef}
+        textareaId={inputId}
+        readOnly={!setSource}
+        ignoreTabKey={!setSource}
         value={value}
         onValueChange={handleValueChange}
         highlight={(currentValue) => {
           let content: React.ReactNode;
+
+          const edited =
+            edit?.value === currentValue &&
+            edit.file === parseFileName &&
+            edit.language === language &&
+            edit.expanded === expanded;
+
+          if (precomputed && !edited) {
+            return sourceHighlight;
+          }
           if (
             highlighted?.source === currentValue &&
             highlighted.fileName === parseFileName &&
             highlighted.language === language
           ) {
             content = highlightedNode;
-          } else if (parseSource && grammarsReady) {
+          } else if (!precomputed && parseSource && grammarsReady) {
             content = hastToJsx(parseSource(currentValue, parseFileName, language));
           } else {
             content = currentValue;
@@ -352,6 +484,11 @@ export function CodeEditor({
         onFocus={onActivate}
         onKeyDown={handleKeyDown}
       />
+      {precomputed && (
+        <label hidden htmlFor={inputId}>
+          {fileName ? `Edit ${fileName}` : 'Edit code'}
+        </label>
+      )}
     </div>
   );
 }

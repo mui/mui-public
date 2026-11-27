@@ -20,6 +20,7 @@ import { getSourceLineCounts } from './sourceLineCounts';
 import type { SourceLineCounts } from './sourceLineCounts';
 import { subscribeToggleNudge } from './subscribeToggleNudge';
 import { CodeEditorLazy } from './CodeEditorLazy';
+import type { CodeEditor } from './CodeEditor';
 
 const hastChildrenCache = new WeakMap<ElementContent[], React.ReactNode>();
 const fallbackHastCache = new WeakMap<ElementContent[], React.ReactNode>();
@@ -70,26 +71,7 @@ function renderFallbackChild(child: RootContent) {
   return hastToJsx(stripped);
 }
 
-export function Pre({
-  children,
-  className,
-  fileName,
-  displayFileName,
-  language,
-  ref,
-  setSource,
-  shouldHighlight,
-  hydrateMargin = '200px 0px 200px 0px',
-  fallback,
-  fallbackLineCounts,
-  expanded = false,
-  collapseToEmpty = false,
-  editActivation,
-  onActivate,
-  onBoundary,
-  editable = true,
-  sourceProjection,
-}: {
+export interface CodeSourceProps {
   children: VariantSource;
   className?: string;
   fileName?: string;
@@ -125,7 +107,7 @@ export function Pre({
   /**
    * Controls when the textarea editor loads for an editable block: `'eager'`
    * (default) loads it as soon as the block is editable; `'interaction'` defers
-   * the load until the user hovers/focuses/clicks the `<pre>`. Ignored when the
+   * the load until the reader clicks the code or presses Enter on its wrapper. Ignored when the
    * block is not editable.
    */
   editActivation?: 'eager' | 'interaction';
@@ -144,7 +126,31 @@ export function Pre({
   editable?: boolean;
   /** Contiguous source shown by the collapsed textarea editor. */
   sourceProjection?: EditableSourceProjection;
-}): React.ReactNode {
+  loading?: boolean;
+}
+
+export function Pre({
+  children,
+  className,
+  fileName,
+  displayFileName,
+  language,
+  ref,
+  setSource,
+  shouldHighlight,
+  hydrateMargin = '200px 0px 200px 0px',
+  fallback,
+  fallbackLineCounts,
+  expanded = false,
+  collapseToEmpty = false,
+  editActivation,
+  onActivate,
+  onBoundary,
+  editable = true,
+  sourceProjection,
+  loading,
+  NativeEditor,
+}: CodeSourceProps & { NativeEditor?: typeof CodeEditor }): React.ReactNode {
   // Defer the decompressing `decodeHastSource` to a post-paint render ONLY when the
   // first-paint `.fallback` is ALREADY highlighted — i.e. the promoted highlighted-visible
   // fallback the server ships for `highlightAfter: 'init'`. Then paint that highlighted
@@ -550,8 +556,9 @@ export function Pre({
   }, [hast, observeFrame, shouldHighlight, visibleFrames, collapseToEmpty]);
 
   const hasCollapsibleFrames =
-    (hast ? getSourceLineCounts(hast).collapsible : fallbackLineCounts?.collapsible === true) ||
-    collapseToEmpty;
+    (hast && !loading
+      ? getSourceLineCounts(hast).collapsible
+      : fallbackLineCounts?.collapsible === true) || collapseToEmpty;
 
   // Expose the source line counts so consumers / CSS can reason about the
   // collapsed window size — most notably the collapse-to-nothing case
@@ -560,23 +567,33 @@ export function Pre({
   // the parsed `hast` when available. Deferred string sources use the metadata
   // that travelled with their framed fallback; without it, they fall back to the
   // raw string count and remain non-collapsible.
-  const { totalLines: sourceTotalLines, focusedLines: rawFocusedLines } = hast
-    ? getSourceLineCounts(hast)
-    : (fallbackLineCounts ?? getSourceLineCounts(children));
+  const { totalLines: sourceTotalLines, focusedLines: rawFocusedLines } =
+    hast && !loading
+      ? getSourceLineCounts(hast)
+      : (fallbackLineCounts ?? getSourceLineCounts(children));
   // Collapse-to-empty empties the collapsed window, so the focused-line count is 0
   // regardless of the precomputed value.
   const sourceFocusedLines = collapseToEmpty ? 0 : rawFocusedLines;
 
   const isEditable = Boolean(setSource) && editable;
+
   const [editorRequested, setEditorRequested] = React.useState(
     () => editActivation !== 'interaction',
   );
+
+  const nativeEditor =
+    NativeEditor &&
+    (isEditable || (loading && editable)) &&
+    (expanded || !hasCollapsibleFrames || Boolean(sourceProjection));
+
+  const readSource = React.useCallback(
+    () => stringOrHastToString(hast ?? children, hast ? undefined : fallback),
+    [hast, children, fallback],
+  );
+
   const fullSource = React.useMemo(
-    () =>
-      isEditable && editorRequested
-        ? stringOrHastToString(hast ?? children, hast ? undefined : fallback)
-        : '',
-    [isEditable, editorRequested, hast, children, fallback],
+    () => (!nativeEditor && isEditable && editorRequested ? readSource() : ''),
+    [nativeEditor, isEditable, editorRequested, readSource],
   );
   const focusEditorRef = React.useRef(false);
   const activatedRef = React.useRef(false);
@@ -640,11 +657,11 @@ export function Pre({
   );
 
   const handleEditorActivate = React.useCallback(() => {
-    if (!activatedRef.current) {
+    if (isEditable && !activatedRef.current) {
       activatedRef.current = true;
       onActivate?.();
     }
-  }, [onActivate]);
+  }, [isEditable, onActivate]);
 
   const requestEditorFocus = React.useCallback(() => {
     setPromptVisible(false);
@@ -681,13 +698,21 @@ export function Pre({
 
   const handleEditorReady = React.useCallback(
     (textarea: HTMLTextAreaElement) => {
+      if (nativeEditor) {
+        const wrapper = textarea.closest<HTMLElement>('.editable-code-wrapper');
+
+        if (wrapper) {
+          wrapper.tabIndex = isEditable ? 0 : -1;
+          textarea.tabIndex = isEditable ? -1 : 0;
+        }
+      }
       if (focusEditorRef.current) {
         focusEditorRef.current = false;
         textarea.focus();
         handleEditorActivate();
       }
     },
-    [handleEditorActivate],
+    [handleEditorActivate, isEditable, nativeEditor],
   );
 
   const handleEditorExit = React.useCallback(() => {
@@ -739,6 +764,13 @@ export function Pre({
     return hastToJsx(root);
   }, [children, collapseToEmpty, fallback]);
 
+  const bindMirror = React.useCallback(
+    (element: HTMLElement | null) => {
+      bindPre(element?.parentElement instanceof HTMLPreElement ? element.parentElement : null);
+    },
+    [bindPre],
+  );
+
   const preElement = (
     <pre
       ref={bindPre}
@@ -747,6 +779,7 @@ export function Pre({
       tabIndex={isEditable ? -1 : undefined}
     >
       <code
+        ref={nativeEditor ? bindMirror : undefined}
         className={language ? `language-${language}` : undefined}
         data-collapsible={hasCollapsibleFrames ? '' : undefined}
         data-total-lines={sourceTotalLines}
@@ -757,8 +790,43 @@ export function Pre({
     </pre>
   );
 
-  if (!isEditable) {
+  if (!isEditable && !nativeEditor) {
     return preElement;
+  }
+
+  const editorProps = {
+    sourceProjection,
+    expanded,
+    fileName,
+    displayFileName,
+    language,
+    className,
+    setSource,
+    onActivate: handleEditorActivate,
+    onBoundary,
+    onExit: handleEditorExit,
+    onReady: handleEditorReady,
+  };
+
+  let content = preElement;
+
+  if (nativeEditor && NativeEditor) {
+    content = (
+      <NativeEditor
+        {...editorProps}
+        source={readSource}
+        sourceHighlight={preElement.props.children}
+      />
+    );
+  } else if (editorRequested) {
+    content = (
+      <CodeEditorLazy
+        {...editorProps}
+        loader={codeEditorLoader}
+        fallback={preElement}
+        source={fullSource}
+      />
+    );
   }
 
   return (
@@ -766,11 +834,11 @@ export function Pre({
     // tab order so we can prompt the user ("Press Enter to start editing")
     // before the textarea's Tab-indents-instead-of-moving-focus behavior
     // takes over. role="group" + aria-label give it an accessible name.
-    /* eslint-disable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */
+    /* eslint-disable jsx-a11y/no-noninteractive-element-interactions */
     <div
       ref={wrapperRef}
       className="editable-code-wrapper"
-      tabIndex={0}
+      tabIndex={nativeEditor ? -1 : 0}
       role="group"
       aria-label="Editable code"
       aria-describedby={overlayId}
@@ -779,27 +847,8 @@ export function Pre({
       onKeyDown={handleWrapperKeyDown}
       onPointerDown={handlePointerDown}
     >
-      {/* eslint-enable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */}
-      {editorRequested ? (
-        <CodeEditorLazy
-          loader={codeEditorLoader}
-          fallback={preElement}
-          source={fullSource}
-          sourceProjection={sourceProjection}
-          expanded={expanded}
-          fileName={fileName}
-          displayFileName={displayFileName}
-          language={language}
-          className={className}
-          setSource={setSource!}
-          onActivate={handleEditorActivate}
-          onBoundary={onBoundary}
-          onExit={handleEditorExit}
-          onReady={handleEditorReady}
-        />
-      ) : (
-        preElement
-      )}
+      {/* eslint-enable jsx-a11y/no-noninteractive-element-interactions */}
+      {content}
       {/* The overlay stays mounted so consumer styles can animate it in/out
           based on the wrapper's `data-editable-prompt` attribute. The
           `hidden` attribute is the default state — overrideable with

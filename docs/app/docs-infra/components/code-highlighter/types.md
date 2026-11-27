@@ -241,9 +241,10 @@ so this hook simply passes props through.
 
 **useCodeFallback Parameters:**
 
-| Parameter | Type                   | Default | Description |
-| :-------- | :--------------------- | :------ | :---------- |
-| props     | `UseCodeFallbackProps` | -       | -           |
+| Parameter | Type                                                                             | Default | Description |
+| :-------- | :------------------------------------------------------------------------------- | :------ | :---------- |
+| props     | `UseCodeFallbackProps`                                                           | -       | -           |
+| options   | `{ SourceComponent?: React.ComponentType<CodeSourceProps>; expanded?: boolean }` | -       | -           |
 
 **useCodeFallback Return Value:**
 
@@ -269,6 +270,8 @@ type ReturnValue = UseContentFrameResult;
 
 ```typescript
 type UseCodeFallbackResult = {
+  /** Selected source using the same renderer and key as the live view. */
+  selectedFile?: ReactElement;
   source?: HastRoot;
   fileNames?: string[];
   extraSource?: Record<string, UseCodeFallbackFile>;
@@ -322,6 +325,8 @@ type UseContentFrameResult = {
 
 ```typescript
 type BaseContentLoadingProps = {
+  /** Contiguous editable text of the initially displayed collapsed file. */
+  sourceWindow?: SourceWindow;
   fileNames?: string[];
   source?: FallbackNode[];
   /** Loading metadata for the main `source` file. See [`ContentLoadingFile`](#contentloadingfile). */
@@ -923,6 +928,7 @@ type ContentFrameProps<T extends {}> = ContentLoadingVariant &
     fallbackCollapsed?: boolean;
     collapseToEmpty?: boolean;
     initialExpanded?: boolean;
+    initialDisabled?: boolean;
   } & { children: React.ReactNode };
 ```
 
@@ -957,6 +963,7 @@ type ContentLoadingProps<T extends {}> = ContentLoadingVariant &
     fallbackCollapsed?: boolean;
     collapseToEmpty?: boolean;
     initialExpanded?: boolean;
+    initialDisabled?: boolean;
   };
 ```
 
@@ -964,6 +971,8 @@ type ContentLoadingProps<T extends {}> = ContentLoadingVariant &
 
 ```typescript
 type ContentLoadingVariant = {
+  /** Contiguous editable text of the initially displayed collapsed file. */
+  sourceWindow?: SourceWindow;
   fileNames?: string[];
   source?: FallbackNode[];
   /** Loading metadata for the main `source` file. See [`ContentLoadingFile`](#contentloadingfile). */
@@ -1328,6 +1337,8 @@ type VariantCode = {
   source?: VariantSource;
   /** Contiguous source shown by the collapsed editor. */
   sourceProjection?: EditableSourceProjection;
+  /** Editable window supplied by a deferred precompute shell. */
+  sourceWindow?: SourceWindow;
   /**
    * Compact fallback (highlighting spans removed) for the main source.
    * Converted from HAST via `hastToFallback` for smaller RSC payloads.

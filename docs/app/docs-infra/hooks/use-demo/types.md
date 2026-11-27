@@ -434,6 +434,8 @@ createCodeSandboxDemo({ title, description, flattenedFiles, useTypescript })
 
 ```typescript
 type UseDemoOpts = {
+  /** Renderer shared with the loading view to preserve the selected source element. */
+  SourceComponent?: React.ComponentType<CodeSourceProps>;
   preClassName?: string;
   copy?: UseCopierOpts;
   githubUrlPrefix?: string;

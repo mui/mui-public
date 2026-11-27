@@ -3,14 +3,16 @@
  *
  * Cold-cache behavior for the lazily-loaded source-editing engine. The shared
  * `useSourceEditing.test.ts` warms the engine in `beforeAll`; here we reset it so
- * `setSource`'s cold first-edit deferral (and the edit-token guard that protects a
+ * `setSource`'s cold first-edit deferral (and the reset guard that protects a
  * `reset` from a late deferred edit) are exercised.
  */
+import * as React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useSourceEditing, resetSourceEditingEngineCache } from './useSourceEditing';
 import type { Position } from './useSourceEditing';
 import { peekSourceEditingEngine } from './sourceEditingEngineCache';
+import type { ControlledCode } from '../CodeHighlighter/types';
 import type { CodeHighlighterContextType } from '../CodeHighlighter/CodeHighlighterContext';
 
 beforeEach(() => {
@@ -96,6 +98,72 @@ describe('useSourceEditing lazy engine (cold cache)', () => {
     expect(edited.Default.original.source).toBe('old');
   });
 
+  function renderFiles() {
+    const initial = {
+      fileName: 'App.tsx',
+      source: 'before\nroot\nafter',
+      comments: { 2: ['@focus'] },
+      extraFiles: { 'message.ts': { source: 'helper' }, 'app.css': { source: 'red' } },
+    };
+
+    const { result } = renderHook(() => {
+      const [code, setCode] = React.useState<ControlledCode | null>(null);
+
+      const editing = useSourceEditing({
+        context: { code: {}, setCode, editActivation: 'interaction' },
+        effectiveCode: { Default: initial },
+        selectedVariant: initial,
+        selectedVariantKey: 'Default',
+      });
+
+      return { code, editing };
+    });
+
+    return { initial, result };
+  }
+
+  it('applies cold edits to every file in order and preserves the original build inputs', async () => {
+    const { initial, result } = renderFiles();
+    const first = `inserted\n${initial.source}`;
+    const second = `${first}\nlast`;
+
+    act(() => {
+      result.current.editing.activate?.();
+      result.current.editing.setSource?.(first, 'App.tsx', pos(1));
+      result.current.editing.setSource?.('edited helper', 'message.ts');
+      result.current.editing.setSource?.(second, 'App.tsx', pos(4));
+      result.current.editing.setSource?.('blue', 'app.css');
+    });
+
+    await waitFor(() => {
+      expect(result.current.code?.Default).toMatchObject({
+        source: second,
+        comments: { 3: ['@focus'] },
+        extraFiles: { 'message.ts': { source: 'edited helper' }, 'app.css': { source: 'blue' } },
+        original: { source: initial.source, extraFiles: initial.extraFiles },
+      });
+    });
+  });
+
+  it('keeps only edits made after a reset during the cold load', async () => {
+    const { initial, result } = renderFiles();
+
+    act(() => {
+      result.current.editing.activate?.();
+      result.current.editing.setSource?.('before reset', 'App.tsx');
+      result.current.editing.setSource?.('blue', 'app.css');
+      result.current.editing.reset?.();
+      result.current.editing.setSource?.('after reset', 'message.ts');
+    });
+
+    await waitFor(() => {
+      expect(result.current.code?.Default).toMatchObject({
+        source: initial.source,
+        extraFiles: { 'message.ts': { source: 'after reset' }, 'app.css': { source: 'red' } },
+      });
+    });
+  });
+
   it('cancels stale activation work and reseeds after reset', async () => {
     const { setCode, activate, reset } = renderCold();
 
@@ -130,14 +198,14 @@ describe('useSourceEditing lazy engine (cold cache)', () => {
     expect(committed?.Default?.original?.source).toBe('old');
   });
 
-  it('lets a reset win over a still-pending cold edit (edit-token guard)', async () => {
+  it('lets a reset win over a still-pending cold edit (reset guard)', async () => {
     const { setCode, setSource, reset } = renderCold();
 
     act(() => {
       setSource('new', undefined, pos(0)); // cold -> deferred
     });
     act(() => {
-      reset(); // synchronous: commits null and bumps the edit token
+      reset(); // synchronous: commits null and invalidates pending edits
     });
 
     // The reset committed synchronously; the deferred edit has not run yet.

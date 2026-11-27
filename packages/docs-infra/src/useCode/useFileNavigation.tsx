@@ -17,6 +17,7 @@ import type { TransformedFiles } from './useCodeUtils';
 import { getSourceLineCounts, getVariantFileLineCounts } from './sourceLineCounts';
 import type { SetSource } from './useSourceEditing';
 import { Pre } from './Pre';
+import type { CodeSourceProps } from './Pre';
 import { useSourceEnhancing } from './useSourceEnhancing';
 import { toKebabCase } from '../pipeline/loaderUtils/toKebabCase';
 import { generateFileSlug } from '../pipeline/loaderUtils/generateFileSlug';
@@ -67,6 +68,7 @@ function getPreRenderKey(
 }
 
 interface UseFileNavigationProps {
+  SourceComponent?: React.ComponentType<CodeSourceProps>;
   selectedVariant: VariantCode | null;
   transformedFiles: TransformedFiles | undefined;
   selectedTransform?: string | null;
@@ -79,7 +81,7 @@ interface UseFileNavigationProps {
   /**
    * Forwarded to `<Pre>`: when the textarea editor loads for an
    * editable block. `'eager'` (default) loads on mount; `'interaction'` defers
-   * until the user hovers/focuses/clicks. Sourced from the `editActivation`
+   * until interaction. Sourced from the `editActivation`
    * prop on `CodeHighlighter` (via `CodeHighlighterContext`).
    */
   editActivation?: 'eager' | 'interaction';
@@ -165,6 +167,7 @@ export interface UseFileNavigationResult {
  * Hook for managing file selection and navigation within a code variant
  */
 export function useFileNavigation({
+  SourceComponent = Pre,
   selectedVariant,
   transformedFiles,
   // Note: `selectedTransform` is accepted as a prop (callers spread the
@@ -732,8 +735,8 @@ export function useFileNavigation({
       }
 
       return (
-        <Pre
-          key={getPreRenderKey(fileSlug, enhancementPhase)}
+        <SourceComponent
+          key={SourceComponent === Pre ? getPreRenderKey(fileSlug, enhancementPhase) : fileName}
           className={preClassName}
           fileName={fileName}
           displayFileName={selectedFileName}
@@ -751,12 +754,13 @@ export function useFileNavigation({
           sourceProjection={selectedFileSourceProjection}
         >
           {sourceToRender}
-        </Pre>
+        </SourceComponent>
       );
     }
 
     return null;
   }, [
+    SourceComponent,
     selectedVariant,
     shouldHighlight,
     preClassName,
@@ -842,8 +846,12 @@ export function useFileNavigation({
         name: f.name,
         slug: generateFileSlug(mainSlug, f.originalName, selectedVariantKey),
         component: (
-          <Pre
-            key={getPreRenderKey(generateFileSlug(mainSlug, f.originalName, selectedVariantKey))}
+          <SourceComponent
+            key={
+              SourceComponent === Pre
+                ? getPreRenderKey(generateFileSlug(mainSlug, f.originalName, selectedVariantKey))
+                : f.originalName
+            }
             className={preClassName}
             fileName={f.originalName}
             displayFileName={f.name}
@@ -858,7 +866,7 @@ export function useFileNavigation({
             sourceProjection={f.sourceProjection}
           >
             {f.source}
-          </Pre>
+          </SourceComponent>
         ),
       }));
     }
@@ -872,10 +880,14 @@ export function useFileNavigation({
         name: selectedVariant.fileName,
         slug: generateFileSlug(mainSlug, selectedVariant.fileName, selectedVariantKey),
         component: (
-          <Pre
-            key={getPreRenderKey(
-              generateFileSlug(mainSlug, selectedVariant.fileName, selectedVariantKey),
-            )}
+          <SourceComponent
+            key={
+              SourceComponent === Pre
+                ? getPreRenderKey(
+                    generateFileSlug(mainSlug, selectedVariant.fileName, selectedVariantKey),
+                  )
+                : selectedVariant.fileName
+            }
             className={preClassName}
             fileName={selectedVariant.fileName}
             language={selectedVariant.language}
@@ -893,7 +905,7 @@ export function useFileNavigation({
             sourceProjection={selectedVariant.sourceProjection}
           >
             {selectedVariant.source}
-          </Pre>
+          </SourceComponent>
         ),
       });
     }
@@ -920,8 +932,12 @@ export function useFileNavigation({
           name: fileName,
           slug: generateFileSlug(mainSlug, fileName, selectedVariantKey),
           component: (
-            <Pre
-              key={getPreRenderKey(generateFileSlug(mainSlug, fileName, selectedVariantKey))}
+            <SourceComponent
+              key={
+                SourceComponent === Pre
+                  ? getPreRenderKey(generateFileSlug(mainSlug, fileName, selectedVariantKey))
+                  : fileName
+              }
               className={preClassName}
               fileName={fileName}
               language={language ?? getLanguageFromFileName(fileName)}
@@ -941,7 +957,7 @@ export function useFileNavigation({
               }
             >
               {source}
-            </Pre>
+            </SourceComponent>
           ),
         });
       });
@@ -949,6 +965,7 @@ export function useFileNavigation({
 
     return result;
   }, [
+    SourceComponent,
     selectedVariant,
     transformedFiles,
     mainSlug,

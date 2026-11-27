@@ -142,7 +142,7 @@ export function useCodeProviderValue(
     }
     const needed = scopes.filter((scope) => !workerSentScopesRef.current.has(scope));
     if (needed.length === 0) {
-      return workerChainRef.current;
+      return workerChainRef.current.then(() => workerRef.current?.parseSourceAsync);
     }
     // Optimistically mark as sent; the serialized chain below does the actual
     // send in order. Rolled back if the load/init/register fails.
@@ -213,7 +213,8 @@ export function useCodeProviderValue(
       }
       setParseSourceAsync(() => client.parseSourceAsync);
     });
-    return workerChainRef.current;
+
+    return workerChainRef.current.then(() => workerRef.current?.parseSourceAsync);
   }, []);
 
   React.useEffect(() => {

@@ -45,6 +45,27 @@ Starting to edit a live demo switches it to the live preview immediately, even b
 first change. It stays on the live preview until the demo unmounts; resetting the source
 does not switch back to the bundled component.
 
+### Render a native input on the server
+
+Pass `{ SourceComponent: NativeCodeSource }` to both `useCodeFallback` and
+`useCode` or `useDemo`. Render the returned element in the same slot of a
+persistent content frame.
+
+```tsx
+import { useCodeFallback } from '@mui/internal-docs-infra/CodeHighlighter';
+import { NativeCodeSource } from '@mui/internal-docs-infra/NativeCodeSource';
+
+function SourceSlot({ loadingProps, live }) {
+  const loading = useCodeFallback(loadingProps, { SourceComponent: NativeCodeSource });
+  return <section>{live?.selectedFile ?? loading.selectedFile}</section>;
+}
+```
+
+The loading view provides a read-only textarea with the displayed source. When live
+bindings arrive, the same textarea accepts input. Precomputed colors remain visible
+until the reader edits the text. Only import the native renderer for hosts that need
+an input on first paint.
+
 ### Selected file metadata
 
 The hook exposes details about the selected file so controls do not need to inspect the
