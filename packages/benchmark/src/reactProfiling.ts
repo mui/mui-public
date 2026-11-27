@@ -7,24 +7,16 @@
  * - `false`: `react-dom/client`'s production build, what users ship. Render durations are not
  *   reported; paint and custom metrics are. Use it to compare with libraries that draw outside React.
  */
-const ENV_VALUES: Record<string, boolean> = { true: true, '1': true, false: false, '0': false };
+import { resolveBooleanSetting } from './booleanSetting';
 
 /** The option when given, then `BENCHMARK_REACT_PROFILING`, then `true`. */
 export function resolveReactProfiling(option?: boolean): boolean {
-  if (option !== undefined) {
-    return option;
-  }
-  const value = process.env.BENCHMARK_REACT_PROFILING;
-  if (value === undefined || value === '') {
-    return true;
-  }
-  if (!(value in ENV_VALUES)) {
-    throw new Error(
-      `Unknown BENCHMARK_REACT_PROFILING value "${value}". Benchmarks would run a React build ` +
-        'nobody asked for. Set it to one of: true, false, 1, 0.',
-    );
-  }
-  return ENV_VALUES[value];
+  return resolveBooleanSetting(
+    'BENCHMARK_REACT_PROFILING',
+    option,
+    true,
+    'Benchmarks would run a React build nobody asked for.',
+  );
 }
 
 /**
