@@ -35,7 +35,7 @@ const runCommand: CommandModule<{}, Args> = {
       .option('baseline', {
         type: 'string',
         describe:
-          'The build to compare against: a revision, on its own or as git:<rev>. Defaults to HEAD~1, the parent commit; `code-infra baseline` resolves a fork point to pass here',
+          'The build to compare against: a revision, on its own or as git:<rev>. Defaults to HEAD~1, the parent commit; `code-infra baseline` resolves a fork point to pass here. `none` builds no baseline, for benchmarks that are all in a compare()',
       })
       .option('build-cmd', {
         type: 'string',

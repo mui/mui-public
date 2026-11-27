@@ -564,6 +564,11 @@ feature branch the fork point, on the base branch the previous commit. On master
 is measured against its parent, and the history the dashboard draws is each commit's own paired
 change — which commit moved a number reads off the chart rather than out of a noisy trend.
 
+`--baseline none` builds no baseline, for a harness of `compare()`s: those only measure the working
+tree, so a second build would go unused. The working tree is still packed and installed like a
+consumer's, so the compared cases run against the built library. A case outside a `compare()` fails
+in such a run, as it has nothing to be measured against. `git:none` names a revision called `none`.
+
 ### Building and installing each side
 
 Both sides are built the same way: packed to tarballs and installed the way a consumer gets them, so

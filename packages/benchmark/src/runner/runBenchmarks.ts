@@ -13,7 +13,7 @@ import { summarizeRun } from '../runReport';
 import type { BenchmarkRunReport } from '../runReport';
 import { getSampling } from '../sampling';
 import type { SamplingOptions } from '../sampling';
-import { refLabel, resolveBaselineRef, WORKTREE_REF } from './refs';
+import { refLabel, resolveRunRefs } from './refs';
 import type { ResolvedRef } from './refs';
 import { discoverBenchFiles } from './benchFiles';
 import { runInterleaved } from './runInterleaved';
@@ -44,7 +44,8 @@ export interface RunBenchmarksOptions {
   filters?: string[];
   /**
    * The build the working tree is compared against: a revision, on its own or as `git:<rev>`.
-   * Defaults to `HEAD~1`, the parent commit.
+   * Defaults to `HEAD~1`, the parent commit. `none` builds no baseline, for a run whose benchmarks
+   * are all in a `compare()`.
    */
   baseline?: string;
   /**
@@ -86,11 +87,12 @@ export interface RunBenchmarksOptions {
 }
 
 /**
- * Benchmarks a harness's `*.bench.tsx` files across two builds of the workspace — the working tree
- * and a baseline — and writes, prints, and returns the run report, failed benchmarks included.
+ * Benchmarks a harness's `*.bench.tsx` files across the builds of the workspace — the working tree
+ * and a baseline, unless the run has none — and writes, prints, and returns the run report, failed
+ * benchmarks included.
  *
- * Both builds are packed from their own commit and installed into the harness the same way, so
- * neither resolves the library through a workspace link.
+ * Every build is packed from its own commit and installed into the harness the same way, so none
+ * resolves the library through a workspace link.
  */
 export async function runBenchmarks(options: RunBenchmarksOptions): Promise<BenchmarkRunReport> {
   const startedAt = Date.now();
@@ -132,8 +134,7 @@ export async function runBenchmarks(options: RunBenchmarksOptions): Promise<Benc
         : `No *.bench.tsx file found under ${srcDir}.`,
     );
   }
-  // The working tree first: it is the reference every comparison is judged from.
-  const refs: ResolvedRef[] = [WORKTREE_REF, await resolveBaselineRef(baseline, repoRoot)];
+  const refs = await resolveRunRefs(baseline, repoRoot);
 
   // `getuid` is POSIX-only; on Windows nobody is root. Chrome cannot enter its sandbox as root.
   const launchArgs = [
