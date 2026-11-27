@@ -1,3 +1,4 @@
+import type ts from 'typescript';
 import { expect, it } from 'vitest';
 import { parseFromProgram } from '../../index';
 import type { ParserWarning } from '../../index';
@@ -231,4 +232,100 @@ export type Maybe<T> = T extends unknown ? Keys<T> : never;`,
     kind: 'typeOperator',
     operator: 'keyof',
   });
+});
+
+const gaugeSource = `type GaugeKind = 'arc' | 'bar';
+
+interface GaugeConfigs {
+  arc: { kind: 'arc'; startAngle?: number; nested: { label: string; arcOnly?: boolean } };
+  bar: { kind: 'bar'; thickness?: number; nested: { label: string; barOnly?: boolean } };
+}
+`;
+const arcAndBar = [
+  ['kind', 'startAngle', 'nested'],
+  ['kind', 'thickness', 'nested'],
+];
+
+function parseGauge(
+  source: string,
+  compilerOptions?: ts.CompilerOptions,
+  includeExternalTypes = false,
+) {
+  const filePath = '/virtual/generic-indexed-access.ts';
+  const program = createInMemoryProgram(filePath, gaugeSource + source, compilerOptions);
+  return JSON.parse(
+    JSON.stringify(
+      parseFromProgram(filePath, program, { includeExternalTypes, onWarning: () => {} }),
+    ),
+  ).exports;
+}
+
+// The property names of each member of a union, or of the one object.
+function getMemberProperties(type: any): string[][] {
+  const members = type.kind === 'union' ? type.types : [type];
+  return members.map((member: any) =>
+    (member.properties ?? []).map((property: any) => property.name),
+  );
+}
+
+function getProperty(type: any, name: string): any {
+  return type.properties.find((property: any) => property.name === name).type;
+}
+
+it('documents a generic lookup as the members its constraint selects', () => {
+  const [alias, props] = parseGauge(`
+export type GaugeConfig<K extends GaugeKind = GaugeKind> = GaugeConfigs[K];
+
+export interface GaugeProps<K extends GaugeKind = GaugeKind> {
+  config: GaugeConfigs[K];
+  named: GaugeConfig<K>;
+  required: Required<GaugeConfigs>[K];
+  nested: GaugeConfigs[K]['nested'];
+  withExtra: (GaugeConfigs & { extra: { kind: 'extra'; extraOnly?: string } })[K | 'extra'];
+}`);
+
+  // The alias keeps its name and type parameters.
+  expect(alias.type.typeName).toMatchObject({ name: 'GaugeConfig', typeArguments: [{}] });
+  expect(getMemberProperties(alias.type)).toEqual(arcAndBar);
+  expect(getMemberProperties(getProperty(props.type, 'config'))).toEqual(arcAndBar);
+  expect(getProperty(props.type, 'named').typeName.name).toBe('GaugeConfig');
+  // A lib utility around a project lookup map, a nested lookup and an intersection expand too.
+  expect(getMemberProperties(getProperty(props.type, 'required'))).toEqual(arcAndBar);
+  expect(getMemberProperties(getProperty(props.type, 'nested'))).toEqual([
+    ['label', 'arcOnly'],
+    ['label', 'barOnly'],
+  ]);
+  expect(getMemberProperties(getProperty(props.type, 'withExtra'))).toEqual([
+    ...arcAndBar,
+    ['kind', 'extraOnly'],
+  ]);
+});
+
+it('keeps the shared reading of a keyof operand replayed from an alias body', () => {
+  const [arcProps] = parseGauge(`
+type KeyedGauge<K extends GaugeKind> = { keys: keyof GaugeConfigs[K]; config: GaugeConfigs[K] };
+
+export interface ArcGaugeProps {
+  arc: KeyedGauge<'arc'>;
+}`);
+  const arc = getProperty(arcProps.type, 'arc');
+
+  // The replayed operand doesn't see `K = 'arc'`, so expanding it would list the bar member.
+  expect(getMemberProperties(getProperty(arc, 'keys').type)).toEqual([['kind', 'nested']]);
+  expect(getMemberProperties(getProperty(arc, 'config'))).toEqual([arcAndBar[0]]);
+});
+
+it('keeps the shared reading of a lookup map whose members come from dependencies', () => {
+  // Expanded, a dependency's members are whole objects, such as every property of
+  // `HTMLAnchorElement`, so a lookup over many of them becomes a huge union.
+  const [tagProps] = parseGauge(
+    `
+export interface TagProps<K extends 'a' | 'button'> {
+  element: HTMLElementTagNameMap[K];
+}`,
+    { lib: ['lib.es2022.d.ts', 'lib.dom.d.ts'] },
+    true,
+  );
+
+  expect(getProperty(tagProps.type, 'element').kind).not.toBe('union');
 });
