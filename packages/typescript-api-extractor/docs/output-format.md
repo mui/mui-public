@@ -56,6 +56,31 @@ space is masked, and an export left with nothing but a value, such as a function
 or variable with any namespace merged onto it, is omitted. A re-export from an
 unresolvable module gets the checker's fallback: a value of type `any`.
 
+## Objects
+
+Object types list their properties and, when they have one, their index
+signature:
+
+```typescript
+interface ObjectNode {
+  kind: 'object';
+  typeName?: TypeName;
+  properties: PropertyNode[];
+  documentation?: DocumentationNode;
+  indexSignature?: IndexSignatureNode;
+  propertiesOmitted?: true;
+}
+```
+
+`propertiesOmitted: true` marks an object whose properties the parser
+deliberately left out, so an empty `properties` list does not mean the type has
+none. That happens when `shouldResolveObject` declines to expand it, when it is
+a recursive reference to a type still being resolved, when it is the named
+operand of a preserved type operator, and when all its properties come from
+external declarations that `includeExternalTypes` excludes. The field is omitted
+when `properties` lists every property, so an empty object without it, such as
+`{}` or an `Omit` that removes every key, has no properties.
+
 ## Documentation Tags
 
 `documentation.tags` lists the JSDoc block tags other than `@default`, `@param`,
@@ -152,6 +177,45 @@ does not reconstruct operators after TypeScript selector or inference utilities
 have erased their source syntax. For example, `ReturnType`, `Parameters`,
 `Awaited`, `ConstructorParameters`, `ThisParameterType`, and user-authored
 conditional `infer` selectors can expose only their reduced semantic result.
+
+## Conditional Types
+
+A conditional type that TypeScript cannot decide yet, because it tests a type
+parameter, is emitted as the union of its branches.
+
+An exported generic type alias whose condition tests its own type parameters is
+resolved further. The condition is checked with each tested type parameter set
+to `never`, to each member of its constraint (`unknown` without one), so a
+`boolean` or named union of literals is checked member by member, and to the
+whole constraint, which is what the export is resolved at. When every check
+picks the same branch, the export is that branch with the constraints
+substituted. A condition that tells the whole union apart from its members, such
+as `IsUnion<K>` or `boolean extends Multiple`, stays a union. It keeps its name and type arguments, and untested type parameters
+stay generic. For a condition that only flips one way as the type argument
+narrows, such as an `IsAny` guard, the branch holds for every type argument but
+`any`. A condition that isn't, such as an equality check against one literal of
+a `string` constraint, can pick the same branch for every check and another one
+for a type argument in between:
+
+```typescript
+type IsAny<T> = 0 extends 1 & T ? true : false;
+
+// Emitted as { row: Row; columnId: string }, not a union with columnId: any.
+export type Cell<Row, Columns extends readonly { id: string }[]> =
+  IsAny<Columns> extends true
+    ? { row: Row; columnId: any }
+    : { row: Row; columnId: Columns[number]['id'] };
+```
+
+Defaults are not used, since a caller can pass any other type argument. Aliases
+that forward their type parameters to such a conditional, also across files, are
+resolved the same way. Distributive conditions (a naked tested type parameter
+on the left), conditionals declared in dependencies, in `declare global` blocks
+or in `declare module 'name'` blocks, and exports that also declare a value are
+left to the type resolvers. When a type generated for the checks doesn't
+type-check, the exports that depend on it are left to the type resolvers too,
+with a `conditional-substitution-failed` warning naming the declaration it was
+generated for.
 
 ## Template Literals
 

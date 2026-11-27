@@ -50,7 +50,9 @@ export function resolveObjectLikeType(
       hasExactFlag(type, ts.TypeFlags.Object) ||
       (hasExactFlag(type, ts.TypeFlags.NonPrimitive) && checker.typeToString(type) === 'object')
     ) {
-      return new ObjectNode(typeName, [], undefined);
+      // Any properties left here come from external declarations, which
+      // `includeExternalTypes: false` keeps out of the output.
+      return new ObjectNode(typeName, [], undefined, undefined, type.getProperties().length > 0);
     }
 
     return undefined;
@@ -97,6 +99,7 @@ export function resolveShallowObjectLikeType(
     [],
     undefined,
     buildIndexSignatureNode(type, session.context, session.resolveWithContext),
+    type.getProperties().length > 0,
   );
 }
 
@@ -396,14 +399,13 @@ function buildObjectNodeFromType(
 
   // Return an object node if there's either properties or an index signature
   if (properties.length || indexSignature) {
-    if (
-      shouldResolveObject({
-        name: typeName?.name ?? '',
-        propertyCount: properties.length,
-        depth: typeStack.length,
-        propertyDepth,
-      })
-    ) {
+    const shouldResolve = shouldResolveObject({
+      name: typeName?.name ?? '',
+      propertyCount: properties.length,
+      depth: typeStack.length,
+      propertyDepth,
+    });
+    if (shouldResolve) {
       let filteredProperties: ts.Symbol[];
       if ((type as ts.ObjectType).objectFlags & ts.ObjectFlags.Mapped) {
         filteredProperties = properties.filter((property) =>
@@ -487,7 +489,13 @@ function buildObjectNodeFromType(
       }
     }
 
-    return new ObjectNode(typeName, [], undefined, indexSignature);
+    return new ObjectNode(
+      typeName,
+      [],
+      undefined,
+      indexSignature,
+      !shouldResolve && properties.length > 0,
+    );
   }
 
   return undefined;

@@ -65,7 +65,9 @@ interface ParserOptions {
 
 `shouldResolveObject` decides whether an object's shape is expanded or reduced to
 a bare object. Returning `undefined` falls back to
-`(propertyDepth === 0 || propertyCount <= 50) && depth <= 10`.
+`(propertyDepth === 0 || propertyCount <= 50) && depth <= 10`. A bare object
+keeps its index signature and is marked with `propertiesOmitted: true` (see
+[Output Format](./output-format.md#objects)).
 
 `depth` counts every type on the resolution stack, while `propertyDepth` counts
 only the property (and index signature) values traversed to reach the object. A
@@ -84,7 +86,8 @@ When `onWarning` is omitted, recoverable parser warnings are printed with
 type ParserWarning =
   | UnsupportedTypeFallbackWarning
   | MissingEnumDeclarationWarning
-  | MissingDefaultExportSymbolWarning;
+  | MissingDefaultExportSymbolWarning
+  | ConditionalSubstitutionFailedWarning;
 
 interface ParserWarningBase {
   message: string;
@@ -109,5 +112,11 @@ interface MissingEnumDeclarationWarning extends ParserWarningBase {
 interface MissingDefaultExportSymbolWarning extends ParserWarningBase {
   code: 'missing-default-export-symbol';
   sourceText: string;
+}
+
+interface ConditionalSubstitutionFailedWarning extends ParserWarningBase {
+  code: 'conditional-substitution-failed';
+  typeName: string;
+  diagnosticText: string;
 }
 ```
