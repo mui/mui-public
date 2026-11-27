@@ -109,6 +109,12 @@ The reusable [Ahrefs audit workflow](./.github/workflows/ahrefs-audit-workflow.m
 
 Repositories call its compiled `ahrefs-audit-workflow.lock.yml` with their Site Audit `project_id` and the site paths they build (`include_paths`, `exclude_paths`). It needs the same setup as the Dependabot fix workflow, plus an `AHREFS_API_KEY` secret in the `code-infra-auditor` environment, which the caller passes along. Each run costs about 550 Ahrefs API units. After editing it, recompile it with `gh aw compile ahrefs-audit-workflow`.
 
+### Docs style review
+
+The reusable [docs style review workflow](./.github/workflows/docs-style-review-workflow.md) reviews the hand-written Markdown that pull requests change, and posts one-click suggestions inline as a comment review, which never blocks merging. It replaces Vale: its prompt compiles in the [writing style guide](./.github/writing-style.md), one section per rule that other agents can be pointed at too, and it also catches what Vale couldn't judge, such as typos, grammar and unclear sentences. A plain job before the agent picks one pull request per run, the most recently updated with lines to review: added lines in the `include` files, minus `exclude`, and after a first review only those changed since its commit, without the ones that apply an earlier suggestion. So each line is reviewed once, and a pull request whose suggestions were dealt with gets no more. The agent posts at most `max_comments` (15) suggestions, a ceiling rather than a target. Drafts, and pull requests by authors without write access, bots included, aren't polled.
+
+Repositories call its compiled `docs-style-review-workflow.lock.yml` hourly, and by hand with a `pull_request` to review that one, whoever wrote it. It polls rather than runs on pull request events: a fork's pull request gets no secrets on `pull_request`, and GitHub blocks `pull_request_target` in public repositories by default. Pull requests' files are read through the API and never checked out. It needs the same setup as the Dependabot fix workflow, except the ruleset exemption. After editing it, recompile it with `gh aw compile docs-style-review-workflow`.
+
 ## Versioning
 
 Steps:
