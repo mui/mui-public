@@ -99,10 +99,15 @@ export function resolveExternalType(
   // An external alias of an interface (e.g., `type PackageRange = globalThis.Range`)
   // loses its aliasSymbol, so the authored reference is the only place its name
   // survives. The interface name applies only when no external alias names the type.
+  // An alias that computes its type does not name it: `TemporalSupportedObject` is a
+  // conditional that resolves to `Date` once an adapter augments its lookup, and only
+  // `Date` tells the reader what to pass.
   const typeNameTarget = resolveImportAlias(request.typeNameSymbol, checker);
   const namesExternalAlias =
-    ((typeNameTarget?.flags ?? 0) & ts.SymbolFlags.TypeAlias) !== 0 &&
-    isSymbolExternal(typeNameTarget, checker);
+    typeNameTarget != null &&
+    (typeNameTarget.flags & ts.SymbolFlags.TypeAlias) !== 0 &&
+    isSymbolExternal(typeNameTarget, checker) &&
+    !isComputedTypeAlias(typeNameTarget);
   const namesResolvedInterface =
     resolvedIsExternalInterface && !type.aliasSymbol && !namesExternalAlias;
 
@@ -203,6 +208,25 @@ function getExternalTypeAlias(
   return symbol && isSymbolExternal(symbol, checker)
     ? { name: declaration.name.text, symbol }
     : undefined;
+}
+
+/**
+ * Whether a type alias computes its type with a conditional or an indexed access, rather than
+ * naming a type.
+ */
+function isComputedTypeAlias(symbol: ts.Symbol): boolean {
+  return (
+    symbol.declarations?.some((declaration) => {
+      if (!ts.isTypeAliasDeclaration(declaration)) {
+        return false;
+      }
+      let typeNode = declaration.type;
+      while (ts.isParenthesizedTypeNode(typeNode)) {
+        typeNode = typeNode.type;
+      }
+      return ts.isConditionalTypeNode(typeNode) || ts.isIndexedAccessTypeNode(typeNode);
+    }) ?? false
+  );
 }
 
 /**
