@@ -99,14 +99,27 @@ const FILTER_OUT_LABELS = [LABEL_PR_OUT_OF_DATE, LABEL_PR_NEEDS_REVISION];
 
 /**
  * The private repositories a visitor may read aren't necessarily ones the server's token can.
- * GitHub then answers with the readable repositories' data plus an error for each other one, which
- * Octokit throws: keep the data, the missing repositories just have no rows.
+ * GitHub then answers with the readable repositories' data plus a `NOT_FOUND` error for each other
+ * one, which Octokit throws: keep the data, the missing repositories just have no rows. Any other
+ * error, such as an outage, still fails the view.
  */
+function onlyMissingRepos(error: unknown): error is Error & { data: unknown } {
+  return (
+    error instanceof Error &&
+    'data' in error &&
+    Boolean(error.data) &&
+    'errors' in error &&
+    Array.isArray(error.errors) &&
+    error.errors.length > 0 &&
+    error.errors.every((entry) => entry?.type === 'NOT_FOUND')
+  );
+}
+
 async function graphqlAllowingMissingRepos<T>(query: string): Promise<T> {
   try {
     return await getOctokit().graphql<T>(query);
   } catch (error) {
-    if (error instanceof Error && 'data' in error && error.data) {
+    if (onlyMissingRepos(error)) {
       console.warn(`Triage: some repositories are unreadable: ${describeGitHubError(error)}`);
       return error.data as T;
     }

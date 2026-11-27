@@ -28,7 +28,8 @@ export const queryClient: QueryClient = new QueryClient({
  * stale. A tab's first read always announces itself: it may be the page a sign-in
  * just landed on.
  */
-if (typeof window !== 'undefined' && typeof BroadcastChannel !== 'undefined') {
+// Browser only: server rendering and the build have no tabs to sync.
+if (typeof window !== 'undefined') {
   const sessionChannel = new BroadcastChannel('dashboard-session');
   const sessionHash = hashKey(sessionQueryOptions.queryKey);
   let announcedLogin: string | null | undefined;
