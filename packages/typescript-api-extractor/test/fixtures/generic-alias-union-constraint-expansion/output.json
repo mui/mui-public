@@ -213,24 +213,67 @@
 						]
 					},
 					{
-						"kind": "object",
-						"properties": [
+						"kind": "union",
+						"types": [
 							{
-								"name": "scaleType",
-								"type": {
-									"kind": "union",
-									"types": [
-										{
+								"kind": "object",
+								"properties": [
+									{
+										"name": "scaleType",
+										"type": {
 											"kind": "literal",
 											"value": "\"band\""
 										},
-										{
+										"optional": false
+									},
+									{
+										"name": "categoryGapRatio",
+										"type": {
+											"kind": "union",
+											"types": [
+												{
+													"kind": "intrinsic",
+													"intrinsic": "number"
+												},
+												{
+													"kind": "intrinsic",
+													"intrinsic": "undefined"
+												}
+											]
+										},
+										"optional": true
+									}
+								]
+							},
+							{
+								"kind": "object",
+								"properties": [
+									{
+										"name": "scaleType",
+										"type": {
 											"kind": "literal",
 											"value": "\"linear\""
-										}
-									]
-								},
-								"optional": false
+										},
+										"optional": false
+									},
+									{
+										"name": "min",
+										"type": {
+											"kind": "union",
+											"types": [
+												{
+													"kind": "intrinsic",
+													"intrinsic": "number"
+												},
+												{
+													"kind": "intrinsic",
+													"intrinsic": "undefined"
+												}
+											]
+										},
+										"optional": true
+									}
+								]
 							}
 						]
 					},
