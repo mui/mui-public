@@ -14,7 +14,7 @@ import Heading from '../components/Heading';
 import FileContent from '../components/FileContent';
 import FileExplorer from '../components/FileExplorer';
 import { usePackageContent } from '../lib/npmPackage';
-import type { PackageContents } from '../lib/npmPackage';
+import type { PackageContents } from '../lib/packageDownload';
 
 const PackageContent = React.memo(function PackageContent({
   pkg,

@@ -3,100 +3,28 @@ import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import Skeleton from '@mui/material/Skeleton';
-import * as diff from 'diff';
+import Typography from '@mui/material/Typography';
 import CodeSkeleton from './CodeSkeleton';
 import { escapeHtmlId } from '../utils/dom';
+import type { DiffBlock } from '../lib/packageDiff/packageDiff';
 
 interface FileDiffProps {
-  oldValue: string;
-  newValue: string;
-  filePath: string;
-  oldHeader: string;
-  newHeader: string;
-  ignoreWhitespace: boolean;
+  fileName: string;
+  /** Left out while the diff of this file is still being computed. */
+  blocks?: DiffBlock[];
+  /** Set when the file couldn't be formatted and the diff shows its raw contents. */
+  formatError?: string;
   wrapLines?: boolean;
   loading?: boolean;
 }
 
-function getLineClass(line: string, index: number): string | null {
-  if (index < 2) {
-    return 'diff-preamble';
-  }
-
-  if (line.startsWith('+')) {
-    return 'diff-added';
-  }
-
-  if (line.startsWith('-')) {
-    return 'diff-removed';
-  }
-
-  if (line.startsWith('@@')) {
-    return 'diff-hunk';
-  }
-
-  return null;
-}
-
-interface ProcessedDiff {
-  fileName: string;
-  blocks: { text: string; className: string | null }[];
-}
-
-function processDiff(
-  filePath: string,
-  oldValue: string,
-  newValue: string,
-  oldHeader: string,
-  newHeader: string,
-  ignoreWhitespace: boolean,
-): ProcessedDiff {
-  const fileDiff = diff.createPatch(filePath, oldValue, newValue, oldHeader, newHeader, {
-    ignoreWhitespace,
-  });
-
-  const lines = fileDiff.split('\n');
-  const rawHeaderLine = lines[0] || '';
-  const fileName = rawHeaderLine.replace(/^Index: /, '');
-
-  const blocks: { text: string; className: string | null }[] = [];
-
-  const contentLines = lines.slice(2); // Skip first two lines ("Index: <filename>" and "===")
-  for (let index = 0; index < contentLines.length; index += 1) {
-    const line = contentLines[index];
-    const className = getLineClass(line, index);
-    const content = `${line}\n`;
-
-    const lastBlock = blocks[blocks.length - 1];
-
-    if (lastBlock && lastBlock.className === className) {
-      lastBlock.text += content;
-    } else {
-      blocks.push({ text: content, className });
-    }
-  }
-
-  return {
-    fileName,
-    blocks,
-  };
-}
-
 const FileDiff = React.memo(function FileDiff({
-  oldValue,
-  newValue,
-  filePath,
-  oldHeader,
-  newHeader,
-  ignoreWhitespace,
+  fileName,
+  blocks,
+  formatError,
   wrapLines = false,
   loading,
 }: FileDiffProps) {
-  const { fileName, blocks } = React.useMemo(
-    () => processDiff(filePath, oldValue, newValue, oldHeader, newHeader, ignoreWhitespace),
-    [oldValue, newValue, filePath, oldHeader, newHeader, ignoreWhitespace],
-  );
-
   const fileId = `file-${escapeHtmlId(fileName)}`;
 
   return (
@@ -114,6 +42,16 @@ const FileDiff = React.memo(function FileDiff({
             {fileName}
           </Link>
         )}
+        {formatError ? (
+          <Typography
+            variant="caption"
+            color="warning.main"
+            title={formatError}
+            sx={{ display: 'block' }}
+          >
+            Couldn&apos;t format this file, showing the raw contents
+          </Typography>
+        ) : null}
       </Box>
       <Box
         sx={(theme) => ({
@@ -165,8 +103,14 @@ const FileDiff = React.memo(function FileDiff({
           }}
         >
           <code>
+            {/* eslint-disable-next-line no-nested-ternary */}
             {loading ? (
               <CodeSkeleton />
+            ) : // Not animated, a long list of pulsing placeholders keeps the main thread busy
+            !blocks ? (
+              <Typography component="span" variant="body2" color="text.secondary">
+                Computing diff…
+              </Typography>
             ) : (
               blocks.map((block, index) =>
                 block.className ? (
