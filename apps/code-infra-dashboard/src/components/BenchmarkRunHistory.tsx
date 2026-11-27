@@ -75,7 +75,7 @@ export default function BenchmarkRunHistory({ repo }: BenchmarkRunHistoryProps) 
     () =>
       commits.flatMap(({ timestamp, commit }): CommitPoint[] => {
         const upload = reports[commit.sha];
-        // Version 1 reports are `DailyBenchmarkChart`'s.
+        // Version 1 reports came from the retired Vitest reporter and aren't drawn.
         if (!upload || !isBenchmarkRunUpload(upload)) {
           return [];
         }

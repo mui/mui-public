@@ -4,7 +4,6 @@ import * as React from 'react';
 import { useParams } from 'next/navigation';
 import Link from '@mui/material/Link';
 import Heading from '../components/Heading';
-import DailyBenchmarkChart from '../components/DailyBenchmarkChart';
 import BenchmarkRunHistory from '../components/BenchmarkRunHistory';
 
 export default function RepositoryBenchmarks() {
@@ -26,7 +25,6 @@ export default function RepositoryBenchmarks() {
         </Link>
       </Heading>
 
-      <DailyBenchmarkChart repo={fullRepo} />
       <BenchmarkRunHistory repo={fullRepo} />
     </React.Fragment>
   );
