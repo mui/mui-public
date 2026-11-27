@@ -155,13 +155,19 @@ conditional `infer` selectors can expose only their reduced semantic result.
 
 ## Generic Indexed Access
 
-An indexed access whose index is still a type parameter, such as `Config[S]`
-with `S extends 'band' | 'linear'`, is output as its base constraint, the union
-`Config['band'] | Config['linear']`. Each member keeps its own properties,
-including those the other members don't have. This applies when the indexed
-object type is declared in the project; a dependency's lookups, such as React's
-`JSX.IntrinsicElements[T]`, stay one object with the properties every member
-shares.
+An indexed access that TypeScript can't resolve yet, because its object or index
+is still generic, is output as the union of the members its constraint selects.
+`Config[S]` with `S extends 'band' | 'linear'` becomes
+`Config['band'] | Config['linear']`, and each member keeps its own properties,
+including those the other members don't have. This also covers a lookup through
+a utility type (`Required<Config>[S]`), a nested lookup (`Config[S]['nested']`),
+and an intersection (`(Config & Extra)[S | 'extra']`). A type alias of such an
+access keeps its name and type parameters.
+
+The checker's reading, one object with the properties every member shares, is
+kept when a member has properties declared in dependencies, such as React's
+`JSX.IntrinsicElements[T]`, and for the operand of `keyof`, which is replayed
+from the declaration's syntax.
 
 ## Template Literals
 

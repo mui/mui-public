@@ -1,7 +1,8 @@
 import ts from 'typescript';
-import { IntrinsicNode, TypeParameterNode, UnionNode } from '../../models';
+import { IntrinsicNode, TypeParameterNode, UnionNode, withTypeName } from '../../models';
 import type { AnyType } from '../../models';
 import type { TypeResolutionRequest, TypeResolutionSession } from '../typeResolutionTypes';
+import { isNodeModulesDeclaration } from '../sourceFileUtils';
 import { hasExactFlag } from '../typeResolutionUtils';
 import {
   containsKeyofTypeOperator,
@@ -260,49 +261,66 @@ export function resolveIndexLikeType(
 }
 
 /**
- * Resolves an indexed access whose index is still generic, such as `Config[S]` for
- * `S extends 'band' | 'linear'`, through its base constraint `Config['band' | 'linear']`.
+ * Resolves an indexed access TypeScript defers because its object or index is generic, such
+ * as `Config[S]` for `S extends 'band' | 'linear'`, to the members its constraint selects:
+ * here the union `Config['band'] | Config['linear']`, named after the request.
  *
  * The object resolver would otherwise read it through the checker's apparent type, which
- * only keeps the properties every constraint member shares, so a property that exists on
- * one member alone, like `Config['band']['categoryGapRatio']`, disappears.
+ * only keeps the properties every member shares, so a property that exists on one member
+ * alone, like `Config['band']['categoryGapRatio']`, disappears.
  *
- * Only an object type written in the project is expanded: a dependency's lookups, such as
- * React's `JSX.IntrinsicElements[T]`, would become unions over every member they index.
+ * Members with properties declared in dependencies, such as those of React's
+ * `JSX.IntrinsicElements[T]`, are left to the object resolver: expanded, a dependency's
+ * lookup map becomes a union over everything it indexes.
+ *
+ * The operand of an authored `keyof`, such as `keyof Config[K]` in an alias body, is left to
+ * the object resolver too. It is replayed from the declaration's syntax, where `K` is unbound
+ * even when the reference binds it, so its members would list ones the binding excludes.
  */
 export function resolveGenericIndexedAccessType(
-  { type }: TypeResolutionRequest,
+  { type, typeName, typeNode }: TypeResolutionRequest,
   session: TypeResolutionSession,
 ): AnyType | undefined {
+  if (!hasExactFlag(type, ts.TypeFlags.IndexedAccess) || isKeyofOperand(typeNode)) {
+    return undefined;
+  }
+
+  // A single member is what the object resolver reads anyway.
+  const baseConstraint = session.context.checker.getBaseConstraintOfType(type);
   if (
-    !hasExactFlag(type, ts.TypeFlags.IndexedAccess) ||
-    !isDeclaredInProject((type as ts.IndexedAccessType).objectType, session.context.program)
+    !baseConstraint?.isUnion() ||
+    baseConstraint.types.some((member) => hasDependencyProperty(member, session))
   ) {
     return undefined;
   }
 
-  const baseConstraint = session.context.checker.getBaseConstraintOfType(type);
-  // Only a union of members gains anything: a single member is what the object resolver
-  // reads anyway.
-  if (!baseConstraint?.isUnion()) {
-    return undefined;
-  }
-  return session.resolve(baseConstraint, undefined);
+  const resolved = new UnionNode(
+    undefined,
+    baseConstraint.types.map((member) => session.resolve(member, undefined)),
+  );
+  return typeName ? withTypeName(resolved, typeName) : resolved;
 }
 
-function isDeclaredInProject(type: ts.Type, program: ts.Program): boolean {
-  const declarations = (type.aliasSymbol ?? type.getSymbol())?.declarations;
+function isKeyofOperand(typeNode: ts.TypeNode | undefined): boolean {
+  let node: ts.Node | undefined = typeNode;
+  while (node?.parent && ts.isParenthesizedTypeNode(node.parent)) {
+    node = node.parent;
+  }
+  const parent = node?.parent;
   return (
-    declarations !== undefined &&
-    declarations.length > 0 &&
-    declarations.every((declaration) => {
-      const sourceFile = declaration.getSourceFile();
-      return (
-        !program.isSourceFileFromExternalLibrary(sourceFile) &&
-        !program.isSourceFileDefaultLibrary(sourceFile)
-      );
-    })
+    parent !== undefined &&
+    ts.isTypeOperatorNode(parent) &&
+    parent.operator === ts.SyntaxKind.KeyOfKeyword
   );
+}
+
+function hasDependencyProperty(member: ts.Type, session: TypeResolutionSession): boolean {
+  if (!(member.flags & ts.TypeFlags.Object)) {
+    return false;
+  }
+  return session.context.checker
+    .getPropertiesOfType(member)
+    .some((property) => property.declarations?.every(isNodeModulesDeclaration) ?? false);
 }
 
 /**
