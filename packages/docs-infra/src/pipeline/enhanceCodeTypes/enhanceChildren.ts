@@ -52,7 +52,7 @@ interface LinkableChain {
 export interface EnhanceOptions {
   linkMap: Record<string, string>;
   externalLinks?: Record<string, string>;
-  /** Names the code block declares, which `externalLinks` never applies to. */
+  /** Names the code block declares, which `externalLinks` never applies to. Grows while scanning. */
   declaredNames?: Set<string>;
   typeRefComponent?: string;
   typePropRefComponent?: string;
@@ -836,6 +836,11 @@ function handleLinkableSpan(
         break;
       }
     }
+  }
+  // A variable declaration's names refer to the block's own code from here on, including those
+  // the declared-name scan misses: `Event` in `const { Event } = x` or `const a = 1, Event = 2`.
+  if (isVarDecl) {
+    options.declaredNames?.add(identifier);
   }
 
   const href =
