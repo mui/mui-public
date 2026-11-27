@@ -1,4 +1,4 @@
-import { analyzeRun, findRegressions } from './analyzeRun';
+import { analyzeRun, findRegressions, isTie } from './analyzeRun';
 import type { Change, Interval, Severity } from './analyzeRun';
 import type { BenchmarkRunReport, RunBenchmark } from './schema';
 
@@ -40,6 +40,20 @@ export interface BenchmarkSummary {
       relative: Interval;
     }>;
   }>;
+  /** A `compare()`'s cases, best first, on its first metric. */
+  ranking?: {
+    metric: string;
+    cases: Array<{
+      variant: string;
+      median: number;
+      /** How many times the best case's median it is; `null` when the best measured 0. */
+      ratio: number | null;
+      /** Whether it can't be told apart from the case ranked just above it. */
+      tie: boolean;
+      /** Against the case ranked just above it, as a percentage of that case; absent for the best. */
+      relativeToNext?: Interval;
+    }>;
+  };
 }
 
 export function summarizeRun(report: BenchmarkRunReport): RunSummary {
@@ -51,7 +65,7 @@ export function summarizeRun(report: BenchmarkRunReport): RunSummary {
       metric,
       relative: comparison.relative,
     })),
-    benchmarks: analyses.map(({ benchmark, metrics }) => {
+    benchmarks: analyses.map(({ benchmark, metrics, ranking }) => {
       const [reference] = benchmark.variants;
       return {
         name: benchmark.name,
@@ -78,6 +92,20 @@ export function summarizeRun(report: BenchmarkRunReport): RunSummary {
             }),
           ),
         })),
+        ...(ranking
+          ? {
+              ranking: {
+                metric: ranking.metric,
+                cases: ranking.cases.map((rankedCase) => ({
+                  variant: rankedCase.variant,
+                  median: rankedCase.median,
+                  ratio: rankedCase.ratio,
+                  tie: isTie(rankedCase),
+                  ...(rankedCase.vsNext ? { relativeToNext: rankedCase.vsNext.relative } : {}),
+                })),
+              },
+            }
+          : {}),
       };
     }),
   };

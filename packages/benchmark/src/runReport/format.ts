@@ -1,10 +1,11 @@
-import { CONFIDENCE, runPrecision, tCritical } from './analyzeRun';
+import { CONFIDENCE, isTie, runPrecision, tCritical } from './analyzeRun';
 import type {
   BenchmarkAnalysis,
   Change,
   Interval,
   AlarmedChange,
   MetricComparison,
+  Ranking,
 } from './analyzeRun';
 import type { RunBenchmark, RunMetricDefinition } from './schema';
 
@@ -158,6 +159,8 @@ export interface BenchmarkTableColumn {
 }
 
 export interface BenchmarkTableRow {
+  /** What the row is about, unique in its table: a metric, or a ranking's case. */
+  key: string;
   metric: string;
   definition: RunMetricDefinition;
   cells: string[];
@@ -166,16 +169,67 @@ export interface BenchmarkTableRow {
 }
 
 /**
+ * A `compare()`'s results as a ranking: per case, best first, each metric's median, how many times
+ * the best case's it is on the ranking metric, and how it compares with the case ranked just above
+ * it — `tie` where the two can't be told apart.
+ */
+function rankingTable(
+  { benchmark, metrics }: BenchmarkAnalysis,
+  ranking: Ranking,
+): { columns: BenchmarkTableColumn[]; rows: BenchmarkTableRow[] } {
+  const [reference] = benchmark.variants;
+  const [first] = metrics;
+  const columns: BenchmarkTableColumn[] = [
+    { header: 'Case', kind: 'label' },
+    ...metrics.map(({ metric }, index) => ({
+      header: index === 0 ? `${metric} (ranked)` : metric,
+      kind: 'value' as const,
+    })),
+    { header: '× best', kind: 'value' },
+    { header: 'vs next', kind: 'value' },
+  ];
+  const rows = ranking.cases.map((rankedCase, index) => {
+    const next = ranking.cases[index - 1]?.variant;
+    let versusNext = '';
+    if (rankedCase.vsNext) {
+      versusNext = isTie(rankedCase)
+        ? `tie with ${next}`
+        : `${formatPercent(rankedCase.vsNext.relative)} vs ${next}`;
+    }
+    return {
+      key: rankedCase.variant,
+      metric: ranking.metric,
+      definition: first.definition,
+      comparisons: [],
+      cells: [
+        rankedCase.variant === reference ? `${rankedCase.variant} (reference)` : rankedCase.variant,
+        ...metrics.map(({ definition, variants }) =>
+          formatValue(variants[rankedCase.variant].median, definition),
+        ),
+        rankedCase.ratio === null ? '—' : `${rankedCase.ratio.toFixed(2)}×`,
+        versusNext,
+      ],
+    };
+  });
+  return { columns, rows };
+}
+
+/**
  * A benchmark's results as one table, for every renderer of it: per metric, each variant's median
- * and each comparison, and with `precision`, how precisely each comparison was pinned down.
+ * and each comparison, and with `precision`, how precisely each comparison was pinned down. A
+ * `compare()` is a ranking of its cases instead.
  */
 export function benchmarkTable(
-  { benchmark, metrics }: BenchmarkAnalysis,
+  analysis: BenchmarkAnalysis,
   { precision = false }: { precision?: boolean } = {},
 ): {
   columns: BenchmarkTableColumn[];
   rows: BenchmarkTableRow[];
 } {
+  if (analysis.ranking) {
+    return rankingTable(analysis, analysis.ranking);
+  }
+  const { benchmark, metrics } = analysis;
   // Builds read old to new, the baseline first, like a diff; compared cases keep the reference
   // first, as the comparison columns measure against it.
   const columnOrder =
@@ -200,6 +254,7 @@ export function benchmarkTable(
       : []),
   ];
   const rows = metrics.map(({ metric, definition, variants, comparisons }) => ({
+    key: metric,
     metric,
     definition,
     comparisons,

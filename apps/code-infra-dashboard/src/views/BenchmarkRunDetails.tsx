@@ -132,7 +132,7 @@ function BenchmarkTable({ analysis }: { analysis: BenchmarkAnalysis }) {
           </TableHead>
           <TableBody>
             {rows.map((row) => (
-              <TableRow key={row.metric}>
+              <TableRow key={row.key}>
                 {row.cells.map((cell, column) => {
                   const { kind, comparison } = columns[column];
                   return (

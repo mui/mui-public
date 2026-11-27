@@ -430,6 +430,11 @@ Every page load runs the whole benchmark file, so a static import reaches every 
 only one case needs inside that case, before the part it times: it then loads where that case runs
 only.
 
+A `compare()` reports a ranking on its first metric: the cases best first, each with its medians, how
+many times the best case's median it is, and how it compares with the case ranked just above it — as
+a paired interval, or `tie` where the two can't be told apart. The reference is marked, not ranked
+first. Record the metric to rank by first.
+
 ### How it measures
 
 The plugin generates a page per benchmark file under `src/__bench__/`. A benchmark file that imports

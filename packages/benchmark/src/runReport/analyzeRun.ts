@@ -91,10 +91,40 @@ export interface MetricAnalysis {
   comparisons: MetricComparison[];
 }
 
+/** A `compare()` case's place in its ranking. */
+export interface RankedCase {
+  variant: string;
+  /** Its median on the ranking metric. */
+  median: number;
+  /**
+   * How many times the best case's median it is: 1 for the best, more for the rest. `null` when the
+   * best case measured 0, which no ratio can be taken of.
+   */
+  ratio: number | null;
+  /**
+   * The case paired with the one ranked just above it, which tells a real gap from a tie; absent for
+   * the best case.
+   */
+  vsNext?: MetricComparison;
+}
+
+/** A `compare()`'s cases, best first, on its first metric. */
+export interface Ranking {
+  metric: string;
+  cases: RankedCase[];
+}
+
 export interface BenchmarkAnalysis {
   benchmark: RunBenchmark;
   /** Empty for a benchmark that failed. */
   metrics: MetricAnalysis[];
+  /** A `compare()`'s cases ranked on its first metric; absent otherwise, and when it failed. */
+  ranking?: Ranking;
+}
+
+/** Whether a ranked case can't be told apart from the one ranked just above it. */
+export function isTie(rankedCase: RankedCase): boolean {
+  return rankedCase.vsNext?.change === 'undetected' || rankedCase.vsNext?.change === 'unchanged';
 }
 
 /** The confidence level of every interval. */
@@ -393,24 +423,67 @@ export function compareBenchmark(
   };
 }
 
+/**
+ * Ranks a `compare()`'s cases on its first metric, best first: lowest, unless the metric's alarm says
+ * higher is better. Cases with the same median keep the order the `compare()` gave them. Each case is
+ * paired with the one just above it, as the samples are round-aligned across all of them.
+ */
+function rankingOf(benchmark: RunBenchmark, metrics: MetricAnalysis[]): Ranking | undefined {
+  const [first] = metrics;
+  if (benchmark.kind !== 'compare' || !first) {
+    return undefined;
+  }
+  const higherIsBetter = first.definition.alarm?.direction === 'higherIsBetter';
+  const medianOf = (variant: string) => first.variants[variant].median;
+  const order = [...benchmark.variants].sort((left, right) =>
+    higherIsBetter ? medianOf(right) - medianOf(left) : medianOf(left) - medianOf(right),
+  );
+  const best = medianOf(order[0]);
+  const sideOf = (name: string) => ({
+    name,
+    values: benchmark.samples?.[name]?.[first.metric] ?? [],
+  });
+  return {
+    metric: first.metric,
+    cases: order.map((variant, index) => {
+      const median = medianOf(variant);
+      let ratio: number | null = null;
+      if (best !== 0) {
+        ratio = higherIsBetter ? best / median : median / best;
+      }
+      return {
+        variant,
+        median,
+        ratio,
+        ...(index > 0
+          ? {
+              vsNext: compareSamples(sideOf(variant), sideOf(order[index - 1]), first.definition, {
+                alarm: null,
+              }),
+            }
+          : {}),
+      };
+    }),
+  };
+}
+
 /** Analyses one benchmark: its comparisons, and a summary of each variant's samples. */
 export function analyzeBenchmark(
   metrics: Record<string, RunMetricDefinition>,
   benchmark: RunBenchmark,
 ): BenchmarkAnalysis {
   const { samples } = benchmark;
-  return {
-    benchmark,
-    metrics: compareBenchmark(metrics, benchmark).metrics.map((comparison) => ({
-      ...comparison,
-      variants: Object.fromEntries(
-        benchmark.variants.map((variant) => [
-          variant,
-          summarizeSamples(samples?.[variant]?.[comparison.metric] ?? []),
-        ]),
-      ),
-    })),
-  };
+  const analyses = compareBenchmark(metrics, benchmark).metrics.map((comparison) => ({
+    ...comparison,
+    variants: Object.fromEntries(
+      benchmark.variants.map((variant) => [
+        variant,
+        summarizeSamples(samples?.[variant]?.[comparison.metric] ?? []),
+      ]),
+    ),
+  }));
+  const ranking = rankingOf(benchmark, analyses);
+  return { benchmark, metrics: analyses, ...(ranking ? { ranking } : {}) };
 }
 
 export function analyzeRun(report: BenchmarkRunReport): BenchmarkAnalysis[] {
