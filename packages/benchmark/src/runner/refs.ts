@@ -37,7 +37,7 @@ function committishOf(token: string | undefined): string {
  * The baseline token that leaves the baseline out: a run of `compare()`s only measures the working
  * tree, so building another revision would be wasted. `git:none` still names a revision.
  */
-export const NO_BASELINE = 'none';
+const NO_BASELINE = 'none';
 
 /** Resolves the baseline to the commit behind it, so a run stays interpretable after the fact. */
 export async function resolveBaselineRef(

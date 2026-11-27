@@ -377,6 +377,11 @@ interface PairedMetric {
   }>;
 }
 
+/** One variant's samples of a metric, as `compareSamples` takes a side. */
+function sideOf(benchmark: RunBenchmark, name: string, metric: string) {
+  return { name, values: benchmark.samples?.[name]?.[metric] ?? [] };
+}
+
 /** Every metric a benchmark reported, with the pairs of variants its kind compares on it. */
 function pairedMetricsOf(
   metrics: Record<string, RunMetricDefinition>,
@@ -391,14 +396,13 @@ function pairedMetricsOf(
     if (benchmark.kind === 'baseline' && override !== false) {
       alarm = override ? { ...definition.alarm, ...override } : (definition.alarm ?? null);
     }
-    const sideOf = (name: string) => ({ name, values: samples?.[name]?.[metric] ?? [] });
     return {
       metric,
       definition,
       alarm,
       pairs: pairsOf(benchmark).map(({ subject, against }) => ({
-        subject: sideOf(subject),
-        against: sideOf(against),
+        subject: sideOf(benchmark, subject, metric),
+        against: sideOf(benchmark, against, metric),
       })),
     };
   });
@@ -439,10 +443,7 @@ function rankingOf(benchmark: RunBenchmark, metrics: MetricAnalysis[]): Ranking 
     higherIsBetter ? medianOf(right) - medianOf(left) : medianOf(left) - medianOf(right),
   );
   const best = medianOf(order[0]);
-  const sideOf = (name: string) => ({
-    name,
-    values: benchmark.samples?.[name]?.[first.metric] ?? [],
-  });
+  const side = (variant: string) => sideOf(benchmark, variant, first.metric);
   return {
     metric: first.metric,
     cases: order.map((variant, index) => {
@@ -451,17 +452,14 @@ function rankingOf(benchmark: RunBenchmark, metrics: MetricAnalysis[]): Ranking 
       if (best !== 0) {
         ratio = higherIsBetter ? best / median : median / best;
       }
+      const next = order[index - 1];
       return {
         variant,
         median,
         ratio,
-        ...(index > 0
-          ? {
-              vsNext: compareSamples(sideOf(variant), sideOf(order[index - 1]), first.definition, {
-                alarm: null,
-              }),
-            }
-          : {}),
+        vsNext: next
+          ? compareSamples(side(variant), side(next), first.definition, { alarm: null })
+          : undefined,
       };
     }),
   };
@@ -482,8 +480,7 @@ export function analyzeBenchmark(
       ]),
     ),
   }));
-  const ranking = rankingOf(benchmark, analyses);
-  return { benchmark, metrics: analyses, ...(ranking ? { ranking } : {}) };
+  return { benchmark, metrics: analyses, ranking: rankingOf(benchmark, analyses) };
 }
 
 export function analyzeRun(report: BenchmarkRunReport): BenchmarkAnalysis[] {

@@ -188,13 +188,13 @@ function rankingTable(
     { header: '× best', kind: 'value' },
     { header: 'vs next', kind: 'value' },
   ];
-  const rows = ranking.cases.map((rankedCase, index) => {
-    const next = ranking.cases[index - 1]?.variant;
+  const rows = ranking.cases.map((rankedCase) => {
+    const { vsNext } = rankedCase;
     let versusNext = '';
-    if (rankedCase.vsNext) {
+    if (vsNext) {
       versusNext = isTie(rankedCase)
-        ? `tie with ${next}`
-        : `${formatPercent(rankedCase.vsNext.relative)} vs ${next}`;
+        ? `tie with ${vsNext.against}`
+        : `${formatPercent(vsNext.relative)} vs ${vsNext.against}`;
     }
     return {
       key: rankedCase.variant,
