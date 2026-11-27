@@ -185,10 +185,12 @@ parameter, is emitted as the union of its branches.
 
 An exported generic type alias whose condition tests its own type parameters is
 resolved further. The condition is checked with each tested type parameter set
-to `never` and to each member of its constraint (`unknown` without one), so a
-`boolean` or named union of literals is checked member by member. When every
-check picks the same branch, the export is that branch with the constraints
-substituted. It keeps its name and type arguments, and untested type parameters
+to `never`, to each member of its constraint (`unknown` without one), so a
+`boolean` or named union of literals is checked member by member, and to the
+whole constraint, which is what the export is resolved at. When every check
+picks the same branch, the export is that branch with the constraints
+substituted. A condition that tells the whole union apart from its members, such
+as `IsUnion<K>` or `boolean extends Multiple`, stays a union. It keeps its name and type arguments, and untested type parameters
 stay generic. For a condition that only flips one way as the type argument
 narrows, such as an `IsAny` guard, the branch holds for every type argument but
 `any`. A condition that isn't, such as an equality check against one literal of

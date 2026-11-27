@@ -15,6 +15,8 @@ interface Candidate {
   companionName: string;
   wideProbeName: string;
   narrowProbeName: string;
+  /** The condition at the whole constraint, which is what the companion is resolved at. */
+  fullProbeName: string;
   /** Declarations whose generated aliases the candidate's probes go through. */
   chain: ts.TypeAliasDeclaration[];
 }
@@ -36,10 +38,10 @@ interface Probe {
  * their own type parameters. Left generic, TypeScript cannot pick a branch of such a
  * conditional, so it resolves to every branch at once.
  *
- * The condition is checked with the tested type parameters set to `never`, and to each
- * member of their constraint (`unknown` without one), which covers `boolean` and named
- * unions of literals. When every check picks the same branch, the alias is resolved with the
- * constraints substituted. Untested type parameters stay generic, and the export keeps its
+ * The condition is checked with the tested type parameters set to `never`, to each member
+ * of their constraint (`unknown` without one), which covers `boolean` and named unions of
+ * literals, and to the whole constraint. When every check picks the same branch, the alias is
+ * resolved with the constraints substituted. Untested type parameters stay generic, and the export keeps its
  * name and type parameter list. For a condition that only flips one way as the type argument
  * narrows, such as an `IsAny` guard, the branch holds for every type argument but `any`; an
  * equality check against a type narrower than a constraint member, such as one literal of
@@ -194,6 +196,10 @@ export function substituteConditionalExports(
         declaration,
         `[${probe.name}<${typeParameters.map(() => 'never').join(', ')}>]`,
       ),
+      fullProbeName: writeAlias(
+        declaration,
+        `[${probe.name}<${getTypeArguments(getConstraint, () => 'never')}>]`,
+      ),
       chain: probe.chain,
     });
   }
@@ -219,7 +225,8 @@ export function substituteConditionalExports(
   for (const candidate of candidates.values()) {
     const wide = readProbe(candidate.wideProbeName, aliasesByName, companionChecker);
     const narrow = readProbe(candidate.narrowProbeName, aliasesByName, companionChecker);
-    if (wide === 'error' || narrow === 'error') {
+    const full = readProbe(candidate.fullProbeName, aliasesByName, companionChecker);
+    if (wide === 'error' || narrow === 'error' || full === 'error') {
       const failures = getFailures();
       const failed = candidate.chain.find((declaration) => failures.has(declaration));
       if (failed) {
@@ -227,7 +234,9 @@ export function substituteConditionalExports(
       }
       continue;
     }
-    if (wide !== narrow || (wide !== 'T' && wide !== 'F')) {
+    // The companion is resolved at the whole constraint, so it must take the same branch as
+    // its members: a condition like `IsUnion<K>` holds for `'a' | 'b'` and for neither member.
+    if (wide !== narrow || wide !== full || (wide !== 'T' && wide !== 'F')) {
       continue;
     }
 
