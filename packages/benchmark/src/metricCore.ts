@@ -1,12 +1,5 @@
 import type { MetricConfig, MetricKind } from './types';
 
-/** How the harness's time metrics are formatted. */
-export const MILLISECONDS: Intl.NumberFormatOptions = {
-  style: 'unit',
-  unit: 'millisecond',
-  maximumFractionDigits: 2,
-};
-
 export interface MetricRecordOptions {
   /** Sub-series label. Recorded under `${name}#${id}` in the report; omit for the base series. */
   id?: string;

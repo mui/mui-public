@@ -469,18 +469,13 @@ which costs the results precision.
 Apple Silicon runs its cores about half as fast after they have idled for ~200ms, and a sample starts
 after a pause: the garbage collection before it, or a wait for an idle main thread. Short work that
 starts right away, such as a mount, would then run on a slow core, and how much that costs depends on
-the shape of the work rather than on its amount. So on macOS on Apple Silicon, the harness warms the
-CPU up right before what it times: it spins a fixed chunk of work until the chunk runs as fast as on a
-warm CPU, which takes a chunk or two when the CPU is warm already, and at most 300ms. What warm means
-is measured once per file. The warm-up runs only where the harness's timing starts: before a case's
-`run`, and inside [`mainThreadTime()`](#measuring-the-main-thread) after its wait. That keeps it out of
-what is timed, which is also why it is not for a benchmark to call. Each sample records its longest
-warm-up as `cpu:warmup`, which never alarms; a value near 300ms means the CPU never got warm.
-
-It doesn't cover timing that starts later in a sample: a `reactRecordingPaused` case's renders and
-paint, timed from `resumeReactRecording()`, or a case's own clock read after an `await`. And it
-assumes one CPU speed per file: a case that throttles the CPU through
-`Emulation.setCPUThrottlingRate` makes warm chunks look cold, so run it without the warm-up.
+the shape of the work rather than on its amount. So on macOS on Apple Silicon, the harness spins the
+CPU for 200ms right before what it times, as Speedometer 3 does (`warmupBeforeSync`); 50ms was measured
+not to be enough. It spins only where the harness's timing starts: before a case's `run`, and inside
+[`mainThreadTime()`](#measuring-the-main-thread) after its wait. That keeps it out of what is timed,
+which is also why it is not for a benchmark to call. It doesn't cover timing that starts later in a
+sample: a `reactRecordingPaused` case's renders and paint, timed from `resumeReactRecording()`, or a
+case's own clock read after an `await`.
 
 Set `cpuWarmup` on `benchmarkPlugin()`, or `BENCHMARK_CPU_WARMUP`, to force it on or off:
 `BENCHMARK_CPU_WARMUP=1` to find out whether another machine needs it, or on Apple Silicon under an
@@ -490,14 +485,12 @@ only with results run the same way. The Vitest harness never warms up.
 #### Measuring the main thread
 
 `mainThreadTime(context)` and `mainThreadTimeEnd(context)` from `@mui/internal-benchmark/page`
-measure what the main thread does between them, read from Chromium's activity counters: its task
-time, layout and style recalculation counts, how much the JavaScript heap grew, and the wall-clock
-time. `mainThreadTime()` waits for an idle thread first, so earlier work such as the mount isn't
-counted; `mainThreadTimeEnd()` waits for the thread to fall idle again, so trailing work is, and
-throws when the thread never goes quiet, such as under an endless animation. Task time counts the
-work of code that draws outside React as well, which render durations don't see, so it compares any
-two implementations of an interaction. Nothing is recorded: record what `mainThreadTimeEnd()`
-returns.
+measure the main thread's task time between them, read from Chromium's activity counters.
+`mainThreadTime()` waits for an idle thread first, so earlier work such as the mount isn't counted;
+`mainThreadTimeEnd()` waits for the thread to fall idle again, so trailing work is, and throws when the
+thread never goes quiet, such as under an endless animation. Task time counts the work of code that
+draws outside React as well, which render durations don't see, so it compares any two implementations
+of an interaction. Nothing is recorded: record what `mainThreadTimeEnd()` returns.
 
 Task time leaves out the renderer's DevTools command handling, so that reading the counters doesn't
 bill itself. Every `context.cdp.send()` therefore resolves in a task of its own: code after an

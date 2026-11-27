@@ -29,7 +29,12 @@ export type BenchmarkInteraction = (ctx: InteractionContext) => Promise<void> | 
  */
 export const PAINT_METRIC_NAME = 'bench:paint';
 
-export { MILLISECONDS } from './metricCore';
+/** How the harness's time metrics are formatted. */
+export const MILLISECONDS: Intl.NumberFormatOptions = {
+  style: 'unit',
+  unit: 'millisecond',
+  maximumFractionDigits: 2,
+};
 
 // React's production build reports no renders, so an empty recording is expected there.
 const REPORTS_RENDERS = process.env.BENCHMARK_REACT_PROFILING !== 'false';

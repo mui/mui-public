@@ -15,12 +15,11 @@ interface PerformanceMetric {
 // session once a page has enabled it, so a later page only sends the command again.
 let performanceDomainEnabled = false;
 
-/** The counters a measurement is computed from, each one required. */
+/** The counters read: task time, which is measured, and the counts that tell an idle thread. */
 interface Counters {
   taskMs: number;
   layoutCount: number;
   styleCount: number;
-  heapBytes: number;
 }
 
 /**
@@ -56,7 +55,6 @@ async function readCounters(cdp: BenchmarkCdp): Promise<Counters> {
     taskMs: (value('TaskDuration') - value('DevToolsCommandDuration')) * 1000,
     layoutCount: value('LayoutCount'),
     styleCount: value('RecalcStyleCount'),
-    heapBytes: value('JSHeapUsedSize'),
   };
 }
 
@@ -113,16 +111,10 @@ async function waitForMainThreadIdle(cdp: BenchmarkCdp): Promise<Counters> {
 export interface MainThreadMeasurement {
   /** Main-thread task time, in milliseconds: every task, whatever its kind. */
   taskMs: number;
-  layoutCount: number;
-  styleCount: number;
-  /** How much the used JavaScript heap grew, in bytes; negative when a collection ran. */
-  heapDeltaBytes: number;
-  /** From `mainThreadTime()` resolving to `mainThreadTimeEnd()` being called, in milliseconds. */
-  wallMs: number;
 }
 
 /** The window `mainThreadTime()` opened, until `mainThreadTimeEnd()` closes it. */
-let openWindow: { counters: Counters; start: number; openedAt: string } | null = null;
+let openWindow: { counters: Counters; openedAt: string } | null = null;
 
 /**
  * Starts measuring what the main thread does, until `mainThreadTimeEnd()`. Waits for an idle thread
@@ -144,7 +136,7 @@ export async function mainThreadTime({ cdp }: { cdp: BenchmarkCdp }): Promise<vo
   // A reading of its own, after the warm-up: the spinning ends the task the reading is taken after.
   warmUpCpu();
   const counters = await readCounters(cdp);
-  openWindow = { counters, start: performance.now(), openedAt };
+  openWindow = { counters, openedAt };
 }
 
 /**
@@ -162,17 +154,9 @@ export async function mainThreadTimeEnd({
   if (!window) {
     throw new Error('mainThreadTimeEnd() was called without a matching mainThreadTime().');
   }
-  const wallMs = performance.now() - window.start;
   openWindow = null;
   const after = await waitForMainThreadIdle(cdp);
-  const before = window.counters;
-  return {
-    taskMs: after.taskMs - before.taskMs,
-    layoutCount: after.layoutCount - before.layoutCount,
-    styleCount: after.styleCount - before.styleCount,
-    heapDeltaBytes: after.heapBytes - before.heapBytes,
-    wallMs,
-  };
+  return { taskMs: after.taskMs - window.counters.taskMs };
 }
 
 /**

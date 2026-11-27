@@ -1,8 +1,7 @@
 import { collectGarbage } from '../gc';
 import type { BenchmarkCdp, CdpSend } from '../cdp';
-import { MILLISECONDS, seriesName, setMetricRecorder } from '../metricCore';
-import { ScalarMetric } from '../ScalarMetric';
-import { takeLongestWarmupMs, warmUpCpu } from './warmUpCpu';
+import { seriesName, setMetricRecorder } from '../metricCore';
+import { warmUpCpu } from './warmUpCpu';
 import { discardOpenWindow } from './mainThread';
 import { benchmarkTrackDetail } from './trace';
 import { getSampling } from '../sampling';
@@ -193,12 +192,6 @@ const send: CdpSend = async (method, params) => {
 };
 const cdp: BenchmarkCdp = { send };
 
-/**
- * A sample's longest CPU warm-up. Informational, and recorded after the case's own metrics so a
- * `compare()` never ranks by it.
- */
-const warmupMetric = new ScalarMetric({ name: 'cpu:warmup', format: MILLISECONDS });
-
 async function sample(name: string): Promise<Record<string, number>> {
   const run = cases.get(name)?.run;
   if (!run) {
@@ -212,20 +205,13 @@ async function sample(name: string): Promise<Record<string, number>> {
 
   const values = new Map<string, number>();
   sampleValues = values;
-  let recorded = 0;
   let forgottenWindow: string | undefined;
-  takeLongestWarmupMs();
   // Right before the case runs, after the collection: a case that times from its start, such as a
   // React mount, starts on a warm core.
   warmUpCpu();
   const runStart = performance.now();
   try {
     await run({ cdp });
-    recorded = values.size;
-    const longestWarmupMs = takeLongestWarmupMs();
-    if (longestWarmupMs !== undefined) {
-      warmupMetric.record(longestWarmupMs);
-    }
   } finally {
     sampleValues = null;
     // Closed on a failed run too, so that the next sample doesn't inherit it.
@@ -250,7 +236,7 @@ async function sample(name: string): Promise<Record<string, number>> {
         `the sample ends. The window started at:\n${forgottenWindow}`,
     );
   }
-  if (recorded === 0) {
+  if (values.size === 0) {
     const hint =
       process.env.BENCHMARK_REACT_PROFILING === 'false'
         ? "React's production build reports no render durations, so a case that only measures " +
