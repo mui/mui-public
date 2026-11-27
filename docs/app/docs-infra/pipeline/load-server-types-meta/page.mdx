@@ -193,6 +193,8 @@ Converts raw TypeScript exports to formatted metadata based on their detected ca
 - **Classes** (`formatClassData`) — extracts constructor parameters, properties, and methods.
 - **Raw types** (`formatRawData`) — formats the type declaration as code. Enums and constant groups are declared as they are exported, with a member table for groups not matched to a component.
 
+Before formatting, the variant's type name map is extended with the declared names of the types it re-exports under another name, so a type shared with another entrypoint prints under the documented entrypoint's namespace: `DateFieldSectionToken`, re-exported as `TimeFieldSectionToken`, prints as `TimeField.Section.Token`.
+
 Each formatter calls `rewriteTypeStringsDeep` at the end, which applies the type compatibility map from step 4 to normalize all type references. Rewrites use word-boundary matching to prevent partial replacements (for example, `Dialog` won't match inside `AlertDialog`).
 
 During formatting, `formatType` also collects **external types** — types referenced in props that aren't publicly exported from the component's module. This includes named union types (for example, `Orientation = 'horizontal' | 'vertical'`), named function types, and external type references that resolve to unions or literals. Collection happens inline during type formatting rather than as a separate tree walk, so only types that actually appear in the formatted output are collected.
