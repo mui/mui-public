@@ -470,6 +470,33 @@ Run it with at least 3 logical CPUs (vCPUs in CI); it warns with fewer. On 2, V8
 compilers are starved, so how fast the same code runs depends on how its compilation happened to go,
 which costs the results precision.
 
+#### Measuring the main thread
+
+`mainThreadTime(context)` and `mainThreadTimeEnd(context)` from `@mui/internal-benchmark/page`
+measure the main thread's task time between them, read from Chromium's activity counters.
+`mainThreadTime()` waits for an idle thread first, so earlier work such as the mount isn't counted;
+`mainThreadTimeEnd()` waits for the thread to fall idle again, so trailing work is, and throws when the
+thread never goes quiet, such as under an endless animation. Task time counts the work of code that
+draws outside React as well, which render durations don't see, so it compares any two implementations
+of an interaction. Nothing is recorded: record what `mainThreadTimeEnd()` returns.
+
+```tsx
+const interactionTask = new ScalarMetric({ name: 'task:interaction', alarm: {} });
+
+reactBenchmark(
+  'zoom',
+  () => <Chart />,
+  async (context) => {
+    await mainThreadTime(context);
+    await zoom(context);
+    interactionTask.record((await mainThreadTimeEnd(context)).taskMs);
+  },
+);
+```
+
+One window is open at a time: `mainThreadTime()` throws while one is, and a sample that leaves one
+open fails.
+
 ### Sampling
 
 How many rounds a benchmark is measured for adapts to its results, the way tachometer's
@@ -630,5 +657,6 @@ built-in one rather than replacing it, which would drop the `--expose-gc` the fo
 - `ElementTiming` — invisible marker component for paint timing (renders a `<span>` tracked by the Element Timing API)
 - `ScalarMetric` — record a continuous custom measurement (with a `console.time`-style timing helper)
 - `DiscreteMetric` — record a discrete custom count
+- `mainThreadTime` / `mainThreadTimeEnd` (`@mui/internal-benchmark/page`) — main-thread task time between them (see [Measuring the main thread](#measuring-the-main-thread))
 - `createBenchmarkVitestConfig` — create a Vitest config with browser benchmarking defaults
 - `BenchmarkReporter` — Vitest reporter that collects and outputs benchmark results

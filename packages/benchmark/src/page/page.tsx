@@ -1,6 +1,7 @@
 import { collectGarbage } from '../gc';
 import type { BenchmarkCdp, CdpSend } from '../cdp';
 import { seriesName, setMetricRecorder } from '../metricCore';
+import { discardOpenWindow } from './mainThread';
 import { getSampling } from '../sampling';
 import type { SamplingOptions } from '../sampling';
 import type { MetricDefinition } from '../types';
@@ -209,11 +210,14 @@ async function sample(name: string): Promise<Record<string, number>> {
 
   const values = new Map<string, number>();
   sampleValues = values;
+  let forgottenWindow: string | undefined;
   const runStart = performance.now();
   try {
     await run({ cdp });
   } finally {
     sampleValues = null;
+    // Closed on a failed run too, so that the next sample doesn't inherit it.
+    forgottenWindow = discardOpenWindow();
     // The collection and the run as spans of a trace, written after the run so that only reading
     // the clock happens between the two.
     performance.measure('collect', {
@@ -228,6 +232,12 @@ async function sample(name: string): Promise<Record<string, number>> {
     });
   }
 
+  if (forgottenWindow !== undefined) {
+    throw new Error(
+      `Benchmark "${name}" left a mainThreadTime() window open: call mainThreadTimeEnd() before ` +
+        `the sample ends. The window started at:\n${forgottenWindow}`,
+    );
+  }
   if (values.size === 0) {
     const hint =
       process.env.BENCHMARK_REACT_PROFILING === 'false'
