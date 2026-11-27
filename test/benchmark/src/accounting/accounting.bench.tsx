@@ -26,8 +26,8 @@ import { SMOKE_SAMPLING } from '../_shared/sampling';
  *   a task of its own, work that a benchmark does right after an awaited call (`mainThreadTime()`
  *   ends with one) goes uncounted: 50ms of work measured as under 1ms before that was fixed.
  * - **Work in a later task.** The ordinary case, which must keep reading its full length.
- * - **A second window.** It would run its wait for an idle thread inside the first one, so
- *   `mainThreadTime()` must reject it.
+ * - **A second window.** It would run its wait for an idle thread and its CPU warm-up inside the
+ *   first one, so `mainThreadTime()` must reject it.
  *
  * A failure here means comparisons measured with these functions can't be trusted until it's fixed.
  */

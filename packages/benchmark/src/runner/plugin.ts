@@ -6,6 +6,7 @@ import { discoverBenchFiles, writeBenchPages } from './benchFiles';
 import type { BenchFile } from './benchFiles';
 import { buildsDirOf, prepareOutputDir } from './outputDir';
 import { reactProfilingConfig, resolveReactProfiling } from '../reactProfiling';
+import { cpuWarmupDefine, resolveCpuWarmup } from '../cpuWarmup';
 
 /**
  * Vite plugin for a benchmark harness.
@@ -36,6 +37,11 @@ export interface BenchmarkPluginOptions {
    * reports no render durations. Also settable via `BENCHMARK_REACT_PROFILING`.
    */
   reactProfiling?: boolean;
+  /**
+   * Whether the pages warm the CPU up right before what they time: on by default for macOS on Apple
+   * Silicon only (see "Warming the CPU up" in the README). Also settable via `BENCHMARK_CPU_WARMUP`.
+   */
+  cpuWarmup?: boolean;
 }
 
 declare module 'vite' {
@@ -116,6 +122,7 @@ export function benchmarkPlugin(options: BenchmarkPluginOptions = {}): Plugin {
   const harnessDir = options.harnessDir ?? process.cwd();
   const srcDir = path.join(harnessDir, 'src');
   const reactConfig = reactProfilingConfig(resolveReactProfiling(options.reactProfiling));
+  const warmupDefine = cpuWarmupDefine(resolveCpuWarmup(options.cpuWarmup));
   let benchFiles: BenchFile[] = [];
 
   return {
@@ -164,7 +171,7 @@ export function benchmarkPlugin(options: BenchmarkPluginOptions = {}): Plugin {
         root: srcDir,
         appType: 'mpa' as const,
         resolve: { dedupe: ['react', 'react-dom'], alias: reactConfig.alias },
-        define: reactConfig.define,
+        define: { ...reactConfig.define, ...warmupDefine },
       };
 
       if (env.command !== 'build') {

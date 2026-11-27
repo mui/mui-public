@@ -470,6 +470,24 @@ Run it with at least 3 logical CPUs (vCPUs in CI); it warns with fewer. On 2, V8
 compilers are starved, so how fast the same code runs depends on how its compilation happened to go,
 which costs the results precision.
 
+#### Warming the CPU up
+
+Apple Silicon runs its cores about half as fast after they have idled for ~200ms, and a sample starts
+after a pause: the garbage collection before it, or a wait for an idle main thread. Short work that
+starts right away, such as a mount, would then run on a slow core, and how much that costs depends on
+the shape of the work rather than on its amount. So on macOS on Apple Silicon, the harness spins the
+CPU for 200ms right before what it times, as Speedometer 3 does (`warmupBeforeSync`); 50ms was measured
+not to be enough. It spins only where the harness's timing starts: before a case's `run`, and inside
+[`mainThreadTime()`](#measuring-the-main-thread) after its wait. That keeps it out of what is timed,
+which is also why it is not for a benchmark to call. It doesn't cover timing that starts later in a
+sample: a `reactRecordingPaused` case's renders and paint, timed from `resumeReactRecording()`, or a
+case's own clock read after an `await`.
+
+Set `cpuWarmup` on `benchmarkPlugin()`, or `BENCHMARK_CPU_WARMUP`, to force it on or off:
+`BENCHMARK_CPU_WARMUP=1` to find out whether another machine needs it, or on Apple Silicon under an
+x64 Node (Rosetta), which reads as another architecture; `0` to measure without it. Compare results
+only with results run the same way. The Vitest harness never warms up.
+
 #### Measuring the main thread
 
 `mainThreadTime(context)` and `mainThreadTimeEnd(context)` from `@mui/internal-benchmark/page`

@@ -1,7 +1,9 @@
 import { collectGarbage } from '../gc';
 import type { BenchmarkCdp, CdpSend } from '../cdp';
 import { seriesName, setMetricRecorder } from '../metricCore';
+import { warmUpCpu } from './warmUpCpu';
 import { discardOpenWindow } from './mainThread';
+import { benchmarkTrackDetail } from './trace';
 import { getSampling } from '../sampling';
 import type { SamplingOptions } from '../sampling';
 import type { MetricDefinition } from '../types';
@@ -162,14 +164,6 @@ declare global {
 }
 
 /**
- * Puts a sample's spans on a "Benchmark" track of their own in a DevTools trace, through the
- * Performance panel's extensibility API; elsewhere, the `detail` is just data.
- */
-function benchmarkTrackDetail(color: 'primary' | 'tertiary') {
-  return { devtools: { dataType: 'track-entry', track: 'Benchmark', color } };
-}
-
-/**
  * Resolves in a task of its own. A message rather than a timer, which nested timers would clamp to
  * 4ms.
  */
@@ -207,10 +201,14 @@ async function sample(name: string): Promise<Record<string, number>> {
   performance.clearMeasures();
   const collectStart = performance.now();
   await collectGarbage();
+  const collectEnd = performance.now();
 
   const values = new Map<string, number>();
   sampleValues = values;
   let forgottenWindow: string | undefined;
+  // Right before the case runs, after the collection: a case that times from its start, such as a
+  // React mount, starts on a warm core.
+  warmUpCpu();
   const runStart = performance.now();
   try {
     await run({ cdp });
@@ -219,10 +217,10 @@ async function sample(name: string): Promise<Record<string, number>> {
     // Closed on a failed run too, so that the next sample doesn't inherit it.
     forgottenWindow = discardOpenWindow();
     // The collection and the run as spans of a trace, written after the run so that only reading
-    // the clock happens between the two.
+    // the clock happens between them. Each warm-up writes its own.
     performance.measure('collect', {
       start: collectStart,
-      end: runStart,
+      end: collectEnd,
       detail: benchmarkTrackDetail('tertiary'),
     });
     performance.measure('run', {

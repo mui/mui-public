@@ -1,4 +1,5 @@
 import type { BenchmarkCdp } from '../cdp';
+import { warmUpCpu } from './warmUpCpu';
 
 // What the main thread did over a stretch of a benchmark, read from Chromium's activity counters over
 // the DevTools Protocol (`Performance.getMetrics`). It counts the work of code that draws outside
@@ -117,20 +118,24 @@ let openWindow: { counters: Counters; openedAt: string } | null = null;
 
 /**
  * Starts measuring what the main thread does, until `mainThreadTimeEnd()`. Waits for an idle thread
- * first, so that earlier work, such as the mount, isn't counted.
+ * first, so that earlier work, such as the mount, isn't counted, and warms the CPU up after that
+ * wait when the pages warm up, so that what follows doesn't start on an idled core.
  *
- * One window at a time: a second one would run its own wait inside the first.
+ * One window at a time: a second one would run its own wait and warm-up inside the first.
  */
 export async function mainThreadTime({ cdp }: { cdp: BenchmarkCdp }): Promise<void> {
   if (openWindow) {
     throw new Error(
       'mainThreadTime() was called while a window is already open: its wait for an idle thread ' +
-        'would land inside the open window. Close it with ' +
+        'and its CPU warm-up would land inside the open window. Close it with ' +
         `mainThreadTimeEnd() first. The open window started at:\n${openWindow.openedAt}`,
     );
   }
   const openedAt = new Error().stack?.split('\n').slice(2).join('\n') ?? '(unknown)';
-  const counters = await waitForMainThreadIdle(cdp);
+  await waitForMainThreadIdle(cdp);
+  // A reading of its own, after the warm-up: the spinning ends the task the reading is taken after.
+  warmUpCpu();
+  const counters = await readCounters(cdp);
   openWindow = { counters, openedAt };
 }
 
